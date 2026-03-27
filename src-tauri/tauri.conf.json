@@ -33,6 +33,6 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": ["lib/**/*", "shaders/ambient-lite.glsl", "shaders/FSRCNNX_x2_8-0-4-1.glsl"]
+    "resources": ["lib/**/*", "shaders/ambient-lite.glsl"]
   }
 }
