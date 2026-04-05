@@ -7,6 +7,7 @@ import { isVideoFile } from "./utils/isVideoFile.js";
 import { lerp } from "./utils/lerp.js";
 import * as mpv from "./libmpv/libmpv.js";
 import * as ui from "./ui/ui.js";
+import * as smtc from "./smtc/smtc.js";
 
 // --- Constants ----------------------------------------------------------------
 
@@ -15,16 +16,18 @@ const OVERLAY_HIDE_DELAY_MS = 3000;
 const DOUBLE_CLICK_DELAY_MS = 250;
 
 const OBSERVED_PROPERTIES = [
-  ["time-pos", "double", "none"],
-  ["percent-pos", "double", "none"],
-  ["duration", "double", "none"],
-  ["filename", "string", "none"],
-  ["pause", "flag"],
-  ["mute", "flag"],
-  ["volume", "double"],
-  ["speed", "double"],
-  ["eof-reached", "flag", "none"],
-  ["panscan", "double", "none"],
+    ["time-pos", "double", "none"],
+    ["percent-pos", "double", "none"],
+    ["duration", "double", "none"],
+    ["filename", "string", "none"],
+    ["pause", "flag"],
+    ["mute", "flag"],
+    ["volume", "double"],
+    ["speed", "double"],
+    ["eof-reached", "flag", "none"],
+    ["panscan", "double", "none"],
+    ["sid", "string", "none"],
+    ["aid", "string", "none"],
 ];
 
 // --- Variables ----------------------------------------------------------------
@@ -34,109 +37,170 @@ let duration = 0;
 // --- mpv init -----------------------------------------------------------------
 
 const mpvConfig = {
-  // prettier-ignore
-  initialOptions: {
-    "border-background": "blur",
-    "background-blur-radius": "50",
-    "deband": "yes",
-    "deband-iterations": "8",
-    "force-window": "yes",
-    "hwdec": "auto-safe",
-    "keep-open": "yes",
-    "pause": "no",
-    "sub-visibility": "no",
-    "vo": "gpu-next",
-    // "sub-ass-vsfilter-aspect-compat": "no",
-    // "sub-use-margins": "yes",
-    // "sub-ass-use-video-data": "no",
-    // "stretch-image-subs-to-screen": "yes", // handles PGS/VOBSUB
-  },
-  observedProperties: OBSERVED_PROPERTIES,
+    initialOptions: {
+        "border-background": "blur",
+        "background-blur-radius": "50",
+        deband: "yes",
+        "deband-iterations": "8",
+        "force-window": "yes",
+        hwdec: "auto-safe",
+        "keep-open": "yes",
+        pause: "no",
+        "sub-visibility": "yes",
+        sid: "no",
+        vo: "gpu-next",
+    },
+    observedProperties: OBSERVED_PROPERTIES,
 };
 
 try {
-  console.log("MPV loading");
-  await mpv.init(mpvConfig);
-  Object.keys(mpvConfig.initialOptions).forEach(async (key) => {
-    await mpv.setProperty(key, mpvConfig.initialOptions[key]);
-  });
-  await mpv.setProperty("pause", "no");
-  duration = await mpv.getProperty("duration", "double").catch(() => 0);
-  ui.setDuration(duration);
-  ui.setFilename(await mpv.getProperty("filename", "string").catch(() => ""));
-  setAmbientAspectRatio();
-  await populateTracksMenu();
-  console.log("MPV initialized");
+    console.log("MPV loading");
+    await mpv.init(mpvConfig);
+    await Object.keys(mpvConfig.initialOptions).forEach(async (key) => {
+        await mpv.setProperty(key, mpvConfig.initialOptions[key]);
+    });
+
+    const videoPath = await invoke("get_startup_file");
+    loadVideo(videoPath);
+
+    setAmbientAspectRatio();
+    console.log("MPV initialized");
 } catch (err) {
-  console.error("MPV initialization failed:", err);
+    console.error("MPV initialization failed:", err);
 }
 
 // --- Property observation -----------------------------------------------------
 
 mpv.observeProperties(OBSERVED_PROPERTIES, ({ name, data }) => {
-  // prettier-ignore
-  switch (name) {
-    case "time-pos":     ui.setCurrentTime(data);         break;
-    case "percent-pos":  ui.setProgress(data);            break;
-    case "duration":     ui.setDuration(duration = data); break;
-    case "filename":     ui.setFilename(data);            break;
-    case "pause":        ui.setPause(data);               break;
-    case "mute":         ui.setMute(data);                break;
-    case "volume":       ui.setVolume(data);              break;
-    case "speed":        /* no UI yet */                  break;
-    case "panscan":      ui.setPanscan(data); setAmbientAspectRatio(); break;
-    case "eof-reached":  console.log("EOF");              break;
+    // prettier-ignore
+    switch (name) {
+    case "time-pos":     onTimePosChanged(data);    break;
+    case "percent-pos":  onPercentPosChanged(data); break;
+    case "duration":     onDurationChanged(data);   break;
+    case "filename":     onFilenameChanged(data);   break;
+    case "pause":        onPauseChanged(data);      break;
+    case "mute":         onMuteChanged(data);       break;
+    case "volume":       onVolumeChanged(data);     break;
+    case "speed":        onSpeedChanged(data);      break;
+    case "panscan":      onPanscanChanged(data);    break;
+    case "eof-reached":  onEOFReached(data);        break;
+    case "sid":          onSIDChanged(data);        break;
+    case "aid":          onAIDChanged(data);        break;
     default: console.warn("Unhandled property:", name);
   }
 });
 
+function onTimePosChanged(timePos) {
+    ui.setCurrentTime(timePos);
+}
+
+function onPercentPosChanged(percentPos) {
+    ui.setProgress(percentPos);
+}
+
+function onDurationChanged(data) {
+    duration = data;
+    ui.setDuration(data);
+}
+
+function onFilenameChanged(filename) {
+    ui.setFilename(filename);
+    smtc.setMetadata(filename);
+    populateTrackListMenu();
+}
+
+function onPauseChanged(pause) {
+    ui.setPause(pause);
+    smtc.setPlayback(!pause);
+}
+
+function onMuteChanged(mute) {
+    ui.setMute(mute);
+}
+
+function onVolumeChanged(volume) {
+    ui.setVolume(volume);
+}
+
+function onSpeedChanged(speed) {}
+
+function onPanscanChanged(panscan) {
+    ui.setPanscan(panscan);
+    setAmbientAspectRatio();
+}
+
+function onEOFReached(data) {}
+
+function onSIDChanged(sid) {
+    ui.setSelectedSubtitleTrack(sid);
+}
+
+function onAIDChanged(aid) {
+    ui.setSelectedAudioTrack(aid);
+}
+
 // --- Window event listeners -------------------------------------------------
 
 listen("tauri://resize", () => {
-  setAmbientAspectRatio();
+    setAmbientAspectRatio();
+});
+
+listen("tauri://open-file", (event) => {
+    loadVideo(event.payload);
 });
 
 // --- Playlist helpers ---------------------------------------------------------
 
-function loadPlaylist(playlistPath, fileIndex) {
-  mpv.command("loadlist", [playlistPath, "replace"]).then(() => {
-    mpv.command("playlist-play-index", [fileIndex]);
-    // Small delay to allow the file to load before unpausing / refreshing tracks
-    setTimeout(() => {
-      mpv.setProperty("pause", "no");
-      populateTracksMenu();
-    }, 100);
-  });
+function loadVideo(videoPath) {
+    if (videoPath && isVideoFile(videoPath)) {
+        invoke("playlist_from_video", { videoPath }).then(([playlistPath, fileIndex]) => {
+            loadPlaylist(playlistPath, fileIndex);
+        });
+    }
 }
 
-async function populateTracksMenu() {
-  const tracks = JSON.parse(await mpv.getProperty("track-list", "string"));
-  const subtitles = tracks.filter((t) => t.type === "sub");
-  const audioTracks = tracks.filter((t) => t.type === "audio");
+function loadPlaylist(playlistPath, fileIndex) {
+    mpv.command("loadlist", [playlistPath, "replace"]).then(() => {
+        mpv.command("playlist-play-index", [fileIndex]);
+        // Small delay to allow the file to load before unpausing / refreshing track-list
+        setTimeout(() => {
+            mpv.setProperty("pause", "no");
+        }, 100);
+    });
+}
 
-  ui.populateSubtitlesMenu(
-    subtitles,
-    (id) => {
-      mpv.setProperty("sid", id.toString()).then(() => mpv.setProperty("sub-visibility", "yes"));
-    },
-    () => mpv.setProperty("sub-visibility", "no"),
-  );
+async function populateTrackListMenu() {
+    const trackListString = await mpv.getProperty("track-list", "string");
+    const trackList = JSON.parse(trackListString);
+    const subtitle = trackList.filter((t) => t.type === "sub");
+    const audio = trackList.filter((t) => t.type === "audio");
 
-  ui.populateAudioTracksMenu(audioTracks, (id) => {
-    mpv.setProperty("aid", id.toString());
-  });
+    const selectedSubtitleId = subtitle.find((t) => t.selected)?.id ?? "no";
+    const selectedAudioId = audio.find((t) => t.selected)?.id;
+
+    ui.populateSubtitleTrackMenu(
+        subtitle,
+        (id) =>
+            mpv
+                .setProperty("sid", id.toString())
+                .then(() => mpv.setProperty("sub-visibility", "yes")),
+        () => mpv.setProperty("sid", "no"),
+    );
+
+    ui.populateAudioTrackMenu(audio, (id) => {
+        mpv.setProperty("aid", id.toString());
+    });
+
+    ui.setSelectedSubtitleTrack(selectedSubtitleId);
+    ui.setSelectedAudioTrack(selectedAudioId);
 }
 
 // --- Drag & drop --------------------------------------------------------------
 
 getCurrentWebview().onDragDropEvent((event) => {
-  if (event.payload.type !== "drop") return;
-  const videoPath = event.payload.paths[0]?.toString();
-  if (videoPath && isVideoFile(videoPath)) {
-    invoke("playlist_from_video", { videoPath }).then(([playlistPath, fileIndex]) => {
-      loadPlaylist(playlistPath, fileIndex);
-    });
-  }
+    if (event.payload.type !== "drop") return;
+    const videoPath = event.payload.paths[0]?.toString();
+    loadVideo(videoPath);
 });
 
 // --- Overlay show/hide -------------------------------------------------------
@@ -144,9 +208,9 @@ getCurrentWebview().onDragDropEvent((event) => {
 let hideTimer = null;
 
 function showOverlay() {
-  ui.setOverlay(true);
-  clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => ui.setOverlay(false), OVERLAY_HIDE_DELAY_MS);
+    ui.setOverlay(true);
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => ui.setOverlay(false), OVERLAY_HIDE_DELAY_MS);
 }
 
 const overlay = document.getElementById("overlay");
@@ -157,38 +221,62 @@ overlay.addEventListener("mouseleave", () => ui.setOverlay(false));
 
 // --- Playback controls --------------------------------------------------------
 
+function pause() {
+    mpv.setProperty("pause", "yes");
+}
+
+function play() {
+    mpv.setProperty("pause", "no");
+}
+
 function togglePause() {
-  mpv.getProperty("pause", "bool").then((paused) => {
-    mpv.setProperty("pause", paused === "yes" ? "no" : "yes");
-  });
-}
-
-function toggleMute() {
-  mpv.getProperty("mute", "bool").then((muted) => {
-    mpv.setProperty("mute", muted === "yes" ? "no" : "yes");
-  });
-}
-
-function toggleFullscreen() {
-  getCurrentWindow()
-    .isFullscreen()
-    .then((isFs) => {
-      getCurrentWindow().setFullscreen(!isFs);
-      ui.setFullscreen(!isFs);
+    mpv.getProperty("pause", "bool").then((paused) => {
+        mpv.setProperty("pause", paused === "yes" ? "no" : "yes");
     });
 }
 
+function toggleMute() {
+    mpv.getProperty("mute", "bool").then((muted) => {
+        mpv.setProperty("mute", muted === "yes" ? "no" : "yes");
+    });
+}
+
+function toggleFullscreen() {
+    getCurrentWindow()
+        .isFullscreen()
+        .then((isFs) => {
+            getCurrentWindow().setFullscreen(!isFs);
+            ui.setFullscreen(!isFs);
+        });
+}
+
 function togglePanscan() {
-  mpv.getProperty("panscan", "double").then((panscan) => {
-    const next = panscan === 1 ? 0 : 1;
-    mpv.setProperty("panscan", next);
-  });
+    mpv.getProperty("panscan", "double").then((panscan) => {
+        const next = panscan === 1 ? 0 : 1;
+        mpv.setProperty("panscan", next);
+    });
 }
 
 function seek(seconds) {
-  mpv.getProperty("time-pos", "double").then((pos) => {
-    mpv.setProperty("time-pos", pos + seconds);
-  });
+    mpv.getProperty("time-pos", "double").then((pos) => {
+        mpv.setProperty("time-pos", pos + seconds);
+    });
+}
+
+function playPrevious() {
+    mpv.command("playlist-prev").then(() =>
+        setTimeout(() => {
+            mpv.setProperty("pause", "no");
+        }, 100),
+    );
+}
+
+function playNext() {
+    mpv.command("playlist-next").then(() =>
+        setTimeout(() => {
+            mpv.setProperty("pause", "no");
+        }, 100),
+    );
 }
 
 // --- Ambient lighting ---------------------------------------------------------
@@ -197,58 +285,41 @@ let ambientEnabled = true;
 ui.setAmbientOverlay(ambientEnabled);
 
 function toggleAmbient() {
-  ambientEnabled = !ambientEnabled;
+    ambientEnabled = !ambientEnabled;
 
-  if (ambientEnabled) {
-    ui.setAmbientOverlay(true);
-    mpv.setProperty("border-background", "blur");
-  } else {
-    ui.setAmbientOverlay(false);
-    mpv.setProperty("border-background", "color");
-  }
+    if (ambientEnabled) {
+        ui.setAmbientOverlay(true);
+        mpv.setProperty("border-background", "blur");
+    } else {
+        ui.setAmbientOverlay(false);
+        mpv.setProperty("border-background", "color");
+    }
 
-  setAmbientAspectRatio();
+    setAmbientAspectRatio();
 }
 
 function setAmbientAspectRatio() {
-  mpv
-    .getProperty("video-params/aspect", "double")
-    .catch(() => 0)
-    .then((aspect) => {
-      mpv.getProperty("panscan", "double").then((panscan) => {
-        const uiAspect = ui.getAspectRatio();
-        const effectiveAspect = lerp(aspect, uiAspect, panscan);
+    mpv.getProperty("video-params/aspect", "double")
+        .catch(() => 0)
+        .then((aspect) => {
+            mpv.getProperty("panscan", "double").then((panscan) => {
+                const uiAspect = ui.getAspectRatio();
+                const effectiveAspect = lerp(aspect, uiAspect, panscan);
 
-        ui.setAmbientAspectRatio(effectiveAspect);
-      });
-    });
+                ui.setAmbientAspectRatio(effectiveAspect);
+            });
+        });
 }
 
 // --- Button wiring ------------------------------------------------------------
 
 document.getElementById("open-path-button").onclick = () =>
-  invoke("playlist_from_path_dialog").then(([playlistPath, fileIndex]) =>
-    loadPlaylist(playlistPath, fileIndex),
-  );
+    invoke("playlist_from_path_dialog").then(([playlistPath, fileIndex]) =>
+        loadPlaylist(playlistPath, fileIndex),
+    );
 
-document.getElementById("previous-button").onclick = () => {
-  mpv.command("playlist-prev").then(() =>
-    setTimeout(() => {
-      mpv.setProperty("pause", "no");
-      populateTracksMenu();
-    }, 100),
-  );
-};
-
-document.getElementById("next-button").onclick = () => {
-  mpv.command("playlist-next").then(() =>
-    setTimeout(() => {
-      mpv.setProperty("pause", "no");
-      populateTracksMenu();
-    }, 100),
-  );
-};
-
+document.getElementById("previous-button").onclick = playPrevious;
+document.getElementById("next-button").onclick = playNext;
 document.getElementById("seek-backward-button").onclick = () => seek(-SEEK_SECONDS);
 document.getElementById("seek-forward-button").onclick = () => seek(SEEK_SECONDS);
 document.getElementById("play-button").onclick = togglePause;
@@ -260,17 +331,21 @@ document.getElementById("fullscreen-button").onclick = toggleFullscreen;
 const volumeSlider = document.getElementById("volume-slider");
 volumeSlider.addEventListener("input", () => mpv.setProperty("volume", volumeSlider.value));
 
-// --- Tracks menu --------------------------------------------------------------
+// --- Track list menu --------------------------------------------------------------
 
-const tracksMenu = document.getElementById("tracks-menu");
-const tracksButton = document.getElementById("tracks-button");
+const trackListMenu = document.getElementById("track-list-menu");
+const trackListButton = document.getElementById("track-list-button");
 
-tracksButton.onclick = () => ui.toggleTracksMenu();
+trackListButton.onclick = () => {
+    populateTrackListMenu();
+    ui.toggleTrackListMenu();
+};
 
 document.addEventListener("click", (event) => {
-  if (!tracksMenu.contains(event.target) && !tracksButton.contains(event.target)) {
-    ui.hideTracksMenu();
-  }
+    if (!trackListMenu.contains(event.target) && !trackListButton.contains(event.target)) {
+        event.preventDefault();
+        ui.hideTracksMenu();
+    }
 });
 
 // --- Seek bar -----------------------------------------------------------------
@@ -278,39 +353,39 @@ document.addEventListener("click", (event) => {
 const seekEl = document.querySelector(".seek");
 
 seekEl.addEventListener("click", (event) => {
-  const percent = (event.offsetX / seekEl.getBoundingClientRect().width) * 100;
-  mpv.setProperty("percent-pos", percent);
+    const percent = (event.offsetX / seekEl.getBoundingClientRect().width) * 100;
+    mpv.setProperty("percent-pos", percent);
 });
 
 seekEl.addEventListener("mousemove", (event) => {
-  const fraction = event.offsetX / seekEl.getBoundingClientRect().width;
-  ui.setSeekTimeHighlight(true, fraction * duration, fraction * 100);
+    const fraction = event.offsetX / seekEl.getBoundingClientRect().width;
+    ui.setSeekTimeHighlight(true, fraction * duration, fraction * 100);
 });
 
 seekEl.addEventListener("mouseleave", () => ui.setSeekTimeHighlight(false));
 
 overlay.addEventListener("mousemove", () => {
-  if (!seekEl.matches(":hover")) ui.setSeekTimeHighlight(false);
+    if (!seekEl.matches(":hover")) ui.setSeekTimeHighlight(false);
 });
 
 // --- Click vs double-click ----------------------------------------------------
 
 let clickTimeout;
 
-document.querySelector(".interactive").addEventListener("click", (e) => {
-  if (e.detail === 1) {
-    clickTimeout = setTimeout(togglePause, DOUBLE_CLICK_DELAY_MS);
-  } else if (e.detail === 2) {
-    clearTimeout(clickTimeout);
-    toggleFullscreen();
-  }
+document.querySelector(".interactive").addEventListener("click", (event) => {
+    if (event.detail === 1) {
+        clickTimeout = setTimeout(togglePause, DOUBLE_CLICK_DELAY_MS);
+    } else if (event.detail === 2) {
+        clearTimeout(clickTimeout);
+        toggleFullscreen();
+    }
 });
 
 // --- Keyboard shortcuts -------------------------------------------------------
 
 document.addEventListener("keydown", (e) => {
-  // prettier-ignore
-  switch (e.code) {
+    // prettier-ignore
+    switch (e.code) {
     case "Space":       togglePause();       break;
     case "KeyF":        toggleFullscreen();  break;
     case "KeyM":        toggleMute();        break;
@@ -318,4 +393,16 @@ document.addEventListener("keydown", (e) => {
     case "ArrowRight":  seek(SEEK_SECONDS);  break;
     case "ArrowLeft":   seek(-SEEK_SECONDS); break;
   }
+});
+
+// --- Windows System Media Transport Controls (SMTC) ---------------------------
+
+smtc.setup((cmd) => {
+    // prettier-ignore
+    switch (cmd) {
+        case "play":     play(); break;
+        case "pause":    pause(); break;
+        case "next":     playNext();     break;
+        case "previous": playPrevious(); break;
+    }
 });

@@ -1,14 +1,20 @@
+use std::ffi::c_void;
 use std::fs;
-use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
-
-#[cfg(unix)]
-use std::os::unix::net::UnixStream;
+use std::sync::Mutex;
+use tauri::{AppHandle, Emitter, Manager, State};
+use windows::Media::{
+    MediaPlaybackStatus, MediaPlaybackType, SystemMediaTransportControls,
+    SystemMediaTransportControlsButton, SystemMediaTransportControlsButtonPressedEventArgs,
+};
+use windows::Win32::System::WinRT::ISystemMediaTransportControlsInterop;
 
 const VIDEO_EXTENSIONS: &[&str] = &[
     "mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "mpg", "mpeg",
 ];
+
+// --- Playlists ----------------------------------------------------------------
 
 fn is_video_file(path: &Path) -> bool {
     path.extension()
@@ -35,7 +41,7 @@ fn video_files_in_directory(dir: &Path) -> Result<Vec<PathBuf>, String> {
 
 fn playlist_from_video_files(videos: Vec<PathBuf>) -> Result<PathBuf, String> {
     let playlist_path = std::env::temp_dir().join("tauri_playlist.m3u");
-    let mut writer = BufWriter::new(File::create(&playlist_path).map_err(|e| e.to_string())?);
+    let mut writer = BufWriter::new(fs::File::create(&playlist_path).map_err(|e| e.to_string())?);
     writeln!(writer, "#EXTM3U").map_err(|e| e.to_string())?;
     for video in &videos {
         writeln!(writer, "{}", video.display()).map_err(|e| e.to_string())?;
@@ -44,8 +50,8 @@ fn playlist_from_video_files(videos: Vec<PathBuf>) -> Result<PathBuf, String> {
 }
 
 #[tauri::command]
-fn playlist_from_directory(dir_path: &str) -> Result<(String, usize), String> {
-    let dir = PathBuf::from(dir_path);
+fn playlist_from_directory(path: &str) -> Result<(String, usize), String> {
+    let dir = PathBuf::from(path);
     if !dir.is_dir() {
         return Err("Provided path is not a directory".to_string());
     }
@@ -91,146 +97,150 @@ fn playlist_from_path_dialog(app: tauri::AppHandle) -> Result<(String, usize), S
     }
 }
 
-// ─── Ambient color sampling ───────────────────────────────────────────────────
+// --- Windows System Media Transport Controls (SMTC) ---------------------------
 
-#[derive(serde::Serialize)]
-pub struct AmbientColors {
-    top: [u8; 3],
-    bottom: [u8; 3],
-    left: [u8; 3],
-    right: [u8; 3],
+// Managed state wrapper
+pub struct SmtcState(pub Mutex<Option<SystemMediaTransportControls>>);
+
+fn get_smtc_for_hwnd(hwnd: *mut c_void) -> windows::core::Result<SystemMediaTransportControls> {
+    let interop = windows::core::factory::<
+        SystemMediaTransportControls,
+        ISystemMediaTransportControlsInterop,
+    >()?;
+    unsafe { interop.GetForWindow(windows::Win32::Foundation::HWND(hwnd as *mut c_void)) }
 }
 
-/// Average the RGB values of a horizontal strip `strip_h` pixels tall at `y_start`.
-fn avg_row_strip(img: &image::RgbImage, y_start: u32, strip_h: u32) -> [u8; 3] {
-    let (w, h) = img.dimensions();
-    let y_end = (y_start + strip_h).min(h);
-    let (mut r, mut g, mut b, mut n) = (0u64, 0u64, 0u64, 0u64);
-    for y in y_start..y_end {
-        for x in 0..w {
-            let px = img.get_pixel(x, y);
-            r += px[0] as u64;
-            g += px[1] as u64;
-            b += px[2] as u64;
-            n += 1;
-        }
-    }
-    if n == 0 {
-        return [0, 0, 0];
-    }
-    [(r / n) as u8, (g / n) as u8, (b / n) as u8]
+#[tauri::command]
+fn setup_smtc(app: AppHandle, state: State<SmtcState>) {
+    let window = app.get_webview_window("main").unwrap();
+    let hwnd = window.hwnd().unwrap().0 as *mut c_void;
+
+    let controls = get_smtc_for_hwnd(hwnd).expect("Failed to get SMTC for window");
+
+    controls.SetIsEnabled(true).unwrap();
+    controls.SetIsPlayEnabled(true).unwrap();
+    controls.SetIsPauseEnabled(true).unwrap();
+    controls.SetIsNextEnabled(true).unwrap();
+    controls.SetIsPreviousEnabled(true).unwrap();
+    controls
+        .SetPlaybackStatus(MediaPlaybackStatus::Playing)
+        .unwrap();
+
+    let app_clone = app.clone();
+    controls
+        .ButtonPressed(&windows::Foundation::TypedEventHandler::<
+            SystemMediaTransportControls,
+            SystemMediaTransportControlsButtonPressedEventArgs,
+        >::new(move |_, args| {
+            let button = args.as_ref().unwrap().Button().unwrap();
+            let cmd = match button {
+                SystemMediaTransportControlsButton::Play => "play",
+                SystemMediaTransportControlsButton::Pause => "pause",
+                SystemMediaTransportControlsButton::Next => "next",
+                SystemMediaTransportControlsButton::Previous => "previous",
+                _ => return Ok(()),
+            };
+            app_clone.emit("smtc-command", cmd).ok();
+            Ok(())
+        }))
+        .unwrap();
+
+    // Store the instance in managed state
+    *state.0.lock().unwrap() = Some(controls);
 }
 
-/// Average the RGB values of a vertical strip `strip_w` pixels wide at `x_start`.
-fn avg_col_strip(img: &image::RgbImage, x_start: u32, strip_w: u32) -> [u8; 3] {
-    let (w, h) = img.dimensions();
-    let x_end = (x_start + strip_w).min(w);
-    let (mut r, mut g, mut b, mut n) = (0u64, 0u64, 0u64, 0u64);
-    for y in 0..h {
-        for x in x_start..x_end {
-            let px = img.get_pixel(x, y);
-            r += px[0] as u64;
-            g += px[1] as u64;
-            b += px[2] as u64;
-            n += 1;
-        }
-    }
-    if n == 0 {
-        return [0, 0, 0];
-    }
-    [(r / n) as u8, (g / n) as u8, (b / n) as u8]
-}
+#[tauri::command]
+fn update_smtc_playback(state: State<SmtcState>, playing: bool) -> Result<(), String> {
+    let guard = state.0.lock().map_err(|e| e.to_string())?;
+    let controls = guard
+        .as_ref()
+        .ok_or("SMTC not initialized — call setup_smtc first")?;
 
-#[cfg(windows)]
-fn mpv_ipc_screenshot_raw(socket_path: &str) -> Result<Vec<u8>, String> {
-    use std::fs::OpenOptions;
-    use std::io::{BufRead, BufReader, Write};
-
-    // mpv on Windows expects the path as \\.\pipe\<name>
-    // If the caller already passes the full pipe path, use it directly.
-    // Otherwise, treat socket_path as just the pipe name and prefix it.
-    let pipe_path = if socket_path.starts_with(r"\\.\pipe\") {
-        socket_path.to_string()
+    let status = if playing {
+        MediaPlaybackStatus::Playing
     } else {
-        format!(r"\\.\pipe\{}", socket_path)
+        MediaPlaybackStatus::Paused
     };
 
-    // Named pipes on Windows are opened like regular files
-    let pipe = (0..10)
-        .find_map(
-            |i| match OpenOptions::new().read(true).write(true).open(&pipe_path) {
-                Ok(f) => Some(Ok(f)),
-                Err(e) if i < 9 => {
-                    std::thread::sleep(std::time::Duration::from_millis(50));
-                    None
-                }
-                Err(e) => Some(Err(format!("Pipe connect failed after retries: {e}"))),
-            },
-        )
-        .unwrap_or_else(|| Err("Pipe not available".to_string()))?;
-
-    let cmd = r#"{"command":["screenshot-raw","video"]}"#;
-    let mut writer = BufWriter::new(&pipe);
-    writer
-        .write_all(format!("{cmd}\n").as_bytes())
-        .map_err(|e| format!("Pipe write failed: {e}"))?;
-    writer
-        .flush()
-        .map_err(|e| format!("Pipe flush failed: {e}"))?;
-
-    let mut reader = BufReader::new(&pipe);
-    let mut line = String::new();
-    reader
-        .read_line(&mut line)
-        .map_err(|e| format!("Pipe read failed: {e}"))?;
-
-    let v: serde_json::Value =
-        serde_json::from_str(&line).map_err(|e| format!("JSON parse failed: {e}"))?;
-
-    if v["error"].as_str() != Some("success") {
-        return Err(format!("mpv error: {}", v["error"]));
-    }
-
-    let b64 = v["data"]["data"]
-        .as_str()
-        .ok_or("Missing data field in mpv response")?;
-
-    use base64::Engine as _;
-    base64::engine::general_purpose::STANDARD
-        .decode(b64)
-        .map_err(|e| format!("Base64 decode failed: {e}"))
+    controls
+        .SetPlaybackStatus(status)
+        .map_err(|e| e.to_string())
 }
 
-/// Sample ambient colors from the current video frame via mpv's IPC socket.
-///
-/// `socket_path` is the path passed to mpv's `--input-ipc-server` option.
-/// Returns averaged RGB for the top, bottom, left, and right edge strips.
 #[tauri::command]
-fn sample_video_colors(socket_path: String) -> Result<AmbientColors, String> {
-    let raw_ppm = mpv_ipc_screenshot_raw(&socket_path)?;
+fn update_smtc_metadata(
+    state: State<SmtcState>,
+    title: String,
+    subtitle: String,
+) -> Result<(), String> {
+    let guard = state.0.lock().map_err(|e| e.to_string())?;
+    let controls = guard
+        .as_ref()
+        .ok_or("SMTC not initialized — call setup_smtc first")?;
 
-    // The raw bytes are a PPM image; load it then scale down for fast sampling
-    let img = image::load_from_memory(&raw_ppm)
-        .map_err(|e| format!("Image decode failed: {e}"))?
-        .resize_exact(128, 72, image::imageops::FilterType::Nearest)
-        .to_rgb8();
+    let updater = controls.DisplayUpdater().map_err(|e| e.to_string())?;
+    updater
+        .SetType(MediaPlaybackType::Video)
+        .map_err(|e| e.to_string())?;
 
-    let (_, h) = img.dimensions();
-    let strip = (h / 8).max(1); // sample top/bottom 12.5% of height
+    let props = updater.VideoProperties().map_err(|e| e.to_string())?;
 
-    Ok(AmbientColors {
-        top: avg_row_strip(&img, 0, strip),
-        bottom: avg_row_strip(&img, h - strip, strip),
-        left: avg_col_strip(&img, 0, 16), // leftmost 16 columns of 128
-        right: avg_col_strip(&img, 112, 16), // rightmost 16 columns of 128
-    })
+    // Bind HSTRINGs before passing references — avoids use-after-free
+    let title_hs: windows::core::HSTRING = title.into();
+    let subtitle_hs: windows::core::HSTRING = subtitle.into();
+    props.SetTitle(&title_hs).map_err(|e| e.to_string())?;
+    props.SetSubtitle(&subtitle_hs).map_err(|e| e.to_string())?;
+
+    updater.Update().map_err(|e| e.to_string())
+}
+
+// Optional: update both at once to keep state consistent
+#[tauri::command]
+fn update_smtc(
+    state: State<SmtcState>,
+    playing: bool,
+    title: String,
+    subtitle: String,
+) -> Result<(), String> {
+    update_smtc_playback(state.clone(), playing)?;
+    update_smtc_metadata(state, title, subtitle)
+}
+
+// Call this on app exit or when tearing down the player
+#[tauri::command]
+fn teardown_smtc(state: State<SmtcState>) {
+    *state.0.lock().unwrap() = None;
+}
+
+// --- Startup file -------------------------------------------------------------
+
+pub struct StartupFile(pub Mutex<Option<String>>);
+
+#[tauri::command]
+fn get_startup_file(state: State<StartupFile>) -> Option<String> {
+    state.0.lock().unwrap().take() // take() so it's only returned once
 }
 
 // ─── App entry point ──────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let startup_file = std::env::args().nth(1);
+
     tauri::Builder::default()
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            // Fired when a second instance is launched while app is already running
+            if let Some(path) = args.get(1) {
+                app.emit("open-file", path).ok();
+            }
+
+            // Also bring the window to focus
+            if let Some(window) = app.get_webview_window("main") {
+                window.set_focus().ok();
+            }
+        }))
+        .manage(StartupFile(Mutex::new(startup_file)))
+        .manage(SmtcState(Mutex::new(None)))
         .plugin(tauri_plugin_log::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_libmpv::init())
@@ -238,7 +248,12 @@ pub fn run() {
             playlist_from_directory,
             playlist_from_video,
             playlist_from_path_dialog,
-            sample_video_colors,
+            setup_smtc,
+            update_smtc_playback,
+            update_smtc_metadata,
+            update_smtc,
+            teardown_smtc,
+            get_startup_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

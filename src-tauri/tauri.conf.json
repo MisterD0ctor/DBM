@@ -1,38 +1,41 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "death-by-mpv",
-  "version": "0.1.0",
-  "identifier": "com.mister-doctor.death-by-mpv",
-  "build": {
-    "frontendDist": "../src"
-  },
-  "app": {
-    "withGlobalTauri": true,
-    "windows": [
-      {
-        "title": "Death By MPV",
-        "width": 1280,
-        "height": 720,
-        "minWidth": 853,
-        "minHeight": 480,
-        "transparent": true,
-        "center": true
-      }
-    ],
-    "security": {
-      "csp": null
+    "$schema": "https://schema.tauri.app/config/2",
+    "productName": "Death By MPV",
+    "version": "0.1.0",
+    "identifier": "com.mister-doctor.death-by-mpv",
+    "build": {
+        "frontendDist": "../src"
+    },
+    "app": {
+        "withGlobalTauri": true,
+        "windows": [
+            {
+                "title": "Death By MPV",
+                "width": 1280,
+                "height": 720,
+                "minWidth": 853,
+                "minHeight": 480,
+                "transparent": true,
+                "center": true
+            }
+        ],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ],
+        "fileAssociations": [
+            { "ext": ["mp4", "mkv", "avi", "mov", "webm"], "name": "Video File", "role": "Viewer" }
+        ],
+        "resources": ["lib/**/*", "shaders/ambient-lite.glsl"]
     }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ],
-    "resources": ["lib/**/*", "shaders/ambient-lite.glsl"]
-  }
 }

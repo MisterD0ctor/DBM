@@ -37,20 +37,21 @@ const { listen } = window.__TAURI__.event;
  * await init(mpvConfig);
  * ```
  */
-async function init(mpvConfig, windowLabel) {
-  const config = mpvConfig ?? {};
-  const winLabel = windowLabel ?? getCurrentWindow().label;
-  const transformedConfig = {
-    ...config,
-    observedProperties: config.observedProperties
-      ? Object.fromEntries(config.observedProperties)
-      : {},
-  };
-  return await invoke("plugin:libmpv|init", {
-    mpvConfig: transformedConfig,
-    windowLabel: winLabel,
-  });
+export async function init(mpvConfig, windowLabel) {
+    const config = mpvConfig ?? {};
+    const winLabel = windowLabel ?? getCurrentWindow().label;
+    const transformedConfig = {
+        ...config,
+        observedProperties: config.observedProperties
+            ? Object.fromEntries(config.observedProperties)
+            : {},
+    };
+    return await invoke("plugin:libmpv|init", {
+        mpvConfig: transformedConfig,
+        windowLabel: winLabel,
+    });
 }
+
 /**
  * Destroy mpv player.
  *
@@ -64,14 +65,15 @@ async function init(mpvConfig, windowLabel) {
  * await destroy();
  * ```
  */
-async function destroy(windowLabel) {
-  if (!windowLabel) {
-    windowLabel = getCurrentWindow().label;
-  }
-  return await invoke("plugin:libmpv|destroy", {
-    windowLabel,
-  });
+export async function destroy(windowLabel) {
+    if (!windowLabel) {
+        windowLabel = getCurrentWindow().label;
+    }
+    return await invoke("plugin:libmpv|destroy", {
+        windowLabel,
+    });
 }
+
 /**
  * Listen to mpv property change events.
  *
@@ -120,16 +122,17 @@ async function destroy(windowLabel) {
  * unlisten();
  * ```
  */
-async function observeProperties(properties, callback, windowLabel) {
-  const propertyNames = properties.map((p) => p[0]);
-  return await listenEvents((mpvEvent) => {
-    if (mpvEvent.event === "property-change") {
-      if (mpvEvent.name && propertyNames.includes(mpvEvent.name)) {
-        callback(mpvEvent);
-      }
-    }
-  }, windowLabel);
+export async function observeProperties(properties, callback, windowLabel) {
+    const propertyNames = properties.map((p) => p[0]);
+    return await listenEvents((mpvEvent) => {
+        if (mpvEvent.event === "property-change") {
+            if (mpvEvent.name && propertyNames.includes(mpvEvent.name)) {
+                callback(mpvEvent);
+            }
+        }
+    }, windowLabel);
 }
+
 /**
  * Listen to all mpv events.
  *
@@ -149,13 +152,14 @@ async function observeProperties(properties, callback, windowLabel) {
  * unlisten();
  * ```
  */
-async function listenEvents(callback, windowLabel) {
-  if (!windowLabel) {
-    windowLabel = getCurrentWindow().label;
-  }
-  const eventName = `mpv-event-${windowLabel}`;
-  return await listen(eventName, (event) => callback(event.payload));
+export async function listenEvents(callback, windowLabel) {
+    if (!windowLabel) {
+        windowLabel = getCurrentWindow().label;
+    }
+    const eventName = `mpv-event-${windowLabel}`;
+    return await listen(eventName, (event) => callback(event.payload));
 }
+
 /**
  * Send mpv command
  *
@@ -186,16 +190,17 @@ async function listenEvents(callback, windowLabel) {
  *
  * ```
  */
-async function command(name, args = [], windowLabel) {
-  if (!windowLabel) {
-    windowLabel = getCurrentWindow().label;
-  }
-  await invoke("plugin:libmpv|command", {
-    name,
-    args,
-    windowLabel,
-  });
+export async function command(name, args = [], windowLabel) {
+    if (!windowLabel) {
+        windowLabel = getCurrentWindow().label;
+    }
+    await invoke("plugin:libmpv|command", {
+        name,
+        args,
+        windowLabel,
+    });
 }
+
 /**
  * Set mpv property
  *
@@ -219,26 +224,28 @@ async function command(name, args = [], windowLabel) {
  *
  * ```
  */
-async function setProperty(name, value, windowLabel) {
-  if (!windowLabel) {
-    windowLabel = getCurrentWindow().label;
-  }
-  await invoke("plugin:libmpv|set_property", {
-    name,
-    value,
-    windowLabel,
-  });
+export async function setProperty(name, value, windowLabel) {
+    if (!windowLabel) {
+        windowLabel = getCurrentWindow().label;
+    }
+    await invoke("plugin:libmpv|set_property", {
+        name,
+        value,
+        windowLabel,
+    });
 }
-async function getProperty(name, format, windowLabel) {
-  if (!windowLabel) {
-    windowLabel = getCurrentWindow().label;
-  }
-  return await invoke("plugin:libmpv|get_property", {
-    name,
-    format,
-    windowLabel,
-  });
+
+export async function getProperty(name, format, windowLabel) {
+    if (!windowLabel) {
+        windowLabel = getCurrentWindow().label;
+    }
+    return await invoke("plugin:libmpv|get_property", {
+        name,
+        format,
+        windowLabel,
+    });
 }
+
 /**
  * Set video margin ratio
  * @param {VideoMarginRatio} ratio - Margin ratio configuration object
@@ -270,24 +277,13 @@ async function getProperty(name, format, windowLabel) {
  * });
  * ```
  */
-async function setVideoMarginRatio(ratio, windowLabel) {
-  if (!windowLabel) {
-    const currentWindow = getCurrentWindow();
-    windowLabel = currentWindow.label;
-  }
-  return await invoke("plugin:libmpv|set_video_margin_ratio", {
-    ratio,
-    windowLabel,
-  });
+export async function setVideoMarginRatio(ratio, windowLabel) {
+    if (!windowLabel) {
+        const currentWindow = getCurrentWindow();
+        windowLabel = currentWindow.label;
+    }
+    return await invoke("plugin:libmpv|set_video_margin_ratio", {
+        ratio,
+        windowLabel,
+    });
 }
-
-export {
-  command,
-  destroy,
-  getProperty,
-  init,
-  listenEvents,
-  observeProperties,
-  setProperty,
-  setVideoMarginRatio,
-};
