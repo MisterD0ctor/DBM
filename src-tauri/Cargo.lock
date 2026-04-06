@@ -901,16 +901,22 @@ name = "death-by-mpv"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
+ "dirs",
  "image",
+ "libc",
+ "libloading 0.8.9",
+ "log",
+ "once_cell",
+ "raw-window-handle",
  "serde",
  "serde_json",
  "tauri",
  "tauri-build",
  "tauri-plugin-dialog",
- "tauri-plugin-libmpv",
  "tauri-plugin-log",
  "tauri-plugin-opener",
  "tauri-plugin-single-instance",
+ "thiserror 2.0.18",
  "windows 0.62.2",
 ]
 
@@ -4541,27 +4547,6 @@ dependencies = [
  "thiserror 2.0.18",
  "toml 0.9.12+spec-1.1.0",
  "url",
-]
-
-[[package]]
-name = "tauri-plugin-libmpv"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "447798aec64877a1e476c2ebc2360a8374740ccf32fdc31949e4942e3fef903e"
-dependencies = [
- "base64 0.22.1",
- "indexmap 2.13.0",
- "libc",
- "libloading 0.8.9",
- "log",
- "once_cell",
- "raw-window-handle",
- "scopeguard",
- "serde",
- "serde_json",
- "tauri",
- "tauri-plugin",
- "thiserror 2.0.18",
 ]
 
 [[package]]

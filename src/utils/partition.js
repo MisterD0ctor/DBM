@@ -4,7 +4,6 @@
  * @param {(element, index: number, array: any[]) => boolean} filter
  * @returns
  */
-
 export function partition(array, filter) {
     let pass = [],
         fail = [];

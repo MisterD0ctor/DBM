@@ -1,0 +1,45 @@
+import * as player from "./player.js";
+import * as ui from "./ui/ui.js";
+
+// --- Populate from mpv -------------------------------------------------------
+
+export async function populateTrackListMenu() {
+    const trackListValue = await player.getProperty("track-list", "string");
+    const trackList =
+        typeof trackListValue === "string" ? JSON.parse(trackListValue) : trackListValue;
+    const subtitle = trackList.filter((t) => t.type === "sub");
+    const audio = trackList.filter((t) => t.type === "audio");
+
+    const selectedSubtitleId = subtitle.find((t) => t.selected)?.id ?? "no";
+    const selectedAudioId = audio.find((t) => t.selected)?.id;
+
+    ui.populateSubtitleTrackMenu(
+        subtitle,
+        (id) =>
+            player
+                .setProperty("sid", id.toString())
+                .then(() => player.setProperty("sub-visibility", "yes")),
+        () => player.setProperty("sid", "no"),
+    );
+
+    ui.populateAudioTrackMenu(audio, (id) => {
+        player.setProperty("aid", id.toString());
+    });
+
+    ui.setSelectedSubtitleTrack(selectedSubtitleId);
+    ui.setSelectedAudioTrack(selectedAudioId);
+}
+
+// --- Menu toggle + click-outside-to-close ------------------------------------
+
+const trackListMenu = document.getElementById("track-list-menu");
+const trackListButton = document.getElementById("track-list-button");
+
+trackListButton.onclick = () => ui.toggleTrackListMenu();
+
+document.addEventListener("click", (event) => {
+    if (!trackListMenu.contains(event.target) && !trackListButton.contains(event.target)) {
+        event.preventDefault();
+        ui.hideTracksMenu();
+    }
+});
