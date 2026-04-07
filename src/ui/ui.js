@@ -8,9 +8,16 @@ export {
     setSeekTimeHighlight,
 } from "./playback.js";
 
-export { setOverlay, setPanscan, setMute, setVolume, setFullscreen } from "./controls.js";
+export {
+    setOverlay,
+    setPanscan,
+    setMute,
+    setVolume,
+    setFullscreen,
+    setAmbient,
+} from "./controls.js";
 
-export { getAspectRatio, setAmbientOverlay, setAmbientAspectRatio } from "./ambient.js";
+export { getAspectRatio, setAmbientAspectRatio } from "./ambient.js";
 
 export {
     toggleTrackListMenu,

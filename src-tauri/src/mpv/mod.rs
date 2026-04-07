@@ -190,6 +190,7 @@ const OBSERVED_PROPERTIES: &[(&str, &str)] = &[
     ("panscan", "double"),
     ("sid", "string"),
     ("aid", "string"),
+    ("border-background", "string"),
 ];
 
 impl MpvPlayer {

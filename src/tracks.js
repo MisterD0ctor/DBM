@@ -32,13 +32,13 @@ export async function populateTrackListMenu() {
 
 // --- Menu toggle + click-outside-to-close ------------------------------------
 
-const trackListMenu = document.getElementById("track-list-menu");
-const trackListButton = document.getElementById("track-list-button");
+const tracksMenu = document.getElementById("tracks-menu");
+const btnTracks = document.getElementById("btn-tracks");
 
-trackListButton.onclick = () => ui.toggleTrackListMenu();
+btnTracks.onclick = () => ui.toggleTrackListMenu();
 
 document.addEventListener("click", (event) => {
-    if (!trackListMenu.contains(event.target) && !trackListButton.contains(event.target)) {
+    if (!tracksMenu.contains(event.target) && !btnTracks.contains(event.target)) {
         event.preventDefault();
         ui.hideTracksMenu();
     }

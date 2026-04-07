@@ -9,19 +9,19 @@ export function setDuration(d) {
 
 // --- Scrubbing ---------------------------------------------------------------
 
-const seekEl = document.querySelector(".seek");
+const seekTrack = document.getElementById("seek-track");
 let scrubbing = false;
 let wasPlayingBeforeScrub = false;
 
 function scrubTo(clientX) {
-    const rect = seekEl.getBoundingClientRect();
+    const rect = seekTrack.getBoundingClientRect();
     const fraction = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const percent = fraction * 100;
     player.seek(percent, "absolute-percent", "exact");
     ui.setSeekTimeHighlight(true, fraction * duration, percent);
 }
 
-seekEl.addEventListener("mousedown", (event) => {
+seekTrack.addEventListener("mousedown", (event) => {
     if (event.button !== 0) return;
     scrubbing = true;
     wasPlayingBeforeScrub = false;
@@ -35,8 +35,8 @@ seekEl.addEventListener("mousedown", (event) => {
 document.addEventListener("mousemove", (event) => {
     if (scrubbing) {
         scrubTo(event.clientX);
-    } else if (seekEl.matches(":hover")) {
-        const rect = seekEl.getBoundingClientRect();
+    } else if (seekTrack.matches(":hover")) {
+        const rect = seekTrack.getBoundingClientRect();
         const fraction = (event.clientX - rect.left) / rect.width;
         ui.setSeekTimeHighlight(true, fraction * duration, fraction * 100);
     }
@@ -46,13 +46,13 @@ document.addEventListener("mouseup", (event) => {
     if (!scrubbing || event.button !== 0) return;
     scrubbing = false;
     if (wasPlayingBeforeScrub) player.play();
-    if (!seekEl.matches(":hover")) ui.setSeekTimeHighlight(false);
+    if (!seekTrack.matches(":hover")) ui.setSeekTimeHighlight(false);
 });
 
-seekEl.addEventListener("mouseleave", () => {
+seekTrack.addEventListener("mouseleave", () => {
     if (!scrubbing) ui.setSeekTimeHighlight(false);
 });
 
-document.getElementById("overlay").addEventListener("mousemove", () => {
-    if (!scrubbing && !seekEl.matches(":hover")) ui.setSeekTimeHighlight(false);
+document.getElementById("player").addEventListener("mousemove", () => {
+    if (!scrubbing && !seekTrack.matches(":hover")) ui.setSeekTimeHighlight(false);
 });

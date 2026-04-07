@@ -48,16 +48,16 @@ function playNext() {
 
 // --- Button wiring -----------------------------------------------------------
 
-document.getElementById("open-path-button").onclick = () => player.openVideoDialog();
-document.getElementById("previous-button").onclick = playPrevious;
-document.getElementById("next-button").onclick = playNext;
-document.getElementById("seek-backward-button").onclick = () => seek(-SEEK_SECONDS);
-document.getElementById("seek-forward-button").onclick = () => seek(SEEK_SECONDS);
-document.getElementById("play-button").onclick = togglePause;
-document.getElementById("ambient-button").onclick = toggleAmbient;
-document.getElementById("panscan-button").onclick = togglePanscan;
-document.getElementById("mute-button").onclick = toggleMute;
-document.getElementById("fullscreen-button").onclick = toggleFullscreen;
+document.getElementById("btn-open").onclick = () => player.openVideoDialog();
+document.getElementById("btn-previous").onclick = playPrevious;
+document.getElementById("btn-next").onclick = playNext;
+document.getElementById("btn-seek-back").onclick = () => seek(-SEEK_SECONDS);
+document.getElementById("btn-seek-forward").onclick = () => seek(SEEK_SECONDS);
+document.getElementById("btn-play").onclick = togglePause;
+document.getElementById("btn-ambient").onclick = toggleAmbient;
+document.getElementById("btn-panscan").onclick = togglePanscan;
+document.getElementById("btn-mute").onclick = toggleMute;
+document.getElementById("btn-fullscreen").onclick = toggleFullscreen;
 
 const volumeSlider = document.getElementById("volume-slider");
 volumeSlider.addEventListener("input", () => player.setVolume(Number(volumeSlider.value)));
@@ -66,7 +66,7 @@ volumeSlider.addEventListener("input", () => player.setVolume(Number(volumeSlide
 
 let clickTimeout;
 
-document.querySelector(".interactive").addEventListener("click", (event) => {
+document.getElementById("video-surface").addEventListener("click", (event) => {
     if (event.detail === 1) {
         clickTimeout = setTimeout(togglePause, DOUBLE_CLICK_DELAY_MS);
     } else if (event.detail === 2) {

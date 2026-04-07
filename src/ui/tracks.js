@@ -3,22 +3,22 @@ import { partition } from "../utils/partition.js";
 // --- Menu visibility ---------------------------------------------------------
 
 export function toggleTrackListMenu() {
-    document.getElementById("track-list-menu")?.classList.toggle("hidden");
+    document.getElementById("tracks-menu")?.classList.toggle("hidden");
 }
 
 export function hideTracksMenu() {
-    document.getElementById("track-list-menu")?.classList.add("hidden");
+    document.getElementById("tracks-menu")?.classList.add("hidden");
 }
 
 // --- Populate menus ----------------------------------------------------------
 
 export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable) {
-    const menu = document.getElementById("subtitle-track-menu");
+    const menu = document.getElementById("tracks-subtitle");
     menu.innerHTML = "";
 
     const noneItem = document.createElement("div");
     noneItem.id = "no";
-    noneItem.className = "item";
+    noneItem.className = "track-item";
     noneItem.textContent = "Off";
     noneItem.onclick = () => {
         onDisable();
@@ -30,7 +30,7 @@ export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable
 }
 
 export function populateAudioTrackMenu(audioTrackList, onSelect) {
-    const menu = document.getElementById("audio-track-menu");
+    const menu = document.getElementById("tracks-audio");
     menu.innerHTML = "";
 
     populateTrackMenu(menu, audioTrackList, onSelect);
@@ -42,7 +42,7 @@ function populateTrackMenu(menu, trackList, onSelect) {
     for (const track of trackList) {
         const item = document.createElement("div");
         item.id = track.id;
-        item.className = "item";
+        item.className = "track-item";
         item.textContent = getTrackTitle(track, duplicatedLangs.includes(track.lang));
         item.onclick = () => {
             onSelect(track.id);
@@ -57,12 +57,12 @@ function populateTrackMenu(menu, trackList, onSelect) {
 // --- Selection ---------------------------------------------------------------
 
 export function setSelectedSubtitleTrack(id) {
-    const menu = document.getElementById("subtitle-track-menu");
+    const menu = document.getElementById("tracks-subtitle");
     setSelectedTrack(menu, id);
 }
 
 export function setSelectedAudioTrack(id) {
-    const menu = document.getElementById("audio-track-menu");
+    const menu = document.getElementById("tracks-audio");
     setSelectedTrack(menu, id);
 }
 
@@ -75,10 +75,10 @@ function setSelectedTrack(menu, id) {
 // --- Resize ------------------------------------------------------------------
 
 export function resizeTrackListMenus() {
-    const container = document.getElementById("track-list-menu");
+    const container = document.getElementById("tracks-menu");
 
     const [subMenus, others] = partition(container.childNodes, (element) => {
-        return element.classList?.contains("sub-menu");
+        return element.classList?.contains("tracks-list");
     });
 
     subMenus.forEach((m) => {
@@ -100,7 +100,7 @@ export function resizeTrackListMenus() {
 
 resizeTrackListMenus();
 const observer = new ResizeObserver(() => resizeTrackListMenus());
-observer.observe(document.getElementById("track-list-menu"));
+observer.observe(document.getElementById("tracks-menu"));
 
 // --- Utilities ---------------------------------------------------------------
 

@@ -15,22 +15,22 @@ import "./controls.js";
 await player.onPropertyChange(({ name, data }) => {
     // prettier-ignore
     switch (name) {
-    case "time-pos":     ui.setCurrentTime(data);           break;
-    case "percent-pos":  ui.setProgress(data);              break;
-    case "duration":     seekbar.setDuration(data);
-                         ui.setDuration(data);              break;
-    case "filename":     ui.setFilename(data);
-                         ui.setLoaded(true);                break;
-    case "pause":        ui.setPause(data);                 break;
-    case "mute":         ui.setMute(data);                  break;
-    case "volume":       ui.setVolume(data);                break;
-    case "panscan":      ui.setPanscan(data);
-                         ambient.updateAspectRatio();       break;
-    case "eof-reached":                                     break;
-    case "sid":          ui.setSelectedSubtitleTrack(data);  break;
-    case "aid":          ui.setSelectedAudioTrack(data);     break;
+    case "time-pos":    ui.setCurrentTime(data);           break;
+    case "percent-pos": ui.setProgress(data);              break;
+    case "duration":    ui.setDuration(data);     
+                        seekbar.setDuration(data);         break;
+    case "filename":    ui.setFilename(data);
+                        ui.setLoaded(true);                break;
+    case "pause":       ui.setPause(data);                 break;
+    case "mute":        ui.setMute(data);                  break;
+    case "volume":      ui.setVolume(data);                break;
+    case "panscan":     ui.setPanscan(data);
+                        ambient.updateAspectRatio();       break;
+    case "sid":         ui.setSelectedSubtitleTrack(data); break;
+    case "aid":         ui.setSelectedAudioTrack(data);    break;
+    case "border-background": ui.setAmbient(data === "blur"); break;
     default: console.warn("Unhandled property:", name);
-  }
+    }
 });
 
 // --- File loaded (track list is now available) --------------------------------
@@ -54,12 +54,14 @@ try {
     ui.setMute(state.mute);
     ui.setVolume(state.volume);
     ui.setPanscan(state.panscan);
+    ui.setAmbient(state.border_background === "blur");
     if (state.filename) {
         populateTrackListMenu();
         ambient.updateAspectRatio();
         ui.setFilename(state.filename);
         ui.setLoaded(true);
     }
+    console.log(state);
 } catch (err) {
     console.warn("mpv state sync (may still be initializing):", err);
 }
@@ -85,3 +87,7 @@ getCurrentWebview().onDragDropEvent((event) => {
         player.loadVideo(videoPath);
     }
 });
+
+// --- Disable right click menu -------------------------------------------------
+
+// document.addEventListener("contextmenu", (ev) => ev.preventDefault());

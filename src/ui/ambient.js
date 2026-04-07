@@ -1,16 +1,7 @@
 export function getAspectRatio() {
-    const container = document.getElementById("overlay");
+    const container = document.getElementById("player");
     if (!container) return 1;
     return container.clientWidth / container.clientHeight;
-}
-
-export function setAmbientOverlay(isEnabled) {
-    // Importing here would create a circular dep; inline the icon toggle.
-    const img = document.getElementById("ambient-button")?.querySelector("img");
-    img?.setAttribute(
-        "src",
-        isEnabled ? "assets/icons/lightbulb-slash.svg" : "assets/icons/bulb.svg",
-    );
 }
 
 export function setAmbientAspectRatio(videoAspect) {

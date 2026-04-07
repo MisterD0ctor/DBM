@@ -10,8 +10,8 @@ function showOverlay() {
     hideTimer = setTimeout(() => ui.setOverlay(false), OVERLAY_HIDE_DELAY_MS);
 }
 
-const overlay = document.getElementById("overlay");
-overlay.addEventListener("mousemove", showOverlay);
-overlay.addEventListener("mouseenter", showOverlay);
-overlay.addEventListener("mousedown", showOverlay);
-overlay.addEventListener("mouseleave", () => ui.setOverlay(false));
+const player = document.getElementById("player");
+player.addEventListener("mousemove", showOverlay);
+player.addEventListener("mouseenter", showOverlay);
+player.addEventListener("mousedown", showOverlay);
+player.addEventListener("mouseleave", () => ui.setOverlay(false));

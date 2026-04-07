@@ -9,7 +9,7 @@
     </head>
 
     <body>
-        <div id="overlay">
+        <div id="player">
             <!-- Ambient glow overlays — sit behind the video in the letterbox margins -->
             <div id="ambient-overlay">
                 <div class="ambient-bar" id="ambient-top"></div>
@@ -18,115 +18,119 @@
                 <div class="ambient-bar" id="ambient-right"></div>
             </div>
 
-            <div class="interactive"></div>
+            <div id="video-surface"></div>
 
-            <div id="controls">
-                <div class="timeline">
-                    <span class="time" id="current-time">00:00</span>
-                    <div class="seek">
-                        <div class="time hidden" id="seek-time-highlight">
-                            <span class="time" id="seek-time">00:00</span>
+            <div id="controls-panel">
+                <div id="timeline">
+                    <span class="time-display" id="time-current">00:00</span>
+                    <div id="seek-track">
+                        <div class="time-display hidden" id="seek-tooltip">
+                            <span class="time-display">00:00</span>
                         </div>
-                        <div class="bar">
-                            <div class="fill"></div>
-                            <div class="highlight hidden"></div>
-                            <div class="thumb"></div>
+                        <div class="seek-rail">
+                            <div class="seek-highlight hidden"></div>
+                        </div>
+                        <div class="seek-fill">
+                            <div class="seek-highlight hidden"></div>
+                        </div>
+                        <div class="seek-thumb">
+                            <div class="seek-highlight hidden"></div>
                         </div>
                     </div>
-                    <span class="time" id="total-time">00:00</span>
+                    <span class="time-display" id="time-total">00:00</span>
                 </div>
 
-                <div class="controls">
-                    <div class="left">
-                        <div class="button-highlight">
-                            <button id="open-path-button">
-                                <span class="filename" title=""></span>
+                <div class="toolbar">
+                    <div class="toolbar-start">
+                        <div class="btn-wrap">
+                            <button id="btn-open">
+                                <span class="media-title" title=""></span>
                                 <img src="assets/icons/folder-open.svg" alt="Open path" />
                             </button>
                         </div>
                     </div>
 
-                    <div class="center">
-                        <div class="button-highlight">
-                            <button id="previous-button">
+                    <div class="toolbar-center">
+                        <div class="btn-wrap">
+                            <button id="btn-previous">
                                 <img src="assets/icons/step-backward.svg" alt="Previous" />
                             </button>
                         </div>
-                        <div class="button-highlight">
-                            <button class="seek-button" id="seek-backward-button">
+                        <div class="btn-wrap">
+                            <button class="btn-seek" id="btn-seek-back">
                                 <img src="assets/icons/seek-backward.svg" alt="Skip Backward" />
                                 <p>10</p>
                             </button>
                         </div>
-                        <div class="play button-highlight">
-                            <button id="play-button">
-                                <div class="play-button-container">
-                                    <span class="play-button-graphic play-button-before"></span>
-                                    <span class="play-button-graphic play-button-after"></span>
+                        <div class="btn-wrap">
+                            <button id="btn-play">
+                                <div class="play-icon">
+                                    <span class="play-icon-half play-icon-left"></span>
+                                    <span class="play-icon-half play-icon-right"></span>
                                 </div>
                             </button>
                         </div>
-                        <div class="button-highlight">
-                            <button class="seek-button" id="seek-forward-button">
+                        <div class="btn-wrap">
+                            <button class="btn-seek" id="btn-seek-forward">
                                 <p>10</p>
                                 <img src="assets/icons/seek-forward.svg" alt="Skip Forward" />
                             </button>
                         </div>
-                        <div class="button-highlight">
-                            <button id="next-button">
+                        <div class="btn-wrap">
+                            <button id="btn-next">
                                 <img src="assets/icons/step-forward.svg" alt="Next" />
                             </button>
                         </div>
                     </div>
 
-                    <div class="right">
-                        <div class="button-highlight">
-                            <button id="ambient-button">
+                    <div class="toolbar-end">
+                        <div class="btn-wrap">
+                            <button id="btn-ambient">
                                 <img src="assets/icons/bulb.svg" alt="Ambient" />
                             </button>
                         </div>
-                        <div class="button-highlight">
-                            <button id="panscan-button">
+                        <div class="btn-wrap">
+                            <button id="btn-panscan">
                                 <img src="assets/icons/expand-arrows-alt.svg" alt="Pan-Scan" />
                             </button>
                         </div>
-                        <div class="button-highlight track-list-menu-anchor">
-                            <button id="track-list-button">
+                        <div class="btn-wrap tracks-anchor">
+                            <button id="btn-tracks">
                                 <img src="assets/icons/subtitles.svg" alt="Subtitles" />
                             </button>
                         </div>
-                        <div class="volume-container">
-                            <div class="button-highlight">
+                        <div class="volume-group">
+                            <div class="btn-wrap">
                                 <input
                                     id="volume-slider"
                                     type="range"
                                     min="0"
-                                    max="120"
+                                    max="200"
                                     value="100"
                                 />
-                                <span id="volume-value">100</span>
-                                <button id="mute-button">
+                                <span id="volume-display">100</span>
+                                <button id="btn-mute">
                                     <img src="assets/icons/volume.svg" alt="Mute" />
                                 </button>
                             </div>
                         </div>
-                        <div class="button-highlight">
-                            <button id="fullscreen-button">
+                        <div class="btn-wrap">
+                            <button id="btn-fullscreen">
                                 <img src="assets/icons/expand.svg" alt="Fullscreen" />
                             </button>
                         </div>
-                        <div id="track-list-menu" class="hidden">
-                            <div class="track-list-title">
+                        <div id="tracks-menu" class="hidden">
+                            <div class="tracks-heading">
                                 <span>Subtitles</span>
                                 <img src="assets/icons/subtitles.svg" alt="Subtitles" />
                             </div>
-                            <div id="subtitle-track-menu" class="sub-menu"></div>
-                            <div class="divider"></div>
-                            <div class="track-list-title">
+                            <div id="tracks-subtitle" class="tracks-list"></div>
+                            <div class="tracks-divider"></div>
+                            <div class="tracks-heading">
                                 <span>Audio</span>
                                 <img src="assets/icons/volume.svg" alt="Audio" />
                             </div>
-                            <div id="audio-track-menu" class="sub-menu"></div>
+                            <div id="tracks-audio" class="tracks-list"></div>
                         </div>
                     </div>
                 </div>
