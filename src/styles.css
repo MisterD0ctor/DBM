@@ -4,7 +4,7 @@
 }
 
 body {
-    background-color: #000000;
+    /* background-color: #000000; */
     position: relative;
     margin: 0;
     font-family: "Helvetica Neue", sans-serif;
@@ -13,9 +13,9 @@ body {
     user-select: none;
 }
 
-body.loaded {
+/* body.loaded {
     background-color: transparent;
-}
+} */
 
 #player {
     display: flex;
@@ -125,6 +125,11 @@ button img {
     overflow: hidden;
 }
 
+.seek-fill,
+.seek-thumb {
+    background: #af2a37;
+}
+
 .seek-fill {
     position: absolute;
     height: 4px;
@@ -133,24 +138,24 @@ button img {
     overflow: hidden;
 }
 
-.seek-fill,
-.seek-thumb {
-    background: #d23343;
-}
-
 .seek-thumb {
     position: absolute;
     left: var(--progress);
     top: 50%;
     transform: translate(-50%, -50%);
-    width: 12px;
-    height: 12px;
+    --size: 12px;
+    width: var(--size);
+    height: var(--size);
     border-radius: 50%;
     pointer-events: none;
     transition:
-        width 0.2s,
-        height 0.2s ease;
+        width 0.1s,
+        height 0.1s ease;
     overflow: hidden;
+}
+
+#seek-track:hover .seek-thumb {
+    --size: 16px;
 }
 
 .seek-highlight {
@@ -168,14 +173,17 @@ button img {
     background: #ffffff58;
 }
 
-.seek-fill .seek-highlight {
-    width: calc(var(--seek) / var(--progress) * 100%);
+.seek-fill .seek-highlight,
+.seek-thumb .seek-highlight {
     background: #ff3d51;
 }
 
-.seek-thumb .seek-highlight {
+.seek-fill .seek-highlight {
     width: calc(var(--seek) / var(--progress) * 100%);
-    background: #ff3d51;
+}
+
+.seek-thumb .seek-highlight {
+    width: calc(var(--seek));
 }
 
 #seek-tooltip {
@@ -239,7 +247,7 @@ button img {
     overflow: hidden;
     white-space: nowrap;
     text-overflow: ellipsis;
-    font-size: 16px;
+    font-size: 20px;
     font-weight: bold;
 }
 

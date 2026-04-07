@@ -72,7 +72,6 @@ listen("tauri://resize", () => ambient.updateAspectRatio());
 
 listen("tauri://open-file", (event) => {
     if (event.payload) {
-        ui.setLoaded(true);
         player.loadVideo(event.payload);
     }
 });
@@ -83,7 +82,6 @@ getCurrentWebview().onDragDropEvent((event) => {
     if (event.payload.type !== "drop") return;
     const videoPath = event.payload.paths[0]?.toString();
     if (videoPath) {
-        ui.setLoaded(true);
         player.loadVideo(videoPath);
     }
 });

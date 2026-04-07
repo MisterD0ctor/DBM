@@ -30,7 +30,7 @@ export function setPause(isPaused) {
 }
 
 export function setLoaded(isLoaded) {
-    document.querySelector("body")?.classList.toggle("loaded", isLoaded);
+    // document.querySelector("body")?.classList.toggle("loaded", isLoaded);
     document.getElementById("btn-open")?.classList.toggle("loaded", isLoaded);
 }
 
