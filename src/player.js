@@ -41,7 +41,7 @@ export function togglePause() {
  * @param {"absolute"|"relative"|"absolute-percent"|"relative-percent"} [mode="absolute"]
  * @param {"keyframes"|"exact"} [precision="keyframes"]
  */
-export function seek(target, mode = "absolute", precision = "keyframes") {
+export function seek(target, mode = "absolute", precision = "exact") {
     return invoke("seek", { target, mode, precision });
 }
 
@@ -86,7 +86,7 @@ export function getProperty(name, format = "string") {
 // ---------------------------------------------------------------------------
 
 /**
- * @returns {Promise<{paused, time_pos, percent_pos, duration, volume, mute, speed, panscan, filename, path, media_title}>}
+ * @returns {Promise<{paused, time_pos, percent_pos, duration, volume, mute, speed, panscan, filename, path, media_title, border_background, playlist_pos, playlist_count}>}
  */
 export function getState() {
     return invoke("get_state");

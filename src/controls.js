@@ -19,13 +19,15 @@ function toggleMute() {
     });
 }
 
+function setFullscreen(isFs) {
+    getCurrentWindow().setFullscreen(isFs);
+    ui.setFullscreen(isFs);
+}
+
 function toggleFullscreen() {
     getCurrentWindow()
         .isFullscreen()
-        .then((isFs) => {
-            getCurrentWindow().setFullscreen(!isFs);
-            ui.setFullscreen(!isFs);
-        });
+        .then((isFs) => setFullscreen(!isFs));
 }
 
 function togglePanscan() {
@@ -80,11 +82,12 @@ document.getElementById("video-surface").addEventListener("click", (event) => {
 document.addEventListener("keydown", (e) => {
     // prettier-ignore
     switch (e.code) {
-    case "Space":       togglePause();       break;
+    case "Escape":      setFullscreen(false); break;
+    case "Space":       togglePause();        break;
     case "KeyF":        toggleFullscreen();   break;
     case "KeyM":        toggleMute();         break;
     case "KeyT":        togglePanscan();      break;
     case "ArrowRight":  seek(SEEK_SECONDS);   break;
     case "ArrowLeft":   seek(-SEEK_SECONDS);  break;
-  }
+    }
 });

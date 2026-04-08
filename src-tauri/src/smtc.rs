@@ -73,7 +73,7 @@ pub fn setup(app: &AppHandle) {
 }
 
 fn on_button_pressed(app: &AppHandle, button: SystemMediaTransportControlsButton) {
-    let player = app.state::<MpvPlayer>();
+    let player = app.state::<std::sync::Arc<MpvPlayer>>();
 
     match button {
         SystemMediaTransportControlsButton::Play => {
@@ -89,7 +89,7 @@ fn on_button_pressed(app: &AppHandle, button: SystemMediaTransportControlsButton
         SystemMediaTransportControlsButton::Next => {
             let app = app.clone();
             std::thread::spawn(move || {
-                let player = app.state::<MpvPlayer>();
+                let player = app.state::<std::sync::Arc<MpvPlayer>>();
                 let _ = player.command("playlist-next", &[]);
                 std::thread::sleep(std::time::Duration::from_millis(100));
                 let _ = player.set_property_raw("pause", "no");
@@ -98,7 +98,7 @@ fn on_button_pressed(app: &AppHandle, button: SystemMediaTransportControlsButton
         SystemMediaTransportControlsButton::Previous => {
             let app = app.clone();
             std::thread::spawn(move || {
-                let player = app.state::<MpvPlayer>();
+                let player = app.state::<std::sync::Arc<MpvPlayer>>();
                 let _ = player.command("playlist-prev", &[]);
                 std::thread::sleep(std::time::Duration::from_millis(100));
                 let _ = player.set_property_raw("pause", "no");

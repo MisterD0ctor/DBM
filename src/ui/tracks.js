@@ -1,5 +1,3 @@
-import { partition } from "../utils/partition.js";
-
 // --- Menu visibility ---------------------------------------------------------
 
 export function toggleTrackListMenu() {
@@ -16,14 +14,10 @@ export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable
     const menu = document.getElementById("tracks-subtitle");
     menu.innerHTML = "";
 
-    const noneItem = document.createElement("div");
-    noneItem.id = "no";
-    noneItem.className = "track-item";
-    noneItem.textContent = "Off";
-    noneItem.onclick = () => {
+    const noneItem = createTrackMenuItem("Off", "no", () => {
         onDisable();
         hideTracksMenu();
-    };
+    });
     menu.appendChild(noneItem);
 
     populateTrackMenu(menu, subtitleTrackList, onSelect);
@@ -40,18 +34,30 @@ function populateTrackMenu(menu, trackList, onSelect) {
     const duplicatedLangs = getDuplicatedLanguages(trackList);
 
     for (const track of trackList) {
-        const item = document.createElement("div");
-        item.id = track.id;
-        item.className = "track-item";
-        item.textContent = getTrackTitle(track, duplicatedLangs.includes(track.lang));
-        item.onclick = () => {
-            onSelect(track.id);
-            hideTracksMenu();
-        };
-        menu.appendChild(item);
+        const title = getTrackTitle(track, duplicatedLangs.includes(track.lang));
+        const id = track.id;
+        menu.appendChild(createTrackMenuItem(title, id, onSelect));
     }
 
     resizeTrackListMenus();
+}
+
+function createTrackMenuItem(title, id, onSelect) {
+    const item = document.createElement("div");
+    const selectedHighlight = document.createElement("div");
+    selectedHighlight.classList.add("highlight");
+    const titleEl = document.createElement("span");
+    titleEl.classList.add("title");
+    item.id = id;
+    item.className = "track-item";
+    item.onclick = () => {
+        onSelect(id);
+        hideTracksMenu();
+    };
+    titleEl.textContent = title;
+    item.appendChild(selectedHighlight);
+    item.appendChild(titleEl);
+    return item;
 }
 
 // --- Selection ---------------------------------------------------------------
@@ -74,28 +80,38 @@ function setSelectedTrack(menu, id) {
 
 // --- Resize ------------------------------------------------------------------
 
+/// Cap each tracks-list so the menu fits within its max-height.
+/// Lists that naturally fit get their full height; overflow is distributed
+/// evenly among the remaining lists.
 export function resizeTrackListMenus() {
     const container = document.getElementById("tracks-menu");
+    const lists = [...container.querySelectorAll(".tracks-list")];
+    if (lists.length === 0) return;
 
-    const [subMenus, others] = partition(container.childNodes, (element) => {
-        return element.classList?.contains("tracks-list");
-    });
+    // Reset so we can measure natural (unconstrained) heights
+    lists.forEach((m) => (m.style.maxHeight = ""));
 
-    subMenus.forEach((m) => {
-        m.style.maxHeight = "";
-        m.style.minHeight = "";
-    });
+    // The max-height from CSS on the container is the hard budget
+    const maxHeight = parseFloat(getComputedStyle(container).maxHeight) || window.innerHeight;
+    const fixedHeight = [...container.children]
+        .filter((el) => !el.classList.contains("tracks-list"))
+        .reduce((sum, el) => sum + el.offsetHeight, 0);
+    const padding =
+        parseFloat(getComputedStyle(container).paddingTop) +
+        parseFloat(getComputedStyle(container).paddingBottom);
 
-    const totalOtherHeight = Array.from(others).reduce((sum, el) => sum + el.scrollHeight, 0);
-    const available = container.clientHeight - totalOtherHeight;
-    const share = available / subMenus.length;
+    let available = maxHeight - fixedHeight - padding;
 
-    const [uncapped, capped] = partition([...subMenus], (menu) => menu.scrollHeight < share);
-    const totalUncappedHeight = uncapped.reduce((sum, menu) => sum + menu.scrollHeight, 0);
-    const remainingShare = (available - totalUncappedHeight) / capped.length;
+    // First pass: lists that fit within an equal share keep their natural size
+    const share = available / lists.length;
+    const small = lists.filter((m) => m.scrollHeight <= share);
+    const large = lists.filter((m) => m.scrollHeight > share);
 
-    capped.forEach((menu) => (menu.style.maxHeight = `${remainingShare}px`));
-    uncapped.forEach((menu) => (menu.style.minHeight = "fit-content"));
+    const smallTotal = small.reduce((sum, m) => sum + m.scrollHeight, 0);
+    const remaining = available - smallTotal;
+    const cap = large.length > 0 ? remaining / large.length : 0;
+
+    large.forEach((m) => (m.style.maxHeight = `${cap}px`));
 }
 
 resizeTrackListMenus();

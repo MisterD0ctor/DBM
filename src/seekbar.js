@@ -17,8 +17,11 @@ function scrubTo(clientX) {
     const rect = seekTrack.getBoundingClientRect();
     const fraction = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
     const percent = fraction * 100;
-    player.seek(percent, "absolute-percent", "exact");
-    ui.setSeekTimeHighlight(true, fraction * duration, percent);
+    player.seek(percent, "absolute-percent");
+
+    ui.setSeekTooltip(true, clientX);
+    ui.setSeekHighlight(false);
+    ui.setProgress(percent);
 }
 
 seekTrack.addEventListener("mousedown", (event) => {
@@ -36,9 +39,8 @@ document.addEventListener("mousemove", (event) => {
     if (scrubbing) {
         scrubTo(event.clientX);
     } else if (seekTrack.matches(":hover")) {
-        const rect = seekTrack.getBoundingClientRect();
-        const fraction = (event.clientX - rect.left) / rect.width;
-        ui.setSeekTimeHighlight(true, fraction * duration, fraction * 100);
+        ui.setSeekTooltip(true, event.clientX);
+        ui.setSeekHighlight(true, event.clientX);
     }
 });
 
@@ -46,13 +48,22 @@ document.addEventListener("mouseup", (event) => {
     if (!scrubbing || event.button !== 0) return;
     scrubbing = false;
     if (wasPlayingBeforeScrub) player.play();
-    if (!seekTrack.matches(":hover")) ui.setSeekTimeHighlight(false);
+    if (!seekTrack.matches(":hover")) {
+        ui.setSeekTooltip(false);
+        ui.setSeekHighlight(false);
+    }
 });
 
 seekTrack.addEventListener("mouseleave", () => {
-    if (!scrubbing) ui.setSeekTimeHighlight(false);
+    if (!scrubbing) {
+        ui.setSeekTooltip(false);
+        ui.setSeekHighlight(false);
+    }
 });
 
 document.getElementById("player").addEventListener("mousemove", () => {
-    if (!scrubbing && !seekTrack.matches(":hover")) ui.setSeekTimeHighlight(false);
+    if (!scrubbing && !seekTrack.matches(":hover")) {
+        ui.setSeekTooltip(false);
+        ui.setSeekHighlight(false);
+    }
 });

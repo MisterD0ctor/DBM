@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
+use std::sync::Arc;
+
 use super::{MpvPlayer, MpvResult};
 
 // ---------------------------------------------------------------------------
@@ -21,6 +23,8 @@ pub struct MpvState {
     pub path: Option<String>,
     pub media_title: Option<String>,
     pub border_background: Option<String>,
+    pub playlist_pos: f64,
+    pub playlist_count: f64,
 }
 
 // ---------------------------------------------------------------------------
@@ -28,7 +32,7 @@ pub struct MpvState {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn play(player: State<MpvPlayer>) -> MpvResult<()> {
+pub fn play(player: State<Arc<MpvPlayer>>) -> MpvResult<()> {
     if !player.is_file_loaded() {
         return Ok(());
     }
@@ -36,7 +40,7 @@ pub fn play(player: State<MpvPlayer>) -> MpvResult<()> {
 }
 
 #[tauri::command]
-pub fn pause(player: State<MpvPlayer>) -> MpvResult<()> {
+pub fn pause(player: State<Arc<MpvPlayer>>) -> MpvResult<()> {
     if !player.is_file_loaded() {
         return Ok(());
     }
@@ -44,7 +48,7 @@ pub fn pause(player: State<MpvPlayer>) -> MpvResult<()> {
 }
 
 #[tauri::command]
-pub fn toggle_pause(player: State<MpvPlayer>) -> MpvResult<()> {
+pub fn toggle_pause(player: State<Arc<MpvPlayer>>) -> MpvResult<()> {
     if !player.is_file_loaded() {
         return Ok(());
     }
@@ -59,7 +63,7 @@ pub fn toggle_pause(player: State<MpvPlayer>) -> MpvResult<()> {
 
 #[tauri::command]
 pub fn seek(
-    player: State<MpvPlayer>,
+    player: State<Arc<MpvPlayer>>,
     target: f64,
     mode: Option<String>,
     precision: Option<String>,
@@ -73,12 +77,12 @@ pub fn seek(
 }
 
 #[tauri::command]
-pub fn set_volume(player: State<MpvPlayer>, volume: f64) -> MpvResult<()> {
+pub fn set_volume(player: State<Arc<MpvPlayer>>, volume: f64) -> MpvResult<()> {
     player.set_property_value("volume", &serde_json::json!(volume))
 }
 
 #[tauri::command]
-pub fn set_speed(player: State<MpvPlayer>, speed: f64) -> MpvResult<()> {
+pub fn set_speed(player: State<Arc<MpvPlayer>>, speed: f64) -> MpvResult<()> {
     player.set_property_value("speed", &serde_json::json!(speed))
 }
 
@@ -87,17 +91,17 @@ pub fn set_speed(player: State<MpvPlayer>, speed: f64) -> MpvResult<()> {
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn playlist_play_index(player: State<MpvPlayer>, index: i64) -> MpvResult<()> {
+pub fn playlist_play_index(player: State<Arc<MpvPlayer>>, index: i64) -> MpvResult<()> {
     player.command("playlist-play-index", &[index.into()])
 }
 
 #[tauri::command]
-pub fn playlist_prev(player: State<MpvPlayer>) -> MpvResult<()> {
+pub fn playlist_prev(player: State<Arc<MpvPlayer>>) -> MpvResult<()> {
     player.command("playlist-prev", &[])
 }
 
 #[tauri::command]
-pub fn playlist_next(player: State<MpvPlayer>) -> MpvResult<()> {
+pub fn playlist_next(player: State<Arc<MpvPlayer>>) -> MpvResult<()> {
     player.command("playlist-next", &[])
 }
 
@@ -107,7 +111,7 @@ pub fn playlist_next(player: State<MpvPlayer>) -> MpvResult<()> {
 
 #[tauri::command]
 pub fn set_property(
-    player: State<MpvPlayer>,
+    player: State<Arc<MpvPlayer>>,
     name: String,
     value: serde_json::Value,
 ) -> MpvResult<()> {
@@ -116,7 +120,7 @@ pub fn set_property(
 
 #[tauri::command]
 pub fn get_property(
-    player: State<MpvPlayer>,
+    player: State<Arc<MpvPlayer>>,
     name: String,
     format: Option<String>,
 ) -> MpvResult<serde_json::Value> {
@@ -129,7 +133,7 @@ pub fn get_property(
 // ---------------------------------------------------------------------------
 
 #[tauri::command]
-pub fn get_state(player: State<MpvPlayer>) -> MpvResult<MpvState> {
+pub fn get_state(player: State<Arc<MpvPlayer>>) -> MpvResult<MpvState> {
     let paused = player
         .get_property("pause", "flag")
         .map(|v| v.as_bool().unwrap_or(true))
@@ -190,6 +194,16 @@ pub fn get_state(player: State<MpvPlayer>) -> MpvResult<MpvState> {
         .ok()
         .and_then(|v| v.as_str().map(|s| s.to_string()));
 
+    let playlist_pos = player
+        .get_property("playlist-pos", "double")
+        .map(|v| v.as_f64().unwrap_or(0.0))
+        .unwrap_or(0.0);
+
+    let playlist_count = player
+        .get_property("playlist-count", "double")
+        .map(|v| v.as_f64().unwrap_or(0.0))
+        .unwrap_or(0.0);
+
     Ok(MpvState {
         paused,
         time_pos,
@@ -203,5 +217,7 @@ pub fn get_state(player: State<MpvPlayer>) -> MpvResult<MpvState> {
         path,
         media_title,
         border_background,
+        playlist_pos,
+        playlist_count,
     })
 }

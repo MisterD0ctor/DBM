@@ -1,6 +1,7 @@
 :root {
-    --progress: 0%;
-    --seek: 0%;
+    --progress: 0px;
+    --seek-highlight-pos: 0px;
+    --seek-tooltip-pos: 0px;
 }
 
 body {
@@ -49,7 +50,7 @@ body {
         rgba(0, 0, 0, 0),
         transparent
     );
-    padding: 110px 10px 0 10px;
+    padding: 110px 10px 8px 10px;
     box-sizing: border-box;
     transition: 0.2s ease;
 }
@@ -59,39 +60,46 @@ body {
     pointer-events: none;
 }
 
-.btn-wrap {
-    max-width: 100%;
+.btn-wrap,
+button {
     display: flex;
     align-items: center;
     justify-content: center;
+    max-width: 100%;
+    color: #ffffff;
+    background: transparent;
     border-radius: 100px;
     border: 0.5px solid transparent;
-    background: transparent;
-    color: white;
     transition: 0.2s ease;
 }
 
-.btn-wrap:hover,
-#seek-tooltip,
-#tracks-menu {
-    background: #272727ed;
-    border: 0.5px solid #ffffff1e;
-}
-
 button {
-    all: unset;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    justify-items: center;
     padding: 12px;
     cursor: pointer;
-    border-radius: 100px;
+}
+
+button.disabled {
+    opacity: 0.2;
+    pointer-events: none;
+}
+
+button:hover,
+.btn-wrap:hover,
+#seek-tooltip {
+    background: #14141492;
+    border: 0.5px solid #ffffff11;
 }
 
 button img {
     width: 18px;
     height: 18px;
+}
+
+span,
+button img,
+button p,
+.play-icon {
+    filter: drop-shadow(0 0 2px #0000007e);
 }
 
 /* ===== timeline / seek bar ===== */
@@ -102,7 +110,7 @@ button img {
 }
 
 #timeline {
-    margin: 0 12px;
+    margin: 0 14px;
     display: flex;
     align-items: center;
     gap: 15px;
@@ -116,26 +124,27 @@ button img {
     display: flex;
 }
 
+.seek-rail,
+.seek-fill {
+    height: 4px;
+    overflow: hidden;
+    border-radius: 10px;
+}
+
 .seek-rail {
     position: relative;
     width: 100%;
-    height: 4px;
     background: #484848;
-    border-radius: 10px;
-    overflow: hidden;
 }
 
 .seek-fill,
 .seek-thumb {
-    background: #af2a37;
+    background: #a52734;
 }
 
 .seek-fill {
     position: absolute;
-    height: 4px;
     width: var(--progress);
-    border-radius: 10px;
-    overflow: hidden;
 }
 
 .seek-thumb {
@@ -149,19 +158,19 @@ button img {
     border-radius: 50%;
     pointer-events: none;
     transition:
-        width 0.1s,
-        height 0.1s ease;
+        width 0.2s,
+        height 0.2s ease;
     overflow: hidden;
 }
 
 #seek-track:hover .seek-thumb {
-    --size: 16px;
+    --size: 14px;
 }
 
 .seek-highlight {
     max-width: 100%;
     height: 100%;
-    transition: opacity 0.1s ease;
+    transition: opacity 0.2s ease;
 }
 
 .seek-highlight.hidden {
@@ -169,7 +178,7 @@ button img {
 }
 
 .seek-rail .seek-highlight {
-    width: var(--seek);
+    width: var(--seek-highlight-pos);
     background: #ffffff58;
 }
 
@@ -179,22 +188,22 @@ button img {
 }
 
 .seek-fill .seek-highlight {
-    width: calc(var(--seek) / var(--progress) * 100%);
+    width: var(--seek-highlight-pos);
 }
 
 .seek-thumb .seek-highlight {
-    width: calc(var(--seek));
+    width: calc(var(--seek-highlight-pos) - var(--progress) + var(--size) / 2);
 }
 
 #seek-tooltip {
     pointer-events: none;
     position: absolute;
     bottom: 20px;
-    left: var(--seek);
+    left: var(--seek-tooltip-pos);
     transform: translate(-50%, 0);
-    padding: 5px 12px;
+    padding: 8px 12px;
     border-radius: 100px;
-    transition: opacity 0.1s ease;
+    transition: opacity 0.2s ease;
 }
 
 #seek-tooltip.hidden {
@@ -221,26 +230,19 @@ button img {
     max-width: 100%;
 }
 
-.toolbar-start .btn-wrap {
-    width: 100%;
-}
-
 #btn-open {
-    width: 100%;
+    max-width: 100%;
+    padding: 12px 14px;
     overflow: hidden;
 }
 
-#btn-open.loaded img {
-    width: 0;
-    margin-left: 0;
-    opacity: 0;
-    transition: 0.2s ease;
+#btn-open.loaded {
+    border-radius: 16px;
 }
 
-.btn-wrap:hover #btn-open.loaded img {
-    width: 16px;
-    margin-left: 10px;
-    opacity: 1;
+#btn-open.loaded img {
+    margin-left: 14px;
+    transition: 0.2s ease;
 }
 
 .media-title {
@@ -313,6 +315,7 @@ button img {
     align-items: center;
     gap: 10px;
     flex-shrink: 0;
+    margin-right: 2px;
 }
 
 .tracks-anchor {
@@ -327,11 +330,12 @@ button img {
     margin: 16px;
     width: max-content;
     max-height: calc(100vh - 16px - 32px);
+    background: #141414da;
 
     display: flex;
     flex-direction: column;
     border-radius: 16px;
-    padding: 8px 0;
+    padding: 6px 0 8px 0;
 
     transition: 0.2s ease;
 }
@@ -365,20 +369,32 @@ button img {
 }
 
 #tracks-menu .track-item {
+    display: flex;
+    align-items: center;
     cursor: pointer;
-    padding: 10px 13px;
     border-radius: 8px;
     transition: 0.2s ease;
     font-size: 14px;
     color: #dbdbdb;
+    transition: 0.2s ease;
 }
 
-#tracks-menu .track-item.selected {
-    font-weight: bold;
-    color: #ffffff;
+#tracks-menu .track-item .highlight {
+    width: 4px;
+    height: 20px;
+    border-radius: 2px;
+}
+
+#tracks-menu .track-item.selected .highlight {
+    background-color: #dc3545;
+}
+
+#tracks-menu .track-item .title {
+    padding: 10px 13px 10px 10px;
 }
 
 #tracks-menu .track-item:hover {
+    color: #ffffff;
     background: #ffffff1e;
 }
 
@@ -390,8 +406,8 @@ button img {
 
 .volume-group {
     position: relative;
-    width: 42px;
-    height: 42px;
+    width: 44px;
+    height: 44px;
 }
 
 .volume-group .btn-wrap {
@@ -405,6 +421,7 @@ button img {
     writing-mode: vertical-lr;
     height: 0px;
     margin: 0;
+    pointer-events: none;
     direction: rtl;
     opacity: 0;
     transition: 0.2s ease;
@@ -412,23 +429,39 @@ button img {
 
 .volume-group .btn-wrap:hover #volume-slider {
     margin: 13px 0 0 0;
+    pointer-events: all;
     opacity: 1;
     height: 150px;
 }
 
-#volume-display {
-    margin: 0;
+#volume-display-wrap {
+    display: flex;
+    justify-items: center;
     height: 0px;
+    overflow: hidden;
     opacity: 0;
-    font-size: 11px;
-    color: #b9b9b9;
+    pointer-events: none;
     transition: 0.2s ease;
 }
 
-.volume-group .btn-wrap:hover #volume-display {
-    height: fit-content;
-    margin: 5px 0;
+.volume-group .btn-wrap:hover #volume-display-wrap {
+    height: 31px;
+    pointer-events: all;
     opacity: 1;
+}
+
+#volume-display {
+    margin-top: 5px;
+    padding: 5px 7px;
+    height: fit-content;
+    border-radius: 5px;
+    font-size: 11px;
+    background-color: #00000018;
+    color: #b9b9b9;
+}
+
+#btn-mute {
+    border: none;
 }
 
 #btn-mute:hover {

@@ -42,63 +42,45 @@
 
                 <div class="toolbar">
                     <div class="toolbar-start">
-                        <div class="btn-wrap">
-                            <button id="btn-open">
-                                <span class="media-title" title=""></span>
-                                <img src="assets/icons/folder-open.svg" alt="Open path" />
-                            </button>
-                        </div>
+                        <button id="btn-open">
+                            <span class="media-title" title=""></span>
+                            <img src="assets/icons/folder-open.svg" alt="Open path" />
+                        </button>
                     </div>
 
                     <div class="toolbar-center">
-                        <div class="btn-wrap">
-                            <button id="btn-previous">
-                                <img src="assets/icons/step-backward.svg" alt="Previous" />
-                            </button>
-                        </div>
-                        <div class="btn-wrap">
-                            <button class="btn-seek" id="btn-seek-back">
-                                <img src="assets/icons/seek-backward.svg" alt="Skip Backward" />
-                                <p>10</p>
-                            </button>
-                        </div>
-                        <div class="btn-wrap">
-                            <button id="btn-play">
-                                <div class="play-icon">
-                                    <span class="play-icon-half play-icon-left"></span>
-                                    <span class="play-icon-half play-icon-right"></span>
-                                </div>
-                            </button>
-                        </div>
-                        <div class="btn-wrap">
-                            <button class="btn-seek" id="btn-seek-forward">
-                                <p>10</p>
-                                <img src="assets/icons/seek-forward.svg" alt="Skip Forward" />
-                            </button>
-                        </div>
-                        <div class="btn-wrap">
-                            <button id="btn-next">
-                                <img src="assets/icons/step-forward.svg" alt="Next" />
-                            </button>
-                        </div>
+                        <button id="btn-previous">
+                            <img src="assets/icons/step-backward.svg" alt="Previous" />
+                        </button>
+                        <button class="btn-seek" id="btn-seek-back">
+                            <img src="assets/icons/seek-backward.svg" alt="Skip Backward" />
+                            <p>10</p>
+                        </button>
+                        <button id="btn-play">
+                            <div class="play-icon">
+                                <span class="play-icon-half play-icon-left"></span>
+                                <span class="play-icon-half play-icon-right"></span>
+                            </div>
+                        </button>
+                        <button class="btn-seek" id="btn-seek-forward">
+                            <p>10</p>
+                            <img src="assets/icons/seek-forward.svg" alt="Skip Forward" />
+                        </button>
+                        <button id="btn-next">
+                            <img src="assets/icons/step-forward.svg" alt="Next" />
+                        </button>
                     </div>
 
                     <div class="toolbar-end">
-                        <div class="btn-wrap">
-                            <button id="btn-ambient">
-                                <img src="assets/icons/bulb.svg" alt="Ambient" />
-                            </button>
-                        </div>
-                        <div class="btn-wrap">
-                            <button id="btn-panscan">
-                                <img src="assets/icons/expand-arrows-alt.svg" alt="Pan-Scan" />
-                            </button>
-                        </div>
-                        <div class="btn-wrap tracks-anchor">
-                            <button id="btn-tracks">
-                                <img src="assets/icons/subtitles.svg" alt="Subtitles" />
-                            </button>
-                        </div>
+                        <button id="btn-ambient">
+                            <img src="assets/icons/bulb.svg" alt="Ambient" />
+                        </button>
+                        <button id="btn-panscan">
+                            <img src="assets/icons/expand-arrows-alt.svg" alt="Pan-Scan" />
+                        </button>
+                        <button class="tracks-anchor" id="btn-tracks">
+                            <img src="assets/icons/subtitles.svg" alt="Subtitles" />
+                        </button>
                         <div class="volume-group">
                             <div class="btn-wrap">
                                 <input
@@ -108,17 +90,17 @@
                                     max="200"
                                     value="100"
                                 />
-                                <span id="volume-display">100</span>
+                                <div id="volume-display-wrap">
+                                    <span id="volume-display">100</span>
+                                </div>
                                 <button id="btn-mute">
                                     <img src="assets/icons/volume.svg" alt="Mute" />
                                 </button>
                             </div>
                         </div>
-                        <div class="btn-wrap">
-                            <button id="btn-fullscreen">
-                                <img src="assets/icons/expand.svg" alt="Fullscreen" />
-                            </button>
-                        </div>
+                        <button id="btn-fullscreen">
+                            <img src="assets/icons/expand.svg" alt="Fullscreen" />
+                        </button>
                         <div id="tracks-menu" class="hidden">
                             <div class="tracks-heading">
                                 <span>Subtitles</span>

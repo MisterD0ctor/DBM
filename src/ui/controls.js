@@ -22,15 +22,21 @@ export function setPanscan(isPanscan) {
 }
 
 export function setMute(isMuted) {
-    setButtonIcon(
-        "btn-mute",
-        isMuted ? "assets/icons/volume-mute.svg" : "assets/icons/volume.svg",
-    );
+    setButtonIcon("btn-mute", isMuted ? "assets/icons/volume-mute.svg" : "assets/icons/volume.svg");
 }
 
 export function setVolume(volume) {
     document.getElementById("volume-slider").value = volume;
     document.getElementById("volume-display").innerText = volume;
+}
+
+export function setPlaylistNav(pos, count) {
+    const prev = document.getElementById("btn-previous");
+    const next = document.getElementById("btn-next");
+    prev?.classList.toggle("disabled", pos <= 0);
+    next?.classList.toggle("disabled", pos >= count - 1);
+    prev.disabled = pos <= 0;
+    next.disabled = pos >= count - 1;
 }
 
 export function setFullscreen(isFullscreen) {

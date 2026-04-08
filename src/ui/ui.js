@@ -2,10 +2,10 @@ export {
     setDuration,
     setCurrentTime,
     setProgress,
-    setFilename,
+    setMediaTitle,
     setPause,
-    setLoaded,
-    setSeekTimeHighlight,
+    setSeekTooltip,
+    setSeekHighlight,
 } from "./playback.js";
 
 export {
@@ -15,6 +15,7 @@ export {
     setVolume,
     setFullscreen,
     setAmbient,
+    setPlaylistNav,
 } from "./controls.js";
 
 export { getAspectRatio, setAmbientAspectRatio } from "./ambient.js";

@@ -25,13 +25,6 @@ pub struct PropertyChangeEvent {
     pub data: serde_json::Value,
 }
 
-/// Emitted on file-end.
-/// Event name: `mpv://file-end`
-#[derive(Debug, Clone, Serialize)]
-pub struct FileEndEvent {
-    pub reason: String,
-}
-
 /// Emitted on mpv errors.
 /// Event name: `mpv://error`
 #[derive(Debug, Clone, Serialize)]
@@ -73,7 +66,6 @@ pub unsafe extern "C" fn event_callback(event: *const c_char, userdata: *mut c_v
 
         // The wrapper emits events like:
         //   { "event": "property-change", "name": "pause", "data": true }
-        //   { "event": "end-file", "reason": "eof" }
         //   { "event": "file-loaded" }
 
         let event_type = parsed.get("event").and_then(|v| v.as_str()).unwrap_or("");
@@ -85,7 +77,10 @@ pub unsafe extern "C" fn event_callback(event: *const c_char, userdata: *mut c_v
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
-                let data = parsed.get("data").cloned().unwrap_or(serde_json::Value::Null);
+                let data = parsed
+                    .get("data")
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null);
 
                 // Keep SMTC in sync with mpv state
                 match name.as_str() {
@@ -100,7 +95,7 @@ pub unsafe extern "C" fn event_callback(event: *const c_char, userdata: *mut c_v
                             // Save watch-later for the previous file, then persist new path.
                             // Only when switching TO a file — during shutdown filename
                             // goes null and the instance is already destroyed.
-                            let player = app.state::<super::MpvPlayer>();
+                            let player = app.state::<std::sync::Arc<super::MpvPlayer>>();
                             let _ = player.write_watch_later();
                             if let Ok(val) = player.get_property("path", "string") {
                                 if let Some(path) = val.as_str() {
@@ -115,18 +110,6 @@ pub unsafe extern "C" fn event_callback(event: *const c_char, userdata: *mut c_v
                 let payload = PropertyChangeEvent { name, data };
                 if let Err(e) = app.emit("mpv://property", &payload) {
                     error!("Failed to emit mpv://property: {}", e);
-                }
-            }
-            "end-file" => {
-                let reason = parsed
-                    .get("reason")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("unknown")
-                    .to_string();
-
-                let payload = FileEndEvent { reason };
-                if let Err(e) = app.emit("mpv://file-end", &payload) {
-                    error!("Failed to emit mpv://file-end: {}", e);
                 }
             }
             _ => {
