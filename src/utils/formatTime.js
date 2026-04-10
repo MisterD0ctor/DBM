@@ -7,7 +7,7 @@ export function formatTime(seconds, fractionDigits = 0) {
     const m = Math.floor((flooredSeconds % 3600) / 60);
     const s = (seconds % 60).toFixed(fractionDigits);
     if (h <= 0) {
-        return `${m < 10 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
+        return `${m}:${s < 10 ? "0" : ""}${s}`;
     } else {
         return `${h}:${m < 10 ? "0" : ""}${m}:${s < 10 ? "0" : ""}${s}`;
     }

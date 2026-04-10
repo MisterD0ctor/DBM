@@ -27,4 +27,5 @@ export {
     populateAudioTrackMenu,
     setSelectedSubtitleTrack,
     setSelectedAudioTrack,
+    resizeTrackListMenus,
 } from "./tracks.js";

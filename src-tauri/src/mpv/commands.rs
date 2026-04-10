@@ -1,31 +1,8 @@
-use serde::{Deserialize, Serialize};
 use tauri::State;
 
 use std::sync::Arc;
 
 use super::{MpvPlayer, MpvResult};
-
-// ---------------------------------------------------------------------------
-// Shared state type (returned from get_state)
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MpvState {
-    pub paused: bool,
-    pub time_pos: f64,
-    pub percent_pos: f64,
-    pub duration: f64,
-    pub volume: f64,
-    pub mute: bool,
-    pub speed: f64,
-    pub panscan: f64,
-    pub filename: Option<String>,
-    pub path: Option<String>,
-    pub media_title: Option<String>,
-    pub border_background: Option<String>,
-    pub playlist_pos: f64,
-    pub playlist_count: f64,
-}
 
 // ---------------------------------------------------------------------------
 // Playback commands
@@ -126,98 +103,4 @@ pub fn get_property(
 ) -> MpvResult<serde_json::Value> {
     let fmt = format.unwrap_or_else(|| "string".to_string());
     player.get_property(&name, &fmt)
-}
-
-// ---------------------------------------------------------------------------
-// State snapshot (for initial sync)
-// ---------------------------------------------------------------------------
-
-#[tauri::command]
-pub fn get_state(player: State<Arc<MpvPlayer>>) -> MpvResult<MpvState> {
-    let paused = player
-        .get_property("pause", "flag")
-        .map(|v| v.as_bool().unwrap_or(true))
-        .unwrap_or(true);
-
-    let time_pos = player
-        .get_property("time-pos", "double")
-        .map(|v| v.as_f64().unwrap_or(0.0))
-        .unwrap_or(0.0);
-
-    let duration = player
-        .get_property("duration", "double")
-        .map(|v| v.as_f64().unwrap_or(0.0))
-        .unwrap_or(0.0);
-
-    let percent_pos = player
-        .get_property("percent-pos", "double")
-        .map(|v| v.as_f64().unwrap_or(0.0))
-        .unwrap_or(0.0);
-
-    let volume = player
-        .get_property("volume", "double")
-        .map(|v| v.as_f64().unwrap_or(100.0))
-        .unwrap_or(100.0);
-
-    let mute = player
-        .get_property("mute", "flag")
-        .map(|v| v.as_bool().unwrap_or(false))
-        .unwrap_or(false);
-
-    let speed = player
-        .get_property("speed", "double")
-        .map(|v| v.as_f64().unwrap_or(1.0))
-        .unwrap_or(1.0);
-
-    let panscan = player
-        .get_property("panscan", "double")
-        .map(|v| v.as_f64().unwrap_or(0.0))
-        .unwrap_or(0.0);
-
-    let filename = player
-        .get_property("filename", "string")
-        .ok()
-        .and_then(|v| v.as_str().map(|s| s.to_string()));
-
-    let path = player
-        .get_property("path", "string")
-        .ok()
-        .and_then(|v| v.as_str().map(|s| s.to_string()));
-
-    let media_title = player
-        .get_property("media-title", "string")
-        .ok()
-        .and_then(|v| v.as_str().map(|s| s.to_string()));
-
-    let border_background = player
-        .get_property("border-background", "string")
-        .ok()
-        .and_then(|v| v.as_str().map(|s| s.to_string()));
-
-    let playlist_pos = player
-        .get_property("playlist-pos", "double")
-        .map(|v| v.as_f64().unwrap_or(0.0))
-        .unwrap_or(0.0);
-
-    let playlist_count = player
-        .get_property("playlist-count", "double")
-        .map(|v| v.as_f64().unwrap_or(0.0))
-        .unwrap_or(0.0);
-
-    Ok(MpvState {
-        paused,
-        time_pos,
-        percent_pos,
-        duration,
-        volume,
-        mute,
-        speed,
-        panscan,
-        filename,
-        path,
-        media_title,
-        border_background,
-        playlist_pos,
-        playlist_count,
-    })
 }

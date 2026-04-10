@@ -145,7 +145,6 @@ pub fn run() {
             mpv::commands::playlist_next,
             mpv::commands::set_property,
             mpv::commands::get_property,
-            mpv::commands::get_state,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

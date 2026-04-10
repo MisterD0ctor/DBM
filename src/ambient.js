@@ -15,7 +15,29 @@ export function updateAspectRatio() {
         .then((aspect) => {
             player.getProperty("panscan", "double").then((panscan) => {
                 const uiAspect = ui.getAspectRatio();
-                ui.setAmbientAspectRatio(lerp(aspect, uiAspect, panscan));
+                const effectiveAspect = lerp(aspect, uiAspect, panscan);
+                ui.setAmbientAspectRatio(effectiveAspect);
+                updateBlurRadius(effectiveAspect, uiAspect);
             });
         });
+}
+
+async function updateBlurRadius(videoAspect, containerAspect) {
+    if (videoAspect <= 0) return;
+
+    const [vidW, vidH] = await Promise.all([
+        player.getProperty("video-params/w", "double"),
+        player.getProperty("video-params/h", "double"),
+    ]);
+    if (!vidW || !vidH) return;
+
+    let barPx;
+    if (videoAspect > containerAspect) {
+        barPx = ((1 - containerAspect / videoAspect) / 2) * vidH;
+    } else {
+        barPx = ((1 - videoAspect / containerAspect) / 2) * vidW;
+    }
+
+    const radius = Math.round(barPx * 0.5);
+    player.setProperty("background-blur-radius", radius.toString());
 }

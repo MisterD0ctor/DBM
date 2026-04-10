@@ -43,3 +43,8 @@ document.addEventListener("click", (event) => {
         ui.hideTracksMenu();
     }
 });
+
+// --- Observe window size changes ---------------------------------------------
+
+const observer = new ResizeObserver(() => ui.resizeTrackListMenus());
+observer.observe(document.querySelector("body"));

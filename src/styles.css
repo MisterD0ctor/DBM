@@ -50,13 +50,13 @@ body {
         rgba(0, 0, 0, 0),
         transparent
     );
-    padding: 110px 10px 8px 10px;
+    padding: 110px 10px 6px 10px;
     box-sizing: border-box;
     transition: 0.2s ease;
 }
 
 #controls-panel.hidden {
-    opacity: 0;
+    /* opacity: 0; */
     pointer-events: none;
 }
 
@@ -78,7 +78,7 @@ button {
     cursor: pointer;
 }
 
-button.disabled {
+.disabled {
     opacity: 0.2;
     pointer-events: none;
 }
@@ -86,13 +86,13 @@ button.disabled {
 button:hover,
 .btn-wrap:hover,
 #seek-tooltip {
-    background: #14141492;
+    background: #10101092;
     border: 0.5px solid #ffffff11;
 }
 
 button img {
-    width: 18px;
-    height: 18px;
+    width: 20px;
+    height: 20px;
 }
 
 span,
@@ -134,12 +134,18 @@ button p,
 .seek-rail {
     position: relative;
     width: 100%;
-    background: #484848;
+    background: #2e2e2ec2;
 }
 
 .seek-fill,
 .seek-thumb {
-    background: #a52734;
+    background: #dc3545;
+    transition: background 0.2s ease;
+}
+
+#seek-track:hover .seek-fill,
+#seek-track:hover .seek-thumb {
+    background: #91222d;
 }
 
 .seek-fill {
@@ -198,10 +204,10 @@ button p,
 #seek-tooltip {
     pointer-events: none;
     position: absolute;
-    bottom: 20px;
+    bottom: 30px;
     left: var(--seek-tooltip-pos);
     transform: translate(-50%, 0);
-    padding: 8px 12px;
+    padding: 10px 16px;
     border-radius: 100px;
     transition: opacity 0.2s ease;
 }
@@ -217,14 +223,13 @@ button p,
     grid-template-columns: 1fr auto 1fr;
     gap: 10px;
     align-items: center;
-    padding: 10px 0;
     transition: opacity 0.2s ease;
 }
 
 /* toolbar start (left) */
 .toolbar-start {
     align-items: center;
-    gap: 5px;
+    gap: 10px;
     justify-self: start;
     min-width: 0;
     max-width: 100%;
@@ -232,12 +237,12 @@ button p,
 
 #btn-open {
     max-width: 100%;
-    padding: 12px 14px;
+    padding: 14px;
     overflow: hidden;
 }
 
 #btn-open.loaded {
-    border-radius: 16px;
+    border-radius: 12px;
 }
 
 #btn-open.loaded img {
@@ -248,7 +253,6 @@ button p,
 .media-title {
     overflow: hidden;
     white-space: nowrap;
-    text-overflow: ellipsis;
     font-size: 20px;
     font-weight: bold;
 }
@@ -257,13 +261,13 @@ button p,
 .toolbar-center {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 5px;
     justify-self: center;
     flex-shrink: 0;
 }
 
 .btn-seek p {
-    font-size: 13px;
+    font-size: 14px;
     position: absolute;
     transform: translate(0, 3px);
 }
@@ -313,7 +317,7 @@ button p,
     display: flex;
     justify-self: end;
     align-items: center;
-    gap: 10px;
+    gap: 5px;
     flex-shrink: 0;
     margin-right: 2px;
 }
@@ -327,22 +331,22 @@ button p,
     position: fixed;
     position-anchor: --tracks-menu;
     position-area: top center;
-    margin: 16px;
+    margin: 8px;
     width: max-content;
     max-height: calc(100vh - 16px - 32px);
     background: #141414da;
 
     display: flex;
     flex-direction: column;
-    border-radius: 16px;
-    padding: 6px 0 8px 0;
+    border-radius: 12px;
+    padding: 8px 0;
 
     transition: 0.2s ease;
 }
 
 #tracks-menu.hidden {
-    opacity: 0;
     pointer-events: none;
+    opacity: 0;
 }
 
 #tracks-menu .tracks-list {
@@ -356,15 +360,15 @@ button p,
 #tracks-menu .tracks-heading {
     font-size: 12px;
     color: #ffffff;
-    padding: 8px 21px 10px 21px;
+    padding: 10px 21px 10px 27px;
     margin-right: 20px;
     opacity: 0.5;
 }
 
 #tracks-menu .tracks-heading img {
     margin-left: 3px;
-    width: 12px;
-    height: 12px;
+    width: 13px;
+    height: 13px;
     transform: translateY(1px);
 }
 
@@ -372,10 +376,8 @@ button p,
     display: flex;
     align-items: center;
     cursor: pointer;
-    border-radius: 8px;
-    transition: 0.2s ease;
+    border-radius: 6px;
     font-size: 14px;
-    color: #dbdbdb;
     transition: 0.2s ease;
 }
 
@@ -390,12 +392,19 @@ button p,
 }
 
 #tracks-menu .track-item .title {
-    padding: 10px 13px 10px 10px;
+    padding: 16px 19px 16px 16px;
+    opacity: 0.8;
 }
 
 #tracks-menu .track-item:hover {
     color: #ffffff;
     background: #ffffff1e;
+}
+
+#tracks-menu .track-item img {
+    width: 15px;
+    height: 15px;
+    opacity: 0.8;
 }
 
 #tracks-menu .tracks-divider {
@@ -406,8 +415,8 @@ button p,
 
 .volume-group {
     position: relative;
-    width: 44px;
-    height: 44px;
+    width: 46px;
+    height: 46px;
 }
 
 .volume-group .btn-wrap {
@@ -415,6 +424,10 @@ button p,
     bottom: 0;
     display: flex;
     flex-direction: column;
+}
+
+.volume-group .btn-wrap:hover {
+    background: #141414da;
 }
 
 #volume-slider {

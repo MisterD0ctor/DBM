@@ -18,6 +18,9 @@ export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable
         onDisable();
         hideTracksMenu();
     });
+    const noneImg = document.createElement("img");
+    noneImg.setAttribute("src", "assets/icons/subtitles-slash.svg");
+    noneItem.appendChild(noneImg);
     menu.appendChild(noneItem);
 
     populateTrackMenu(menu, subtitleTrackList, onSelect);
@@ -31,12 +34,11 @@ export function populateAudioTrackMenu(audioTrackList, onSelect) {
 }
 
 function populateTrackMenu(menu, trackList, onSelect) {
-    const duplicatedLangs = getDuplicatedLanguages(trackList);
+    const sorted = sortByLanguage(trackList);
+    const titles = buildTrackTitles(sorted);
 
-    for (const track of trackList) {
-        const title = getTrackTitle(track, duplicatedLangs.includes(track.lang));
-        const id = track.id;
-        menu.appendChild(createTrackMenuItem(title, id, onSelect));
+    for (const track of sorted) {
+        menu.appendChild(createTrackMenuItem(titles.get(track), track.id, onSelect));
     }
 
     resizeTrackListMenus();
@@ -89,13 +91,15 @@ export function resizeTrackListMenus() {
     if (lists.length === 0) return;
 
     // Reset so we can measure natural (unconstrained) heights
-    lists.forEach((m) => (m.style.maxHeight = ""));
+    lists.forEach((m) => {
+        m.style.minHeight = "";
+    });
 
     // The max-height from CSS on the container is the hard budget
     const maxHeight = parseFloat(getComputedStyle(container).maxHeight) || window.innerHeight;
     const fixedHeight = [...container.children]
         .filter((el) => !el.classList.contains("tracks-list"))
-        .reduce((sum, el) => sum + el.offsetHeight, 0);
+        .reduce((sum, el) => sum + getAbsoluteHeight(el), 0);
     const padding =
         parseFloat(getComputedStyle(container).paddingTop) +
         parseFloat(getComputedStyle(container).paddingBottom);
@@ -105,45 +109,93 @@ export function resizeTrackListMenus() {
     // First pass: lists that fit within an equal share keep their natural size
     const share = available / lists.length;
     const small = lists.filter((m) => m.scrollHeight <= share);
-    const large = lists.filter((m) => m.scrollHeight > share);
 
-    const smallTotal = small.reduce((sum, m) => sum + m.scrollHeight, 0);
-    const remaining = available - smallTotal;
-    const cap = large.length > 0 ? remaining / large.length : 0;
-
-    large.forEach((m) => (m.style.maxHeight = `${cap}px`));
+    small.forEach((m) => (m.style.minHeight = "fit-content"));
 }
-
-resizeTrackListMenus();
-const observer = new ResizeObserver(() => resizeTrackListMenus());
-observer.observe(document.getElementById("tracks-menu"));
 
 // --- Utilities ---------------------------------------------------------------
 
-function getTrackTitle(track, hasDuplicateLanguages) {
-    const language = languageCodeEndonym(track.lang) ?? "";
-    const title = track.title ?? "";
-    const hasLang = language != "";
-    const hasTitle = title != "";
-    const titleIncludesLang = track.title?.toLowerCase().includes(language?.toLowerCase());
-
-    if (!hasLang && !hasTitle) return `Track ${track.id}`;
-    if (!hasLang && hasTitle) return title;
-    if (hasLang && !hasDuplicateLanguages) return language;
-    if (hasLang && !hasTitle && hasDuplicateLanguages) return `${language} - Track ${track.id}`;
-    if (hasLang && hasTitle && hasDuplicateLanguages && !titleIncludesLang)
-        return `${language} - ${title}`;
-    if (hasLang && hasTitle && hasDuplicateLanguages && titleIncludesLang) return title;
+function getAbsoluteHeight(el) {
+    const styles = window.getComputedStyle(el);
+    const margin = parseFloat(styles.marginTop) + parseFloat(styles.marginBottom);
+    return Math.ceil(el.offsetHeight + margin);
 }
 
-function getDuplicatedLanguages(tracks) {
-    const counts = {};
-    for (const track of tracks) {
-        if (track.lang !== undefined) {
-            counts[track.lang] = (counts[track.lang] || 0) + 1;
+/// Sort tracks so those sharing a language code are grouped together,
+/// preserving the original order within each group and for ungrouped tracks.
+function sortByLanguage(trackList) {
+    // Build groups keyed by lang, preserving insertion order
+    const groups = new Map();
+    const noLang = [];
+    for (const track of trackList) {
+        if (track.lang) {
+            if (!groups.has(track.lang)) groups.set(track.lang, []);
+            groups.get(track.lang).push(track);
+        } else {
+            noLang.push(track);
         }
     }
-    return Object.keys(counts).filter((lang) => counts[lang] > 1);
+    // Flatten: grouped tracks first (in order of first appearance), then ungrouped
+    return [...groups.values()].flat().concat(noLang);
+}
+
+/// Build a display title for every track. Tracks sharing the same language
+/// get "Language - Title" or "Language - N" labels; unique-language tracks
+/// just show the language name; tracks with no language show their title or id.
+function buildTrackTitles(trackList) {
+    // Count occurrences of each language
+    const langCounts = {};
+    for (const t of trackList) {
+        if (t.lang) langCounts[t.lang] = (langCounts[t.lang] || 0) + 1;
+    }
+
+    // For numbering: track how many of each (lang, title) pair we've seen
+    const seen = {};
+    // Pre-count (lang, title) pairs to know if numbering is needed
+    const pairCounts = {};
+    for (const t of trackList) {
+        if (!t.lang) continue;
+        const key = `${t.lang}\0${t.title ?? ""}`;
+        pairCounts[key] = (pairCounts[key] || 0) + 1;
+    }
+
+    const titles = new Map();
+    for (const track of trackList) {
+        const lang = languageCodeEndonym(track.lang) ?? "";
+        const title = track.title ?? "";
+        const hasLang = lang !== "";
+        const hasTitle = title !== "";
+
+        if (!hasLang && !hasTitle) {
+            titles.set(track, `Track ${track.id}`);
+            continue;
+        }
+        if (!hasLang) {
+            titles.set(track, title);
+            continue;
+        }
+
+        const isOnlyOneWithLang = langCounts[track.lang] === 1;
+        if (isOnlyOneWithLang) {
+            titles.set(track, lang);
+            continue;
+        }
+
+        // Multiple tracks share this language — need disambiguation
+        const pairKey = `${track.lang}\0${title}`;
+        const needsNumber = pairCounts[pairKey] > 1 || !hasTitle;
+        seen[pairKey] = (seen[pairKey] || 0) + 1;
+
+        if (hasTitle && !needsNumber) {
+            const titleIncludesLang = title.toLowerCase().includes(lang.toLowerCase());
+            titles.set(track, titleIncludesLang ? title : `${lang} - ${title}`);
+        } else if (hasTitle && needsNumber) {
+            titles.set(track, `${lang} - ${title} ${seen[pairKey]}`);
+        } else {
+            titles.set(track, `${lang} - ${seen[pairKey]}`);
+        }
+    }
+    return titles;
 }
 
 function languageCodeEndonym(code) {

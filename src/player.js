@@ -82,17 +82,6 @@ export function getProperty(name, format = "string") {
 }
 
 // ---------------------------------------------------------------------------
-// State snapshot
-// ---------------------------------------------------------------------------
-
-/**
- * @returns {Promise<{paused, time_pos, percent_pos, duration, volume, mute, speed, panscan, filename, path, media_title, border_background, playlist_pos, playlist_count}>}
- */
-export function getState() {
-    return invoke("get_state");
-}
-
-// ---------------------------------------------------------------------------
 // Events from Rust (property changes, file-end, errors)
 // ---------------------------------------------------------------------------
 
