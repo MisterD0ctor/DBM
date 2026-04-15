@@ -10,6 +10,8 @@ export async function populateTrackListMenu() {
     const subtitle = trackList.filter((t) => t.type === "sub");
     const audio = trackList.filter((t) => t.type === "audio");
 
+    console.log(subtitle);
+
     const selectedSubtitleId = subtitle.find((t) => t.selected)?.id ?? "no";
     const selectedAudioId = audio.find((t) => t.selected)?.id;
 

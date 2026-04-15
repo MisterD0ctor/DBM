@@ -2,6 +2,9 @@ import { lerp } from "./utils/lerp.js";
 import * as player from "./player.js";
 import * as ui from "./ui/ui.js";
 
+let resizeTimer;
+let isBlur;
+
 export function toggleAmbient() {
     player
         .getProperty("border-background")
@@ -9,6 +12,15 @@ export function toggleAmbient() {
 }
 
 export function updateAspectRatio() {
+    clearTimeout(resizeTimer);
+
+    resizeTimer = setTimeout(() => {
+        internalUpdateAspectRatio();
+        resizeTimer = undefined;
+    }, 300);
+}
+
+function internalUpdateAspectRatio() {
     player
         .getProperty("video-params/aspect", "double")
         .catch(() => 0)

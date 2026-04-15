@@ -18,9 +18,9 @@ export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable
         onDisable();
         hideTracksMenu();
     });
-    const noneImg = document.createElement("img");
-    noneImg.setAttribute("src", "assets/icons/subtitles-slash.svg");
-    noneItem.appendChild(noneImg);
+    // const noneImg = document.createElement("img");
+    // noneImg.setAttribute("src", "assets/icons/normal-straight/subtitles-slash.svg");
+    // noneItem.appendChild(noneImg);
     menu.appendChild(noneItem);
 
     populateTrackMenu(menu, subtitleTrackList, onSelect);
@@ -149,6 +149,24 @@ function buildTrackTitles(trackList) {
         if (t.lang) langCounts[t.lang] = (langCounts[t.lang] || 0) + 1;
     }
 
+    // Detect base languages (e.g. "es") that have multiple regional variants
+    // (e.g. "es-419", "es-ES") so we can show the region qualifier only then.
+    const baseLangCodes = {};
+    for (const t of trackList) {
+        if (!t.lang) continue;
+        try {
+            const base = new Intl.Locale(t.lang).language;
+            if (!baseLangCodes[base]) baseLangCodes[base] = new Set();
+            baseLangCodes[base].add(t.lang);
+        } catch {
+            /* ignore */
+        }
+    }
+    const needsRegion = new Set();
+    for (const codes of Object.values(baseLangCodes)) {
+        if (codes.size > 1) codes.forEach((c) => needsRegion.add(c));
+    }
+
     // For numbering: track how many of each (lang, title) pair we've seen
     const seen = {};
     // Pre-count (lang, title) pairs to know if numbering is needed
@@ -161,7 +179,7 @@ function buildTrackTitles(trackList) {
 
     const titles = new Map();
     for (const track of trackList) {
-        const lang = languageCodeEndonym(track.lang) ?? "";
+        const lang = languageCodeEndonym(track.lang, needsRegion.has(track.lang)) ?? "";
         const title = track.title ?? "";
         const hasLang = lang !== "";
         const hasTitle = title !== "";
@@ -182,7 +200,7 @@ function buildTrackTitles(trackList) {
         }
 
         // Multiple tracks share this language — need disambiguation
-        const pairKey = `${track.lang}\0${title}`;
+        const pairKey = `${lang}\0${title}`;
         const needsNumber = pairCounts[pairKey] > 1 || !hasTitle;
         seen[pairKey] = (seen[pairKey] || 0) + 1;
 
@@ -198,12 +216,16 @@ function buildTrackTitles(trackList) {
     return titles;
 }
 
-function languageCodeEndonym(code) {
+function languageCodeEndonym(code, includeRegion = false) {
     if (code == undefined || code == "") return undefined;
     try {
         const locale = new Intl.Locale(code);
         const lang = locale.language;
-        const name = new Intl.DisplayNames([lang], { type: "language" }).of(lang);
+        const display = new Intl.DisplayNames([lang], { type: "language" });
+        // Only include region qualifier when there are multiple variants of
+        // the same base language (e.g. es-419 and es-ES both present).
+        const lookupCode = includeRegion ? locale.toString() : lang;
+        const name = display.of(lookupCode) ?? display.of(lang);
         if (!name) return code;
         return name[0].toLocaleUpperCase(lang) + name.slice(1);
     } catch {

@@ -5,6 +5,7 @@ import * as ui from "./ui/ui.js";
 import * as ambient from "./ambient.js";
 import * as seekbar from "./seekbar.js";
 import * as tracks from "./tracks.js";
+import * as playlist from "./playlist.js";
 
 // Side-effect imports — these register their own event listeners on import
 import "./overlay.js";
@@ -38,7 +39,8 @@ function updateProperty(name, data) {
         case "duration":    ui.setDuration(data);        
                             seekbar.setDuration(data);            break;
         case "filename":    ui.setMediaTitle(data);               break;
-        case "pause":       ui.setPause(data);                    break;
+        case "pause":       ui.setPause(data);
+                            ui.setActivePlaylistItem(playlistPos, data); break;
         case "mute":        ui.setMute(data);                     break;
         case "volume":      ui.setVolume(data);                   break;
         case "panscan":     ui.setPanscan(data);
@@ -48,7 +50,8 @@ function updateProperty(name, data) {
         case "border-background": ui.setAmbient(data === "blur"); break;
         case "eof-reached":                                       break;
         case "playlist-pos":   playlistPos = data;
-                               ui.setPlaylistNav(playlistPos, playlistCount); break;
+                               ui.setPlaylistNav(playlistPos, playlistCount);
+                               ui.setActivePlaylistItem(playlistPos, false); break;
         case "playlist-count": playlistCount = data;
                                ui.setPlaylistNav(playlistPos, playlistCount); break;
         default: console.warn("Unhandled property:", name);
@@ -74,6 +77,16 @@ async function updateState() {
     });
 
     await tracks.populateTrackListMenu();
+    await playlist.populatePlaylistMenu();
+
+    // Save duration for progress bars in the playlist menu
+    const [path, duration] = await Promise.all([
+        player.getProperty("path", "string").catch(() => ""),
+        player.getProperty("duration", "double").catch(() => 0),
+    ]);
+    if (path && duration > 0) {
+        player.saveDuration(path, duration);
+    }
 }
 
 try {
@@ -87,6 +100,7 @@ try {
 listen("tauri://resize", () => {
     player.getProperty("percent-pos", "double").then((percentPos) => ui.setProgress(percentPos));
     ambient.updateAspectRatio();
+    ui.updateMediaTitleOverflow();
 });
 
 listen("tauri://open-file", (event) => {

@@ -60,6 +60,74 @@ fn open_video_dialog(app: AppHandle, player: tauri::State<Arc<MpvPlayer>>) -> Re
     Ok(())
 }
 
+/// Saved progress info for a single file.
+#[derive(serde::Serialize, Clone)]
+struct WatchProgress {
+    start: f64,
+    duration: f64,
+}
+
+/// Look up saved watch-later positions for a list of file paths.
+/// Returns a map of path → { start, duration }.
+#[tauri::command]
+fn get_watch_later_positions(
+    paths: Vec<String>,
+) -> std::collections::HashMap<String, WatchProgress> {
+    use md5::Digest;
+
+    let watch_dir = mpv::app_data_dir().join("watch_later");
+    let durations = load_duration_cache();
+    let mut result = std::collections::HashMap::new();
+
+    for path in &paths {
+        let hash = md5::Md5::digest(path.as_bytes());
+        let filename = hash
+            .iter()
+            .map(|b| format!("{:02X}", b))
+            .collect::<String>();
+        let file_path = watch_dir.join(&filename);
+
+        if let Ok(contents) = std::fs::read_to_string(&file_path) {
+            for line in contents.lines() {
+                if let Some(val) = line.strip_prefix("start=") {
+                    if let Ok(start) = val.parse::<f64>() {
+                        let duration = durations.get(path).copied().unwrap_or(0.0);
+                        if duration > 0.0 {
+                            result.insert(path.clone(), WatchProgress { start, duration });
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    result
+}
+
+/// Save a file's duration so we can show progress bars in the playlist.
+#[tauri::command]
+fn save_duration(path: String, duration: f64) {
+    if duration <= 0.0 {
+        return;
+    }
+    let mut cache = load_duration_cache();
+    cache.insert(path, duration);
+    let cache_path = mpv::app_data_dir().join("durations.json");
+    let _ = std::fs::write(
+        &cache_path,
+        serde_json::to_string(&cache).unwrap_or_default(),
+    );
+}
+
+fn load_duration_cache() -> std::collections::HashMap<String, f64> {
+    let cache_path = mpv::app_data_dir().join("durations.json");
+    std::fs::read_to_string(&cache_path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
 // --- Startup (Rust-side, runs in .setup()) ------------------------------------
 
 fn startup(app: &AppHandle) {
@@ -134,6 +202,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_video,
             open_video_dialog,
+            get_watch_later_positions,
+            save_duration,
             mpv::commands::play,
             mpv::commands::pause,
             mpv::commands::toggle_pause,

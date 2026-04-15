@@ -3,6 +3,7 @@ import * as ui from "./ui/ui.js";
 import { toggleAmbient } from "./ambient.js";
 
 const { getCurrentWindow } = window.__TAURI__.window;
+const { PhysicalPosition, PhysicalSize, LogicalPosition, LogicalSize } = window.__TAURI__.dpi;
 
 const SEEK_SECONDS = 10;
 const DOUBLE_CLICK_DELAY_MS = 250;
@@ -19,9 +20,35 @@ function toggleMute() {
     });
 }
 
-function setFullscreen(isFs) {
-    getCurrentWindow().setFullscreen(isFs);
-    ui.setFullscreen(isFs);
+// --- Borderless fullscreen with animation ------------------------------------
+
+let savedWindowState = {
+    isMaximized: false,
+    position: undefined,
+    size: undefined,
+};
+
+async function setFullscreen(enable) {
+    const win = getCurrentWindow();
+
+    if (enable) {
+        savedWindowState = {
+            isMaximized: await win.isMaximized(),
+            position: await win.outerPosition(),
+            size: await win.innerSize(),
+        };
+        await win.maximize();
+        await win.setFullscreen(true);
+    } else {
+        await win.setFullscreen(false);
+        if (!savedWindowState.isMaximized) {
+            await win.setSize(savedWindowState.size); // Sets inner size
+            await win.setPosition(savedWindowState.position); // Sets outer position
+            await win.unmaximize();
+        }
+    }
+
+    ui.setFullscreen(enable);
 }
 
 function toggleFullscreen() {
@@ -84,10 +111,11 @@ document.addEventListener("keydown", (e) => {
     switch (e.code) {
     case "Escape":      setFullscreen(false); break;
     case "Space":       togglePause();        break;
+    case "F11":
     case "KeyF":        toggleFullscreen();   break;
     case "KeyM":        toggleMute();         break;
     case "KeyT":        togglePanscan();      break;
-    case "ArrowRight":  seek(SEEK_SECONDS);   break;
-    case "ArrowLeft":   seek(-SEEK_SECONDS);  break;
+    case "ArrowRight":  e.ctrlKey ? playNext()          : seek(SEEK_SECONDS);  break;
+    case "ArrowLeft":   e.ctrlKey ? playPrevious()      : seek(-SEEK_SECONDS); break;
     }
 });

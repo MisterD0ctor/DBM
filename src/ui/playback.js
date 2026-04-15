@@ -1,4 +1,6 @@
 import { formatTime } from "../utils/formatTime.js";
+import { parseTvShow } from "../utils/parseTvShow.js";
+import { setButtonIcon } from "../utils/setButtonIcon.js";
 
 let duration;
 
@@ -32,24 +34,73 @@ export function setProgress(percent) {
     document.documentElement.style.setProperty("--progress", `${pixels}px`);
 }
 
-export function setMediaTitle(mediaTitle) {
-    mediaTitle = mediaTitle ?? "";
-    const el = document.querySelector(".media-title");
-    el.title = mediaTitle;
-    if (mediaTitle) {
-        const dot = mediaTitle.lastIndexOf(".");
-        mediaTitle = dot > 0 ? mediaTitle.substring(0, dot) : mediaTitle;
+export function setMediaTitle(filename) {
+    filename = filename ?? "";
+
+    const btnEl = document.getElementById("btn-open");
+    const mediaTitleEl = document.querySelector(".media-title");
+    const titleEl = document.querySelector(".media-title .title");
+    const showEl = document.querySelector(".media-title .show");
+    const episodeEl = document.querySelector(".media-title .episode");
+    const episodeTitleEl = document.querySelector(".media-title .episode-title");
+
+    if (filename) {
+        const dot = filename.lastIndexOf(".");
+        filename = dot > 0 ? filename.substring(0, dot) : filename;
     }
-    el.textContent = mediaTitle;
-    const isLoaded = mediaTitle !== "";
-    document.getElementById("btn-open")?.classList.toggle("loaded", isLoaded);
+
+    const episodeData = parseTvShow(filename);
+    if (episodeData != null) {
+        const { show, season, episode, episodeEnd, title } = episodeData;
+        titleEl.textContent = "";
+        titleEl.classList.toggle("hidden", true);
+        showEl.textContent = show;
+        showEl.classList.toggle("hidden", false);
+        episodeEl.textContent = `S${season}:E${episode}`;
+        episodeEl.classList.toggle("hidden", false);
+        if (title != undefined) {
+            episodeTitleEl.textContent = title;
+            episodeTitleEl.classList.toggle("hidden", false);
+        } else {
+            episodeTitleEl.textContent = "";
+            episodeTitleEl.classList.toggle("hidden", true);
+        }
+    } else {
+        titleEl.textContent = filename;
+        titleEl.classList.toggle("hidden", false);
+        showEl.textContent = "";
+        showEl.classList.toggle("hidden", true);
+        episodeEl.textContent = "";
+        episodeEl.classList.toggle("hidden", true);
+        episodeTitleEl.textContent = "";
+        episodeTitleEl.classList.toggle("hidden", true);
+    }
+
+    mediaTitleEl.classList.toggle(
+        "overflowing",
+        mediaTitleEl.scrollWidth > mediaTitleEl.clientWidth,
+    );
+    const isLoaded = filename !== "";
+    btnEl.classList.toggle("loaded", isLoaded);
+}
+
+export function updateMediaTitleOverflow() {
+    const el = document.querySelector(".media-title");
+    if (el) el.classList.toggle("overflowing", el.scrollWidth > el.clientWidth);
 }
 
 export function setPause(isPaused) {
-    const before = document.querySelector(".play-icon-left");
-    const after = document.querySelector(".play-icon-right");
-    before?.classList.toggle("paused", isPaused);
-    after?.classList.toggle("paused", isPaused);
+    setButtonIcon("btn-play", isPaused ? "assets/icons/play.svg" : "assets/icons/pause.svg");
+    showPlaybackOverlay(isPaused);
+}
+
+function showPlaybackOverlay(isPaused) {
+    const overlay = document.getElementById("playback-overlay");
+    const icon = document.getElementById("playback-status-icon");
+    icon.src = isPaused ? "assets/icons/pause.svg" : "assets/icons/play.svg";
+    overlay.classList.remove("visible");
+    void overlay.offsetWidth;
+    overlay.classList.add("visible");
 }
 
 let seekTimeTooltipTimes = [];
@@ -65,8 +116,8 @@ export function setSeekTooltip(isShown, clientX) {
 
         const seekTrack = document.getElementById("seek-track");
         const rect = seekTrack.getBoundingClientRect();
-        const rectX = clientX - rect.left;
-        const fraction = Math.max(0, rectX / rect.width ?? 0);
+        const rectX = Math.max(0, clientX - rect.left);
+        const fraction = rectX / rect.width ?? 0;
         const timeSeconds = duration * fraction;
 
         const secondsPerPixel = duration / rect.width ?? 0;
@@ -87,17 +138,17 @@ export function setSeekTooltip(isShown, clientX) {
     }
 }
 
-export function setSeekHighlight(isShown, clientX) {
-    const highlightElList = document.querySelectorAll(".seek-highlight");
-    highlightElList.forEach((el) => el?.classList.toggle("hidden", !isShown));
+export function setSeekHighlight(enable, clientX) {
+    const seekTrack = document.getElementById("seek-track");
 
-    if (isShown) {
+    seekTrack.classList.toggle("highlighted", enable);
+
+    if (enable) {
         seekTimeHighlightTimes.forEach((id) => clearTimeout(id));
         seekTimeHighlightTimes = [];
 
-        const seekTrack = document.getElementById("seek-track");
         const rect = seekTrack.getBoundingClientRect();
-        const rectX = clientX - rect.left;
+        const rectX = Math.max(0, clientX - rect.left);
 
         document.documentElement.style.setProperty("--seek-highlight-pos", `${rectX}px`);
     } else {

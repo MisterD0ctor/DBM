@@ -1,6 +1,4 @@
-function setButtonIcon(buttonId, src) {
-    document.getElementById(buttonId)?.querySelector("img")?.setAttribute("src", src);
-}
+import { setButtonIcon } from "../utils/setButtonIcon.js";
 
 export function setOverlay(isShown) {
     document.getElementById("controls-panel")?.classList.toggle("hidden", !isShown);
@@ -10,31 +8,26 @@ export function setOverlay(isShown) {
 export function setAmbient(isAmbient) {
     setButtonIcon(
         "btn-ambient",
-        isAmbient ? "assets/icons/lightbulb-slash.svg" : "assets/icons/bulb.svg",
+        isAmbient
+            ? "assets/icons/normal-straight/lightbulb-slash.svg"
+            : "assets/icons/normal-straight/bulb.svg",
     );
 }
 
 export function setPanscan(isPanscan) {
     setButtonIcon(
         "btn-panscan",
-        isPanscan ? "assets/icons/compress-alt.svg" : "assets/icons/expand-arrows-alt.svg",
+        isPanscan
+            ? "assets/icons/normal-straight/compress-alt.svg"
+            : "assets/icons/normal-straight/expand-alt.svg",
     );
-}
-
-export function setMute(isMuted) {
-    setButtonIcon("btn-mute", isMuted ? "assets/icons/volume-mute.svg" : "assets/icons/volume.svg");
-}
-
-export function setVolume(volume) {
-    document.getElementById("volume-slider").value = volume;
-    document.getElementById("volume-display").innerText = volume;
 }
 
 export function setPlaylistNav(pos, count) {
     const prev = document.getElementById("btn-previous");
     const next = document.getElementById("btn-next");
-    prev?.classList.toggle("disabled", pos <= 0);
-    next?.classList.toggle("disabled", pos >= count - 1);
+    prev.classList.toggle("disabled", pos <= 0);
+    next.classList.toggle("disabled", pos >= count - 1);
     prev.disabled = pos <= 0;
     next.disabled = pos >= count - 1;
 }
@@ -42,6 +35,8 @@ export function setPlaylistNav(pos, count) {
 export function setFullscreen(isFullscreen) {
     setButtonIcon(
         "btn-fullscreen",
-        isFullscreen ? "assets/icons/compress.svg" : "assets/icons/expand.svg",
+        isFullscreen
+            ? "assets/icons/normal-straight/compress.svg"
+            : "assets/icons/normal-straight/expand.svg",
     );
 }

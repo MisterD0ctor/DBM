@@ -82,6 +82,22 @@ export function getProperty(name, format = "string") {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Watch-later progress
+// ---------------------------------------------------------------------------
+
+/**
+ * @param {string[]} paths
+ * @returns {Promise<Record<string, {start: number, duration: number}>>}
+ */
+export function getWatchLaterPositions(paths) {
+    return invoke("get_watch_later_positions", { paths });
+}
+
+export function saveDuration(path, duration) {
+    return invoke("save_duration", { path, duration });
+}
+
 // Events from Rust (property changes, file-end, errors)
 // ---------------------------------------------------------------------------
 

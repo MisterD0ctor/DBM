@@ -18,6 +18,16 @@
                 <div class="ambient-bar" id="ambient-right"></div>
             </div>
 
+            <div id="playback-overlay">
+                <div id="playback-status">
+                    <img
+                        id="playback-status-icon"
+                        src="assets/icons/pause.svg"
+                        alt="Playback status"
+                    />
+                </div>
+            </div>
+
             <div id="video-surface"></div>
 
             <div id="controls-panel">
@@ -43,43 +53,59 @@
                 <div class="toolbar">
                     <div class="toolbar-start">
                         <button id="btn-open">
-                            <span class="media-title" title=""></span>
-                            <img src="assets/icons/folder-open.svg" alt="Open path" />
+                            <img
+                                src="assets/icons/normal-straight/folder-open.svg"
+                                alt="Open path"
+                            />
+                            <div class="media-title">
+                                <span class="title"></span>
+                                <span class="show"></span>
+                                <span class="episode"></span>
+                                <span class="episode-title"></span>
+                            </div>
                         </button>
                     </div>
 
                     <div class="toolbar-center">
                         <button id="btn-previous">
-                            <img src="assets/icons/step-backward.svg" alt="Previous" />
+                            <img
+                                src="assets/icons/normal-straight/step-backward.svg"
+                                alt="Previous"
+                            />
                         </button>
                         <button class="btn-seek" id="btn-seek-back">
-                            <img src="assets/icons/seek-backward.svg" alt="Skip Backward" />
-                            <p>10</p>
+                            <img
+                                src="assets/icons/normal-straight/seek-backward.svg"
+                                alt="Skip Backward"
+                            />
                         </button>
                         <button id="btn-play">
-                            <div class="play-icon">
+                            <img src="assets/icons/play.svg" alt="Skip Backward" />
+                            <!-- <div class="play-icon">
                                 <span class="play-icon-half play-icon-left"></span>
                                 <span class="play-icon-half play-icon-right"></span>
-                            </div>
+                            </div> -->
                         </button>
                         <button class="btn-seek" id="btn-seek-forward">
-                            <p>10</p>
-                            <img src="assets/icons/seek-forward.svg" alt="Skip Forward" />
+                            <img
+                                src="assets/icons/normal-straight/seek-forward.svg"
+                                alt="Skip Forward"
+                            />
                         </button>
                         <button id="btn-next">
-                            <img src="assets/icons/step-forward.svg" alt="Next" />
+                            <img src="assets/icons/normal-straight/step-forward.svg" alt="Next" />
                         </button>
                     </div>
 
                     <div class="toolbar-end">
                         <button id="btn-ambient">
-                            <img src="assets/icons/bulb.svg" alt="Ambient" />
+                            <img src="assets/icons/normal-straight/bulb.svg" alt="Ambient" />
                         </button>
-                        <button id="btn-panscan">
-                            <img src="assets/icons/expand-arrows-alt.svg" alt="Pan-Scan" />
+                        <button class="playlist-anchor" id="btn-playlist">
+                            <img src="assets/icons/normal-straight/playlist.svg" alt="Playlist" />
                         </button>
                         <button class="tracks-anchor" id="btn-tracks">
-                            <img src="assets/icons/subtitles.svg" alt="Subtitles" />
+                            <img src="assets/icons/normal-straight/subtitles.svg" alt="Subtitles" />
                         </button>
                         <div class="volume-group">
                             <div class="btn-wrap">
@@ -94,23 +120,35 @@
                                     <span id="volume-display">100</span>
                                 </div>
                                 <button id="btn-mute">
-                                    <img src="assets/icons/volume.svg" alt="Mute" />
+                                    <img src="assets/icons/normal-straight/volume.svg" alt="Mute" />
                                 </button>
                             </div>
                         </div>
-                        <button id="btn-fullscreen">
-                            <img src="assets/icons/expand.svg" alt="Fullscreen" />
+                        <button id="btn-panscan">
+                            <img
+                                src="assets/icons/normal-straight/expand-arrows-alt.svg"
+                                alt="Pan-Scan"
+                            />
                         </button>
-                        <div id="tracks-menu" class="hidden">
+                        <button id="btn-fullscreen">
+                            <img src="assets/icons/normal-straight/expand.svg" alt="Fullscreen" />
+                        </button>
+                        <div id="playlist-menu" class="menu hidden">
+                            <div id="playlist-items"></div>
+                        </div>
+                        <div id="tracks-menu" class="menu hidden">
                             <div class="tracks-heading">
                                 <span>Subtitles</span>
-                                <img src="assets/icons/subtitles.svg" alt="Subtitles" />
+                                <img
+                                    src="assets/icons/bold-straight/subtitles.svg"
+                                    alt="Subtitles"
+                                />
                             </div>
                             <div id="tracks-subtitle" class="tracks-list"></div>
                             <div class="tracks-divider"></div>
                             <div class="tracks-heading">
                                 <span>Audio</span>
-                                <img src="assets/icons/volume.svg" alt="Audio" />
+                                <img src="assets/icons/bold-straight/volume.svg" alt="Audio" />
                             </div>
                             <div id="tracks-audio" class="tracks-list"></div>
                         </div>
