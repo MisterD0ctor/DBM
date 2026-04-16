@@ -45,8 +45,8 @@ function updateProperty(name, data) {
         case "volume":      ui.setVolume(data);                   break;
         case "panscan":     ui.setPanscan(data);
                             ambient.updateAspectRatio();          break;
-        case "sid":         ui.setSelectedSubtitleTrack(data);    break;
-        case "aid":         ui.setSelectedAudioTrack(data);       break;
+        case "sid":         ui.setActiveSubtitleTrack(data);    break;
+        case "aid":         ui.setActiveAudioTrack(data);       break;
         case "border-background": ui.setAmbient(data === "blur"); break;
         case "eof-reached":                                       break;
         case "playlist-pos":   playlistPos = data;
@@ -78,15 +78,6 @@ async function updateState() {
 
     await tracks.populateTrackListMenu();
     await playlist.populatePlaylistMenu();
-
-    // Save duration for progress bars in the playlist menu
-    const [path, duration] = await Promise.all([
-        player.getProperty("path", "string").catch(() => ""),
-        player.getProperty("duration", "double").catch(() => 0),
-    ]);
-    if (path && duration > 0) {
-        player.saveDuration(path, duration);
-    }
 }
 
 try {

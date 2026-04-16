@@ -104,6 +104,16 @@ pub unsafe extern "C" fn event_callback(event: *const c_char, userdata: *mut c_v
                             }
                         }
                     }
+                    "duration" => {
+                        if let Some(duration) = data.as_f64() {
+                            let player = app.state::<std::sync::Arc<super::MpvPlayer>>();
+                            if let Ok(val) = player.get_property("path", "string") {
+                                if let Some(path) = val.as_str() {
+                                    super::save_duration(path, duration);
+                                }
+                            }
+                        }
+                    }
                     _ => {}
                 }
 

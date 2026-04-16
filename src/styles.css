@@ -9,7 +9,7 @@ body {
     /* background-color: #000000; */
     position: relative;
     margin: 0;
-    font-family: "Helvetica Neue", sans-serif;
+    font-family: "Arial", sans-serif;
     color: #fff;
     overflow: hidden;
     user-select: none;
@@ -59,10 +59,6 @@ body {
 #controls-panel.hidden {
     opacity: 0;
     pointer-events: none;
-}
-
-.menu {
-    background: #141414da;
 }
 
 .btn-wrap,
@@ -142,7 +138,9 @@ button img,
     filter: drop-shadow(0 0 12px #00000080);
 }
 
-/* --- Timeline / Seek bar ─────────────────────────────────────────────── */
+/* ----------------------------------------------------------------------- */
+/* Timeline / Seek bar                                                     */
+/* ----------------------------------------------------------------------- */
 
 .time-display {
     font-size: 12px;
@@ -255,7 +253,9 @@ button img,
     opacity: 0;
 }
 
-/* --- Toolbar ─────────────────────────────────────────────── */
+/* --------------------------------------------------------------------------- */
+/* Toolbar                                                                     */
+/* --------------------------------------------------------------------------- */
 
 .toolbar {
     display: grid;
@@ -272,7 +272,7 @@ button img,
     gap: 5px;
 }
 
-/* toolbar start (left) */
+/* --- Toolbar start (left) -------------------------------------------------- */
 .toolbar-start {
     justify-self: start;
     min-width: 0;
@@ -324,20 +324,20 @@ button img,
 }
 
 .media-title .episode {
-    font-size: 16px;
-    opacity: 0.5;
+    font-size: 15px;
+    opacity: 0.6;
 }
 
 .media-title .episode-title {
     font-size: 16px;
-    opacity: 0.7;
+    opacity: 0.9;
 }
 
 .media-title > .hidden {
     display: none;
 }
 
-/* toolbar center */
+/* --- Toolbar center -------------------------------------------------------- */
 .toolbar-center {
     justify-self: center;
     flex-shrink: 0;
@@ -352,240 +352,10 @@ button img,
     height: 28px;
 }
 
-/* toolbar end (right) */
+/* --- Toolbar end (right) ------------------------------------------------- */
 .toolbar-end {
     justify-self: end;
     margin-right: 2px;
-}
-
-.playlist-anchor {
-    anchor-name: --playlist-menu;
-}
-
-#playlist-menu {
-    z-index: 1000;
-    position: fixed;
-    position-anchor: --playlist-menu;
-    position-area: top center;
-    bottom: 20px;
-    margin: 8px;
-    min-width: 200px;
-    width: max-content;
-    max-height: min(600px, calc(100% - 16px));
-
-    display: flex;
-    flex-direction: column;
-    border-radius: 12px;
-    padding: 8px 0;
-
-    transition: 0.2s ease;
-}
-
-#playlist-menu.hidden {
-    pointer-events: none;
-    opacity: 0;
-}
-
-#playlist-items {
-    margin: 0 4px;
-    padding: 0 4px;
-    overflow-y: auto;
-    scrollbar-color: #6f6f6f #00000000;
-    scrollbar-width: thin;
-}
-
-.playlist-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 16px 14px;
-    cursor: pointer;
-    border-radius: 6px;
-    font-size: 14px;
-    color: #b0b0b0;
-    transition: 0.2s ease;
-    white-space: nowrap;
-    overflow: hidden;
-}
-
-.playlist-item:hover {
-    color: #ffffff;
-    background: #ffffff1e;
-}
-
-.playlist-item.active {
-    color: #ffffff;
-}
-
-.playlist-indicator {
-    position: relative;
-    width: 16px;
-    height: 14px;
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.playlist-number {
-    font-size: 12px;
-    opacity: 0.5;
-    text-align: right;
-}
-
-.playlist-playback-icon {
-    position: absolute;
-    width: 14px;
-    height: 14px;
-    display: none;
-}
-
-.playlist-item.active .playlist-number {
-    display: none;
-}
-
-.playlist-item.active .playlist-playback-icon {
-    display: block;
-}
-
-.playlist-content {
-    min-width: 0;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-}
-
-.playlist-content-text {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    overflow: hidden;
-}
-
-.playlist-title {
-    font-weight: bold;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.playlist-show {
-    font-weight: bold;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex-shrink: 1;
-    min-width: 0;
-}
-
-.playlist-episode {
-    opacity: 0.5;
-    flex-shrink: 0;
-}
-
-.playlist-episode-title {
-    opacity: 0.7;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.playlist-progress {
-    height: 2px;
-    background: #ffffff15;
-    border-radius: 1px;
-    overflow: hidden;
-}
-
-.playlist-progress-fill {
-    height: 100%;
-    background: #dc3545;
-    border-radius: 1px;
-}
-
-.tracks-anchor {
-    anchor-name: --tracks-menu;
-}
-
-#tracks-menu {
-    z-index: 1000;
-    position: fixed;
-    position-anchor: --tracks-menu;
-    position-area: top center;
-    bottom: 20px;
-    margin: 8px;
-    min-width: 200px;
-    width: max-content;
-    max-height: min(600px, calc(100% - 16px));
-
-    display: flex;
-    flex-direction: column;
-    border-radius: 12px;
-    padding: 8px 0;
-
-    transition: 0.2s ease;
-}
-
-#tracks-menu.hidden {
-    pointer-events: none;
-    opacity: 0;
-}
-
-.tracks-list {
-    margin: 0 4px;
-    padding: 0 4px;
-    overflow-y: auto;
-    scrollbar-color: #6f6f6f #00000000;
-    scrollbar-width: thin;
-}
-
-.tracks-heading {
-    font-size: 12px;
-    color: #ffffff;
-    padding: 10px 21px 10px 27px;
-    margin-right: 20px;
-    opacity: 0.5;
-}
-
-.tracks-heading img {
-    margin-left: 3px;
-    width: 13px;
-    height: 13px;
-    transform: translateY(1px);
-}
-
-.track-item {
-    display: flex;
-    align-items: center;
-    cursor: pointer;
-    border-radius: 6px;
-    font-size: 14px;
-    color: #e7e7e7;
-    transition: 0.2s ease;
-}
-
-.track-item .highlight {
-    width: 4px;
-    height: 20px;
-    border-radius: 2px;
-    transition: 0.2s ease;
-}
-
-.track-item.selected .highlight {
-    background-color: #dc3545;
-}
-
-.track-item .title {
-    padding: 16px 19px 16px 16px;
-}
-
-.track-item:hover {
-    color: #ffffff;
-    background: #ffffff1e;
-}
-
-.tracks-divider {
-    height: 1px;
-    background: #ffffff1e;
-    margin: 8px 0;
 }
 
 .volume-group {
@@ -656,7 +426,257 @@ button img,
     background-color: #ffffff0f;
 }
 
-/* ─── Ambient lighting overlay ─────────────────────────────────────────────── */
+/* --- Menus --------------------------------------------------------------- */
+.menu {
+    background: #141414da;
+    border: 0.5px solid #ffffff11;
+}
+
+.menu-item {
+    border-radius: 6px;
+    font-size: 14px;
+    opacity: 0.8;
+    cursor: pointer;
+    border: 0.5px solid transparent;
+    transition: 0.2s ease;
+}
+
+.menu-item:hover {
+    opacity: 1;
+    color: #ffffff;
+    border: 0.5px solid #ffffff11;
+    background: #ffffff1e;
+}
+
+.menu-item.active {
+    opacity: 1;
+}
+
+.playlist-anchor {
+    anchor-name: --playlist-menu;
+}
+
+#playlist-menu {
+    z-index: 1000;
+    position: fixed;
+    position-anchor: --playlist-menu;
+    position-area: top center;
+    bottom: 20px;
+    margin: 8px;
+    min-width: 200px;
+    width: max-content;
+    max-height: min(600px, calc(100%));
+
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    padding: 8px 0;
+
+    transition: 0.2s ease;
+}
+
+#playlist-menu.hidden {
+    pointer-events: none;
+    opacity: 0;
+}
+
+#playlist-items {
+    margin: 0 4px;
+    padding: 0 4px;
+    overflow-y: auto;
+    scrollbar-color: #6f6f6f #00000000;
+    scrollbar-width: thin;
+}
+
+#playlist-items .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 16px 16px 10px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.playlist-indicator {
+    position: relative;
+    width: 16px;
+    height: 14px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.playlist-number {
+    font-size: 12px;
+    opacity: 0.7;
+    text-align: right;
+}
+
+.playlist-playback-icon {
+    position: absolute;
+    width: 14px;
+    height: 14px;
+    display: none;
+}
+
+#playlist-items .menu-item.active .playlist-number {
+    display: none;
+}
+
+#playlist-items .menu-item.active .playlist-playback-icon {
+    display: block;
+}
+
+#playlist-items .menu-item:hover .playlist-number {
+    display: none;
+}
+
+#playlist-items .menu-item:hover .playlist-playback-icon {
+    display: block;
+}
+
+.playlist-content {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.playlist-content-text {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    overflow: hidden;
+}
+
+.playlist-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.playlist-show {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+    min-width: 0;
+}
+
+.playlist-episode {
+    flex-shrink: 0;
+    opacity: 0.6;
+    transition: 0.2s ease;
+}
+
+.menu-item:hover .playlist-episode {
+    opacity: 1;
+}
+
+.playlist-episode-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0.9;
+    transition: 0.2s ease;
+}
+
+.menu-item:hover .playlist-episode-title {
+    opacity: 1;
+}
+
+.playlist-progress {
+    height: 2px;
+    background: #ffffff15;
+    border-radius: 1px;
+    overflow: hidden;
+}
+
+.playlist-progress-fill {
+    height: 100%;
+    background: #dc3545;
+    border-radius: 1px;
+}
+
+.tracks-anchor {
+    anchor-name: --tracks-menu;
+}
+
+#tracks-menu {
+    z-index: 1000;
+    position: fixed;
+    position-anchor: --tracks-menu;
+    position-area: top center;
+    bottom: 20px;
+    margin: 8px;
+    min-width: 200px;
+    width: max-content;
+    max-height: min(600px, calc(100% - 16px));
+
+    display: flex;
+    flex-direction: column;
+    border-radius: 12px;
+    padding: 8px 0;
+
+    transition: 0.2s ease;
+}
+
+#tracks-menu.hidden {
+    pointer-events: none;
+    opacity: 0;
+}
+
+.tracks-list {
+    margin: 0 4px;
+    padding: 0 4px;
+    overflow-y: auto;
+    scrollbar-color: #6f6f6f #00000000;
+    scrollbar-width: thin;
+}
+
+.tracks-heading {
+    font-size: 12px;
+    color: #ffffff;
+    padding: 10px 21px 10px 27px;
+    margin-right: 20px;
+    opacity: 0.5;
+}
+
+.tracks-heading img {
+    margin-left: 3px;
+    width: 13px;
+    height: 13px;
+    transform: translateY(1px);
+}
+
+.tracks-list .menu-item {
+    display: flex;
+    align-items: center;
+}
+
+.tracks-list .menu-item .highlight {
+    width: 4px;
+    height: 20px;
+    border-radius: 2px;
+    transition: 0.2s ease;
+}
+
+.tracks-list .menu-item.active .highlight {
+    background-color: #dc3545;
+}
+
+.tracks-list .menu-item .title {
+    padding: 16px 19px 16px 16px;
+}
+
+.tracks-divider {
+    height: 1px;
+    background: #ffffff1e;
+    margin: 8px 0;
+}
+
+/* ---------------------------------------------------------------------------- */
+/* Ambient lighting overlay                                                     */
+/* ---------------------------------------------------------------------------- */
 
 #ambient-overlay {
     position: absolute;

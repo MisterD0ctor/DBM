@@ -18,8 +18,8 @@ export {
     hideTracksMenu,
     populateSubtitleTrackMenu,
     populateAudioTrackMenu,
-    setSelectedSubtitleTrack,
-    setSelectedAudioTrack,
+    setActiveSubtitleTrack,
+    setActiveAudioTrack,
     resizeTrackListMenus,
 } from "./tracks.js";
 

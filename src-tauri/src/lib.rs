@@ -76,7 +76,7 @@ fn get_watch_later_positions(
     use md5::Digest;
 
     let watch_dir = mpv::app_data_dir().join("watch_later");
-    let durations = load_duration_cache();
+    let durations = mpv::load_duration_cache();
     let mut result = std::collections::HashMap::new();
 
     for path in &paths {
@@ -103,29 +103,6 @@ fn get_watch_later_positions(
     }
 
     result
-}
-
-/// Save a file's duration so we can show progress bars in the playlist.
-#[tauri::command]
-fn save_duration(path: String, duration: f64) {
-    if duration <= 0.0 {
-        return;
-    }
-    let mut cache = load_duration_cache();
-    cache.insert(path, duration);
-    let cache_path = mpv::app_data_dir().join("durations.json");
-    let _ = std::fs::write(
-        &cache_path,
-        serde_json::to_string(&cache).unwrap_or_default(),
-    );
-}
-
-fn load_duration_cache() -> std::collections::HashMap<String, f64> {
-    let cache_path = mpv::app_data_dir().join("durations.json");
-    std::fs::read_to_string(&cache_path)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
 }
 
 // --- Startup (Rust-side, runs in .setup()) ------------------------------------
@@ -203,7 +180,6 @@ pub fn run() {
             load_video,
             open_video_dialog,
             get_watch_later_positions,
-            save_duration,
             mpv::commands::play,
             mpv::commands::pause,
             mpv::commands::toggle_pause,

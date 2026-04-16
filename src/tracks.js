@@ -12,8 +12,8 @@ export async function populateTrackListMenu() {
 
     console.log(subtitle);
 
-    const selectedSubtitleId = subtitle.find((t) => t.selected)?.id ?? "no";
-    const selectedAudioId = audio.find((t) => t.selected)?.id;
+    const activeSubtitleId = subtitle.find((t) => t.active)?.id ?? "no";
+    const activeAudioId = audio.find((t) => t.active)?.id;
 
     ui.populateSubtitleTrackMenu(
         subtitle,
@@ -28,8 +28,8 @@ export async function populateTrackListMenu() {
         player.setProperty("aid", id.toString());
     });
 
-    ui.setSelectedSubtitleTrack(selectedSubtitleId);
-    ui.setSelectedAudioTrack(selectedAudioId);
+    ui.setActiveSubtitleTrack(activeSubtitleId);
+    ui.setActiveAudioTrack(activeAudioId);
 }
 
 // --- Menu toggle + click-outside-to-close ------------------------------------

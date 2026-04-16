@@ -12,6 +12,17 @@ export function toggleAmbient() {
 }
 
 export function updateAspectRatio() {
+    player
+        .getProperty("video-params/aspect", "double")
+        .catch(() => 0)
+        .then((aspect) => {
+            player.getProperty("panscan", "double").then((panscan) => {
+                const uiAspect = ui.getAspectRatio();
+                const effectiveAspect = lerp(aspect, uiAspect, panscan);
+                ui.setAmbientAspectRatio(effectiveAspect);
+            });
+        });
+
     clearTimeout(resizeTimer);
 
     resizeTimer = setTimeout(() => {
@@ -28,7 +39,6 @@ function internalUpdateAspectRatio() {
             player.getProperty("panscan", "double").then((panscan) => {
                 const uiAspect = ui.getAspectRatio();
                 const effectiveAspect = lerp(aspect, uiAspect, panscan);
-                ui.setAmbientAspectRatio(effectiveAspect);
                 updateBlurRadius(effectiveAspect, uiAspect);
             });
         });

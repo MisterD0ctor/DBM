@@ -46,37 +46,37 @@ function populateTrackMenu(menu, trackList, onSelect) {
 
 function createTrackMenuItem(title, id, onSelect) {
     const item = document.createElement("div");
-    const selectedHighlight = document.createElement("div");
-    selectedHighlight.classList.add("highlight");
+    const activeHighlight = document.createElement("div");
+    activeHighlight.classList.add("highlight");
     const titleEl = document.createElement("span");
     titleEl.classList.add("title");
     item.id = id;
-    item.className = "track-item";
+    item.className = "menu-item";
     item.onclick = () => {
         onSelect(id);
         hideTracksMenu();
     };
     titleEl.textContent = title;
-    item.appendChild(selectedHighlight);
+    item.appendChild(activeHighlight);
     item.appendChild(titleEl);
     return item;
 }
 
 // --- Selection ---------------------------------------------------------------
 
-export function setSelectedSubtitleTrack(id) {
+export function setActiveSubtitleTrack(id) {
     const menu = document.getElementById("tracks-subtitle");
-    setSelectedTrack(menu, id);
+    setActiveTrack(menu, id);
 }
 
-export function setSelectedAudioTrack(id) {
+export function setActiveAudioTrack(id) {
     const menu = document.getElementById("tracks-audio");
-    setSelectedTrack(menu, id);
+    setActiveTrack(menu, id);
 }
 
-function setSelectedTrack(menu, id) {
+function setActiveTrack(menu, id) {
     for (const item of menu.children) {
-        item.classList.toggle("selected", item.id == id);
+        item.classList.toggle("active", item.id == id);
     }
 }
 

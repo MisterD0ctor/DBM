@@ -509,6 +509,28 @@ pub fn save_last_session(path: &str) {
     }
 }
 
+/// Save a file's duration to the cache for playlist progress bars.
+pub fn save_duration(path: &str, duration: f64) {
+    if duration <= 0.0 {
+        return;
+    }
+    let mut cache = load_duration_cache();
+    cache.insert(path.to_string(), duration);
+    let cache_path = app_data_dir().join("durations.json");
+    let _ = std::fs::write(
+        &cache_path,
+        serde_json::to_string(&cache).unwrap_or_default(),
+    );
+}
+
+pub fn load_duration_cache() -> std::collections::HashMap<String, f64> {
+    let cache_path = app_data_dir().join("durations.json");
+    std::fs::read_to_string(&cache_path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
 /// Read the last session's file path (if any).
 pub fn load_last_session() -> Option<String> {
     let file = last_session_path();

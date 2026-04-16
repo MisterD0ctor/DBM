@@ -22,7 +22,7 @@ const METADATA_TAGS = new Set([
     "hdr", "hdr10", "hdr10+", "hdr10plus", "dolby vision", "dv", "sdr",
     // Audio codec
     "aac", "aac5", "ac3", "eac3", "dts", "dts-hd", "dtshd",
-    "flac", /*"opus", "truehd",*/ "atmos", "ddp5", "ddp", "dd5", "dd",
+    "flac", /*"opus",*/ "truehd", "atmos", "ddp5", "ddp", "dd5", "dd",
     "lpcm", "mp3",
     // Audio channels
     // "2.0", "5.1", "7.1",
@@ -64,11 +64,12 @@ export function cleanSeparators(str) {
 export function stripMetadata(str) {
     const words = str.split(" ");
     for (let i = 0; i < words.length; i++) {
-        if (METADATA_TAGS.has(words[i].toLowerCase())) {
+        const bare = words[i].replace(/[()[\]{}]/g, "").toLowerCase();
+        if (bare && METADATA_TAGS.has(bare)) {
             return words
                 .slice(0, i)
                 .join(" ")
-                .replace(/[-\s]+$/, "");
+                .replace(/[-\s(]+$/, "");
         }
     }
     return str;

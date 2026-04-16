@@ -27,7 +27,7 @@ export function populatePlaylistMenu(playlist, activeIndex, isPaused, savedPosit
 
 function createPlaylistItem(entry, index, activeIndex, isPaused, progress, onSelect) {
     const item = document.createElement("div");
-    item.className = "playlist-item";
+    item.className = "menu-item";
     if (index === activeIndex) {
         item.classList.add("active");
         if (!isPaused) item.classList.add("playing");

@@ -94,10 +94,6 @@ export function getWatchLaterPositions(paths) {
     return invoke("get_watch_later_positions", { paths });
 }
 
-export function saveDuration(path, duration) {
-    return invoke("save_duration", { path, duration });
-}
-
 // Events from Rust (property changes, file-end, errors)
 // ---------------------------------------------------------------------------
 
