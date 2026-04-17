@@ -12,8 +12,8 @@ export async function populateTrackListMenu() {
 
     console.log(subtitle);
 
-    const activeSubtitleId = subtitle.find((t) => t.active)?.id ?? "no";
-    const activeAudioId = audio.find((t) => t.active)?.id;
+    const activeSubtitleId = subtitle.find((t) => t.selected)?.id ?? "no";
+    const activeAudioId = audio.find((t) => t.selected)?.id;
 
     ui.populateSubtitleTrackMenu(
         subtitle,

@@ -15,10 +15,6 @@ body {
     user-select: none;
 }
 
-/* body.loaded {
-    background-color: transparent;
-} */
-
 #player {
     display: flex;
     flex-direction: column;
@@ -135,7 +131,7 @@ button img,
 #playback-status-icon {
     width: 80px;
     height: 80px;
-    filter: drop-shadow(0 0 12px #00000080);
+    filter: drop-shadow(0 0 8px #00000080);
 }
 
 /* ----------------------------------------------------------------------- */

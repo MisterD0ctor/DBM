@@ -1,5 +1,5 @@
 import { formatTime } from "../utils/formatTime.js";
-import { parseTvShow } from "../utils/parseTvShow.js";
+import { parseTvShow } from "../utils/parse.js";
 import { setButtonIcon } from "../utils/setButtonIcon.js";
 
 let duration;

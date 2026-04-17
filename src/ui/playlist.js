@@ -1,5 +1,5 @@
-import { parseTvShow } from "../utils/parseTvShow.js";
-import { cleanSeparators, stripMetadata } from "../utils/parseTvShow.js";
+import { parseTvShow } from "../utils/parse.js";
+import { cleanSeparators, stripMetadata, stripPath, stripExtension } from "../utils/parse.js";
 
 // --- Menu visibility ---------------------------------------------------------
 
@@ -44,7 +44,7 @@ function createPlaylistItem(entry, index, activeIndex, isPaused, progress, onSel
 
     const statusIcon = document.createElement("img");
     statusIcon.className = "playlist-playback-icon";
-    statusIcon.src = isPaused ? "assets/icons/pause.svg" : "assets/icons/play.svg";
+    statusIcon.src = "assets/icons/play.svg";
     statusIcon.alt = "";
     indicator.appendChild(statusIcon);
 
@@ -111,16 +111,6 @@ function createPlaylistItem(entry, index, activeIndex, isPaused, progress, onSel
     return item;
 }
 
-function stripPath(filename) {
-    let slash = filename.lastIndexOf("\\");
-    return slash > 0 ? filename.substring(slash + 1) : filename;
-}
-
-function stripExtension(filename) {
-    const dot = filename.lastIndexOf(".");
-    return dot > 0 ? filename.substring(0, dot) : filename;
-}
-
 // --- Update active item ------------------------------------------------------
 
 export function setActivePlaylistItem(index, isPaused) {
@@ -135,7 +125,7 @@ export function setActivePlaylistItem(index, isPaused) {
 
         const icon = item.querySelector(".playlist-playback-icon");
         if (icon) {
-            icon.src = isPaused ? "assets/icons/pause.svg" : "assets/icons/play.svg";
+            icon.src = isPaused && isActive ? "assets/icons/pause.svg" : "assets/icons/play.svg";
         }
     }
 
