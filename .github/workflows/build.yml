@@ -1,38 +1,36 @@
 name: Build
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
+    push:
+        branches: [main]
+    pull_request:
+        branches: [main]
+    workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: windows-latest
+    build:
+        runs-on: windows-latest
 
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          lfs: true
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  lfs: true
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+            - name: Install Rust stable
+              uses: dtolnay/rust-toolchain@stable
 
-      - name: Rust cache
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
+            - name: Rust cache
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: src-tauri
 
-      - name: Build Tauri app
-        working-directory: src-tauri
-        run: cargo build --release
+            - name: Build Tauri app
+              working-directory: src-tauri
+              run: cargo build --release
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: death-by-mpv-windows
-          path: |
-            src-tauri/target/release/Death by MPV.exe
-            src-tauri/target/release/bundle/
-          if-no-files-found: warn
+            - name: Upload build artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                  name: death-by-mpv-windows
+                  path: src-tauri/target/release/bundle/msi/Death by MPV_0.1.1_x64_en-US.msi
+                  if-no-files-found: warn
