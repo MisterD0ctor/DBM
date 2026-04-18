@@ -11,8 +11,6 @@ export {
 
 export { setOverlay, setPanscan, setFullscreen, setAmbient, setPlaylistNav } from "./controls.js";
 
-export { getAspectRatio, setAmbientAspectRatio } from "./ambient.js";
-
 export {
     toggleTrackListMenu,
     hideTracksMenu,

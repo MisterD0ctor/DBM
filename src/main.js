@@ -44,10 +44,9 @@ function updateProperty(name, data) {
         case "mute":        ui.setMute(data);                     break;
         case "volume":      ui.setVolume(data);                   break;
         case "panscan":     ui.setPanscan(data);
-                            ambient.updateAspectRatio();          break;
         case "sid":         ui.setActiveSubtitleTrack(data);    break;
         case "aid":         ui.setActiveAudioTrack(data);       break;
-        case "border-background": ui.setAmbient(data === "blur"); break;
+        case "border-background": ui.setAmbient(data !== "color"); break;
         case "eof-reached":                                       break;
         case "playlist-pos":   playlistPos = data;
                                ui.setPlaylistNav(playlistPos, playlistCount);
@@ -86,11 +85,14 @@ try {
     console.warn("mpv state sync (may still be initializing):", err);
 }
 
+player.applyBorderShader("assets/shaders/ambient-border.glsl").catch((err) => {
+    console.warn("Failed to apply border shader:", err);
+});
+
 // --- Window events ------------------------------------------------------------
 
 listen("tauri://resize", () => {
     player.getProperty("percent-pos", "double").then((percentPos) => ui.setProgress(percentPos));
-    ambient.updateAspectRatio();
     ui.updateMediaTitleOverflow();
 });
 
