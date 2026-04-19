@@ -32,5 +32,5 @@ jobs:
               uses: actions/upload-artifact@v4
               with:
                   name: death-by-mpv-windows
-                  path: D:/a/DBM/DBM/src-tauri/target/release/bundle/msi/Death by MPV_0.1.1_x64_en-US.msi
+                  path: src-tauri/target/release/bundle/
                   if-no-files-found: warn
