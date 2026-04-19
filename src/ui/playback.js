@@ -1,5 +1,5 @@
 import { formatTime } from "../utils/formatTime.js";
-import { parseTvShow } from "../utils/parseTvShow.js";
+import { parseTvShow } from "../utils/parse.js";
 import { setButtonIcon } from "../utils/setButtonIcon.js";
 
 let duration;
@@ -15,16 +15,16 @@ export function setDuration(seconds) {
 export function setCurrentTime(seconds) {
     document.getElementById("time-current").textContent = formatTime(seconds);
 
-    const seekBack = document.getElementById("btn-seek-back");
-    const seekForward = document.getElementById("btn-seek-forward");
+    // const seekBack = document.getElementById("btn-seek-back");
+    // const seekForward = document.getElementById("btn-seek-forward");
 
-    const margin = 0.5;
+    // const margin = 0.1;
 
-    seekBack.classList.toggle("disabled", seconds < margin);
-    seekForward.classList.toggle("disabled", seconds > duration - margin);
+    // seekBack.classList.toggle("disabled", seconds < margin);
+    // seekForward.classList.toggle("disabled", seconds > duration - margin);
 
-    seekBack.disabled = seconds < margin;
-    seekForward.disabled = seconds > duration - margin;
+    // seekBack.disabled = seconds < margin;
+    // seekForward.disabled = seconds > duration - margin;
 }
 
 export function setProgress(percent) {

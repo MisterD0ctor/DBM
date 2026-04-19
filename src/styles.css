@@ -15,10 +15,6 @@ body {
     user-select: none;
 }
 
-/* body.loaded {
-    background-color: transparent;
-} */
-
 #player {
     display: flex;
     flex-direction: column;
@@ -135,7 +131,7 @@ button img,
 #playback-status-icon {
     width: 80px;
     height: 80px;
-    filter: drop-shadow(0 0 12px #00000080);
+    filter: drop-shadow(0 0 8px #00000080);
 }
 
 /* ----------------------------------------------------------------------- */
@@ -441,15 +437,16 @@ button img,
     transition: 0.2s ease;
 }
 
+.menu-item.active {
+    background: #ffffff10;
+    opacity: 1;
+}
+
 .menu-item:hover {
     opacity: 1;
     color: #ffffff;
     border: 0.5px solid #ffffff11;
     background: #ffffff1e;
-}
-
-.menu-item.active {
-    opacity: 1;
 }
 
 .playlist-anchor {
@@ -672,129 +669,4 @@ button img,
     height: 1px;
     background: #ffffff1e;
     margin: 8px 0;
-}
-
-/* ---------------------------------------------------------------------------- */
-/* Ambient lighting overlay                                                     */
-/* ---------------------------------------------------------------------------- */
-
-#ambient-overlay {
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-}
-
-#ambient-overlay.hidden {
-    display: none;
-}
-
-.ambient-bar {
-    position: absolute;
-    --width: 0px;
-    --height: 0px;
-}
-
-#ambient-top {
-    top: 0;
-    left: 0;
-    right: 0;
-    height: var(--height);
-    background: linear-gradient(
-        to bottom,
-        hsla(0, 0%, 0%, 0.8) 0%,
-        hsla(0, 0%, 0%, 0.79) 8.1%,
-        hsla(0, 0%, 0%, 0.761) 15.5%,
-        hsla(0, 0%, 0%, 0.717) 22.5%,
-        hsla(0, 0%, 0%, 0.66) 29%,
-        hsla(0, 0%, 0%, 0.593) 35.3%,
-        hsla(0, 0%, 0%, 0.518) 41.2%,
-        hsla(0, 0%, 0%, 0.44) 47.1%,
-        hsla(0, 0%, 0%, 0.36) 52.9%,
-        hsla(0, 0%, 0%, 0.282) 58.8%,
-        hsla(0, 0%, 0%, 0.207) 64.7%,
-        hsla(0, 0%, 0%, 0.14) 71%,
-        hsla(0, 0%, 0%, 0.083) 77.5%,
-        hsla(0, 0%, 0%, 0.039) 84.5%,
-        hsla(0, 0%, 0%, 0.01) 91.9%,
-        hsla(0, 0%, 0%, 0) 100%
-    );
-}
-
-#ambient-bottom {
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: var(--height);
-    background: linear-gradient(
-        to top,
-        hsla(0, 0%, 0%, 0.8) 0%,
-        hsla(0, 0%, 0%, 0.79) 8.1%,
-        hsla(0, 0%, 0%, 0.761) 15.5%,
-        hsla(0, 0%, 0%, 0.717) 22.5%,
-        hsla(0, 0%, 0%, 0.66) 29%,
-        hsla(0, 0%, 0%, 0.593) 35.3%,
-        hsla(0, 0%, 0%, 0.518) 41.2%,
-        hsla(0, 0%, 0%, 0.44) 47.1%,
-        hsla(0, 0%, 0%, 0.36) 52.9%,
-        hsla(0, 0%, 0%, 0.282) 58.8%,
-        hsla(0, 0%, 0%, 0.207) 64.7%,
-        hsla(0, 0%, 0%, 0.14) 71%,
-        hsla(0, 0%, 0%, 0.083) 77.5%,
-        hsla(0, 0%, 0%, 0.039) 84.5%,
-        hsla(0, 0%, 0%, 0.01) 91.9%,
-        hsla(0, 0%, 0%, 0) 100%
-    );
-}
-
-#ambient-left {
-    top: 0;
-    bottom: 0;
-    left: 0;
-    width: var(--width);
-    background: linear-gradient(
-        to right,
-        hsla(0, 0%, 0%, 0.8) 0%,
-        hsla(0, 0%, 0%, 0.79) 8.1%,
-        hsla(0, 0%, 0%, 0.761) 15.5%,
-        hsla(0, 0%, 0%, 0.717) 22.5%,
-        hsla(0, 0%, 0%, 0.66) 29%,
-        hsla(0, 0%, 0%, 0.593) 35.3%,
-        hsla(0, 0%, 0%, 0.518) 41.2%,
-        hsla(0, 0%, 0%, 0.44) 47.1%,
-        hsla(0, 0%, 0%, 0.36) 52.9%,
-        hsla(0, 0%, 0%, 0.282) 58.8%,
-        hsla(0, 0%, 0%, 0.207) 64.7%,
-        hsla(0, 0%, 0%, 0.14) 71%,
-        hsla(0, 0%, 0%, 0.083) 77.5%,
-        hsla(0, 0%, 0%, 0.039) 84.5%,
-        hsla(0, 0%, 0%, 0.01) 91.9%,
-        hsla(0, 0%, 0%, 0) 100%
-    );
-}
-
-#ambient-right {
-    top: 0;
-    bottom: 0;
-    right: 0;
-    width: var(--width);
-    background: linear-gradient(
-        to left,
-        hsla(0, 0%, 0%, 0.8) 0%,
-        hsla(0, 0%, 0%, 0.79) 8.1%,
-        hsla(0, 0%, 0%, 0.761) 15.5%,
-        hsla(0, 0%, 0%, 0.717) 22.5%,
-        hsla(0, 0%, 0%, 0.66) 29%,
-        hsla(0, 0%, 0%, 0.593) 35.3%,
-        hsla(0, 0%, 0%, 0.518) 41.2%,
-        hsla(0, 0%, 0%, 0.44) 47.1%,
-        hsla(0, 0%, 0%, 0.36) 52.9%,
-        hsla(0, 0%, 0%, 0.282) 58.8%,
-        hsla(0, 0%, 0%, 0.207) 64.7%,
-        hsla(0, 0%, 0%, 0.14) 71%,
-        hsla(0, 0%, 0%, 0.083) 77.5%,
-        hsla(0, 0%, 0%, 0.039) 84.5%,
-        hsla(0, 0%, 0%, 0.01) 91.9%,
-        hsla(0, 0%, 0%, 0) 100%
-    );
 }

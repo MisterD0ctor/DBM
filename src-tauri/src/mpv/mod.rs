@@ -167,7 +167,6 @@ const INITIAL_OPTIONS: &[(&str, &str)] = &[
     ("pause", "no"),
     ("deband", "yes"),
     ("deband-iterations", "8"),
-    ("border-background", "blur"),
     ("sub-visibility", "yes"),
     ("sid", "no"),
     // Watch Later — save/restore position, tracks, volume across sessions

@@ -1,9 +1,3 @@
-// Plex TV show naming convention parser
-// Supports: "Show Name - S01E02 - Episode Title.mkv"
-//           "Show Name s01e02 Episode Title.mkv"
-//           "Show.Name.S01E02.Episode.Title.mkv"
-//           "Show Name (2008) - S01E02-E03 - Episode Title.mkv"
-
 const TV_SHOW_REGEX =
     /^(?<show>.+?)\s*[-.]?\s*[Ss](?<season>\d{1,2})\s*[Ee](?<episode>\d{1,2})(?:\s*[-.]?\s*[Ee](?<episodeEnd>\d{1,2}))?\s*[-.]?\s*(?<title>.*?)$/;
 
@@ -33,6 +27,12 @@ const METADATA_TAGS = new Set([
 ]);
 
 /**
+ * Plex TV show naming convention parser
+ * Supports: "Show Name - S01E02 - Episode Title.mkv"
+ *           "Show Name s01e02 Episode Title.mkv"
+ *           "Show.Name.S01E02.Episode.Title.mkv"
+ *           "Show Name (2008) - S01E02-E03 - Episode Title.mkv"
+ *
  * @param {string} filename
  * @returns {{ show: string, season: number, episode: number, episodeEnd?: number, title?: string } | null}
  */
@@ -73,4 +73,14 @@ export function stripMetadata(str) {
         }
     }
     return str;
+}
+
+export function stripPath(filename) {
+    let slash = filename.lastIndexOf("\\");
+    return slash > 0 ? filename.substring(slash + 1) : filename;
+}
+
+export function stripExtension(filename) {
+    const dot = filename.lastIndexOf(".");
+    return dot > 0 ? filename.substring(0, dot) : filename;
 }

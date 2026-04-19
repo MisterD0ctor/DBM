@@ -95,8 +95,12 @@ export function resizeTrackListMenus() {
         m.style.minHeight = "";
     });
 
-    // The max-height from CSS on the container is the hard budget
-    const maxHeight = parseFloat(getComputedStyle(container).maxHeight) || window.innerHeight;
+    // getComputedStyle may return the unresolved "min(...)" expression for
+    // max-height, so fall back to the browser-resolved rendered height.
+    let maxHeight = parseFloat(getComputedStyle(container).maxHeight);
+    if (!isFinite(maxHeight)) {
+        maxHeight = container.getBoundingClientRect().height || window.innerHeight;
+    }
     const fixedHeight = [...container.children]
         .filter((el) => !el.classList.contains("tracks-list"))
         .reduce((sum, el) => sum + getAbsoluteHeight(el), 0);

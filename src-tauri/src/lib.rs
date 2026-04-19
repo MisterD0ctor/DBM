@@ -105,6 +105,42 @@ fn get_watch_later_positions(
     result
 }
 
+/// Write shader content to app data dir and set it as mpv's border-background
+/// shader. Each call writes to a unique filename because mpv caches the shader
+/// by path — re-setting the same path won't re-read the file from disk.
+#[tauri::command]
+fn apply_border_shader(
+    player: tauri::State<Arc<MpvPlayer>>,
+    content: String,
+) -> Result<(), String> {
+    use std::sync::Mutex;
+    use std::time::{SystemTime, UNIX_EPOCH};
+    static PREV_SHADER_PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    let path = mpv::app_data_dir().join(format!("border-shader-{ts}.glsl"));
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, content).map_err(|e| e.to_string())?;
+    player
+        .set_property_raw("border-background-shader", &path.to_string_lossy())
+        .map_err(|e| e.to_string())?;
+
+    // Remove the previous shader file to avoid leaking files over time.
+    let mut prev = PREV_SHADER_PATH.lock().unwrap();
+    if let Some(old) = prev.take() {
+        let _ = std::fs::remove_file(old);
+    }
+    *prev = Some(path);
+
+    Ok(())
+}
+
 // --- Startup (Rust-side, runs in .setup()) ------------------------------------
 
 fn startup(app: &AppHandle) {
@@ -180,6 +216,7 @@ pub fn run() {
             load_video,
             open_video_dialog,
             get_watch_later_positions,
+            apply_border_shader,
             mpv::commands::play,
             mpv::commands::pause,
             mpv::commands::toggle_pause,

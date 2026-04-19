@@ -10,14 +10,6 @@
 
     <body>
         <div id="player">
-            <!-- Ambient glow overlays — sit behind the video in the letterbox margins -->
-            <div id="ambient-overlay">
-                <div class="ambient-bar" id="ambient-top"></div>
-                <div class="ambient-bar" id="ambient-bottom"></div>
-                <div class="ambient-bar" id="ambient-left"></div>
-                <div class="ambient-bar" id="ambient-right"></div>
-            </div>
-
             <div id="playback-overlay">
                 <div id="playback-status">
                     <img
@@ -115,6 +107,7 @@
                                     min="0"
                                     max="200"
                                     value="100"
+                                    step="2"
                                 />
                                 <div id="volume-display-wrap">
                                     <span id="volume-display">100</span>
@@ -135,22 +128,22 @@
                         </button>
                     </div>
                 </div>
-            </div>
-            <div id="playlist-menu" class="menu hidden">
-                <div id="playlist-items"></div>
-            </div>
-            <div id="tracks-menu" class="menu hidden">
-                <div class="tracks-heading">
-                    <span>Subtitles</span>
-                    <img src="assets/icons/bold-straight/subtitles.svg" alt="Subtitles" />
+                <div id="playlist-menu" class="menu hidden">
+                    <div id="playlist-items"></div>
                 </div>
-                <div id="tracks-subtitle" class="tracks-list"></div>
-                <div class="tracks-divider"></div>
-                <div class="tracks-heading">
-                    <span>Audio</span>
-                    <img src="assets/icons/bold-straight/volume.svg" alt="Audio" />
+                <div id="tracks-menu" class="menu hidden">
+                    <div class="tracks-heading">
+                        <span>Subtitles</span>
+                        <img src="assets/icons/bold-straight/subtitles.svg" alt="Subtitles" />
+                    </div>
+                    <div id="tracks-subtitle" class="tracks-list"></div>
+                    <div class="tracks-divider"></div>
+                    <div class="tracks-heading">
+                        <span>Audio</span>
+                        <img src="assets/icons/bold-straight/volume.svg" alt="Audio" />
+                    </div>
+                    <div id="tracks-audio" class="tracks-list"></div>
                 </div>
-                <div id="tracks-audio" class="tracks-list"></div>
             </div>
         </div>
     </body>
