@@ -23,13 +23,12 @@ vec4 hook() {
 #define get_weight(x) (exp(-(x) * (x) / (2.0 * SIGMA * SIGMA)))
 
 vec4 hook() {
-    vec2 p0 = HOOKED_pos;
+    vec2 pos = HOOKED_pos;
     vec4 r = BORDER_rect;
 
     // Border detection
-    vec2 p1 = vec2(clamp(p0.x, r.x + HOOKED_pt.x, r.z - HOOKED_pt.x), 
-                   clamp(p0.y, r.y + HOOKED_pt.y, r.w - HOOKED_pt.y));
-    vec2 delta = vec2(p1.x - p0.x, p1.y - p0.y);
+    vec2 box_pos = clamp(pos, r.xy + HOOKED_pt, r.zw - HOOKED_pt);
+    vec2 delta = box_pos - pos;
     float dist = length(delta);
 
     vec2 dir = sign(delta);
@@ -39,11 +38,11 @@ vec4 hook() {
     float radius = length(sigma * 3 * HOOKED_size);
 
     float weight;
-    vec4 csum = textureLod(HOOKED_raw, p1, 0.0);
+    vec4 csum = textureLod(HOOKED_raw, box_pos, 0.0);
     float wsum = 1.0;
     for(float i = 1.0; i <= radius; ++i) {
         weight = get_weight(i / radius);
-        csum += textureLod(HOOKED_raw, p1 + i * dir * HOOKED_pt, 0.0) * weight;
+        csum += textureLod(HOOKED_raw, box_pos + i * dir * HOOKED_pt, 0.0) * weight;
         wsum += weight;
     }
 
@@ -64,6 +63,13 @@ vec4 hook() {
 #define FALLOFF_SOFTNESS 2
 #define soft_light_falloff(x) ((abs(x) / FALLOFF_SOFTNESS + 1) / ((x * x + abs(x)) / FALLOFF_SOFTNESS + 1))
 #define light_falloff(x) (1 / (x * x + 2 * abs(x) + 1))
+
+#define GRAIN 128
+
+// Wide usage friendly PRNG, shamelessly stolen from a GLSL tricks forum post
+float mod289(float x)  { return x - floor(x / 289.0) * 289.0; }
+float permute(float x) { return mod289((34.0*x + 1.0) * x); }
+float rand(float x)    { return fract(x / 41.0); }
 
 vec4 blur(sampler2D image, vec2 pos, float edge_dist, vec2 dir, float sigma) {
     float radius = length(sigma * 3 * HOOKED_size);
@@ -98,19 +104,30 @@ vec4 blur2(sampler2D image, vec2 pos, float edge_dist, vec2 dir) {
 }
 
 vec4 hook() {
-    vec2 p0 = HOOKED_pos;
+    vec2 pos = HOOKED_pos;
     vec4 r = BORDER_rect;
 
     // Border detection
-    vec2 p1 = vec2(clamp(p0.x, r.x, r.z), clamp(p0.y, r.y, r.w));
-    vec2 delta = vec2(p1.x - p0.x, p1.y - p0.y);
+    vec2 box_pos = clamp(pos, r.xy, r.zw);
+    vec2 delta = box_pos - pos;
     float dist = length(delta);
 
     vec2 dir = abs(sign(delta.yx));
     float sigma = EDGE_BLUR + dist * BORDER_BLUR;
 
-    // return blur2(HOOKED_raw, p0, dist, dir);
+    // Initialize the PRNG by hashing the position + a random uniform
+    vec3 m = vec3(pos, 1.0) + vec3(textureLod(HOOKED_raw, pos, 0.0));
+    float h = permute(permute(permute(m.x) + m.y) + m.z);
 
-    return blur(HOOKED_raw, p0, dist, dir, sigma) 
-           * soft_light_falloff(dist * FALLOFF);
+    // Add some random noise to the output
+    vec4 noise;
+    noise.x = rand(h); h = permute(h);
+    noise.y = rand(h); h = permute(h);
+    noise.z = rand(h); h = permute(h);
+    noise.w = 0.5;
+ 
+    return blur(HOOKED_raw, pos, dist, dir, sigma) 
+           * soft_light_falloff(dist * FALLOFF)
+           + (GRAIN/8192.0) * (noise - vec4(0.5));
 }
+
