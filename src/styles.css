@@ -437,15 +437,16 @@ button img,
     transition: 0.2s ease;
 }
 
+.menu-item.active {
+    background: #ffffff10;
+    opacity: 1;
+}
+
 .menu-item:hover {
     opacity: 1;
     color: #ffffff;
     border: 0.5px solid #ffffff11;
     background: #ffffff1e;
-}
-
-.menu-item.active {
-    opacity: 1;
 }
 
 .playlist-anchor {
