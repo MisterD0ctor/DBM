@@ -7,7 +7,6 @@
 
 body {
     /* background-color: #000000; */
-    position: relative;
     margin: 0;
     font-family: "Arial", sans-serif;
     color: #fff;
@@ -32,6 +31,19 @@ body {
 
 #controls-panel {
     bottom: 0;
+    padding: 0 10px 10px 10px;
+    box-sizing: border-box;
+    transition: 0.2s ease;
+    width: 100%;
+}
+
+#controls-panel.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#controls-panel-bg {
+    position: absolute;
     background: linear-gradient(
         to top,
         rgba(0, 0, 0, 0.454),
@@ -47,13 +59,11 @@ body {
         rgba(0, 0, 0, 0),
         transparent
     );
-    padding: 110px 10px 10px 10px;
-    box-sizing: border-box;
-    transition: 0.2s ease;
-}
+    height: 150px;
+    width: 100%;
+    left: 0;
+    bottom: 0;
 
-#controls-panel.hidden {
-    opacity: 0;
     pointer-events: none;
 }
 
@@ -250,7 +260,7 @@ button img,
 }
 
 /* --------------------------------------------------------------------------- */
-/* Toolbar                                                                     */
+/*    Toolbar                                                                  */
 /* --------------------------------------------------------------------------- */
 
 .toolbar {
@@ -334,6 +344,7 @@ button img,
 }
 
 /* --- Toolbar center -------------------------------------------------------- */
+
 .toolbar-center {
     justify-self: center;
     flex-shrink: 0;
@@ -349,6 +360,7 @@ button img,
 }
 
 /* --- Toolbar end (right) ------------------------------------------------- */
+
 .toolbar-end {
     justify-self: end;
     margin-right: 2px;
@@ -422,7 +434,10 @@ button img,
     background-color: #ffffff0f;
 }
 
-/* --- Menus --------------------------------------------------------------- */
+/* ------------------------------------------------------------------------- */
+/*    Menus                                                                  */
+/* ------------------------------------------------------------------------- */
+
 .menu {
     background: #141414da;
     border: 0.5px solid #ffffff11;
@@ -438,7 +453,7 @@ button img,
 }
 
 .menu-item.active {
-    background: #ffffff10;
+    background: #ffffff0f;
     opacity: 1;
 }
 

@@ -27,7 +27,8 @@
         "active": true,
         "targets": "all",
         "resources": {
-            "lib/libmpv-2.dll": "lib/libmpv-2.dll"
+            "lib/libmpv-2.dll": "lib/libmpv-2.dll",
+            "lib/libmpv-wrapper.dll": "lib/libmpv-wrapper.dll"
         },
         "icon": [
             "icons/32x32.png",
