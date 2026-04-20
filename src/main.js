@@ -112,6 +112,12 @@ getCurrentWebview().onDragDropEvent((event) => {
     }
 });
 
+// --- Blur buttons after click to prevent Space from re-triggering them --------
+
+document.addEventListener("click", (e) => {
+    if (e.target.closest("button")) e.target.closest("button").blur();
+});
+
 // --- Disable right click menu -------------------------------------------------
 
 // document.addEventListener("contextmenu", (ev) => ev.preventDefault());
