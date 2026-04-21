@@ -20,6 +20,10 @@ export function openVideoDialog() {
     return invoke("open_video_dialog");
 }
 
+export function openFolderDialog() {
+    return invoke("open_folder_dialog");
+}
+
 // ---------------------------------------------------------------------------
 // Playback commands
 // ---------------------------------------------------------------------------

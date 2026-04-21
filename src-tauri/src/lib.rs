@@ -60,6 +60,46 @@ fn open_video_dialog(app: AppHandle, player: tauri::State<Arc<MpvPlayer>>) -> Re
     Ok(())
 }
 
+#[tauri::command]
+fn open_folder_dialog(app: AppHandle, player: tauri::State<Arc<MpvPlayer>>) -> Result<(), String> {
+    log::info!("Opened folder selector");
+
+    let player = Arc::clone(&player);
+
+    let window = app
+        .get_webview_window("main")
+        .ok_or("window 'main' not found")?;
+
+    tauri_plugin_dialog::DialogExt::dialog(&app)
+        .file()
+        .set_parent(&window)
+        .pick_folder(move |picked| {
+            let path = match picked {
+                Some(folder_path) => match folder_path.into_path() {
+                    Ok(p) => p,
+                    Err(e) => {
+                        log::error!("Failed to resolve path: {e}");
+                        return;
+                    }
+                },
+                None => {
+                    log::info!("No folder selected");
+                    return;
+                }
+            };
+
+            if path.is_dir() {
+                if let Err(e) = playlist::load_folder(&player, &path) {
+                    log::error!("Failed to load folder: {e}");
+                }
+            } else {
+                log::error!("Selected path is not a folder");
+            }
+        });
+
+    Ok(())
+}
+
 /// Saved progress info for a single file.
 #[derive(serde::Serialize, Clone)]
 struct WatchProgress {
@@ -215,6 +255,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_video,
             open_video_dialog,
+            open_folder_dialog,
             get_watch_later_positions,
             apply_border_shader,
             mpv::commands::play,

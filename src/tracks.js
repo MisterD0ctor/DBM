@@ -41,8 +41,7 @@ btnTracks.onclick = () => ui.toggleTrackListMenu();
 
 document.addEventListener("click", (event) => {
     if (!tracksMenu.contains(event.target) && !btnTracks.contains(event.target)) {
-        event.preventDefault();
-        ui.hideTracksMenu();
+        ui.toggleTrackListMenu(false);
     }
 });
 

@@ -9,11 +9,17 @@ export {
     setSeekHighlight,
 } from "./playback.js";
 
-export { setOverlay, setPanscan, setFullscreen, setAmbient, setPlaylistNav } from "./controls.js";
+export {
+    setOverlay,
+    setPanscan,
+    setFullscreen,
+    setAmbient,
+    setPlaylistNav,
+    toggleOpenMenu,
+} from "./controls.js";
 
 export {
     toggleTrackListMenu,
-    hideTracksMenu,
     populateSubtitleTrackMenu,
     populateAudioTrackMenu,
     setActiveSubtitleTrack,
@@ -23,9 +29,4 @@ export {
 
 export { setMute, setVolume } from "./volume.js";
 
-export {
-    togglePlaylistMenu,
-    hidePlaylistMenu,
-    populatePlaylistMenu,
-    setActivePlaylistItem,
-} from "./playlist.js";
+export { togglePlaylistMenu, populatePlaylistMenu, setActivePlaylistItem } from "./playlist.js";

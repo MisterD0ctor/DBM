@@ -120,4 +120,4 @@ document.addEventListener("click", (e) => {
 
 // --- Disable right click menu -------------------------------------------------
 
-// document.addEventListener("contextmenu", (ev) => ev.preventDefault());
+document.addEventListener("contextmenu", (ev) => ev.preventDefault());

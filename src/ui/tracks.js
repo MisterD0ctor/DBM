@@ -1,11 +1,12 @@
 // --- Menu visibility ---------------------------------------------------------
 
-export function toggleTrackListMenu() {
-    document.getElementById("tracks-menu")?.classList.toggle("hidden");
-}
-
-export function hideTracksMenu() {
-    document.getElementById("tracks-menu")?.classList.add("hidden");
+export function toggleTrackListMenu(force) {
+    const menu = document.getElementById("tracks-menu");
+    if (force !== undefined) {
+        menu.classList.toggle("hidden", !force);
+    } else {
+        menu.classList.toggle("hidden");
+    }
 }
 
 // --- Populate menus ----------------------------------------------------------
@@ -16,7 +17,7 @@ export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable
 
     const noneItem = createTrackMenuItem("Off", "no", () => {
         onDisable();
-        hideTracksMenu();
+        toggleTrackListMenu(false);
     });
     // const noneImg = document.createElement("img");
     // noneImg.setAttribute("src", "assets/icons/normal-straight/subtitles-slash.svg");
@@ -54,7 +55,7 @@ function createTrackMenuItem(title, id, onSelect) {
     item.className = "menu-item";
     item.onclick = () => {
         onSelect(id);
-        hideTracksMenu();
+        toggleTrackListMenu(false);
     };
     titleEl.textContent = title;
     item.appendChild(activeHighlight);

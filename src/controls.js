@@ -77,7 +77,30 @@ function playNext() {
 
 // --- Button wiring -----------------------------------------------------------
 
-document.getElementById("btn-open").onclick = () => player.openVideoDialog();
+// document.getElementById("btn-open-file").onclick = () => player.openVideoDialog();
+// document.getElementById("btn-open-folder").onclick = () => player.openFolderDialog();
+
+const openMenu = document.getElementById("open-menu");
+const openMenuBtn = document.getElementById("btn-open-menu");
+
+openMenuBtn.onclick = () => {
+    ui.toggleOpenMenu();
+};
+
+openMenu.addEventListener("click", (e) => {
+    const item = e.target.closest(".menu-item");
+    if (!item) return;
+    ui.toggleOpenMenu(false);
+    if (item.dataset.action === "open-file") player.openVideoDialog();
+    else if (item.dataset.action === "open-folder") player.openFolderDialog();
+});
+
+document.addEventListener("click", (event) => {
+    if (!openMenu.contains(event.target) && !openMenuBtn.contains(event.target)) {
+        ui.toggleOpenMenu(false);
+    }
+});
+
 document.getElementById("btn-previous").onclick = playPrevious;
 document.getElementById("btn-next").onclick = playNext;
 document.getElementById("btn-seek-back").onclick = () => seek(-SEEK_SECONDS);

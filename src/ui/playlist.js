@@ -3,12 +3,13 @@ import { cleanSeparators, stripMetadata, stripPath, stripExtension } from "../ut
 
 // --- Menu visibility ---------------------------------------------------------
 
-export function togglePlaylistMenu() {
-    document.getElementById("playlist-menu")?.classList.toggle("hidden");
-}
-
-export function hidePlaylistMenu() {
-    document.getElementById("playlist-menu")?.classList.add("hidden");
+export function togglePlaylistMenu(force) {
+    const menu = document.getElementById("playlist-menu");
+    if (force !== undefined) {
+        menu.classList.toggle("hidden", !force);
+    } else {
+        menu.classList.toggle("hidden");
+    }
 }
 
 // --- Populate ----------------------------------------------------------------
@@ -105,7 +106,7 @@ function createPlaylistItem(entry, index, activeIndex, isPaused, progress, onSel
 
     item.onclick = () => {
         onSelect(index);
-        hidePlaylistMenu();
+        togglePlaylistMenu(false);
     };
 
     return item;

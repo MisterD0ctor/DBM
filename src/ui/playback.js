@@ -37,7 +37,6 @@ export function setProgress(percent) {
 export function setMediaTitle(filename) {
     filename = filename ?? "";
 
-    const btnEl = document.getElementById("btn-open");
     const mediaTitleEl = document.querySelector(".media-title");
     const titleEl = document.querySelector(".media-title .title");
     const showEl = document.querySelector(".media-title .show");
@@ -80,8 +79,6 @@ export function setMediaTitle(filename) {
         "overflowing",
         mediaTitleEl.scrollWidth > mediaTitleEl.clientWidth,
     );
-    const isLoaded = filename !== "";
-    btnEl.classList.toggle("loaded", isLoaded);
 }
 
 export function updateMediaTitleOverflow() {

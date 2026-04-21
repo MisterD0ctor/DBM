@@ -5,8 +5,7 @@ import * as ui from "./ui/ui.js";
 
 export async function populatePlaylistMenu() {
     const playlistValue = await player.getProperty("playlist", "string");
-    const playlist =
-        typeof playlistValue === "string" ? JSON.parse(playlistValue) : playlistValue;
+    const playlist = typeof playlistValue === "string" ? JSON.parse(playlistValue) : playlistValue;
 
     const pos = await player.getProperty("playlist-pos", "double").catch(() => 0);
     const paused = await player.getProperty("pause", "flag").catch(() => false);
@@ -29,6 +28,6 @@ btnPlaylist.onclick = () => ui.togglePlaylistMenu();
 
 document.addEventListener("click", (event) => {
     if (!playlistMenu.contains(event.target) && !btnPlaylist.contains(event.target)) {
-        ui.hidePlaylistMenu();
+        ui.togglePlaylistMenu(false);
     }
 });

@@ -35,6 +35,36 @@ fn video_files_in_directory(dir: &Path) -> Result<Vec<PathBuf>, String> {
     Ok(videos)
 }
 
+fn video_files_recursive(dir: &Path) -> Result<Vec<PathBuf>, String> {
+    let mut videos = Vec::new();
+    let mut stack = vec![dir.to_path_buf()];
+
+    while let Some(current) = stack.pop() {
+        let entries = match fs::read_dir(&current) {
+            Ok(e) => e,
+            Err(e) => {
+                log::warn!("Skipping directory {}: {}", current.display(), e);
+                continue;
+            }
+        };
+        for entry in entries.filter_map(|e| e.ok()) {
+            let path = entry.path();
+            if path.is_dir() {
+                stack.push(path);
+            } else if path.is_file() && is_video_file(&path) {
+                videos.push(path);
+            }
+        }
+    }
+
+    if videos.is_empty() {
+        return Err("No video files found in the folder".to_string());
+    }
+
+    videos.sort();
+    Ok(videos)
+}
+
 fn write_playlist(videos: &[PathBuf]) -> Result<PathBuf, String> {
     let playlist_path = crate::mpv::app_data_dir().join("playlist.m3u");
     let _ = fs::create_dir_all(playlist_path.parent().unwrap());
@@ -53,7 +83,17 @@ pub fn load_video(player: &MpvPlayer, video_path: &Path) -> Result<(), String> {
         .ok_or("Failed to get parent directory")?;
     let videos = video_files_in_directory(dir)?;
     let index = videos.iter().position(|p| p == video_path).unwrap_or(0);
-    let playlist_path = write_playlist(&videos)?;
+    load_playlist(player, &videos, index)
+}
+
+/// Recursively scan a folder and play all video files found.
+pub fn load_folder(player: &MpvPlayer, folder_path: &Path) -> Result<(), String> {
+    let videos = video_files_recursive(folder_path)?;
+    load_playlist(player, &videos, 0)
+}
+
+fn load_playlist(player: &MpvPlayer, videos: &[PathBuf], index: usize) -> Result<(), String> {
+    let playlist_path = write_playlist(videos)?;
 
     player
         .command(

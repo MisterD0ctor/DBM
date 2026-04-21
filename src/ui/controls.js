@@ -40,3 +40,15 @@ export function setFullscreen(isFullscreen) {
             : "assets/icons/normal-straight/expand.svg",
     );
 }
+
+export function toggleOpenMenu(force) {
+    const openMenu = document.getElementById("open-menu");
+    const openMenuBtn = document.getElementById("btn-open-menu");
+    if (force !== undefined) {
+        openMenu?.classList.toggle("hidden", !force);
+        openMenuBtn?.classList.toggle("rotated", force);
+    } else {
+        openMenu?.classList.toggle("hidden");
+        openMenuBtn?.classList.toggle("rotated");
+    }
+}

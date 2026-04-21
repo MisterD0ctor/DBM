@@ -6,9 +6,9 @@
 }
 
 body {
-    /* background-color: #000000; */
     margin: 0;
-    font-family: "Arial", sans-serif;
+    font-family: system-ui, sans-serif;
+    font-feature-settings: "cv11", "ss01"; /*  nicer digits/letters */
     color: #fff;
     overflow: hidden;
     user-select: none;
@@ -59,7 +59,7 @@ body {
         rgba(0, 0, 0, 0),
         transparent
     );
-    height: 150px;
+    height: 200px;
     width: 100%;
     left: 0;
     bottom: 0;
@@ -69,6 +69,7 @@ body {
 
 .btn-wrap,
 button {
+    font-family: inherit;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -142,6 +143,51 @@ button img,
     width: 80px;
     height: 80px;
     filter: drop-shadow(0 0 8px #00000080);
+}
+
+/* ------------------------------------------------------------------------- */
+/*    Menus                                                                  */
+/* ------------------------------------------------------------------------- */
+
+.menu {
+    background: #101010f0;
+    border: 0.5px solid #ffffff11;
+}
+
+.menu.hidden {
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+.menu-item {
+    border-radius: 6px;
+    font-size: 14px;
+    opacity: 0.8;
+    cursor: pointer;
+    border: 0.5px solid transparent;
+    transition: 0.2s ease;
+}
+
+.menu-item.active {
+    background: #ffffff0f;
+    opacity: 1;
+}
+
+.menu-item:hover {
+    opacity: 1;
+    color: #ffffff;
+    border: 0.5px solid #ffffff11;
+    background: #ffffff1e;
+}
+
+/* ----------------------------------------------------------------------- */
+/* Open buttons                                                            */
+/* ----------------------------------------------------------------------- */
+
+#open-buttons {
+    display: flex;
+    gap: 5px;
 }
 
 /* ----------------------------------------------------------------------- */
@@ -252,7 +298,7 @@ button img,
     transform: translate(-50%, 0);
     padding: 10px 16px;
     border-radius: 100px;
-    transition: opacity 0.2s ease;
+    transition: opacity 0.1s ease;
 }
 
 #seek-tooltip.hidden {
@@ -279,38 +325,25 @@ button img,
 }
 
 /* --- Toolbar start (left) -------------------------------------------------- */
+
 .toolbar-start {
     justify-self: start;
     min-width: 0;
     max-width: 100%;
 }
 
-#btn-open {
+#btn-playlist {
+    padding: 12px 16px 12px 16px;
     max-width: 100%;
     overflow: hidden;
 }
 
-#btn-open.loaded {
-    padding: 0;
-    max-width: 100%;
-}
-
-#btn-open.loaded img {
-    padding: 12px;
-    overflow: visible;
-    border-radius: 100px;
-    transition: 0.2s ease;
-}
-
-#btn-open.loaded:hover img {
-    background-color: #ffffff0f;
-}
-
 .media-title {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     gap: 10px;
-    margin: 10px 12px 10px 8px;
+
+    margin: 0 17px 0 0;
     overflow: hidden;
     white-space: nowrap;
 
@@ -341,6 +374,48 @@ button img,
 
 .media-title > .hidden {
     display: none;
+}
+
+#btn-open-menu {
+    anchor-name: --open-menu;
+}
+
+#open-menu {
+    z-index: 1000;
+    position: fixed;
+    position-anchor: --open-menu;
+    position-area: top center;
+    margin: 8px 0;
+    min-width: 160px;
+    border-radius: 12px;
+    padding: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    transition: 0.2s ease;
+}
+
+#open-menu ~ .open-caret .caret {
+    transform: rotate(180deg);
+}
+
+#open-menu.hidden ~ .open-caret .caret {
+    transform: rotate(0deg);
+}
+
+#open-menu .menu-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    white-space: nowrap;
+}
+
+#open-menu .menu-item img {
+    width: 16px;
+    height: 16px;
+    opacity: 0.6;
 }
 
 /* --- Toolbar center -------------------------------------------------------- */
@@ -434,35 +509,7 @@ button img,
     background-color: #ffffff0f;
 }
 
-/* ------------------------------------------------------------------------- */
-/*    Menus                                                                  */
-/* ------------------------------------------------------------------------- */
-
-.menu {
-    background: #141414da;
-    border: 0.5px solid #ffffff11;
-}
-
-.menu-item {
-    border-radius: 6px;
-    font-size: 14px;
-    opacity: 0.8;
-    cursor: pointer;
-    border: 0.5px solid transparent;
-    transition: 0.2s ease;
-}
-
-.menu-item.active {
-    background: #ffffff0f;
-    opacity: 1;
-}
-
-.menu-item:hover {
-    opacity: 1;
-    color: #ffffff;
-    border: 0.5px solid #ffffff11;
-    background: #ffffff1e;
-}
+/* --- Playlist menu ------------------------------------------------------- */
 
 .playlist-anchor {
     anchor-name: --playlist-menu;
@@ -473,7 +520,6 @@ button img,
     position: fixed;
     position-anchor: --playlist-menu;
     position-area: top center;
-    bottom: 20px;
     margin: 8px;
     min-width: 200px;
     width: max-content;
@@ -485,11 +531,6 @@ button img,
     padding: 8px 0;
 
     transition: 0.2s ease;
-}
-
-#playlist-menu.hidden {
-    pointer-events: none;
-    opacity: 0;
 }
 
 #playlist-items {
@@ -609,6 +650,8 @@ button img,
     border-radius: 1px;
 }
 
+/* --- Tracks menu --------------------------------------------------------- */
+
 .tracks-anchor {
     anchor-name: --tracks-menu;
 }
@@ -618,7 +661,6 @@ button img,
     position: fixed;
     position-anchor: --tracks-menu;
     position-area: top center;
-    bottom: 20px;
     margin: 8px;
     min-width: 200px;
     width: max-content;
@@ -632,11 +674,6 @@ button img,
     transition: 0.2s ease;
 }
 
-#tracks-menu.hidden {
-    pointer-events: none;
-    opacity: 0;
-}
-
 .tracks-list {
     margin: 0 4px;
     padding: 0 4px;
@@ -646,11 +683,13 @@ button img,
 }
 
 .tracks-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     font-size: 12px;
     color: #ffffff;
-    padding: 10px 21px 10px 27px;
-    margin-right: 20px;
-    opacity: 0.5;
+    padding: 10px 27px 10px 27px;
+    opacity: 0.4;
 }
 
 .tracks-heading img {
