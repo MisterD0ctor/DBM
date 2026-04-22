@@ -100,6 +100,10 @@ pub unsafe extern "C" fn event_callback(event: *const c_char, userdata: *mut c_v
                             if let Ok(val) = player.get_property("path", "string") {
                                 if let Some(path) = val.as_str() {
                                     super::save_last_session(path);
+                                    crate::preview::request_preview(
+                                        &app,
+                                        std::path::Path::new(path),
+                                    );
                                 }
                             }
                         }

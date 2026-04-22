@@ -6,6 +6,7 @@ import * as ambient from "./ambient.js";
 import * as seekbar from "./seekbar.js";
 import * as tracks from "./tracks.js";
 import * as playlist from "./playlist.js";
+import * as preview from "./preview.js";
 
 // Side-effect imports — these register their own event listeners on import
 import "./overlay.js";
@@ -38,7 +39,8 @@ function updateProperty(name, data) {
         case "percent-pos": ui.setProgress(data);                 break;
         case "duration":    ui.setDuration(data);        
                             seekbar.setDuration(data);            break;
-        case "filename":    ui.setMediaTitle(data);               break;
+        case "filename":    ui.setMediaTitle(data);
+                            updateCurrentVideoPath();             break;
         case "pause":       ui.setPause(data);
                             ui.setActivePlaylistItem(playlistPos, data); break;
         case "mute":        ui.setMute(data);                     break;
@@ -56,6 +58,17 @@ function updateProperty(name, data) {
         default: console.warn("Unhandled property:", name);
     }
 }
+
+async function updateCurrentVideoPath() {
+    try {
+        const path = await player.getProperty("path", "string");
+        preview.setCurrentVideo(path || null);
+    } catch {
+        preview.setCurrentVideo(null);
+    }
+}
+
+preview.init();
 
 // --- Property observation -----------------------------------------------------
 

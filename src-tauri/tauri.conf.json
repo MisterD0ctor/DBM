@@ -20,12 +20,19 @@
             }
         ],
         "security": {
-            "csp": null
+            "csp": null,
+            "assetProtocol": {
+                "enable": true,
+                "scope": {
+                    "allow": ["**"]
+                }
+            }
         }
     },
     "bundle": {
         "active": true,
         "targets": "all",
+        "externalBin": ["binaries/ffmpeg"],
         "resources": {
             "lib/libmpv-2.dll": "lib/libmpv-2.dll",
             "lib/libmpv-wrapper.dll": "lib/libmpv-wrapper.dll"

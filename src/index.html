@@ -28,8 +28,13 @@
                 <div id="timeline">
                     <span class="time-display" id="time-current">00:00</span>
                     <div id="seek-track">
-                        <div class="time-display hidden" id="seek-tooltip">
-                            <span class="time-display">00:00</span>
+                        <div class="hidden no-preview" id="seek-preview">
+                            <div class="preview-clip">
+                                <img id="seek-preview-image" src="" alt="Seek preview" />
+                            </div>
+                            <div class="time-display" id="seek-tooltip">
+                                <span class="time-display">00:00</span>
+                            </div>
                         </div>
                         <div class="seek-rail">
                             <div class="seek-highlight hidden"></div>

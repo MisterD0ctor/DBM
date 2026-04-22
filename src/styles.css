@@ -283,24 +283,63 @@ input,
     width: calc(var(--seek-highlight-pos) - var(--progress) + var(--size) / 2);
 }
 
-#seek-tooltip {
-    pointer-events: none;
+#seek-preview {
     position: absolute;
     bottom: 26px;
     left: var(--seek-tooltip-pos);
     transform: translate(-50%, 0);
-    padding: 6px 16px;
-    border-radius: 100px;
-    border: 1px solid #ffffff11;
-    background: #101010a0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    pointer-events: none;
     transition:
         opacity 0.1s ease,
         transform 0.1s ease;
 }
 
-#seek-tooltip.hidden {
+#seek-preview.hidden {
     transform: translate(-50%, 5px);
     opacity: 0;
+}
+
+#seek-preview {
+    --tile-w: 160px;
+    --tile-h: 90px;
+    --sprite-w: 1920px;
+    --sprite-h: 1080px;
+    --tile-x: 0px;
+    --tile-y: 0px;
+}
+
+#seek-preview-image {
+    display: block;
+    width: var(--sprite-w);
+    height: var(--sprite-h);
+    max-width: none;
+    transform: translate(var(--tile-x), var(--tile-y));
+    image-rendering: auto;
+    pointer-events: none;
+}
+
+#seek-preview .preview-clip {
+    width: var(--tile-w);
+    height: var(--tile-h);
+    border: 1px solid #ffffff22;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#seek-preview.no-preview .preview-clip {
+    display: none;
+}
+
+#seek-tooltip {
+    pointer-events: none;
+    padding: 6px 16px;
+    border-radius: 100px;
+    border: 1px solid #ffffff11;
+    background: #101010a0;
 }
 
 /* --------------------------------------------------------------------------- */

@@ -119,6 +119,20 @@ export function setBorderShaderOptions(opts) {
     return invoke("set_border_shader_options", { opts });
 }
 
+/**
+ * Fetch any cached seek-preview sprite for the given video path.
+ * @param {string} path
+ * @returns {Promise<null | {path: string, sprite: string, grid: number, tile_w: number, tile_h: number}>}
+ */
+export function getPreview(path) {
+    return invoke("get_preview", { path });
+}
+
+/** Subscribe to preview-ready events from the Rust side. */
+export function onPreviewReady(callback) {
+    return listen("preview://ready", (event) => callback(event.payload));
+}
+
 // Events from Rust (property changes, file-end, errors)
 // ---------------------------------------------------------------------------
 

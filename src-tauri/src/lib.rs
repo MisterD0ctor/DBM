@@ -1,5 +1,6 @@
 mod mpv;
 mod playlist;
+mod preview;
 mod smtc;
 
 use std::{path::PathBuf, sync::Arc};
@@ -182,6 +183,11 @@ fn apply_border_shader(
 }
 
 #[tauri::command]
+fn get_preview(path: String) -> Option<preview::PreviewReady> {
+    preview::cached_preview(std::path::Path::new(&path))
+}
+
+#[tauri::command]
 fn set_border_shader_options(
     player: tauri::State<Arc<MpvPlayer>>,
     opts: String,
@@ -291,6 +297,7 @@ pub fn run() {
             get_watch_later_positions,
             apply_border_shader,
             set_border_shader_options,
+            get_preview,
             mpv::commands::play,
             mpv::commands::pause,
             mpv::commands::toggle_pause,

@@ -1,6 +1,7 @@
 import { formatTime } from "../utils/formatTime.js";
 import { parseTvShow } from "../utils/parse.js";
 import { setButtonIcon } from "../utils/setButtonIcon.js";
+import * as preview from "../preview.js";
 
 let duration;
 
@@ -105,7 +106,8 @@ let seekTimeHighlightTimes = [];
 
 export function setSeekTooltip(isShown, clientX) {
     const timeEl = document.getElementById("seek-tooltip");
-    timeEl?.classList.toggle("hidden", !isShown);
+    const previewEl = document.getElementById("seek-preview");
+    previewEl?.classList.toggle("hidden", !isShown);
 
     if (isShown) {
         seekTimeTooltipTimes.forEach((id) => clearTimeout(id));
@@ -116,6 +118,8 @@ export function setSeekTooltip(isShown, clientX) {
         const rectX = Math.max(0, clientX - rect.left);
         const fraction = rectX / rect.width ?? 0;
         const timeSeconds = duration * fraction;
+
+        preview.showAtFraction(fraction);
 
         const secondsPerPixel = duration / rect.width ?? 0;
         const fractionDigits = Math.max(
