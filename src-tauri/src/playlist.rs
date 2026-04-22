@@ -92,8 +92,14 @@ pub fn load_folder(player: &MpvPlayer, folder_path: &Path) -> Result<(), String>
     load_playlist(player, &videos, 0)
 }
 
-fn load_playlist(player: &MpvPlayer, videos: &[PathBuf], index: usize) -> Result<(), String> {
+/// Load a pre-built list of video paths into mpv at the given index.
+pub fn load_playlist(
+    player: &MpvPlayer,
+    videos: &[PathBuf],
+    index: usize,
+) -> Result<(), String> {
     let playlist_path = write_playlist(videos)?;
+    crate::mpv::save_last_playlist(videos);
 
     player
         .command(

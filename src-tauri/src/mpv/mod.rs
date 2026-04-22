@@ -438,12 +438,7 @@ impl MpvPlayer {
         self.wrapper.get_or_try_init(|| {
             info!("Loading libmpv-wrapper...");
 
-            #[cfg(target_os = "windows")]
             let lib_name = "libmpv-wrapper.dll";
-            #[cfg(target_os = "macos")]
-            let lib_name = "libmpv-wrapper.dylib";
-            #[cfg(target_os = "linux")]
-            let lib_name = "libmpv-wrapper.so";
 
             let mut search_dirs: Vec<PathBuf> = Vec::new();
             if let Ok(exe_path) = std::env::current_exe() {
@@ -537,6 +532,38 @@ pub fn load_last_session() -> Option<String> {
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty() && PathBuf::from(s).is_file())
+}
+
+fn last_playlist_path() -> PathBuf {
+    app_data_dir().join("last_playlist.json")
+}
+
+/// Save the playlist used for the last session so it can be restored next launch.
+pub fn save_last_playlist(paths: &[PathBuf]) {
+    let file = last_playlist_path();
+    let _ = std::fs::create_dir_all(file.parent().unwrap());
+    let strings: Vec<String> = paths.iter().map(|p| p.to_string_lossy().into_owned()).collect();
+    match serde_json::to_string(&strings) {
+        Ok(json) => {
+            if let Err(e) = std::fs::write(&file, json) {
+                warn!("Failed to save last playlist: {}", e);
+            }
+        }
+        Err(e) => warn!("Failed to serialize last playlist: {}", e),
+    }
+}
+
+/// Load the previously saved playlist, filtering out files that no longer exist.
+pub fn load_last_playlist() -> Option<Vec<PathBuf>> {
+    let file = last_playlist_path();
+    let json = std::fs::read_to_string(&file).ok()?;
+    let strings: Vec<String> = serde_json::from_str(&json).ok()?;
+    let paths: Vec<PathBuf> = strings
+        .into_iter()
+        .map(PathBuf::from)
+        .filter(|p| p.is_file())
+        .collect();
+    if paths.is_empty() { None } else { Some(paths) }
 }
 
 // ---------------------------------------------------------------------------

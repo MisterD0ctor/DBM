@@ -7,12 +7,12 @@ export function toggleOverlay(force) {
 
 export function toggleAmbient(force) {
     document.getElementById("ambient-toggle")?.classList.toggle("on", force);
-    setButtonIcon(
-        "btn-ambient",
-        force
-            ? "assets/icons/normal-straight/lightbulb-slash.svg"
-            : "assets/icons/normal-straight/bulb.svg",
-    );
+    // setButtonIcon(
+    //     "btn-ambient",
+    //     force
+    //         ? "assets/icons/normal-straight/lightbulb-slash.svg"
+    //         : "assets/icons/normal-straight/bulb.svg",
+    // );
 }
 
 export function toggleAmbientMenu(force) {

@@ -209,13 +209,35 @@ fn startup(app: &AppHandle) {
         }
     });
 
-    let startup_path = std::env::args().nth(1).or_else(mpv::load_last_session);
-
-    if let Some(path) = startup_path {
-        let video_path = PathBuf::from(&path);
+    // CLI argument takes precedence — treat it as a single-file open.
+    if let Some(arg_path) = std::env::args().nth(1) {
+        let video_path = PathBuf::from(&arg_path);
         if video_path.is_file() && playlist::is_video_file(&video_path) {
             if let Err(e) = playlist::load_video(&player, &video_path) {
                 log::warn!("Failed to load startup file: {}", e);
+            }
+            return;
+        }
+    }
+
+    // Otherwise, restore the last playlist + position. Fall back to the single
+    // last-played file if the playlist is missing or doesn't contain it.
+    let last_file = mpv::load_last_session();
+    if let Some(paths) = mpv::load_last_playlist() {
+        let index = last_file
+            .as_ref()
+            .and_then(|p| paths.iter().position(|v| v.to_string_lossy() == *p))
+            .unwrap_or(0);
+        if let Err(e) = playlist::load_playlist(&player, &paths, index) {
+            log::warn!("Failed to restore last playlist: {}", e);
+        }
+        return;
+    }
+    if let Some(path) = last_file {
+        let video_path = PathBuf::from(&path);
+        if video_path.is_file() && playlist::is_video_file(&video_path) {
+            if let Err(e) = playlist::load_video(&player, &video_path) {
+                log::warn!("Failed to load last session: {}", e);
             }
         }
     }
