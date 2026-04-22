@@ -10,10 +10,11 @@ export {
 } from "./playback.js";
 
 export {
-    setOverlay,
-    setPanscan,
-    setFullscreen,
-    setAmbient,
+    toggleOverlay as toggleOverlay,
+    togglePanscan as togglePanscan,
+    toggleFullscreen as toggleFullscreen,
+    toggleAmbient as toggleAmbient,
+    toggleAmbientMenu,
     setPlaylistNav,
     toggleOpenMenu,
 } from "./controls.js";

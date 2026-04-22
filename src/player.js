@@ -102,11 +102,21 @@ export function getWatchLaterPositions(paths) {
  * Fetch a shader from frontend assets and apply it as the border-background.
  * @param {string} assetPath e.g. "assets/shaders/ambient-lite.glsl"
  */
-export async function applyBorderShader(assetPath) {
+export async function setBorderShader(assetPath) {
     const response = await fetch(assetPath);
     if (!response.ok) throw new Error(`Failed to fetch shader: ${response.status}`);
     const content = await response.text();
     return invoke("apply_border_shader", { content });
+}
+
+/**
+ *
+ * @param {{ name: string, value: any }[]} params
+ * @returns
+ */
+export function setBorderShaderOptions(opts) {
+    opts = opts.map(({ name, value }) => `${name}=${value}`).join(",");
+    return invoke("set_border_shader_options", { opts });
 }
 
 // Events from Rust (property changes, file-end, errors)

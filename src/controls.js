@@ -1,6 +1,5 @@
 import * as player from "./player.js";
 import * as ui from "./ui/ui.js";
-import { toggleAmbient } from "./ambient.js";
 
 const { getCurrentWindow } = window.__TAURI__.window;
 const { PhysicalPosition, PhysicalSize, LogicalPosition, LogicalSize } = window.__TAURI__.dpi;
@@ -48,7 +47,7 @@ async function setFullscreen(enable) {
         }
     }
 
-    ui.setFullscreen(enable);
+    ui.toggleFullscreen(enable);
 }
 
 function toggleFullscreen() {
@@ -106,7 +105,6 @@ document.getElementById("btn-next").onclick = playNext;
 document.getElementById("btn-seek-back").onclick = () => seek(-SEEK_SECONDS);
 document.getElementById("btn-seek-forward").onclick = () => seek(SEEK_SECONDS);
 document.getElementById("btn-play").onclick = togglePause;
-document.getElementById("btn-ambient").onclick = toggleAmbient;
 document.getElementById("btn-panscan").onclick = togglePanscan;
 document.getElementById("btn-mute").onclick = toggleMute;
 document.getElementById("btn-fullscreen").onclick = toggleFullscreen;

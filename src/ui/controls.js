@@ -1,23 +1,30 @@
 import { setButtonIcon } from "../utils/setButtonIcon.js";
 
-export function setOverlay(isShown) {
-    document.getElementById("controls-panel")?.classList.toggle("hidden", !isShown);
-    document.getElementById("player")?.classList.toggle("hidden", !isShown);
+export function toggleOverlay(force) {
+    document.getElementById("controls-panel")?.classList.toggle("hidden", !force);
+    document.getElementById("player")?.classList.toggle("hidden", !force);
 }
 
-export function setAmbient(isAmbient) {
+export function toggleAmbient(force) {
+    document.getElementById("ambient-toggle")?.classList.toggle("on", force);
     setButtonIcon(
         "btn-ambient",
-        isAmbient
+        force
             ? "assets/icons/normal-straight/lightbulb-slash.svg"
             : "assets/icons/normal-straight/bulb.svg",
     );
 }
 
-export function setPanscan(isPanscan) {
+export function toggleAmbientMenu(force) {
+    const menu = document.getElementById("ambient-menu");
+    if (force !== undefined) menu?.classList.toggle("hidden", !force);
+    else menu?.classList.toggle("hidden");
+}
+
+export function togglePanscan(force) {
     setButtonIcon(
         "btn-panscan",
-        isPanscan
+        force
             ? "assets/icons/normal-straight/compress-alt.svg"
             : "assets/icons/normal-straight/expand-alt.svg",
     );
@@ -32,10 +39,10 @@ export function setPlaylistNav(pos, count) {
     next.disabled = pos >= count - 1;
 }
 
-export function setFullscreen(isFullscreen) {
+export function toggleFullscreen(force) {
     setButtonIcon(
         "btn-fullscreen",
-        isFullscreen
+        force
             ? "assets/icons/normal-straight/compress.svg"
             : "assets/icons/normal-straight/expand.svg",
     );

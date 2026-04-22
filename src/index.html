@@ -96,30 +96,29 @@
                     </div>
 
                     <div class="toolbar-end">
-                        <button id="btn-ambient">
+                        <div id="volume-group">
+                            <button id="btn-mute">
+                                <img src="assets/icons/normal-straight/volume.svg" alt="Mute" />
+                            </button>
+                            <input
+                                id="volume-slider"
+                                type="range"
+                                min="0"
+                                max="150"
+                                value="100"
+                                step="2"
+                            />
+                            <div id="volume-tooltip">
+                                <span id="volume-display">100</span>
+                                <span id="volume-percent">%</span>
+                            </div>
+                        </div>
+                        <button id="btn-ambient" class="ambient-anchor">
                             <img src="assets/icons/normal-straight/bulb.svg" alt="Ambient" />
                         </button>
                         <button class="tracks-anchor" id="btn-tracks">
                             <img src="assets/icons/normal-straight/subtitles.svg" alt="Subtitles" />
                         </button>
-                        <div class="volume-group">
-                            <div class="btn-wrap">
-                                <input
-                                    id="volume-slider"
-                                    type="range"
-                                    min="0"
-                                    max="200"
-                                    value="100"
-                                    step="2"
-                                />
-                                <div id="volume-display-wrap">
-                                    <span id="volume-display">100</span>
-                                </div>
-                                <button id="btn-mute">
-                                    <img src="assets/icons/normal-straight/volume.svg" alt="Mute" />
-                                </button>
-                            </div>
-                        </div>
                         <button id="btn-panscan">
                             <img
                                 src="assets/icons/normal-straight/expand-arrows-alt.svg"
@@ -146,6 +145,16 @@
                         <img src="assets/icons/bold-straight/volume.svg" alt="Audio" />
                     </div>
                     <div id="tracks-audio" class="tracks-list"></div>
+                </div>
+                <div id="ambient-menu" class="menu hidden">
+                    <button id="ambient-toggle" class="menu-item">
+                        <span>Ambient</span>
+                        <span class="ambient-toggle menu-item">
+                            <span class="ambient-toggle-knob"></span>
+                        </span>
+                    </button>
+                    <div class="ambient-divider"></div>
+                    <div class="ambient-sliders"></div>
                 </div>
                 <div id="open-menu" class="menu hidden">
                     <div class="menu-item" data-action="open-file">

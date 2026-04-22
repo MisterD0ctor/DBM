@@ -181,6 +181,16 @@ fn apply_border_shader(
     Ok(())
 }
 
+#[tauri::command]
+fn set_border_shader_options(
+    player: tauri::State<Arc<MpvPlayer>>,
+    opts: String,
+) -> Result<(), String> {
+    player
+        .set_property_raw("border-background-shader-opts", &opts)
+        .map_err(|e| e.to_string())
+}
+
 // --- Startup (Rust-side, runs in .setup()) ------------------------------------
 
 fn startup(app: &AppHandle) {
@@ -258,6 +268,7 @@ pub fn run() {
             open_folder_dialog,
             get_watch_later_positions,
             apply_border_shader,
+            set_border_shader_options,
             mpv::commands::play,
             mpv::commands::pause,
             mpv::commands::toggle_pause,

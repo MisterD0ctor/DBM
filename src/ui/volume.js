@@ -8,12 +8,16 @@ export function setMute(isMuted) {
         "btn-mute",
         isMuted ? "assets/icons/normal-straight/volume-mute.svg" : getVolumeIcon(state.volume),
     );
+    document.getElementById("volume-group").classList.toggle("muted", isMuted);
 }
 
 export function setVolume(volume) {
     state.volume = volume;
 
-    document.getElementById("volume-slider").value = volume;
+    const slider = document.getElementById("volume-slider");
+    slider.value = volume;
+    const max = Number(slider.max) || 200;
+    slider.style.setProperty("--volume-progress", `${(volume / max) * 100}%`);
     document.getElementById("volume-display").innerText = volume;
 
     if (!state.isMuted) {

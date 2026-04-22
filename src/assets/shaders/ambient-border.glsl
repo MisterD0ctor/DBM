@@ -33,7 +33,7 @@
 //!DESC maximum number of samples for edge extension (performance cost)
 //!TYPE float
 //!MINIMUM 1
-512.0
+128.0
 
 //!HOOK MAIN
 //!BIND HOOKED
@@ -111,7 +111,7 @@ float distance_falloff(float x) {
 }
 
 float soft_distance_falloff(float x) {
-   if (falloff_softness == 0.0) {
+    if (falloff_softness == 0.0) {
         return 1 / ((x + 1) * (x + 1));
     } else {
         float c = 1 / falloff_softness;
@@ -130,23 +130,23 @@ float mod289(float x)  { return x - floor(x / 289.0) * 289.0; }
 float permute(float x) { return mod289((34.0*x + 1.0) * x); }
 float rand(float x)    { return fract(x / 41.0); }
 
-vec4 light_spread(sampler2D image, vec2 pos, float edge_dist, vec2 dir) {
+vec4 light_spread(sampler2D image, vec2 pos, float edge_dist, vec2 dir, float rand) {
     float pt = length(HOOKED_pt * dir);
 
     float center = length(pos * dir);
 
-    edge_dist += edge_blur + pt * 0.5;
+    edge_dist += edge_blur + pt;
 
-    float spread_bound = light_spread_bound(edge_dist);
-    float t0 = max(0.0, center - spread_bound);
-    float t1 = min(1.0, center + spread_bound);
+    float spread_bound = min(1.0, light_spread_bound(edge_dist * spread));
+    float t0 = max(0, center - spread_bound + spread_bound * (rand - 0.5) / max_taps / 64);
+    float t1 = min(1, center + spread_bound + spread_bound * (rand - 0.5) / max_taps / 64);
     float dt = max((t1 - t0) / max_taps, pt);
 
     vec4 c_sum = vec4(0.0);
     float w_sum = 0.0;
 
     for(float t = t0; t <= t1; t += dt) {
-        float weight = distance_falloff(length(vec2((t - center), edge_dist)) * falloff) 
+        float weight = distance_falloff(length(vec2((t - center), edge_dist))) 
                        * edge_dist / length(vec2((t - center), edge_dist * spread));
         weight = pow(weight, 2.2);
         c_sum += textureLod(image, pos * dir.yx + t * dir, 0.0) * weight;
@@ -180,7 +180,7 @@ vec4 hook() {
     noise.z = rand(h); h = permute(h);
     noise.w = 0.5;
   
-    return light_spread(HOOKED_raw, pos, dist, dir)
+    return light_spread(HOOKED_raw, pos, dist, dir, h)
            * soft_distance_falloff(dist * falloff)
            + (grain/8192.0) * (noise - vec4(0.5));
 }

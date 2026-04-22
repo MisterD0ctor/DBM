@@ -5,13 +5,13 @@ const OVERLAY_HIDE_DELAY_MS = 3000;
 let hideTimer = null;
 
 function showOverlay() {
-    ui.setOverlay(true);
+    ui.toggleOverlay(true);
     clearTimeout(hideTimer);
-    hideTimer = setTimeout(() => ui.setOverlay(false), OVERLAY_HIDE_DELAY_MS);
+    hideTimer = setTimeout(() => ui.toggleOverlay(false), OVERLAY_HIDE_DELAY_MS);
 }
 
 const player = document.getElementById("player");
 player.addEventListener("mousemove", showOverlay);
 player.addEventListener("mouseenter", showOverlay);
 player.addEventListener("mousedown", showOverlay);
-player.addEventListener("mouseleave", () => ui.setOverlay(false));
+player.addEventListener("mouseleave", () => ui.toggleOverlay(false));

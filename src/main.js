@@ -43,10 +43,10 @@ function updateProperty(name, data) {
                             ui.setActivePlaylistItem(playlistPos, data); break;
         case "mute":        ui.setMute(data);                     break;
         case "volume":      ui.setVolume(data);                   break;
-        case "panscan":     ui.setPanscan(data);
+        case "panscan":     ui.togglePanscan(data);
         case "sid":         ui.setActiveSubtitleTrack(data);    break;
         case "aid":         ui.setActiveAudioTrack(data);       break;
-        case "border-background": ui.setAmbient(data !== "color"); break;
+        case "border-background": ui.toggleAmbient(data !== "color"); break;
         case "eof-reached":                                       break;
         case "playlist-pos":   playlistPos = data;
                                ui.setPlaylistNav(playlistPos, playlistCount);
@@ -85,9 +85,12 @@ try {
     console.warn("mpv state sync (may still be initializing):", err);
 }
 
-player.applyBorderShader("assets/shaders/ambient-border.glsl").catch((err) => {
-    console.warn("Failed to apply border shader:", err);
-});
+player
+    .setBorderShader("assets/shaders/ambient-border.glsl")
+    .then(() => ambient.initAmbientMenu())
+    .catch((err) => {
+        console.warn("Failed to apply border shader:", err);
+    });
 
 // --- Window events ------------------------------------------------------------
 
