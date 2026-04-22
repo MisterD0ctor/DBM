@@ -7,6 +7,7 @@ export {
     setPause,
     setSeekTooltip,
     setSeekHighlight,
+    showPlaybackOverlay,
 } from "./playback.js";
 
 export {
@@ -15,6 +16,7 @@ export {
     toggleFullscreen as toggleFullscreen,
     toggleAmbient as toggleAmbient,
     toggleAmbientMenu,
+    toggleAutoplay,
     setPlaylistNav,
     toggleOpenMenu,
 } from "./controls.js";

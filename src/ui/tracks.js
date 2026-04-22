@@ -20,7 +20,7 @@ export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable
         toggleTrackListMenu(false);
     });
     // const noneImg = document.createElement("img");
-    // noneImg.setAttribute("src", "assets/icons/normal-straight/subtitles-slash.svg");
+    // noneImg.setAttribute("src", "assets/icons/subtitles-slash.svg");
     // noneItem.appendChild(noneImg);
     menu.appendChild(noneItem);
 

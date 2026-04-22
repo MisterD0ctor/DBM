@@ -15,17 +15,6 @@ export function setDuration(seconds) {
 
 export function setCurrentTime(seconds) {
     document.getElementById("time-current").textContent = formatTime(seconds);
-
-    // const seekBack = document.getElementById("btn-seek-back");
-    // const seekForward = document.getElementById("btn-seek-forward");
-
-    // const margin = 0.1;
-
-    // seekBack.classList.toggle("disabled", seconds < margin);
-    // seekForward.classList.toggle("disabled", seconds > duration - margin);
-
-    // seekBack.disabled = seconds < margin;
-    // seekForward.disabled = seconds > duration - margin;
 }
 
 export function setProgress(percent) {
@@ -37,6 +26,9 @@ export function setProgress(percent) {
 
 export function setMediaTitle(filename) {
     filename = filename ?? "";
+
+    const playlistBtn = document.getElementById("btn-playlist");
+    playlistBtn.classList.toggle("hidden", filename === "");
 
     const mediaTitleEl = document.querySelector(".media-title");
     const titleEl = document.querySelector(".media-title .title");
@@ -89,13 +81,36 @@ export function updateMediaTitleOverflow() {
 
 export function setPause(isPaused) {
     setButtonIcon("btn-play", isPaused ? "assets/icons/play.svg" : "assets/icons/pause.svg");
-    showPlaybackOverlay(isPaused);
 }
 
-function showPlaybackOverlay(isPaused) {
+export function showPlaybackOverlay(action) {
     const overlay = document.getElementById("playback-overlay");
     const icon = document.getElementById("playback-status-icon");
-    icon.src = isPaused ? "assets/icons/pause.svg" : "assets/icons/play.svg";
+
+    // prettier-ignore
+    switch (action) {
+        case "pause-on":      icon.src = "assets/icons/pause.svg";                         break;
+        case "pause-off":     icon.src = "assets/icons/play.svg";                          break;
+        case "seek-backward": icon.src = "assets/icons/seek-backward.svg"; break;
+        case "seek-forward":  icon.src = "assets/icons/seek-forward.svg";  break;
+        case "rewind":        icon.src = "assets/icons/rotate-left.svg";   break;
+        case "previous":      icon.src = "assets/icons/step-backward.svg"; break;
+        case "next":          icon.src = "assets/icons/step-forward.svg";  break;
+        case "autoplay-on":   icon.src = "assets/icons/arrow-right.svg";   break;
+        case "autoplay-off":  icon.src = "assets/icons/arrow-right-slash.svg"; break;
+        case "panscan-on":    icon.src = "assets/icons/expand-alt.svg"; break;
+        case "panscan-off":   icon.src = "assets/icons/compress-alt.svg"; break;
+        case "fullscreen-on": icon.src = "assets/icons/expand.svg"; break;
+        case "fullscreen-off":icon.src = "assets/icons/compress.svg"; break;
+        case "ambient-on":    icon.src = "assets/icons/lightbulb.svg"; break;
+        case "ambient-off":   icon.src = "assets/icons/lightbulb-slash.svg"; break;
+        case "mute-on":       icon.src = "assets/icons/volume-mute.svg"; break;
+        case "mute-off":      icon.src = "assets/icons/volume.svg"; break;
+        case "subtitles-on":  icon.src = "assets/icons/subtitles.svg"; break;
+        case "subtitles-off": icon.src = "assets/icons/subtitles-slash.svg"; break;
+        default: return;
+    }
+
     overlay.classList.remove("visible");
     void overlay.offsetWidth;
     overlay.classList.add("visible");
@@ -107,6 +122,7 @@ let seekTimeHighlightTimes = [];
 export function setSeekTooltip(isShown, clientX) {
     const timeEl = document.getElementById("seek-tooltip");
     const previewEl = document.getElementById("seek-preview");
+    timeEl?.classList.toggle("hidden", !isShown);
     previewEl?.classList.toggle("hidden", !isShown);
 
     if (isShown) {

@@ -7,12 +7,6 @@ export function toggleOverlay(force) {
 
 export function toggleAmbient(force) {
     document.getElementById("ambient-toggle")?.classList.toggle("on", force);
-    // setButtonIcon(
-    //     "btn-ambient",
-    //     force
-    //         ? "assets/icons/normal-straight/lightbulb-slash.svg"
-    //         : "assets/icons/normal-straight/bulb.svg",
-    // );
 }
 
 export function toggleAmbientMenu(force) {
@@ -24,9 +18,7 @@ export function toggleAmbientMenu(force) {
 export function togglePanscan(force) {
     setButtonIcon(
         "btn-panscan",
-        force
-            ? "assets/icons/normal-straight/compress-alt.svg"
-            : "assets/icons/normal-straight/expand-alt.svg",
+        force ? "assets/icons/compress-alt.svg" : "assets/icons/expand-alt.svg",
     );
 }
 
@@ -42,9 +34,14 @@ export function setPlaylistNav(pos, count) {
 export function toggleFullscreen(force) {
     setButtonIcon(
         "btn-fullscreen",
-        force
-            ? "assets/icons/normal-straight/compress.svg"
-            : "assets/icons/normal-straight/expand.svg",
+        force ? "assets/icons/compress.svg" : "assets/icons/expand.svg",
+    );
+}
+
+export function toggleAutoplay(force) {
+    setButtonIcon(
+        "btn-autoplay",
+        force ? "assets/icons/arrow-right.svg" : "assets/icons/arrow-right-slash.svg",
     );
 }
 

@@ -35,27 +35,28 @@ const stateProperties = [
 function updateProperty(name, data) {
     // prettier-ignore
     switch (name) {
-        case "time-pos":    ui.setCurrentTime(data);              break;
-        case "percent-pos": ui.setProgress(data);                 break;
-        case "duration":    ui.setDuration(data);        
-                            seekbar.setDuration(data);            break;
-        case "filename":    ui.setMediaTitle(data);
-                            updateCurrentVideoPath();             break;
-        case "pause":       ui.setPause(data);
-                            ui.setActivePlaylistItem(playlistPos, data); break;
-        case "mute":        ui.setMute(data);                     break;
-        case "volume":      ui.setVolume(data);                   break;
-        case "panscan":     ui.togglePanscan(data);
-        case "sid":         ui.setActiveSubtitleTrack(data);    break;
-        case "aid":         ui.setActiveAudioTrack(data);       break;
-        case "border-background": ui.toggleAmbient(data !== "color"); break;
-        case "eof-reached":                                       break;
-        case "playlist-pos":   playlistPos = data;
-                               ui.setPlaylistNav(playlistPos, playlistCount);
-                               ui.setActivePlaylistItem(playlistPos, false); break;
-        case "playlist-count": playlistCount = data;
-                               ui.setPlaylistNav(playlistPos, playlistCount); break;
-        default: console.warn("Unhandled property:", name);
+    case "time-pos":    ui.setCurrentTime(data);              break;
+    case "percent-pos": ui.setProgress(data);                 break;
+    case "duration":    ui.setDuration(data);        
+                        seekbar.setDuration(data);            break;
+    case "filename":    ui.setMediaTitle(data);
+                        updateCurrentVideoPath();             break;
+    case "pause":       ui.setPause(data);
+                        ui.setActivePlaylistItem(playlistPos, data); break;
+    case "mute":        ui.setMute(data);                     break;
+    case "volume":      ui.setVolume(data);                   break;
+    case "panscan":     ui.togglePanscan(data);               break;
+    case "sid":         ui.setActiveSubtitleTrack(data);      break;
+    case "aid":         ui.setActiveAudioTrack(data);         break;
+    case "border-background": ui.toggleAmbient(data === "shader"); 
+                                ambient.persistParams();        break;
+    case "eof-reached":                                       break;
+    case "playlist-pos":   playlistPos = data;
+                            ui.setPlaylistNav(playlistPos, playlistCount);
+                            ui.setActivePlaylistItem(playlistPos, false); break;
+    case "playlist-count": playlistCount = data;
+                            ui.setPlaylistNav(playlistPos, playlistCount); break;
+    default: console.warn("Unhandled property:", name);
     }
 }
 
@@ -98,12 +99,7 @@ try {
     console.warn("mpv state sync (may still be initializing):", err);
 }
 
-player
-    .setBorderShader("assets/shaders/ambient-border.glsl")
-    .then(() => ambient.initAmbientMenu())
-    .catch((err) => {
-        console.warn("Failed to apply border shader:", err);
-    });
+ambient.initAmbientMenu();
 
 // --- Window events ------------------------------------------------------------
 

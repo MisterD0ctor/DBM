@@ -35,7 +35,8 @@ function applyAvailability() {
     }
     const src = convertFileSrc(current.sprite);
     console.log("[preview] sprite", current.sprite, "→", src);
-    img.onload = () => console.log("[preview] image loaded", img.naturalWidth, "x", img.naturalHeight);
+    img.onload = () =>
+        console.log("[preview] image loaded", img.naturalWidth, "x", img.naturalHeight);
     img.onerror = (e) => console.warn("[preview] image load failed", src, e);
     img.src = src;
     box.classList.remove("no-preview");

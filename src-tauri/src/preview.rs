@@ -8,7 +8,7 @@
 //! off the video's path + mtime so edits invalidate old sprites.
 
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
@@ -20,6 +20,8 @@ pub const TILE_H: u32 = 90;
 const FRAMES: u32 = GRID * GRID;
 
 static ACTIVE_JOB: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
+static ACTIVE_CHILD: Lazy<Mutex<Option<Child>>> = Lazy::new(|| Mutex::new(None));
+static SHUTTING_DOWN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 #[derive(serde::Serialize, Clone)]
 pub struct PreviewReady {
@@ -111,15 +113,58 @@ fn cmd_no_window(path: &Path) -> Command {
     Command::new(path)
 }
 
+/// Spawn ffmpeg, register it so shutdown() can kill it, then wait. Returns
+/// captured stderr + exit status. We poll with try_wait so shutdown's kill
+/// isn't blocked on the worker holding a long `wait` call.
+fn run_tracked(mut cmd: Command) -> Result<(std::process::ExitStatus, Vec<u8>), String> {
+    if SHUTTING_DOWN.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err("shutting down".into());
+    }
+
+    cmd.stdout(Stdio::null()).stderr(Stdio::piped());
+    let mut child = cmd.spawn().map_err(|e| format!("spawn: {e}"))?;
+    let stderr_pipe = child.stderr.take();
+
+    *ACTIVE_CHILD.lock().unwrap() = Some(child);
+
+    let stderr_handle = std::thread::spawn(move || {
+        use std::io::Read;
+        let mut buf = Vec::new();
+        if let Some(mut s) = stderr_pipe {
+            let _ = s.read_to_end(&mut buf);
+        }
+        buf
+    });
+
+    // Poll try_wait so we don't hold the mutex across a blocking wait.
+    let status = loop {
+        if SHUTTING_DOWN.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err("shutting down".into());
+        }
+        let poll = {
+            let mut guard = ACTIVE_CHILD.lock().unwrap();
+            match guard.as_mut() {
+                Some(c) => c.try_wait().map_err(|e| format!("wait: {e}"))?,
+                None => return Err("child was killed".into()),
+            }
+        };
+        match poll {
+            Some(s) => break s,
+            None => std::thread::sleep(std::time::Duration::from_millis(50)),
+        }
+    };
+    *ACTIVE_CHILD.lock().unwrap() = None;
+
+    let stderr_bytes = stderr_handle.join().unwrap_or_default();
+    Ok((status, stderr_bytes))
+}
+
 fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<(), String> {
     // 1. Probe duration.
-    let probe = cmd_no_window(ffmpeg)
-        .arg("-hide_banner")
-        .arg("-i")
-        .arg(video)
-        .output()
-        .map_err(|e| format!("ffmpeg probe spawn: {e}"))?;
-    let stderr = String::from_utf8_lossy(&probe.stderr);
+    let mut probe_cmd = cmd_no_window(ffmpeg);
+    probe_cmd.arg("-hide_banner").arg("-i").arg(video);
+    let (_status, probe_stderr) = run_tracked(probe_cmd)?;
+    let stderr = String::from_utf8_lossy(&probe_stderr);
     let duration = parse_duration_seconds(&stderr)
         .ok_or_else(|| format!("could not parse duration from ffmpeg output: {stderr}"))?;
     if duration <= 0.0 {
@@ -140,7 +185,8 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<(), String> 
         let _ = std::fs::create_dir_all(parent);
     }
 
-    let status = cmd_no_window(ffmpeg)
+    let mut extract_cmd = cmd_no_window(ffmpeg);
+    extract_cmd
         .arg("-hide_banner")
         .arg("-loglevel")
         .arg("error")
@@ -153,14 +199,24 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<(), String> 
         .arg("1")
         .arg("-q:v")
         .arg("5")
-        .arg(sprite)
-        .status()
-        .map_err(|e| format!("ffmpeg extract spawn: {e}"))?;
+        .arg(sprite);
+    let (status, _stderr) = run_tracked(extract_cmd)?;
 
     if !status.success() {
+        let _ = std::fs::remove_file(sprite);
         return Err(format!("ffmpeg exited with {status}"));
     }
     Ok(())
+}
+
+/// Kill any running ffmpeg child. Called from the app's close handler so the
+/// background preview job doesn't outlive the process.
+pub fn shutdown() {
+    SHUTTING_DOWN.store(true, std::sync::atomic::Ordering::Relaxed);
+    if let Some(mut child) = ACTIVE_CHILD.lock().unwrap().take() {
+        let _ = child.kill();
+        let _ = child.wait();
+    }
 }
 
 /// Queue a preview-generation job for `video_path`. If a sprite is already
@@ -169,6 +225,10 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<(), String> 
 /// supersede older ones (the older job still finishes but its result is
 /// ignored by the frontend because the event carries the file path).
 pub fn request_preview(app: &AppHandle, video_path: &Path) {
+    if SHUTTING_DOWN.load(std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
+
     let path_str = video_path.to_string_lossy().into_owned();
     let sprite = sprite_path_for(video_path);
 

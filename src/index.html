@@ -28,13 +28,11 @@
                 <div id="timeline">
                     <span class="time-display" id="time-current">00:00</span>
                     <div id="seek-track">
-                        <div class="hidden no-preview" id="seek-preview">
-                            <div class="preview-clip">
-                                <img id="seek-preview-image" src="" alt="Seek preview" />
-                            </div>
-                            <div class="time-display" id="seek-tooltip">
-                                <span class="time-display">00:00</span>
-                            </div>
+                        <div class="preview-clip hidden no-preview" id="seek-preview">
+                            <img id="seek-preview-image" src="" alt="Seek preview" />
+                        </div>
+                        <div class="time-display hidden" id="seek-tooltip">
+                            <span class="time-display">00:00</span>
                         </div>
                         <div class="seek-rail">
                             <div class="seek-highlight hidden"></div>
@@ -51,54 +49,48 @@
 
                 <div class="toolbar">
                     <div class="toolbar-start">
-                        <button class="playlist-anchor" id="btn-playlist">
+                        <button class="playlist-anchor hidden" id="btn-playlist">
                             <div class="media-title">
                                 <span class="title"></span>
                                 <span class="show"></span>
                                 <span class="episode"></span>
                                 <span class="episode-title"></span>
                             </div>
-                            <img src="assets/icons/normal-straight/playlist.svg" alt="Playlist" />
+                            <img src="assets/icons/playlist.svg" alt="Playlist" />
                         </button>
                         <button id="btn-open-menu">
-                            <img
-                                src="assets/icons/normal-straight/folder-open.svg"
-                                alt="Open folder"
-                            />
+                            <img src="assets/icons/folder-open.svg" alt="Open folder" />
                         </button>
                     </div>
 
                     <div class="toolbar-center">
+                        <button id="btn-rewind">
+                            <img src="assets/icons/rotate-left.svg" alt="Rewind" />
+                        </button>
                         <button id="btn-previous">
-                            <img
-                                src="assets/icons/normal-straight/step-backward.svg"
-                                alt="Previous"
-                            />
+                            <img src="assets/icons/step-backward.svg" alt="Previous" />
                         </button>
                         <button class="btn-seek" id="btn-seek-back">
-                            <img
-                                src="assets/icons/normal-straight/seek-backward.svg"
-                                alt="Skip Backward"
-                            />
+                            <img src="assets/icons/seek-backward.svg" alt="Skip Backward" />
                         </button>
                         <button id="btn-play">
                             <img src="assets/icons/play.svg" alt="Skip Backward" />
                         </button>
                         <button class="btn-seek" id="btn-seek-forward">
-                            <img
-                                src="assets/icons/normal-straight/seek-forward.svg"
-                                alt="Skip Forward"
-                            />
+                            <img src="assets/icons/seek-forward.svg" alt="Skip Forward" />
                         </button>
                         <button id="btn-next">
-                            <img src="assets/icons/normal-straight/step-forward.svg" alt="Next" />
+                            <img src="assets/icons/step-forward.svg" alt="Next" />
+                        </button>
+                        <button id="btn-autoplay">
+                            <img src="assets/icons/arrow-right.svg" alt="Autoplay" />
                         </button>
                     </div>
 
                     <div class="toolbar-end">
                         <div id="volume-group">
                             <button id="btn-mute">
-                                <img src="assets/icons/normal-straight/volume.svg" alt="Mute" />
+                                <img src="assets/icons/volume.svg" alt="Mute" />
                             </button>
                             <input
                                 id="volume-slider"
@@ -114,19 +106,16 @@
                             </div>
                         </div>
                         <button id="btn-ambient" class="ambient-anchor">
-                            <img src="assets/icons/normal-straight/bulb.svg" alt="Ambient" />
+                            <img src="assets/icons/bulb.svg" alt="Ambient" />
                         </button>
                         <button class="tracks-anchor" id="btn-tracks">
-                            <img src="assets/icons/normal-straight/subtitles.svg" alt="Subtitles" />
+                            <img src="assets/icons/subtitles.svg" alt="Subtitles" />
                         </button>
                         <button id="btn-panscan">
-                            <img
-                                src="assets/icons/normal-straight/expand-arrows-alt.svg"
-                                alt="Pan-Scan"
-                            />
+                            <img src="assets/icons/expand-alt.svg" alt="Pan-Scan" />
                         </button>
                         <button id="btn-fullscreen">
-                            <img src="assets/icons/normal-straight/expand.svg" alt="Fullscreen" />
+                            <img src="assets/icons/expand.svg" alt="Fullscreen" />
                         </button>
                     </div>
                 </div>
@@ -138,13 +127,13 @@
                 <div id="tracks-menu" class="menu hidden">
                     <div class="tracks-heading">
                         <span>Subtitles</span>
-                        <img src="assets/icons/bold-straight/subtitles.svg" alt="Subtitles" />
+                        <img src="assets/icons/subtitles.svg" alt="Subtitles" />
                     </div>
                     <div id="tracks-subtitle" class="tracks-list"></div>
                     <div class="tracks-divider"></div>
                     <div class="tracks-heading">
                         <span>Audio</span>
-                        <img src="assets/icons/bold-straight/volume.svg" alt="Audio" />
+                        <img src="assets/icons/volume.svg" alt="Audio" />
                     </div>
                     <div id="tracks-audio" class="tracks-list"></div>
                 </div>
@@ -152,7 +141,7 @@
                 <div id="ambient-menu" class="menu hidden">
                     <button id="ambient-toggle" class="menu-item">
                         <span>Ambient</span>
-                        <span class="ambient-toggle menu-item">
+                        <span class="ambient-toggle">
                             <span class="ambient-toggle-knob"></span>
                         </span>
                     </button>
@@ -163,11 +152,11 @@
                 <div id="open-menu" class="menu hidden">
                     <div class="menu-item" data-action="open-file">
                         <span>Open file…</span>
-                        <img src="assets/icons/normal-straight/film.svg" alt="File icon" />
+                        <img src="assets/icons/film.svg" alt="File icon" />
                     </div>
                     <div class="menu-item" data-action="open-folder">
                         <span>Open folder…</span>
-                        <img src="assets/icons/normal-straight/folder-open.svg" alt="Folder icon" />
+                        <img src="assets/icons/folder-open.svg" alt="Folder icon" />
                     </div>
                 </div>
             </div>

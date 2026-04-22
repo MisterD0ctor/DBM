@@ -146,40 +146,26 @@ fn get_watch_later_positions(
     result
 }
 
-/// Write shader content to app data dir and set it as mpv's border-background
-/// shader. Each call writes to a unique filename because mpv caches the shader
-/// by path — re-setting the same path won't re-read the file from disk.
-#[tauri::command]
-fn apply_border_shader(
-    player: tauri::State<Arc<MpvPlayer>>,
-    content: String,
-) -> Result<(), String> {
-    use std::sync::Mutex;
-    use std::time::{SystemTime, UNIX_EPOCH};
-    static PREV_SHADER_PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
-
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(0);
-    let path = mpv::app_data_dir().join(format!("border-shader-{ts}.glsl"));
-
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+/// Load a shader from the bundled `shaders/` resource dir and set it as mpv's
+/// border-background shader. `name` is the basename without extension, e.g.
+/// "ambient-border" → `shaders/ambient-border.glsl`.
+fn apply_border_shader(app: &AppHandle, player: &MpvPlayer, name: &str) -> Result<(), String> {
+    if !name
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    {
+        return Err(format!("invalid shader name: {name}"));
     }
-    std::fs::write(&path, content).map_err(|e| e.to_string())?;
+
+    let resource_dir = app.path().resource_dir().map_err(|e| e.to_string())?;
+    let path = resource_dir.join("shaders").join(format!("{name}.glsl"));
+    if !path.is_file() {
+        return Err(format!("shader not found: {}", path.display()));
+    }
+
     player
         .set_property_raw("border-background-shader", &path.to_string_lossy())
-        .map_err(|e| e.to_string())?;
-
-    // Remove the previous shader file to avoid leaking files over time.
-    let mut prev = PREV_SHADER_PATH.lock().unwrap();
-    if let Some(old) = prev.take() {
-        let _ = std::fs::remove_file(old);
-    }
-    *prev = Some(path);
-
-    Ok(())
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -197,6 +183,27 @@ fn set_border_shader_options(
         .map_err(|e| e.to_string())
 }
 
+fn ambient_params_path() -> PathBuf {
+    mpv::app_data_dir().join("ambient-params.json")
+}
+
+#[tauri::command]
+fn save_ambient_params(values: serde_json::Value) -> Result<(), String> {
+    let path = ambient_params_path();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string(&values).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn load_ambient_params() -> Option<serde_json::Value> {
+    let path = ambient_params_path();
+    let json = std::fs::read_to_string(&path).ok()?;
+    serde_json::from_str(&json).ok()
+}
+
 // --- Startup (Rust-side, runs in .setup()) ------------------------------------
 
 fn startup(app: &AppHandle) {
@@ -204,6 +211,10 @@ fn startup(app: &AppHandle) {
     if let Err(e) = player.init(app) {
         log::error!("Failed to initialize mpv: {}", e);
         return;
+    }
+
+    if let Err(e) = apply_border_shader(app, &player, "ambient-border") {
+        log::warn!("Failed to apply border shader: {}", e);
     }
 
     // Periodically save watch-later so playback position survives crashes
@@ -282,6 +293,7 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 let app = window.app_handle();
+                preview::shutdown();
                 smtc::teardown(app);
                 if let Some(player) = window.try_state::<Arc<MpvPlayer>>() {
                     if let Err(e) = player.destroy() {
@@ -295,8 +307,9 @@ pub fn run() {
             open_video_dialog,
             open_folder_dialog,
             get_watch_later_positions,
-            apply_border_shader,
             set_border_shader_options,
+            save_ambient_params,
+            load_ambient_params,
             get_preview,
             mpv::commands::play,
             mpv::commands::pause,

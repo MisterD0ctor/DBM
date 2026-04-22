@@ -3,7 +3,7 @@ import * as ui from "./ui/ui.js";
 
 /**
  * Parameter definitions mirror the //!PARAM headers in
- * src/assets/shaders/ambient-border.glsl.
+ * src-tauri/shaders/ambient-border.glsl.
  */
 const AMBIENT_PARAMS = [
     { name: "edge_blur", label: "Edge blur", min: 0, max: 0.1, step: 0.001, value: 0.01 },
@@ -12,16 +12,53 @@ const AMBIENT_PARAMS = [
     { name: "falloff_softness", label: "Falloff softness", min: 0, max: 2, step: 0.01, value: 0.2 },
 ];
 
+let inFlight = false;
+let pending = false;
+
 function pushOptions() {
-    player.setBorderShaderOptions(AMBIENT_PARAMS.map(({ name, value }) => ({ name, value })));
+    if (inFlight) {
+        pending = true;
+        return;
+    }
+    inFlight = true;
+    const snapshot = AMBIENT_PARAMS.map(({ name, value }) => ({ name, value }));
+    player
+        .setBorderShaderOptions(snapshot)
+        .catch((err) => console.warn("set shader options:", err))
+        .finally(() => {
+            inFlight = false;
+            if (pending) {
+                pending = false;
+                pushOptions();
+            }
+        });
 }
 
-export function toggleAmbient() {
-    player
-        .getProperty("border-background")
-        .then((bb) =>
-            player.setProperty("border-background", bb !== "shader" ? "shader" : "color"),
-        );
+export async function persistParams() {
+    const values = Object.fromEntries(AMBIENT_PARAMS.map(({ name, value }) => [name, value]));
+    values.enabled = await ambientEnabled();
+    player.saveAmbientParams(values).catch((err) => console.warn("save ambient params:", err));
+}
+
+async function ambientEnabled() {
+    return "shader" === (await player.getProperty("border-background"));
+}
+
+export function toggleAmbient(force) {
+    if (force === undefined) {
+        ambientEnabled().then((enabled) => {
+            const next = !enabled ? "shader" : "color";
+            player
+                .setProperty("border-background", next)
+                .catch((err) => console.warn("toggle ambient:", err));
+        });
+    } else {
+        const next = force ? "shader" : "color";
+        player
+            .setProperty("border-background", next)
+            .catch((err) => console.warn("toggle ambient:", err));
+    }
+    persistParams();
 }
 
 function buildSliders() {
@@ -61,12 +98,26 @@ function buildSliders() {
             valueEl.textContent = formatValue(v);
             setProgressVar(v);
             pushOptions();
+            persistParams();
         });
         container.appendChild(row);
     }
 }
 
-export function initAmbientMenu() {
+export async function initAmbientMenu() {
+    try {
+        const saved = await player.loadAmbientParams();
+        if (saved && typeof saved === "object") {
+            for (const param of AMBIENT_PARAMS) {
+                const v = Number(saved[param.name]);
+                if (Number.isFinite(v)) param.value = v;
+            }
+            toggleAmbient(saved.enabled);
+        }
+    } catch (err) {
+        console.warn("load ambient params:", err);
+    }
+
     buildSliders();
 
     const btn = document.getElementById("btn-ambient");

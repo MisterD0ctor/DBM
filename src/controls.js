@@ -9,14 +9,15 @@ const DOUBLE_CLICK_DELAY_MS = 250;
 
 // --- Playback actions --------------------------------------------------------
 
-function togglePause() {
-    player.togglePause();
+async function togglePause() {
+    await player.togglePause();
+    return await player.getProperty("pause", "flag");
 }
 
-function toggleMute() {
-    player.getProperty("mute", "flag").then((muted) => {
-        player.setProperty("mute", !muted);
-    });
+async function toggleMute() {
+    const muted = await player.getProperty("mute", "flag");
+    await player.setProperty("mute", !muted);
+    return !muted;
 }
 
 // --- Borderless fullscreen with animation ------------------------------------
@@ -56,14 +57,29 @@ function toggleFullscreen() {
         .then((isFs) => setFullscreen(!isFs));
 }
 
-function togglePanscan() {
-    player.getProperty("panscan", "double").then((panscan) => {
-        player.setProperty("panscan", panscan === 1 ? 0 : 1);
-    });
+async function togglePanscan() {
+    const panscan = await player.getProperty("panscan", "double");
+    await player.setProperty("panscan", panscan === 1 ? 0 : 1);
+    return !panscan;
 }
 
 function seek(seconds) {
     player.seek(seconds, "relative");
+}
+
+function seekBackward() {
+    seek(-SEEK_SECONDS);
+    ui.showPlaybackOverlay("seek-backward");
+}
+
+function seekForward() {
+    seek(SEEK_SECONDS);
+    ui.showPlaybackOverlay("seek-forward");
+}
+
+function rewind() {
+    player.seek(0, "absolute");
+    player.play();
 }
 
 function playPrevious() {
@@ -72,6 +88,24 @@ function playPrevious() {
 
 function playNext() {
     player.playlistNext().then(() => setTimeout(() => player.play(), 100));
+}
+
+// --- Autoplay ----------------------------------------------------------------
+
+let autoplayEnabled = 1;
+
+function toggleAutoplay() {
+    autoplayEnabled = !autoplayEnabled;
+
+    ui.toggleAutoplay(autoplayEnabled);
+
+    if (autoplayEnabled) {
+        player.setProperty("keep-open", "always");
+        player.setProperty("reset-on-next-file", "pause");
+    } else {
+        player.setProperty("keep-open", "no");
+        player.setProperty("reset-on-next-file", "no");
+    }
 }
 
 // --- Button wiring -----------------------------------------------------------
@@ -100,10 +134,12 @@ document.addEventListener("click", (event) => {
     }
 });
 
+document.getElementById("btn-rewind").onclick = rewind;
 document.getElementById("btn-previous").onclick = playPrevious;
 document.getElementById("btn-next").onclick = playNext;
-document.getElementById("btn-seek-back").onclick = () => seek(-SEEK_SECONDS);
-document.getElementById("btn-seek-forward").onclick = () => seek(SEEK_SECONDS);
+document.getElementById("btn-autoplay").onclick = toggleAutoplay;
+document.getElementById("btn-seek-back").onclick = () => seekBackward();
+document.getElementById("btn-seek-forward").onclick = () => seekForward();
 document.getElementById("btn-play").onclick = togglePause;
 document.getElementById("btn-panscan").onclick = togglePanscan;
 document.getElementById("btn-mute").onclick = toggleMute;
@@ -118,11 +154,25 @@ let clickTimeout;
 
 document.getElementById("video-surface").addEventListener("click", (event) => {
     if (event.detail === 1) {
-        clickTimeout = setTimeout(togglePause, DOUBLE_CLICK_DELAY_MS);
+        clickTimeout = setTimeout(
+            () =>
+                togglePause().then((state) =>
+                    ui.showPlaybackOverlay("pause-" + (state ? "on" : "off")),
+                ),
+            DOUBLE_CLICK_DELAY_MS,
+        );
     } else if (event.detail === 2) {
         clearTimeout(clickTimeout);
         toggleFullscreen();
     }
+});
+
+// --- Button press visual feedback ---------------------------------------------------
+
+document.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("mousedown", () => btn.classList.add("pressed"));
+    btn.addEventListener("mouseup", () => btn.classList.remove("pressed"));
+    btn.addEventListener("mouseleave", () => btn.classList.remove("pressed"));
 });
 
 // --- Keyboard shortcuts ------------------------------------------------------
@@ -131,12 +181,15 @@ document.addEventListener("keydown", (e) => {
     // prettier-ignore
     switch (e.code) {
     case "Escape":      setFullscreen(false); break;
-    case "Space":       togglePause();        break;
+    case "Space":       togglePause()
+                            .then((state) => ui.showPlaybackOverlay("pause-" + (state ? "on" : "off"))); break;
     case "F11":
     case "KeyF":        toggleFullscreen();   break;
-    case "KeyM":        toggleMute();         break;
-    case "KeyT":        togglePanscan();      break;
-    case "ArrowRight":  e.ctrlKey ? playNext()          : seek(SEEK_SECONDS);  break;
-    case "ArrowLeft":   e.ctrlKey ? playPrevious()      : seek(-SEEK_SECONDS); break;
+    case "KeyM":        toggleMute()
+                            .then((state) => ui.showPlaybackOverlay("mute-" + (state ? "on" : "off"))); break;
+    case "KeyT":        togglePanscan()
+                            .then((state) => ui.showPlaybackOverlay("panscan-" + (state ? "on" : "off"))); break;
+    case "ArrowRight":  e.ctrlKey ? playNext()     : seekForward();  break;
+    case "ArrowLeft":   e.ctrlKey ? playPrevious() : seekBackward(); break;
     }
 });

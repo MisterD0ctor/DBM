@@ -6,7 +6,7 @@ export function setMute(isMuted) {
     state.isMuted = isMuted;
     setButtonIcon(
         "btn-mute",
-        isMuted ? "assets/icons/normal-straight/volume-mute.svg" : getVolumeIcon(state.volume),
+        isMuted ? "assets/icons/volume-mute.svg" : getVolumeIcon(state.volume),
     );
     document.getElementById("volume-group").classList.toggle("muted", isMuted);
 }
@@ -27,10 +27,10 @@ export function setVolume(volume) {
 
 function getVolumeIcon(volume) {
     if (volume > 133) {
-        return "assets/icons/normal-straight/volume-up.svg";
+        return "assets/icons/volume-up.svg";
     } else if (volume > 66) {
-        return "assets/icons/normal-straight/volume.svg";
+        return "assets/icons/volume.svg";
     } else {
-        return "assets/icons/normal-straight/volume-down.svg";
+        return "assets/icons/volume-down.svg";
     }
 }

@@ -35,7 +35,8 @@
         "externalBin": ["binaries/ffmpeg"],
         "resources": {
             "lib/libmpv-2.dll": "lib/libmpv-2.dll",
-            "lib/libmpv-wrapper.dll": "lib/libmpv-wrapper.dll"
+            "lib/libmpv-wrapper.dll": "lib/libmpv-wrapper.dll",
+            "shaders/*.glsl": "shaders/"
         },
         "icon": [
             "icons/32x32.png",
