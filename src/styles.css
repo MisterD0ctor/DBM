@@ -189,6 +189,7 @@ input,
 .time-display {
     font-size: 13px;
     color: #ffffff;
+    transform: translateY(-2px);
 }
 
 #timeline {
@@ -285,10 +286,10 @@ input,
 #seek-tooltip {
     pointer-events: none;
     position: absolute;
-    bottom: 30px;
+    bottom: 26px;
     left: var(--seek-tooltip-pos);
     transform: translate(-50%, 0);
-    padding: 8px 14px;
+    padding: 6px 16px;
     border-radius: 100px;
     border: 1px solid #ffffff11;
     background: #101010a0;
@@ -651,7 +652,7 @@ input,
     position-area: top center;
     font-size: 12px;
     margin: 0 0 22px 0;
-    padding: 8px 14px;
+    padding: 6px 16px;
     min-width: 24px;
     border-radius: 100px;
     border: 0.5px solid #ffffff11;
