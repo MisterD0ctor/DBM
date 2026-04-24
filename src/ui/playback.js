@@ -83,7 +83,13 @@ export function setPause(isPaused) {
     setButtonIcon("btn-play", isPaused ? "assets/icons/play.svg" : "assets/icons/pause.svg");
 }
 
-export function showPlaybackOverlay(action) {
+export function showPlaybackOverlay(action, position) {
+    if (position !== undefined) {
+        document.documentElement.style.setProperty("--playback-overlay-position", `${position}%`);
+    } else {
+        document.documentElement.style.setProperty("--playback-overlay-position", `50%`);
+    }
+
     const overlay = document.getElementById("playback-overlay");
     const icon = document.getElementById("playback-status-icon");
 

@@ -4,28 +4,21 @@ import * as ui from "./ui/ui.js";
 // --- Populate from mpv -------------------------------------------------------
 
 export async function populateTrackListMenu() {
-    const trackListValue = await player.getProperty("track-list", "string");
-    const trackList =
-        typeof trackListValue === "string" ? JSON.parse(trackListValue) : trackListValue;
+    const trackList = await player.getTrackList();
     const subtitle = trackList.filter((t) => t.type === "sub");
     const audio = trackList.filter((t) => t.type === "audio");
-
-    console.log(subtitle);
 
     const activeSubtitleId = subtitle.find((t) => t.selected)?.id ?? "no";
     const activeAudioId = audio.find((t) => t.selected)?.id;
 
     ui.populateSubtitleTrackMenu(
         subtitle,
-        (id) =>
-            player
-                .setProperty("sid", id.toString())
-                .then(() => player.setProperty("sub-visibility", "yes")),
-        () => player.setProperty("sid", "no"),
+        (id) => player.setSid(id.toString()).then(() => player.setSubVisibility(true)),
+        () => player.setSid("no"),
     );
 
     ui.populateAudioTrackMenu(audio, (id) => {
-        player.setProperty("aid", id.toString());
+        player.setAid(id.toString());
     });
 
     ui.setActiveSubtitleTrack(activeSubtitleId);

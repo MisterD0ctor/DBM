@@ -4,11 +4,9 @@ import * as ui from "./ui/ui.js";
 // --- Populate from mpv -------------------------------------------------------
 
 export async function populatePlaylistMenu() {
-    const playlistValue = await player.getProperty("playlist", "string");
-    const playlist = typeof playlistValue === "string" ? JSON.parse(playlistValue) : playlistValue;
-
-    const pos = await player.getProperty("playlist-pos", "double").catch(() => 0);
-    const paused = await player.getProperty("pause", "flag").catch(() => false);
+    const playlist = await player.getPlaylist();
+    const pos = await player.getPlaylistPos().catch(() => 0);
+    const paused = await player.getPause().catch(() => false);
 
     // Fetch saved watch-later positions for all playlist entries
     const paths = playlist.map((e) => e.filename ?? "").filter(Boolean);

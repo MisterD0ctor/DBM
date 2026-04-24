@@ -50,11 +50,17 @@ export function seek(target, mode = "absolute", precision = "exact") {
 }
 
 export function setVolume(volume) {
-    return invoke("set_volume", { volume });
+    return invoke("set_property", { name: "volume", value: volume });
+}
+
+/** Adjust the current volume by `delta` (can be negative). */
+export async function changeVolume(delta) {
+    const current = (await getVolume()) ?? 0;
+    return setVolume(Math.max(0, Math.min(150, current + delta)));
 }
 
 export function setSpeed(speed) {
-    return invoke("set_speed", { speed });
+    return invoke("set_property", { name: "speed", value: speed });
 }
 
 // ---------------------------------------------------------------------------
@@ -74,7 +80,7 @@ export function playlistNext() {
 }
 
 // ---------------------------------------------------------------------------
-// Generic property access (escape hatch)
+// Generic property access (escape hatch — prefer the typed wrappers below)
 // ---------------------------------------------------------------------------
 
 export function setProperty(name, value) {
@@ -86,6 +92,105 @@ export function getProperty(name, format = "string") {
 }
 
 // ---------------------------------------------------------------------------
+// Typed property accessors
+// ---------------------------------------------------------------------------
+
+/** @returns {Promise<boolean>} */
+export function getPause() {
+    return invoke("get_property", { name: "pause", format: "flag" });
+}
+/** @param {boolean} paused */
+export function setPause(paused) {
+    return invoke("set_property", { name: "pause", value: paused });
+}
+
+/** @returns {Promise<boolean>} */
+export function getMute() {
+    return invoke("get_property", { name: "mute", format: "flag" });
+}
+/** @param {boolean} muted */
+export function setMute(muted) {
+    return invoke("set_property", { name: "mute", value: muted });
+}
+
+/** @returns {Promise<number>} */
+export function getVolume() {
+    return invoke("get_property", { name: "volume", format: "double" });
+}
+
+/** @returns {Promise<number>} */
+export function getPanscan() {
+    return invoke("get_property", { name: "panscan", format: "double" });
+}
+/** @param {number} value */
+export function setPanscan(value) {
+    return invoke("set_property", { name: "panscan", value });
+}
+
+/** @returns {Promise<string>} */
+export function getKeepOpen() {
+    return invoke("get_property", { name: "keep-open", format: "string" });
+}
+/** @param {"yes"|"no"|"always"} value */
+export function setKeepOpen(value) {
+    return invoke("set_property", { name: "keep-open", value });
+}
+
+/** @param {"yes"|"no"|"pause"} value */
+export function setResetOnNextFile(value) {
+    return invoke("set_property", { name: "reset-on-next-file", value });
+}
+
+/** @returns {Promise<string | null>} */
+export function getPath() {
+    return invoke("get_property", { name: "path", format: "string" });
+}
+
+/** @returns {Promise<number>} */
+export function getPercentPos() {
+    return invoke("get_property", { name: "percent-pos", format: "double" });
+}
+
+/** @returns {Promise<number>} */
+export function getPlaylistPos() {
+    return invoke("get_property", { name: "playlist-pos", format: "double" });
+}
+
+/** @returns {Promise<Array<{filename: string, current?: boolean, playing?: boolean}>>} */
+export async function getPlaylist() {
+    const raw = await invoke("get_property", { name: "playlist", format: "string" });
+    return typeof raw === "string" ? JSON.parse(raw) : raw;
+}
+
+/** @returns {Promise<Array<{id: number, type: string, selected?: boolean, title?: string, lang?: string}>>} */
+export async function getTrackList() {
+    const raw = await invoke("get_property", { name: "track-list", format: "string" });
+    return typeof raw === "string" ? JSON.parse(raw) : raw;
+}
+
+/** @returns {Promise<string>} */
+export function getBorderBackground() {
+    return invoke("get_property", { name: "border-background", format: "string" });
+}
+/** @param {"shader"|"color"} value */
+export function setBorderBackground(value) {
+    return invoke("set_property", { name: "border-background", value });
+}
+
+/** @param {string} id e.g. "1", "no", "auto" */
+export function setSid(id) {
+    return invoke("set_property", { name: "sid", value: id });
+}
+/** @param {string} id e.g. "1", "no", "auto" */
+export function setAid(id) {
+    return invoke("set_property", { name: "aid", value: id });
+}
+
+/** @param {boolean} visible */
+export function setSubVisibility(visible) {
+    return invoke("set_property", { name: "sub-visibility", value: visible });
+}
+
 // ---------------------------------------------------------------------------
 // Watch-later progress
 // ---------------------------------------------------------------------------

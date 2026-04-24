@@ -41,21 +41,19 @@ export async function persistParams() {
 }
 
 async function ambientEnabled() {
-    return "shader" === (await player.getProperty("border-background"));
+    return "shader" === (await player.getBorderBackground());
 }
 
 export function toggleAmbient(force) {
     if (force === undefined) {
         ambientEnabled().then((enabled) => {
-            const next = !enabled ? "shader" : "color";
             player
-                .setProperty("border-background", next)
+                .setBorderBackground(enabled ? "color" : "shader")
                 .catch((err) => console.warn("toggle ambient:", err));
         });
     } else {
-        const next = force ? "shader" : "color";
         player
-            .setProperty("border-background", next)
+            .setBorderBackground(force ? "shader" : "color")
             .catch((err) => console.warn("toggle ambient:", err));
     }
     persistParams();

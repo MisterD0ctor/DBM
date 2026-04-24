@@ -315,8 +315,6 @@ pub fn run() {
             mpv::commands::pause,
             mpv::commands::toggle_pause,
             mpv::commands::seek,
-            mpv::commands::set_volume,
-            mpv::commands::set_speed,
             mpv::commands::playlist_play_index,
             mpv::commands::playlist_prev,
             mpv::commands::playlist_next,

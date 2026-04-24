@@ -11,12 +11,12 @@ const DOUBLE_CLICK_DELAY_MS = 250;
 
 async function togglePause() {
     await player.togglePause();
-    return await player.getProperty("pause", "flag");
+    return await player.getPause();
 }
 
 async function toggleMute() {
-    const muted = await player.getProperty("mute", "flag");
-    await player.setProperty("mute", !muted);
+    const muted = await player.getMute();
+    await player.setMute(!muted);
     return !muted;
 }
 
@@ -58,8 +58,8 @@ function toggleFullscreen() {
 }
 
 async function togglePanscan() {
-    const panscan = await player.getProperty("panscan", "double");
-    await player.setProperty("panscan", panscan === 1 ? 0 : 1);
+    const panscan = await player.getPanscan();
+    await player.setPanscan(panscan === 1 ? 0 : 1);
     return !panscan;
 }
 
@@ -69,12 +69,10 @@ function seek(seconds) {
 
 function seekBackward() {
     seek(-SEEK_SECONDS);
-    ui.showPlaybackOverlay("seek-backward");
 }
 
 function seekForward() {
     seek(SEEK_SECONDS);
-    ui.showPlaybackOverlay("seek-forward");
 }
 
 function rewind() {
@@ -82,30 +80,42 @@ function rewind() {
     player.play();
 }
 
+// When the user explicitly advances (next/prev/autoplay), they want the new
+// file to start fresh — override mpv's watch-later resume position by seeking
+// to 0 once the file is loaded.
+let resetOnNextLoad = false;
+
+player.onEvent((event) => {
+    if (event.event === "file-loaded" && resetOnNextLoad) {
+        resetOnNextLoad = false;
+        player.seek(0, "absolute");
+    }
+});
+
 function playPrevious() {
+    resetOnNextLoad = true;
     player.playlistPrev().then(() => setTimeout(() => player.play(), 100));
 }
 
 function playNext() {
+    resetOnNextLoad = true;
     player.playlistNext().then(() => setTimeout(() => player.play(), 100));
 }
 
 // --- Autoplay ----------------------------------------------------------------
 
-let autoplayEnabled = 1;
-
-function toggleAutoplay() {
-    autoplayEnabled = !autoplayEnabled;
-
-    ui.toggleAutoplay(autoplayEnabled);
+async function toggleAutoplay() {
+    let autoplayEnabled = (await player.getKeepOpen()) !== "always";
 
     if (autoplayEnabled) {
-        player.setProperty("keep-open", "always");
-        player.setProperty("reset-on-next-file", "pause");
+        player.setKeepOpen("always");
+        player.setResetOnNextFile("pause");
     } else {
-        player.setProperty("keep-open", "no");
-        player.setProperty("reset-on-next-file", "no");
+        player.setKeepOpen("no");
+        player.setResetOnNextFile("no");
     }
+
+    return autoplayEnabled;
 }
 
 // --- Button wiring -----------------------------------------------------------
@@ -189,7 +199,24 @@ document.addEventListener("keydown", (e) => {
                             .then((state) => ui.showPlaybackOverlay("mute-" + (state ? "on" : "off"))); break;
     case "KeyT":        togglePanscan()
                             .then((state) => ui.showPlaybackOverlay("panscan-" + (state ? "on" : "off"))); break;
-    case "ArrowRight":  e.ctrlKey ? playNext()     : seekForward();  break;
-    case "ArrowLeft":   e.ctrlKey ? playPrevious() : seekBackward(); break;
+    case "KeyA":        toggleAutoplay()
+                            .then((state) => ui.showPlaybackOverlay("autoplay-" + (state ? "on" : "off"))); break;
+    case "ArrowUp":    player.changeVolume(2); break;
+    case "ArrowDown":  player.changeVolume(-2); break;
+    case "Home":       rewind();              break;
+    case "ArrowRight":  if (e.ctrlKey) {
+                            playNext();
+                        } else {
+                            seekForward();
+                            ui.showPlaybackOverlay("seek-forward", 80);
+                        }
+                        break;
+    case "ArrowLeft":   if (e.ctrlKey) {
+                            playPrevious();
+                        } else {
+                            seekBackward();
+                            ui.showPlaybackOverlay("seek-backward", 20);
+                        }
+                        break;
     }
 });

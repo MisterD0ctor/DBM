@@ -20,6 +20,10 @@
                 </div>
             </div>
 
+            <div class="tooltip hidden">
+                <span></span>
+            </div>
+
             <div id="video-surface"></div>
 
             <div id="controls-panel">
@@ -28,10 +32,11 @@
                 <div id="timeline">
                     <span class="time-display" id="time-current">00:00</span>
                     <div id="seek-track">
+                        <div id="seek-anchor"></div>
                         <div class="preview-clip hidden no-preview" id="seek-preview">
                             <img id="seek-preview-image" src="" alt="Seek preview" />
                         </div>
-                        <div class="time-display hidden" id="seek-tooltip">
+                        <div class="tooltip hidden" id="seek-tooltip">
                             <span class="time-display">00:00</span>
                         </div>
                         <div class="seek-rail">
@@ -57,33 +62,68 @@
                                 <span class="episode-title"></span>
                             </div>
                             <img src="assets/icons/playlist.svg" alt="Playlist" />
+                            <div class="tooltip">
+                                <span>Playlist</span>
+                            </div>
                         </button>
                         <button id="btn-open-menu">
                             <img src="assets/icons/folder-open.svg" alt="Open folder" />
+                            <div class="tooltip">
+                                <span>Open</span>
+                                <span class="shortcut">Ctrl + O</span>
+                            </div>
                         </button>
                     </div>
 
                     <div class="toolbar-center">
                         <button id="btn-rewind">
                             <img src="assets/icons/rotate-left.svg" alt="Rewind" />
+                            <div class="tooltip">
+                                <span>Rewind</span>
+                                <span class="shortcut">R</span>
+                            </div>
                         </button>
                         <button id="btn-previous">
                             <img src="assets/icons/step-backward.svg" alt="Previous" />
+                            <div class="tooltip">
+                                <span>Previous</span>
+                                <span class="shortcut">Ctrl + Left</span>
+                            </div>
                         </button>
                         <button class="btn-seek" id="btn-seek-back">
                             <img src="assets/icons/seek-backward.svg" alt="Skip Backward" />
+                            <div class="tooltip">
+                                <span>Skip Backward</span>
+                                <span class="shortcut">Left</span>
+                            </div>
                         </button>
                         <button id="btn-play">
-                            <img src="assets/icons/play.svg" alt="Skip Backward" />
+                            <img src="assets/icons/play.svg" alt="Play" />
+                            <div class="tooltip">
+                                <span>Play</span>
+                                <span class="shortcut">Space</span>
+                            </div>
                         </button>
                         <button class="btn-seek" id="btn-seek-forward">
                             <img src="assets/icons/seek-forward.svg" alt="Skip Forward" />
+                            <div class="tooltip">
+                                <span>Skip Forward</span>
+                                <span class="shortcut">Right</span>
+                            </div>
                         </button>
                         <button id="btn-next">
                             <img src="assets/icons/step-forward.svg" alt="Next" />
+                            <div class="tooltip">
+                                <span>Next</span>
+                                <span class="shortcut">Ctrl + Right</span>
+                            </div>
                         </button>
                         <button id="btn-autoplay">
                             <img src="assets/icons/arrow-right.svg" alt="Autoplay" />
+                            <div class="tooltip">
+                                <span>Autoplay</span>
+                                <span class="shortcut">A</span>
+                            </div>
                         </button>
                     </div>
 
@@ -91,6 +131,10 @@
                         <div id="volume-group">
                             <button id="btn-mute">
                                 <img src="assets/icons/volume.svg" alt="Mute" />
+                                <div class="tooltip">
+                                    <span>Mute</span>
+                                    <span class="shortcut">M</span>
+                                </div>
                             </button>
                             <input
                                 id="volume-slider"
@@ -107,15 +151,29 @@
                         </div>
                         <button id="btn-ambient" class="ambient-anchor">
                             <img src="assets/icons/bulb.svg" alt="Ambient" />
+                            <div class="tooltip hidden">
+                                <span>Ambient</span>
+                            </div>
                         </button>
                         <button class="tracks-anchor" id="btn-tracks">
                             <img src="assets/icons/subtitles.svg" alt="Subtitles" />
+                            <div class="tooltip hidden">
+                                <span>Subtitles</span>
+                            </div>
                         </button>
                         <button id="btn-panscan">
                             <img src="assets/icons/expand-alt.svg" alt="Pan-Scan" />
+                            <div class="tooltip hidden">
+                                <span>Pan-Scan</span>
+                                <span class="shortcut">T</span>
+                            </div>
                         </button>
                         <button id="btn-fullscreen">
                             <img src="assets/icons/expand.svg" alt="Fullscreen" />
+                            <div class="tooltip hidden">
+                                <span>Fullscreen</span>
+                                <span class="shortcut">F</span>
+                            </div>
                         </button>
                     </div>
                 </div>

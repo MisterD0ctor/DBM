@@ -7,10 +7,13 @@ import * as seekbar from "./seekbar.js";
 import * as tracks from "./tracks.js";
 import * as playlist from "./playlist.js";
 import * as preview from "./preview.js";
+import { enableSliderScroll } from "./utils/sliderScroll.js";
 
 // Side-effect imports — these register their own event listeners on import
 import "./overlay.js";
 import "./controls.js";
+
+enableSliderScroll();
 
 let playlistPos = 0;
 let playlistCount = 0;
@@ -30,6 +33,7 @@ const stateProperties = [
     { name: "eof-reached", format: "flag" },
     { name: "playlist-pos", format: "double" },
     { name: "playlist-count", format: "double" },
+    { name: "keep-open", format: "string" },
 ];
 
 function updateProperty(name, data) {
@@ -49,20 +53,21 @@ function updateProperty(name, data) {
     case "sid":         ui.setActiveSubtitleTrack(data);      break;
     case "aid":         ui.setActiveAudioTrack(data);         break;
     case "border-background": ui.toggleAmbient(data === "shader"); 
-                                ambient.persistParams();        break;
+                              ambient.persistParams();        break;
     case "eof-reached":                                       break;
     case "playlist-pos":   playlistPos = data;
                             ui.setPlaylistNav(playlistPos, playlistCount);
                             ui.setActivePlaylistItem(playlistPos, false); break;
     case "playlist-count": playlistCount = data;
                             ui.setPlaylistNav(playlistPos, playlistCount); break;
+    case "keep-open":   ui.toggleAutoplay(data !== "always"); break;
     default: console.warn("Unhandled property:", name);
     }
 }
 
 async function updateCurrentVideoPath() {
     try {
-        const path = await player.getProperty("path", "string");
+        const path = await player.getPath();
         preview.setCurrentVideo(path || null);
     } catch {
         preview.setCurrentVideo(null);
@@ -104,7 +109,7 @@ ambient.initAmbientMenu();
 // --- Window events ------------------------------------------------------------
 
 listen("tauri://resize", () => {
-    player.getProperty("percent-pos", "double").then((percentPos) => ui.setProgress(percentPos));
+    player.getPercentPos().then((percentPos) => ui.setProgress(percentPos));
     ui.updateMediaTitleOverflow();
 });
 
@@ -128,6 +133,7 @@ getCurrentWebview().onDragDropEvent((event) => {
 
 document.addEventListener("click", (e) => {
     if (e.target.closest("button")) e.target.closest("button").blur();
+    if (e.target.closest("input")) e.target.closest("input").blur();
 });
 
 // --- Disable right click menu -------------------------------------------------

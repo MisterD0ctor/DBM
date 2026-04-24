@@ -191,6 +191,7 @@ const OBSERVED_PROPERTIES: &[(&str, &str)] = &[
     ("border-background", "string"),
     ("playlist-pos", "double"),
     ("playlist-count", "double"),
+    ("keep-open", "string"),
 ];
 
 impl MpvPlayer {
@@ -542,7 +543,10 @@ fn last_playlist_path() -> PathBuf {
 pub fn save_last_playlist(paths: &[PathBuf]) {
     let file = last_playlist_path();
     let _ = std::fs::create_dir_all(file.parent().unwrap());
-    let strings: Vec<String> = paths.iter().map(|p| p.to_string_lossy().into_owned()).collect();
+    let strings: Vec<String> = paths
+        .iter()
+        .map(|p| p.to_string_lossy().into_owned())
+        .collect();
     match serde_json::to_string(&strings) {
         Ok(json) => {
             if let Err(e) = std::fs::write(&file, json) {
@@ -563,7 +567,11 @@ pub fn load_last_playlist() -> Option<Vec<PathBuf>> {
         .map(PathBuf::from)
         .filter(|p| p.is_file())
         .collect();
-    if paths.is_empty() { None } else { Some(paths) }
+    if paths.is_empty() {
+        None
+    } else {
+        Some(paths)
+    }
 }
 
 // ---------------------------------------------------------------------------

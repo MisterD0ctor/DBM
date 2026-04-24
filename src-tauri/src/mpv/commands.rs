@@ -53,16 +53,6 @@ pub fn seek(
     player.command("seek", &[target.into(), mode.into(), precision.into()])
 }
 
-#[tauri::command]
-pub fn set_volume(player: State<Arc<MpvPlayer>>, volume: f64) -> MpvResult<()> {
-    player.set_property_value("volume", &serde_json::json!(volume))
-}
-
-#[tauri::command]
-pub fn set_speed(player: State<Arc<MpvPlayer>>, speed: f64) -> MpvResult<()> {
-    player.set_property_value("speed", &serde_json::json!(speed))
-}
-
 // ---------------------------------------------------------------------------
 // Playlist navigation
 // ---------------------------------------------------------------------------

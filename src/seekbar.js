@@ -28,7 +28,7 @@ seekTrack.addEventListener("mousedown", (event) => {
     if (event.button !== 0) return;
     scrubbing = true;
     wasPlayingBeforeScrub = false;
-    player.getProperty("pause", "flag").then((paused) => {
+    player.getPause().then((paused) => {
         wasPlayingBeforeScrub = !paused;
         if (wasPlayingBeforeScrub) player.pause();
     });

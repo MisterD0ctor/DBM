@@ -41,7 +41,7 @@ export function toggleFullscreen(force) {
 export function toggleAutoplay(force) {
     setButtonIcon(
         "btn-autoplay",
-        force ? "assets/icons/arrow-right.svg" : "assets/icons/arrow-right-slash.svg",
+        force ? "assets/icons/arrow-right-slash.svg" : "assets/icons/arrow-right.svg",
     );
 }
 
