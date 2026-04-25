@@ -12,7 +12,11 @@
         <div id="player">
             <div id="playback-overlay">
                 <div id="playback-status">
-                    <img id="playback-status-icon" src="assets/icons/pause.svg" alt="Playback status" />
+                    <img
+                        id="playback-status-icon"
+                        src="assets/icons/pause.svg"
+                        alt="Playback status"
+                    />
                 </div>
             </div>
 
@@ -127,7 +131,14 @@
                                     <span class="shortcut">M</span>
                                 </div>
                             </button>
-                            <input id="volume-slider" type="range" min="0" max="150" value="100" step="2" />
+                            <input
+                                id="volume-slider"
+                                type="range"
+                                min="0"
+                                max="150"
+                                value="100"
+                                step="2"
+                            />
                             <div class="tooltip" id="volume-tooltip">
                                 <span id="volume-display">100</span>
                                 <span id="volume-percent">%</span>
@@ -137,6 +148,7 @@
                             <img src="assets/icons/bulb.svg" alt="Ambient" />
                             <div class="tooltip hidden">
                                 <span class="tooltip-text">Ambient</span>
+                                <span class="shortcut">B</span>
                             </div>
                         </button>
                         <button class="tracks-anchor" id="btn-tracks">
@@ -168,11 +180,13 @@
 
                 <div id="open-menu" class="menu hidden">
                     <div class="menu-item" data-action="open-file">
-                        <span>Open file…</span>
+                        <span class="text">Open file…</span>
+                        <span class="shortcut">Ctrl+O</span>
                         <img src="assets/icons/film.svg" alt="File icon" />
                     </div>
                     <div class="menu-item" data-action="open-folder">
-                        <span>Open folder…</span>
+                        <span class="text">Open folder…</span>
+                        <span class="shortcut">Ctrl+Shift+O</span>
                         <img src="assets/icons/folder-open.svg" alt="Folder icon" />
                     </div>
                 </div>

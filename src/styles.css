@@ -7,8 +7,8 @@
     --fast-animation-duration: 0.1s;
     --fastest-animation-duration: 0.05s;
     --playback-overlay-position: 50%;
-    --toolbar-background: #0a0a0ab0;
-    --menu-background: #0a0a0ae0;
+    --toolbar-background: #0a0a0aa0;
+    --menu-background: #0a0a0ad0;
 }
 
 body {
@@ -103,7 +103,7 @@ button {
     width: max-content;
     border-radius: 8px;
     border: 1px solid #ffffff11;
-    background: var(--menu-background);
+    background: var(--toolbar-background);
     opacity: 0;
     pointer-events: none;
     transition: opacity var(--fast-animation-duration) ease;
@@ -122,11 +122,11 @@ button:hover .tooltip {
 }
 
 .tooltip .tooltip-text {
-    margin: 0 6px 2px 6px;
+    margin: 0 6px 0 6px;
 }
 
-.tooltip .shortcut {
-    padding: 2px 6px 4px 6px;
+.shortcut {
+    padding: 2px 6px;
     font-size: 11px;
     border-radius: 5px;
     border: 1px solid #ffffff33;
@@ -189,6 +189,7 @@ input,
     border: 1px solid #ffffff11;
     border-radius: 12px;
     background: var(--menu-background);
+    backdrop-filter: blur(10px);
     transition: var(--fast-animation-duration) ease;
 }
 
@@ -480,31 +481,25 @@ input,
 
 #open-menu {
     z-index: 1000;
+    display: flex;
     position: fixed;
+    flex-direction: column;
     position-anchor: --open-menu;
     position-area: top center;
     margin: 8px;
-    min-width: 160px;
     padding: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-#open-menu ~ .open-caret .caret {
-    transform: rotate(180deg);
-}
-
-#open-menu.hidden ~ .open-caret .caret {
-    transform: rotate(0deg);
 }
 
 #open-menu .menu-item {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    gap: 8px;
     padding: 16px 16px;
     white-space: nowrap;
+}
+
+#open-menu .menu-item .text {
+    margin-right: auto;
 }
 
 #open-menu .menu-item img {
