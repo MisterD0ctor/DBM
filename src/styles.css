@@ -7,6 +7,8 @@
     --fast-animation-duration: 0.1s;
     --fastest-animation-duration: 0.05s;
     --playback-overlay-position: 50%;
+    --toolbar-background: #0a0a0ab0;
+    --menu-background: #0a0a0ae0;
 }
 
 body {
@@ -89,38 +91,22 @@ button {
     anchor-scope: --btn-tip;
 }
 
-@position-try --btn-tip-bottom {
-    position-area: bottom;
-    margin: 6px 0 0 0;
-}
-@position-try --btn-tip-left {
-    position-area: left;
-    margin: 0 6px 0 0;
-}
-@position-try --btn-tip-right {
-    position-area: right;
-    margin: 0 0 0 6px;
-}
-
-button .tooltip {
+.tooltip {
     position: fixed;
     position-anchor: --btn-tip;
     position-area: top;
-    /* If the top placement overflows, try bottom, then sides. */
-    position-try-fallbacks: --btn-tip-bottom, --btn-tip-left, --btn-tip-right;
     display: flex;
     align-items: center;
-    margin: 0 0 6px 0;
-    padding: 6px;
+    font-size: 14px;
+    margin: 8px;
+    padding: 2px;
     width: max-content;
-    border-radius: 100px;
+    border-radius: 8px;
     border: 1px solid #ffffff11;
-    background: #101010a0;
+    background: var(--menu-background);
     opacity: 0;
     pointer-events: none;
-    transition:
-        opacity var(--normal-animation-duration) ease,
-        transform var(--fast-animation-duration) ease;
+    transition: opacity var(--fast-animation-duration) ease;
 }
 
 button:hover .tooltip {
@@ -128,18 +114,21 @@ button:hover .tooltip {
     /* transform: translateY(-5px); */
 }
 
-button .tooltip span {
-    margin-left: 6px;
-    margin-right: 3px;
-    margin-bottom: 1%;
+#controls-panel:has(#open-menu:not(.hidden)) #btn-open-menu:hover .tooltip,
+#controls-panel:has(#playlist-menu:not(.hidden)) #btn-playlist:hover .tooltip,
+#controls-panel:has(#tracks-menu:not(.hidden)) #btn-tracks:hover .tooltip,
+#controls-panel:has(#ambient-menu:not(.hidden)) #btn-ambient:hover .tooltip {
+    opacity: 0;
 }
 
-button .tooltip .shortcut {
-    margin-right: 3px;
-    margin-bottom: 0;
-    padding: 2px 6px;
+.tooltip .tooltip-text {
+    margin: 0 6px 2px 6px;
+}
+
+.tooltip .shortcut {
+    padding: 2px 6px 4px 6px;
     font-size: 11px;
-    border-radius: 6px;
+    border-radius: 5px;
     border: 1px solid #ffffff33;
     background: #00000080;
 }
@@ -199,7 +188,7 @@ input,
 .menu {
     border: 1px solid #ffffff11;
     border-radius: 12px;
-    background: #101010c0;
+    background: var(--menu-background);
     transition: var(--fast-animation-duration) ease;
 }
 
@@ -234,17 +223,18 @@ input,
 /* Timeline / Seek bar                                                     */
 /* ----------------------------------------------------------------------- */
 
-.time-display {
-    font-size: 13px;
-    color: #ffffff;
-    transform: translateY(-2px);
-}
-
 #timeline {
     margin: 6px;
     display: flex;
     align-items: center;
     gap: 15px;
+}
+
+.time-display {
+    font-size: 14px;
+    color: #ffffff;
+    transform: translateY(-2px);
+    filter: drop-shadow(0 0 2px #000000ff);
 }
 
 #seek-track {
@@ -345,7 +335,7 @@ input,
    anchor system can clamp them inside the viewport at the edges. */
 #seek-anchor {
     position: absolute;
-    bottom: 0;
+    top: 0;
     left: var(--seek-tooltip-pos);
     width: 1px;
     height: 1px;
@@ -360,7 +350,7 @@ input,
     position-try-fallbacks: flip-inline;
     width: var(--tile-w);
     height: var(--tile-h);
-    margin: 0 0 32px 0;
+    margin: 0 0 36px 0;
     border: 1px solid #ffffff11;
     border-radius: 8px;
     pointer-events: none;
@@ -391,12 +381,11 @@ input,
     position-anchor: --seek-anchor;
     position-area: top;
     position-try-fallbacks: flip-inline;
-    margin: 0 0 6px 0;
+    margin: 0 0 8px 0;
     pointer-events: none;
-    padding: 6px 14px;
-    border-radius: 100px;
     border: 1px solid #ffffff11;
-    background: #101010a0;
+    opacity: 1;
+    background: var(--toolbar-background);
     transition:
         opacity var(--fast-animation-duration) ease,
         transform var(--fast-animation-duration) ease;
@@ -423,7 +412,7 @@ input,
     align-items: center;
     gap: 5px;
     padding: 3px;
-    background: #101010a0;
+    background: var(--toolbar-background);
     border: 1px solid #ffffff11;
     border-radius: 100px;
 }
@@ -486,7 +475,7 @@ input,
 }
 
 #btn-open-menu {
-    anchor-name: --open-menu;
+    anchor-name: --open-menu, --btn-tip;
 }
 
 #open-menu {
@@ -526,7 +515,7 @@ input,
 /* --- Playlist menu ------------------------------------------------------- */
 
 .playlist-anchor {
-    anchor-name: --playlist-menu;
+    anchor-name: --playlist-menu, --btn-tip;
 }
 
 #playlist-menu {
@@ -750,21 +739,11 @@ input,
 #volume-tooltip {
     display: flex;
     gap: 2px;
-    justify-content: center;
-    position: fixed;
-    pointer-events: none;
     position-anchor: --volume-slider;
     position-area: top center;
     position-try-fallbacks: flip-block, flip-inline;
-    font-size: 12px;
-    margin: 0 0 22px 0;
-    padding: 6px 14px;
-    min-width: 24px;
-    border-radius: 100px;
-    border: 0.5px solid #ffffff11;
-    background: #101010a0;
-    opacity: 0;
-    transform: translateY(5px);
+    padding: 2px 8px 4px 8px;
+    margin: 0 0 24px 0;
     transition:
         opacity var(--fast-animation-duration) ease,
         transform var(--fast-animation-duration) ease;
@@ -782,7 +761,7 @@ input,
 /* --- Tracks menu --------------------------------------------------------- */
 
 .tracks-anchor {
-    anchor-name: --tracks-menu;
+    anchor-name: --tracks-menu, --btn-tip;
 }
 
 #tracks-menu {
@@ -856,7 +835,7 @@ input,
 /* --- Ambient menu -------------------------------------------------------- */
 
 .ambient-anchor {
-    anchor-name: --ambient-menu;
+    anchor-name: --ambient-menu, --btn-tip;
 }
 
 #ambient-menu {

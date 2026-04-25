@@ -1,4 +1,4 @@
-import { setButtonIcon } from "../utils/setButtonIcon.js";
+import { setButtonIcon, setButtonTooltip } from "../utils/setButtonIcon.js";
 
 let state = { isMuted: false, volume: 100 };
 
@@ -8,6 +8,7 @@ export function setMute(isMuted) {
         "btn-mute",
         isMuted ? "assets/icons/volume-mute.svg" : getVolumeIcon(state.volume),
     );
+    setButtonTooltip("btn-mute", isMuted ? "Unmute" : "Mute");
     document.getElementById("volume-group").classList.toggle("muted", isMuted);
 }
 

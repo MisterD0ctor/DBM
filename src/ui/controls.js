@@ -1,4 +1,4 @@
-import { setButtonIcon } from "../utils/setButtonIcon.js";
+import { setButtonIcon, setButtonTooltip } from "../utils/setButtonIcon.js";
 
 export function toggleOverlay(force) {
     document.getElementById("controls-panel")?.classList.toggle("hidden", !force);
@@ -16,10 +16,8 @@ export function toggleAmbientMenu(force) {
 }
 
 export function togglePanscan(force) {
-    setButtonIcon(
-        "btn-panscan",
-        force ? "assets/icons/compress-alt.svg" : "assets/icons/expand-alt.svg",
-    );
+    setButtonIcon("btn-panscan", force ? "assets/icons/compress-alt.svg" : "assets/icons/expand-alt.svg");
+    setButtonTooltip("btn-panscan", force ? "Fit" : "Cover");
 }
 
 export function setPlaylistNav(pos, count) {
@@ -32,10 +30,8 @@ export function setPlaylistNav(pos, count) {
 }
 
 export function toggleFullscreen(force) {
-    setButtonIcon(
-        "btn-fullscreen",
-        force ? "assets/icons/compress.svg" : "assets/icons/expand.svg",
-    );
+    setButtonIcon("btn-fullscreen", force ? "assets/icons/compress.svg" : "assets/icons/expand.svg");
+    setButtonTooltip("btn-fullscreen", force ? "Exit Fullscreen" : "Fullscreen");
 }
 
 export function toggleAutoplay(force) {
@@ -43,6 +39,7 @@ export function toggleAutoplay(force) {
         "btn-autoplay",
         force ? "assets/icons/arrow-right-slash.svg" : "assets/icons/arrow-right.svg",
     );
+    setButtonTooltip("btn-autoplay", force ? "Disable Autoplay" : "Enable Autoplay");
 }
 
 export function toggleOpenMenu(force) {

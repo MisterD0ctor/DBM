@@ -1,6 +1,6 @@
 import { formatTime } from "../utils/formatTime.js";
 import { parseTvShow } from "../utils/parse.js";
-import { setButtonIcon } from "../utils/setButtonIcon.js";
+import { setButtonIcon, setButtonTooltip } from "../utils/setButtonIcon.js";
 import * as preview from "../preview.js";
 
 let duration;
@@ -68,10 +68,7 @@ export function setMediaTitle(filename) {
         episodeTitleEl.classList.toggle("hidden", true);
     }
 
-    mediaTitleEl.classList.toggle(
-        "overflowing",
-        mediaTitleEl.scrollWidth > mediaTitleEl.clientWidth,
-    );
+    mediaTitleEl.classList.toggle("overflowing", mediaTitleEl.scrollWidth > mediaTitleEl.clientWidth);
 }
 
 export function updateMediaTitleOverflow() {
@@ -81,6 +78,7 @@ export function updateMediaTitleOverflow() {
 
 export function setPause(isPaused) {
     setButtonIcon("btn-play", isPaused ? "assets/icons/play.svg" : "assets/icons/pause.svg");
+    setButtonTooltip("btn-play", isPaused ? "Play" : "Pause");
 }
 
 export function showPlaybackOverlay(action, position) {
@@ -144,19 +142,13 @@ export function setSeekTooltip(isShown, clientX) {
         preview.showAtFraction(fraction);
 
         const secondsPerPixel = duration / rect.width ?? 0;
-        const fractionDigits = Math.max(
-            0,
-            Math.min(4, -Math.round(Math.log10(secondsPerPixel)) ?? 0),
-        );
+        const fractionDigits = Math.max(0, Math.min(4, -Math.round(Math.log10(secondsPerPixel)) ?? 0));
 
-        timeEl.textContent = formatTime(timeSeconds, fractionDigits);
+        timeEl.querySelector(".tooltip-text").textContent = formatTime(timeSeconds, fractionDigits);
         document.documentElement.style.setProperty("--seek-tooltip-pos", `${rectX}px`);
     } else {
         seekTimeTooltipTimes.push(
-            setTimeout(
-                () => document.documentElement.style.setProperty("--seek-tooltip-pos", `${0}px`),
-                200,
-            ),
+            setTimeout(() => document.documentElement.style.setProperty("--seek-tooltip-pos", `${0}px`), 200),
         );
     }
 }
