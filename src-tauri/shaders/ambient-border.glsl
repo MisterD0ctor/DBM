@@ -33,7 +33,7 @@
 //!DESC maximum number of samples for edge extension (performance cost)
 //!TYPE float
 //!MINIMUM 1
-128.0
+256.0
 
 //!HOOK MAIN
 //!BIND HOOKED
@@ -121,8 +121,8 @@ float soft_distance_falloff(float x) {
     }
 }
 
-float spread_falloff(float x, float d) {
-    return d / length(vec2(x, d));
+float spread_falloff(float x, float d, float spread) {
+    return d / length(vec2(x, d * spread));
 }
 
 // Wide usage friendly PRNG, shamelessly stolen from a GLSL tricks forum post
@@ -140,16 +140,16 @@ vec4 light_spread(sampler2D image, vec2 pos, float edge_dist, vec2 dir, float ra
     float spread_bound = min(1.0, light_spread_bound(edge_dist * spread));
     float t0 = max(0, center - spread_bound + spread_bound * (rand - 0.5) / max_taps / 64);
     float t1 = min(1, center + spread_bound + spread_bound * (rand - 0.5) / max_taps / 64);
-    float dt = max((t1 - t0) / max_taps, pt);
 
     vec4 c_sum = vec4(0.0);
     float w_sum = 0.0;
 
-    for(float t = t0; t <= t1; t += dt) {
+    float dt = 1 / max_taps;
+    for(float t = 0.0; t <= 1.0; t += dt) {
         float weight = distance_falloff(length(vec2((t - center), edge_dist))) 
-                       * edge_dist / length(vec2((t - center), edge_dist * spread));
+                       * spread_falloff(length(vec2(t - center)), edge_dist, spread);
         weight = pow(weight, 2.2);
-        c_sum += textureLod(image, pos * dir.yx + t * dir, 0.0) * weight;
+        c_sum += textureLod(image, pos * dir.yx + t * dir.xy, 0.0) * weight;
         w_sum += weight;
     }
     return c_sum / w_sum;
