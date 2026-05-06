@@ -105,17 +105,17 @@ function playNext() {
 // --- Autoplay ----------------------------------------------------------------
 
 async function toggleAutoplay() {
-    let autoplayEnabled = (await player.getKeepOpen()) !== "always";
+    let enableAutoplay = (await player.getKeepOpen()) === "always";
 
-    if (autoplayEnabled) {
-        player.setKeepOpen("always");
-        player.setResetOnNextFile("pause");
-    } else {
+    if (enableAutoplay) {
         player.setKeepOpen("no");
         player.setResetOnNextFile("no");
+    } else {
+        player.setKeepOpen("always");
+        player.setResetOnNextFile("pause");
     }
 
-    return autoplayEnabled;
+    return enableAutoplay;
 }
 
 // --- Button wiring -----------------------------------------------------------
@@ -163,6 +163,11 @@ volumeSlider.addEventListener("input", () => player.setVolume(Number(volumeSlide
 let clickTimeout;
 
 document.getElementById("video-surface").addEventListener("click", (event) => {
+    // If a menu is open, this click should just dismiss it — don't also
+    // toggle pause or fullscreen. The menu's own click-outside listener
+    // handles the close on the same event.
+    if (document.querySelector(".menu:not(.hidden)")) return;
+
     if (event.detail === 1) {
         clickTimeout = setTimeout(
             () =>
@@ -188,35 +193,58 @@ document.querySelectorAll("button").forEach((btn) => {
 // --- Keyboard shortcuts ------------------------------------------------------
 
 document.addEventListener("keydown", (e) => {
-    // prettier-ignore
     switch (e.code) {
-    case "Escape":      setFullscreen(false); break;
-    case "Space":       togglePause()
-                            .then((state) => ui.showPlaybackOverlay("pause-" + (state ? "on" : "off"))); break;
-    case "F11":
-    case "KeyF":        toggleFullscreen();   break;
-    case "KeyM":        toggleMute()
-                            .then((state) => ui.showPlaybackOverlay("mute-" + (state ? "on" : "off"))); break;
-    case "KeyT":        togglePanscan()
-                            .then((state) => ui.showPlaybackOverlay("panscan-" + (state ? "on" : "off"))); break;
-    case "KeyA":        toggleAutoplay()
-                            .then((state) => ui.showPlaybackOverlay("autoplay-" + (state ? "on" : "off"))); break;
-    case "ArrowUp":    player.changeVolume(2); break;
-    case "ArrowDown":  player.changeVolume(-2); break;
-    case "Home":       rewind();              break;
-    case "ArrowRight":  if (e.ctrlKey) {
-                            playNext();
-                        } else {
-                            seekForward();
-                            ui.showPlaybackOverlay("seek-forward", 80);
-                        }
-                        break;
-    case "ArrowLeft":   if (e.ctrlKey) {
-                            playPrevious();
-                        } else {
-                            seekBackward();
-                            ui.showPlaybackOverlay("seek-backward", 20);
-                        }
-                        break;
+        case "Escape":
+            setFullscreen(false);
+            break;
+        case "Space":
+            togglePause().then((state) =>
+                ui.showPlaybackOverlay("pause-" + (state ? "on" : "off")),
+            );
+            break;
+        case "F11":
+        case "KeyF":
+            toggleFullscreen();
+            break;
+        case "KeyM":
+            toggleMute().then((state) => ui.showPlaybackOverlay("mute-" + (state ? "on" : "off")));
+            break;
+        case "KeyT":
+            togglePanscan().then((state) =>
+                ui.showPlaybackOverlay("panscan-" + (state ? "on" : "off")),
+            );
+            break;
+        case "KeyA":
+            toggleAutoplay().then((state) =>
+                ui.showPlaybackOverlay("autoplay-" + (state ? "on" : "off")),
+            );
+            break;
+        case "ArrowUp":
+            player.changeVolume(2);
+            ui.showPlaybackOverlay("volume");
+            break;
+        case "ArrowDown":
+            player.changeVolume(-2);
+            ui.showPlaybackOverlay("volume");
+            break;
+        case "Home":
+            rewind();
+            break;
+        case "ArrowRight":
+            if (e.ctrlKey) {
+                playNext();
+            } else {
+                seekForward();
+                ui.showPlaybackOverlay("seek-forward", position = 80);
+            }
+            break;
+        case "ArrowLeft":
+            if (e.ctrlKey) {
+                playPrevious();
+            } else {
+                seekBackward();
+                ui.showPlaybackOverlay("seek-backward", position = 20);
+            }
+            break;
     }
 });
