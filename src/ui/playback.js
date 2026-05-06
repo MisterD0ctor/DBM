@@ -1,6 +1,7 @@
 import { formatTime } from "../utils/formatTime.js";
 import { parseTvShow } from "../utils/parse.js";
 import { setButtonIcon, setButtonTooltip } from "../utils/setButtonIcon.js";
+import { refreshToolbarOverflow } from "../utils/toolbarOverflow.js";
 import * as preview from "../preview.js";
 
 let duration;
@@ -69,6 +70,7 @@ export function setMediaTitle(filename) {
     }
 
     mediaTitleEl.classList.toggle("overflowing", mediaTitleEl.scrollWidth > mediaTitleEl.clientWidth);
+    refreshToolbarOverflow();
 }
 
 export function updateMediaTitleOverflow() {
@@ -81,7 +83,7 @@ export function setPause(isPaused) {
     setButtonTooltip("btn-play", isPaused ? "Play" : "Pause");
 }
 
-export function showPlaybackOverlay(action, position) {
+export function showPlaybackOverlay(action, position = undefined) {
     if (position !== undefined) {
         document.documentElement.style.setProperty("--playback-overlay-position", `${position}%`);
     } else {
@@ -93,25 +95,27 @@ export function showPlaybackOverlay(action, position) {
 
     // prettier-ignore
     switch (action) {
-        case "pause-on":      icon.src = "assets/icons/pause.svg";                         break;
-        case "pause-off":     icon.src = "assets/icons/play.svg";                          break;
-        case "seek-backward": icon.src = "assets/icons/seek-backward.svg"; break;
-        case "seek-forward":  icon.src = "assets/icons/seek-forward.svg";  break;
-        case "rewind":        icon.src = "assets/icons/rotate-left.svg";   break;
-        case "previous":      icon.src = "assets/icons/step-backward.svg"; break;
-        case "next":          icon.src = "assets/icons/step-forward.svg";  break;
-        case "autoplay-on":   icon.src = "assets/icons/arrow-right.svg";   break;
+        case "pause-on":      icon.src = "assets/icons/pause.svg";             break;
+        case "pause-off":     icon.src = "assets/icons/play.svg";              break;
+        case "seek-backward": icon.src = "assets/icons/seek-backward.svg";     break;
+        case "seek-forward":  icon.src = "assets/icons/seek-forward.svg";      break;
+        case "rewind":        icon.src = "assets/icons/rotate-left.svg";       break;
+        case "previous":      icon.src = "assets/icons/step-backward.svg";     break;
+        case "next":          icon.src = "assets/icons/step-forward.svg";      break;
+        case "autoplay-on":   icon.src = "assets/icons/arrow-right.svg";       break;
         case "autoplay-off":  icon.src = "assets/icons/arrow-right-slash.svg"; break;
-        case "panscan-on":    icon.src = "assets/icons/expand-alt.svg"; break;
-        case "panscan-off":   icon.src = "assets/icons/compress-alt.svg"; break;
-        case "fullscreen-on": icon.src = "assets/icons/expand.svg"; break;
-        case "fullscreen-off":icon.src = "assets/icons/compress.svg"; break;
-        case "ambient-on":    icon.src = "assets/icons/lightbulb.svg"; break;
-        case "ambient-off":   icon.src = "assets/icons/lightbulb-slash.svg"; break;
-        case "mute-on":       icon.src = "assets/icons/volume-mute.svg"; break;
-        case "mute-off":      icon.src = "assets/icons/volume.svg"; break;
-        case "subtitles-on":  icon.src = "assets/icons/subtitles.svg"; break;
-        case "subtitles-off": icon.src = "assets/icons/subtitles-slash.svg"; break;
+        case "panscan-on":    icon.src = "assets/icons/expand-alt.svg";        break;
+        case "panscan-off":   icon.src = "assets/icons/compress-alt.svg";      break;
+        case "fullscreen-on": icon.src = "assets/icons/expand.svg";            break;
+        case "fullscreen-off":icon.src = "assets/icons/compress.svg";          break;
+        case "ambient-on":    icon.src = "assets/icons/lightbulb.svg";         break;
+        case "ambient-off":   icon.src = "assets/icons/lightbulb-slash.svg";   break;
+        case "mute-on":       icon.src = "assets/icons/volume-mute.svg";       break;
+        case "mute-off":      icon.src = "assets/icons/volume.svg";            break;
+        case "subtitles-on":  icon.src = "assets/icons/subtitles.svg";         break;
+        case "subtitles-off": icon.src = "assets/icons/subtitles-slash.svg";   break;
+        case "volume-none":   icon.src = "assets/icons/volume-none.svg";       break;
+        case "volume-none":   icon.src = "assets/icons/volume-none.svg";       break;
         default: return;
     }
 

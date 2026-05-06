@@ -14,9 +14,11 @@ use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use tauri::{AppHandle, Emitter, Manager};
 
-pub const GRID: u32 = 12;
-pub const TILE_W: u32 = 160;
-pub const TILE_H: u32 = 90;
+pub const GRID: u32 = 8;
+/// Must be even (yuv420p chroma subsampling).
+pub const TILE_H: u32 = 120;
+/// Fallback width if probe fails to detect the source aspect ratio.
+const TILE_W_FALLBACK: u32 = 214;
 const FRAMES: u32 = GRID * GRID;
 
 /// Concurrent ffmpeg processes during sprite generation. More processes ≠
@@ -49,6 +51,27 @@ fn sprite_path_for(video: &Path) -> PathBuf {
     previews_dir().join(format!("{hex}.jpg"))
 }
 
+fn meta_path_for(sprite: &Path) -> PathBuf {
+    sprite.with_extension("json")
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PreviewMeta {
+    tile_w: u32,
+    tile_h: u32,
+}
+
+fn write_meta(sprite: &Path, meta: &PreviewMeta) -> Result<(), String> {
+    let path = meta_path_for(sprite);
+    let json = serde_json::to_string(meta).map_err(|e| e.to_string())?;
+    std::fs::write(&path, json).map_err(|e| e.to_string())
+}
+
+fn read_meta(sprite: &Path) -> Option<PreviewMeta> {
+    let json = std::fs::read_to_string(meta_path_for(sprite)).ok()?;
+    serde_json::from_str(&json).ok()
+}
+
 fn is_cache_fresh(video: &Path, sprite: &Path) -> bool {
     let Ok(v) = std::fs::metadata(video) else {
         return false;
@@ -65,17 +88,17 @@ fn is_cache_fresh(video: &Path, sprite: &Path) -> bool {
 /// Look up an existing cached sprite for a video, if one is valid.
 pub fn cached_preview(video: &Path) -> Option<PreviewReady> {
     let sprite = sprite_path_for(video);
-    if is_cache_fresh(video, &sprite) {
-        Some(PreviewReady {
-            path: video.to_string_lossy().into_owned(),
-            sprite: sprite.to_string_lossy().into_owned(),
-            grid: GRID,
-            tile_w: TILE_W,
-            tile_h: TILE_H,
-        })
-    } else {
-        None
+    if !is_cache_fresh(video, &sprite) {
+        return None;
     }
+    let meta = read_meta(&sprite)?;
+    Some(PreviewReady {
+        path: video.to_string_lossy().into_owned(),
+        sprite: sprite.to_string_lossy().into_owned(),
+        grid: GRID,
+        tile_w: meta.tile_w,
+        tile_h: meta.tile_h,
+    })
 }
 
 /// Resolve the ffmpeg sidecar binary. In a bundled app the sidecar sits next
@@ -109,6 +132,40 @@ fn parse_duration_seconds(stderr: &str) -> Option<f64> {
     let m: f64 = parts[1].parse().ok()?;
     let sec: f64 = parts[2].parse().ok()?;
     Some(h * 3600.0 + m * 60.0 + sec)
+}
+
+/// Pull the source's display aspect ratio out of ffmpeg's probe stderr.
+/// Prefers an explicit `DAR a:b`, falls back to storage WxH.
+///
+/// Sample line: `Stream #0:0(eng): Video: h264 (...), yuv420p, 1920x1080 [SAR 1:1 DAR 16:9], ...`
+fn parse_display_aspect(stderr: &str) -> Option<f64> {
+    // First try DAR a:b
+    if let Some(dar_idx) = stderr.find("DAR ") {
+        let after = &stderr[dar_idx + 4..];
+        let end = after.find(|c: char| c == ']' || c == ',' || c == ' ')?;
+        let dar = &after[..end];
+        let mut parts = dar.split(':');
+        let n: f64 = parts.next()?.parse().ok()?;
+        let d: f64 = parts.next()?.parse().ok()?;
+        if d > 0.0 {
+            return Some(n / d);
+        }
+    }
+    // Fallback to storage dimensions: look for "WIDTHxHEIGHT" near "Video:"
+    let video_idx = stderr.find("Video:")?;
+    let tail = &stderr[video_idx..];
+    for token in tail.split(|c: char| c == ' ' || c == ',') {
+        if let Some(x_pos) = token.find('x') {
+            let (w_str, h_str) = token.split_at(x_pos);
+            let h_str = &h_str[1..];
+            if let (Ok(w), Ok(h)) = (w_str.parse::<u32>(), h_str.parse::<u32>()) {
+                if w > 0 && h > 0 {
+                    return Some(w as f64 / h as f64);
+                }
+            }
+        }
+    }
+    None
 }
 
 #[cfg(windows)]
@@ -175,16 +232,21 @@ fn run_tracked(mut cmd: Command) -> Result<(std::process::ExitStatus, Vec<u8>), 
 /// Extract one tile by seeking to `timestamp` and grabbing a single frame.
 /// `-ss` BEFORE `-i` is the key trick: it uses the container index to jump
 /// directly without scanning preceding bytes.
-fn extract_tile(ffmpeg: &Path, video: &Path, timestamp: f64, out: &Path) -> Result<(), String> {
+fn extract_tile(
+    ffmpeg: &Path,
+    video: &Path,
+    timestamp: f64,
+    tile_w: u32,
+    tile_h: u32,
+    out: &Path,
+) -> Result<(), String> {
+    // Tile width is computed from the source DAR, so a straight scale to
+    // tile_w × tile_h produces a frame with the source's exact aspect — no
+    // padding needed, no letterbox bars in the sprite.
+    //
     // yuvj420p (full-range JPEG variant) avoids the "Non full-range YUV is
     // non-standard" mjpeg encoder error on sources tagged with pc/full range.
-    let vf = format!(
-        "scale={w}:{h}:force_original_aspect_ratio=decrease,\
-         pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:color=black,\
-         format=yuvj420p",
-        w = TILE_W,
-        h = TILE_H,
-    );
+    let vf = format!("scale={tile_w}:{tile_h},format=yuvj420p");
 
     let mut cmd = cmd_no_window(ffmpeg);
     cmd.arg("-hide_banner")
@@ -222,8 +284,8 @@ fn extract_tile(ffmpeg: &Path, video: &Path, timestamp: f64, out: &Path) -> Resu
     Ok(())
 }
 
-fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<(), String> {
-    // 1. Probe duration.
+fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<u32, String> {
+    // 1. Probe duration + display aspect ratio.
     let mut probe_cmd = cmd_no_window(ffmpeg);
     probe_cmd.arg("-hide_banner").arg("-i").arg(video);
     let (_status, probe_stderr) = run_tracked(probe_cmd)?;
@@ -233,6 +295,18 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<(), String> 
     if duration <= 0.0 {
         return Err("video has zero duration".into());
     }
+
+    // Derive tile width from the source DAR. Round to even for yuv420p chroma
+    // alignment. Fall back to a sane default if the probe didn't surface DAR.
+    let tile_w = match parse_display_aspect(&stderr) {
+        Some(dar) if dar > 0.0 => {
+            let raw = (TILE_H as f64 * dar).round() as u32;
+            // Force even, clamp to a reasonable range to avoid pathological values.
+            let even = (raw + 1) & !1;
+            even.clamp(60, 600)
+        }
+        _ => TILE_W_FALLBACK,
+    };
 
     // 2. Extract FRAMES individual tiles via -ss seek per process. For a long
     //    file this is dramatically faster than a single linear scan because
@@ -274,7 +348,7 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<(), String> 
                     let next = rx.lock().unwrap().recv();
                     let Ok((idx, ts)) = next else { return Ok(()) };
                     let out = tile_dir.join(format!("tile-{idx:04}.jpg"));
-                    extract_tile(&ffmpeg, &video, ts, &out)?;
+                    extract_tile(&ffmpeg, &video, ts, tile_w, TILE_H, &out)?;
                 }
             })
         })
@@ -326,7 +400,20 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<(), String> 
         let _ = std::fs::remove_file(sprite);
         return Err(format!("ffmpeg compose exited with {status}"));
     }
-    Ok(())
+
+    // Persist the per-video tile dimensions so cached_preview() can answer
+    // without re-probing the source.
+    if let Err(e) = write_meta(
+        sprite,
+        &PreviewMeta {
+            tile_w,
+            tile_h: TILE_H,
+        },
+    ) {
+        log::warn!("failed to write preview meta: {e}");
+    }
+
+    Ok(tile_w)
 }
 
 /// Kill any running ffmpeg children. Called from the app's close handler so
@@ -379,14 +466,14 @@ pub fn request_preview(app: &AppHandle, video_path: &Path) {
     std::thread::spawn(move || {
         let result = run_ffmpeg(&ffmpeg, &video, &sprite);
         match result {
-            Ok(()) => {
+            Ok(tile_w) => {
                 let _ = app.emit(
                     "preview://ready",
                     PreviewReady {
                         path: path_str.clone(),
                         sprite: sprite.to_string_lossy().into_owned(),
                         grid: GRID,
-                        tile_w: TILE_W,
+                        tile_w,
                         tile_h: TILE_H,
                     },
                 );

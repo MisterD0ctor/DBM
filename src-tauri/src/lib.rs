@@ -62,6 +62,63 @@ fn open_video_dialog(app: AppHandle, player: tauri::State<Arc<MpvPlayer>>) -> Re
 }
 
 #[tauri::command]
+fn open_subtitle_dialog(
+    app: AppHandle,
+    player: tauri::State<Arc<MpvPlayer>>,
+) -> Result<(), String> {
+    log::info!("Opened subtitle selector");
+
+    let player = Arc::clone(&player);
+    let window = app
+        .get_webview_window("main")
+        .ok_or("window 'main' not found")?;
+
+    tauri_plugin_dialog::DialogExt::dialog(&app)
+        .file()
+        .set_parent(&window)
+        .add_filter(
+            "Subtitle Files",
+            &["srt", "ass", "ssa", "vtt", "sub", "sup", "idx", "smi"],
+        )
+        .pick_file(move |picked| {
+            let Some(file) = picked else {
+                log::info!("No subtitle selected");
+                return;
+            };
+            let path = match file.into_path() {
+                Ok(p) => p,
+                Err(e) => {
+                    log::error!("Failed to resolve subtitle path: {e}");
+                    return;
+                }
+            };
+            if !path.is_file() {
+                log::error!("Selected subtitle path is not a file");
+                return;
+            }
+            // mpv: sub-add <url> select  →  loads the file and makes it active.
+            let path_str = path.to_string_lossy().to_string();
+            if let Err(e) = player.command(
+                "sub-add",
+                &[
+                    serde_json::Value::String(path_str),
+                    serde_json::Value::String("select".into()),
+                ],
+            ) {
+                log::error!("Failed to add subtitle: {e}");
+                return;
+            }
+            // sub-add can leave sub-visibility off; force it on so the user
+            // actually sees the subtitle they just picked.
+            if let Err(e) = player.set_property_raw("sub-visibility", "yes") {
+                log::warn!("Failed to enable sub-visibility: {e}");
+            }
+        });
+
+    Ok(())
+}
+
+#[tauri::command]
 fn open_folder_dialog(app: AppHandle, player: tauri::State<Arc<MpvPlayer>>) -> Result<(), String> {
     log::info!("Opened folder selector");
 
@@ -306,6 +363,7 @@ pub fn run() {
             load_video,
             open_video_dialog,
             open_folder_dialog,
+            open_subtitle_dialog,
             get_watch_later_positions,
             set_border_shader_options,
             save_ambient_params,

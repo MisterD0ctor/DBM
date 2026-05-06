@@ -24,6 +24,10 @@ export function openFolderDialog() {
     return invoke("open_folder_dialog");
 }
 
+export function openSubtitleDialog() {
+    return invoke("open_subtitle_dialog");
+}
+
 // ---------------------------------------------------------------------------
 // Playback commands
 // ---------------------------------------------------------------------------

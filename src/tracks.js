@@ -15,6 +15,7 @@ export async function populateTrackListMenu() {
         subtitle,
         (id) => player.setSid(id.toString()).then(() => player.setSubVisibility(true)),
         () => player.setSid("no"),
+        () => player.openSubtitleDialog(),
     );
 
     ui.populateAudioTrackMenu(audio, (id) => {

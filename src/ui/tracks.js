@@ -11,7 +11,7 @@ export function toggleTrackListMenu(force) {
 
 // --- Populate menus ----------------------------------------------------------
 
-export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable) {
+export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable, onOpen) {
     const menu = document.getElementById("tracks-subtitle");
     menu.innerHTML = "";
 
@@ -19,10 +19,26 @@ export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable
         onDisable();
         toggleTrackListMenu(false);
     });
-    // const noneImg = document.createElement("img");
-    // noneImg.setAttribute("src", "assets/icons/subtitles-slash.svg");
-    // noneItem.appendChild(noneImg);
     menu.appendChild(noneItem);
+
+    if (onOpen) {
+        const openItem = document.createElement("div");
+        openItem.className = "menu-item subtitle-open";
+        openItem.onclick = () => {
+            onOpen();
+            toggleTrackListMenu(false);
+        };
+        const highlight = document.createElement("div");
+        highlight.classList.add("highlight");
+        const titleEl = document.createElement("span");
+        titleEl.classList.add("title");
+        titleEl.textContent = "Open subtitle file…";
+        const icon = document.createElement("img");
+        icon.src = "assets/icons/folder-open.svg";
+        icon.alt = "Open";
+        openItem.append(highlight, titleEl, icon);
+        menu.appendChild(openItem);
+    }
 
     populateTrackMenu(menu, subtitleTrackList, onSelect);
 }
