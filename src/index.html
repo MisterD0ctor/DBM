@@ -23,7 +23,11 @@
             <div id="video-surface"></div>
 
             <div id="controls-panel">
-                <div id="open-buttons"></div>
+                <div class="toolbar-overflow">
+                    <div class="toolbar-start"></div>
+                    <div class="toolbar-center hidden"></div>
+                    <div class="toolbar-end"></div>
+                </div>
 
                 <div id="timeline">
                     <span class="time-display" id="time-current">00:00</span>
@@ -50,13 +54,13 @@
 
                 <div class="toolbar">
                     <div class="toolbar-start">
+                        <div class="media-title">
+                            <span class="title"></span>
+                            <span class="show"></span>
+                            <span class="episode"></span>
+                            <span class="episode-title"></span>
+                        </div>
                         <button class="playlist-anchor hidden" id="btn-playlist">
-                            <div class="media-title">
-                                <span class="title"></span>
-                                <span class="show"></span>
-                                <span class="episode"></span>
-                                <span class="episode-title"></span>
-                            </div>
                             <img src="assets/icons/playlist.svg" alt="Playlist" />
                             <div class="tooltip">
                                 <span class="tooltip-text">Playlist</span>

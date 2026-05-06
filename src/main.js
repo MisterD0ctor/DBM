@@ -8,12 +8,14 @@ import * as tracks from "./tracks.js";
 import * as playlist from "./playlist.js";
 import * as preview from "./preview.js";
 import { enableSliderScroll } from "./utils/sliderScroll.js";
+import { initToolbarOverflow } from "./utils/toolbarOverflow.js";
 
 // Side-effect imports — these register their own event listeners on import
 import "./overlay.js";
 import "./controls.js";
 
 enableSliderScroll();
+initToolbarOverflow();
 
 let playlistPos = 0;
 let playlistCount = 0;
