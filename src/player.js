@@ -131,20 +131,6 @@ export function setPanscan(value) {
     return invoke("set_property", { name: "panscan", value });
 }
 
-/** @returns {Promise<string>} */
-export function getKeepOpen() {
-    return invoke("get_property", { name: "keep-open", format: "string" });
-}
-/** @param {"yes"|"no"|"always"} value */
-export function setKeepOpen(value) {
-    return invoke("set_property", { name: "keep-open", value });
-}
-
-/** @param {"yes"|"no"|"pause"} value */
-export function setResetOnNextFile(value) {
-    return invoke("set_property", { name: "reset-on-next-file", value });
-}
-
 /** @returns {Promise<string | null>} */
 export function getPath() {
     return invoke("get_property", { name: "path", format: "string" });
@@ -193,6 +179,10 @@ export function setAid(id) {
 /** @param {boolean} visible */
 export function setSubVisibility(visible) {
     return invoke("set_property", { name: "sub-visibility", value: visible });
+}
+
+export function getSubVisibility() {
+    return invoke("get_property", { name: "sub-visibility", format: "flag" });
 }
 
 // ---------------------------------------------------------------------------

@@ -10,15 +10,17 @@
 
     <body>
         <div id="player">
-            <div id="playback-overlay">
-                <div id="playback-status">
-                    <img
-                        id="playback-status-icon"
-                        src="assets/icons/pause.svg"
-                        alt="Playback status"
-                    />
+            <div id="action-overlay">
+                <div id="action">
+                    <img id="action-icon" src="assets/icons/pause.svg" alt="Playback status" />
+                    <span id="action-text">GFdg</span>
                 </div>
             </div>
+
+            <button id="end-of-playback" class="hidden">
+                <span>Next</span>
+                <img src="assets/icons/step-forward.svg" alt="Next" />
+            </button>
 
             <div id="video-surface"></div>
 
@@ -75,13 +77,6 @@
                     </div>
 
                     <div class="toolbar-center">
-                        <button id="btn-rewind">
-                            <img src="assets/icons/rotate-left.svg" alt="Rewind" />
-                            <div class="tooltip">
-                                <span class="tooltip-text">Rewind</span>
-                                <span class="shortcut">R</span>
-                            </div>
-                        </button>
                         <button id="btn-previous">
                             <img src="assets/icons/step-backward.svg" alt="Previous" />
                             <div class="tooltip">
@@ -117,13 +112,6 @@
                                 <span class="shortcut">Ctrl + Right</span>
                             </div>
                         </button>
-                        <button id="btn-autoplay">
-                            <img src="assets/icons/arrow-right.svg" alt="Autoplay" />
-                            <div class="tooltip">
-                                <span class="tooltip-text">Autoplay</span>
-                                <span class="shortcut">A</span>
-                            </div>
-                        </button>
                     </div>
 
                     <div class="toolbar-end">
@@ -139,7 +127,7 @@
                                 id="volume-slider"
                                 type="range"
                                 min="0"
-                                max="150"
+                                max="200"
                                 value="100"
                                 step="2"
                             />
@@ -149,9 +137,9 @@
                             </div>
                         </div>
                         <button id="btn-ambient" class="ambient-anchor">
-                            <img src="assets/icons/bulb.svg" alt="Ambient" />
+                            <img src="assets/icons/bulb.svg" alt="OLED saver" />
                             <div class="tooltip hidden">
-                                <span class="tooltip-text">Ambient</span>
+                                <span class="tooltip-text">OLED saver</span>
                                 <span class="shortcut">B</span>
                             </div>
                         </button>
@@ -179,6 +167,10 @@
                 </div>
 
                 <div id="playlist-menu" class="menu hidden">
+                    <div class="menu-heading">
+                        <span>Playlist</span>
+                        <img src="assets/icons/playlist.svg" alt="Playlist" />
+                    </div>
                     <div id="playlist-items"></div>
                 </div>
 
@@ -186,34 +178,34 @@
                     <div class="menu-item" data-action="open-file">
                         <span class="text">Open file…</span>
                         <span class="shortcut">Ctrl+O</span>
-                        <img src="assets/icons/film.svg" alt="File icon" />
+                        <!-- <img src="assets/icons/film.svg" alt="File icon" /> -->
                     </div>
                     <div class="menu-item" data-action="open-folder">
                         <span class="text">Open folder…</span>
                         <span class="shortcut">Ctrl+Shift+O</span>
-                        <img src="assets/icons/folder-open.svg" alt="Folder icon" />
+                        <!-- <img src="assets/icons/folder-open.svg" alt="Folder icon" /> -->
                     </div>
                 </div>
 
                 <div id="ambient-menu" class="menu hidden">
                     <button id="ambient-toggle" class="menu-item">
-                        <span>Ambient</span>
+                        <span>OLED saver</span>
                         <span class="ambient-toggle">
                             <span class="ambient-toggle-knob"></span>
                         </span>
                     </button>
-                    <div class="ambient-divider"></div>
+                    <div class="menu-divider"></div>
                     <div class="ambient-sliders"></div>
                 </div>
 
                 <div id="tracks-menu" class="menu hidden">
-                    <div class="tracks-heading">
+                    <div class="menu-heading">
                         <span>Subtitles</span>
                         <img src="assets/icons/subtitles.svg" alt="Subtitles" />
                     </div>
                     <div id="tracks-subtitle" class="tracks-list"></div>
-                    <div class="tracks-divider"></div>
-                    <div class="tracks-heading">
+                    <div class="menu-divider"></div>
+                    <div class="menu-heading">
                         <span>Audio</span>
                         <img src="assets/icons/volume.svg" alt="Audio" />
                     </div>

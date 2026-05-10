@@ -44,19 +44,13 @@ async function ambientEnabled() {
     return "shader" === (await player.getBorderBackground());
 }
 
-export function toggleAmbient(force) {
-    if (force === undefined) {
-        ambientEnabled().then((enabled) => {
-            player
-                .setBorderBackground(enabled ? "color" : "shader")
-                .catch((err) => console.warn("toggle ambient:", err));
-        });
-    } else {
-        player
-            .setBorderBackground(force ? "shader" : "color")
-            .catch((err) => console.warn("toggle ambient:", err));
-    }
+export async function toggleAmbient(force) {
+    let enabled = force ?? !(await ambientEnabled());
+    player
+        .setBorderBackground(enabled ? "shader" : "color")
+        .catch((err) => console.warn("toggle ambient:", err));
     persistParams();
+    return enabled;
 }
 
 function buildSliders() {
@@ -64,6 +58,11 @@ function buildSliders() {
     if (!container) return;
     container.innerHTML = "";
     for (const param of AMBIENT_PARAMS) {
+        // Sliders all run on a unified [0, 1] scale; the shader still gets
+        // the value mapped back into the param's own min/max range.
+        const toSlider = (v) => (v - param.min) / (param.max - param.min);
+        const fromSlider = (v) => param.min + v * (param.max - param.min);
+
         const row = document.createElement("div");
         row.className = "ambient-row";
         row.innerHTML = `
@@ -74,27 +73,27 @@ function buildSliders() {
             <input
                 class="ambient-slider"
                 type="range"
-                min="${param.min}"
-                max="${param.max}"
-                step="${param.step}"
-                value="${param.value}"
+                min="0"
+                max="1"
+                step="0.01"
+                value="${toSlider(param.value)}"
             />
         `;
         const slider = row.querySelector("input");
         const valueEl = row.querySelector(".ambient-row-value");
         const setProgressVar = (v) => {
-            const pct = ((v - param.min) / (param.max - param.min)) * 100;
-            slider.style.setProperty("--slider-progress", `${pct}%`);
+            slider.style.setProperty("--slider-progress", `${v * 100}%`);
         };
-        const formatValue = (v) => (param.step >= 1 ? v : Number(v).toFixed(3));
-        valueEl.textContent = formatValue(param.value);
-        setProgressVar(param.value);
+        const formatValue = (v) => Number(v).toFixed(2);
+        const initial = toSlider(param.value);
+        valueEl.textContent = formatValue(initial);
+        setProgressVar(initial);
 
         slider.addEventListener("input", () => {
-            const v = Number(slider.value);
-            param.value = v;
-            valueEl.textContent = formatValue(v);
-            setProgressVar(v);
+            const sliderV = Number(slider.value);
+            param.value = fromSlider(sliderV);
+            valueEl.textContent = formatValue(sliderV);
+            setProgressVar(sliderV);
             pushOptions();
             persistParams();
         });

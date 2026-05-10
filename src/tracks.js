@@ -8,13 +8,15 @@ export async function populateTrackListMenu() {
     const subtitle = trackList.filter((t) => t.type === "sub");
     const audio = trackList.filter((t) => t.type === "audio");
 
-    const activeSubtitleId = subtitle.find((t) => t.selected)?.id ?? "no";
+    const activeSubtitleId = (await player.getSubVisibility())
+        ? (subtitle.find((t) => t.selected)?.id ?? "no")
+        : "no";
     const activeAudioId = audio.find((t) => t.selected)?.id;
 
     ui.populateSubtitleTrackMenu(
         subtitle,
         (id) => player.setSid(id.toString()).then(() => player.setSubVisibility(true)),
-        () => player.setSid("no"),
+        () => player.setSubVisibility(false),
         () => player.openSubtitleDialog(),
     );
 
@@ -22,8 +24,8 @@ export async function populateTrackListMenu() {
         player.setAid(id.toString());
     });
 
-    ui.setActiveSubtitleTrack(activeSubtitleId);
-    ui.setActiveAudioTrack(activeAudioId);
+    ui.setActiveSubtitleTrackID(activeSubtitleId);
+    ui.setActiveAudioTrackID(activeAudioId);
 }
 
 // --- Menu toggle + click-outside-to-close ------------------------------------

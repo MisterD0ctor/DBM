@@ -162,13 +162,12 @@ unsafe impl Sync for MpvPlayer {}
 const INITIAL_OPTIONS: &[(&str, &str)] = &[
     ("vo", "gpu-next"),
     ("hwdec", "auto-safe"),
-    ("keep-open", "yes"),
+    ("keep-open", "always"),
     ("force-window", "yes"),
     ("pause", "no"),
     ("deband", "yes"),
     ("deband-iterations", "8"),
     ("sub-visibility", "yes"),
-    ("sid", "no"),
     // Watch Later — save/restore position, tracks, volume across sessions
     ("save-position-on-quit", "yes"),
     ("watch-later-options", "start,vid,aid,sid,volume"),
@@ -188,10 +187,10 @@ const OBSERVED_PROPERTIES: &[(&str, &str)] = &[
     ("panscan", "double"),
     ("sid", "string"),
     ("aid", "string"),
+    ("sub-visibility", "flag"),
     ("border-background", "string"),
     ("playlist-pos", "double"),
     ("playlist-count", "double"),
-    ("keep-open", "string"),
 ];
 
 impl MpvPlayer {

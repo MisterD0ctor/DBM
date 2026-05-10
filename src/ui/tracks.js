@@ -1,3 +1,5 @@
+import { setButtonIcon } from "../utils/setButtonIcon.js";
+
 // --- Menu visibility ---------------------------------------------------------
 
 export function toggleTrackListMenu(force) {
@@ -21,6 +23,8 @@ export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable
     });
     menu.appendChild(noneItem);
 
+    populateTrackMenu(menu, subtitleTrackList, onSelect);
+
     if (onOpen) {
         const openItem = document.createElement("div");
         openItem.className = "menu-item subtitle-open";
@@ -39,8 +43,6 @@ export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable
         openItem.append(highlight, titleEl, icon);
         menu.appendChild(openItem);
     }
-
-    populateTrackMenu(menu, subtitleTrackList, onSelect);
 }
 
 export function populateAudioTrackMenu(audioTrackList, onSelect) {
@@ -81,20 +83,39 @@ function createTrackMenuItem(title, id, onSelect) {
 
 // --- Selection ---------------------------------------------------------------
 
-export function setActiveSubtitleTrack(id) {
+let activeSubtitleId = "1";
+let subtitleVisibility = false;
+
+export function setActiveSubtitleTrackID(id) {
+    activeSubtitleId = id;
     const menu = document.getElementById("tracks-subtitle");
-    setActiveTrack(menu, id);
+    setActiveTrackID(menu, id);
 }
 
-export function setActiveAudioTrack(id) {
+export function setActiveAudioTrackID(id) {
     const menu = document.getElementById("tracks-audio");
-    setActiveTrack(menu, id);
+    setActiveTrackID(menu, id);
 }
 
-function setActiveTrack(menu, id) {
+function setActiveTrackID(menu, id) {
     for (const item of menu.children) {
         item.classList.toggle("active", item.id == id);
     }
+}
+
+export function setSubtitleVisibility(visible) {
+    subtitleVisibility = visible;
+    const menu = document.getElementById("tracks-subtitle");
+    if (visible) {
+        setActiveTrackID(menu, activeSubtitleId);
+    } else {
+        setActiveTrackID(menu, "no");
+    }
+
+    setButtonIcon(
+        "btn-tracks",
+        visible ? "assets/icons/subtitles-solid.svg" : "assets/icons/subtitles.svg",
+    );
 }
 
 // --- Resize ------------------------------------------------------------------

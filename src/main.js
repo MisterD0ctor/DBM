@@ -31,11 +31,11 @@ const stateProperties = [
     { name: "panscan", format: "double" },
     { name: "sid", format: "string" },
     { name: "aid", format: "string" },
+    { name: "sub-visibility", format: "flag" },
     { name: "border-background", format: "string" },
     { name: "eof-reached", format: "flag" },
     { name: "playlist-pos", format: "double" },
     { name: "playlist-count", format: "double" },
-    { name: "keep-open", format: "string" },
 ];
 
 function updateProperty(name, data) {
@@ -52,17 +52,19 @@ function updateProperty(name, data) {
     case "mute":        ui.setMute(data);                     break;
     case "volume":      ui.setVolume(data);                   break;
     case "panscan":     ui.togglePanscan(data);               break;
-    case "sid":         ui.setActiveSubtitleTrack(data);      break;
-    case "aid":         ui.setActiveAudioTrack(data);         break;
+    case "sid":         ui.setActiveSubtitleTrackID(data);          break;
+    case "aid":         ui.setActiveAudioTrackID(data);             break;
+    case "sub-visibility": ui.setSubtitleVisibility(data);    break;
     case "border-background": ui.toggleAmbient(data === "shader"); 
                               ambient.persistParams();        break;
-    case "eof-reached":                                       break;
+    case "eof-reached": ui.setEndOfPlayback(data);            break;
     case "playlist-pos":   playlistPos = data;
                             ui.setPlaylistNav(playlistPos, playlistCount);
-                            ui.setActivePlaylistItem(playlistPos, false); break;
+                            ui.setActivePlaylistItem(playlistPos, false);
+                            ui.setIsLastVideo(playlistPos >= playlistCount - 1); break;
     case "playlist-count": playlistCount = data;
-                            ui.setPlaylistNav(playlistPos, playlistCount); break;
-    case "keep-open":   ui.toggleAutoplay(data !== "always"); break;
+                            ui.setPlaylistNav(playlistPos, playlistCount);
+                            ui.setIsLastVideo(playlistPos >= playlistCount - 1); break;
     default: console.warn("Unhandled property:", name);
     }
 }

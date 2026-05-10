@@ -15,7 +15,7 @@
 //!DESC grain amount
 //!TYPE float
 //!MINIMUM 0.0
-128.0
+256.0
 
 //!PARAM falloff
 //!DESC light falloff
@@ -87,7 +87,7 @@ vec4 hook() {
 
 float light_spread_bound(float d) {
     // Tight upper bound
-    float c = 0.1; // Tightness of the bound
+    float c = 0.01; // Tightness of the bound
     float k = falloff;
     float kd = k * d;
     float a = kd + 1.0;
@@ -104,6 +104,7 @@ float light_spread_bound(float d) {
     
     float u = (v - 1.0) / k;
     return sqrt(max(u*u - d*d, 0.0));
+    // return abs(d) * spread * 4;
 }
 
 float distance_falloff(float x) {
@@ -121,7 +122,7 @@ float soft_distance_falloff(float x) {
     }
 }
 
-float spread_falloff(float x, float d, float spread) {
+float spread_falloff(float x, float d) {
     return d / length(vec2(x, d * spread));
 }
 
@@ -137,19 +138,22 @@ vec4 light_spread(sampler2D image, vec2 pos, float edge_dist, vec2 dir, float ra
 
     edge_dist += edge_blur + pt;
 
-    float spread_bound = min(1.0, light_spread_bound(edge_dist * spread));
-    float t0 = max(0, center - spread_bound + spread_bound * (rand - 0.5) / max_taps / 64);
-    float t1 = min(1, center + spread_bound + spread_bound * (rand - 0.5) / max_taps / 64);
+    float spread_bound = light_spread_bound(edge_dist * spread);
+    float t0 = max(0, center - spread_bound);
+    float t1 = min(1, center + spread_bound);
 
     vec4 c_sum = vec4(0.0);
     float w_sum = 0.0;
 
-    float dt = 1 / max_taps;
-    for(float t = 0.0; t <= 1.0; t += dt) {
-        float weight = distance_falloff(length(vec2((t - center), edge_dist))) 
-                       * spread_falloff(length(vec2(t - center)), edge_dist, spread);
+    float dt = (t1 - t0) / max_taps;
+    for(float t = t0; t <= t1; t += dt) {
+        float jitter = (rand + t) * 43758.5453; // Random jitter based on position and t
+        jitter = fract(jitter) * dt - dt / 2.0; // Jitter in range [-dt/2, dt/2]
+        float t_jittered = clamp(t + jitter, t0, t1);
+        float weight = distance_falloff(length(vec2((t_jittered - center), edge_dist))) 
+                       * spread_falloff(abs(t_jittered - center), edge_dist);
         weight = pow(weight, 2.2);
-        c_sum += textureLod(image, pos * dir.yx + t * dir.xy, 0.0) * weight;
+        c_sum += textureLod(image, pos * dir.yx + t_jittered * dir.xy, 0.0) * weight;
         w_sum += weight;
     }
     return c_sum / w_sum;

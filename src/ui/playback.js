@@ -69,7 +69,10 @@ export function setMediaTitle(filename) {
         episodeTitleEl.classList.toggle("hidden", true);
     }
 
-    mediaTitleEl.classList.toggle("overflowing", mediaTitleEl.scrollWidth > mediaTitleEl.clientWidth);
+    mediaTitleEl.classList.toggle(
+        "overflowing",
+        mediaTitleEl.scrollWidth > mediaTitleEl.clientWidth,
+    );
     refreshToolbarOverflow();
 }
 
@@ -78,20 +81,60 @@ export function updateMediaTitleOverflow() {
     if (el) el.classList.toggle("overflowing", el.scrollWidth > el.clientWidth);
 }
 
+let lastPaused = false;
+let atEndOfPlayback = false;
+let isLastVideo = false;
+
 export function setPause(isPaused) {
+    lastPaused = isPaused;
+    if (atEndOfPlayback) return;
     setButtonIcon("btn-play", isPaused ? "assets/icons/play.svg" : "assets/icons/pause.svg");
     setButtonTooltip("btn-play", isPaused ? "Play" : "Pause");
 }
 
-export function showPlaybackOverlay(action, position = undefined) {
-    if (position !== undefined) {
-        document.documentElement.style.setProperty("--playback-overlay-position", `${position}%`);
+export function setEndOfPlayback(reached) {
+    atEndOfPlayback = !!reached;
+    refreshEndOfPlayback();
+}
+
+export function setIsLastVideo(isLast) {
+    isLastVideo = !!isLast;
+    refreshEndOfPlayback();
+}
+
+function refreshEndOfPlayback() {
+    const popup = document.getElementById("end-of-playback");
+    popup?.classList.toggle("hidden", !atEndOfPlayback);
+    const label = popup?.querySelector("span");
+    const img = popup?.querySelector("img");
+    if (label) label.textContent = isLastVideo ? "Restart" : "Next";
+    if (img)
+        img.src = isLastVideo ? "assets/icons/rotate-left.svg" : "assets/icons/step-forward.svg";
+
+    // Seek forward at EOF can wedge mpv — disable the button while ended.
+    const seekForward = document.getElementById("btn-seek-forward");
+    seekForward?.classList.toggle("disabled", atEndOfPlayback);
+    if (seekForward) seekForward.disabled = atEndOfPlayback;
+
+    if (atEndOfPlayback) {
+        setButtonIcon("btn-play", "assets/icons/rotate-left.svg");
+        setButtonTooltip("btn-play", "Restart");
     } else {
-        document.documentElement.style.setProperty("--playback-overlay-position", `50%`);
+        setButtonIcon("btn-play", lastPaused ? "assets/icons/play.svg" : "assets/icons/pause.svg");
+        setButtonTooltip("btn-play", lastPaused ? "Play" : "Pause");
+    }
+}
+
+export function showActionOverlay(action, text = "", position = undefined) {
+    if (position !== undefined) {
+        document.documentElement.style.setProperty("--action-overlay-position", `${position}%`);
+    } else {
+        document.documentElement.style.setProperty("--action-overlay-position", `50%`);
     }
 
-    const overlay = document.getElementById("playback-overlay");
-    const icon = document.getElementById("playback-status-icon");
+    const overlay = document.getElementById("action-overlay");
+    const icon = document.getElementById("action-icon");
+    const textEl = document.getElementById("action-text");
 
     // prettier-ignore
     switch (action) {
@@ -102,21 +145,22 @@ export function showPlaybackOverlay(action, position = undefined) {
         case "rewind":        icon.src = "assets/icons/rotate-left.svg";       break;
         case "previous":      icon.src = "assets/icons/step-backward.svg";     break;
         case "next":          icon.src = "assets/icons/step-forward.svg";      break;
-        case "autoplay-on":   icon.src = "assets/icons/arrow-right.svg";       break;
-        case "autoplay-off":  icon.src = "assets/icons/arrow-right-slash.svg"; break;
         case "panscan-on":    icon.src = "assets/icons/expand-alt.svg";        break;
         case "panscan-off":   icon.src = "assets/icons/compress-alt.svg";      break;
         case "fullscreen-on": icon.src = "assets/icons/expand.svg";            break;
         case "fullscreen-off":icon.src = "assets/icons/compress.svg";          break;
-        case "ambient-on":    icon.src = "assets/icons/lightbulb.svg";         break;
-        case "ambient-off":   icon.src = "assets/icons/lightbulb-slash.svg";   break;
+        case "ambient-on":    icon.src = "assets/icons/bulb-solid.svg";        break;
+        case "ambient-off":   icon.src = "assets/icons/bulb-slash.svg";        break;
         case "mute-on":       icon.src = "assets/icons/volume-mute.svg";       break;
         case "mute-off":      icon.src = "assets/icons/volume.svg";            break;
-        case "subtitles-on":  icon.src = "assets/icons/subtitles.svg";         break;
+        case "subtitles-on":  icon.src = "assets/icons/subtitles-solid.svg";   break;
         case "subtitles-off": icon.src = "assets/icons/subtitles-slash.svg";   break;
-        case "volume-none":   icon.src = "assets/icons/volume-none.svg";       break;
-        case "volume-none":   icon.src = "assets/icons/volume-none.svg";       break;
+        case "volume":        icon.src = "assets/icons/volume.svg";            break;
         default: return;
+    }
+
+    if (textEl) {
+        textEl.textContent = text;
     }
 
     overlay.classList.remove("visible");
@@ -146,13 +190,19 @@ export function setSeekTooltip(isShown, clientX) {
         preview.showAtFraction(fraction);
 
         const secondsPerPixel = duration / rect.width ?? 0;
-        const fractionDigits = Math.max(0, Math.min(4, -Math.round(Math.log10(secondsPerPixel)) ?? 0));
+        const fractionDigits = Math.max(
+            0,
+            Math.min(4, -Math.round(Math.log10(secondsPerPixel)) ?? 0),
+        );
 
         timeEl.querySelector(".tooltip-text").textContent = formatTime(timeSeconds, fractionDigits);
         document.documentElement.style.setProperty("--seek-tooltip-pos", `${rectX}px`);
     } else {
         seekTimeTooltipTimes.push(
-            setTimeout(() => document.documentElement.style.setProperty("--seek-tooltip-pos", `${0}px`), 200),
+            setTimeout(
+                () => document.documentElement.style.setProperty("--seek-tooltip-pos", `${0}px`),
+                200,
+            ),
         );
     }
 }

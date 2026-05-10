@@ -1,5 +1,6 @@
 import * as player from "./player.js";
 import * as ui from "./ui/ui.js";
+import * as ambient from "./ambient.js";
 
 const { getCurrentWindow } = window.__TAURI__.window;
 const { PhysicalPosition, PhysicalSize, LogicalPosition, LogicalSize } = window.__TAURI__.dpi;
@@ -18,6 +19,12 @@ async function toggleMute() {
     const muted = await player.getMute();
     await player.setMute(!muted);
     return !muted;
+}
+
+async function toggleSubtitles() {
+    const visible = await player.getSubVisibility();
+    await player.setSubVisibility(!visible);
+    return !visible;
 }
 
 // --- Borderless fullscreen with animation ------------------------------------
@@ -63,6 +70,12 @@ async function togglePanscan() {
     return !panscan;
 }
 
+async function toggleAmbient() {
+    const ambient = await player.getAmbient();
+    await player.setAmbient(!ambient);
+    return !ambient;
+}
+
 function seek(seconds) {
     player.seek(seconds, "relative");
 }
@@ -80,13 +93,15 @@ function rewind() {
     player.play();
 }
 
-// When the user explicitly advances (next/prev/autoplay), they want the new
-// file to start fresh — override mpv's watch-later resume position by seeking
-// to 0 once the file is loaded.
+// When the user explicitly advances (next/prev), they want the new file to
+// start fresh — override mpv's watch-later resume position by seeking to 0
+// once the file is loaded.
 let resetOnNextLoad = false;
 
 player.onEvent((event) => {
-    if (event.event === "file-loaded" && resetOnNextLoad) {
+    if (event.event !== "file-loaded") return;
+    if (atEnd) exitEnd();
+    if (resetOnNextLoad) {
         resetOnNextLoad = false;
         player.seek(0, "absolute");
     }
@@ -102,20 +117,33 @@ function playNext() {
     player.playlistNext().then(() => setTimeout(() => player.play(), 100));
 }
 
-// --- Autoplay ----------------------------------------------------------------
+// --- End-of-playback state ---------------------------------------------------
 
-async function toggleAutoplay() {
-    let enableAutoplay = (await player.getKeepOpen()) === "always";
+// When the current file ends, mpv emits eof-reached. The play button becomes a
+// "restart" button, ArrowRight advances to the next file (or rewinds on the
+// last file), and a centered popup gives the user a click target.
+let atEnd = false;
+let playlistPos = 0;
+let playlistCount = 0;
 
-    if (enableAutoplay) {
-        player.setKeepOpen("no");
-        player.setResetOnNextFile("no");
-    } else {
-        player.setKeepOpen("always");
-        player.setResetOnNextFile("pause");
-    }
+const isLastVideo = () => playlistCount > 0 && playlistPos >= playlistCount - 1;
 
-    return enableAutoplay;
+player.onPropertyChange(({ name, data }) => {
+    if (name === "eof-reached") atEnd = !!data;
+    else if (name === "playlist-pos") playlistPos = data ?? 0;
+    else if (name === "playlist-count") playlistCount = data ?? 0;
+    else if (name === "pause" && data === false && atEnd) exitEnd();
+});
+
+function exitEnd() {
+    atEnd = false;
+    ui.setEndOfPlayback(false);
+}
+
+function advanceFromEnd() {
+    exitEnd();
+    if (isLastVideo()) rewind();
+    else playNext();
 }
 
 // --- Button wiring -----------------------------------------------------------
@@ -144,19 +172,34 @@ document.addEventListener("click", (event) => {
     }
 });
 
-document.getElementById("btn-rewind").onclick = rewind;
 document.getElementById("btn-previous").onclick = playPrevious;
 document.getElementById("btn-next").onclick = playNext;
-document.getElementById("btn-autoplay").onclick = toggleAutoplay;
 document.getElementById("btn-seek-back").onclick = () => seekBackward();
 document.getElementById("btn-seek-forward").onclick = () => seekForward();
-document.getElementById("btn-play").onclick = togglePause;
+document.getElementById("btn-play").onclick = () => {
+    if (atEnd) {
+        exitEnd();
+        rewind();
+    } else {
+        togglePause().then((state) => ui.showActionOverlay("pause-" + (state ? "on" : "off")));
+    }
+};
+document.getElementById("end-of-playback")?.addEventListener("click", advanceFromEnd);
 document.getElementById("btn-panscan").onclick = togglePanscan;
 document.getElementById("btn-mute").onclick = toggleMute;
 document.getElementById("btn-fullscreen").onclick = toggleFullscreen;
 
 const volumeSlider = document.getElementById("volume-slider");
-volumeSlider.addEventListener("input", () => player.setVolume(Number(volumeSlider.value)));
+volumeSlider.addEventListener("input", (e) => {
+    let value = Number(volumeSlider.value);
+    // Snap to 100 only on real drag input — synthesized events from wheel
+    // scrolling are not trusted and shouldn't be snapped.
+    if (e.isTrusted && Math.abs(value - 100) <= 6) {
+        value = 100;
+        volumeSlider.value = 100;
+    }
+    player.setVolume(value);
+});
 
 // --- Click vs double-click ---------------------------------------------------
 
@@ -172,7 +215,7 @@ document.getElementById("video-surface").addEventListener("click", (event) => {
         clickTimeout = setTimeout(
             () =>
                 togglePause().then((state) =>
-                    ui.showPlaybackOverlay("pause-" + (state ? "on" : "off")),
+                    ui.showActionOverlay("pause-" + (state ? "on" : "off")),
                 ),
             DOUBLE_CLICK_DELAY_MS,
         );
@@ -198,44 +241,64 @@ document.addEventListener("keydown", (e) => {
             setFullscreen(false);
             break;
         case "Space":
-            togglePause().then((state) =>
-                ui.showPlaybackOverlay("pause-" + (state ? "on" : "off")),
-            );
+            if (atEnd) {
+                exitEnd();
+                rewind();
+            } else {
+                togglePause().then((state) =>
+                    ui.showActionOverlay("pause-" + (state ? "on" : "off")),
+                );
+            }
             break;
         case "F11":
         case "KeyF":
             toggleFullscreen();
             break;
         case "KeyM":
-            toggleMute().then((state) => ui.showPlaybackOverlay("mute-" + (state ? "on" : "off")));
+            toggleMute().then((state) => ui.showActionOverlay("mute-" + (state ? "on" : "off")));
             break;
         case "KeyT":
             togglePanscan().then((state) =>
-                ui.showPlaybackOverlay("panscan-" + (state ? "on" : "off")),
+                ui.showActionOverlay("panscan-" + (state ? "on" : "off")),
             );
             break;
-        case "KeyA":
-            toggleAutoplay().then((state) =>
-                ui.showPlaybackOverlay("autoplay-" + (state ? "on" : "off")),
+        case "KeyC":
+            toggleSubtitles().then((state) =>
+                ui.showActionOverlay("subtitles-" + (state ? "on" : "off")),
             );
+            break;
+        case "KeyB":
+            ambient
+                .toggleAmbient()
+                .then((state) => ui.showActionOverlay("ambient-" + (state ? "on" : "off")));
             break;
         case "ArrowUp":
-            player.changeVolume(2);
-            ui.showPlaybackOverlay("volume");
+            player
+                .changeVolume(2)
+                .then(() => player.getVolume())
+                .then((volume) => {
+                    ui.showActionOverlay("volume", `${volume}%`);
+                });
             break;
         case "ArrowDown":
-            player.changeVolume(-2);
-            ui.showPlaybackOverlay("volume");
+            player
+                .changeVolume(-2)
+                .then(() => player.getVolume())
+                .then((volume) => {
+                    ui.showActionOverlay("volume", `${volume}%`);
+                });
             break;
         case "Home":
             rewind();
             break;
         case "ArrowRight":
-            if (e.ctrlKey) {
+            if (atEnd) {
+                advanceFromEnd();
+            } else if (e.ctrlKey) {
                 playNext();
             } else {
                 seekForward();
-                ui.showPlaybackOverlay("seek-forward", position = 80);
+                ui.showActionOverlay("seek-forward", "", 80);
             }
             break;
         case "ArrowLeft":
@@ -243,7 +306,7 @@ document.addEventListener("keydown", (e) => {
                 playPrevious();
             } else {
                 seekBackward();
-                ui.showPlaybackOverlay("seek-backward", position = 20);
+                ui.showActionOverlay("seek-backward", "", 20);
             }
             break;
     }

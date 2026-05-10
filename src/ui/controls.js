@@ -7,6 +7,7 @@ export function toggleOverlay(force) {
 
 export function toggleAmbient(force) {
     document.getElementById("ambient-toggle")?.classList.toggle("on", force);
+    setButtonIcon("btn-ambient", force ? "assets/icons/bulb-solid.svg" : "assets/icons/bulb.svg");
 }
 
 export function toggleAmbientMenu(force) {
@@ -16,7 +17,10 @@ export function toggleAmbientMenu(force) {
 }
 
 export function togglePanscan(force) {
-    setButtonIcon("btn-panscan", force ? "assets/icons/compress-alt.svg" : "assets/icons/expand-alt.svg");
+    setButtonIcon(
+        "btn-panscan",
+        force ? "assets/icons/compress-alt.svg" : "assets/icons/expand-alt.svg",
+    );
     setButtonTooltip("btn-panscan", force ? "Fit" : "Cover");
 }
 
@@ -30,16 +34,11 @@ export function setPlaylistNav(pos, count) {
 }
 
 export function toggleFullscreen(force) {
-    setButtonIcon("btn-fullscreen", force ? "assets/icons/compress.svg" : "assets/icons/expand.svg");
-    setButtonTooltip("btn-fullscreen", force ? "Exit Fullscreen" : "Fullscreen");
-}
-
-export function toggleAutoplay(force) {
     setButtonIcon(
-        "btn-autoplay",
-        force ? "assets/icons/arrow-right-slash.svg" : "assets/icons/arrow-right.svg",
+        "btn-fullscreen",
+        force ? "assets/icons/compress.svg" : "assets/icons/expand.svg",
     );
-    setButtonTooltip("btn-autoplay", force ? "Disable Autoplay" : "Enable Autoplay");
+    setButtonTooltip("btn-fullscreen", force ? "Exit Fullscreen" : "Fullscreen");
 }
 
 export function toggleOpenMenu(force) {

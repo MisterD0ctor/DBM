@@ -5,18 +5,19 @@ export {
     setMediaTitle,
     updateMediaTitleOverflow,
     setPause,
+    setEndOfPlayback,
+    setIsLastVideo,
     setSeekTooltip,
     setSeekHighlight,
-    showPlaybackOverlay,
+    showActionOverlay,
 } from "./playback.js";
 
 export {
-    toggleOverlay as toggleOverlay,
-    togglePanscan as togglePanscan,
-    toggleFullscreen as toggleFullscreen,
-    toggleAmbient as toggleAmbient,
+    toggleOverlay,
+    togglePanscan,
+    toggleFullscreen,
+    toggleAmbient,
     toggleAmbientMenu,
-    toggleAutoplay,
     setPlaylistNav,
     toggleOpenMenu,
 } from "./controls.js";
@@ -25,8 +26,9 @@ export {
     toggleTrackListMenu,
     populateSubtitleTrackMenu,
     populateAudioTrackMenu,
-    setActiveSubtitleTrack,
-    setActiveAudioTrack,
+    setActiveSubtitleTrackID,
+    setSubtitleVisibility,
+    setActiveAudioTrackID,
     resizeTrackListMenus,
 } from "./tracks.js";
 
