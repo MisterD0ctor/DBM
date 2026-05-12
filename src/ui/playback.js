@@ -162,6 +162,7 @@ export function showActionOverlay(action, text = "", position = undefined) {
     if (textEl) {
         textEl.textContent = text;
     }
+    textEl.classList.toggle("hidden", text === "");
 
     overlay.classList.remove("visible");
     void overlay.offsetWidth;

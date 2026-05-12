@@ -191,6 +191,7 @@ const OBSERVED_PROPERTIES: &[(&str, &str)] = &[
     ("border-background", "string"),
     ("playlist-pos", "double"),
     ("playlist-count", "double"),
+    ("track-list/count", "double"),
 ];
 
 impl MpvPlayer {

@@ -58,21 +58,21 @@ async function setFullscreen(enable) {
     ui.toggleFullscreen(enable);
 }
 
-function toggleFullscreen() {
-    getCurrentWindow()
-        .isFullscreen()
-        .then((isFs) => setFullscreen(!isFs));
+async function toggleFullscreen() {
+    const isFullscreen = await getCurrentWindow().isFullscreen();
+    setFullscreen(!isFullscreen);
+    return !isFullscreen;
 }
 
 async function togglePanscan() {
     const panscan = await player.getPanscan();
-    await player.setPanscan(panscan === 1 ? 0 : 1);
+    player.setPanscan(panscan === 1 ? 0 : 1);
     return !panscan;
 }
 
 async function toggleAmbient() {
     const ambient = await player.getAmbient();
-    await player.setAmbient(!ambient);
+    player.setAmbient(!ambient);
     return !ambient;
 }
 
@@ -181,7 +181,7 @@ document.getElementById("btn-play").onclick = () => {
         exitEnd();
         rewind();
     } else {
-        togglePause().then((state) => ui.showActionOverlay("pause-" + (state ? "on" : "off")));
+        togglePause();
     }
 };
 document.getElementById("end-of-playback")?.addEventListener("click", advanceFromEnd);
@@ -252,7 +252,9 @@ document.addEventListener("keydown", (e) => {
             break;
         case "F11":
         case "KeyF":
-            toggleFullscreen();
+            toggleFullscreen().then((state) =>
+                ui.showActionOverlay("fullscreen-" + (state ? "on" : "off")),
+            );
             break;
         case "KeyM":
             toggleMute().then((state) => ui.showActionOverlay("mute-" + (state ? "on" : "off")));

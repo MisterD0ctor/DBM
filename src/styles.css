@@ -162,26 +162,42 @@ input,
 }
 
 #action-icon {
-    position: absolute;
-    width: 80px;
-    height: 80px;
-    left: calc(var(--action-overlay-position) - 40px);
-    top: calc(50vh - 40px);
+    width: 60px;
+    height: 60px;
+    padding: 20px;
+    margin-left: var(--action-overlay-position);
+    transform: translateX(-50%);
+    background: var(--toolbar-background);
+    border: 1px solid #ffffff11;
+    border-radius: 50%;
     filter: drop-shadow(0 0 8px #00000080);
+    overflow: visible;
 }
 
 #action-text {
     position: absolute;
+    padding: 4px 8px;
     top: calc(50% + 60px);
     left: var(--action-overlay-position);
     transform: translateX(-50%);
+    background: var(--toolbar-background);
+    border: 1px solid #ffffff11;
+    border-radius: 8px;
     font-size: 18px;
+    font-weight: bold;
     color: #ffffff;
     text-shadow: 0 0 4px #00000080;
 }
 
+#action-text.hidden {
+    display: none;
+}
+
 @keyframes action-overlay-fade {
     0% {
+        opacity: 1;
+    }
+    33% {
         opacity: 1;
     }
     100% {
@@ -493,7 +509,7 @@ input,
     display: flex;
     align-items: center;
     gap: 5px;
-    padding: 3px;
+    padding: 5px;
     background: var(--toolbar-background);
     border: 1px solid #ffffff11;
     border-radius: 100px;

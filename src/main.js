@@ -41,31 +41,32 @@ const stateProperties = [
 function updateProperty(name, data) {
     // prettier-ignore
     switch (name) {
-    case "time-pos":    ui.setCurrentTime(data);              break;
-    case "percent-pos": ui.setProgress(data);                 break;
-    case "duration":    ui.setDuration(data);        
-                        seekbar.setDuration(data);            break;
-    case "filename":    ui.setMediaTitle(data);
-                        updateCurrentVideoPath();             break;
-    case "pause":       ui.setPause(data);
-                        ui.setActivePlaylistItem(playlistPos, data); break;
-    case "mute":        ui.setMute(data);                     break;
-    case "volume":      ui.setVolume(data);                   break;
-    case "panscan":     ui.togglePanscan(data);               break;
-    case "sid":         ui.setActiveSubtitleTrackID(data);          break;
-    case "aid":         ui.setActiveAudioTrackID(data);             break;
-    case "sub-visibility": ui.setSubtitleVisibility(data);    break;
+    case "time-pos":          ui.setCurrentTime(data);                     break;
+    case "percent-pos":       ui.setProgress(data);                        break;
+    case "duration":          ui.setDuration(data);        
+                              seekbar.setDuration(data);                   break;
+    case "filename":          ui.setMediaTitle(data);
+                              updateCurrentVideoPath();                    break;
+    case "pause":             ui.setPause(data);
+                              ui.setActivePlaylistItem(playlistPos, data); break;
+    case "mute":              ui.setMute(data);                            break;
+    case "volume":            ui.setVolume(data);                          break;
+    case "panscan":           ui.togglePanscan(data);                      break;
+    case "sid":               ui.setActiveSubtitleTrackID(data);           break;
+    case "aid":               ui.setActiveAudioTrackID(data);              break;
+    case "sub-visibility":    ui.setSubtitleVisibility(data);              break;
     case "border-background": ui.toggleAmbient(data === "shader"); 
-                              ambient.persistParams();        break;
-    case "eof-reached": ui.setEndOfPlayback(data);            break;
-    case "playlist-pos":   playlistPos = data;
-                            ui.setPlaylistNav(playlistPos, playlistCount);
-                            ui.setActivePlaylistItem(playlistPos, false);
-                            ui.setIsLastVideo(playlistPos >= playlistCount - 1); break;
-    case "playlist-count": playlistCount = data;
-                            ui.setPlaylistNav(playlistPos, playlistCount);
-                            ui.setIsLastVideo(playlistPos >= playlistCount - 1); break;
-    default: console.warn("Unhandled property:", name);
+                              ambient.persistParams();                     break;
+    case "eof-reached":       ui.setEndOfPlayback(data);                   break;
+    case "track-list/count":  tracks.populateTrackListMenu();              break;
+    case "playlist-pos":      playlistPos = data;
+                              ui.setPlaylistNav(playlistPos, playlistCount);
+                              ui.setActivePlaylistItem(playlistPos, false);
+                              ui.setIsLastVideo(playlistPos >= playlistCount - 1); break;
+    case "playlist-count":    playlistCount = data;
+                              ui.setPlaylistNav(playlistPos, playlistCount);
+                              ui.setIsLastVideo(playlistPos >= playlistCount - 1); break;
+    default:                  console.warn("Unhandled property:", name);
     }
 }
 
