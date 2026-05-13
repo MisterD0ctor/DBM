@@ -1,9 +1,9 @@
 import * as player from "./player.js";
 import * as ui from "./ui/ui.js";
 import * as ambient from "./ambient.js";
-
-const { getCurrentWindow } = window.__TAURI__.window;
-const { PhysicalPosition, PhysicalSize, LogicalPosition, LogicalSize } = window.__TAURI__.dpi;
+import * as endOfPlayback from "./endOfPlayback.js";
+import { setFullscreen, toggleFullscreen } from "./fullscreen.js";
+import { rewind, playPrevious, playNext } from "./navigation.js";
 
 const SEEK_SECONDS = 10;
 const DOUBLE_CLICK_DELAY_MS = 250;
@@ -27,53 +27,10 @@ async function toggleSubtitles() {
     return !visible;
 }
 
-// --- Borderless fullscreen with animation ------------------------------------
-
-let savedWindowState = {
-    isMaximized: false,
-    position: undefined,
-    size: undefined,
-};
-
-async function setFullscreen(enable) {
-    const win = getCurrentWindow();
-
-    if (enable) {
-        savedWindowState = {
-            isMaximized: await win.isMaximized(),
-            position: await win.outerPosition(),
-            size: await win.innerSize(),
-        };
-        await win.maximize();
-        await win.setFullscreen(true);
-    } else {
-        await win.setFullscreen(false);
-        if (!savedWindowState.isMaximized) {
-            await win.setSize(savedWindowState.size); // Sets inner size
-            await win.setPosition(savedWindowState.position); // Sets outer position
-            await win.unmaximize();
-        }
-    }
-
-    ui.toggleFullscreen(enable);
-}
-
-async function toggleFullscreen() {
-    const isFullscreen = await getCurrentWindow().isFullscreen();
-    setFullscreen(!isFullscreen);
-    return !isFullscreen;
-}
-
 async function togglePanscan() {
     const panscan = await player.getPanscan();
     player.setPanscan(panscan === 1 ? 0 : 1);
     return !panscan;
-}
-
-async function toggleAmbient() {
-    const ambient = await player.getAmbient();
-    player.setAmbient(!ambient);
-    return !ambient;
 }
 
 function seek(seconds) {
@@ -88,103 +45,23 @@ function seekForward() {
     seek(SEEK_SECONDS);
 }
 
-function rewind() {
-    player.seek(0, "absolute");
-    player.play();
-}
-
-// When the user explicitly advances (next/prev), they want the new file to
-// start fresh — override mpv's watch-later resume position by seeking to 0
-// once the file is loaded.
-let resetOnNextLoad = false;
-
-player.onEvent((event) => {
-    if (event.event !== "file-loaded") return;
-    if (atEnd) exitEnd();
-    if (resetOnNextLoad) {
-        resetOnNextLoad = false;
-        player.seek(0, "absolute");
-    }
-});
-
-function playPrevious() {
-    resetOnNextLoad = true;
-    player.playlistPrev().then(() => setTimeout(() => player.play(), 100));
-}
-
-function playNext() {
-    resetOnNextLoad = true;
-    player.playlistNext().then(() => setTimeout(() => player.play(), 100));
-}
-
-// --- End-of-playback state ---------------------------------------------------
-
-// When the current file ends, mpv emits eof-reached. The play button becomes a
-// "restart" button, ArrowRight advances to the next file (or rewinds on the
-// last file), and a centered popup gives the user a click target.
-let atEnd = false;
-let playlistPos = 0;
-let playlistCount = 0;
-
-const isLastVideo = () => playlistCount > 0 && playlistPos >= playlistCount - 1;
-
-player.onPropertyChange(({ name, data }) => {
-    if (name === "eof-reached") atEnd = !!data;
-    else if (name === "playlist-pos") playlistPos = data ?? 0;
-    else if (name === "playlist-count") playlistCount = data ?? 0;
-    else if (name === "pause" && data === false && atEnd) exitEnd();
-});
-
-function exitEnd() {
-    atEnd = false;
-    ui.setEndOfPlayback(false);
-}
-
-function advanceFromEnd() {
-    exitEnd();
-    if (isLastVideo()) rewind();
-    else playNext();
+function bumpVolume(delta) {
+    player
+        .changeVolume(delta)
+        .then(() => player.getVolume())
+        .then((volume) => ui.showActionOverlay("volume", `${volume}%`));
 }
 
 // --- Button wiring -----------------------------------------------------------
-
-// document.getElementById("btn-open-file").onclick = () => player.openVideoDialog();
-// document.getElementById("btn-open-folder").onclick = () => player.openFolderDialog();
-
-const openMenu = document.getElementById("open-menu");
-const openMenuBtn = document.getElementById("btn-open-menu");
-
-openMenuBtn.onclick = () => {
-    ui.toggleOpenMenu();
-};
-
-openMenu.addEventListener("click", (e) => {
-    const item = e.target.closest(".menu-item");
-    if (!item) return;
-    ui.toggleOpenMenu(false);
-    if (item.dataset.action === "open-file") player.openVideoDialog();
-    else if (item.dataset.action === "open-folder") player.openFolderDialog();
-});
-
-document.addEventListener("click", (event) => {
-    if (!openMenu.contains(event.target) && !openMenuBtn.contains(event.target)) {
-        ui.toggleOpenMenu(false);
-    }
-});
 
 document.getElementById("btn-previous").onclick = playPrevious;
 document.getElementById("btn-next").onclick = playNext;
 document.getElementById("btn-seek-back").onclick = () => seekBackward();
 document.getElementById("btn-seek-forward").onclick = () => seekForward();
 document.getElementById("btn-play").onclick = () => {
-    if (atEnd) {
-        exitEnd();
-        rewind();
-    } else {
-        togglePause();
-    }
+    if (endOfPlayback.isAtEnd()) endOfPlayback.restart();
+    else togglePause();
 };
-document.getElementById("end-of-playback")?.addEventListener("click", advanceFromEnd);
 document.getElementById("btn-panscan").onclick = togglePanscan;
 document.getElementById("btn-mute").onclick = toggleMute;
 document.getElementById("btn-fullscreen").onclick = toggleFullscreen;
@@ -213,10 +90,7 @@ document.getElementById("video-surface").addEventListener("click", (event) => {
 
     if (event.detail === 1) {
         clickTimeout = setTimeout(
-            () =>
-                togglePause().then((state) =>
-                    ui.showActionOverlay("pause-" + (state ? "on" : "off")),
-                ),
+            () => togglePause().then((state) => ui.showActionOverlay("pause-" + (state ? "on" : "off"))),
             DOUBLE_CLICK_DELAY_MS,
         );
     } else if (event.detail === 2) {
@@ -241,33 +115,24 @@ document.addEventListener("keydown", (e) => {
             setFullscreen(false);
             break;
         case "Space":
-            if (atEnd) {
-                exitEnd();
-                rewind();
+            if (endOfPlayback.isAtEnd()) {
+                endOfPlayback.restart();
             } else {
-                togglePause().then((state) =>
-                    ui.showActionOverlay("pause-" + (state ? "on" : "off")),
-                );
+                togglePause().then((state) => ui.showActionOverlay("pause-" + (state ? "on" : "off")));
             }
             break;
         case "F11":
         case "KeyF":
-            toggleFullscreen().then((state) =>
-                ui.showActionOverlay("fullscreen-" + (state ? "on" : "off")),
-            );
+            toggleFullscreen();
             break;
         case "KeyM":
             toggleMute().then((state) => ui.showActionOverlay("mute-" + (state ? "on" : "off")));
             break;
         case "KeyT":
-            togglePanscan().then((state) =>
-                ui.showActionOverlay("panscan-" + (state ? "on" : "off")),
-            );
+            togglePanscan().then((state) => ui.showActionOverlay("panscan-" + (state ? "on" : "off")));
             break;
         case "KeyC":
-            toggleSubtitles().then((state) =>
-                ui.showActionOverlay("subtitles-" + (state ? "on" : "off")),
-            );
+            toggleSubtitles().then((state) => ui.showActionOverlay("subtitles-" + (state ? "on" : "off")));
             break;
         case "KeyB":
             ambient
@@ -275,27 +140,17 @@ document.addEventListener("keydown", (e) => {
                 .then((state) => ui.showActionOverlay("ambient-" + (state ? "on" : "off")));
             break;
         case "ArrowUp":
-            player
-                .changeVolume(2)
-                .then(() => player.getVolume())
-                .then((volume) => {
-                    ui.showActionOverlay("volume", `${volume}%`);
-                });
+            bumpVolume(2);
             break;
         case "ArrowDown":
-            player
-                .changeVolume(-2)
-                .then(() => player.getVolume())
-                .then((volume) => {
-                    ui.showActionOverlay("volume", `${volume}%`);
-                });
+            bumpVolume(-2);
             break;
         case "Home":
             rewind();
             break;
         case "ArrowRight":
-            if (atEnd) {
-                advanceFromEnd();
+            if (endOfPlayback.isAtEnd()) {
+                endOfPlayback.advance();
             } else if (e.ctrlKey) {
                 playNext();
             } else {

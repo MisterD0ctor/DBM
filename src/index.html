@@ -60,13 +60,13 @@
                             <span class="episode"></span>
                             <span class="episode-title"></span>
                         </div>
-                        <button class="playlist-anchor hidden" id="btn-playlist">
+                        <button class="icon-btn playlist-anchor hidden" id="btn-playlist">
                             <img src="assets/icons/playlist.svg" alt="Playlist" />
                             <div class="tooltip">
                                 <span class="tooltip-text">Playlist</span>
                             </div>
                         </button>
-                        <button id="btn-open-menu">
+                        <button class="icon-btn open-anchor" id="btn-open-menu">
                             <img src="assets/icons/folder-open.svg" alt="Open folder" />
                             <div class="tooltip">
                                 <span class="tooltip-text">Open</span>
@@ -75,35 +75,35 @@
                     </div>
 
                     <div class="toolbar-center">
-                        <button id="btn-previous">
+                        <button class="icon-btn" id="btn-previous">
                             <img src="assets/icons/step-backward.svg" alt="Previous" />
                             <div class="tooltip">
                                 <span class="tooltip-text">Previous</span>
                                 <span class="shortcut">Ctrl + Left</span>
                             </div>
                         </button>
-                        <button class="btn-seek" id="btn-seek-back">
+                        <button class="icon-btn btn-seek" id="btn-seek-back">
                             <img src="assets/icons/seek-backward.svg" alt="Skip Backward" />
                             <div class="tooltip">
                                 <span class="tooltip-text">Skip Backward</span>
                                 <span class="shortcut">Left</span>
                             </div>
                         </button>
-                        <button id="btn-play">
+                        <button class="icon-btn" id="btn-play">
                             <img src="assets/icons/play.svg" alt="Play" />
                             <div class="tooltip">
                                 <span class="tooltip-text">Play</span>
                                 <span class="shortcut">Space</span>
                             </div>
                         </button>
-                        <button class="btn-seek" id="btn-seek-forward">
+                        <button class="icon-btn btn-seek" id="btn-seek-forward">
                             <img src="assets/icons/seek-forward.svg" alt="Skip Forward" />
                             <div class="tooltip">
                                 <span class="tooltip-text">Skip Forward</span>
                                 <span class="shortcut">Right</span>
                             </div>
                         </button>
-                        <button id="btn-next">
+                        <button class="icon-btn icon-btn" id="btn-next">
                             <img src="assets/icons/step-forward.svg" alt="Next" />
                             <div class="tooltip">
                                 <span class="tooltip-text">Next</span>
@@ -114,47 +114,40 @@
 
                     <div class="toolbar-end">
                         <div id="volume-group">
-                            <button id="btn-mute">
+                            <button class="icon-btn" id="btn-mute">
                                 <img src="assets/icons/volume.svg" alt="Mute" />
                                 <div class="tooltip">
                                     <span class="tooltip-text">Mute</span>
                                     <span class="shortcut">M</span>
                                 </div>
                             </button>
-                            <input
-                                id="volume-slider"
-                                type="range"
-                                min="0"
-                                max="200"
-                                value="100"
-                                step="2"
-                            />
+                            <input id="volume-slider" type="range" min="0" max="200" value="100" step="2" />
                             <div class="tooltip" id="volume-tooltip">
                                 <span id="volume-display">100</span>
                                 <span id="volume-percent">%</span>
                             </div>
                         </div>
-                        <button id="btn-ambient" class="ambient-anchor">
+                        <button class="icon-btn ambient-anchor" id="btn-ambient">
                             <img src="assets/icons/bulb.svg" alt="OLED saver" />
                             <div class="tooltip hidden">
                                 <span class="tooltip-text">OLED saver</span>
                                 <span class="shortcut">B</span>
                             </div>
                         </button>
-                        <button class="tracks-anchor" id="btn-tracks">
+                        <button class="icon-btn tracks-anchor" id="btn-tracks">
                             <img src="assets/icons/subtitles.svg" alt="Subtitles" />
                             <div class="tooltip hidden">
                                 <span class="tooltip-text">Subtitles/Audio</span>
                             </div>
                         </button>
-                        <button id="btn-panscan">
+                        <button class="icon-btn" id="btn-panscan">
                             <img src="assets/icons/expand-alt.svg" alt="Pan-Scan" />
                             <div class="tooltip hidden">
                                 <span class="tooltip-text">Pan-Scan</span>
                                 <span class="shortcut">T</span>
                             </div>
                         </button>
-                        <button id="btn-fullscreen">
+                        <button class="icon-btn" id="btn-fullscreen">
                             <img src="assets/icons/expand.svg" alt="Fullscreen" />
                             <div class="tooltip hidden">
                                 <span class="tooltip-text">Fullscreen</span>
@@ -166,22 +159,22 @@
 
                 <div id="playlist-menu" class="menu hidden">
                     <div class="menu-heading">
-                        <span>Playlist</span>
                         <img src="assets/icons/playlist.svg" alt="Playlist" />
+                        <span>Playlist</span>
                     </div>
                     <div id="playlist-items"></div>
                 </div>
 
                 <div id="open-menu" class="menu hidden">
                     <div class="menu-item" data-action="open-file">
+                        <img src="assets/icons/film.svg" alt="File icon" />
                         <span class="text">Open file…</span>
                         <span class="shortcut">Ctrl+O</span>
-                        <!-- <img src="assets/icons/film.svg" alt="File icon" /> -->
                     </div>
                     <div class="menu-item" data-action="open-folder">
+                        <img src="assets/icons/folder-open.svg" alt="Folder icon" />
                         <span class="text">Open folder…</span>
                         <span class="shortcut">Ctrl+Shift+O</span>
-                        <!-- <img src="assets/icons/folder-open.svg" alt="Folder icon" /> -->
                     </div>
                 </div>
 
@@ -192,20 +185,19 @@
                             <span class="ambient-toggle-knob"></span>
                         </span>
                     </button>
-                    <div class="menu-divider"></div>
                     <div class="ambient-sliders"></div>
                 </div>
 
                 <div id="tracks-menu" class="menu hidden">
                     <div class="menu-heading">
-                        <span>Subtitles</span>
                         <img src="assets/icons/subtitles.svg" alt="Subtitles" />
+                        <span>Subtitles</span>
                     </div>
                     <div id="tracks-subtitle" class="tracks-list"></div>
                     <div class="menu-divider"></div>
                     <div class="menu-heading">
+                        <img src="assets/icons/volume-up.svg" alt="Audio" />
                         <span>Audio</span>
-                        <img src="assets/icons/volume.svg" alt="Audio" />
                     </div>
                     <div id="tracks-audio" class="tracks-list"></div>
                 </div>

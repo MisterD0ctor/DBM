@@ -12,6 +12,11 @@ export function togglePlaylistMenu(force) {
     }
 }
 
+/** Toolbar's playlist-menu button is only meaningful when a file is loaded. */
+export function setPlaylistButtonVisible(visible) {
+    document.getElementById("btn-playlist")?.classList.toggle("hidden", !visible);
+}
+
 // --- Populate ----------------------------------------------------------------
 
 export function populatePlaylistMenu(playlist, activeIndex, isPaused, savedPositions, onSelect) {

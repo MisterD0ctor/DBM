@@ -62,8 +62,17 @@ export function showAtFraction(fraction) {
     box.style.setProperty("--tile-y", `${-row * current.tileH}px`);
 }
 
-export function hasPreview() {
-    return current !== null;
+/**
+ * Re-read mpv's current `path` and refresh the preview sprite accordingly.
+ * Call when the loaded file changes.
+ */
+export async function refreshCurrentVideo() {
+    try {
+        const path = await player.getPath();
+        await setCurrentVideo(path || null);
+    } catch {
+        await setCurrentVideo(null);
+    }
 }
 
 /**

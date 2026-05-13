@@ -25,14 +25,6 @@ pub struct PropertyChangeEvent {
     pub data: serde_json::Value,
 }
 
-/// Emitted on mpv errors.
-/// Event name: `mpv://error`
-#[derive(Debug, Clone, Serialize)]
-#[allow(dead_code)]
-pub struct MpvErrorEvent {
-    pub message: String,
-}
-
 // ---------------------------------------------------------------------------
 // C callback — called by libmpv-wrapper for every mpv event
 // ---------------------------------------------------------------------------
@@ -82,42 +74,11 @@ pub unsafe extern "C" fn event_callback(event: *const c_char, userdata: *mut c_v
                     .cloned()
                     .unwrap_or(serde_json::Value::Null);
 
-                // Keep SMTC in sync with mpv state
+                // Keep SMTC + watch-later/preview cache in sync with mpv state
                 match name.as_str() {
-                    "pause" => {
-                        let playing = data.as_bool().map(|b| !b).unwrap_or(false);
-                        crate::smtc::update_playback(&app, playing);
-                    }
-                    "filename" => {
-                        if let Some(title) = data.as_str() {
-                            crate::smtc::update_metadata(&app, title);
-
-                            // Save watch-later for the previous file, then persist new path.
-                            // Only when switching TO a file — during shutdown filename
-                            // goes null and the instance is already destroyed.
-                            let player = app.state::<std::sync::Arc<super::MpvPlayer>>();
-                            let _ = player.write_watch_later();
-                            if let Ok(val) = player.get_property("path", "string") {
-                                if let Some(path) = val.as_str() {
-                                    super::save_last_session(path);
-                                    crate::preview::request_preview(
-                                        &app,
-                                        std::path::Path::new(path),
-                                    );
-                                }
-                            }
-                        }
-                    }
-                    "duration" => {
-                        if let Some(duration) = data.as_f64() {
-                            let player = app.state::<std::sync::Arc<super::MpvPlayer>>();
-                            if let Ok(val) = player.get_property("path", "string") {
-                                if let Some(path) = val.as_str() {
-                                    super::save_duration(path, duration);
-                                }
-                            }
-                        }
-                    }
+                    "pause" => on_pause_change(&app, &data),
+                    "filename" => on_filename_change(&app, &data),
+                    "duration" => on_duration_change(&app, &data),
                     _ => {}
                 }
 
@@ -134,4 +95,48 @@ pub unsafe extern "C" fn event_callback(event: *const c_char, userdata: *mut c_v
             }
         }
     });
+}
+
+// ---------------------------------------------------------------------------
+// Per-property reactions — kept small and focused
+// ---------------------------------------------------------------------------
+
+fn on_pause_change(app: &AppHandle, data: &serde_json::Value) {
+    let playing = data.as_bool().map(|b| !b).unwrap_or(false);
+    crate::smtc::update_playback(app, playing);
+}
+
+/// When the loaded file changes: push title to SMTC, persist watch-later for
+/// the previous file, save the new path as last-session, and kick off preview
+/// sprite generation. Only fires for real filenames — during shutdown
+/// `filename` goes null and the mpv instance is already torn down.
+fn on_filename_change(app: &AppHandle, data: &serde_json::Value) {
+    let Some(title) = data.as_str() else {
+        return;
+    };
+    crate::smtc::update_metadata(app, title);
+
+    let player = app.state::<std::sync::Arc<super::MpvPlayer>>();
+    let _ = player.write_watch_later();
+    let Ok(val) = player.get_property("path", "string") else {
+        return;
+    };
+    let Some(path) = val.as_str() else {
+        return;
+    };
+    super::save_last_session(path);
+    crate::preview::request_preview(app, std::path::Path::new(path));
+}
+
+fn on_duration_change(app: &AppHandle, data: &serde_json::Value) {
+    let Some(duration) = data.as_f64() else {
+        return;
+    };
+    let player = app.state::<std::sync::Arc<super::MpvPlayer>>();
+    let Ok(val) = player.get_property("path", "string") else {
+        return;
+    };
+    if let Some(path) = val.as_str() {
+        super::save_duration(path, duration);
+    }
 }

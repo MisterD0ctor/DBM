@@ -1,5 +1,6 @@
 import * as player from "./player.js";
 import * as ui from "./ui/ui.js";
+import { closeOnOutsideClick } from "./utils/closeOnOutsideClick.js";
 
 // --- Populate from mpv -------------------------------------------------------
 
@@ -24,8 +25,4 @@ const btnPlaylist = document.getElementById("btn-playlist");
 
 btnPlaylist.onclick = () => ui.togglePlaylistMenu();
 
-document.addEventListener("click", (event) => {
-    if (!playlistMenu.contains(event.target) && !btnPlaylist.contains(event.target)) {
-        ui.togglePlaylistMenu(false);
-    }
-});
+closeOnOutsideClick(playlistMenu, btnPlaylist, () => ui.togglePlaylistMenu(false));

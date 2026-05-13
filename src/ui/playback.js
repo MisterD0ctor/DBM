@@ -3,19 +3,54 @@ import { parseTvShow } from "../utils/parse.js";
 import { setButtonIcon, setButtonTooltip } from "../utils/setButtonIcon.js";
 import { refreshToolbarOverflow } from "../utils/toolbarOverflow.js";
 import * as preview from "../preview.js";
+import { getVolumeIcon } from "../utils/getVolumeIcon.js";
 
-let duration;
+let duration = 0;
+let currentTime = 0;
+// Decimals shown by `time-current`, `time-total`, and the seek-tooltip. All
+// three use the same precision so the user sees consistent units. Driven by
+// `duration / seek-track width`: longer videos / wider tracks need fewer
+// decimals; short videos on a wide track need 1-2 for the tooltip to be
+// useful when scrubbing.
+let fractionDigits = 0;
+
+function recomputeFractionDigits() {
+    if (!Number.isFinite(duration) || duration <= 0) {
+        fractionDigits = 0;
+        return;
+    }
+    const width = document.getElementById("seek-track")?.getBoundingClientRect().width ?? 0;
+    if (width <= 0) {
+        fractionDigits = 0;
+        return;
+    }
+    const secondsPerPixel = duration / width;
+    fractionDigits = Math.max(0, Math.min(4, -Math.round(Math.log10(secondsPerPixel))));
+}
+
+function renderTime() {
+    document.getElementById("time-current").textContent = formatTime(currentTime, fractionDigits);
+    document.getElementById("time-total").textContent = formatTime(duration, fractionDigits);
+}
 
 export function setDuration(seconds) {
-    document.getElementById("time-total").textContent = formatTime(seconds);
     duration = seconds;
+    recomputeFractionDigits();
+    renderTime();
 
     const play = document.getElementById("btn-play");
     play.classList.toggle("disabled", seconds === 0);
 }
 
 export function setCurrentTime(seconds) {
-    document.getElementById("time-current").textContent = formatTime(seconds);
+    currentTime = seconds;
+    document.getElementById("time-current").textContent = formatTime(seconds, fractionDigits);
+}
+
+/** Recompute precision after the seek track's width may have changed. */
+export function refreshTimeDisplays() {
+    recomputeFractionDigits();
+    renderTime();
 }
 
 export function setProgress(percent) {
@@ -27,9 +62,6 @@ export function setProgress(percent) {
 
 export function setMediaTitle(filename) {
     filename = filename ?? "";
-
-    const playlistBtn = document.getElementById("btn-playlist");
-    playlistBtn.classList.toggle("hidden", filename === "");
 
     const mediaTitleEl = document.querySelector(".media-title");
     const titleEl = document.querySelector(".media-title .title");
@@ -69,10 +101,7 @@ export function setMediaTitle(filename) {
         episodeTitleEl.classList.toggle("hidden", true);
     }
 
-    mediaTitleEl.classList.toggle(
-        "overflowing",
-        mediaTitleEl.scrollWidth > mediaTitleEl.clientWidth,
-    );
+    mediaTitleEl.classList.toggle("overflowing", mediaTitleEl.scrollWidth > mediaTitleEl.clientWidth);
     refreshToolbarOverflow();
 }
 
@@ -108,8 +137,7 @@ function refreshEndOfPlayback() {
     const label = popup?.querySelector("span");
     const img = popup?.querySelector("img");
     if (label) label.textContent = isLastVideo ? "Restart" : "Next";
-    if (img)
-        img.src = isLastVideo ? "assets/icons/rotate-left.svg" : "assets/icons/step-forward.svg";
+    if (img) img.src = isLastVideo ? "assets/icons/rotate-left.svg" : "assets/icons/step-forward.svg";
 
     // Seek forward at EOF can wedge mpv — disable the button while ended.
     const seekForward = document.getElementById("btn-seek-forward");
@@ -155,7 +183,7 @@ export function showActionOverlay(action, text = "", position = undefined) {
         case "mute-off":      icon.src = "assets/icons/volume.svg";            break;
         case "subtitles-on":  icon.src = "assets/icons/subtitles-solid.svg";   break;
         case "subtitles-off": icon.src = "assets/icons/subtitles-slash.svg";   break;
-        case "volume":        icon.src = "assets/icons/volume.svg";            break;
+        case "volume":        icon.src = getVolumeIcon(text);                  break;
         default: return;
     }
 
@@ -185,25 +213,16 @@ export function setSeekTooltip(isShown, clientX) {
         const seekTrack = document.getElementById("seek-track");
         const rect = seekTrack.getBoundingClientRect();
         const rectX = Math.max(0, clientX - rect.left);
-        const fraction = rectX / rect.width ?? 0;
+        const fraction = rect.width > 0 ? rectX / rect.width : 0;
         const timeSeconds = duration * fraction;
 
         preview.showAtFraction(fraction);
-
-        const secondsPerPixel = duration / rect.width ?? 0;
-        const fractionDigits = Math.max(
-            0,
-            Math.min(4, -Math.round(Math.log10(secondsPerPixel)) ?? 0),
-        );
 
         timeEl.querySelector(".tooltip-text").textContent = formatTime(timeSeconds, fractionDigits);
         document.documentElement.style.setProperty("--seek-tooltip-pos", `${rectX}px`);
     } else {
         seekTimeTooltipTimes.push(
-            setTimeout(
-                () => document.documentElement.style.setProperty("--seek-tooltip-pos", `${0}px`),
-                200,
-            ),
+            setTimeout(() => document.documentElement.style.setProperty("--seek-tooltip-pos", `${0}px`), 200),
         );
     }
 }

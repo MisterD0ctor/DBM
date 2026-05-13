@@ -17,30 +17,30 @@ export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable
     const menu = document.getElementById("tracks-subtitle");
     menu.innerHTML = "";
 
-    const noneItem = createTrackMenuItem("Off", "no", () => {
-        onDisable();
-        toggleTrackListMenu(false);
-    });
+    const noneItem = createTrackMenuItem(
+        "Off",
+        "no",
+        () => {
+            onDisable();
+            toggleTrackListMenu(false);
+        },
+        "assets/icons/subtitles-slash.svg",
+    );
     menu.appendChild(noneItem);
 
     populateTrackMenu(menu, subtitleTrackList, onSelect);
 
     if (onOpen) {
-        const openItem = document.createElement("div");
-        openItem.className = "menu-item subtitle-open";
-        openItem.onclick = () => {
-            onOpen();
-            toggleTrackListMenu(false);
-        };
-        const highlight = document.createElement("div");
-        highlight.classList.add("highlight");
-        const titleEl = document.createElement("span");
-        titleEl.classList.add("title");
-        titleEl.textContent = "Open subtitle file…";
-        const icon = document.createElement("img");
-        icon.src = "assets/icons/folder-open.svg";
-        icon.alt = "Open";
-        openItem.append(highlight, titleEl, icon);
+        const openItem = createTrackMenuItem(
+            "Open subtitle file…",
+            "open",
+            () => {
+                onOpen();
+                toggleTrackListMenu(false);
+            },
+            "assets/icons/folder-open.svg",
+        );
+
         menu.appendChild(openItem);
     }
 }
@@ -63,7 +63,7 @@ function populateTrackMenu(menu, trackList, onSelect) {
     resizeTrackListMenus();
 }
 
-function createTrackMenuItem(title, id, onSelect) {
+function createTrackMenuItem(title, id, onSelect, iconSrc = null) {
     const item = document.createElement("div");
     const activeHighlight = document.createElement("div");
     activeHighlight.classList.add("highlight");
@@ -76,7 +76,14 @@ function createTrackMenuItem(title, id, onSelect) {
         toggleTrackListMenu(false);
     };
     titleEl.textContent = title;
+
     item.appendChild(activeHighlight);
+    if (iconSrc) {
+        const iconEl = document.createElement("img");
+        iconEl.src = iconSrc;
+        iconEl.alt = "Icon";
+        item.appendChild(iconEl);
+    }
     item.appendChild(titleEl);
     return item;
 }
@@ -86,10 +93,21 @@ function createTrackMenuItem(title, id, onSelect) {
 let activeSubtitleId = "1";
 let subtitleVisibility = false;
 
+function hasSubtitleSelected() {
+    const id = String(activeSubtitleId ?? "");
+    return id !== "" && id !== "no" && id !== "auto";
+}
+
+function updateSubtitleButtonIcon() {
+    const on = subtitleVisibility && hasSubtitleSelected();
+    setButtonIcon("btn-tracks", on ? "assets/icons/subtitles-solid.svg" : "assets/icons/subtitles.svg");
+}
+
 export function setActiveSubtitleTrackID(id) {
     activeSubtitleId = id;
     const menu = document.getElementById("tracks-subtitle");
     setActiveTrackID(menu, id);
+    updateSubtitleButtonIcon();
 }
 
 export function setActiveAudioTrackID(id) {
@@ -111,11 +129,7 @@ export function setSubtitleVisibility(visible) {
     } else {
         setActiveTrackID(menu, "no");
     }
-
-    setButtonIcon(
-        "btn-tracks",
-        visible ? "assets/icons/subtitles-solid.svg" : "assets/icons/subtitles.svg",
-    );
+    updateSubtitleButtonIcon();
 }
 
 // --- Resize ------------------------------------------------------------------

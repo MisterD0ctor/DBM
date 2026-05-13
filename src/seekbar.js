@@ -1,12 +1,6 @@
 import * as player from "./player.js";
 import * as ui from "./ui/ui.js";
 
-let duration = 0;
-
-export function setDuration(d) {
-    duration = d;
-}
-
 // --- Scrubbing ---------------------------------------------------------------
 
 const seekTrack = document.getElementById("seek-track");

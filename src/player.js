@@ -63,10 +63,6 @@ export async function changeVolume(delta) {
     return setVolume(Math.max(0, Math.min(150, current + delta)));
 }
 
-export function setSpeed(speed) {
-    return invoke("set_property", { name: "speed", value: speed });
-}
-
 // ---------------------------------------------------------------------------
 // Playlist navigation
 // ---------------------------------------------------------------------------
@@ -102,10 +98,6 @@ export function getProperty(name, format = "string") {
 /** @returns {Promise<boolean>} */
 export function getPause() {
     return invoke("get_property", { name: "pause", format: "flag" });
-}
-/** @param {boolean} paused */
-export function setPause(paused) {
-    return invoke("set_property", { name: "pause", value: paused });
 }
 
 /** @returns {Promise<boolean>} */
@@ -243,17 +235,6 @@ export function onPreviewReady(callback) {
  */
 export function onPropertyChange(callback) {
     return listen("mpv://property", (event) => callback(event.payload));
-}
-
-/**
- * Subscribe to file-end events.
- * Callback receives `{ reason: string }` — "eof" | "stop" | "error".
- *
- * @param {(event: {reason: string}) => void} callback
- * @returns {Promise<() => void>} unlisten function
- */
-export function onFileEnd(callback) {
-    return listen("mpv://file-end", (event) => callback(event.payload));
 }
 
 /**

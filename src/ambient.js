@@ -1,5 +1,6 @@
 import * as player from "./player.js";
 import * as ui from "./ui/ui.js";
+import { closeOnOutsideClick } from "./utils/closeOnOutsideClick.js";
 
 /**
  * Parameter definitions mirror the //!PARAM headers in
@@ -51,6 +52,12 @@ export async function toggleAmbient(force) {
         .catch((err) => console.warn("toggle ambient:", err));
     persistParams();
     return enabled;
+}
+
+/** Sync UI + saved params with the current value of mpv's `border-background`. */
+export function applyState(borderBackground) {
+    ui.toggleAmbient(borderBackground === "shader");
+    persistParams();
 }
 
 function buildSliders() {
@@ -129,11 +136,7 @@ export async function initAmbientMenu() {
         toggleAmbient();
     });
 
-    document.addEventListener("click", (e) => {
-        if (!menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
-            ui.toggleAmbientMenu(false);
-        }
-    });
+    closeOnOutsideClick(menu, btn, () => ui.toggleAmbientMenu(false));
 
     // Push initial param values so the shader matches the UI state.
     pushOptions();

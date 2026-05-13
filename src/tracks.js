@@ -1,5 +1,6 @@
 import * as player from "./player.js";
 import * as ui from "./ui/ui.js";
+import { closeOnOutsideClick } from "./utils/closeOnOutsideClick.js";
 
 // --- Populate from mpv -------------------------------------------------------
 
@@ -35,11 +36,7 @@ const btnTracks = document.getElementById("btn-tracks");
 
 btnTracks.onclick = () => ui.toggleTrackListMenu();
 
-document.addEventListener("click", (event) => {
-    if (!tracksMenu.contains(event.target) && !btnTracks.contains(event.target)) {
-        ui.toggleTrackListMenu(false);
-    }
-});
+closeOnOutsideClick(tracksMenu, btnTracks, () => ui.toggleTrackListMenu(false));
 
 // --- Observe window size changes ---------------------------------------------
 

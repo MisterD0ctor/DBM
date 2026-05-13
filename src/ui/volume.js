@@ -1,13 +1,11 @@
 import { setButtonIcon, setButtonTooltip } from "../utils/setButtonIcon.js";
+import { getVolumeIcon } from "../utils/getVolumeIcon.js";
 
 let state = { isMuted: false, volume: 100 };
 
 export function setMute(isMuted) {
     state.isMuted = isMuted;
-    setButtonIcon(
-        "btn-mute",
-        isMuted ? "assets/icons/volume-mute.svg" : getVolumeIcon(state.volume),
-    );
+    setButtonIcon("btn-mute", isMuted ? "assets/icons/volume-mute.svg" : getVolumeIcon(state.volume));
     setButtonTooltip("btn-mute", isMuted ? "Unmute" : "Mute");
     document.getElementById("volume-group").classList.toggle("muted", isMuted);
 }
@@ -23,17 +21,5 @@ export function setVolume(volume) {
 
     if (!state.isMuted) {
         setButtonIcon("btn-mute", getVolumeIcon(volume));
-    }
-}
-
-function getVolumeIcon(volume) {
-    if (volume > 133) {
-        return "assets/icons/volume-up.svg";
-    } else if (volume > 66) {
-        return "assets/icons/volume.svg";
-    } else if (volume > 0) {
-        return "assets/icons/volume-down.svg";
-    } else {
-        return "assets/icons/volume-none.svg";
     }
 }

@@ -182,7 +182,6 @@ const OBSERVED_PROPERTIES: &[(&str, &str)] = &[
     ("pause", "flag"),
     ("mute", "flag"),
     ("volume", "double"),
-    ("speed", "double"),
     ("eof-reached", "flag"),
     ("panscan", "double"),
     ("sid", "string"),

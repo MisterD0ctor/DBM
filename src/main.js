@@ -1,9 +1,7 @@
-const { getCurrentWebview } = window.__TAURI__.webview;
 const { listen } = window.__TAURI__.event;
 import * as player from "./player.js";
 import * as ui from "./ui/ui.js";
 import * as ambient from "./ambient.js";
-import * as seekbar from "./seekbar.js";
 import * as tracks from "./tracks.js";
 import * as playlist from "./playlist.js";
 import * as preview from "./preview.js";
@@ -11,8 +9,12 @@ import { enableSliderScroll } from "./utils/sliderScroll.js";
 import { initToolbarOverflow } from "./utils/toolbarOverflow.js";
 
 // Side-effect imports — these register their own event listeners on import
+import "./seekbar.js";
 import "./overlay.js";
 import "./controls.js";
+import "./openMenu.js";
+import "./endOfPlayback.js";
+import "./dragDrop.js";
 
 enableSliderScroll();
 initToolbarOverflow();
@@ -43,10 +45,10 @@ function updateProperty(name, data) {
     switch (name) {
     case "time-pos":          ui.setCurrentTime(data);                     break;
     case "percent-pos":       ui.setProgress(data);                        break;
-    case "duration":          ui.setDuration(data);        
-                              seekbar.setDuration(data);                   break;
+    case "duration":          ui.setDuration(data);                        break;
     case "filename":          ui.setMediaTitle(data);
-                              updateCurrentVideoPath();                    break;
+                              ui.setPlaylistButtonVisible(!!data);
+                              preview.refreshCurrentVideo();               break;
     case "pause":             ui.setPause(data);
                               ui.setActivePlaylistItem(playlistPos, data); break;
     case "mute":              ui.setMute(data);                            break;
@@ -55,8 +57,7 @@ function updateProperty(name, data) {
     case "sid":               ui.setActiveSubtitleTrackID(data);           break;
     case "aid":               ui.setActiveAudioTrackID(data);              break;
     case "sub-visibility":    ui.setSubtitleVisibility(data);              break;
-    case "border-background": ui.toggleAmbient(data === "shader"); 
-                              ambient.persistParams();                     break;
+    case "border-background": ambient.applyState(data);                    break;
     case "eof-reached":       ui.setEndOfPlayback(data);                   break;
     case "track-list/count":  tracks.populateTrackListMenu();              break;
     case "playlist-pos":      playlistPos = data;
@@ -67,15 +68,6 @@ function updateProperty(name, data) {
                               ui.setPlaylistNav(playlistPos, playlistCount);
                               ui.setIsLastVideo(playlistPos >= playlistCount - 1); break;
     default:                  console.warn("Unhandled property:", name);
-    }
-}
-
-async function updateCurrentVideoPath() {
-    try {
-        const path = await player.getPath();
-        preview.setCurrentVideo(path || null);
-    } catch {
-        preview.setCurrentVideo(null);
     }
 }
 
@@ -116,21 +108,12 @@ ambient.initAmbientMenu();
 listen("tauri://resize", () => {
     player.getPercentPos().then((percentPos) => ui.setProgress(percentPos));
     ui.updateMediaTitleOverflow();
+    ui.refreshTimeDisplays();
 });
 
 listen("tauri://open-file", (event) => {
     if (event.payload) {
         player.loadVideo(event.payload);
-    }
-});
-
-// --- Drag & drop --------------------------------------------------------------
-
-getCurrentWebview().onDragDropEvent((event) => {
-    if (event.payload.type !== "drop") return;
-    const videoPath = event.payload.paths[0]?.toString();
-    if (videoPath) {
-        player.loadVideo(videoPath);
     }
 });
 

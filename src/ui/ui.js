@@ -10,6 +10,7 @@ export {
     setSeekTooltip,
     setSeekHighlight,
     showActionOverlay,
+    refreshTimeDisplays,
 } from "./playback.js";
 
 export {
@@ -34,4 +35,9 @@ export {
 
 export { setMute, setVolume } from "./volume.js";
 
-export { togglePlaylistMenu, populatePlaylistMenu, setActivePlaylistItem } from "./playlist.js";
+export {
+    togglePlaylistMenu,
+    populatePlaylistMenu,
+    setActivePlaylistItem,
+    setPlaylistButtonVisible,
+} from "./playlist.js";

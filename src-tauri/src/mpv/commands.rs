@@ -29,13 +29,11 @@ pub fn toggle_pause(player: State<Arc<MpvPlayer>>) -> MpvResult<()> {
     if !player.is_file_loaded() {
         return Ok(());
     }
-    let paused = player.get_property("pause", "flag")?;
-    let is_paused = paused.as_bool().unwrap_or(false);
-    if is_paused {
-        player.set_property_raw("pause", "no")
-    } else {
-        player.set_property_raw("pause", "yes")
-    }
+    let is_paused = player
+        .get_property("pause", "flag")?
+        .as_bool()
+        .unwrap_or(false);
+    player.set_property_raw("pause", if is_paused { "no" } else { "yes" })
 }
 
 #[tauri::command]

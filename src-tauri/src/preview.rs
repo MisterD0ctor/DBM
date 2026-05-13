@@ -9,6 +9,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
@@ -28,7 +29,26 @@ const TILE_PARALLELISM: usize = 8;
 
 static ACTIVE_JOB: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
 static ACTIVE_CHILDREN: Lazy<Mutex<Vec<Child>>> = Lazy::new(|| Mutex::new(Vec::new()));
-static SHUTTING_DOWN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
+
+/// Bumped on every `request_preview` call. Worker threads capture their own
+/// generation at spawn time and check `is_alive(my_gen)` at every step — once
+/// the global generation moves past, the worker bails so it doesn't keep
+/// spawning ffmpegs for a video the user is no longer interested in.
+static JOB_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+fn is_alive(my_gen: u64) -> bool {
+    !SHUTTING_DOWN.load(Ordering::Relaxed) && JOB_GENERATION.load(Ordering::Relaxed) == my_gen
+}
+
+/// Kill every ffmpeg child currently tracked. Used both when a new job
+/// supersedes an in-flight one, and at app shutdown.
+fn kill_active_children() {
+    let mut children = std::mem::take(&mut *ACTIVE_CHILDREN.lock().unwrap());
+    for child in &mut children {
+        let _ = child.kill();
+    }
+}
 
 #[derive(serde::Serialize, Clone)]
 pub struct PreviewReady {
@@ -181,12 +201,16 @@ fn cmd_no_window(path: &Path) -> Command {
     Command::new(path)
 }
 
-/// Spawn ffmpeg, register it in ACTIVE_CHILDREN so shutdown() can kill it,
-/// then wait. Returns captured stderr + exit status. Poll-based so shutdown's
-/// kill isn't blocked on a long wait, and so multiple workers can coexist.
-fn run_tracked(mut cmd: Command) -> Result<(std::process::ExitStatus, Vec<u8>), String> {
-    if SHUTTING_DOWN.load(std::sync::atomic::Ordering::Relaxed) {
-        return Err("shutting down".into());
+/// Spawn ffmpeg, register it in ACTIVE_CHILDREN so shutdown() or a superseding
+/// request can kill it, then wait. Returns captured stderr + exit status.
+/// Poll-based so kill isn't blocked on a long wait, and so multiple workers
+/// can coexist.
+fn run_tracked(
+    mut cmd: Command,
+    my_gen: u64,
+) -> Result<(std::process::ExitStatus, Vec<u8>), String> {
+    if !is_alive(my_gen) {
+        return Err("superseded".into());
     }
 
     cmd.stdout(Stdio::null()).stderr(Stdio::piped());
@@ -206,10 +230,10 @@ fn run_tracked(mut cmd: Command) -> Result<(std::process::ExitStatus, Vec<u8>), 
     });
 
     // Poll try_wait so we don't hold the mutex across a blocking wait — other
-    // workers and shutdown() need access to the children vec.
+    // workers and the kill paths need access to the children vec.
     let status = loop {
-        if SHUTTING_DOWN.load(std::sync::atomic::Ordering::Relaxed) {
-            return Err("shutting down".into());
+        if !is_alive(my_gen) {
+            return Err("superseded".into());
         }
         let poll = {
             let mut guard = ACTIVE_CHILDREN.lock().unwrap();
@@ -239,6 +263,7 @@ fn extract_tile(
     tile_w: u32,
     tile_h: u32,
     out: &Path,
+    my_gen: u64,
 ) -> Result<(), String> {
     // Tile width is computed from the source DAR, so a straight scale to
     // tile_w × tile_h produces a frame with the source's exact aspect — no
@@ -272,7 +297,7 @@ fn extract_tile(
         .arg("5")
         .arg(out);
 
-    let (status, stderr) = run_tracked(cmd)?;
+    let (status, stderr) = run_tracked(cmd, my_gen)?;
     if !status.success() {
         let msg = String::from_utf8_lossy(&stderr);
         return Err(format!(
@@ -284,11 +309,11 @@ fn extract_tile(
     Ok(())
 }
 
-fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<u32, String> {
+fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path, my_gen: u64) -> Result<u32, String> {
     // 1. Probe duration + display aspect ratio.
     let mut probe_cmd = cmd_no_window(ffmpeg);
     probe_cmd.arg("-hide_banner").arg("-i").arg(video);
-    let (_status, probe_stderr) = run_tracked(probe_cmd)?;
+    let (_status, probe_stderr) = run_tracked(probe_cmd, my_gen)?;
     let stderr = String::from_utf8_lossy(&probe_stderr);
     let duration = parse_duration_seconds(&stderr)
         .ok_or_else(|| format!("could not parse duration from ffmpeg output: {stderr}"))?;
@@ -342,13 +367,13 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<u32, String>
             let tile_dir = tile_dir.clone();
             std::thread::spawn(move || -> Result<(), String> {
                 loop {
-                    if SHUTTING_DOWN.load(std::sync::atomic::Ordering::Relaxed) {
-                        return Err("shutting down".into());
+                    if !is_alive(my_gen) {
+                        return Err("superseded".into());
                     }
                     let next = rx.lock().unwrap().recv();
                     let Ok((idx, ts)) = next else { return Ok(()) };
                     let out = tile_dir.join(format!("tile-{idx:04}.jpg"));
-                    extract_tile(&ffmpeg, &video, ts, tile_w, TILE_H, &out)?;
+                    extract_tile(&ffmpeg, &video, ts, tile_w, TILE_H, &out, my_gen)?;
                 }
             })
         })
@@ -395,7 +420,7 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<u32, String>
         .arg("5")
         .arg(sprite);
 
-    let (status, _stderr) = run_tracked(compose_cmd)?;
+    let (status, _stderr) = run_tracked(compose_cmd, my_gen)?;
     if !status.success() {
         let _ = std::fs::remove_file(sprite);
         return Err(format!("ffmpeg compose exited with {status}"));
@@ -419,11 +444,10 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path) -> Result<u32, String>
 /// Kill any running ffmpeg children. Called from the app's close handler so
 /// background preview jobs don't outlive the process.
 pub fn shutdown() {
-    SHUTTING_DOWN.store(true, std::sync::atomic::Ordering::Relaxed);
+    SHUTTING_DOWN.store(true, Ordering::Relaxed);
+    kill_active_children();
+    // Drain any children that may have been added between the take and now.
     let mut children = std::mem::take(&mut *ACTIVE_CHILDREN.lock().unwrap());
-    for child in &mut children {
-        let _ = child.kill();
-    }
     for child in &mut children {
         let _ = child.wait();
     }
@@ -431,11 +455,11 @@ pub fn shutdown() {
 
 /// Queue a preview-generation job for `video_path`. If a sprite is already
 /// cached, we emit the ready event immediately and skip ffmpeg. Otherwise we
-/// spawn a worker thread. Only one job runs at a time; newer requests
-/// supersede older ones (the older job still finishes but its result is
-/// ignored by the frontend because the event carries the file path).
+/// spawn a worker thread. Switching videos fast cancels the previous job:
+/// its ffmpeg children are killed and the worker bails when it notices the
+/// generation has moved on, so the queue doesn't pile up.
 pub fn request_preview(app: &AppHandle, video_path: &Path) {
-    if SHUTTING_DOWN.load(std::sync::atomic::Ordering::Relaxed) {
+    if SHUTTING_DOWN.load(Ordering::Relaxed) {
         return;
     }
 
@@ -455,6 +479,12 @@ pub fn request_preview(app: &AppHandle, video_path: &Path) {
         *active = Some(path_str.clone());
     }
 
+    // Bump the generation and kill any in-flight ffmpeg children. The previous
+    // worker's `is_alive(prev_gen)` will now return false and it will exit at
+    // its next checkpoint.
+    let my_gen = JOB_GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
+    kill_active_children();
+
     let Some(ffmpeg) = ffmpeg_path(app) else {
         log::warn!("ffmpeg sidecar not found, skipping preview generation");
         *ACTIVE_JOB.lock().unwrap() = None;
@@ -464,9 +494,9 @@ pub fn request_preview(app: &AppHandle, video_path: &Path) {
     let app = app.clone();
     let video = video_path.to_path_buf();
     std::thread::spawn(move || {
-        let result = run_ffmpeg(&ffmpeg, &video, &sprite);
+        let result = run_ffmpeg(&ffmpeg, &video, &sprite, my_gen);
         match result {
-            Ok(tile_w) => {
+            Ok(tile_w) if is_alive(my_gen) => {
                 let _ = app.emit(
                     "preview://ready",
                     PreviewReady {
@@ -478,7 +508,8 @@ pub fn request_preview(app: &AppHandle, video_path: &Path) {
                     },
                 );
             }
-            Err(e) => log::warn!("preview generation failed for {}: {}", video.display(), e),
+            Ok(_) => { /* finished but superseded — sprite is cached for next time */ }
+            Err(e) => log::debug!("preview generation stopped for {}: {}", video.display(), e),
         }
         let mut active = ACTIVE_JOB.lock().unwrap();
         if active.as_deref() == Some(path_str.as_str()) {
