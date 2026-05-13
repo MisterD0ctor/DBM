@@ -17,15 +17,10 @@ export function populateSubtitleTrackMenu(subtitleTrackList, onSelect, onDisable
     const menu = document.getElementById("tracks-subtitle");
     menu.innerHTML = "";
 
-    const noneItem = createTrackMenuItem(
-        "Off",
-        "no",
-        () => {
-            onDisable();
-            toggleTrackListMenu(false);
-        },
-        "assets/icons/subtitles-slash.svg",
-    );
+    const noneItem = createTrackMenuItem("Off", "no", () => {
+        onDisable();
+        toggleTrackListMenu(false);
+    });
     menu.appendChild(noneItem);
 
     populateTrackMenu(menu, subtitleTrackList, onSelect);
@@ -100,7 +95,10 @@ function hasSubtitleSelected() {
 
 function updateSubtitleButtonIcon() {
     const on = subtitleVisibility && hasSubtitleSelected();
-    setButtonIcon("btn-tracks", on ? "assets/icons/subtitles-solid.svg" : "assets/icons/subtitles.svg");
+    setButtonIcon(
+        "btn-tracks",
+        on ? "assets/icons/subtitles-solid.svg" : "assets/icons/subtitles.svg",
+    );
 }
 
 export function setActiveSubtitleTrackID(id) {

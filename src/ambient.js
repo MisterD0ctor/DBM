@@ -8,8 +8,8 @@ import { closeOnOutsideClick } from "./utils/closeOnOutsideClick.js";
  */
 const AMBIENT_PARAMS = [
     { name: "edge_blur", label: "Edge blur", min: 0, max: 0.1, step: 0.001, value: 0.01 },
-    { name: "spread", label: "Spread", min: 0.01, max: 2, step: 0.01, value: 1.0 },
-    { name: "falloff", label: "Falloff", min: 0, max: 10, step: 0.1, value: 4 },
+    { name: "spread", label: "Spread", min: 0.001, max: 2, step: 0.01, value: 1.0 },
+    { name: "falloff", label: "Falloff", min: 0.001, max: 10, step: 0.1, value: 4 },
     { name: "falloff_softness", label: "Falloff softness", min: 0, max: 2, step: 0.01, value: 0.2 },
 ];
 
@@ -71,7 +71,8 @@ function buildSliders() {
         const fromSlider = (v) => param.min + v * (param.max - param.min);
 
         const row = document.createElement("div");
-        row.className = "ambient-row";
+        row.className = "menu-item ambient-row";
+        row.setAttribute("data-slider-wrap", "");
         row.innerHTML = `
             <div class="ambient-row-head">
                 <span class="ambient-row-label">${param.label}</span>
@@ -104,6 +105,31 @@ function buildSliders() {
             pushOptions();
             persistParams();
         });
+
+        // Let the whole row act as the slider: clicking/dragging anywhere on
+        // .ambient-row updates the slider's value based on horizontal pointer
+        // position. The value is computed against the slider's own rect so the
+        // visual thumb position matches the click.
+        const setFromPointer = (clientX) => {
+            const rect = slider.getBoundingClientRect();
+            if (rect.width <= 0) return;
+            const v = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+            slider.value = v;
+            slider.dispatchEvent(new Event("input", { bubbles: true }));
+        };
+        const onMove = (e) => setFromPointer(e.clientX);
+        const onUp = () => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+        };
+        row.addEventListener("pointerdown", (e) => {
+            if (e.button !== 0) return;
+            e.preventDefault();
+            setFromPointer(e.clientX);
+            window.addEventListener("pointermove", onMove);
+            window.addEventListener("pointerup", onUp);
+        });
+
         container.appendChild(row);
     }
 }

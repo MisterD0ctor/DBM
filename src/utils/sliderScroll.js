@@ -7,7 +7,13 @@ export function enableSliderScroll() {
     document.addEventListener(
         "wheel",
         (event) => {
-            const slider = event.target.closest?.('input[type="range"]');
+            // Direct hit on a slider, or wheel anywhere inside an element
+            // marked as a slider wrapper (data-slider-wrap).
+            const slider =
+                event.target.closest?.('input[type="range"]') ??
+                event.target
+                    .closest?.("[data-slider-wrap]")
+                    ?.querySelector('input[type="range"]');
             if (!slider || slider.disabled) return;
 
             event.preventDefault();

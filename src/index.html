@@ -121,7 +121,14 @@
                                     <span class="shortcut">M</span>
                                 </div>
                             </button>
-                            <input id="volume-slider" type="range" min="0" max="200" value="100" step="2" />
+                            <input
+                                id="volume-slider"
+                                type="range"
+                                min="0"
+                                max="200"
+                                value="100"
+                                step="2"
+                            />
                             <div class="tooltip" id="volume-tooltip">
                                 <span id="volume-display">100</span>
                                 <span id="volume-percent">%</span>
@@ -160,7 +167,7 @@
                 <div id="playlist-menu" class="menu hidden">
                     <div class="menu-heading">
                         <img src="assets/icons/playlist.svg" alt="Playlist" />
-                        <span>Playlist</span>
+                        <span class="title">Playlist</span>
                     </div>
                     <div id="playlist-items"></div>
                 </div>
@@ -180,24 +187,26 @@
 
                 <div id="ambient-menu" class="menu hidden">
                     <button id="ambient-toggle" class="menu-item">
-                        <span>OLED saver</span>
+                        <img src="assets/icons/bulb.svg" alt="Parameters" />
+                        <span class="text">OLED saver</span>
                         <span class="ambient-toggle">
                             <span class="ambient-toggle-knob"></span>
                         </span>
                     </button>
+                    <div class="menu-divider"></div>
                     <div class="ambient-sliders"></div>
                 </div>
 
                 <div id="tracks-menu" class="menu hidden">
                     <div class="menu-heading">
                         <img src="assets/icons/subtitles.svg" alt="Subtitles" />
-                        <span>Subtitles</span>
+                        <span class="title">Subtitles</span>
                     </div>
                     <div id="tracks-subtitle" class="tracks-list"></div>
                     <div class="menu-divider"></div>
                     <div class="menu-heading">
-                        <img src="assets/icons/volume-up.svg" alt="Audio" />
-                        <span>Audio</span>
+                        <img src="assets/icons/speaking.svg" alt="Audio" />
+                        <span class="title">Audio</span>
                     </div>
                     <div id="tracks-audio" class="tracks-list"></div>
                 </div>
