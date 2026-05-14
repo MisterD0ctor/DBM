@@ -15,7 +15,7 @@
 //!DESC grain amount
 //!TYPE float
 //!MINIMUM 0.0
-256.0
+128.0
 
 //!PARAM falloff
 //!DESC light falloff
@@ -104,7 +104,6 @@ float light_spread_bound(float d) {
     
     float u = (v - 1.0) / k;
     return sqrt(max(u*u - d*d, 0.0));
-    // return abs(d) * spread * 4;
 }
 
 float distance_falloff(float x) {
@@ -123,7 +122,7 @@ float soft_distance_falloff(float x) {
 }
 
 float spread_falloff(float x, float d) {
-    return d / length(vec2(x, d * spread));
+    return d * spread / length(vec2(x, d * spread));
 }
 
 float light_weight(float x, float d) {

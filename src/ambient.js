@@ -33,6 +33,8 @@ function pushOptions() {
                 pushOptions();
             }
         });
+
+    drawPreviews();
 }
 
 export async function persistParams() {
@@ -70,25 +72,28 @@ function buildSliders() {
         const toSlider = (v) => (v - param.min) / (param.max - param.min);
         const fromSlider = (v) => param.min + v * (param.max - param.min);
 
-        const row = document.createElement("div");
-        row.className = "menu-item ambient-row";
-        row.setAttribute("data-slider-wrap", "");
-        row.innerHTML = `
-            <div class="ambient-row-head">
-                <span class="ambient-row-label">${param.label}</span>
-                <span class="ambient-row-value"></span>
+        const item = document.createElement("div");
+        item.className = "menu-item";
+        item.setAttribute("data-slider-wrap", "");
+        item.innerHTML = `
+            <canvas class="ambient-slider-preview" id="${param.name}" width="24px" height="24px"></canvas>
+            <div class="ambient-row">
+                <div class="ambient-row-head">
+                    <span class="ambient-row-label">${param.label}</span>
+                    <span class="ambient-row-value"></span>
+                </div>
+                <input
+                    class="ambient-slider"
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value="${toSlider(param.value)}"
+                />
             </div>
-            <input
-                class="ambient-slider"
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                value="${toSlider(param.value)}"
-            />
         `;
-        const slider = row.querySelector("input");
-        const valueEl = row.querySelector(".ambient-row-value");
+        const slider = item.querySelector("input");
+        const valueEl = item.querySelector(".ambient-row-value");
         const setProgressVar = (v) => {
             slider.style.setProperty("--slider-progress", `${v * 100}%`);
         };
@@ -122,7 +127,7 @@ function buildSliders() {
             window.removeEventListener("pointermove", onMove);
             window.removeEventListener("pointerup", onUp);
         };
-        row.addEventListener("pointerdown", (e) => {
+        item.addEventListener("pointerdown", (e) => {
             if (e.button !== 0) return;
             e.preventDefault();
             setFromPointer(e.clientX);
@@ -130,7 +135,7 @@ function buildSliders() {
             window.addEventListener("pointerup", onUp);
         });
 
-        container.appendChild(row);
+        container.appendChild(item);
     }
 }
 
@@ -166,4 +171,117 @@ export async function initAmbientMenu() {
 
     // Push initial param values so the shader matches the UI state.
     pushOptions();
+}
+
+function drawPreviews() {
+    drawEdgeBlurPreview();
+    drawSpreadPreview();
+    drawFalloffPreview();
+    drawFalloffSoftnessPreview();
+}
+
+function drawEdgeBlurPreview() {
+    const param = AMBIENT_PARAMS[0];
+    const canvas = document.getElementById(param.name);
+    if (!(canvas instanceof HTMLCanvasElement)) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const width = canvas.width;
+    const height = canvas.height;
+    const size = Math.max(width, height);
+    const centerY = height / 2;
+    ctx.clearRect(0, 0, width, height);
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const dy = y - centerY;
+            const weight = Math.max(0, gaussianFalloff((dy / size) * 0.5, param.value + 0.01));
+            ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0, weight)})`;
+            ctx.fillRect(x, y, 1, 1);
+        }
+    }
+}
+
+function drawSpreadPreview() {
+    const param = AMBIENT_PARAMS[1];
+    const canvas = document.getElementById(param.name);
+    if (!(canvas instanceof HTMLCanvasElement)) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const width = canvas.width;
+    const height = canvas.height;
+    const size = Math.max(width, height);
+    const centerY = height / 2;
+    ctx.clearRect(0, 0, width, height);
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const dy = y - centerY;
+            const weight =
+                spreadFalloffWeight(dy, x, param.value) * distanceFalloff(Math.hypot(x, dy) / size);
+            ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0, weight)})`;
+            ctx.fillRect(x, y, 1, 1);
+        }
+    }
+}
+
+function drawFalloffPreview() {
+    const param = AMBIENT_PARAMS[2];
+    const canvas = document.getElementById(param.name);
+    if (!(canvas instanceof HTMLCanvasElement)) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const width = canvas.width;
+    const height = canvas.height;
+    const size = Math.max(width, height);
+    const centerX = width / 2;
+    const centerY = height / 2;
+    ctx.clearRect(0, 0, width, height);
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const weight = distanceFalloff((x / size) * param.value);
+            ctx.fillStyle = `rgba(255, 255, 255, ${Math.max(0, weight)})`;
+            ctx.fillRect(x, y, 1, 1);
+        }
+    }
+}
+
+function drawFalloffSoftnessPreview() {
+    const param = AMBIENT_PARAMS[3];
+    const canvas = document.getElementById(param.name);
+    if (!(canvas instanceof HTMLCanvasElement)) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const width = canvas.width;
+    const height = canvas.height;
+    const size = Math.max(width, height);
+    ctx.clearRect(0, 0, width, height);
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const weight = softDistanceFalloff((x / size) * 2, param.value);
+            ctx.fillStyle = `rgba(255, 255, 255, ${weight})`;
+            ctx.fillRect(x, y, 1, 1);
+        }
+    }
+}
+
+function gaussianFalloff(x, sigma) {
+    return Math.exp(-0.5 * Math.pow(x / sigma, 2));
+}
+
+function spreadFalloffWeight(x, d, spread) {
+    return (d * spread) / Math.hypot(x, d * spread);
+}
+
+function distanceFalloff(x) {
+    return 1 / (x * x + 2 * Math.abs(x) + 1);
+}
+
+function softDistanceFalloff(x, softness) {
+    if (softness == 0.0) {
+        return 1 / ((x + 1) * (x + 1));
+    } else {
+        const c = 1 / softness;
+        const th = Math.abs(c * x) < 5 ? Math.tanh(c * x) : Math.sign(x);
+        const den = x * th + 1;
+        return 1 / (den * den);
+    }
 }

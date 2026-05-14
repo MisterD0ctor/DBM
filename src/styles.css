@@ -13,7 +13,16 @@
 
 body {
     margin: 0;
-    font-family: system-ui, sans-serif;
+    /* font-family: system-ui, sans-serif; */
+    font-family:
+        geist-sans,
+        ui-sans-serif,
+        system-ui,
+        sans-serif,
+        Apple Color Emoji,
+        Segoe UI Emoji,
+        Segoe UI Symbol,
+        Noto Color Emoji;
     font-feature-settings: "cv11", "ss01"; /*  nicer digits/letters */
     color: #fff;
     overflow: hidden;
@@ -929,6 +938,10 @@ input,
     pointer-events: none;
 }
 
+.ambient-sliders .menu-item {
+    padding-left: 16px;
+}
+
 #ambient-toggle.on ~ .ambient-sliders {
     pointer-events: inherit;
     opacity: 1;
@@ -936,9 +949,10 @@ input,
 
 .ambient-row {
     display: flex;
+    flex: 1;
     flex-direction: column;
     align-items: normal;
-    padding: var(--item-top-bottom-padding) var(--item-left-right-padding);
+    gap: 16px;
 }
 
 .ambient-row-head {
