@@ -13,8 +13,8 @@
                 "title": "Death by MPV",
                 "width": 1280,
                 "height": 720,
-                "minWidth": 853,
-                "minHeight": 480,
+                "minWidth": 640,
+                "minHeight": 360,
                 "transparent": true,
                 "center": true
             }

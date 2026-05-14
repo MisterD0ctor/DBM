@@ -11,8 +11,10 @@
     <body>
         <div id="player">
             <div id="action-overlay">
-                <img id="action-icon" src="assets/icons/pause.svg" alt="Playback status" />
-                <span id="action-text">GFdg</span>
+                <div id="action-icon">
+                    <img src="assets/icons/pause.svg" alt="Playback status" />
+                </div>
+                <span id="action-text"></span>
             </div>
 
             <button id="end-of-playback" class="hidden">
@@ -121,14 +123,7 @@
                                     <span class="shortcut">M</span>
                                 </div>
                             </button>
-                            <input
-                                id="volume-slider"
-                                type="range"
-                                min="0"
-                                max="200"
-                                value="100"
-                                step="2"
-                            />
+                            <input id="volume-slider" type="range" min="0" max="200" value="100" step="2" />
                             <div class="tooltip" id="volume-tooltip">
                                 <span id="volume-display">100</span>
                                 <span id="volume-percent">%</span>

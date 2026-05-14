@@ -161,7 +161,7 @@ export function showActionOverlay(action, text = "", position = undefined) {
     }
 
     const overlay = document.getElementById("action-overlay");
-    const icon = document.getElementById("action-icon");
+    const icon = document.getElementById("action-icon").querySelector("img");
     const textEl = document.getElementById("action-text");
 
     // prettier-ignore
