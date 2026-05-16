@@ -2,10 +2,9 @@
     --progress: 0px;
     --seek-highlight-pos: 0px;
     --seek-tooltip-pos: 0px;
-    --controls-panel-effective-padding: 24px;
-    --normal-animation-duration: 0.2s;
-    --fast-animation-duration: 0.1s;
-    --fastest-animation-duration: 0.05s;
+    --t-normal: 0.2s;
+    --t-fast: 0.1s;
+    --t-fastest: 0.05s;
     --action-overlay-position: 50%;
     --toolbar-background: #0a0a0a80;
     --menu-background: #0a0a0ae0;
@@ -48,7 +47,7 @@ body {
     bottom: 0;
     padding: 0 10px 10px 10px;
     box-sizing: border-box;
-    transition: var(--normal-animation-duration) ease;
+    transition: var(--t-normal) ease;
     width: 100%;
 }
 
@@ -100,10 +99,12 @@ img[src="assets/icons/play.svg"] {
 }
 
 #action-icon {
-    width: 60px;
-    height: 60px;
-    padding: 30px;
-    margin-left: calc(var(--action-overlay-position) - 50px);
+    --size: max(min(60px, calc(5vh + 10px)), 30px);
+    width: var(--size);
+    height: var(--size);
+    padding: calc(var(--size) * 0.5);
+    margin-left: calc(var(--action-overlay-position));
+    transform: translateX(-50%);
     background: var(--toolbar-background);
     border: 1px solid #ffffff11;
     border-radius: 50%;
@@ -197,6 +198,7 @@ img[src="assets/icons/play.svg"] {
     display: flex;
     align-items: center;
     gap: 15px;
+    font-variant-numeric: tabular-nums;
 }
 
 .time-display {
@@ -227,7 +229,7 @@ img[src="assets/icons/play.svg"] {
 }
 
 .seek-fill {
-    transition: background var(--normal-animation-duration) ease;
+    transition: background var(--t-normal) ease;
 }
 
 .seek-fill,
@@ -260,9 +262,9 @@ img[src="assets/icons/play.svg"] {
     height: var(--size);
     border-radius: 50%;
     transition:
-        background var(--normal-animation-duration) ease,
-        width var(--normal-animation-duration) ease,
-        height var(--normal-animation-duration) ease;
+        background var(--t-normal) ease,
+        width var(--t-normal) ease,
+        height var(--t-normal) ease;
     overflow: hidden;
 }
 
@@ -270,7 +272,7 @@ img[src="assets/icons/play.svg"] {
     max-width: 100%;
     height: 100%;
     opacity: 0;
-    transition: opacity var(--normal-animation-duration) ease;
+    transition: opacity var(--t-normal) ease;
 }
 
 #seek-track.highlighted .seek-highlight {
@@ -325,8 +327,8 @@ img[src="assets/icons/play.svg"] {
     pointer-events: none;
     overflow: hidden;
     transition:
-        opacity var(--fast-animation-duration) ease,
-        transform var(--fast-animation-duration) ease;
+        opacity var(--t-fast) ease,
+        transform var(--t-fast) ease;
 }
 
 #seek-preview.hidden {
@@ -359,8 +361,8 @@ img[src="assets/icons/play.svg"] {
     opacity: 1;
     background: var(--toolbar-background);
     transition:
-        opacity var(--fast-animation-duration) ease,
-        transform var(--fast-animation-duration) ease;
+        opacity var(--t-fast) ease,
+        transform var(--t-fast) ease;
 }
 
 #seek-tooltip.hidden {
@@ -372,12 +374,18 @@ img[src="assets/icons/play.svg"] {
 /*    Toolbar                                                                  */
 /* --------------------------------------------------------------------------- */
 
-.toolbar,
-.toolbar-overflow {
+.toolbar {
     display: grid;
     grid-template-columns: 1fr auto 1fr;
-    gap: 10px;
+    gap: 5px;
     align-items: center;
+}
+
+.toolbar-overflow {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 5px;
+    align-items: flex-end;
 }
 
 .toolbar-overflow.hidden {
@@ -396,7 +404,7 @@ img[src="assets/icons/play.svg"] {
     padding: 5px;
     background: var(--toolbar-background);
     border: 1px solid #ffffff11;
-    border-radius: 100px;
+    border-radius: 29px;
 }
 
 .icon-btn {
@@ -410,7 +418,7 @@ img[src="assets/icons/play.svg"] {
     background: transparent;
     border-radius: 100px;
     border: 1px solid transparent;
-    transition: var(--fast-animation-duration) ease;
+    transition: var(--t-fast) ease;
 }
 
 .icon-btn {
@@ -431,7 +439,7 @@ img[src="assets/icons/play.svg"] {
     width: 20px;
     height: 20px;
     overflow: visible;
-    transition: var(--fast-animation-duration) ease;
+    transition: var(--t-fast) ease;
 }
 
 /* Each button advertises itself as an anchor named --btn-tip. anchor-scope
@@ -457,7 +465,7 @@ img[src="assets/icons/play.svg"] {
     background: var(--menu-background);
     opacity: 0;
     pointer-events: none;
-    transition: opacity var(--fast-animation-duration) ease;
+    transition: opacity var(--t-fast) ease;
 }
 
 .icon-btn:hover .tooltip {
@@ -498,41 +506,45 @@ img[src="assets/icons/play.svg"] {
     align-items: baseline;
     gap: 10px;
 
-    padding: 0;
-    padding-bottom: 2px;
-    margin: 8px 8px 8px 16px;
-    white-space: nowrap;
+    padding: 11px;
+    padding-left: 16px;
 
     font-size: 16px;
 }
 
 .toolbar-overflow .media-title {
-    margin: 8px 16px;
+    flex-wrap: wrap;
+    padding: 11px 16px;
 }
 
 .media-title.overflowing {
     mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent);
 }
 
+.media-title > * {
+    white-space: nowrap;
+}
+
+.toolbar-overflow .media-title > * {
+    white-space: normal;
+}
+
 .media-title .title {
     font-weight: bold;
-    width: min-content;
 }
 
 .media-title .show {
     font-weight: bold;
-    width: min-content;
 }
 
 .media-title .episode {
     font-size: 14px;
-    width: min-content;
     opacity: 0.6;
 }
 
 .media-title .episode-title {
-    font-size: 14px;
-    width: min-content;
+    font-size: 16px;
+    font-style: italic;
     opacity: 0.9;
 }
 
@@ -556,7 +568,7 @@ img[src="assets/icons/play.svg"] {
 #volume-group {
     display: flex;
     align-items: center;
-    transition: gap var(--normal-animation-duration) ease;
+    transition: gap var(--t-normal) ease;
 }
 
 #volume-group.muted {
@@ -576,11 +588,7 @@ img[src="assets/icons/play.svg"] {
     cursor: pointer;
     direction: ltr;
     writing-mode: horizontal-tb;
-    transition: var(--normal-animation-duration) ease;
-}
-
-.toolbar-overflow #volume-slider {
-    margin-right: 16px;
+    transition: var(--t-normal) ease;
 }
 
 #volume-group.muted #volume-slider {
@@ -599,7 +607,8 @@ img[src="assets/icons/play.svg"] {
         to right,
         #ffffff 0,
         #ffffff min(50%, var(--volume-progress)),
-        color-mix(in srgb, #ffffff, #ff3d50 calc((var(--volume-progress) - 50%) * 2)) var(--volume-progress),
+        color-mix(in srgb, #ffffff, #ff3d50 calc((var(--volume-progress) - 50%) * 2))
+            var(--volume-progress),
         #80808080 var(--volume-progress),
         #80808080 100%
     );
@@ -616,7 +625,7 @@ img[src="assets/icons/play.svg"] {
     background: color-mix(in srgb, #ffffff, #ff3d50 calc((var(--volume-progress) - 50%) * 2));
     border: none;
     anchor-name: --volume-slider;
-    transition: transform var(--normal-animation-duration) ease;
+    transition: transform var(--t-normal) ease;
 }
 
 #volume-slider:hover::-webkit-slider-thumb {
@@ -632,8 +641,8 @@ img[src="assets/icons/play.svg"] {
     padding: 2px 8px 4px 8px;
     margin: 0 0 24px 0;
     transition:
-        opacity var(--fast-animation-duration) ease,
-        transform var(--fast-animation-duration) ease;
+        opacity var(--t-fast) ease,
+        transform var(--t-fast) ease;
 }
 
 #volume-percent {
@@ -659,10 +668,11 @@ img[src="assets/icons/play.svg"] {
     z-index: 1000;
     position: fixed;
     position-area: top center;
+    position-try-fallbacks: flip-block, flip-inline;
     margin: 8px;
     min-width: 256px;
     width: max-content;
-    max-height: min(600px, calc(100% - 34px));
+    max-height: min(600px, calc(100vh - 34px));
 
     border: 1px solid #ffffff11;
     border-radius: 12px;
@@ -670,7 +680,7 @@ img[src="assets/icons/play.svg"] {
     backdrop-filter: blur(10px);
     margin: 8px;
     padding: 8px 0;
-    transition: var(--fast-animation-duration) ease;
+    transition: var(--t-fast) ease;
 }
 
 .menu.hidden {
@@ -691,7 +701,7 @@ img[src="assets/icons/play.svg"] {
     cursor: pointer;
     border-top: 1px solid transparent;
     border-bottom: 1px solid transparent;
-    transition: var(--fastest-animation-duration) ease;
+    transition: var(--t-fastest) ease;
 }
 
 .menu-item.active {
@@ -718,7 +728,8 @@ img[src="assets/icons/play.svg"] {
     gap: 16px;
     font-size: 12px;
     color: #ffffff;
-    padding: 10px var(--item-left-right-padding) var(--item-top-bottom-padding) var(--item-left-right-padding);
+    padding: 10px var(--item-left-right-padding) var(--item-top-bottom-padding)
+        var(--item-left-right-padding);
 }
 
 .menu-heading .title {
@@ -831,7 +842,7 @@ img[src="assets/icons/play.svg"] {
 .playlist-episode {
     flex-shrink: 0;
     opacity: 0.6;
-    transition: var(--fast-animation-duration) ease;
+    transition: var(--t-fast) ease;
 }
 
 .menu-item:hover .playlist-episode {
@@ -842,7 +853,7 @@ img[src="assets/icons/play.svg"] {
     overflow: hidden;
     text-overflow: ellipsis;
     opacity: 0.9;
-    transition: var(--fast-animation-duration) ease;
+    transition: var(--t-fast) ease;
 }
 
 .menu-item:hover .playlist-episode-title {
@@ -908,7 +919,7 @@ img[src="assets/icons/play.svg"] {
     background: #ffffff25;
     border: 1px solid #ffffff11;
     cursor: pointer;
-    transition: var(--normal-animation-duration) ease;
+    transition: var(--t-normal) ease;
 }
 
 .ambient-toggle-knob {
@@ -919,7 +930,7 @@ img[src="assets/icons/play.svg"] {
     height: 12px;
     border-radius: 50%;
     background: #ffffffcc;
-    transition: var(--normal-animation-duration) ease;
+    transition: var(--t-normal) ease;
     filter: drop-shadow(0 0 2px #00000080);
 }
 
@@ -937,8 +948,12 @@ img[src="assets/icons/play.svg"] {
     display: flex;
     flex-direction: column;
     opacity: 0.4;
-    transition: var(--fast-animation-duration) ease;
+    transition: var(--t-fast) ease;
     pointer-events: none;
+
+    overflow-y: auto;
+    scrollbar-color: #6f6f6f #00000000;
+    scrollbar-width: thin;
 }
 
 .ambient-sliders .menu-item {
@@ -1006,7 +1021,7 @@ img[src="assets/icons/play.svg"] {
     border-radius: 50%;
     background: #ffffff;
     border: none;
-    transition: transform var(--normal-animation-duration) ease;
+    transition: transform var(--t-normal) ease;
 }
 
 .ambient-slider:hover::-webkit-slider-thumb {
@@ -1035,7 +1050,11 @@ img[src="assets/icons/play.svg"] {
     width: 4px;
     height: 20px;
     border-radius: 0 3px 3px 0;
-    transition: var(--fast-animation-duration) ease;
+    transition: var(--t-fast) ease;
+}
+
+.tracks-list #open.menu-item {
+    font-style: italic;
 }
 
 .tracks-list .menu-item.active .highlight {

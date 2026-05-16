@@ -27,14 +27,8 @@ const originalEnd = Array.from(main.end.children);
 
 // Overflow priority: which item drops to the overflow row FIRST. Items earlier
 // in this list overflow before later ones (so the most essential stays put).
-//
-// Start side: the playlist button is the media title — it should never leave
-// the main bar while there's a file loaded, so it overflows last. Open-menu
-// goes first.
-// End side: drop fullscreen first, then panscan, then tracks, then ambient,
-// keeping the volume group anchored to the bar last.
-const startPriority = ["btn-playlist", "btn-open-menu"];
-const endPriority = ["volume-group", "btn-ambient", "btn-tracks", "btn-panscan", "btn-fullscreen"];
+const startPriority = ["media-title", "btn-open-menu", "btn-playlist"];
+const endPriority = ["btn-ambient", "btn-tracks", "btn-panscan", "btn-fullscreen", "volume-group"];
 
 function sortByPriority(elements, priorityIds) {
     // Items at index 0 of priorityIds overflow first. Map elements -> their

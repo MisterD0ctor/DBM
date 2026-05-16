@@ -6,7 +6,7 @@
    width="512"
    data-name="Layer 1"
    version="1.1"
-   sodipodi:docname="bulb-solid.svg"
+   sodipodi:docname="bulb-solid-1.svg"
    inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -23,19 +23,17 @@
      inkscape:pageopacity="0"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#505050"
-     inkscape:zoom="0.20077275"
-     inkscape:cx="-864.16108"
-     inkscape:cy="-136.97078"
+     inkscape:zoom="0.83623663"
+     inkscape:cx="144.09797"
+     inkscape:cy="48.431267"
      inkscape:window-width="3440"
      inkscape:window-height="1417"
      inkscape:window-x="1432"
      inkscape:window-y="1065"
      inkscape:window-maximized="1"
-     inkscape:current-layer="Layer_1"
-     showguides="true" />
+     inkscape:current-layer="Layer_1" />
   <path
-     d="M 8,20.149 V 24 h 8 V 20.315 C 15.96037,18.590615 16.664142,16.932449 17.932,15.763 24.129462,10.33081 20.372834,0.11942105 12.1339,-0.00350735 3.894966,-0.12643574 -0.16463818,9.9683318 5.868,15.583 7.1866302,16.739352 7.9599915,18.395622 8,20.149 Z M 14,22 H 10 V 20.149 C 10,20.099 9.993,20.049 9.992,20 h 4.024 C 14.016,20.105 14,20.209 14,20.315 Z M 11,18 V 10.816 C 9.8056491,10.393745 9.00525,9.2667854 9,8 h 2 c 0,1.3333328 2,1.3333328 2,0 h 2 c -0.0053,1.2667854 -0.805649,2.393745 -2,2.816 V 18"
+     d="m5.868 15.583a8.938 8.938 0 0 1 -2.793-7.761 9 9 0 1 1 14.857 7.941 5.748 5.748 0 0 0 -1.804 3.237h-3.128v-8.184a3 3 0 0 0 2-2.816h-2a1 1 0 0 1 -2 0h-2a3 3 0 0 0 2 2.816v8.184h-3.125a6.538 6.538 0 0 0 -2.007-3.417zm2.132 5.417v3h8v-3z"
      id="path1"
-     style="fill:#ffffff;fill-opacity:1"
-     sodipodi:nodetypes="cccccsccccsccsccccccccc" />
+     style="fill:#ffffff;fill-opacity:1" />
 </svg>

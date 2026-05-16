@@ -27,7 +27,6 @@
             <div id="controls-panel">
                 <div class="toolbar-overflow">
                     <div class="toolbar-start"></div>
-                    <div class="toolbar-center hidden"></div>
                     <div class="toolbar-end"></div>
                 </div>
 
@@ -56,7 +55,7 @@
 
                 <div class="toolbar">
                     <div class="toolbar-start">
-                        <div class="media-title">
+                        <div class="media-title" id="media-title">
                             <span class="title"></span>
                             <span class="show"></span>
                             <span class="episode"></span>
@@ -123,7 +122,14 @@
                                     <span class="shortcut">M</span>
                                 </div>
                             </button>
-                            <input id="volume-slider" type="range" min="0" max="200" value="100" step="2" />
+                            <input
+                                id="volume-slider"
+                                type="range"
+                                min="0"
+                                max="200"
+                                value="100"
+                                step="2"
+                            />
                             <div class="tooltip" id="volume-tooltip">
                                 <span id="volume-display">100</span>
                                 <span id="volume-percent">%</span>

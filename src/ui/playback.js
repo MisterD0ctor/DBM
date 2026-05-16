@@ -101,7 +101,10 @@ export function setMediaTitle(filename) {
         episodeTitleEl.classList.toggle("hidden", true);
     }
 
-    mediaTitleEl.classList.toggle("overflowing", mediaTitleEl.scrollWidth > mediaTitleEl.clientWidth);
+    mediaTitleEl.classList.toggle(
+        "overflowing",
+        mediaTitleEl.scrollWidth > mediaTitleEl.clientWidth,
+    );
     refreshToolbarOverflow();
 }
 
@@ -137,7 +140,8 @@ function refreshEndOfPlayback() {
     const label = popup?.querySelector("span");
     const img = popup?.querySelector("img");
     if (label) label.textContent = isLastVideo ? "Restart" : "Next";
-    if (img) img.src = isLastVideo ? "assets/icons/rotate-left.svg" : "assets/icons/step-forward.svg";
+    if (img)
+        img.src = isLastVideo ? "assets/icons/rotate-left.svg" : "assets/icons/step-forward.svg";
 
     // Seek forward at EOF can wedge mpv — disable the button while ended.
     const seekForward = document.getElementById("btn-seek-forward");
@@ -222,7 +226,10 @@ export function setSeekTooltip(isShown, clientX) {
         document.documentElement.style.setProperty("--seek-tooltip-pos", `${rectX}px`);
     } else {
         seekTimeTooltipTimes.push(
-            setTimeout(() => document.documentElement.style.setProperty("--seek-tooltip-pos", `${0}px`), 200),
+            setTimeout(
+                () => document.documentElement.style.setProperty("--seek-tooltip-pos", `${0}px`),
+                200,
+            ),
         );
     }
 }

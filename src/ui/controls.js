@@ -7,7 +7,7 @@ export function toggleOverlay(force) {
 
 export function toggleAmbient(force) {
     document.getElementById("ambient-toggle")?.classList.toggle("on", force);
-    setButtonIcon("btn-ambient", force ? "assets/icons/bulb-solid-1.svg" : "assets/icons/bulb.svg");
+    setButtonIcon("btn-ambient", force ? "assets/icons/bulb-solid.svg" : "assets/icons/bulb.svg");
 }
 
 export function toggleAmbientMenu(force) {

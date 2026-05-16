@@ -4,6 +4,7 @@ import * as ambient from "./ambient.js";
 import * as endOfPlayback from "./endOfPlayback.js";
 import { setFullscreen, toggleFullscreen } from "./fullscreen.js";
 import { rewind, playPrevious, playNext } from "./navigation.js";
+import { refreshToolbarOverflow } from "./utils/toolbarOverflow.js";
 
 const SEEK_SECONDS = 10;
 const DOUBLE_CLICK_DELAY_MS = 250;
@@ -90,7 +91,10 @@ document.getElementById("video-surface").addEventListener("click", (event) => {
 
     if (event.detail === 1) {
         clickTimeout = setTimeout(
-            () => togglePause().then((state) => ui.showActionOverlay("pause-" + (state ? "on" : "off"))),
+            () =>
+                togglePause().then((state) =>
+                    ui.showActionOverlay("pause-" + (state ? "on" : "off")),
+                ),
             DOUBLE_CLICK_DELAY_MS,
         );
     } else if (event.detail === 2) {
@@ -118,7 +122,9 @@ document.addEventListener("keydown", (e) => {
             if (endOfPlayback.isAtEnd()) {
                 endOfPlayback.restart();
             } else {
-                togglePause().then((state) => ui.showActionOverlay("pause-" + (state ? "on" : "off")));
+                togglePause().then((state) =>
+                    ui.showActionOverlay("pause-" + (state ? "on" : "off")),
+                );
             }
             break;
         case "F11":
@@ -129,10 +135,14 @@ document.addEventListener("keydown", (e) => {
             toggleMute().then((state) => ui.showActionOverlay("mute-" + (state ? "on" : "off")));
             break;
         case "KeyT":
-            togglePanscan().then((state) => ui.showActionOverlay("panscan-" + (state ? "on" : "off")));
+            togglePanscan().then((state) =>
+                ui.showActionOverlay("panscan-" + (state ? "on" : "off")),
+            );
             break;
         case "KeyC":
-            toggleSubtitles().then((state) => ui.showActionOverlay("subtitles-" + (state ? "on" : "off")));
+            toggleSubtitles().then((state) =>
+                ui.showActionOverlay("subtitles-" + (state ? "on" : "off")),
+            );
             break;
         case "KeyB":
             ambient
