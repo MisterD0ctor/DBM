@@ -137,15 +137,17 @@ button img,
     pointer-events: none;
 }
 
-.window-title {
+.window-logo {
     flex: 1;
     display: flex;
     align-items: center;
-    padding: 0 12px;
-    opacity: 0.85;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    padding: 0 10px;
+}
+
+.window-logo img {
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
 }
 
 .window-buttons {

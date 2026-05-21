@@ -78,11 +78,11 @@ pub fn WindowDecorator() -> impl IntoView {
             data-tauri-drag-region="true"
         >
             <div
-                class="window-title"
+                class="window-logo"
                 data-tauri-drag-region="true"
                 on:dblclick=on_title_dblclick
             >
-                "Death by MPV"
+                <img src="public/logo.svg" alt="Logo"/>
             </div>
             <div class="window-buttons">
                 <button class="window-btn" on:click=on_min title="Minimize">

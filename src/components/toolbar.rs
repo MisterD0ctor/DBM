@@ -146,7 +146,11 @@ fn start_width(level: u8, playlist_visible: bool, media_title_w: f64) -> f64 {
 
 /// Width of the end pill assuming `level` items have been overflowed.
 fn end_width(level: u8, muted: bool) -> f64 {
-    let volume = if muted { VOLUME_GROUP_MUTED } else { VOLUME_GROUP_FULL };
+    let volume = if muted {
+        VOLUME_GROUP_MUTED
+    } else {
+        VOLUME_GROUP_FULL
+    };
     let visible_btn = (END_ORDER.len() as u8 - level) as f64;
     let flex_children = visible_btn + 1.0; // + volume group
     let gaps = (flex_children - 1.0).max(0.0) * PILL_GAP;
@@ -192,8 +196,7 @@ fn compute_levels(
 pub fn ToolbarOverflowRow() -> impl IntoView {
     let reflow = expect_context::<Reflow>();
 
-    let overflow_row_hidden =
-        move || reflow.start_level.get() == 0 && reflow.end_level.get() == 0;
+    let overflow_row_hidden = move || reflow.start_level.get() == 0 && reflow.end_level.get() == 0;
     let start_pill_empty = move || reflow.start_level.get() == 0;
     let end_pill_empty = move || reflow.end_level.get() == 0;
 
@@ -431,7 +434,14 @@ fn PanscanButton(row: Row) -> impl IntoView {
         .to_string()
     });
     let tooltip = Signal::derive(move || {
-        Some(if state.panscan.get() > 0.5 { "Fit" } else { "Cover" }.to_string())
+        Some(
+            if state.panscan.get() > 0.5 {
+                "Fit"
+            } else {
+                "Cover"
+            }
+            .to_string(),
+        )
     });
     let on_click = Callback::new(move |()| {
         let next = if state.panscan.get() > 0.5 { 0.0 } else { 1.0 };
@@ -468,7 +478,14 @@ fn FullscreenButton(row: Row) -> impl IntoView {
         .to_string()
     });
     let tooltip = Signal::derive(move || {
-        Some(if state.fullscreen.get() { "Exit Fullscreen" } else { "Fullscreen" }.to_string())
+        Some(
+            if state.fullscreen.get() {
+                "Exit Fullscreen"
+            } else {
+                "Fullscreen"
+            }
+            .to_string(),
+        )
     });
     let on_click = Callback::new(move |()| {
         spawn_local(async move {
@@ -530,9 +547,9 @@ fn OpenAnchor(row: Row) -> impl IntoView {
                 class="icon-button"
                 on:click=toggle
             >
-                <img src="public/icons/folder-open.svg" alt="Open" />
+                <img src="public/icons/folder-open.svg" alt="File" />
                 <div class="tooltip">
-                    <span class="tooltip-text">"Open"</span>
+                    <span class="tooltip-text">"File"</span>
                 </div>
             </button>
             <Menu open=open anchor=btn_ref class="open-menu".to_string()>
