@@ -1,142 +1,104 @@
+//! Translates raw mpv-wrapper event JSON into typed [`shared::MpvProperty`]
+//! and [`shared::MpvEvent`] payloads, then forwards them to the frontend
+//! on the `mpv://property` and `mpv://event` Tauri channels.
+
 use std::ffi::{c_char, c_void, CStr};
 
-use log::error;
-use serde::Serialize;
-use tauri::{AppHandle, Emitter, Manager};
+use log::{error, trace};
+use shared::{MpvEvent, MpvProperty};
+use tauri::{AppHandle, Emitter};
 
-// ---------------------------------------------------------------------------
-// Callback userdata — stored for the lifetime of the mpv instance
-// ---------------------------------------------------------------------------
-
+/// Stored for the lifetime of the mpv instance and handed to the C callback
+/// so it can re-enter Rust with both the app handle and the libmpv-wrapper
+/// `free` fn pointer (used to free the event JSON the wrapper allocates).
 pub struct EventUserData {
     pub app: AppHandle,
     pub free_fn: unsafe extern "C" fn(*mut c_char),
 }
 
-// ---------------------------------------------------------------------------
-// Structured events emitted to the frontend
-// ---------------------------------------------------------------------------
-
-/// Emitted on every observed property change.
-/// Event name: `mpv://property`
-#[derive(Debug, Clone, Serialize)]
-pub struct PropertyChangeEvent {
-    pub name: String,
-    pub data: serde_json::Value,
-}
-
-// ---------------------------------------------------------------------------
-// C callback — called by libmpv-wrapper for every mpv event
-// ---------------------------------------------------------------------------
-
 /// # Safety
-/// Called from the mpv event thread via the C wrapper. `event` is a JSON
-/// C-string that must be freed with `free_fn`; `userdata` points to a
-/// valid `EventUserData`.
+/// Called from the mpv event thread. `event` is a JSON C-string owned by the
+/// wrapper (we free it via `free_fn`); `userdata` points to a valid
+/// `EventUserData` for the lifetime of the mpv instance.
 pub unsafe extern "C" fn event_callback(event: *const c_char, userdata: *mut c_void) {
     if event.is_null() || userdata.is_null() {
         return;
     }
 
     let ud = unsafe { &*(userdata as *const EventUserData) };
-
     let event_str = unsafe { CStr::from_ptr(event).to_string_lossy().to_string() };
 
-    // Free the C string immediately
+    // Free the wrapper's allocation immediately — we now own a Rust copy.
     unsafe { (ud.free_fn)(event as *mut c_char) };
 
     let app = ud.app.clone();
 
+    // Defer parsing + emit off the mpv thread so we don't block events.
     tauri::async_runtime::spawn(async move {
-        let parsed: serde_json::Value = match serde_json::from_str(&event_str) {
-            Ok(v) => v,
-            Err(e) => {
-                error!("Failed to parse mpv event JSON: {}", e);
-                return;
-            }
-        };
-
-        // The wrapper emits events like:
-        //   { "event": "property-change", "name": "pause", "data": true }
-        //   { "event": "file-loaded" }
-
-        let event_type = parsed.get("event").and_then(|v| v.as_str()).unwrap_or("");
-
-        match event_type {
-            "property-change" => {
-                let name = parsed
-                    .get("name")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                let data = parsed
-                    .get("data")
-                    .cloned()
-                    .unwrap_or(serde_json::Value::Null);
-
-                // Keep SMTC + watch-later/preview cache in sync with mpv state
-                match name.as_str() {
-                    "pause" => on_pause_change(&app, &data),
-                    "filename" => on_filename_change(&app, &data),
-                    "duration" => on_duration_change(&app, &data),
-                    _ => {}
-                }
-
-                let payload = PropertyChangeEvent { name, data };
-                if let Err(e) = app.emit("mpv://property", &payload) {
-                    error!("Failed to emit mpv://property: {}", e);
-                }
-            }
-            _ => {
-                // Forward any other events as-is under a generic channel
-                if let Err(e) = app.emit("mpv://event", &parsed) {
-                    error!("Failed to emit mpv://event: {}", e);
-                }
-            }
-        }
+        dispatch(&app, &event_str);
     });
 }
 
-// ---------------------------------------------------------------------------
-// Per-property reactions — kept small and focused
-// ---------------------------------------------------------------------------
+fn dispatch(app: &AppHandle, event_str: &str) {
+    let parsed: serde_json::Value = match serde_json::from_str(event_str) {
+        Ok(v) => v,
+        Err(e) => {
+            error!("Failed to parse mpv event JSON: {}", e);
+            return;
+        }
+    };
 
-fn on_pause_change(app: &AppHandle, data: &serde_json::Value) {
-    let playing = data.as_bool().map(|b| !b).unwrap_or(false);
-    crate::smtc::update_playback(app, playing);
+    let event_type = parsed
+        .get("event")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    match event_type.as_str() {
+        "property-change" => emit_property(app, parsed),
+        _ => emit_event(app, parsed),
+    }
 }
 
-/// When the loaded file changes: push title to SMTC, persist watch-later for
-/// the previous file, save the new path as last-session, and kick off preview
-/// sprite generation. Only fires for real filenames — during shutdown
-/// `filename` goes null and the mpv instance is already torn down.
-fn on_filename_change(app: &AppHandle, data: &serde_json::Value) {
-    let Some(title) = data.as_str() else {
+fn emit_property(app: &AppHandle, parsed: serde_json::Value) {
+    // MpvProperty is `#[serde(tag = "name", content = "data")]`, so it
+    // deserializes from `{ "name": "...", "data": ... }`. Strip the outer
+    // `event` discriminator and feed the remainder in.
+    let serde_json::Value::Object(mut map) = parsed else {
         return;
     };
-    crate::smtc::update_metadata(app, title);
+    let name = map
+        .get("name")
+        .and_then(|v| v.as_str())
+        .unwrap_or("?")
+        .to_string();
+    map.remove("event");
 
-    let player = app.state::<std::sync::Arc<super::MpvPlayer>>();
-    let _ = player.write_watch_later();
-    let Ok(val) = player.get_property("path", "string") else {
-        return;
-    };
-    let Some(path) = val.as_str() else {
-        return;
-    };
-    super::save_last_session(path);
-    crate::preview::request_preview(app, std::path::Path::new(path));
+    match serde_json::from_value::<MpvProperty>(serde_json::Value::Object(map)) {
+        Ok(prop) => {
+            if let Err(e) = app.emit("mpv://property", &prop) {
+                error!("Failed to emit mpv://property ({name}): {e}");
+            }
+        }
+        Err(e) => {
+            // Unobserved or shape mismatch — trace, don't warn. The list of
+            // observed properties is curated; anything here is either a
+            // surprise from mpv (e.g. null in a non-Option variant) or an
+            // entry that needs adding to the MpvProperty enum.
+            trace!("Skipping property '{name}': {e}");
+        }
+    }
 }
 
-fn on_duration_change(app: &AppHandle, data: &serde_json::Value) {
-    let Some(duration) = data.as_f64() else {
-        return;
-    };
-    let player = app.state::<std::sync::Arc<super::MpvPlayer>>();
-    let Ok(val) = player.get_property("path", "string") else {
-        return;
-    };
-    if let Some(path) = val.as_str() {
-        super::save_duration(path, duration);
+fn emit_event(app: &AppHandle, parsed: serde_json::Value) {
+    // MpvEvent is `#[serde(tag = "event")]`, so the raw JSON deserializes
+    // straight into a variant. Unknown events fall through silently.
+    match serde_json::from_value::<MpvEvent>(parsed) {
+        Ok(ev) => {
+            if let Err(e) = app.emit("mpv://event", &ev) {
+                error!("Failed to emit mpv://event: {e}");
+            }
+        }
+        Err(_) => { /* unhandled event type — ignore */ }
     }
 }

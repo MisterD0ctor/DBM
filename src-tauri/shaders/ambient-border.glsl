@@ -15,7 +15,7 @@
 //!DESC grain amount
 //!TYPE float
 //!MINIMUM 0.0
-128.0
+256.0
 
 //!PARAM falloff
 //!DESC light falloff
@@ -104,6 +104,7 @@ float light_spread_bound(float d) {
     
     float u = (v - 1.0) / k;
     return sqrt(max(u*u - d*d, 0.0));
+    // return abs(d) * spread * 4;
 }
 
 float distance_falloff(float x) {
@@ -122,12 +123,7 @@ float soft_distance_falloff(float x) {
 }
 
 float spread_falloff(float x, float d) {
-    return d * spread / length(vec2(x, d * spread));
-}
-
-float light_weight(float x, float d) {
-    return distance_falloff(length(vec2(x, d))) 
-           * spread_falloff(x, d);
+    return d / length(vec2(x, d * spread));
 }
 
 // Wide usage friendly PRNG, shamelessly stolen from a GLSL tricks forum post
@@ -154,7 +150,8 @@ vec4 light_spread(sampler2D image, vec2 pos, float edge_dist, vec2 dir, float ra
         float jitter = (rand + t) * 43758.5453; // Random jitter based on position and t
         jitter = fract(jitter) * dt - dt / 2.0; // Jitter in range [-dt/2, dt/2]
         float t_jittered = clamp(t + jitter, t0, t1);
-        float weight = light_weight(t_jittered - center, edge_dist);
+        float weight = distance_falloff(length(vec2((t_jittered - center), edge_dist))) 
+                       * spread_falloff(abs(t_jittered - center), edge_dist);
         weight = pow(weight, 2.2);
         c_sum += textureLod(image, pos * dir.yx + t_jittered * dir.xy, 0.0) * weight;
         w_sum += weight;

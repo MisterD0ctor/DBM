@@ -1,3 +1,10 @@
+//! Rust wrapper around `libmpv-wrapper.dll`.
+//!
+//! Owns the FFI boundary and the single `MpvPlayer` instance. All app-facing
+//! interaction goes through `commands` (Tauri-invokable) or `properties`
+//! (typed getters). Events come out via `events::event_callback` and are
+//! emitted as typed [`shared::MpvProperty`] / [`shared::MpvEvent`].
+
 pub mod commands;
 pub mod events;
 pub mod properties;
@@ -9,13 +16,13 @@ use std::sync::Mutex;
 use log::{info, trace, warn};
 use once_cell::sync::OnceCell;
 use raw_window_handle::HasWindowHandle;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use shared::{MpvErrorDto, MpvErrorKind};
 use tauri::{AppHandle, Manager};
 
-/// App data subdirectory name for watch-later files and session state.
-const APP_DATA_DIR: &str = "Death by MPV";
-
 use events::EventUserData;
+
+const APP_DATA_DIR: &str = "Death by MPV";
 
 // ---------------------------------------------------------------------------
 // FFI wrapper types (mirrors libmpv-wrapper.dll exports)
@@ -61,28 +68,22 @@ impl LibmpvWrapper {
         let library = unsafe { libloading::Library::new(path) }?;
 
         unsafe {
-            let create = *library.get(b"mpv_wrapper_create\0")?;
-            let destroy = *library.get(b"mpv_wrapper_destroy\0")?;
-            let command = *library.get(b"mpv_wrapper_command\0")?;
-            let set_prop = *library.get(b"mpv_wrapper_set_property\0")?;
-            let get_prop = *library.get(b"mpv_wrapper_get_property\0")?;
-            let free = *library.get(b"mpv_wrapper_free\0")?;
-
             Ok(Self {
+                mpv_wrapper_create: *library.get(b"mpv_wrapper_create\0")?,
+                mpv_wrapper_destroy: *library.get(b"mpv_wrapper_destroy\0")?,
+                mpv_wrapper_command: *library.get(b"mpv_wrapper_command\0")?,
+                mpv_wrapper_set_property: *library.get(b"mpv_wrapper_set_property\0")?,
+                mpv_wrapper_get_property: *library.get(b"mpv_wrapper_get_property\0")?,
+                mpv_wrapper_free: *library.get(b"mpv_wrapper_free\0")?,
                 _library: library,
-                mpv_wrapper_create: create,
-                mpv_wrapper_destroy: destroy,
-                mpv_wrapper_command: command,
-                mpv_wrapper_set_property: set_prop,
-                mpv_wrapper_get_property: get_prop,
-                mpv_wrapper_free: free,
             })
         }
     }
 }
 
 // ---------------------------------------------------------------------------
-// Error type
+// Error type — rich internal variants; collapses to `MpvErrorDto` at the IPC
+// boundary so the frontend can deserialize it.
 // ---------------------------------------------------------------------------
 
 #[derive(Debug, thiserror::Error)]
@@ -113,16 +114,34 @@ pub enum MpvError {
     GetProperty(String),
 }
 
-impl Serialize for MpvError {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::ser::Serializer,
-    {
-        serializer.serialize_str(&self.to_string())
+pub type MpvResult<T> = Result<T, MpvError>;
+
+impl MpvError {
+    pub fn into_dto(self) -> MpvErrorDto {
+        let kind = match &self {
+            MpvError::NotInitialized => MpvErrorKind::NotInitialized,
+            MpvError::Command(_) => MpvErrorKind::Command,
+            MpvError::SetProperty(_) => MpvErrorKind::SetProperty,
+            MpvError::GetProperty(_) => MpvErrorKind::GetProperty,
+            MpvError::Io(_) => MpvErrorKind::Io,
+            MpvError::Ffi(_)
+            | MpvError::WindowHandle(_)
+            | MpvError::CreateInstance
+            | MpvError::Libloading(_)
+            | MpvError::NulError(_) => MpvErrorKind::Ffi,
+            MpvError::Tauri(_) | MpvError::SerdeJson(_) => MpvErrorKind::Other,
+        };
+        MpvErrorDto {
+            kind,
+            message: self.to_string(),
+        }
     }
 }
 
-pub type MpvResult<T> = Result<T, MpvError>;
+// Helper for `?`-flavored conversion at the Tauri command boundary.
+pub(crate) fn to_dto<T>(r: MpvResult<T>) -> Result<T, MpvErrorDto> {
+    r.map_err(MpvError::into_dto)
+}
 
 // ---------------------------------------------------------------------------
 // FFI response parsing
@@ -168,30 +187,38 @@ const INITIAL_OPTIONS: &[(&str, &str)] = &[
     ("deband", "yes"),
     ("deband-iterations", "8"),
     ("sub-visibility", "yes"),
-    // Watch Later — save/restore position, tracks, volume across sessions
     ("save-position-on-quit", "yes"),
     ("watch-later-options", "start,vid,aid,sid,volume"),
 ];
 
-/// Properties to observe — the event loop will push changes to the frontend.
+/// Properties to observe — the event loop pushes changes to the frontend as
+/// typed [`shared::MpvProperty`] variants. Keep this list in sync with the
+/// enum variants in `shared`.
 const OBSERVED_PROPERTIES: &[(&str, &str)] = &[
+    ("filename", "string"),
+    ("path", "string"),
+    ("duration", "double"),
     ("time-pos", "double"),
     ("percent-pos", "double"),
-    ("duration", "double"),
-    ("filename", "string"),
     ("pause", "flag"),
     ("mute", "flag"),
     ("volume", "double"),
-    ("eof-reached", "flag"),
-    ("panscan", "double"),
     ("sid", "string"),
     ("aid", "string"),
     ("sub-visibility", "flag"),
-    ("border-background", "string"),
+    ("track-list/count", "double"),
+    ("eof-reached", "flag"),
     ("playlist-pos", "double"),
     ("playlist-count", "double"),
-    ("track-list/count", "double"),
+    ("border-background", "string"),
+    ("panscan", "double"),
 ];
+
+impl Default for MpvPlayer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl MpvPlayer {
     pub fn new() -> Self {
@@ -203,7 +230,7 @@ impl MpvPlayer {
 
     // --- Lifecycle -----------------------------------------------------------
 
-    /// Initialize mpv, embed into the given window, start observing properties.
+    /// Initialize mpv, embed into the main window, start observing properties.
     pub fn init(&self, app: &AppHandle) -> MpvResult<()> {
         let wrapper = self.load_wrapper()?;
 
@@ -213,13 +240,12 @@ impl MpvPlayer {
             return Ok(());
         }
 
-        // Build initial options JSON including wid
         let mut opts = serde_json::Map::new();
         for &(k, v) in INITIAL_OPTIONS {
             opts.insert(k.to_string(), serde_json::Value::String(v.to_string()));
         }
 
-        // Set watch-later directory inside app data
+        // Point mpv at our app-data watch-later directory.
         let watch_later_dir = app_data_dir().join("watch_later");
         let _ = std::fs::create_dir_all(&watch_later_dir);
         opts.insert(
@@ -227,18 +253,16 @@ impl MpvPlayer {
             serde_json::Value::String(watch_later_dir.to_string_lossy().into_owned()),
         );
 
-        // Embed mpv into the Tauri window
+        // Embed mpv into the Tauri window via platform `wid`.
         let window = app
             .get_webview_window("main")
             .ok_or_else(|| MpvError::Ffi("window 'main' not found".into()))?;
         let wh = window.window_handle()?;
-        let raw = wh.as_raw();
-        let wid = get_wid(raw)?;
+        let wid = get_wid(wh.as_raw())?;
         opts.insert("wid".to_string(), serde_json::json!(wid));
 
         let opts_json = serde_json::to_string(&opts)?;
 
-        // Build observed properties JSON { "name": "format", ... }
         let obs: serde_json::Map<String, serde_json::Value> = OBSERVED_PROPERTIES
             .iter()
             .map(|&(name, fmt)| (name.to_string(), serde_json::Value::String(fmt.to_string())))
@@ -271,7 +295,9 @@ impl MpvPlayer {
 
         info!("mpv instance initialized");
 
-        // Apply initial options as properties too (for options that need runtime set)
+        // mpv distinguishes "options" (set at creation) from "properties" (set
+        // at runtime). A handful of options need to be re-applied as
+        // properties to actually take effect — apply them all defensively.
         for &(k, v) in INITIAL_OPTIONS {
             if let Err(e) = self.set_property_raw_with(wrapper, handle, k, v) {
                 warn!("Failed to set initial property '{}': {}", k, e);
@@ -292,9 +318,7 @@ impl MpvPlayer {
     }
 
     /// Destroy the mpv instance and free resources.
-    /// Saves watch-later config before destroying.
     pub fn destroy(&self) -> MpvResult<()> {
-        // Save watch-later before tearing down
         if let Err(e) = self.write_watch_later() {
             warn!("Failed to save watch-later config: {}", e);
         }
@@ -328,7 +352,7 @@ impl MpvPlayer {
             (wrapper.mpv_wrapper_command)(instance.handle, c_name.as_ptr(), c_args.as_ptr())
         };
 
-        self.parse_void_response(wrapper, result_ptr, |msg| MpvError::Command(msg))
+        self.parse_void_response(wrapper, result_ptr, MpvError::Command)
     }
 
     pub fn set_property_raw(&self, name: &str, value: &str) -> MpvResult<()> {
@@ -357,7 +381,7 @@ impl MpvPlayer {
             (wrapper.mpv_wrapper_set_property)(handle, c_name.as_ptr(), c_value.as_ptr())
         };
 
-        self.parse_void_response(wrapper, result_ptr, |msg| MpvError::SetProperty(msg))
+        self.parse_void_response(wrapper, result_ptr, MpvError::SetProperty)
     }
 
     pub fn set_property_value(&self, name: &str, value: &serde_json::Value) -> MpvResult<()> {
@@ -374,7 +398,7 @@ impl MpvPlayer {
             (wrapper.mpv_wrapper_set_property)(instance.handle, c_name.as_ptr(), c_value.as_ptr())
         };
 
-        self.parse_void_response(wrapper, result_ptr, |msg| MpvError::SetProperty(msg))
+        self.parse_void_response(wrapper, result_ptr, MpvError::SetProperty)
     }
 
     pub fn get_property(&self, name: &str, format: &str) -> MpvResult<serde_json::Value> {
@@ -454,8 +478,8 @@ impl MpvPlayer {
                 .find(|path| path.exists())
                 .unwrap_or_else(|| PathBuf::from(lib_name));
 
-            // Add the DLL's directory to the search path so that its own
-            // dependencies (e.g. libmpv-2.dll) are found at runtime.
+            // Add the DLL's directory to the Win32 search path so libmpv-2.dll
+            // (a transitive dep of libmpv-wrapper.dll) resolves at load time.
             #[cfg(target_os = "windows")]
             if let Some(dir) = lib_path.parent() {
                 use std::os::windows::ffi::OsStrExt;
@@ -481,96 +505,13 @@ impl MpvPlayer {
 }
 
 // ---------------------------------------------------------------------------
-// App data directory + last-session persistence
+// App data directory
 // ---------------------------------------------------------------------------
 
 pub fn app_data_dir() -> PathBuf {
     dirs::data_local_dir()
         .unwrap_or_else(std::env::temp_dir)
         .join(APP_DATA_DIR)
-}
-
-fn last_session_path() -> PathBuf {
-    app_data_dir().join("last_session.txt")
-}
-
-/// Save the currently playing file path so it can be resumed next launch.
-pub fn save_last_session(path: &str) {
-    let file = last_session_path();
-    let _ = std::fs::create_dir_all(file.parent().unwrap());
-    if let Err(e) = std::fs::write(&file, path) {
-        warn!("Failed to save last session: {}", e);
-    }
-}
-
-/// Save a file's duration to the cache for playlist progress bars.
-pub fn save_duration(path: &str, duration: f64) {
-    if duration <= 0.0 {
-        return;
-    }
-    let mut cache = load_duration_cache();
-    cache.insert(path.to_string(), duration);
-    let cache_path = app_data_dir().join("durations.json");
-    let _ = std::fs::write(
-        &cache_path,
-        serde_json::to_string(&cache).unwrap_or_default(),
-    );
-}
-
-pub fn load_duration_cache() -> std::collections::HashMap<String, f64> {
-    let cache_path = app_data_dir().join("durations.json");
-    std::fs::read_to_string(&cache_path)
-        .ok()
-        .and_then(|s| serde_json::from_str(&s).ok())
-        .unwrap_or_default()
-}
-
-/// Read the last session's file path (if any).
-pub fn load_last_session() -> Option<String> {
-    let file = last_session_path();
-    std::fs::read_to_string(&file)
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty() && PathBuf::from(s).is_file())
-}
-
-fn last_playlist_path() -> PathBuf {
-    app_data_dir().join("last_playlist.json")
-}
-
-/// Save the playlist used for the last session so it can be restored next launch.
-pub fn save_last_playlist(paths: &[PathBuf]) {
-    let file = last_playlist_path();
-    let _ = std::fs::create_dir_all(file.parent().unwrap());
-    let strings: Vec<String> = paths
-        .iter()
-        .map(|p| p.to_string_lossy().into_owned())
-        .collect();
-    match serde_json::to_string(&strings) {
-        Ok(json) => {
-            if let Err(e) = std::fs::write(&file, json) {
-                warn!("Failed to save last playlist: {}", e);
-            }
-        }
-        Err(e) => warn!("Failed to serialize last playlist: {}", e),
-    }
-}
-
-/// Load the previously saved playlist, filtering out files that no longer exist.
-pub fn load_last_playlist() -> Option<Vec<PathBuf>> {
-    let file = last_playlist_path();
-    let json = std::fs::read_to_string(&file).ok()?;
-    let strings: Vec<String> = serde_json::from_str(&json).ok()?;
-    let paths: Vec<PathBuf> = strings
-        .into_iter()
-        .map(PathBuf::from)
-        .filter(|p| p.is_file())
-        .collect();
-    if paths.is_empty() {
-        None
-    } else {
-        Some(paths)
-    }
 }
 
 // ---------------------------------------------------------------------------

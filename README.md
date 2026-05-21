@@ -12,15 +12,12 @@ In short, you'll need:
 
 - **Rust** (stable toolchain) — install via [rustup](https://rustup.rs/)
 - **Tauri system dependencies** — on Windows that's the Microsoft C++ Build Tools and WebView2 (preinstalled on Windows 11)
-- **Node.js** — only needed for installing the Tauri CLI via npm; you can skip it if you install the CLI through cargo
 
 Install the Tauri CLI:
 
 ```sh
 cargo install tauri-cli --version "^2.0.0"
 ```
-
-(Or via npm: `npm install -g @tauri-apps/cli`.)
 
 ### Build
 

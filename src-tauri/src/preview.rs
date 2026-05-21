@@ -1,11 +1,11 @@
 //! Background thumbnail-sprite generation for the seek tooltip.
 //!
-//! On file load we spawn ffmpeg in a worker thread to extract a GRID×GRID tile
-//! atlas of preview frames. When finished, an event `preview://ready` is
-//! emitted so the frontend can attach the sprite to its seek tooltip.
+//! On file load we spawn ffmpeg in a worker thread to extract a GRID×GRID
+//! tile atlas of preview frames. When finished, an event `preview://ready`
+//! is emitted so the frontend can attach the sprite to its seek tooltip.
 //!
-//! Sprites are cached in the app data dir under `previews/<md5>.jpg` and keyed
-//! off the video's path + mtime so edits invalidate old sprites.
+//! Sprites are cached in the app data dir under `previews/<md5>.jpg` and
+//! keyed off the video's path + mtime so edits invalidate old sprites.
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -13,6 +13,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 
 use once_cell::sync::Lazy;
+use shared::PreviewReady;
 use tauri::{AppHandle, Emitter, Manager};
 
 pub const GRID: u32 = 8;
@@ -23,8 +24,8 @@ const TILE_W_FALLBACK: u32 = 214;
 const FRAMES: u32 = GRID * GRID;
 
 /// Concurrent ffmpeg processes during sprite generation. More processes ≠
-/// linearly faster: each one re-opens the file, and disk seek bandwidth caps
-/// the gain. 4 is a good balance for SSDs; bump higher for NVMe if needed.
+/// linearly faster: each one re-opens the file, and disk seek bandwidth
+/// caps the gain. 8 is a good default for SSDs.
 const TILE_PARALLELISM: usize = 8;
 
 static ACTIVE_JOB: Lazy<Mutex<Option<String>>> = Lazy::new(|| Mutex::new(None));
@@ -32,9 +33,9 @@ static ACTIVE_CHILDREN: Lazy<Mutex<Vec<Child>>> = Lazy::new(|| Mutex::new(Vec::n
 static SHUTTING_DOWN: AtomicBool = AtomicBool::new(false);
 
 /// Bumped on every `request_preview` call. Worker threads capture their own
-/// generation at spawn time and check `is_alive(my_gen)` at every step — once
-/// the global generation moves past, the worker bails so it doesn't keep
-/// spawning ffmpegs for a video the user is no longer interested in.
+/// generation at spawn time and check `is_alive(my_gen)` at every step —
+/// once the global generation moves past, the worker bails so it doesn't
+/// keep spawning ffmpegs for a video the user is no longer interested in.
 static JOB_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 fn is_alive(my_gen: u64) -> bool {
@@ -48,15 +49,6 @@ fn kill_active_children() {
     for child in &mut children {
         let _ = child.kill();
     }
-}
-
-#[derive(serde::Serialize, Clone)]
-pub struct PreviewReady {
-    pub path: String,
-    pub sprite: String,
-    pub grid: u32,
-    pub tile_w: u32,
-    pub tile_h: u32,
 }
 
 fn previews_dir() -> PathBuf {
@@ -121,8 +113,9 @@ pub fn cached_preview(video: &Path) -> Option<PreviewReady> {
     })
 }
 
-/// Resolve the ffmpeg sidecar binary. In a bundled app the sidecar sits next
-/// to the executable; in dev builds tauri-build copies it into `target/*/`.
+/// Resolve the ffmpeg sidecar binary. In a bundled app the sidecar sits
+/// next to the executable; in dev builds tauri-build copies it into
+/// `target/*/`.
 fn ffmpeg_path(app: &AppHandle) -> Option<PathBuf> {
     let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
     let candidates = [
@@ -138,7 +131,6 @@ fn ffmpeg_path(app: &AppHandle) -> Option<PathBuf> {
 }
 
 fn parse_duration_seconds(stderr: &str) -> Option<f64> {
-    // ffmpeg prints e.g. "Duration: 01:23:45.67, start: ..."
     let key = "Duration:";
     let idx = stderr.find(key)?;
     let rest = &stderr[idx + key.len()..];
@@ -156,10 +148,7 @@ fn parse_duration_seconds(stderr: &str) -> Option<f64> {
 
 /// Pull the source's display aspect ratio out of ffmpeg's probe stderr.
 /// Prefers an explicit `DAR a:b`, falls back to storage WxH.
-///
-/// Sample line: `Stream #0:0(eng): Video: h264 (...), yuv420p, 1920x1080 [SAR 1:1 DAR 16:9], ...`
 fn parse_display_aspect(stderr: &str) -> Option<f64> {
-    // First try DAR a:b
     if let Some(dar_idx) = stderr.find("DAR ") {
         let after = &stderr[dar_idx + 4..];
         let end = after.find(|c: char| c == ']' || c == ',' || c == ' ')?;
@@ -171,7 +160,6 @@ fn parse_display_aspect(stderr: &str) -> Option<f64> {
             return Some(n / d);
         }
     }
-    // Fallback to storage dimensions: look for "WIDTHxHEIGHT" near "Video:"
     let video_idx = stderr.find("Video:")?;
     let tail = &stderr[video_idx..];
     for token in tail.split(|c: char| c == ' ' || c == ',') {
@@ -201,10 +189,9 @@ fn cmd_no_window(path: &Path) -> Command {
     Command::new(path)
 }
 
-/// Spawn ffmpeg, register it in ACTIVE_CHILDREN so shutdown() or a superseding
-/// request can kill it, then wait. Returns captured stderr + exit status.
-/// Poll-based so kill isn't blocked on a long wait, and so multiple workers
-/// can coexist.
+/// Spawn ffmpeg, register it in ACTIVE_CHILDREN so shutdown() or a
+/// superseding request can kill it, then poll-wait. Multiple workers can
+/// coexist because we don't hold the children-lock across the wait.
 fn run_tracked(
     mut cmd: Command,
     my_gen: u64,
@@ -229,8 +216,6 @@ fn run_tracked(
         buf
     });
 
-    // Poll try_wait so we don't hold the mutex across a blocking wait — other
-    // workers and the kill paths need access to the children vec.
     let status = loop {
         if !is_alive(my_gen) {
             return Err("superseded".into());
@@ -265,12 +250,9 @@ fn extract_tile(
     out: &Path,
     my_gen: u64,
 ) -> Result<(), String> {
-    // Tile width is computed from the source DAR, so a straight scale to
-    // tile_w × tile_h produces a frame with the source's exact aspect — no
-    // padding needed, no letterbox bars in the sprite.
-    //
-    // yuvj420p (full-range JPEG variant) avoids the "Non full-range YUV is
-    // non-standard" mjpeg encoder error on sources tagged with pc/full range.
+    // Tile dimensions match the source DAR exactly — no padding, no bars.
+    // yuvj420p (full-range) avoids the "Non full-range YUV is non-standard"
+    // mjpeg encoder error on sources tagged with full range.
     let vf = format!("scale={tile_w}:{tile_h},format=yuvj420p");
 
     let mut cmd = cmd_no_window(ffmpeg);
@@ -278,11 +260,8 @@ fn extract_tile(
         .arg("-loglevel")
         .arg("error")
         .arg("-y")
-        // Single-threaded per process — we get parallelism from running
-        // multiple processes, not from per-process threads.
         .arg("-threads")
         .arg("1")
-        // Input-level fast seek: jumps via the container index, no byte scan.
         .arg("-ss")
         .arg(format!("{timestamp:.3}"))
         .arg("-an")
@@ -316,30 +295,28 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path, my_gen: u64) -> Result
     let (_status, probe_stderr) = run_tracked(probe_cmd, my_gen)?;
     let stderr = String::from_utf8_lossy(&probe_stderr);
     let duration = parse_duration_seconds(&stderr)
-        .ok_or_else(|| format!("could not parse duration from ffmpeg output: {stderr}"))?;
+        .ok_or_else(|| format!("could not parse duration: {stderr}"))?;
     if duration <= 0.0 {
         return Err("video has zero duration".into());
     }
 
-    // Derive tile width from the source DAR. Round to even for yuv420p chroma
-    // alignment. Fall back to a sane default if the probe didn't surface DAR.
+    // Derive tile width from the source DAR. Round to even for yuv420p
+    // chroma alignment. Fall back to a sane default if probe didn't surface
+    // DAR.
     let tile_w = match parse_display_aspect(&stderr) {
         Some(dar) if dar > 0.0 => {
             let raw = (TILE_H as f64 * dar).round() as u32;
-            // Force even, clamp to a reasonable range to avoid pathological values.
             let even = (raw + 1) & !1;
             even.clamp(60, 600)
         }
         _ => TILE_W_FALLBACK,
     };
 
-    // 2. Extract FRAMES individual tiles via -ss seek per process. For a long
-    //    file this is dramatically faster than a single linear scan because
-    //    each ffmpeg invocation jumps directly to its timestamp via the
-    //    container index instead of demuxing the whole bitstream.
+    // 2. Extract FRAMES tiles via -ss seek per process. For long files this
+    //    is dramatically faster than a linear scan because each ffmpeg
+    //    invocation jumps directly via the container index.
     let tile_dir = sprite.with_extension("tiles");
     std::fs::create_dir_all(&tile_dir).map_err(|e| format!("create tile dir: {e}"))?;
-    // Cleanup guard so partial runs don't leave intermediates lying around.
     struct TempDir(PathBuf);
     impl Drop for TempDir {
         fn drop(&mut self) {
@@ -350,7 +327,7 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path, my_gen: u64) -> Result
 
     let step = duration / FRAMES as f64;
     let timestamps: Vec<(u32, f64)> = (0..FRAMES)
-        // Sample at the midpoint of each segment so the first/last tiles are
+        // Sample at the midpoint of each segment so first/last tiles are
         // representative rather than dead-frame title cards / black.
         .map(|i| (i, (i as f64 + 0.5) * step))
         .collect();
@@ -395,8 +372,8 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path, my_gen: u64) -> Result
     }
 
     // 3. Composite tiles into the final sprite. concat demuxer feeds the
-    //    image sequence to the tile filter — no random access to the source
-    //    video, just the small intermediates.
+    //    image sequence to the tile filter — no random access to the
+    //    source video, just the small intermediates.
     if let Some(parent) = sprite.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
@@ -426,8 +403,6 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path, my_gen: u64) -> Result
         return Err(format!("ffmpeg compose exited with {status}"));
     }
 
-    // Persist the per-video tile dimensions so cached_preview() can answer
-    // without re-probing the source.
     if let Err(e) = write_meta(
         sprite,
         &PreviewMeta {
@@ -441,12 +416,10 @@ fn run_ffmpeg(ffmpeg: &Path, video: &Path, sprite: &Path, my_gen: u64) -> Result
     Ok(tile_w)
 }
 
-/// Kill any running ffmpeg children. Called from the app's close handler so
-/// background preview jobs don't outlive the process.
+/// Kill any running ffmpeg children. Called from the app's close handler.
 pub fn shutdown() {
     SHUTTING_DOWN.store(true, Ordering::Relaxed);
     kill_active_children();
-    // Drain any children that may have been added between the take and now.
     let mut children = std::mem::take(&mut *ACTIVE_CHILDREN.lock().unwrap());
     for child in &mut children {
         let _ = child.wait();
@@ -454,10 +427,9 @@ pub fn shutdown() {
 }
 
 /// Queue a preview-generation job for `video_path`. If a sprite is already
-/// cached, we emit the ready event immediately and skip ffmpeg. Otherwise we
-/// spawn a worker thread. Switching videos fast cancels the previous job:
-/// its ffmpeg children are killed and the worker bails when it notices the
-/// generation has moved on, so the queue doesn't pile up.
+/// cached, emit the ready event immediately. Otherwise spawn a worker
+/// thread; switching videos fast cancels the previous job via
+/// JOB_GENERATION + child kill.
 pub fn request_preview(app: &AppHandle, video_path: &Path) {
     if SHUTTING_DOWN.load(Ordering::Relaxed) {
         return;
@@ -479,9 +451,6 @@ pub fn request_preview(app: &AppHandle, video_path: &Path) {
         *active = Some(path_str.clone());
     }
 
-    // Bump the generation and kill any in-flight ffmpeg children. The previous
-    // worker's `is_alive(prev_gen)` will now return false and it will exit at
-    // its next checkpoint.
     let my_gen = JOB_GENERATION.fetch_add(1, Ordering::Relaxed) + 1;
     kill_active_children();
 
@@ -508,8 +477,8 @@ pub fn request_preview(app: &AppHandle, video_path: &Path) {
                     },
                 );
             }
-            Ok(_) => { /* finished but superseded — sprite is cached for next time */ }
-            Err(e) => log::debug!("preview generation stopped for {}: {}", video.display(), e),
+            Ok(_) => { /* superseded — sprite is cached for next time */ }
+            Err(e) => log::debug!("preview stopped for {}: {}", video.display(), e),
         }
         let mut active = ACTIVE_JOB.lock().unwrap();
         if active.as_deref() == Some(path_str.as_str()) {

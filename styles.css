@@ -1,0 +1,1181 @@
+:root {
+    --accent: rgb(245, 53, 72);
+    --accent-hot: rgb(255, 86, 103);
+    --accent-cold: rgb(190, 40, 55);
+    --toolbar-bg: rgba(10, 10, 10, 0.5);
+    --menu-bg: rgba(10, 10, 10, 0.88);
+    --hairline: rgba(255, 255, 255, 0.07);
+    --hover: rgba(255, 255, 255, 0.13);
+    --pressed: rgba(255, 255, 255, 0.27);
+
+    --t-fast: 0.1s;
+    --t-norm: 0.2s;
+
+    --window-decorator-height: 38px;
+
+    color-scheme: dark;
+    color: #fff;
+
+    font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        sans-serif;
+    font-feature-settings: "cv11", "ss01";
+    font-size: 14px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+    background: transparent;
+    user-select: none;
+}
+
+/* Anything placed atop video gets a soft shadow so it stays readable
+   regardless of what's in the frame underneath. */
+button img,
+.tooltip,
+.menu,
+.time-display,
+.media-title > *,
+.action-overlay,
+.end-of-playback,
+.seek-preview,
+.seek-tooltip {
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* ---------- Player layout ----------------------------------------------- */
+
+.player {
+    position: relative;
+    width: 100%;
+    height: calc(100% - var(--window-decorator-height, 0px));
+    /* The player fills the window except for the space taken by the
+        custom window decorator (if enabled). `--window-decorator-height`
+        is set from JS based on whether the decorator is in use. */
+}
+
+/* In fullscreen the decorator is `display: none`d via `class:hidden`;
+   reclaim the strip it was reserving so the video surface fills the
+   entire window. */
+.player.fullscreen {
+    height: 100%;
+}
+
+.video-surface {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+}
+
+.controls-panel {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 10px 10px;
+    z-index: 10;
+    transition:
+        opacity var(--t-norm) ease,
+        transform var(--t-norm) ease;
+}
+
+.player.controls-hidden .controls-panel {
+    opacity: 0;
+    transform: translateY(6px);
+    pointer-events: none;
+}
+
+.player.controls-hidden {
+    cursor: none;
+}
+
+/* ---------- Custom window decorator ------------------------------------ */
+/* Replaces the native title bar (`decorations: false`). Fades with the
+   same idle-hide as the bottom toolbar. The whole bar carries
+   `data-tauri-drag-region` so mousedown on empty space starts a window
+   drag; the buttons sit on top and intercept their own clicks. */
+
+.window-decorator {
+    position: relative;
+    left: 0;
+    right: 0;
+    height: var(--window-decorator-height, 38px);
+    z-index: 20;
+    display: flex;
+    align-items: stretch;
+    background: var(--menu-bg);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    color: #fff;
+    font-size: 12px;
+    user-select: none;
+    transition:
+        opacity var(--t-norm) ease,
+        transform var(--t-norm) ease;
+}
+
+.window-decorator.controls-hidden {
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+}
+
+.window-title {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    opacity: 0.85;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.window-buttons {
+    display: flex;
+    flex-shrink: 0;
+}
+
+.window-btn {
+    width: 46px;
+    height: var(--window-decorator-height, 38px);
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--t-fast) ease;
+}
+
+.window-btn svg {
+    width: 10px;
+    height: 10px;
+    pointer-events: none;
+}
+
+.window-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* Close button gets the standard Windows red on hover. */
+.window-btn.close:hover {
+    background: #c42b1c;
+}
+
+/* ---------- Buttons ----------------------------------------------------- */
+
+.icon-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 100px;
+    cursor: pointer;
+    color: #fff;
+    transition: var(--t-fast) ease;
+}
+
+.icon-button:hover {
+    border-color: var(--hairline);
+    background: var(--hover);
+}
+
+.icon-button:active {
+    background: var(--pressed);
+}
+
+.icon-button.disabled,
+.icon-button:disabled {
+    opacity: 0.25;
+    pointer-events: none;
+}
+
+.icon-button img {
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+    transition: transform var(--t-fast) ease;
+}
+
+/* The play/pause glyphs are smaller than the others — bump them
+   up so they read as the primary action. */
+img[src$="/play.svg"],
+img[src$="/pause.svg"] {
+    transform: scale(1.3);
+}
+
+/* ---------- Tooltips ---------------------------------------------------- */
+
+.icon-button .tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translate(-50%, -8px);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px;
+    background: var(--menu-bg);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--t-fast) ease;
+}
+
+.icon-button:hover .tooltip {
+    opacity: 1;
+}
+
+.tooltip-text {
+    margin: 0 4px;
+}
+
+.shortcut {
+    padding: 2px 6px;
+    font-size: 11px;
+    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(0, 0, 0, 0.7);
+}
+
+/* ---------- Toolbar (three pills) -------------------------------------- */
+
+.toolbar {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.toolbar > div {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--hairline);
+    border-radius: 29px;
+}
+
+.toolbar-start {
+    justify-self: start;
+    min-width: 0;
+}
+
+.toolbar-center {
+    justify-self: center;
+    flex-shrink: 0;
+}
+
+.toolbar-end {
+    justify-self: end;
+}
+
+/* ---------- Overflow row ----------------------------------------------- */
+/* The overflow row holds buttons that didn't fit in the main toolbar's
+   start/end pills. Per-side reflow logic in `toolbar.rs` toggles each
+   item's `.hidden` class on either its main copy or its overflow copy.
+   This stylesheet handles the layout; visibility is fully driven by JS. */
+
+.toolbar-overflow {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.toolbar-overflow.hidden {
+    display: none !important;
+}
+
+.toolbar-overflow > div {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--hairline);
+    border-radius: 29px;
+}
+
+/* Empty pills are kept in DOM but hidden via class:empty (set from
+   toolbar.rs based on per-side overflow level). Avoids `:has()` which
+   has subtle interactions with `display: contents` wrappers. */
+.toolbar-overflow > div.empty {
+    visibility: hidden;
+}
+
+/* Wrapper around IconButton-only reflow candidates (Panscan / Fullscreen).
+   `display: contents` makes the wrapper transparent in flex layout — its
+   IconButton child becomes a direct flex item of the surrounding pill, so
+   no extra layout space is taken. The .hidden class beats this with
+   !important when reflow says to hide. */
+.reflow-wrapper {
+    display: contents;
+}
+
+/* ---------- Media title ------------------------------------------------- */
+
+.media-title {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin: 0 8px 0 16px;
+    padding-bottom: 2px;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 16px;
+}
+
+.toolbar-overflow .media-title {
+    white-space: normal;
+    overflow: visible;
+    margin: 10px 16px;
+}
+
+.toolbar-overflow .media-title > * {
+    text-overflow: wrap;
+}
+
+.media-title .title,
+.media-title .show {
+    font-weight: 600;
+}
+
+.media-title .episode {
+    color: rgb(210, 210, 210);
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.media-title .episode-title {
+    font-size: 16px;
+    font-style: italic;
+}
+
+/* ---------- Timeline ---------------------------------------------------- */
+
+.timeline {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 6px;
+}
+
+.time-display {
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    transform: translateY(-2px);
+    min-width: 3.5em;
+    text-align: center;
+}
+
+.seek-track {
+    position: relative;
+    flex: 1;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    padding: 8px 0;
+}
+
+/* Plain `transition: background …` can't tween between a solid color and a
+   linear-gradient. The workaround: always paint the seek bar with a
+   gradient, and register the gradient's stop colors as `<color>` custom
+   properties via `@property`. Registered custom properties of a typed value
+   DO interpolate, so the colors smoothly fade as hover toggles. */
+@property --rail-left {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgba(46, 46, 46, 0.55);
+}
+@property --rail-right {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgba(46, 46, 46, 0.55);
+}
+@property --fill-left {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgb(245, 53, 72);
+}
+@property --fill-right {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgb(245, 53, 72);
+}
+@property --thumb-bg {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgb(245, 53, 72);
+}
+
+/* Idle palette: both gradient stops match, so each element reads as a
+   single color. The hover state below only flips the colors — the gradient
+   stop position (--cursor-pct / --fill-split) stays put, so during the
+   transition it's purely a color fade, not a position slide. */
+.seek-track {
+    --rail-left: rgba(46, 46, 46, 0.55);
+    --rail-right: rgba(46, 46, 46, 0.55);
+    --fill-left: var(--accent);
+    --fill-right: var(--accent);
+    --thumb-bg: var(--accent);
+
+    transition:
+        --rail-left var(--t-norm) ease,
+        --rail-right var(--t-norm) ease,
+        --fill-left var(--t-norm) ease,
+        --fill-right var(--t-norm) ease,
+        --thumb-bg var(--t-norm) ease;
+}
+
+.seek-track.hovering {
+    --rail-left: rgba(255, 255, 255, 0.55);
+    --rail-right: rgba(46, 46, 46, 0.55);
+    --fill-left: var(--accent-hot);
+    --fill-right: var(--accent-cold);
+    --thumb-bg: var(--accent-hot);
+}
+
+.seek-track.hovering .seek-thumb.cold {
+    --thumb-bg: var(--accent-cold);
+}
+
+.seek-rail {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 4px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: linear-gradient(
+        to right,
+        var(--rail-left) 0%,
+        var(--rail-left) var(--cursor-pct, 0%),
+        var(--rail-right) var(--cursor-pct, 0%),
+        var(--rail-right) 100%
+    );
+}
+
+.seek-fill {
+    position: absolute;
+    left: 0;
+    height: 4px;
+    border-radius: 10px;
+    pointer-events: none;
+    background: linear-gradient(
+        to right,
+        var(--fill-left) 0%,
+        var(--fill-left) var(--fill-split, 100%),
+        var(--fill-right) var(--fill-split, 100%),
+        var(--fill-right) 100%
+    );
+}
+
+.seek-thumb {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: var(--thumb-bg);
+    border-radius: 50%;
+    transform: translateX(-50%);
+    top: 50%;
+    margin-top: -6px;
+    pointer-events: none;
+    transition: transform var(--t-fast) ease;
+}
+
+.seek-track:hover .seek-thumb {
+    transform: translateX(-50%) scale(1.2);
+}
+
+.seek-tooltip {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    pointer-events: none;
+}
+
+.seek-tooltip.hidden {
+    display: none !important;
+}
+
+.seek-tooltip .tooltip-text {
+    padding: 3px 8px;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+.seek-preview {
+    overflow: hidden;
+    border-radius: 8px;
+    border: 1px solid var(--hairline);
+    background: #000;
+}
+
+.seek-preview img {
+    display: block;
+    max-width: none;
+}
+
+/* ---------- Volume group ----------------------------------------------- */
+
+.volume-group {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    transition: gap var(--t-norm) ease;
+}
+
+.volume-group.muted {
+    gap: 0;
+}
+
+/* Positioning context for the tooltip so it can ride the thumb via
+   `left: var(--volume-progress)` — a percentage of the area's width, which
+   equals the slider's width (no horizontal padding/border on the area). */
+.volume-slider-area {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin: 0 12px 0 5px;
+    transition: margin var(--t-norm) ease;
+}
+
+.volume-group.muted .volume-slider-area {
+    margin: 0;
+    pointer-events: none;
+}
+
+.volume-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100px;
+    height: 44px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+    transition:
+        width var(--t-norm) ease,
+        opacity var(--t-norm) ease;
+}
+
+.volume-group.muted .volume-slider {
+    opacity: 0;
+    width: 0;
+    pointer-events: none;
+}
+
+.volume-slider::-webkit-slider-runnable-track {
+    -webkit-appearance: none;
+    height: 3px;
+    border-radius: 10px;
+    /* White until 100%, white→red beyond. */
+    background: linear-gradient(
+        to right,
+        #ffffff 0,
+        #ffffff min(50%, var(--volume-progress)),
+        color-mix(in srgb, #ffffff, var(--accent-hot) calc((var(--volume-progress) - 50%) * 2))
+            var(--volume-progress),
+        rgba(128, 128, 128, 0.5) var(--volume-progress),
+        rgba(128, 128, 128, 0.5) 100%
+    );
+}
+
+.volume-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    margin-top: -4px;
+    border-radius: 50%;
+    background: color-mix(
+        in srgb,
+        #ffffff,
+        var(--accent-hot) calc((var(--volume-progress) - 50%) * 2)
+    );
+    border: none;
+    transition: transform var(--t-norm) ease;
+}
+
+.volume-slider:hover::-webkit-slider-thumb {
+    transform: scale(1.2);
+}
+
+.volume-slider-area > .tooltip {
+    position: absolute;
+    bottom: 100%;
+    /* Ride the thumb: `--volume-progress` is a percent of the slider's
+       runnable width, which equals the area's content width. translateX
+       centers the bubble on the thumb. */
+    left: var(--volume-progress, 50%);
+    transform: translate(-50%, -8px);
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px 8px;
+    background: var(--menu-bg);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--t-fast) ease;
+}
+
+/* Slider sibling selector — tooltip only appears while the slider input
+   itself is hovered, not the mute button or the surrounding pill space. */
+.volume-slider:hover ~ .tooltip {
+    opacity: 1;
+}
+
+.volume-slider-area > .tooltip span:last-child {
+    opacity: 0.5;
+}
+
+/* ---------- Menus (general) ------------------------------------------- */
+
+.playlist-anchor,
+.tracks-anchor,
+.ambient-anchor,
+.open-anchor {
+    display: inline-flex;
+}
+
+/* Each anchor's icon-button gets a unique `anchor-name` so its menu can
+   `position-anchor` against it. The anchor lives on the button (not the
+   wrapper) because the wrapper is `display: contents`/`inline-flex` and
+   we want the menu pinned to the visible glyph. */
+.playlist-anchor > .icon-button {
+    anchor-name: --playlist-anchor;
+}
+.tracks-anchor > .icon-button {
+    anchor-name: --tracks-anchor;
+}
+.ambient-anchor > .icon-button {
+    anchor-name: --ambient-anchor;
+}
+.open-anchor > .icon-button {
+    anchor-name: --open-anchor;
+}
+
+.playlist-menu {
+    position-anchor: --playlist-anchor;
+}
+.tracks-menu {
+    position-anchor: --tracks-anchor;
+}
+.ambient-menu {
+    position-anchor: --ambient-anchor;
+}
+.open-menu {
+    position-anchor: --open-anchor;
+}
+
+.menu {
+    position: fixed;
+    position-area: top center;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    margin: 8px;
+    min-width: 256px;
+    width: max-content;
+    max-height: min(600px, calc(100vh - 16px));
+    padding: 12px 0;
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    background: var(--menu-bg);
+    backdrop-filter: blur(10px);
+    transition:
+        opacity var(--t-fast) ease,
+        transform var(--t-fast) ease;
+}
+
+.menu.hidden {
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(6px);
+    /* `display: none` would skip the transition; keep it visible-but-hidden. */
+    display: flex !important;
+}
+
+.menu-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    padding: 10px 24px 14px;
+    opacity: 0.75;
+}
+
+.menu-heading img {
+    width: 16px;
+    height: 16px;
+    opacity: 0.6;
+}
+
+.menu-divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.12);
+    margin: 8px 0;
+}
+
+.menu-item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 12px 24px;
+    font-size: 14px;
+    white-space: nowrap;
+    opacity: 0.8;
+    cursor: pointer;
+    border-top: 1px solid transparent;
+    border-bottom: 1px solid transparent;
+    transition: 50ms ease;
+}
+
+.menu-item:hover {
+    opacity: 1;
+    background: var(--hover);
+    border-top-color: var(--hairline);
+    border-bottom-color: var(--hairline);
+}
+
+.menu-item.active {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.menu-item img {
+    width: 16px;
+    height: 16px;
+}
+
+/* ---------- Open menu (anchored to a start-side button) ---------------- */
+
+.open-menu {
+    min-width: 220px;
+}
+
+.open-menu .menu-item {
+    justify-content: space-between;
+}
+
+.open-menu .menu-item .text {
+    margin-right: auto;
+}
+
+.open-menu .menu-item .shortcut {
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+/* ---------- Playlist menu ---------------------------------------------- */
+
+.playlist-menu {
+    min-width: 320px;
+}
+
+.playlist-items {
+    overflow-y: auto;
+    scrollbar-color: #6f6f6f transparent;
+    scrollbar-width: thin;
+}
+
+.playlist-items .menu-item {
+    padding-left: 0;
+}
+
+.playlist-indicator {
+    position: relative;
+    width: 40px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.playlist-number {
+    font-size: 12px;
+    opacity: 0.6;
+    font-variant-numeric: tabular-nums;
+}
+
+.playlist-item.active .playlist-number {
+    opacity: 1;
+}
+
+.playlist-item .highlight {
+    position: absolute;
+    left: 0;
+    width: 5px;
+    height: 20px;
+    border-radius: 0 3px 3px 0;
+    background: transparent;
+    transition: background var(--t-fast) ease;
+}
+
+.playlist-item.active .highlight {
+    background: var(--accent);
+}
+
+.playlist-content {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.playlist-content-text {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    overflow: hidden;
+}
+
+.playlist-show,
+.playlist-title {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+}
+
+.playlist-episode {
+    font-size: 13px;
+    opacity: 0.8;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    transition: opacity var(--t-fast) ease;
+}
+
+.playlist-item:hover .playlist-episode {
+    opacity: 1;
+}
+
+.playlist-episode-title {
+    font-size: 13px;
+    opacity: 0.9;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.playlist-progress {
+    height: 3px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.playlist-progress-fill {
+    height: 100%;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: 2px;
+}
+
+.playlist-item.active .playlist-progress-fill {
+    background: var(--accent);
+}
+
+/* ---------- Tracks menu ----------------------------------------------- */
+
+.tracks-list {
+    overflow-y: auto;
+    scrollbar-color: #6f6f6f transparent;
+    scrollbar-width: thin;
+}
+
+.tracks-list .menu-item {
+    padding-left: 32px;
+}
+
+.tracks-list .menu-item .highlight {
+    position: absolute;
+    left: 0;
+    width: 4px;
+    height: 20px;
+    border-radius: 0 3px 3px 0;
+    background: transparent;
+    transition: background var(--t-fast) ease;
+}
+
+.tracks-list .menu-item.active .highlight {
+    background: var(--accent);
+}
+
+.menu-item.subtitle-open {
+    justify-content: space-between;
+    font-style: italic;
+    opacity: 0.85;
+}
+
+.menu-item.subtitle-open img {
+    width: 14px;
+    height: 14px;
+    opacity: 0.7;
+}
+
+/* ---------- Ambient menu ---------------------------------------------- */
+
+.ambient-menu {
+    min-width: 280px;
+}
+
+.ambient-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: transparent;
+    border: 0;
+    color: inherit;
+    cursor: pointer;
+    width: 100%;
+    font-size: 14px;
+    text-align: left;
+}
+
+.ambient-toggle:hover {
+    background: var(--hover);
+}
+
+.ambient-toggle-track {
+    position: relative;
+    width: 34px;
+    height: 18px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid var(--hairline);
+    border-radius: 100px;
+    transition:
+        background var(--t-norm) ease,
+        border-color var(--t-norm) ease;
+}
+
+.ambient-toggle-track.on {
+    background: var(--accent);
+    border-color: rgba(255, 61, 80, 0.3);
+}
+
+.ambient-toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 12px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.85);
+    border-radius: 50%;
+    transition:
+        transform var(--t-norm) ease,
+        background var(--t-norm) ease;
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.ambient-toggle-track.on .ambient-toggle-knob {
+    transform: translateX(16px);
+    background: #fff;
+}
+
+.ambient-sliders {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 12px 24px 16px;
+}
+
+.ambient-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ambient-row-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-size: 13px;
+}
+
+.ambient-row-label {
+    opacity: 0.7;
+}
+
+.ambient-row-value {
+    opacity: 0.9;
+    font-variant-numeric: tabular-nums;
+}
+
+.ambient-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 12px;
+    margin: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.ambient-slider::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 10px;
+    background: linear-gradient(
+        to right,
+        #fff 0,
+        #fff var(--slider-progress),
+        rgba(128, 128, 128, 0.5) var(--slider-progress),
+        rgba(128, 128, 128, 0.5) 100%
+    );
+}
+
+.ambient-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    margin-top: -4px;
+    border-radius: 50%;
+    background: #fff;
+    border: none;
+    transition: transform var(--t-norm) ease;
+}
+
+.ambient-slider:hover::-webkit-slider-thumb {
+    transform: scale(1.2);
+}
+
+/* ---------- Action overlay -------------------------------------------- */
+
+.action-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    pointer-events: none;
+    z-index: 50;
+}
+
+.action-overlay.visible {
+    display: flex;
+    animation: action-fade 0.8s ease forwards;
+}
+
+.action-icon {
+    /* The ring around the glyph. `content-box` overrides the global
+       `* { box-sizing: border-box }` so `width: 60px` is the inner area
+       (the img fills it) and the 30px padding genuinely sits around it. */
+    box-sizing: content-box;
+    width: 50px;
+    height: 50px;
+    padding: 24px;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--hairline);
+    border-radius: 50%;
+    filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.5));
+}
+
+.action-icon img {
+    width: 100%;
+    height: 100%;
+    /* Per-icon `transform: scale(...)` rules (play/pause etc.) apply here
+       and grow the glyph only; the .action-icon ring stays put. */
+}
+
+.action-text {
+    padding: 4px 10px;
+    background: var(--toolbar-bg);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    font-size: 18px;
+    font-weight: bold;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes action-fade {
+    0% {
+        opacity: 1;
+    }
+    33% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0;
+    }
+}
+
+/* ---------- End-of-playback popup ------------------------------------ */
+
+.end-of-playback {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 22px;
+    background: rgba(255, 255, 255);
+    color: #000;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 100px;
+    font-size: 18px;
+    cursor: pointer;
+    z-index: 40;
+    transition: var(--t-norm) ease;
+}
+
+.end-of-playback:hover {
+    background: #fff;
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.end-of-playback.hidden {
+    display: flex !important;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -45%);
+}
+
+.end-of-playback img {
+    width: 18px;
+    height: 18px;
+    filter: invert(1);
+}
