@@ -82,13 +82,11 @@ pub fn WindowDecorator() -> impl IntoView {
                 data-tauri-drag-region="true"
                 on:dblclick=on_title_dblclick
             >
-                <img src="public/logo.svg" alt="Logo"/>
+                <img src="public/death-by-mpv.svg" alt="Logo"/>
             </div>
             <div class="window-buttons">
                 <button class="window-btn" on:click=on_min title="Minimize">
-                    <svg viewBox="0 0 10 10" aria-hidden="true">
-                        <path d="M1 5h8" stroke="currentColor" stroke-width="1" stroke-linecap="square"/>
-                    </svg>
+                    <img src="public/icons/window-minimize.svg" alt="Minimize"/>
                 </button>
                 <button
                     class="window-btn"
@@ -99,23 +97,16 @@ pub fn WindowDecorator() -> impl IntoView {
                     {move || if is_max.get() {
                         // Restore: two offset rectangles (Windows convention).
                         view! {
-                            <svg viewBox="0 0 10 10" aria-hidden="true">
-                                <rect x="1.5" y="2.5" width="8" height="8" stroke="currentColor" stroke-width="1" fill="none"/>
-                                <rect x="3" y="1" width="8" height="8" stroke="currentColor" stroke-width="1" fill="none"/>
-                            </svg>
+                            <img src="public/icons/window-restore.svg" alt="Restore"/>
                         }.into_any()
                     } else {
                         view! {
-                            <svg viewBox="0 0 10 10" aria-hidden="true">
-                                <rect x="1.5" y="1.5" width="8" height="8" stroke="currentColor" stroke-width="1" fill="none"/>
-                            </svg>
+                            <img src="public/icons/window-maximize.svg" alt="Maximize"/>
                         }.into_any()
                     }}
                 </button>
                 <button class="window-btn close" on:click=on_close title="Close">
-                    <svg viewBox="0 0 10 10" aria-hidden="true">
-                        <path d="M1 1 L9 9 M9 1 L1 9" stroke="currentColor" stroke-width="1" stroke-linecap="square"/>
-                    </svg>
+                    <img src="public/icons/window-close.svg" alt="Close"/>
                 </button>
             </div>
         </div>

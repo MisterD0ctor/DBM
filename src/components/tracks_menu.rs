@@ -103,7 +103,19 @@ pub fn TracksAnchor(row: Row) -> impl IntoView {
                 <div class="tracks-list tracks-subtitle" node_ref=subs_list_ref>
                     <TrackItem
                         title="Off".into()
-                        active=Signal::derive(move || !state.sub_visibility.get())
+                        // "Off" is active whenever no subtitle is actually
+                        // rendering — subs hidden, no `sid` set, or the file
+                        // has no subtitle tracks at all. Without the last
+                        // two checks a freshly-loaded subtitle-less video
+                        // leaves the section with nothing highlighted.
+                        active=Signal::derive(move || {
+                            if !state.sub_visibility.get() {
+                                return true;
+                            }
+                            let sid = state.sid.with(|s| s.clone());
+                            let Some(sid) = sid else { return true };
+                            subs.with(|ts| !ts.iter().any(|t| t.id.to_string() == sid))
+                        })
                         on_select=Callback::new(move |()| {
                             open.set(false);
                             spawn_local(async move {

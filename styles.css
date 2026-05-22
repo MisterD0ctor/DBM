@@ -1,7 +1,9 @@
 :root {
-    --accent: rgb(245, 53, 72);
-    --accent-hot: rgb(255, 86, 103);
-    --accent-cold: rgb(190, 40, 55);
+    --accent: rgb(244, 48, 68, 1);
+    --accent-hot: rgb(255, 52, 72);
+    --accent-hotter: rgb(255, 119, 133);
+    --accent-cold: rgb(106, 34, 41);
+    --accent-colder: rgb(86, 28, 34);
     --toolbar-bg: rgba(10, 10, 10, 0.5);
     --menu-bg: rgba(10, 10, 10, 0.88);
     --hairline: rgba(255, 255, 255, 0.07);
@@ -51,7 +53,7 @@ button img,
 .end-of-playback,
 .seek-preview,
 .seek-tooltip {
-    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5));
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
 }
 
 .hidden {
@@ -141,12 +143,12 @@ button img,
     flex: 1;
     display: flex;
     align-items: center;
-    padding: 0 10px;
+    padding: 0 12px;
 }
 
 .window-logo img {
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     pointer-events: none;
 }
 
@@ -237,10 +239,11 @@ img[src$="/pause.svg"] {
     position: absolute;
     bottom: 100%;
     left: 50%;
-    transform: translate(-50%, -8px);
+    /* `--clamp-x` is a per-element nudge written by util/tooltip.rs so
+       the centered tooltip stays within an 8px margin of the viewport. */
+    transform: translate(calc(-50% + var(--clamp-x, 0px)), -8px);
     display: inline-flex;
     align-items: center;
-    gap: 6px;
     padding: 4px;
     background: var(--menu-bg);
     border: 1px solid var(--hairline);
@@ -419,6 +422,16 @@ img[src$="/pause.svg"] {
     inherits: true;
     initial-value: rgba(46, 46, 46, 0.55);
 }
+@property --rail-left-center {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgba(46, 46, 46, 0.55);
+}
+@property --rail-right-center {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgba(46, 46, 46, 0.55);
+}
 @property --rail-right {
     syntax: "<color>";
     inherits: true;
@@ -427,17 +440,27 @@ img[src$="/pause.svg"] {
 @property --fill-left {
     syntax: "<color>";
     inherits: true;
-    initial-value: rgb(245, 53, 72);
+    initial-value: rgb(245, 53, 72, 1);
+}
+@property --fill-left-center {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgb(245, 53, 72, 1);
+}
+@property --fill-right-center {
+    syntax: "<color>";
+    inherits: true;
+    initial-value: rgb(245, 53, 72, 1);
 }
 @property --fill-right {
     syntax: "<color>";
     inherits: true;
-    initial-value: rgb(245, 53, 72);
+    initial-value: rgb(245, 53, 72, 1);
 }
 @property --thumb-bg {
     syntax: "<color>";
     inherits: true;
-    initial-value: rgb(245, 53, 72);
+    initial-value: rgb(245, 53, 72, 1);
 }
 
 /* Idle palette: both gradient stops match, so each element reads as a
@@ -446,23 +469,34 @@ img[src$="/pause.svg"] {
    transition it's purely a color fade, not a position slide. */
 .seek-track {
     --rail-left: rgba(46, 46, 46, 0.55);
+    --rail-left-center: rgba(46, 46, 46, 0.55);
+    --rail-right-center: rgba(46, 46, 46, 0.55);
     --rail-right: rgba(46, 46, 46, 0.55);
     --fill-left: var(--accent);
+    --fill-left-center: var(--accent);
+    --fill-right-center: var(--accent);
     --fill-right: var(--accent);
     --thumb-bg: var(--accent);
 
     transition:
-        --rail-left var(--t-norm) ease,
-        --rail-right var(--t-norm) ease,
-        --fill-left var(--t-norm) ease,
-        --fill-right var(--t-norm) ease,
-        --thumb-bg var(--t-norm) ease;
+        --rail-left var(--t-fast) ease,
+        --rail-left-center var(--t-fast) ease,
+        --rail-right-center var(--t-fast) ease,
+        --rail-right var(--t-fast) ease,
+        --fill-left var(--t-fast) ease,
+        --fill-left-center var(--t-fast) ease,
+        --fill-right-center var(--t-fast) ease,
+        --fill-right var(--t-fast) ease;
 }
 
 .seek-track.hovering {
-    --rail-left: rgba(255, 255, 255, 0.55);
+    --rail-left: rgba(210, 210, 210, 0.55);
+    --rail-left-center: rgba(255, 255, 255, 0.7);
+    --rail-right-center: rgba(38, 38, 38, 0.55);
     --rail-right: rgba(46, 46, 46, 0.55);
     --fill-left: var(--accent-hot);
+    --fill-left-center: var(--accent-hotter);
+    --fill-right-center: var(--accent-colder);
     --fill-right: var(--accent-cold);
     --thumb-bg: var(--accent-hot);
 }
@@ -481,8 +515,10 @@ img[src$="/pause.svg"] {
     background: linear-gradient(
         to right,
         var(--rail-left) 0%,
-        var(--rail-left) var(--cursor-pct, 0%),
-        var(--rail-right) var(--cursor-pct, 0%),
+        var(--rail-left) calc(var(--cursor-pct, 0%) - 80px),
+        var(--rail-left-center) var(--cursor-pct, 0%),
+        var(--rail-right-center) var(--cursor-pct, 0%),
+        var(--rail-right) calc(var(--cursor-pct, 0%) + 80px),
         var(--rail-right) 100%
     );
 }
@@ -496,8 +532,10 @@ img[src$="/pause.svg"] {
     background: linear-gradient(
         to right,
         var(--fill-left) 0%,
-        var(--fill-left) var(--fill-split, 100%),
-        var(--fill-right) var(--fill-split, 100%),
+        var(--fill-left) calc(var(--fill-split, 100%) - 80px),
+        var(--fill-left-center) var(--fill-split, 100%),
+        var(--fill-right-center) var(--fill-split, 100%),
+        var(--fill-right) calc(var(--fill-split, 100%) + 80px),
         var(--fill-right) 100%
     );
 }
@@ -512,7 +550,9 @@ img[src$="/pause.svg"] {
     top: 50%;
     margin-top: -6px;
     pointer-events: none;
-    transition: transform var(--t-fast) ease;
+    transition:
+        background var(--t-fast) ease,
+        transform var(--t-norm) ease;
 }
 
 .seek-track:hover .seek-thumb {
@@ -522,7 +562,7 @@ img[src$="/pause.svg"] {
 .seek-tooltip {
     position: absolute;
     bottom: calc(100% + 4px);
-    transform: translateX(-50%);
+    transform: translateX(calc(-50% + var(--clamp-x, 0px)));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -645,7 +685,7 @@ img[src$="/pause.svg"] {
        runnable width, which equals the area's content width. translateX
        centers the bubble on the thumb. */
     left: var(--volume-progress, 50%);
-    transform: translate(-50%, -8px);
+    transform: translate(calc(-50% + var(--clamp-x, 0px)), -8px);
     display: inline-flex;
     gap: 2px;
     padding: 3px 8px;
@@ -867,7 +907,6 @@ img[src$="/pause.svg"] {
 .playlist-content-text {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 10px;
     overflow: hidden;
 }
@@ -908,12 +947,8 @@ img[src$="/pause.svg"] {
 
 .playlist-progress-fill {
     height: 100%;
-    background: rgba(255, 255, 255, 0.9);
-    border-radius: 2px;
-}
-
-.playlist-item.active .playlist-progress-fill {
     background: var(--accent);
+    border-radius: 2px;
 }
 
 /* ---------- Tracks menu ----------------------------------------------- */

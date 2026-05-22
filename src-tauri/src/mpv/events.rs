@@ -74,6 +74,22 @@ fn emit_property(app: &AppHandle, parsed: serde_json::Value) {
         .to_string();
     map.remove("event");
 
+    // mpv reports inherently-integer counters (`playlist-pos`, the various
+    // counts) as JSON floats because we observe them with format "double",
+    // but the matching `MpvProperty` variants hold `i64` / `Option<i64>`.
+    // Serde won't widen `5.0` into `5`, so without this coercion every
+    // property-change event for these names silently fails to deserialize
+    // and the UI sits on a stale value (e.g. the playlist active-row
+    // highlight never moves when the user picks a different entry).
+    if matches!(
+        name.as_str(),
+        "playlist-pos" | "playlist-count" | "track-list/count"
+    ) {
+        if let Some(data) = map.get_mut("data") {
+            coerce_int(data);
+        }
+    }
+
     match serde_json::from_value::<MpvProperty>(serde_json::Value::Object(map)) {
         Ok(prop) => {
             if let Err(e) = app.emit("mpv://property", &prop) {
@@ -87,6 +103,23 @@ fn emit_property(app: &AppHandle, parsed: serde_json::Value) {
             // entry that needs adding to the MpvProperty enum.
             trace!("Skipping property '{name}': {e}");
         }
+    }
+}
+
+/// Replace a JSON float that's actually an integer (no fractional part) with
+/// the integer form so `serde` can deserialize it into an `i64` slot. Leaves
+/// nulls, non-numbers, and true floats untouched.
+fn coerce_int(v: &mut serde_json::Value) {
+    let serde_json::Value::Number(n) = v else {
+        return;
+    };
+    let Some(f) = n.as_f64() else { return };
+    if !f.is_finite() {
+        return;
+    }
+    let i = f as i64;
+    if (f - i as f64).abs() < 1e-9 {
+        *v = serde_json::Value::Number(serde_json::Number::from(i));
     }
 }
 

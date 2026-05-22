@@ -14,6 +14,7 @@ use crate::state::PlayerState;
 use crate::util::dragdrop::install_drag_drop;
 use crate::util::keyboard::install_shortcuts;
 use crate::util::overlay::install_overlay_visibility;
+use crate::util::tooltip::install_tooltip_clamp;
 
 #[component]
 pub fn App() -> impl IntoView {
@@ -61,6 +62,7 @@ pub fn App() -> impl IntoView {
 
     install_shortcuts(state, feedback);
     install_overlay_visibility(state);
+    install_tooltip_clamp();
 
     view! {
         <WindowDecorator

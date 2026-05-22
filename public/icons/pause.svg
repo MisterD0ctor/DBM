@@ -61,11 +61,11 @@
      inkscape:zoom="1.1826172"
      inkscape:cx="268.47233"
      inkscape:cy="326.8175"
-     inkscape:window-width="3440"
-     inkscape:window-height="1417"
-     inkscape:window-x="1432"
-     inkscape:window-y="1065"
-     inkscape:window-maximized="1"
+     inkscape:window-width="1350"
+     inkscape:window-height="1247"
+     inkscape:window-x="2922"
+     inkscape:window-y="1218"
+     inkscape:window-maximized="0"
      inkscape:current-layer="Layer_1" />
   <circle
      style="display:none;fill:none;fill-opacity:1;stroke:#ffffff;stroke-width:0.114249;stroke-dasharray:none;stroke-opacity:1;paint-order:markers stroke fill"
@@ -87,7 +87,7 @@
      id="rect1"
      width="5.625"
      height="20.403913"
-     x="4.3039508"
+     x="4.3125"
      y="1.7980434"
      ry="1.9454756" />
   <rect
@@ -95,7 +95,7 @@
      id="rect1-4"
      width="5.625"
      height="20.403913"
-     x="14.053648"
+     x="14.0625"
      y="1.7980433"
      ry="1.9454756" />
 </svg>

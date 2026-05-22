@@ -7,4 +7,5 @@ pub mod format_time;
 pub mod keyboard;
 pub mod overlay;
 pub mod parse;
+pub mod tooltip;
 pub mod window;
