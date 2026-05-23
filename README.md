@@ -1,4 +1,4 @@
-![Death by MPV](public/death-by-mpv.svg)
+<img src="public/death-by-mpv.svg" alt="Death by MPV" width="128" height="128">
 
 # Death By MPV
 
