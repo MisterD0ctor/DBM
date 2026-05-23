@@ -36,9 +36,10 @@ pub fn TracksAnchor(row: Row) -> impl IntoView {
     let audio_list_ref = NodeRef::<html::Div>::new();
 
     let measure = move || {
-        let (Some(s), Some(a)) =
-            (subs_list_ref.get_untracked(), audio_list_ref.get_untracked())
-        else {
+        let (Some(s), Some(a)) = (
+            subs_list_ref.get_untracked(),
+            audio_list_ref.get_untracked(),
+        ) else {
             return;
         };
         let s_el: &web_sys::HtmlElement = s.unchecked_ref();
@@ -73,14 +74,20 @@ pub fn TracksAnchor(row: Row) -> impl IntoView {
     };
 
     let subs = Memo::new(move |_| {
-        state
-            .tracks
-            .with(|ts| ts.iter().filter(|t| t.kind == TrackKind::Sub).cloned().collect::<Vec<_>>())
+        state.tracks.with(|ts| {
+            ts.iter()
+                .filter(|t| t.kind == TrackKind::Sub)
+                .cloned()
+                .collect::<Vec<_>>()
+        })
     });
     let audio = Memo::new(move |_| {
-        state
-            .tracks
-            .with(|ts| ts.iter().filter(|t| t.kind == TrackKind::Audio).cloned().collect::<Vec<_>>())
+        state.tracks.with(|ts| {
+            ts.iter()
+                .filter(|t| t.kind == TrackKind::Audio)
+                .cloned()
+                .collect::<Vec<_>>()
+        })
     });
 
     view! {
@@ -153,7 +160,7 @@ pub fn TracksAnchor(row: Row) -> impl IntoView {
                 <div class="menu-divider"></div>
                 <div class="menu-heading">
                     <span>"Audio"</span>
-                    <img src="public/icons/volume.svg" alt="" />
+                    <img src="public/icons/speaking.svg" alt="" />
                 </div>
                 <div class="tracks-list tracks-audio" node_ref=audio_list_ref>
                     {move || {
@@ -348,10 +355,7 @@ extern "C" {
     type IntlDisplayNames;
 
     #[wasm_bindgen(constructor, js_namespace = Intl, js_class = "DisplayNames", catch)]
-    fn new(
-        locales: &js_sys::Array,
-        options: &js_sys::Object,
-    ) -> Result<IntlDisplayNames, JsValue>;
+    fn new(locales: &js_sys::Array, options: &js_sys::Object) -> Result<IntlDisplayNames, JsValue>;
 
     #[wasm_bindgen(method, catch, js_class = "DisplayNames")]
     fn of(this: &IntlDisplayNames, code: &str) -> Result<JsValue, JsValue>;
@@ -422,7 +426,10 @@ fn resize_track_lists(subs_el: &web_sys::HtmlElement, audio_el: &web_sys::HtmlEl
     };
     let parse_px = |s: &str| -> f64 { s.trim_end_matches("px").trim().parse().unwrap_or(0.0) };
     let prop = |cs: &web_sys::CssStyleDeclaration, name: &str| -> f64 {
-        cs.get_property_value(name).ok().map(|s| parse_px(&s)).unwrap_or(0.0)
+        cs.get_property_value(name)
+            .ok()
+            .map(|s| parse_px(&s))
+            .unwrap_or(0.0)
     };
 
     // `min(...)` / `calc(...)` should resolve to a px value in computed
