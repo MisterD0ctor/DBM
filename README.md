@@ -1,3 +1,5 @@
+![Death by MPV](public\death-by-mpv.svg)
+
 # Death By MPV
 
 A simple video player based on mpv, built with Tauri.
