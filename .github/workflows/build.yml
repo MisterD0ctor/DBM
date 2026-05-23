@@ -11,6 +11,14 @@ on:
 permissions:
     contents: write
 
+# Opt into Node.js 24 for JavaScript-based actions ahead of the June 2026
+# default flip. actions/checkout@v4, actions/upload-artifact@v4, and
+# jetli/trunk-action@v0.5.0 are still bundled with the Node 20 runtime
+# today; this flag tells the runner to execute them on Node 24 instead and
+# silences the deprecation warning until each action ships a v5.
+env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
     build:
         runs-on: windows-latest
