@@ -123,12 +123,16 @@ pub fn Timeline() -> impl IntoView {
     let fill_split = move || {
         let f = fill_pct();
         let c = cursor_pct.get();
-        if f <= 0.0 || c >= f { 100.0 } else { (c / f) * 100.0 }
+        if f <= 0.0 || c >= f {
+            100.0
+        } else {
+            (c / f) * 100.0
+        }
     };
 
     let track_style = move || {
         format!(
-            "--cursor-pct: {}%; --fill-split: {}%;",
+            "--cursor-pct: {}%; --fill-split: {}%",
             cursor_pct.get(),
             fill_split(),
         )
