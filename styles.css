@@ -650,9 +650,9 @@ img[src$="/pause.svg"] {
     background: linear-gradient(
         to right,
         #ffffff 0,
-        #ffffff min(50%, var(--volume-progress)),
+        #ffffff calc(min(50%, var(--volume-progress)) - 12px),
         color-mix(in srgb, #ffffff, var(--accent-hot) calc((var(--volume-progress) - 50%) * 2))
-            var(--volume-progress),
+            calc(var(--volume-progress) - 12px),
         rgba(128, 128, 128, 0.5) var(--volume-progress),
         rgba(128, 128, 128, 0.5) 100%
     );
@@ -664,11 +664,7 @@ img[src$="/pause.svg"] {
     height: 12px;
     margin-top: -4px;
     border-radius: 50%;
-    background: color-mix(
-        in srgb,
-        #ffffff,
-        var(--accent-hot) calc((var(--volume-progress) - 50%) * 2)
-    );
+    background: color-mix(in srgb, #ffffff, var(--accent-hot) calc((var(--volume-progress) - 50%) * 2));
     border: none;
     transition: transform var(--t-norm) ease;
 }
