@@ -25,6 +25,25 @@ pub fn MediaTitle(row: Row) -> impl IntoView {
     // value; the next time Main reappears (window grows / filename changes)
     // we re-measure.
     let measure_self = matches!(row, Row::Main);
+
+    // First effect: on every filename change, reset the cached width so the
+    // toolbar reflow brings Main back into view. Without this, a previous
+    // long title that overflowed leaves Main `display:none`, so the second
+    // effect's `scrollWidth` read returns 0 and the new (possibly short)
+    // title stays stranded in the overflow row.
+    //
+    // Subscribed to `filename` only — *not* `hidden()` — so this doesn't
+    // cycle when the reflow toggles Main's visibility in response.
+    if measure_self {
+        Effect::new(move |_| {
+            let _ = state.filename.get();
+            reflow.media_title_width.set(0.0);
+        });
+    }
+
+    // Second effect: re-measure once layout settles. Runs on filename
+    // change (after the reset above propagates Main visible) and on hidden
+    // flips (window resize bringing Main back into view).
     Effect::new(move |_| {
         let _ = state.filename.get();
         let _ = hidden();

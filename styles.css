@@ -1,7 +1,7 @@
 :root {
-    --accent: rgb(244, 48, 68, 1);
+    --accent: rgb(244, 48, 68);
     --accent-hot: rgb(255, 52, 72);
-    --accent-hotter: rgb(255, 119, 133);
+    --accent-hotter: rgb(255, 70, 88);
     --accent-cold: rgb(106, 34, 41);
     --accent-colder: rgb(86, 28, 34);
     --toolbar-bg: rgba(10, 10, 10, 0.5);
@@ -38,20 +38,20 @@ body {
     padding: 0;
     height: 100vh;
     overflow: hidden;
+    /* Must stay transparent — mpv renders to its own child surface under
+       the WebView via `wid` embedding, so the WebView needs to be see-
+       through for the video to be visible. */
     background: transparent;
     user-select: none;
 }
 
 /* Anything placed atop video gets a soft shadow so it stays readable
    regardless of what's in the frame underneath. */
-button img,
-.tooltip,
+.icon-button img,
 .menu,
 .time-display,
 .media-title > *,
-.action-overlay,
-.seek-preview,
-.seek-tooltip {
+.seek-preview {
     filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
 }
 
@@ -464,7 +464,7 @@ img[src$="/pause.svg"] {
 
 /* Idle palette: both gradient stops match, so each element reads as a
    single color. The hover state below only flips the colors — the gradient
-   stop position (--cursor-pct / --fill-split) stays put, so during the
+   stop position (--cursor-pct / --fill-split / --thumb-split) stays put, so during the
    transition it's purely a color fade, not a position slide. */
 .seek-track {
     --rail-left: rgba(46, 46, 46, 0.55);
@@ -490,10 +490,10 @@ img[src$="/pause.svg"] {
 
 .seek-track.hovering {
     --rail-left: rgba(210, 210, 210, 0.55);
-    --rail-left-center: rgba(255, 255, 255, 0.7);
+    --rail-left-center: rgba(255, 255, 255, 0.6);
     --rail-right-center: rgba(38, 38, 38, 0.55);
     --rail-right: rgba(46, 46, 46, 0.55);
-    --fill-left: var(--accent-hot);
+    --fill-left: var(--accent);
     --fill-left-center: var(--accent-hotter);
     --fill-right-center: var(--accent-colder);
     --fill-right: var(--accent-cold);
@@ -585,7 +585,6 @@ img[src$="/pause.svg"] {
 .seek-preview {
     overflow: hidden;
     border-radius: 8px;
-    border: 1px solid var(--hairline);
     background: #000;
 }
 
@@ -731,24 +730,27 @@ img[src$="/pause.svg"] {
 
 .playlist-menu {
     position-anchor: --playlist-anchor;
-}
-.tracks-menu {
-    position-anchor: --tracks-anchor;
-}
-.ambient-menu {
-    position-anchor: --ambient-anchor;
+    position-area: top span-right;
 }
 .open-menu {
     position-anchor: --open-anchor;
+    position-area: top span-right;
+}
+.ambient-menu {
+    position-anchor: --ambient-anchor;
+    position-area: top span-left;
+}
+.tracks-menu {
+    position-anchor: --tracks-anchor;
+    position-area: top span-left;
 }
 
 .menu {
     position: fixed;
-    position-area: top span-right;
     z-index: 10000;
     display: flex;
     flex-direction: column;
-    margin: 8px;
+    margin: 8px 0;
     min-width: 256px;
     width: max-content;
     max-height: min(600px, calc(100vh - 16px));
@@ -873,6 +875,10 @@ img[src$="/pause.svg"] {
     font-variant-numeric: tabular-nums;
 }
 
+.playlist-item {
+    gap: 22px;
+}
+
 .playlist-item.active .playlist-number {
     opacity: 1;
 }
@@ -901,8 +907,9 @@ img[src$="/pause.svg"] {
 
 .playlist-content-text {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
+    column-gap: 10px;
+    row-gap: 2px;
     overflow: hidden;
 }
 
@@ -912,6 +919,21 @@ img[src$="/pause.svg"] {
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
+}
+
+/* `.playlist-episode-group` keeps "S01:E03" and the episode title together,
+   so when the row is too narrow the pair wraps to the next line as a unit
+   instead of leaving the title stranded next to the show name.
+   `flex-shrink: 0` makes the group claim its natural width — when that
+   plus the show name can't both fit, flex-wrap pushes it onto a new line
+   where `max-width: 100%` lets the title inside truncate. */
+.playlist-episode-group {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
+    max-width: 100%;
 }
 
 .playlist-episode {
@@ -931,6 +953,8 @@ img[src$="/pause.svg"] {
     opacity: 0.9;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
 }
 
 .playlist-progress {
@@ -944,6 +968,31 @@ img[src$="/pause.svg"] {
     height: 100%;
     background: var(--accent);
     border-radius: 2px;
+}
+
+/* Sprite-tile thumbnail at the watch-progress position. Width is set
+   inline so the aspect ratio matches whatever the backend produced. */
+.playlist-thumb {
+    position: relative;
+    flex-shrink: 0;
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #000;
+    background-repeat: no-repeat;
+}
+
+/* Inside a thumb the progress bar overlays the bottom edge instead of
+   sitting on its own row under the text. */
+.playlist-thumb .playlist-progress {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 0;
+}
+
+.playlist-thumb .playlist-progress-fill {
+    border-radius: 0;
 }
 
 /* ---------- Tracks menu ----------------------------------------------- */
