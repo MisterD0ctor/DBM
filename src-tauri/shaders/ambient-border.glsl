@@ -69,10 +69,16 @@ vec4 hook() {
     float sigma = edge_blur;
     float radius = length(sigma * 3 * HOOKED_size);
 
+    // The radius scales with the full frame size, so a large edge_blur would
+    // otherwise spin this loop into the thousands and risk the driver
+    // watchdog. Widen the step rather than shortening the radius, so the
+    // blur keeps its extent and only loses sample density.
+    float stride = max(2.0, radius / max_taps);
+
     float weight;
     vec4 c_sum = textureLod(HOOKED_raw, box_pos, 0.0);
     float w_sum = 1.0;
-    for(float i = 1.0; i <= radius; i += 2) {
+    for(float i = 1.0; i <= radius; i += stride) {
         weight = get_weight(i / radius);
         c_sum += textureLod(HOOKED_raw, box_pos + i * dir * HOOKED_pt, 0.0) * weight;
         w_sum += weight;
@@ -85,26 +91,35 @@ vec4 hook() {
 //!BIND HOOKED
 //!DESC ambient edge extension pass2
 
+// Tight upper bound on how far a source can sit and still contribute more
+// than `c` of the peak.
+//
+// Solved in units of `d` (for y = u/d) rather than in absolute distance.
+// The absolute form ends on `u = (v - 1) / falloff`, which is 0/0 at
+// falloff == 0 — and that NaN propagates into the tap bounds below and
+// paints the whole border NaN. Same cubic, same Newton steps, same result
+// for every other falloff; it just never divides by the parameter.
 float light_spread_bound(float d) {
-    // Tight upper bound
     float c = 0.01; // Tightness of the bound
-    float k = falloff;
-    float kd = k * d;
-    float a = kd + 1.0;
-    float kR = kd * a * a / c;
-    
-    // Initial guess that's reasonable in both regimes:
-    // For small kR: v ≈ 1 + kR.  For large kR: v ≈ (kR)^(1/3) + 1/3.
-    // This expression interpolates: always ≥ 1, grows like cbrt for large kR.
-    float v = 1.0 + kR / (1.0 + pow(kR, 2.0/3.0));
-    
-    // Two Newton steps for high precision
-    v -= (v*v*v - v*v - kR) / (3.0*v*v - 2.0*v);
-    v -= (v*v*v - v*v - kR) / (3.0*v*v - 2.0*v);
-    
-    float u = (v - 1.0) / k;
-    return sqrt(max(u*u - d*d, 0.0));
-    // return abs(d) * spread * 4;
+    float s = falloff * max(d, 0.0);
+    float a = 1.0 + s;
+    float Q = a * a / c;
+
+    // Solve s²y³ + 2sy² + y = Q for y ≥ 1. Initial guess reasonable in both
+    // regimes: for small s, y ≈ Q; for large s, y ≈ (Q/s²)^(1/3). This
+    // interpolates between them and stays finite at s == 0 (y = Q).
+    float y = Q / (1.0 + pow(s * Q, 2.0/3.0));
+
+    // Two Newton steps for high precision. The derivative is ≥ 1 for all
+    // y, s ≥ 0, so this can't divide by zero either.
+    for (int i = 0; i < 2; i++) {
+        float f  = ((s*s*y + 2.0*s) * y + 1.0) * y - Q;
+        float df = (3.0*s*s*y + 4.0*s) * y + 1.0;
+        y -= f / df;
+    }
+
+    // y is the bound in units of d — undo the scaling for the half-width.
+    return d * sqrt(max(y*y - 1.0, 0.0));
 }
 
 float distance_falloff(float x) {
@@ -123,7 +138,11 @@ float soft_distance_falloff(float x) {
 }
 
 float spread_falloff(float x, float d) {
-    return d / length(vec2(x, d * spread));
+    // spread == 0 collapses the light to a line: a tap sitting exactly on
+    // it (x == 0) gives a zero-length vector and an infinite weight, which
+    // turns into NaN in the pow() below. Floor the length so such a tap
+    // merely dominates instead.
+    return d / max(length(vec2(x, d * spread)), 1e-8);
 }
 
 // Wide usage friendly PRNG, shamelessly stolen from a GLSL tricks forum post
@@ -145,33 +164,49 @@ vec4 light_spread(sampler2D image, vec2 pos, float edge_dist, vec2 dir, float ra
     vec4 c_sum = vec4(0.0);
     float w_sum = 0.0;
 
-    float dt = (t1 - t0) / max_taps;
-    for(float t = t0; t <= t1; t += dt) {
+    // Fixed tap count instead of accumulating `t` until it passes `t1`: a
+    // degenerate span (zero spread, or a zero-length bound) makes dt zero,
+    // and `t += 0.0` never terminates — a hung GPU, not just a bad frame.
+    // For a non-degenerate span this walks the exact same t0…t1 taps.
+    int taps = int(clamp(max_taps, 1.0, 4096.0));
+    float dt = (t1 - t0) / float(taps);
+
+    for(int i = 0; i <= taps; i++) {
+        float t = t0 + float(i) * dt;
         float jitter = (rand + t) * 43758.5453; // Random jitter based on position and t
         jitter = fract(jitter) * dt - dt / 2.0; // Jitter in range [-dt/2, dt/2]
         float t_jittered = clamp(t + jitter, t0, t1);
-        float weight = distance_falloff(length(vec2((t_jittered - center), edge_dist))) 
+        float weight = distance_falloff(length(vec2((t_jittered - center), edge_dist)))
                        * spread_falloff(abs(t_jittered - center), edge_dist);
         weight = pow(weight, 2.2);
         c_sum += textureLod(image, pos * dir.yx + t_jittered * dir.xy, 0.0) * weight;
         w_sum += weight;
     }
-    return c_sum / w_sum;
+    // Every weight can underflow to zero far from the edge; fall back to the
+    // unfiltered texel rather than dividing 0 by 0.
+    return w_sum > 0.0 ? c_sum / w_sum : textureLod(image, pos, 0.0);
 }
 
 vec4 hook() {
     vec2 pos = HOOKED_pos;
     vec4 r = BORDER_rect;
 
-    float video_aspect = (BORDER_rect.z - BORDER_rect.x) / (BORDER_rect.w - BORDER_rect.y)
+    // A collapsed rect (nothing loaded yet, mid-resize) would divide by zero
+    // here and in `delta` below.
+    vec2 rect_size = max(r.zw - r.xy, vec2(1e-6));
+
+    float video_aspect = rect_size.x / rect_size.y
                        * (HOOKED_size.x / HOOKED_size.y);
 
     // Border detection
     vec2 box_pos = clamp(pos, r.xy, r.zw);
-    vec2 delta = (box_pos - pos) / (r.xy - r.zw) * vec2(video_aspect, 1.0);
+    vec2 delta = (pos - box_pos) / rect_size * vec2(video_aspect, 1.0);
     float dist = length(delta);
 
-    vec2 dir = abs(normalize(delta.yx));
+    // Inside the video rect delta is exactly zero, and normalize(vec2(0.0))
+    // divides by zero. Those pixels sit under the video, so the direction
+    // picked for them doesn't matter — only that it stays finite.
+    vec2 dir = dist > 0.0 ? abs(normalize(delta.yx)) : vec2(0.0, 1.0);
 
     // Initialize the PRNG by hashing the position + the pixel color
     vec3 m = vec3(pos, 1.0) + vec3(textureLod(HOOKED_raw, pos, 0.0));

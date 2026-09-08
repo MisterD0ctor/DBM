@@ -7,11 +7,13 @@
 use leptos::ev;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
-use shared::{SeekMode, SeekPrecision};
+use shared::{SeekMode, SeekPrecision, Track, TrackKind, TrackSelection};
 
 use crate::bridge::commands;
 use crate::components::{ActionFeedback, ActionKind};
 use crate::state::PlayerState;
+use crate::util::lang::{build_track_titles, same_language};
+use crate::util::subtitles::{format_delay, step_delay, DELAY_STEP};
 use crate::util::window::{enter_fullscreen, exit_fullscreen};
 
 const SEEK_STEP: f64 = 10.0;
@@ -95,15 +97,13 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
                 );
             }
             "KeyC" => {
-                let next = !state.sub_visibility.get_untracked();
-                spawn_local(async move {
-                    let _ = commands::set_sub_visibility(next).await;
-                });
-                fb.show(
-                    if next { ActionKind::SubtitlesOn } else { ActionKind::SubtitlesOff },
-                    None,
-                    None,
-                );
+                toggle_subtitles(state, fb);
+            }
+            // mpv's own bindings: `z` pulls the subtitles earlier, `Z` pushes
+            // them later, both in mpv's 0.1s step.
+            "KeyZ" => {
+                let delta = if ev.shift_key() { DELAY_STEP } else { -DELAY_STEP };
+                nudge_sub_delay(state, fb, delta);
             }
             "KeyB" => {
                 let enabled = state.border_background.with_untracked(|b| b == "shader");
@@ -208,6 +208,102 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
         }
     });
     on_cleanup(move || click_handle.remove());
+}
+
+/// Toggle captions.
+///
+/// Turning them *on* has to make sure a subtitle track is actually selected:
+/// `sub-visibility` on its own renders nothing when `sid` is unset, which is
+/// where a file lands whenever mpv picked no subtitle track (none matching
+/// `slang`, none default) or watch-later restored `sid=no` from a session
+/// where they were off.
+///
+/// Which track, in order:
+/// 1. one whose language matches the last language the user picked in the
+///    tracks menu — a preference that should follow them across files, and
+///    so outranks whatever this particular file happens to have selected;
+/// 2. the track mpv already has selected, if this file really has it;
+/// 3. the first subtitle track.
+///
+/// Turning them off deliberately leaves `sid` alone, so it stays the
+/// "previously active" track for the next press. Same as the tracks menu's
+/// "Off" item.
+fn toggle_subtitles(state: PlayerState, fb: ActionFeedback) {
+    if state.sub_visibility.get_untracked() {
+        spawn_local(async move {
+            let _ = commands::set_sub_visibility(false).await;
+        });
+        fb.show(ActionKind::SubtitlesOff, None, None);
+        return;
+    }
+
+    let subs: Vec<Track> = state.tracks.with_untracked(|ts| {
+        ts.iter()
+            .filter(|t| t.kind == TrackKind::Sub)
+            .cloned()
+            .collect()
+    });
+    if subs.is_empty() {
+        // Nothing to turn on — don't flash an icon claiming otherwise.
+        fb.show(ActionKind::SubtitlesOff, None, None);
+        return;
+    }
+
+    // Only trust `sid` if it names a track this file actually has: mpv
+    // reports "no" when nothing is selected, and an id can outlive the file
+    // it belonged to.
+    let selected = state
+        .sid
+        .with_untracked(|s| s.as_deref().and_then(|s| s.parse::<u32>().ok()))
+        .filter(|id| subs.iter().any(|t| t.id == *id));
+
+    spawn_local(async move {
+        let preferred = match commands::get_sub_language().await {
+            Ok(Some(saved)) => subs
+                .iter()
+                .find(|t| {
+                    t.lang
+                        .as_deref()
+                        .is_some_and(|lang| same_language(lang, &saved))
+                })
+                .map(|t| t.id),
+            _ => None,
+        };
+
+        let target = preferred.or(selected).unwrap_or(subs[0].id);
+        if Some(target) != selected {
+            let _ = commands::set_subtitle_track(TrackSelection::Id(target)).await;
+        }
+        let _ = commands::set_sub_visibility(true).await;
+
+        // Name the track we landed on, using the tracks menu's own labelling
+        // so the overlay says exactly what the menu would call it. The
+        // overlay waits on the resolution above rather than firing early —
+        // which track wins isn't known until the saved language comes back.
+        let label = build_track_titles(&subs).get(&target).cloned();
+        fb.show(ActionKind::SubtitlesOn, label, None);
+    });
+}
+
+/// Shift the subtitles in time. The overlay shows the value being asked for
+/// rather than waiting for mpv to report it back, so repeated presses read
+/// smoothly instead of lagging a step behind.
+fn nudge_sub_delay(state: PlayerState, fb: ActionFeedback, delta: f64) {
+    // mpv would happily accept a delay for subtitles that don't exist, but
+    // flashing a value implies something is being re-timed.
+    let has_subs = state
+        .tracks
+        .with_untracked(|ts| ts.iter().any(|t| t.kind == TrackKind::Sub));
+    if !has_subs {
+        fb.show(ActionKind::SubtitlesOff, None, None);
+        return;
+    }
+
+    let next = step_delay(state.sub_delay.get_untracked(), delta);
+    spawn_local(async move {
+        let _ = commands::set_sub_delay(next).await;
+    });
+    fb.show(ActionKind::SubDelay, Some(format_delay(next)), None);
 }
 
 fn bump_volume(state: PlayerState, fb: ActionFeedback, delta: f64) {

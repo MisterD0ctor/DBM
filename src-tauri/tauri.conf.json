@@ -14,12 +14,12 @@
         "windows": [
             {
                 "title": "Death by MPV",
-                "width": 360,
-                "height": 640,
+                "width": 1280,
+                "height": 720,
                 "minWidth": 640,
                 "minHeight": 360,
                 "transparent": true,
-                "decorations": false
+                "decorations": true
             }
         ],
         "security": {

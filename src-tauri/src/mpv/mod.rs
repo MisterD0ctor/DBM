@@ -188,7 +188,9 @@ const INITIAL_OPTIONS: &[(&str, &str)] = &[
     ("deband-iterations", "8"),
     ("sub-visibility", "yes"),
     ("save-position-on-quit", "yes"),
-    ("watch-later-options", "start,vid,aid,sid,volume"),
+    // `sub-delay` rides along so a file whose subtitles needed nudging into
+    // sync opens that way next time instead of being re-fixed every session.
+    ("watch-later-options", "start,vid,aid,sid,volume,sub-delay"),
 ];
 
 /// Properties to observe — the event loop pushes changes to the frontend as
@@ -206,12 +208,19 @@ const OBSERVED_PROPERTIES: &[(&str, &str)] = &[
     ("sid", "string"),
     ("aid", "string"),
     ("sub-visibility", "flag"),
+    ("sub-delay", "double"),
+    ("sub-scale", "double"),
+    ("sub-pos", "double"),
     ("track-list/count", "double"),
     ("eof-reached", "flag"),
     ("playlist-pos", "double"),
     ("playlist-count", "double"),
     ("border-background", "string"),
     ("panscan", "double"),
+    // Not forwarded to the frontend — `mpv::events` routes it to the audio
+    // watchdog. Observing it is also what makes mpv monitor device hotplug
+    // at all, which is the point: see `crate::audio`.
+    ("audio-device-list", "node"),
 ];
 
 impl Default for MpvPlayer {

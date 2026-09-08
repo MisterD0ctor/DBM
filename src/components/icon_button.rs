@@ -15,6 +15,7 @@
 //! ```
 
 use leptos::prelude::*;
+use crate::util::assets::asset;
 
 #[component]
 pub fn IconButton(
@@ -57,7 +58,7 @@ pub fn IconButton(
             disabled=move || disabled.get()
             on:click=on_click_inner
         >
-            <img src=move || icon.get() alt=move || alt.get() />
+            <img src=move || asset(&icon.get()) alt=move || alt.get() />
             <Show when=move || tooltip.get().is_some() || shortcut.get().is_some()>
                 <div class="tooltip">
                     {move || tooltip.get().map(|t| view! { <span class="tooltip-text">{t}</span> })}

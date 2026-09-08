@@ -15,14 +15,36 @@ use crate::bridge::commands;
 use crate::components::toolbar::{Reflow, Row, Side};
 use crate::components::Menu;
 use crate::state::PlayerState;
+use crate::util::assets::asset;
 
-/// (name, label, min, max, default-in-param-units). `step` on the slider
-/// is fixed at 0.01 since the slider always runs on [0, 1].
-const PARAMS: &[(&str, &str, f64, f64, f64)] = &[
-    ("edge_blur", "Edge blur", 0.0, 0.1, 0.01),
-    ("spread", "Spread", 0.01, 2.0, 1.0),
-    ("falloff", "Falloff", 0.0, 10.0, 4.0),
-    ("falloff_softness", "Falloff softness", 0.0, 2.0, 0.2),
+/// (name, label, icon, min, max, default-in-param-units). `step` on the
+/// slider is fixed at 0.01 since the slider always runs on [0, 1].
+const PARAMS: &[(&str, &str, &str, f64, f64, f64)] = &[
+    (
+        "edge_blur",
+        "Edge blur",
+        "public/icons/edge-blur.svg",
+        0.0,
+        0.1,
+        0.01,
+    ),
+    ("spread", "Spread", "public/icons/angle.svg", 0.01, 2.0, 1.0),
+    (
+        "falloff",
+        "Falloff",
+        "public/icons/curve.svg",
+        0.0,
+        10.0,
+        4.0,
+    ),
+    (
+        "falloff_softness",
+        "Falloff softness",
+        "public/icons/curve-soft.svg",
+        0.0,
+        2.0,
+        0.2,
+    ),
 ];
 
 #[component]
@@ -38,7 +60,7 @@ pub fn AmbientAnchor(row: Row) -> impl IntoView {
     // back into param units before storing.
     let values: Vec<RwSignal<f64>> = PARAMS
         .iter()
-        .map(|(_, _, _, _, default)| RwSignal::new(*default))
+        .map(|(_, _, _, _, _, default)| RwSignal::new(*default))
         .collect();
     // Memoize once so the closures below all see the same Vec.
     let values_for_load = values.clone();
@@ -51,7 +73,7 @@ pub fn AmbientAnchor(row: Row) -> impl IntoView {
         let Ok(Some(saved)) = commands::load_ambient_params().await else {
             return;
         };
-        for (i, (name, _, _, _, _)) in PARAMS.iter().enumerate() {
+        for (i, (name, _, _, _, _, _)) in PARAMS.iter().enumerate() {
             if let Some(p) = saved.params.iter().find(|p| p.name == *name) {
                 values_for_load[i].set(p.value);
             }
@@ -67,7 +89,7 @@ pub fn AmbientAnchor(row: Row) -> impl IntoView {
         let params: Vec<AmbientParam> = PARAMS
             .iter()
             .zip(&values_for_effect)
-            .map(|((name, _, _, _, _), sig)| AmbientParam {
+            .map(|((name, _, _, _, _, _), sig)| AmbientParam {
                 name: name.to_string(),
                 value: sig.get(),
             })
@@ -88,9 +110,9 @@ pub fn AmbientAnchor(row: Row) -> impl IntoView {
     };
     let icon = move || {
         if enabled() {
-            "public/icons/bulb-solid.svg"
+            "public/icons/ambience-on.svg"
         } else {
-            "public/icons/bulb.svg"
+            "public/icons/ambience-slash.svg"
         }
     };
 
@@ -101,28 +123,37 @@ pub fn AmbientAnchor(row: Row) -> impl IntoView {
                 class="icon-button"
                 on:click=toggle_open
             >
-                <img src=icon alt="OLED saver" />
+                <img src=move || asset(icon()) alt="Ambience" />
                 <div class="tooltip">
-                    <span class="tooltip-text">"OLED saver"</span>
+                    <span class="tooltip-text">"Ambience"</span>
                     <span class="shortcut">"B"</span>
                 </div>
             </button>
             <Menu open=open anchor=btn_ref class="ambient-menu".to_string()>
-                <button class="menu-item ambient-toggle" on:click=toggle_enabled>
-                    <span>"OLED saver"</span>
+                // The menu's header *is* its on/off control: `.menu-heading`
+                // gives it the same band, height and label column as the
+                // section headers in the other menus.
+                <button class="menu-heading ambient-toggle" on:click=toggle_enabled>
+                    <img src=move || asset(icon()) alt="" />
+                    <span>"Ambience"</span>
                     <span class="ambient-toggle-track" class:on=enabled>
                         <span class="ambient-toggle-knob"></span>
                     </span>
                 </button>
-                <div class="menu-divider"></div>
-                <div class="ambient-sliders">
+                <div class="setting-rows">
                     {PARAMS
                         .iter()
                         .enumerate()
-                        .map(|(i, &(_, label, min, max, _))| {
+                        .map(|(i, &(_, label, icon, min, max, _))| {
                             let sig = values_for_view[i];
                             view! {
-                                <AmbientSlider label=label.to_string() min=min max=max value=sig/>
+                                <AmbientSlider
+                                    label=label.to_string()
+                                    icon=icon
+                                    min=min
+                                    max=max
+                                    value=sig
+                                />
                             }
                         })
                         .collect_view()}
@@ -135,6 +166,7 @@ pub fn AmbientAnchor(row: Row) -> impl IntoView {
 #[component]
 fn AmbientSlider(
     label: String,
+    icon: &'static str,
     min: f64,
     max: f64,
     value: RwSignal<f64>,
@@ -157,13 +189,18 @@ fn AmbientSlider(
     };
 
     view! {
-        <div class="ambient-row">
-            <div class="ambient-row-head">
-                <span class="ambient-row-label">{label}</span>
-                <span class="ambient-row-value">{display}</span>
+        <div class="setting-row">
+            <div class="setting-row-head">
+                // Same icon + label pairing the subtitle settings panel uses,
+                // so both settings menus share one alignment and icon size.
+                <span class="setting-row-name">
+                    <img src=asset(icon) alt="" />
+                    <span class="setting-row-label">{label}</span>
+                </span>
+                <span class="setting-row-value">{display}</span>
             </div>
             <input
-                class="ambient-slider"
+                class="slider"
                 type="range"
                 min="0"
                 max="1"

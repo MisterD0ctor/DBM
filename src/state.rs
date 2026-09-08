@@ -26,6 +26,12 @@ pub struct PlayerState {
     pub sid: RwSignal<Option<String>>,
     pub aid: RwSignal<Option<String>>,
     pub sub_visibility: RwSignal<bool>,
+    /// Seconds the subtitles are shifted by; positive shows them later.
+    pub sub_delay: RwSignal<f64>,
+    /// Font size multiplier; 1.0 is the source's own size.
+    pub sub_scale: RwSignal<f64>,
+    /// Vertical placement, 0 (top) to 150; 100 is the default bottom.
+    pub sub_pos: RwSignal<f64>,
     pub border_background: RwSignal<String>,
     pub eof_reached: RwSignal<bool>,
     pub playlist_pos: RwSignal<Option<i64>>,
@@ -42,11 +48,6 @@ pub struct PlayerState {
 
     // UI-local (not mirrored from mpv)
     pub fullscreen: RwSignal<bool>,
-    /// Snapshot of the OS window's maximized state captured *at the moment we
-    /// entered fullscreen*. The toolbar fullscreen button cycles
-    /// normal → maximized → fullscreen → previous, so on exit we need to know
-    /// whether to unmaximize the window or leave it maximized.
-    pub pre_fullscreen_maximized: RwSignal<bool>,
     /// `true` when the controls panel + cursor should be visible. The
     /// overlay module toggles this on mouse activity. (Wired in a later step.)
     #[allow(dead_code)]
@@ -68,6 +69,9 @@ impl PlayerState {
             sid: RwSignal::new(None),
             aid: RwSignal::new(None),
             sub_visibility: RwSignal::new(true),
+            sub_delay: RwSignal::new(0.0),
+            sub_scale: RwSignal::new(1.0),
+            sub_pos: RwSignal::new(100.0),
             border_background: RwSignal::new(String::new()),
             eof_reached: RwSignal::new(false),
             playlist_pos: RwSignal::new(None),
@@ -77,7 +81,6 @@ impl PlayerState {
             playlist_progress: RwSignal::new(HashMap::new()),
             preview_sprite: RwSignal::new(None),
             fullscreen: RwSignal::new(false),
-            pre_fullscreen_maximized: RwSignal::new(false),
             controls_visible: RwSignal::new(true),
         }
     }
@@ -97,6 +100,9 @@ impl PlayerState {
         self.sid.set(snap.sid);
         self.aid.set(snap.aid);
         self.sub_visibility.set(snap.sub_visibility);
+        self.sub_delay.set(snap.sub_delay);
+        self.sub_scale.set(snap.sub_scale);
+        self.sub_pos.set(snap.sub_pos);
         self.border_background.set(snap.border_background);
         self.eof_reached.set(snap.eof_reached);
         self.playlist_pos.set(snap.playlist_pos);

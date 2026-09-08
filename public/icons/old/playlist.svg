@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="0 0 24 24"
+   width="512"
+   height="512"
+   version="1.1"
+   id="svg5"
+   sodipodi:docname="playlist.svg"
+   inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs5">
+    <inkscape:path-effect
+       effect="fillet_chamfer"
+       id="path-effect6"
+       is_visible="true"
+       lpeversion="1"
+       nodesatellites_param="F,0,0,1,0,0,0,1 @ F,0,0,1,0,1.4,0,1 @ F,0,0,1,0,1.4,0,1"
+       radius="0"
+       unit="px"
+       method="auto"
+       mode="F"
+       chamfer_steps="1"
+       flexible="false"
+       use_knot_distance="true"
+       apply_no_radius="true"
+       apply_with_radius="true"
+       only_selected="false"
+       hide_knots="false" />
+  </defs>
+  <sodipodi:namedview
+     id="namedview5"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="0.83623663"
+     inkscape:cx="268.46468"
+     inkscape:cy="349.78138"
+     inkscape:window-width="3440"
+     inkscape:window-height="1417"
+     inkscape:window-x="1432"
+     inkscape:window-y="1065"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="_01_align_center" />
+  <g
+     id="_01_align_center"
+     data-name="01 align center">
+    <rect
+       x="12.213088"
+       y="4"
+       width="11.786912"
+       height="2"
+       id="rect1"
+       style="stroke-width:0.832675;fill:#ffffff;fill-opacity:1" />
+    <rect
+       x="7"
+       y="11"
+       width="17"
+       height="2"
+       id="rect2"
+       style="fill:#ffffff;fill-opacity:1" />
+    <rect
+       x="7"
+       y="18"
+       width="17"
+       height="2"
+       id="rect3"
+       style="fill:#ffffff;fill-opacity:1" />
+    <path
+       id="path5"
+       style="fill:#ffffff;stroke-width:6.09375;paint-order:markers stroke fill;fill-opacity:1"
+       inkscape:transform-center-x="-1.5346433"
+       transform="matrix(1.436892,0,0,1.6099929,-3.7634275,-8.3462234)"
+       d="M 9.0185452,8.2944002 3.8455631,11.281023 a 0.80829036,0.80829036 29.999999 0 1 -1.2124356,-0.7 V 6.0077776 a 0.80829038,0.80829038 150 0 1 1.2124356,-0.7 z"
+       inkscape:path-effect="#path-effect6"
+       inkscape:original-d="M 9.0185452,8.2944002 2.6331275,11.981023 V 4.6077776 Z"
+       inkscape:transform-center-y="0.077072648" />
+  </g>
+</svg>

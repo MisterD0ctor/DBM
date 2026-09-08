@@ -8,7 +8,7 @@ use leptos::task::spawn_local;
 use crate::bridge::{commands, events};
 use crate::components::{
     ActionFeedback, ActionOverlay, EndOfPlayback, Reflow, Timeline, ToolbarMainRow,
-    ToolbarOverflowRow, VideoSurface, WindowDecorator,
+    ToolbarOverflowRow, VideoSurface,
 };
 use crate::state::PlayerState;
 use crate::util::dragdrop::install_drag_drop;
@@ -65,10 +65,6 @@ pub fn App() -> impl IntoView {
     install_tooltip_clamp();
 
     view! {
-        <WindowDecorator
-            class:controls-hidden = move || !state.controls_visible.get()
-            class:fullscreen = move || state.fullscreen.get()
-        />
         <div
             class="player"
             class:controls-hidden = move || !state.controls_visible.get()

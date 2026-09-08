@@ -10,6 +10,7 @@ use leptos::html;
 use leptos::prelude::*;
 
 use crate::state::PlayerState;
+use crate::util::assets::asset;
 
 /// The icon flashed in the overlay. Add variants as new shortcuts surface.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -31,6 +32,7 @@ pub enum ActionKind {
     MuteOff,
     SubtitlesOn,
     SubtitlesOff,
+    SubDelay,
     Volume,
 }
 
@@ -44,16 +46,17 @@ impl ActionKind {
             Self::Rewind => "public/icons/rotate-left.svg",
             Self::Previous => "public/icons/step-backward.svg",
             Self::Next => "public/icons/step-forward.svg",
-            Self::PanscanOn => "public/icons/expand-alt.svg",
-            Self::PanscanOff => "public/icons/compress-alt.svg",
-            Self::FullscreenOn => "public/icons/expand.svg",
-            Self::FullscreenOff => "public/icons/compress.svg",
-            Self::AmbientOn => "public/icons/bulb-solid.svg",
-            Self::AmbientOff => "public/icons/bulb-slash.svg",
+            Self::PanscanOn => "public/icons/panscan-on.svg",
+            Self::PanscanOff => "public/icons/panscan-off.svg",
+            Self::FullscreenOn => "public/icons/fullscreen-on.svg",
+            Self::FullscreenOff => "public/icons/fullscreen-off.svg",
+            Self::AmbientOn => "public/icons/ambience-on.svg",
+            Self::AmbientOff => "public/icons/ambience-slash.svg",
             Self::MuteOn => "public/icons/volume-mute.svg",
             Self::MuteOff => "public/icons/volume.svg",
             Self::SubtitlesOn => "public/icons/subtitles-solid.svg",
             Self::SubtitlesOff => "public/icons/subtitles-slash.svg",
+            Self::SubDelay => "public/icons/subtitle-time.svg",
             Self::Volume => "public/icons/volume.svg",
         }
     }
@@ -98,7 +101,7 @@ pub fn ActionOverlay() -> impl IntoView {
     let fb = expect_context::<ActionFeedback>();
     let _state = expect_context::<PlayerState>();
 
-    let icon_src = move || fb.kind.get().map(|k| k.icon().to_string()).unwrap_or_default();
+    let icon_src = move || fb.kind.get().map(|k| asset(k.icon())).unwrap_or_default();
     let text = move || fb.text.get();
     let el_ref = NodeRef::<html::Div>::new();
 

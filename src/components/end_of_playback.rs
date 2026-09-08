@@ -10,6 +10,7 @@ use shared::{SeekMode, SeekPrecision};
 
 use crate::bridge::commands;
 use crate::state::PlayerState;
+use crate::util::assets::asset;
 
 #[component]
 pub fn EndOfPlayback() -> impl IntoView {
@@ -47,8 +48,8 @@ pub fn EndOfPlayback() -> impl IntoView {
             class:hidden=move || !visible()
             on:click=on_click
         >
+            <img src=move || asset(icon()) alt="" />
             <span>{label}</span>
-            <img src=icon alt="" />
         </button>
     }
 }

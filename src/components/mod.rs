@@ -15,7 +15,6 @@ pub mod toolbar;
 pub mod tracks_menu;
 pub mod video_surface;
 pub mod volume_group;
-pub mod window_decorator;
 
 pub use action_overlay::{ActionFeedback, ActionKind, ActionOverlay};
 pub use ambient_menu::AmbientAnchor;
@@ -30,4 +29,3 @@ pub use toolbar::{Reflow, ToolbarMainRow, ToolbarOverflowRow};
 pub use tracks_menu::TracksAnchor;
 pub use video_surface::VideoSurface;
 pub use volume_group::VolumeGroup;
-pub use window_decorator::WindowDecorator;

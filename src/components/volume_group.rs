@@ -31,9 +31,8 @@ pub fn VolumeGroup() -> impl IntoView {
             volume_icon(state.volume.get()).to_string()
         }
     });
-    let mute_tooltip = Signal::derive(move || {
-        Some(if state.muted.get() { "Unmute" } else { "Mute" }.to_string())
-    });
+    let mute_tooltip =
+        Signal::derive(move || Some(if state.muted.get() { "Unmute" } else { "Mute" }.to_string()));
 
     let on_mute = Callback::new(move |()| {
         let next = !state.muted.get();
@@ -43,9 +42,14 @@ pub fn VolumeGroup() -> impl IntoView {
     });
 
     let on_input = move |ev: ev::Event| {
-        let target = ev.target().and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
+        let target = ev
+            .target()
+            .and_then(|t| t.dyn_into::<web_sys::HtmlInputElement>().ok());
         let Some(input) = target else { return };
-        let mut v: f64 = input.value().parse().unwrap_or(state.volume.get_untracked());
+        let mut v: f64 = input
+            .value()
+            .parse()
+            .unwrap_or(state.volume.get_untracked());
         if (v - 100.0).abs() <= SNAP_RADIUS {
             v = 100.0;
             input.set_value(&v.to_string());
@@ -101,13 +105,25 @@ pub fn VolumeGroup() -> impl IntoView {
 }
 
 fn volume_icon(volume: f64) -> &'static str {
-    if volume > 133.0 {
-        "public/icons/volume-up.svg"
+    if volume > 176.0 {
+        "public/icons/volume-176.svg"
+    } else if volume > 154.0 {
+        "public/icons/volume-154.svg"
+    } else if volume > 132.0 {
+        "public/icons/volume-132.svg"
+    } else if volume > 110.0 {
+        "public/icons/volume-110.svg"
+    } else if volume > 88.0 {
+        "public/icons/volume-088.svg"
     } else if volume > 66.0 {
-        "public/icons/volume.svg"
-    } else if volume > 0.0 {
-        "public/icons/volume-down.svg"
+        "public/icons/volume-066.svg"
+    } else if volume > 44.0 {
+        "public/icons/volume-044.svg"
+    } else if volume > 22.0 {
+        "public/icons/volume-022.svg"
+    } else if volume > 1.0 {
+        "public/icons/volume-001.svg"
     } else {
-        "public/icons/volume-none.svg"
+        "public/icons/volume-000.svg"
     }
 }

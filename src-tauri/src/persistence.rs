@@ -161,6 +161,88 @@ pub fn load_last_playlist() -> Option<Vec<std::path::PathBuf>> {
 }
 
 // ---------------------------------------------------------------------------
+// Subtitle appearance
+// ---------------------------------------------------------------------------
+
+/// Size and placement are preferences about *this display*, not about a
+/// particular file, so unlike `sub-delay` (which rides along in mpv's
+/// watch-later data) they're stored once and reapplied at startup.
+#[derive(serde::Serialize, serde::Deserialize)]
+pub struct SubtitlePrefs {
+    pub scale: f64,
+    pub pos: f64,
+}
+
+impl Default for SubtitlePrefs {
+    fn default() -> Self {
+        // mpv's own defaults.
+        Self {
+            scale: 1.0,
+            pos: 100.0,
+        }
+    }
+}
+
+fn subtitle_prefs_path() -> std::path::PathBuf {
+    app_data_dir().join("subtitle-prefs.json")
+}
+
+pub fn load_subtitle_prefs() -> Option<SubtitlePrefs> {
+    let json = std::fs::read_to_string(subtitle_prefs_path()).ok()?;
+    serde_json::from_str(&json).ok()
+}
+
+pub fn save_subtitle_prefs(prefs: &SubtitlePrefs) {
+    let target = subtitle_prefs_path();
+    if let Some(parent) = target.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    match serde_json::to_string(prefs) {
+        Ok(json) => {
+            if let Err(e) = std::fs::write(&target, json) {
+                log::warn!("save_subtitle_prefs: {e}");
+            }
+        }
+        Err(e) => log::warn!("save_subtitle_prefs serialize: {e}"),
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Preferred subtitle language
+// ---------------------------------------------------------------------------
+
+fn sub_language_path() -> std::path::PathBuf {
+    app_data_dir().join("sub_language.txt")
+}
+
+/// Remember the language of a subtitle track the user picked, so the next
+/// file can be given the same language rather than whatever `sid` happens
+/// to hold. Only ever written for an explicit choice — see the caller.
+pub fn save_sub_language(lang: &str) {
+    let lang = lang.trim();
+    if lang.is_empty() {
+        return;
+    }
+    let target = sub_language_path();
+    if let Some(parent) = target.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Err(e) = std::fs::write(&target, lang) {
+        log::warn!("save_sub_language: {e}");
+    }
+}
+
+pub fn load_sub_language() -> Option<String> {
+    let lang = std::fs::read_to_string(sub_language_path()).ok()?;
+    let lang = lang.trim().to_string();
+    if lang.is_empty() {
+        None
+    } else {
+        Some(lang)
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Ambient shader params
 // ---------------------------------------------------------------------------
 

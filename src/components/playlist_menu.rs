@@ -14,6 +14,7 @@ use crate::bridge::commands;
 use crate::components::toolbar::{Reflow, Row, Side};
 use crate::components::Menu;
 use crate::state::PlayerState;
+use crate::util::assets::asset;
 use crate::util::parse::{
     clean_separators, parse_tv_show, strip_extension, strip_metadata, strip_path,
 };
@@ -54,15 +55,15 @@ pub fn PlaylistAnchor(row: Row) -> impl IntoView {
                 class="icon-button"
                 on:click=move |_| toggle.run(())
             >
-                <img src="public/icons/playlist.svg" alt="Playlist" />
+                <img src=asset("public/icons/playlist.svg") alt="Playlist" />
                 <div class="tooltip">
                     <span class="tooltip-text">"Playlist"</span>
                 </div>
             </button>
             <Menu open=open anchor=btn_ref class="playlist-menu".to_string()>
                 <div class="menu-heading">
+                    <img src=asset("public/icons/playlist.svg") alt="" />
                     <span>"Playlist"</span>
-                    <img src="public/icons/playlist.svg" alt="" />
                 </div>
                 <div class="playlist-items">
                     <For

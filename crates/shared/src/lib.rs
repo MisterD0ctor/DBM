@@ -35,6 +35,12 @@ pub enum MpvProperty {
     Sid(Option<String>),
     Aid(Option<String>),
     SubVisibility(bool),
+    /// Seconds the subtitles are shifted by. Positive shows them later.
+    SubDelay(f64),
+    /// Font size multiplier; 1.0 is the source's own size.
+    SubScale(f64),
+    /// Vertical placement, 0 (top) to 150; 100 is the default bottom.
+    SubPos(f64),
     BorderBackground(String),
     EofReached(bool),
     PlaylistPos(Option<i64>),
@@ -89,6 +95,9 @@ pub struct PlayerSnapshot {
     pub sid: Option<String>,
     pub aid: Option<String>,
     pub sub_visibility: bool,
+    pub sub_delay: f64,
+    pub sub_scale: f64,
+    pub sub_pos: f64,
     pub border_background: String,
     pub eof_reached: bool,
     pub playlist_pos: Option<i64>,

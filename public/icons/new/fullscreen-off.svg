@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   id="Layer_1"
+   data-name="Layer 1"
+   viewBox="0 0 1.125 1.125"
+   width="24"
+   height="24"
+   version="1.1"
+   sodipodi:docname="fullscreen-off.svg"
+   inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     inkscape:zoom="18.921875"
+     inkscape:cx="3.6201486"
+     inkscape:cy="13.344343"
+     inkscape:window-width="3440"
+     inkscape:window-height="1417"
+     inkscape:window-x="1432"
+     inkscape:window-y="1008"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="Layer_1"
+     showgrid="false">
+    <inkscape:grid
+       id="grid2"
+       units="px"
+       originx="0"
+       originy="0"
+       spacingx="0.046875"
+       spacingy="0.046875"
+       empcolor="#0099e5"
+       empopacity="0.30196078"
+       color="#0099e5"
+       opacity="0.14901961"
+       empspacing="5"
+       dotted="false"
+       gridanglex="30"
+       gridanglez="30"
+       visible="false" />
+  </sodipodi:namedview>
+  <path
+     style="fill:none;stroke:#ffffff;stroke-width:0.09375;stroke-linecap:round;stroke-miterlimit:100"
+     d="M 0.9375,0.1875 0.65625,0.46875"
+     id="path2"
+     sodipodi:nodetypes="cc" />
+  <path
+     style="fill:none;stroke:#ffffff;stroke-width:0.09375;stroke-linecap:round;stroke-miterlimit:100"
+     d="M 0.65625,0.1875 V 0.46875 H 0.9375"
+     id="path3"
+     sodipodi:nodetypes="ccc" />
+  <path
+     style="fill:none;stroke:#ffffff;stroke-width:0.09375;stroke-linecap:round;stroke-miterlimit:100"
+     d="M 0.1875,0.9375 0.46875,0.65625"
+     id="path2-3"
+     sodipodi:nodetypes="cc" />
+  <path
+     style="fill:none;stroke:#ffffff;stroke-width:0.09375;stroke-linecap:round;stroke-miterlimit:100"
+     d="M 0.46875,0.9375 V 0.65625 H 0.1875"
+     id="path3-9"
+     sodipodi:nodetypes="ccc" />
+</svg>

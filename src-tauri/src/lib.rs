@@ -1,3 +1,4 @@
+mod audio;
 mod mpv;
 mod persistence;
 mod playlist;
@@ -31,6 +32,16 @@ pub fn run() {
             }
         }))
         .manage(Arc::new(MpvPlayer::new()))
+        .manage(audio::AudioWatchdog::default())
+        // `log` was a dependency with nothing behind it — every info!/warn!
+        // in the app was going nowhere. Defaults to stdout + a file in the
+        // app log dir. Info, not Trace: the mpv wrapper traces every
+        // property write.
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .build(),
+        )
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init());
 
@@ -74,6 +85,11 @@ pub fn run() {
             mpv::commands::set_subtitle_track,
             mpv::commands::set_audio_track,
             mpv::commands::set_sub_visibility,
+            mpv::commands::set_sub_delay,
+            mpv::commands::set_sub_scale,
+            mpv::commands::set_sub_pos,
+            mpv::commands::save_sub_language,
+            mpv::commands::get_sub_language,
             mpv::commands::set_ambient_enabled,
             mpv::commands::apply_ambient_params,
             mpv::commands::load_ambient_params,
@@ -84,7 +100,6 @@ pub fn run() {
             mpv::commands::open_subtitle_dialog,
             mpv::commands::get_watch_later_positions,
             mpv::commands::get_preview,
-            mpv::commands::show_snap_layouts,
             mpv::commands::playlist_play_index,
             mpv::commands::playlist_prev,
             mpv::commands::playlist_next,
@@ -105,9 +120,20 @@ fn startup(app: &AppHandle) {
         log::warn!("Failed to apply border shader: {e}");
     }
 
+    // Subtitle size/placement are display preferences rather than per-file
+    // state, so they live in our own settings file and get reapplied here.
+    if let Some(prefs) = persistence::load_subtitle_prefs() {
+        for (name, value) in [("sub-scale", prefs.scale), ("sub-pos", prefs.pos)] {
+            if let Err(e) = player.set_property_value(name, &serde_json::json!(value)) {
+                log::warn!("Failed to restore {name}: {e}");
+            }
+        }
+    }
+
     // App-level concerns the wrapper deliberately stays out of.
     persistence::install_property_listener(app);
     persistence::spawn_watch_later_writer(app);
+    audio::install_listener(app);
 
     #[cfg(windows)]
     smtc::setup(app);

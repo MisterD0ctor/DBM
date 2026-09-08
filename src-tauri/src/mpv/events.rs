@@ -55,7 +55,17 @@ fn dispatch(app: &AppHandle, event_str: &str) {
         .to_string();
 
     match event_type.as_str() {
-        "property-change" => emit_property(app, parsed),
+        "property-change" => {
+            // `audio-device-list` is a backend-only concern (and a payload
+            // the UI has no use for) — hand it to the watchdog and stop.
+            if parsed.get("name").and_then(|v| v.as_str()) == Some("audio-device-list") {
+                if let Some(data) = parsed.get("data") {
+                    crate::audio::on_device_list_change(app, data);
+                }
+                return;
+            }
+            emit_property(app, parsed)
+        }
         _ => emit_event(app, parsed),
     }
 }

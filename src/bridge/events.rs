@@ -78,7 +78,7 @@ async fn install_preview_ready_listener(state: PlayerState) {
         };
         // Only accept the sprite if it's for the file we're currently
         // showing. Late deliveries from a previous video are dropped.
-        let cur = state.path.with(|p| p.clone());
+        let cur = state.path.with_untracked(|p| p.clone());
         if cur.as_deref() == Some(ready.path.as_str()) {
             state.preview_sprite.set(Some(ready));
         }
@@ -147,6 +147,9 @@ fn apply_property(state: PlayerState, prop: MpvProperty) {
         Sid(v) => state.sid.set(v),
         Aid(v) => state.aid.set(v),
         SubVisibility(v) => state.sub_visibility.set(v),
+        SubDelay(v) => state.sub_delay.set(v),
+        SubScale(v) => state.sub_scale.set(v),
+        SubPos(v) => state.sub_pos.set(v),
         BorderBackground(v) => state.border_background.set(v),
         EofReached(v) => state.eof_reached.set(v),
         PlaylistPos(v) => state.playlist_pos.set(v),

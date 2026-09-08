@@ -21,6 +21,7 @@ use crate::components::{
     AmbientAnchor, IconButton, MediaTitle, PlaylistAnchor, TracksAnchor, VolumeGroup,
 };
 use crate::state::PlayerState;
+use crate::util::assets::asset;
 use crate::util::window::{enter_fullscreen, exit_fullscreen};
 
 const SEEK_STEP: f64 = 10.0;
@@ -394,7 +395,6 @@ fn PreviousButton() -> impl IntoView {
         />
     }
 }
-
 #[component]
 fn NextButton() -> impl IntoView {
     let state = expect_context::<PlayerState>();
@@ -427,9 +427,9 @@ fn PanscanButton(row: Row) -> impl IntoView {
 
     let icon = Signal::derive(move || {
         if state.panscan.get() > 0.5 {
-            "public/icons/compress-alt.svg"
+            "public/icons/panscan-off.svg"
         } else {
-            "public/icons/expand-alt.svg"
+            "public/icons/panscan-on.svg"
         }
         .to_string()
     });
@@ -471,9 +471,9 @@ fn FullscreenButton(row: Row) -> impl IntoView {
 
     let icon = Signal::derive(move || {
         if state.fullscreen.get() {
-            "public/icons/compress.svg"
+            "public/icons/fullscreen-off.svg"
         } else {
-            "public/icons/expand.svg"
+            "public/icons/fullscreen-on.svg"
         }
         .to_string()
     });
@@ -547,7 +547,7 @@ fn OpenAnchor(row: Row) -> impl IntoView {
                 class="icon-button"
                 on:click=toggle
             >
-                <img src="public/icons/folder-open.svg" alt="File" />
+                <img src=asset("public/icons/folder-open.svg") alt="File" />
                 <div class="tooltip">
                     <span class="tooltip-text">"File"</span>
                 </div>

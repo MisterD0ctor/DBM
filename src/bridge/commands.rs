@@ -58,14 +58,6 @@ pub async fn snapshot() -> Result<PlayerSnapshot, MpvErrorDto> {
     call("snapshot", Args {}).await
 }
 
-/// Synthesizes Win+Z to pop Windows 11's Snap Layouts overlay for the
-/// focused window. No-op on non-Windows platforms.
-pub async fn show_snap_layouts() -> Result<(), MpvErrorDto> {
-    #[derive(Serialize)]
-    struct Args {}
-    call("show_snap_layouts", Args {}).await
-}
-
 pub async fn tracks() -> Result<Vec<Track>, MpvErrorDto> {
     #[derive(Serialize)]
     struct Args {}
@@ -182,6 +174,49 @@ pub async fn set_sub_visibility(visible: bool) -> Result<(), MpvErrorDto> {
         visible: bool,
     }
     call("set_sub_visibility", Args { visible }).await
+}
+
+/// Shift the subtitles in time. Positive shows them later.
+pub async fn set_sub_delay(seconds: f64) -> Result<(), MpvErrorDto> {
+    #[derive(Serialize)]
+    struct Args {
+        seconds: f64,
+    }
+    call("set_sub_delay", Args { seconds }).await
+}
+
+/// Subtitle font size, as a multiplier of the source's own size.
+pub async fn set_sub_scale(scale: f64) -> Result<(), MpvErrorDto> {
+    #[derive(Serialize)]
+    struct Args {
+        scale: f64,
+    }
+    call("set_sub_scale", Args { scale }).await
+}
+
+/// Vertical placement of the subtitles, 0 (top) to 150.
+pub async fn set_sub_pos(pos: f64) -> Result<(), MpvErrorDto> {
+    #[derive(Serialize)]
+    struct Args {
+        pos: f64,
+    }
+    call("set_sub_pos", Args { pos }).await
+}
+
+/// Persist the language of a subtitle track the user explicitly enabled.
+pub async fn save_sub_language(lang: String) -> Result<(), MpvErrorDto> {
+    #[derive(Serialize)]
+    struct Args {
+        lang: String,
+    }
+    call("save_sub_language", Args { lang }).await
+}
+
+/// The language last explicitly enabled, if any.
+pub async fn get_sub_language() -> Result<Option<String>, MpvErrorDto> {
+    #[derive(Serialize)]
+    struct Args {}
+    call("get_sub_language", Args {}).await
 }
 
 // ============================================================================

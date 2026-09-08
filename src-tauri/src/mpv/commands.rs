@@ -124,11 +124,86 @@ pub fn set_subtitle_track(
     to_dto(player.set_property_value("sid", &track_selection_to_value(selection)))
 }
 
+/// Shift the subtitles in time. Positive shows them later; mpv holds this
+/// per-instance, and `watch-later-options` carries it per file.
+#[tauri::command]
+pub fn set_sub_delay(player: State<Arc<MpvPlayer>>, seconds: f64) -> Result<(), MpvErrorDto> {
+    let seconds = finite(seconds, "sub delay")?;
+    to_dto(player.set_property_value("sub-delay", &serde_json::json!(seconds)))
+}
+
+/// Subtitle font size, as a multiplier of the source's own size. Persisted:
+/// a size that suits this screen suits the next file too.
+#[tauri::command]
+pub fn set_sub_scale(player: State<Arc<MpvPlayer>>, scale: f64) -> Result<(), MpvErrorDto> {
+    let scale = finite(scale, "sub scale")?.clamp(0.1, 10.0);
+    to_dto(player.set_property_value("sub-scale", &serde_json::json!(scale)))?;
+    save_subtitle_prefs(&player, |prefs| prefs.scale = scale);
+    Ok(())
+}
+
+/// Vertical placement, 0 (top) to 150. mpv's default is 100 — the bottom.
+#[tauri::command]
+pub fn set_sub_pos(player: State<Arc<MpvPlayer>>, pos: f64) -> Result<(), MpvErrorDto> {
+    let pos = finite(pos, "sub position")?.clamp(0.0, 150.0);
+    to_dto(player.set_property_value("sub-pos", &serde_json::json!(pos)))?;
+    save_subtitle_prefs(&player, |prefs| prefs.pos = pos);
+    Ok(())
+}
+
+/// Read back what mpv now holds for both appearance settings and write the
+/// pair out. Reading from mpv rather than from the incoming argument keeps
+/// the file agreeing with what's actually applied, clamping included.
+fn save_subtitle_prefs(player: &MpvPlayer, edit: impl FnOnce(&mut persistence::SubtitlePrefs)) {
+    let mut prefs = persistence::load_subtitle_prefs().unwrap_or_default();
+    if let Ok(v) = player.get_property("sub-scale", "double") {
+        if let Some(v) = v.as_f64() {
+            prefs.scale = v;
+        }
+    }
+    if let Ok(v) = player.get_property("sub-pos", "double") {
+        if let Some(v) = v.as_f64() {
+            prefs.pos = v;
+        }
+    }
+    edit(&mut prefs);
+    persistence::save_subtitle_prefs(&prefs);
+}
+
+fn finite(value: f64, what: &str) -> Result<f64, MpvErrorDto> {
+    if value.is_finite() {
+        Ok(value)
+    } else {
+        Err(MpvErrorDto {
+            kind: MpvErrorKind::Other,
+            message: format!("{what} must be finite"),
+        })
+    }
+}
+
+/// Remember the language of a subtitle track the user explicitly enabled.
+/// Deliberately *not* wired into `set_subtitle_track`: that command also
+/// carries automatic selections (the caption toggle picking a fallback), and
+/// letting those write here would drift the preference away from the user's
+/// actual choice.
+#[tauri::command]
+pub fn save_sub_language(lang: String) {
+    persistence::save_sub_language(&lang);
+}
+
+#[tauri::command]
+pub fn get_sub_language() -> Option<String> {
+    persistence::load_sub_language()
+}
+
 #[tauri::command]
 pub fn set_audio_track(
     player: State<Arc<MpvPlayer>>,
+    watchdog: State<crate::audio::AudioWatchdog>,
     selection: TrackSelection,
 ) -> Result<(), MpvErrorDto> {
+    // Deliberate silence must survive a device reconnect — see `crate::audio`.
+    watchdog.note_user_selection(selection);
     to_dto(player.set_property_value("aid", &track_selection_to_value(selection)))
 }
 
@@ -232,44 +307,6 @@ pub fn load_folder(player: State<Arc<MpvPlayer>>, path: String) -> Result<(), Mp
 #[tauri::command]
 pub fn get_watch_later_positions(paths: Vec<String>) -> HashMap<String, WatchProgress> {
     persistence::get_watch_later_positions(paths)
-}
-
-/// Show the Windows 11 "Snap Layouts" popover for the current window. The
-/// only reliable way to trigger it from a custom title bar (without hooking
-/// `WM_NCHITTEST` to return `HTMAXBUTTON` and letting DWM do the hover
-/// magic itself) is to synthesize the Win+Z shortcut.
-#[tauri::command]
-pub fn show_snap_layouts() -> Result<(), MpvErrorDto> {
-    #[cfg(target_os = "windows")]
-    {
-        use windows::Win32::UI::Input::KeyboardAndMouse::{
-            SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS,
-            KEYEVENTF_KEYUP, VIRTUAL_KEY, VK_LWIN,
-        };
-        const VK_Z: VIRTUAL_KEY = VIRTUAL_KEY(0x5A);
-        let make = |vk: VIRTUAL_KEY, flags: KEYBD_EVENT_FLAGS| INPUT {
-            r#type: INPUT_KEYBOARD,
-            Anonymous: INPUT_0 {
-                ki: KEYBDINPUT {
-                    wVk: vk,
-                    wScan: 0,
-                    dwFlags: flags,
-                    time: 0,
-                    dwExtraInfo: 0,
-                },
-            },
-        };
-        let inputs = [
-            make(VK_LWIN, KEYBD_EVENT_FLAGS(0)),
-            make(VK_Z, KEYBD_EVENT_FLAGS(0)),
-            make(VK_Z, KEYEVENTF_KEYUP),
-            make(VK_LWIN, KEYEVENTF_KEYUP),
-        ];
-        unsafe {
-            SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
-        }
-    }
-    Ok(())
 }
 
 #[tauri::command]

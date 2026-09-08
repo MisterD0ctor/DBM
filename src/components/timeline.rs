@@ -16,6 +16,10 @@ use crate::components::SeekPreview;
 use crate::state::PlayerState;
 use crate::util::format_time::format_time;
 
+/// Seconds per wheel notch over the track. Deliberately finer than the
+/// arrow keys' 10s — the wheel is the "nudge it into place" control.
+const WHEEL_SEEK_STEP: f64 = 1.0;
+
 #[component]
 pub fn Timeline() -> impl IntoView {
     let state = expect_context::<PlayerState>();
@@ -74,6 +78,22 @@ pub fn Timeline() -> impl IntoView {
     };
     let on_mouseenter = move |_| hovering.set(true);
     let on_mouseleave = move |_| hovering.set(false);
+
+    // Scroll to nudge the playhead. Scroll-up goes forward, matching mpv's
+    // own WHEEL_UP binding and the volume slider's up-increases convention.
+    // Relative + exact so a 1s step actually lands 1s away rather than at
+    // whatever keyframe is nearest.
+    let on_wheel = move |ev: ev::WheelEvent| {
+        ev.prevent_default();
+        let delta = if ev.delta_y() < 0.0 {
+            WHEEL_SEEK_STEP
+        } else {
+            -WHEEL_SEEK_STEP
+        };
+        spawn_local(async move {
+            let _ = commands::seek(delta, SeekMode::Relative, SeekPrecision::Exact).await;
+        });
+    };
 
     // Window-level drag handling — installed once, gated on `scrubbing`.
     let move_handle = window_event_listener(ev::mousemove, move |ev: ev::MouseEvent| {
@@ -166,6 +186,7 @@ pub fn Timeline() -> impl IntoView {
                 on:mouseenter=on_mouseenter
                 on:mouseleave=on_mouseleave
                 on:mousemove=on_track_mousemove
+                on:wheel=on_wheel
             >
                 <div class="seek-rail"></div>
                 <div

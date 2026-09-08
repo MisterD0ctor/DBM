@@ -108,6 +108,21 @@ impl MpvPlayer {
                 .ok()
                 .and_then(|v| v.as_bool())
                 .unwrap_or(true),
+            sub_delay: self
+                .get_property("sub-delay", "double")
+                .ok()
+                .and_then(as_f64)
+                .unwrap_or(0.0),
+            sub_scale: self
+                .get_property("sub-scale", "double")
+                .ok()
+                .and_then(as_f64)
+                .unwrap_or(1.0),
+            sub_pos: self
+                .get_property("sub-pos", "double")
+                .ok()
+                .and_then(as_f64)
+                .unwrap_or(100.0),
             border_background: self
                 .get_property("border-background", "string")
                 .ok()
