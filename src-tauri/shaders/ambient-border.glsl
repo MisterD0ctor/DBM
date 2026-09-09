@@ -130,8 +130,9 @@ float soft_distance_falloff(float x) {
     if (falloff_softness == 0.0) {
         return 1 / ((x + 1) * (x + 1));
     } else {
-        float c = 1 / falloff_softness;
-        float th = abs(c * x) < 5 ? tanh(c * x) : sign(x);
+        float th = abs(x / falloff_softness) < 5 
+            ? tanh(x / falloff_softness) 
+            : sign(x);
         float den = x * th + 1;
         return 1 / (den * den);
     }

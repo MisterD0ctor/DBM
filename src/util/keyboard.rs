@@ -52,7 +52,11 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
                         let _ = commands::set_pause(next).await;
                     });
                     fb.show(
-                        if next { ActionKind::Pause } else { ActionKind::Play },
+                        if next {
+                            ActionKind::Pause
+                        } else {
+                            ActionKind::Play
+                        },
                         None,
                         None,
                     );
@@ -68,7 +72,11 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
                     }
                 });
                 fb.show(
-                    if next { ActionKind::FullscreenOn } else { ActionKind::FullscreenOff },
+                    if next {
+                        ActionKind::FullscreenOn
+                    } else {
+                        ActionKind::FullscreenOff
+                    },
                     None,
                     None,
                 );
@@ -79,7 +87,11 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
                     let _ = commands::set_mute(next).await;
                 });
                 fb.show(
-                    if next { ActionKind::MuteOn } else { ActionKind::MuteOff },
+                    if next {
+                        ActionKind::MuteOn
+                    } else {
+                        ActionKind::MuteOff
+                    },
                     None,
                     None,
                 );
@@ -91,7 +103,11 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
                     let _ = commands::set_panscan(next).await;
                 });
                 fb.show(
-                    if next > 0.5 { ActionKind::PanscanOn } else { ActionKind::PanscanOff },
+                    if next > 0.5 {
+                        ActionKind::PanscanOn
+                    } else {
+                        ActionKind::PanscanOff
+                    },
                     None,
                     None,
                 );
@@ -102,7 +118,11 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
             // mpv's own bindings: `z` pulls the subtitles earlier, `Z` pushes
             // them later, both in mpv's 0.1s step.
             "KeyZ" => {
-                let delta = if ev.shift_key() { DELAY_STEP } else { -DELAY_STEP };
+                let delta = if ev.shift_key() {
+                    DELAY_STEP
+                } else {
+                    -DELAY_STEP
+                };
                 nudge_sub_delay(state, fb, delta);
             }
             "KeyB" => {
@@ -112,7 +132,11 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
                     let _ = commands::set_ambient_enabled(next).await;
                 });
                 fb.show(
-                    if next { ActionKind::AmbientOn } else { ActionKind::AmbientOff },
+                    if next {
+                        ActionKind::AmbientOn
+                    } else {
+                        ActionKind::AmbientOff
+                    },
                     None,
                     None,
                 );
@@ -145,7 +169,8 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
                 if state.eof_reached.get_untracked() {
                     if state.is_last_video() {
                         spawn_local(async move {
-                            let _ = commands::seek(0.0, SeekMode::Absolute, SeekPrecision::Exact).await;
+                            let _ =
+                                commands::seek(0.0, SeekMode::Absolute, SeekPrecision::Exact).await;
                             let _ = commands::play().await;
                         });
                         fb.show(ActionKind::Rewind, None, None);
@@ -164,7 +189,8 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
                     fb.show(ActionKind::Next, None, None);
                 } else {
                     spawn_local(async move {
-                        let _ = commands::seek(SEEK_STEP, SeekMode::Relative, SeekPrecision::Exact).await;
+                        let _ = commands::seek(SEEK_STEP, SeekMode::Relative, SeekPrecision::Exact)
+                            .await;
                     });
                     fb.show(ActionKind::SeekForward, None, Some(80.0));
                 }
@@ -178,7 +204,9 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
                     fb.show(ActionKind::Previous, None, None);
                 } else {
                     spawn_local(async move {
-                        let _ = commands::seek(-SEEK_STEP, SeekMode::Relative, SeekPrecision::Exact).await;
+                        let _ =
+                            commands::seek(-SEEK_STEP, SeekMode::Relative, SeekPrecision::Exact)
+                                .await;
                     });
                     fb.show(ActionKind::SeekBackward, None, Some(20.0));
                 }
@@ -188,11 +216,17 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
     });
     on_cleanup(move || handle.remove());
 
-    // Browsers leave a clicked `<button>` focused, so a subsequent
-    // Space/Enter re-triggers it on top of our shortcut handler — e.g.
-    // clicking Play, then pressing Space pauses *and* re-plays. Blur the
-    // active element after every click so keyboard shortcuts go straight
-    // to the window handler instead.
+    // Browsers leave a clicked control focused, and that focus then eats the
+    // shortcuts. Two flavours of the same bug: a clicked `<button>` re-fires
+    // on the next Space (clicking Play, then Space, pauses *and* re-plays),
+    // and a clicked slider swallows the keyboard outright — the guard above
+    // bails on form controls, so every shortcut goes dead until you happen to
+    // click somewhere else.
+    //
+    // So drop focus after a click on anything that has no use for the
+    // keyboard. `click` fires on mouseup, so a slider drag has already
+    // finished by the time we blur it — and the wheel handlers don't need
+    // focus either.
     let click_handle = window_event_listener(ev::click, |_: ev::MouseEvent| {
         let Some(active) = web_sys::window()
             .and_then(|w| w.document())
@@ -200,7 +234,7 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
         else {
             return;
         };
-        if !active.tag_name().eq_ignore_ascii_case("button") {
+        if wants_keyboard(&active) {
             return;
         }
         if let Ok(el) = active.dyn_into::<web_sys::HtmlElement>() {
@@ -208,6 +242,26 @@ pub fn install_shortcuts(state: PlayerState, fb: ActionFeedback) {
         }
     });
     on_cleanup(move || click_handle.remove());
+}
+
+/// Does this element need the keyboard for itself?
+///
+/// Text fields and `<select>` do — blurring one mid-word, or mid-list, would
+/// be hostile. Buttons, sliders, checkboxes and the like don't: everything
+/// they offer is on the pointer, so holding focus only steals the player's
+/// shortcuts. A typeless `<input>` is a text field, so it defaults to `true`.
+fn wants_keyboard(el: &web_sys::Element) -> bool {
+    match el.tag_name().to_ascii_lowercase().as_str() {
+        "textarea" | "select" => true,
+        "input" => !matches!(
+            el.get_attribute("type")
+                .unwrap_or_default()
+                .to_ascii_lowercase()
+                .as_str(),
+            "range" | "checkbox" | "radio" | "button" | "submit" | "reset" | "file" | "color"
+        ),
+        _ => el.has_attribute("contenteditable"),
+    }
 }
 
 /// Toggle captions.
@@ -307,7 +361,7 @@ fn nudge_sub_delay(state: PlayerState, fb: ActionFeedback, delta: f64) {
 }
 
 fn bump_volume(state: PlayerState, fb: ActionFeedback, delta: f64) {
-    let next = (state.volume.get_untracked() + delta).clamp(0.0, 150.0);
+    let next = (state.volume.get_untracked() + delta).clamp(0.0, 200.0);
     spawn_local(async move {
         let _ = commands::set_volume(next).await;
     });

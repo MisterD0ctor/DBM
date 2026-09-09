@@ -9,6 +9,7 @@
 use leptos::html;
 use leptos::prelude::*;
 
+use crate::components::volume_group::volume_icon;
 use crate::state::PlayerState;
 use crate::util::assets::asset;
 
@@ -43,7 +44,7 @@ impl ActionKind {
             Self::Play => "public/icons/play.svg",
             Self::SeekForward => "public/icons/seek-forward.svg",
             Self::SeekBackward => "public/icons/seek-backward.svg",
-            Self::Rewind => "public/icons/rotate-left.svg",
+            Self::Rewind => "public/icons/rewind.svg",
             Self::Previous => "public/icons/step-backward.svg",
             Self::Next => "public/icons/step-forward.svg",
             Self::PanscanOn => "public/icons/panscan-on.svg",
@@ -99,9 +100,26 @@ impl Default for ActionFeedback {
 #[component]
 pub fn ActionOverlay() -> impl IntoView {
     let fb = expect_context::<ActionFeedback>();
-    let _state = expect_context::<PlayerState>();
+    let state = expect_context::<PlayerState>();
 
-    let icon_src = move || fb.kind.get().map(|k| asset(k.icon())).unwrap_or_default();
+    let icon_src = move || {
+        fb.kind
+            .get()
+            .map(|k| {
+                // Volume is the one action whose glyph depends on where the
+                // level landed rather than on the action itself, so it reads
+                // live state instead of the fixed path on `ActionKind`. mpv
+                // reports the new level a beat after the keypress; the binding
+                // is reactive, so the icon catches up well within the dwell.
+                let path = if k == ActionKind::Volume {
+                    volume_icon(state.volume.get())
+                } else {
+                    k.icon()
+                };
+                asset(path)
+            })
+            .unwrap_or_default()
+    };
     let text = move || fb.text.get();
     let el_ref = NodeRef::<html::Div>::new();
 

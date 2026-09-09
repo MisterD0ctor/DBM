@@ -104,24 +104,49 @@ pub fn VolumeGroup() -> impl IntoView {
     }
 }
 
-fn volume_icon(volume: f64) -> &'static str {
-    if volume > 176.0 {
-        "public/icons/volume-176.svg"
-    } else if volume > 154.0 {
-        "public/icons/volume-154.svg"
-    } else if volume > 132.0 {
-        "public/icons/volume-132.svg"
-    } else if volume > 110.0 {
+/// Pick the volume glyph for a level. Shared with the action overlay so a
+/// volume nudge flashes the same icon the toolbar button is showing.
+pub fn volume_icon(volume: f64) -> &'static str {
+    /*if volume >= 190.0 {
+        "public/icons/volume-190.svg"
+    } else */
+    if volume >= 180.0 {
+        "public/icons/volume-180.svg"
+    } else if volume >= 170.0 {
+        "public/icons/volume-170.svg"
+    } else if volume >= 160.0 {
+        "public/icons/volume-160.svg"
+    } else if volume >= 150.0 {
+        "public/icons/volume-150.svg"
+    } else if volume >= 140.0 {
+        "public/icons/volume-140.svg"
+    } else if volume >= 130.0 {
+        "public/icons/volume-130.svg"
+    } else if volume >= 120.0 {
+        "public/icons/volume-120.svg"
+    } else if volume >= 110.0 {
         "public/icons/volume-110.svg"
-    } else if volume > 88.0 {
-        "public/icons/volume-088.svg"
-    } else if volume > 66.0 {
-        "public/icons/volume-066.svg"
-    } else if volume > 44.0 {
-        "public/icons/volume-044.svg"
-    } else if volume > 22.0 {
-        "public/icons/volume-022.svg"
-    } else if volume > 1.0 {
+    } else if volume >= 100.0 {
+        "public/icons/volume-100.svg"
+    } else if volume >= 90.0 {
+        "public/icons/volume-090.svg"
+    } else if volume >= 80.0 {
+        "public/icons/volume-080.svg"
+    } else if volume >= 70.0 {
+        "public/icons/volume-070.svg"
+    } else if volume >= 60.0 {
+        "public/icons/volume-060.svg"
+    } else if volume >= 50.0 {
+        "public/icons/volume-050.svg"
+    } else if volume >= 40.0 {
+        "public/icons/volume-040.svg"
+    } else if volume >= 30.0 {
+        "public/icons/volume-030.svg"
+    } else if volume >= 20.0 {
+        "public/icons/volume-020.svg"
+    } else if volume >= 10.0 {
+        "public/icons/volume-010.svg"
+    } else if volume >= 1.0 {
         "public/icons/volume-001.svg"
     } else {
         "public/icons/volume-000.svg"

@@ -291,7 +291,7 @@ fn PlayPauseButton() -> impl IntoView {
 
     let icon = Signal::derive(move || {
         if state.eof_reached.get() {
-            "public/icons/rotate-left.svg".to_string()
+            "public/icons/rewind.svg".to_string()
         } else if state.paused.get() {
             "public/icons/play.svg".to_string()
         } else {

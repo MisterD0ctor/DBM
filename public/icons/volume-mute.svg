@@ -24,8 +24,8 @@
      inkscape:deskcolor="#505050"
      inkscape:document-units="px"
      inkscape:zoom="16"
-     inkscape:cx="12.59375"
-     inkscape:cy="3"
+     inkscape:cx="8.71875"
+     inkscape:cy="9.75"
      inkscape:window-width="1438"
      inkscape:window-height="1114"
      inkscape:window-x="0"
@@ -62,7 +62,8 @@
        id="path1"
        sodipodi:nodetypes="ccccccc"
        inkscape:path-effect="#path-effect1"
-       inkscape:original-d="M 2.9104166,0.66145833 1.5875,1.8520833 H 0.52916666 V 4.4979166 H 1.5875 l 1.3229166,1.190625 z" />
+       inkscape:original-d="M 2.9104166,0.66145833 1.5875,1.8520833 H 0.52916666 V 4.4979166 H 1.5875 l 1.3229166,1.190625 z"
+       transform="translate(-0.26458316)" />
     <path
        style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:butt;stroke-miterlimit:100"
        d="M 3.96875,2.2489583 5.8208333,4.1010416"

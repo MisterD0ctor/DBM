@@ -22,7 +22,7 @@ pub fn EndOfPlayback() -> impl IntoView {
     let label = move || if is_last() { "Restart" } else { "Next" };
     let icon = move || {
         if is_last() {
-            "public/icons/rotate-left.svg"
+            "public/icons/rewind.svg"
         } else {
             "public/icons/step-forward.svg"
         }
