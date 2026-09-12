@@ -792,7 +792,28 @@ fn reach_test(ui: &MainWindow) -> slint::Timer {
             let Some(ui) = weak.upgrade() else { return };
             // `DBM_REACH_TEST=glass` walks into a settings page instead, where
             // the rows are sliders and the interesting keys are left and right.
-            let glass = std::env::var("DBM_REACH_TEST").unwrap_or_default() == "glass";
+            // `=up` opens the playlist the way the folder button does, with no
+            // key at all, so the ring starts hidden and the first Up has to
+            // both show it and land at the bottom.
+            let mode = std::env::var("DBM_REACH_TEST").unwrap_or_default();
+            if mode == "up" {
+                match step {
+                    0 => {
+                        // Not a key: this is what the folder button does.
+                        ui.invoke_open_playlist(true);
+                        eprintln!("dbm: playlist opened without a key");
+                    }
+                    1 | 2 => {
+                        chord(&ui, &[], slint::SharedString::from(Key::UpArrow).as_str());
+                        eprintln!("dbm: up -> row {}", ui.get_focus_row());
+                    }
+                    3 => eprintln!("dbm: --- reach test done ---"),
+                    _ => {}
+                }
+                step += 1;
+                return;
+            }
+            let glass = mode == "glass";
             match (glass, step) {
                 (false, 0) => {
                     eprintln!("dbm: pressing P for the playlist");

@@ -18,6 +18,14 @@
 export global Chrome {
     /// Reports activity to the Rust side, which owns the idle clock.
     callback activity();
+    /// Whether the keyboard's ring should be drawn at all.
+    ///
+    /// Off until the keyboard is actually steering: a panel opened with a
+    /// key, an arrow, Tab, or Enter. A ring drawn over a panel someone
+    /// reached for with the mouse is a second highlight competing with the
+    /// row that is actually playing, and it points at a row the hand is not
+    /// on. It goes away again the moment a mouse button goes down.
+    in-out property <bool> focus-visible: false;
     /// Whether nothing has happened for a while.
     ///
     /// Cleared here rather than by the timer that sets it. The timer polls
@@ -31,6 +39,16 @@ export global Chrome {
     public function bump() {
         Chrome.idle = false;
         Chrome.activity();
+    }
+
+    /// Pointer activity, and whether a button went down with it. The same
+    /// wake-up as `bump`, plus the ring standing down: the hand has taken
+    /// over, and two cursors on one panel is one too many.
+    public function pointed(down: bool) {
+        Chrome.bump();
+        if (down) {
+            Chrome.focus-visible = false;
+        }
     }
 }
 
@@ -255,7 +273,7 @@ component IconButton inherits Rectangle {
         // `moved` only fires while a button is held, so plain hovering has
         // to come through `pointer-event`.
         pointer-event(event) => {
-            Chrome.bump();
+            Chrome.pointed(event.kind == PointerEventKind.down);
         }
         clicked => {
             root.clicked();
@@ -271,13 +289,16 @@ component MenuRow inherits Rectangle {
     in property <bool> active;
     /// Whether the keyboard is on this row.
     in property <bool> focused;
+    /// ...and whether the ring is being shown at all. A row is never lit for
+    /// a keyboard nobody is using.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
     callback picked();
 
     height: 34px;
 
     RowHighlight {
-        lit: touch.has-hover || root.focused;
-        shade: root.focused ? Rows.focus : Rows.hover;
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Rows.focus : Rows.hover;
     }
 
     Text {
@@ -295,7 +316,7 @@ component MenuRow inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: pointer;
         pointer-event(event) => {
-            Chrome.bump();
+            Chrome.pointed(event.kind == PointerEventKind.down);
         }
         clicked => {
             root.picked();
@@ -312,6 +333,9 @@ component MenuRow inherits Rectangle {
 component PlaylistRow inherits Rectangle {
     /// Whether the keyboard is on this row.
     in property <bool> focused;
+    /// ...and whether the ring is being shown at all. A row is never lit for
+    /// a keyboard nobody is using.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
     in property <string> length;
     in property <float> progress;
@@ -321,8 +345,8 @@ component PlaylistRow inherits Rectangle {
     height: 34px;
 
     RowHighlight {
-        lit: touch.has-hover || root.focused;
-        shade: root.focused ? Rows.focus : Rows.hover;
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Rows.focus : Rows.hover;
     }
 
     Text {
@@ -378,7 +402,7 @@ component PlaylistRow inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: pointer;
         pointer-event(event) => {
-            Chrome.bump();
+            Chrome.pointed(event.kind == PointerEventKind.down);
         }
         clicked => {
             root.picked();
@@ -460,6 +484,9 @@ component ScrollList inherits Rectangle {
 component ShortcutRow inherits Rectangle {
     /// Whether the keyboard is on this row.
     in property <bool> focused;
+    /// ...and whether the ring is being shown at all. A row is never lit for
+    /// a keyboard nobody is using.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
     in property <string> shortcut;
     /// A row that states a binding rather than performing one. It takes no
@@ -471,8 +498,8 @@ component ShortcutRow inherits Rectangle {
     height: 34px;
 
     RowHighlight {
-        lit: !root.inert && (touch.has-hover || root.focused);
-        shade: root.focused ? Rows.focus : Rows.hover;
+        lit: !root.inert && (touch.has-hover || root.ring);
+        shade: root.ring ? Rows.focus : Rows.hover;
     }
 
     HorizontalLayout {
@@ -499,7 +526,7 @@ component ShortcutRow inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: root.inert ? default : pointer;
         pointer-event(event) => {
-            Chrome.bump();
+            Chrome.pointed(event.kind == PointerEventKind.down);
         }
         clicked => {
             if (!root.inert) {
@@ -514,6 +541,8 @@ component ShortcutRow inherits Rectangle {
 component ParamSlider inherits Rectangle {
     /// Whether the keyboard is on this row. Left and right move it.
     in property <bool> focused;
+    /// ...and whether the ring is being shown at all.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
     in property <float> fraction;
     in property <string> readout;
@@ -525,7 +554,7 @@ component ParamSlider inherits Rectangle {
     // enough for a pointer already on it. The keyboard has no such thing to
     // stand on, so the row lights like every other row under the ring.
     RowHighlight {
-        lit: root.focused;
+        lit: root.ring;
         shade: Rows.focus;
     }
 
@@ -569,7 +598,7 @@ component ParamSlider inherits Rectangle {
             drag := TouchArea {
                 mouse-cursor: pointer;
                 pointer-event(event) => {
-                    Chrome.bump();
+                    Chrome.pointed(event.kind == PointerEventKind.down);
                 }
                 moved => {
                     if (self.pressed) {
@@ -610,6 +639,9 @@ component ParamSlider inherits Rectangle {
 component ToggleRow inherits Rectangle {
     /// Whether the keyboard is on this row.
     in property <bool> focused;
+    /// ...and whether the ring is being shown at all. A row is never lit for
+    /// a keyboard nobody is using.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
     in property <bool> checked;
     /// The value the row wants; the owner of the state applies it.
@@ -618,8 +650,8 @@ component ToggleRow inherits Rectangle {
     height: 40px;
 
     RowHighlight {
-        lit: switch-touch.has-hover || root.focused;
-        shade: root.focused ? Rows.focus : Rows.hover-soft;
+        lit: switch-touch.has-hover || root.ring;
+        shade: root.ring ? Rows.focus : Rows.hover-soft;
     }
 
     HorizontalLayout {
@@ -665,7 +697,7 @@ component ToggleRow inherits Rectangle {
     switch-touch := TouchArea {
         mouse-cursor: pointer;
         pointer-event(event) => {
-            Chrome.bump();
+            Chrome.pointed(event.kind == PointerEventKind.down);
         }
         clicked => {
             root.toggled(!root.checked);
@@ -680,6 +712,9 @@ component ToggleRow inherits Rectangle {
 component DrillRow inherits Rectangle {
     /// Whether the keyboard is on this row.
     in property <bool> focused;
+    /// ...and whether the ring is being shown at all. A row is never lit for
+    /// a keyboard nobody is using.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <image> icon;
     in property <string> label;
     callback opened();
@@ -687,8 +722,8 @@ component DrillRow inherits Rectangle {
     height: 34px;
 
     RowHighlight {
-        lit: touch.has-hover || root.focused;
-        shade: root.focused ? Rows.focus : Rows.hover;
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Rows.focus : Rows.hover;
     }
 
     HorizontalLayout {
@@ -736,7 +771,7 @@ component DrillRow inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: pointer;
         pointer-event(event) => {
-            Chrome.bump();
+            Chrome.pointed(event.kind == PointerEventKind.down);
         }
         clicked => {
             root.opened();
@@ -769,7 +804,7 @@ component StepButton inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: pointer;
         pointer-event(event) => {
-            Chrome.bump();
+            Chrome.pointed(event.kind == PointerEventKind.down);
         }
         clicked => {
             root.clicked();
@@ -786,6 +821,8 @@ component StepButton inherits Rectangle {
 component StepperRow inherits Rectangle {
     /// Whether the keyboard is on this row. Left and right step it.
     in property <bool> focused;
+    /// ...and whether the ring is being shown at all.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <image> icon;
     in property <string> label;
     in property <string> value;
@@ -797,7 +834,7 @@ component StepperRow inherits Rectangle {
     // Same as the sliders: its two buttons light on hover, and neither of
     // them is where the keyboard is — the row is.
     RowHighlight {
-        lit: root.focused;
+        lit: root.ring;
         shade: Rows.focus;
     }
 
@@ -869,14 +906,17 @@ component StepperRow inherits Rectangle {
 component BackRow inherits Rectangle {
     /// Whether the keyboard is on this row.
     in property <bool> focused;
+    /// ...and whether the ring is being shown at all. A row is never lit for
+    /// a keyboard nobody is using.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
     callback back();
 
     height: 34px;
 
     RowHighlight {
-        lit: touch.has-hover || root.focused;
-        shade: root.focused ? Rows.focus : Rows.hover-soft;
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Rows.focus : Rows.hover-soft;
     }
 
     // The arrow hangs in the margin so the label lands on `Rows.label-x`,
@@ -915,7 +955,7 @@ component BackRow inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: pointer;
         pointer-event(event) => {
-            Chrome.bump();
+            Chrome.pointed(event.kind == PointerEventKind.down);
         }
         clicked => {
             root.back();
@@ -1242,7 +1282,7 @@ export component MainWindow inherits Window {
     // A ring that has walked off the bottom of a list is no better than no
     // ring. Only the two lists that scroll need this; the settings pages are
     // sized to their contents.
-    changed focus-row => {
+    function focus-scroll() {
         if (root.menu-open) {
             if (root.focus-row < root.subs-focus-count) {
                 subs-list.reveal(root.focus-row * root.row-h, root.row-h);
@@ -1254,6 +1294,21 @@ export component MainWindow inherits Window {
         } else if (root.playlist-open && root.focus-row < root.playlist.length) {
             playlist-list.reveal(root.focus-row * root.row-h, root.row-h);
         }
+    }
+
+    changed focus-row => {
+        root.focus-scroll();
+    }
+
+    /// Turn the ring on, at a row, and bring that row into view.
+    ///
+    /// The scroll is asked for rather than left to the row number changing:
+    /// the ring often comes up on the row it was already on, and a list the
+    /// wheel has moved since would be showing it somewhere off screen.
+    function focus-show(row: int) {
+        Chrome.focus-visible = true;
+        root.focus-row = row;
+        root.focus-scroll();
     }
 
     changed at-end => {
@@ -2000,20 +2055,49 @@ export component MainWindow inherits Window {
         if (root.focus-count <= 0) {
             return false;
         }
+        // Every key that brings the ring up does only that. Acting on a ring
+        // that was not on screen a moment ago means acting on a row chosen by
+        // whatever was open last, which is not a choice anybody made.
+        //
+        // The two arrows are the exception, and only because where they would
+        // land is not in doubt: down starts at the top of the list and up at
+        // the bottom, the way any menu answers those keys the first time.
         if (text == Key.DownArrow) {
+            if (!Chrome.focus-visible) {
+                root.focus-show(0);
+                return true;
+            }
             root.focus-move(1);
             return true;
         }
         if (text == Key.UpArrow) {
+            if (!Chrome.focus-visible) {
+                root.focus-show(root.focus-count - 1);
+                return true;
+            }
             root.focus-move(-1);
             return true;
         }
         if (text == Key.Tab) {
+            if (!Chrome.focus-visible) {
+                root.focus-show(root.focus-row);
+                return true;
+            }
             root.focus-move(shift ? -1 : 1);
             return true;
         }
         if (text == Key.Return) {
+            if (!Chrome.focus-visible) {
+                root.focus-show(root.focus-row);
+                return true;
+            }
             return root.focus-activate();
+        }
+        // Left and right are the seek keys until the ring is up and standing
+        // on something they can move, so a panel opened with the mouse leaves
+        // them doing what they have always done.
+        if (!Chrome.focus-visible) {
+            return false;
         }
         if (text == Key.LeftArrow) {
             return root.focus-adjust(-1);
@@ -2138,6 +2222,7 @@ export component MainWindow inherits Window {
         }
         if (text == "s" || text == "S") {
             root.open-settings(!root.settings-open);
+            root.focus-show(0);
             return true;
         }
         // The two panels opened most, and the two that had no key. A for the
@@ -2145,10 +2230,12 @@ export component MainWindow inherits Window {
         // subtitle; P for the playlist.
         if (text == "a" || text == "A") {
             root.open-menu(!root.menu-open);
+            root.focus-show(0);
             return true;
         }
         if (text == "p" || text == "P") {
             root.open-playlist(!root.playlist-open);
+            root.focus-show(0);
             return true;
         }
         if (text == "b" || text == "B") {
@@ -2283,7 +2370,7 @@ export component MainWindow inherits Window {
         mouse-cursor: root.controls-visible || !root.has-file
             ? MouseCursor.default : MouseCursor.none;
         pointer-event(event) => {
-            Chrome.bump();
+            Chrome.pointed(event.kind == PointerEventKind.down);
         }
         clicked => {
             // Clicking away from an open panel closes it, which is what every
@@ -2352,7 +2439,7 @@ export component MainWindow inherits Window {
         // not reach the play/pause handler underneath.
         TouchArea {
             pointer-event(event) => {
-                Chrome.bump();
+                Chrome.pointed(event.kind == PointerEventKind.down);
             }
         }
 
@@ -2579,7 +2666,7 @@ export component MainWindow inherits Window {
         // not reach the play/pause handler underneath.
         TouchArea {
             pointer-event(event) => {
-                Chrome.bump();
+                Chrome.pointed(event.kind == PointerEventKind.down);
             }
         }
 
@@ -2649,7 +2736,7 @@ export component MainWindow inherits Window {
 
         TouchArea {
             pointer-event(event) => {
-                Chrome.bump();
+                Chrome.pointed(event.kind == PointerEventKind.down);
             }
         }
 
@@ -2692,7 +2779,7 @@ export component MainWindow inherits Window {
 
         TouchArea {
             pointer-event(event) => {
-                Chrome.bump();
+                Chrome.pointed(event.kind == PointerEventKind.down);
             }
         }
 
@@ -2766,7 +2853,7 @@ export component MainWindow inherits Window {
         // click on one must not reach the play/pause handler underneath.
         TouchArea {
             pointer-event(event) => {
-                Chrome.bump();
+                Chrome.pointed(event.kind == PointerEventKind.down);
             }
         }
 
@@ -2814,7 +2901,7 @@ export component MainWindow inherits Window {
         scrub := TouchArea {
             mouse-cursor: pointer;
             pointer-event(event) => {
-                Chrome.bump();
+                Chrome.pointed(event.kind == PointerEventKind.down);
                 // Also on enter and exit, not only on movement: a pointer
                 // that arrives and stops still wants a preview.
                 root.preview-at(self.mouse-x / self.width);
@@ -2849,7 +2936,7 @@ export component MainWindow inherits Window {
 
         TouchArea {
             pointer-event(event) => {
-                Chrome.bump();
+                Chrome.pointed(event.kind == PointerEventKind.down);
             }
         }
 
@@ -2900,7 +2987,7 @@ export component MainWindow inherits Window {
         // that misses a row must not reach the play/pause handler under it.
         TouchArea {
             pointer-event(event) => {
-                Chrome.bump();
+                Chrome.pointed(event.kind == PointerEventKind.down);
             }
         }
 
@@ -3165,7 +3252,7 @@ export component MainWindow inherits Window {
         end-touch := TouchArea {
             mouse-cursor: pointer;
             pointer-event(event) => {
-                Chrome.bump();
+                Chrome.pointed(event.kind == PointerEventKind.down);
             }
             clicked => {
                 Chrome.bump();
@@ -3272,7 +3359,7 @@ export component MainWindow inherits Window {
 
         TouchArea {
             pointer-event(event) => {
-                Chrome.bump();
+                Chrome.pointed(event.kind == PointerEventKind.down);
             }
         }
 
@@ -3331,7 +3418,7 @@ export component MainWindow inherits Window {
 
         TouchArea {
             pointer-event(event) => {
-                Chrome.bump();
+                Chrome.pointed(event.kind == PointerEventKind.down);
             }
         }
 
@@ -3396,7 +3483,7 @@ export component MainWindow inherits Window {
 
         TouchArea {
             pointer-event(event) => {
-                Chrome.bump();
+                Chrome.pointed(event.kind == PointerEventKind.down);
             }
         }
 
@@ -3451,7 +3538,7 @@ export component MainWindow inherits Window {
                 vol := TouchArea {
                     mouse-cursor: pointer;
                     pointer-event(event) => {
-                        Chrome.bump();
+                        Chrome.pointed(event.kind == PointerEventKind.down);
                     }
                     moved => {
                         if (self.pressed) {
