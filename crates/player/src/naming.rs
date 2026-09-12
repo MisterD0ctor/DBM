@@ -114,23 +114,94 @@ const METADATA: &[&str] = &[
 /// first tag is metadata too — `1080p WEB-DL x264-GROUP` has no title hiding
 /// in the middle of it.
 pub fn strip_metadata(s: &str) -> String {
-    let bare = |w: &str| {
-        w.trim_matches(|c: char| !c.is_alphanumeric() && c != '+' && c != '.' && c != '-')
-            .to_ascii_lowercase()
-    };
     let words: Vec<&str> = s.split(' ').collect();
     for (i, w) in words.iter().enumerate() {
-        let word = bare(w);
-        if word.is_empty() {
-            continue;
-        }
-        // A release group trailing the codec, as in `x264-GRP`.
-        let head = word.split('-').next().unwrap_or(&word);
-        if METADATA.contains(&word.as_str()) || METADATA.contains(&head) {
+        if is_metadata(w) {
             return trim_junk(&words[..i].join(" "));
         }
     }
     trim_junk(s)
+}
+
+/// Whether one word is a release marker rather than part of a name.
+///
+/// Split out so the same judgement serves two callers: cutting a name short
+/// at the first marker, and deciding whether a container's title tag was
+/// written by a person at all.
+fn is_metadata(word: &str) -> bool {
+    let bare = word
+        .trim_matches(|c: char| !c.is_alphanumeric() && c != '+' && c != '.' && c != '-')
+        .to_ascii_lowercase();
+    if bare.is_empty() {
+        return false;
+    }
+    // A release group trailing the codec, as in `x264-GRP`.
+    let head = bare.split('-').next().unwrap_or(&bare);
+    METADATA.contains(&bare.as_str()) || METADATA.contains(&head)
+}
+
+/// Whether one word could only have come from a release name.
+///
+/// Narrower than [`is_metadata`] on purpose. Most of `METADATA` is ordinary
+/// English — a film can be called *The Extended Cut*, a title can contain
+/// *Proper*, and *Stan* is a name — so that list is right for cutting a file
+/// name short and wrong for judging whether a person wrote something. What
+/// cannot appear in prose is a marker carrying a digit (`1080p`, `x265`,
+/// `10bit`, `6ch`) or one of the few spelled-out technical words below.
+fn is_release_token(word: &str) -> bool {
+    const NEVER_IN_PROSE: &[&str] = &[
+        "bluray", "blu-ray", "bdrip", "bdremux", "brrip", "webrip", "web-dl", "webdl",
+        "hdtv", "pdtv", "dvdrip", "hdrip", "hdcam", "telesync", "telecine", "hevc",
+        "avc", "xvid", "divx", "truehd", "dtshd", "dts-hd", "dts-x", "flac", "lpcm",
+    ];
+    let bare = word
+        .trim_matches(|c: char| !c.is_alphanumeric() && c != '+' && c != '.' && c != '-')
+        .to_ascii_lowercase();
+    if bare.is_empty() {
+        return false;
+    }
+    let head = bare.split('-').next().unwrap_or(&bare);
+    if NEVER_IN_PROSE.contains(&bare.as_str()) || NEVER_IN_PROSE.contains(&head) {
+        return true;
+    }
+    bare.chars().any(|c| c.is_ascii_digit()) && is_metadata(&bare)
+}
+
+/// Whether a container's title tag is a title, or the file name in disguise.
+///
+/// mpv reports the container's `title` tag, and the rule used to be "if it is
+/// not exactly the file name, a person wrote it". Packers are not so tidy. One
+/// real file carries
+///
+/// ```text
+/// PSArips.com | Game.of.Thrones.S07E01.Dragonstone.1080p.10bit.BluRay.6CH.x265.HEVC-PSA
+/// ```
+///
+/// which is not equal to the file name, so it passed the old test and landed
+/// whole — advertisement included — in the slot meant for the one part of the
+/// name a human actually typed.
+///
+/// Two cheap tests catch it, and both have to pass for the title to be used.
+/// Nobody types `1080p` into an episode title; and a title that contains the
+/// file's own stem is the file name wearing a hat, however much has been
+/// bolted on either side of it.
+fn authored(embedded: &str, path: &str) -> bool {
+    if clean_separators(embedded).split(' ').any(is_release_token) {
+        return false;
+    }
+    let stem = comparable(strip_extension(strip_path(path)));
+    !stem.is_empty() && !comparable(embedded).contains(&stem)
+}
+
+/// Lower case, separators as spaces, runs of space collapsed — enough to
+/// compare a title against a file name without either's punctuation deciding
+/// the answer.
+fn comparable(s: &str) -> String {
+    clean_separators(s)
+        .to_ascii_lowercase()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 /// Drop a bracketed tag from the front of a name.
@@ -221,7 +292,12 @@ pub fn titled(path: &str, embedded: Option<&str>) -> String {
 /// the space. Whoever is building the list decides whether the show is worth
 /// repeating; see [`listing`].
 fn described(path: &str, embedded: Option<&str>) -> (Option<String>, String) {
-    let embedded = embedded.map(str::trim).filter(|t| !t.is_empty());
+    let embedded = embedded
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+        // Both the bar and the playlist rows arrive here, so a release name
+        // in the title tag is refused once for both.
+        .filter(|t| authored(t, path));
     match (parse(path), embedded) {
         (
             Media::Episode {
@@ -918,6 +994,36 @@ mod tests {
     }
 
     #[test]
+    fn an_advertisement_in_the_title_tag_is_not_a_title() {
+        // Verbatim from a real file. The tag is the release name with a site
+        // name bolted on the front, so it is not equal to the file name and
+        // the old exact-match test let it through whole — advertisement,
+        // resolution, codec and release group — into the slot meant for the
+        // episode's own title.
+        let path = r"C:\Users\me\Game.of.Thrones.S07E01.Dragonstone.1080p.10bit.BluRay.6CH.x265.HEVC-PSA.mkv";
+        let tag = concat!(
+            "PSArips.com | Game.of.Thrones.S07E01.Dragonstone",
+            ".1080p.10bit.BluRay.6CH.x265.HEVC-PSA"
+        );
+        assert_eq!(
+            titled(path, Some(tag)),
+            "Game of Thrones \u{b7} S07E01 \u{b7} Dragonstone"
+        );
+    }
+
+    #[test]
+    fn a_title_tag_that_swallowed_the_file_name_is_refused() {
+        // The same shape with no technical marker to give it away, so the one
+        // thing that catches it is that the tag contains the file's own stem.
+        // A renamed download looks like this.
+        let path = "Show.S01E02.The.Reckoning.mkv";
+        assert_eq!(
+            titled(path, Some("some-tracker.org | Show.S01E02.The.Reckoning")),
+            "Show \u{b7} S01E02 \u{b7} The Reckoning"
+        );
+    }
+
+    #[test]
     fn a_container_title_of_only_numbering_adds_nothing() {
         let path = "Show.S01E01.mkv";
         assert_eq!(titled(path, Some("S01E01")), "Show \u{b7} S01E01");
@@ -1138,3 +1244,4 @@ mod tests {
         assert_eq!(labels, ["English · Forced · external"]);
     }
 }
+
