@@ -148,6 +148,9 @@ pub fn install(
     if std::env::var_os("DBM_KEY_TEST").is_some() {
         timers.push(key_test(ui));
     }
+    if std::env::var_os("DBM_REACH_TEST").is_some() {
+        timers.push(reach_test(ui));
+    }
     if std::env::var_os("DBM_PANEL_TEST").is_some() {
         timers.push(panel_test(ui));
     }
@@ -765,6 +768,71 @@ fn chord(ui: &MainWindow, modifiers: &[slint::platform::Key], text: &str) {
     for m in modifiers.iter().rev() {
         window.dispatch_event(WindowEvent::KeyReleased { text: (*m).into() });
     }
+}
+
+/// Walk the keyboard into a panel and down it, with real key events.
+///
+/// The ring, the wrap and the scroll-to-follow are all driven from the same
+/// dispatch a person's keyboard reaches, so this presses `P` and then Down
+/// rather than assigning to the property: assigning would prove the wash
+/// draws and nothing about whether the keys arrive.
+///
+/// Twelve rows down because nine fit: the interesting part is the three past
+/// the bottom edge, where the list has to move for the ring to stay visible.
+fn reach_test(ui: &MainWindow) -> slint::Timer {
+    use slint::platform::Key;
+
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut step = 0usize;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(400),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            // `DBM_REACH_TEST=glass` walks into a settings page instead, where
+            // the rows are sliders and the interesting keys are left and right.
+            let glass = std::env::var("DBM_REACH_TEST").unwrap_or_default() == "glass";
+            match (glass, step) {
+                (false, 0) => {
+                    eprintln!("dbm: pressing P for the playlist");
+                    chord(&ui, &[], "p");
+                }
+                (false, 1..=12) => {
+                    chord(&ui, &[], slint::SharedString::from(Key::DownArrow).as_str());
+                    eprintln!(
+                        "dbm: down {} -> row {}, scrolled {}",
+                        step,
+                        ui.get_focus_row(),
+                        ui.get_playlist_scroll()
+                    );
+                }
+                (true, 0) => {
+                    eprintln!("dbm: pressing S for the settings");
+                    chord(&ui, &[], "s");
+                }
+
+                // Down onto Liquid glass, Enter to open it, then Down again
+                // onto the first slider.
+                (true, 1) | (true, 3) => {
+                    chord(&ui, &[], slint::SharedString::from(Key::DownArrow).as_str());
+                    eprintln!("dbm: down -> row {}", ui.get_focus_row());
+                }
+                (true, 2) => {
+                    chord(&ui, &[], slint::SharedString::from(Key::Return).as_str());
+                    eprintln!("dbm: enter, opening the glass page");
+                }
+                (true, 4..=11) => {
+                    chord(&ui, &[], slint::SharedString::from(Key::LeftArrow).as_str());
+                    eprintln!("dbm: left on row {}", ui.get_focus_row());
+                }
+                (_, 13) => eprintln!("dbm: --- reach test done ---"),
+                _ => {}
+            }
+            step += 1;
+        },
+    );
+    timer
 }
 
 /// Drive the shortcuts that have nowhere visible to report.

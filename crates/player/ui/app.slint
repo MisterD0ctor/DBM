@@ -145,6 +145,13 @@ global Rows {
     /// A row that can be picked, and one that is only a heading or a way back.
     out property <color> hover: #ffffff1f;
     out property <color> hover-soft: #ffffff14;
+    /// Where the keyboard is. One step above the hover wash rather than a
+    /// ring drawn around the row: there is no border anywhere in this
+    /// interface, and introducing one for this would make the keyboard the
+    /// only thing that draws an outline. A pointer and a keyboard are rarely
+    /// both in play, and when they are, the stronger wash is the one the keys
+    /// will answer to.
+    out property <color> focus: #ffffff2e;
 }
 
 /// The wash behind a hovered row. Fills the row it is placed in and insets
@@ -262,12 +269,15 @@ component IconButton inherits Rectangle {
 component MenuRow inherits Rectangle {
     in property <string> label;
     in property <bool> active;
+    /// Whether the keyboard is on this row.
+    in property <bool> focused;
     callback picked();
 
     height: 34px;
 
     RowHighlight {
-        lit: touch.has-hover;
+        lit: touch.has-hover || root.focused;
+        shade: root.focused ? Rows.focus : Rows.hover;
     }
 
     Text {
@@ -300,6 +310,8 @@ component MenuRow inherits Rectangle {
 /// know about each other, and a row that is sometimes a plain menu row and
 /// sometimes this would carry that arithmetic everywhere it is used.
 component PlaylistRow inherits Rectangle {
+    /// Whether the keyboard is on this row.
+    in property <bool> focused;
     in property <string> label;
     in property <string> length;
     in property <float> progress;
@@ -309,7 +321,8 @@ component PlaylistRow inherits Rectangle {
     height: 34px;
 
     RowHighlight {
-        lit: touch.has-hover;
+        lit: touch.has-hover || root.focused;
+        shade: root.focused ? Rows.focus : Rows.hover;
     }
 
     Text {
@@ -389,6 +402,21 @@ component ScrollList inherits Rectangle {
 
     clip: true;
 
+    /// Bring one row into view, by its top and height inside the list.
+    ///
+    /// Called when the keyboard moves rather than bound to anything: the
+    /// pointer owns this list the rest of the time, and a binding on
+    /// `viewport-y` would take the flick and the wheel away from it. Scrolls
+    /// by the least that works, so arrowing down a long list walks the
+    /// bottom edge instead of jumping the row to the middle.
+    public function reveal(top: length, h: length) {
+        if (top < -flick.viewport-y) {
+            flick.viewport-y = -top;
+        } else if (top + h > -flick.viewport-y + root.height) {
+            flick.viewport-y = root.height - top - h;
+        }
+    }
+
     flick := Flickable {
         width: 100%;
         height: 100%;
@@ -430,6 +458,8 @@ component ScrollList inherits Rectangle {
 /// A menu row with its keyboard shortcut on the right. Where a row has one,
 /// showing it is how the shortcut gets learned.
 component ShortcutRow inherits Rectangle {
+    /// Whether the keyboard is on this row.
+    in property <bool> focused;
     in property <string> label;
     in property <string> shortcut;
     /// A row that states a binding rather than performing one. It takes no
@@ -441,7 +471,8 @@ component ShortcutRow inherits Rectangle {
     height: 34px;
 
     RowHighlight {
-        lit: !root.inert && touch.has-hover;
+        lit: !root.inert && (touch.has-hover || root.focused);
+        shade: root.focused ? Rows.focus : Rows.hover;
     }
 
     HorizontalLayout {
@@ -481,12 +512,22 @@ component ShortcutRow inherits Rectangle {
 /// A labelled slider. Reports a normalised position; the range lives in the
 /// registry on the Rust side.
 component ParamSlider inherits Rectangle {
+    /// Whether the keyboard is on this row. Left and right move it.
+    in property <bool> focused;
     in property <string> label;
     in property <float> fraction;
     in property <string> readout;
     callback moved(float);
 
     height: 30px;
+
+    // The sliders never had a hover wash: the track grows instead, which says
+    // enough for a pointer already on it. The keyboard has no such thing to
+    // stand on, so the row lights like every other row under the ring.
+    RowHighlight {
+        lit: root.focused;
+        shade: Rows.focus;
+    }
 
     HorizontalLayout {
         spacing: 10px;
@@ -567,6 +608,8 @@ component ParamSlider inherits Rectangle {
 /// the switch stuck the next time the same state changed from a key or from
 /// Rust.
 component ToggleRow inherits Rectangle {
+    /// Whether the keyboard is on this row.
+    in property <bool> focused;
     in property <string> label;
     in property <bool> checked;
     /// The value the row wants; the owner of the state applies it.
@@ -575,8 +618,8 @@ component ToggleRow inherits Rectangle {
     height: 40px;
 
     RowHighlight {
-        lit: switch-touch.has-hover;
-        shade: Rows.hover-soft;
+        lit: switch-touch.has-hover || root.focused;
+        shade: root.focused ? Rows.focus : Rows.hover-soft;
     }
 
     HorizontalLayout {
@@ -635,6 +678,8 @@ component ToggleRow inherits Rectangle {
 /// that can be turned off says so with its glyph rather than with a switch,
 /// because a switch beside a chevron is two things to press in one row.
 component DrillRow inherits Rectangle {
+    /// Whether the keyboard is on this row.
+    in property <bool> focused;
     in property <image> icon;
     in property <string> label;
     callback opened();
@@ -642,7 +687,8 @@ component DrillRow inherits Rectangle {
     height: 34px;
 
     RowHighlight {
-        lit: touch.has-hover;
+        lit: touch.has-hover || root.focused;
+        shade: root.focused ? Rows.focus : Rows.hover;
     }
 
     HorizontalLayout {
@@ -738,6 +784,8 @@ component StepButton inherits Rectangle {
 /// a time. Sliders are for the material parameters, where the eye judges the
 /// result and the number is incidental.
 component StepperRow inherits Rectangle {
+    /// Whether the keyboard is on this row. Left and right step it.
+    in property <bool> focused;
     in property <image> icon;
     in property <string> label;
     in property <string> value;
@@ -745,6 +793,13 @@ component StepperRow inherits Rectangle {
     callback stepped(float);
 
     height: 38px;
+
+    // Same as the sliders: its two buttons light on hover, and neither of
+    // them is where the keyboard is — the row is.
+    RowHighlight {
+        lit: root.focused;
+        shade: Rows.focus;
+    }
 
     HorizontalLayout {
         padding-left: Rows.label-x;
@@ -812,14 +867,16 @@ component StepperRow inherits Rectangle {
 /// Header for a page that has one above it. Doubles as the way back, since a
 /// title bar is where the eye already is when leaving a page.
 component BackRow inherits Rectangle {
+    /// Whether the keyboard is on this row.
+    in property <bool> focused;
     in property <string> label;
     callback back();
 
     height: 34px;
 
     RowHighlight {
-        lit: touch.has-hover;
-        shade: Rows.hover-soft;
+        lit: touch.has-hover || root.focused;
+        shade: root.focused ? Rows.focus : Rows.hover-soft;
     }
 
     // The arrow hangs in the margin so the label lands on `Rows.label-x`,
@@ -998,6 +1055,58 @@ export component MainWindow inherits Window {
     /// `loadlist` and mpv's own open, which is the whole of the gap. Nothing
     /// in here ever blocks; that is the point of the architecture, and it is
     /// also why the interface had no natural moment to admit to latency.
+    // --- keyboard reach ---
+    //
+    // The interface was keyboard-first everywhere except the parts people use
+    // most. Fifteen keys drove playback, and then the tracks menu and the
+    // playlist — the two panels opened most — had no key at all, and every
+    // row, slider and stepper inside every panel was pointer-only. A player
+    // that hides its chrome after three seconds should not need a mouse to
+    // change the subtitle track.
+    //
+    // One integer rather than a focus scope per row. The panels are already
+    // built out of arithmetic — every height here is computed rather than
+    // asked of a layout — and an index gives what a traversal order cannot:
+    // headings, the empty row and the shortcuts reference are skipped
+    // entirely, because a ring that lands somewhere nothing happens is a dead
+    // step the finger has to press through.
+    //
+    // It also settles what the arrow keys mean. They were spent — up and down
+    // on volume, left and right on seek — so a focused slider had no
+    // conventional way to move. Now the panel claims them only for as long as
+    // the row under the ring can actually use them: left and right adjust a
+    // focused slider or stepper and otherwise fall straight through to
+    // seeking, so nothing is taken away.
+    /// Which row the keyboard is on inside whatever is open.
+    ///
+    /// `out` for the same reason the scroll offsets are: a ring is drawn as a
+    /// wash behind a row, and there is otherwise nothing on screen a test can
+    /// read to say where it landed.
+    out property <int> focus-row: 0;
+    /// The subtitle half of the tracks menu, which the audio half is indexed
+    /// after. `Off` counts as a row: it is the one people reach for.
+    property <int> subs-focus-count:
+        root.has-subs ? 1 + root.sub-tracks.length : 0;
+    /// How many rows the thing on screen offers the keyboard. Zero means the
+    /// keys below never look at any of this, which is the case whenever a
+    /// film is playing and nothing is open.
+    property <int> focus-count:
+        root.menu-open ? root.subs-focus-count + root.audio-tracks.length
+        : root.playlist-open ? root.playlist.length + 1
+        : root.files-open ? 2
+        : root.settings-open ? root.settings-focus-count
+        : (!root.has-file && root.fatal == "") ? 3
+        : 0;
+    /// Per page: the rows, plus the way back, plus the reset that follows
+    /// them. The shortcuts page offers only the way back — every row on it is
+    /// a statement rather than a control.
+    property <int> settings-focus-count:
+        root.settings-page == 0 ? 4
+        : root.settings-page == 1 ? 2 + root.glass-params.length
+        : root.settings-page == 2 ? 2 + root.border-params.length
+        : root.settings-page == 3 ? 5
+        : 1;
+
     in property <bool> opening: false;
     /// What is being opened, named the way a person would name it: the file
     /// or the folder, not the path.
@@ -1130,6 +1239,23 @@ export component MainWindow inherits Window {
     // screen. Waking the clock brings the bar back with the button and gives
     // the fade the frames it needs — nothing else is asking for any, since
     // mpv has stopped producing them.
+    // A ring that has walked off the bottom of a list is no better than no
+    // ring. Only the two lists that scroll need this; the settings pages are
+    // sized to their contents.
+    changed focus-row => {
+        if (root.menu-open) {
+            if (root.focus-row < root.subs-focus-count) {
+                subs-list.reveal(root.focus-row * root.row-h, root.row-h);
+            } else {
+                audio-list.reveal(
+                    (root.focus-row - root.subs-focus-count) * root.row-h,
+                    root.row-h);
+            }
+        } else if (root.playlist-open && root.focus-row < root.playlist.length) {
+            playlist-list.reveal(root.focus-row * root.row-h, root.row-h);
+        }
+    }
+
     changed at-end => {
         if (root.at-end) {
             Chrome.bump();
@@ -1495,7 +1621,11 @@ export component MainWindow inherits Window {
         { label: "Subtitles earlier / later", keys: "Z / Shift + Z" },
         { label: "Fill or fit the window", keys: "T" },
         { label: "Ambient border", keys: "B" },
+        { label: "Tracks", keys: "A" },
+        { label: "Playlist", keys: "P" },
         { label: "Settings", keys: "S" },
+        { label: "Move in a panel", keys: "↑ ↓" },
+        { label: "Choose, or adjust", keys: "Enter, ← →" },
         { label: "Fullscreen", keys: "F / F11" },
         { label: "Open file", keys: "Ctrl + O" },
         { label: "Open folder", keys: "Ctrl + Shift + O" },
@@ -1718,6 +1848,182 @@ export component MainWindow inherits Window {
     // It lives here rather than in Rust because the `Key.*` constants map to
     // private unicode characters; comparing them where Slint owns that
     // mapping leaves Rust with named intentions instead of keycodes.
+    /// Move the ring, wrapping at both ends. Wrapping rather than stopping
+    /// because these lists are short and the ends are where the useful rows
+    /// are: `Off` at the top of the subtitles, the reset at the bottom of a
+    /// settings page.
+    function focus-move(delta: int) {
+        if (root.focus-count <= 0) {
+            return;
+        }
+        root.focus-row = root.focus-row + delta;
+        if (root.focus-row < 0) {
+            root.focus-row = root.focus-count - 1;
+        }
+        if (root.focus-row >= root.focus-count) {
+            root.focus-row = 0;
+        }
+    }
+
+    /// Press the row under the ring. Settings is split out below: the compiler
+    /// recurses once per nested statement, and the pages nest deeply enough
+    /// on their own.
+    function focus-activate() -> bool {
+        // The ring can outlive the row it was on: opening a file replaces the
+        // playlist wholesale, and the tracks of one file are not the tracks
+        // of the next. Nothing below indexes a model until this has run.
+        if (root.focus-row >= root.focus-count) {
+            root.focus-row = 0;
+        }
+        if (root.menu-open) {
+            if (root.focus-row < root.subs-focus-count) {
+                root.select-subtitle(root.focus-row == 0
+                    ? -1
+                    : root.sub-tracks[root.focus-row - 1].id);
+            } else {
+                root.select-audio(
+                    root.audio-tracks[root.focus-row - root.subs-focus-count].id);
+            }
+            return true;
+        }
+        if (root.playlist-open) {
+            if (root.focus-row < root.playlist.length) {
+                root.play-index(root.playlist[root.focus-row].index);
+            } else {
+                root.autoplay = !root.autoplay;
+                root.set-autoplay(root.autoplay);
+            }
+            return true;
+        }
+        if (root.files-open) {
+            root.files-open = false;
+            if (root.focus-row == 0) {
+                root.open-file();
+            } else {
+                root.open-folder();
+            }
+            return true;
+        }
+        if (root.settings-open) {
+            return root.focus-activate-settings();
+        }
+        if (!root.has-file && root.fatal == "") {
+            if (root.focus-row == 0) {
+                root.open-file();
+            } else if (root.focus-row == 1) {
+                root.open-folder();
+            } else {
+                root.open-settings(true);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /// Row 0 of every page but the first is the way back, and the last row of
+    /// a page of controls is its reset. A slider or stepper in between does
+    /// nothing on Enter — left and right are what move it.
+    function focus-activate-settings() -> bool {
+        if (root.settings-page == 0) {
+            root.settings-page = root.focus-row + 1;
+            // The new page starts at its own top. Without this the ring kept
+            // the number of the row that opened the page, which on Shortcuts
+            // — one row deep — is a number that page does not have, so
+            // nothing was lit until the next press.
+            root.focus-row = 0;
+            return true;
+        }
+        if (root.focus-row == 0) {
+            root.settings-page = 0;
+            return true;
+        }
+        if (root.focus-row == root.settings-focus-count - 1) {
+            if (root.settings-page == 1) {
+                root.reset-section(0);
+            } else if (root.settings-page == 2) {
+                root.reset-section(1);
+            } else if (root.settings-page == 3) {
+                root.reset-subtitles();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    /// Left and right, but only where the row under the ring is something
+    /// they can move. Everywhere else this returns false and the key goes on
+    /// to seek, which is what it has always done.
+    function focus-adjust(delta: int) -> bool {
+        if (!root.settings-open || root.focus-row < 1) {
+            return false;
+        }
+        if (root.settings-page == 1
+            && root.focus-row <= root.glass-params.length) {
+            root.set-param(root.glass-params[root.focus-row - 1].index,
+                clamp(root.glass-params[root.focus-row - 1].fraction
+                    + delta * root.focus-step, 0.0, 1.0));
+            return true;
+        }
+        if (root.settings-page == 2
+            && root.focus-row <= root.border-params.length) {
+            root.set-param(root.border-params[root.focus-row - 1].index,
+                clamp(root.border-params[root.focus-row - 1].fraction
+                    + delta * root.focus-step, 0.0, 1.0));
+            return true;
+        }
+        if (root.settings-page == 3) {
+            if (root.focus-row == 1) {
+                root.nudge-sub-delay(delta * root.delay-step);
+                return true;
+            }
+            if (root.focus-row == 2) {
+                root.nudge-sub-scale(delta * root.sub-scale-step);
+                return true;
+            }
+            if (root.focus-row == 3) {
+                root.nudge-sub-pos(delta * root.sub-pos-step);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// Twenty steps end to end. Enough that a slider crosses its range in a
+    /// held keypress, fine enough that the eye can stop where it wants —
+    /// these are judged by looking at the picture, not by the number.
+    property <float> focus-step: 0.05;
+
+    /// Tried before every other key, and answers only for keys the row under
+    /// the ring can use. Everything else falls through untouched, which is
+    /// why Space still pauses the film with the playlist open.
+    function on-focus(text: string, shift: bool) -> bool {
+        if (root.focus-count <= 0) {
+            return false;
+        }
+        if (text == Key.DownArrow) {
+            root.focus-move(1);
+            return true;
+        }
+        if (text == Key.UpArrow) {
+            root.focus-move(-1);
+            return true;
+        }
+        if (text == Key.Tab) {
+            root.focus-move(shift ? -1 : 1);
+            return true;
+        }
+        if (text == Key.Return) {
+            return root.focus-activate();
+        }
+        if (text == Key.LeftArrow) {
+            return root.focus-adjust(-1);
+        }
+        if (text == Key.RightArrow) {
+            return root.focus-adjust(1);
+        }
+        return false;
+    }
+
     function on-playback(text: string) -> bool {
         if (text == " ") {
             // Same reasoning as the play button: at the end of a file there
@@ -1834,6 +2140,17 @@ export component MainWindow inherits Window {
             root.open-settings(!root.settings-open);
             return true;
         }
+        // The two panels opened most, and the two that had no key. A for the
+        // tracks, which is where an audio track is picked as often as a
+        // subtitle; P for the playlist.
+        if (text == "a" || text == "A") {
+            root.open-menu(!root.menu-open);
+            return true;
+        }
+        if (text == "p" || text == "P") {
+            root.open-playlist(!root.playlist-open);
+            return true;
+        }
         if (text == "b" || text == "B") {
             // Kept on a key even though it now lives in the settings panel:
             // it is the one effect worth toggling mid-film.
@@ -1846,6 +2163,7 @@ export component MainWindow inherits Window {
         if (text == Key.Escape) {
             if (root.settings-open && root.settings-page != 0) {
                 root.settings-page = 0;
+                root.focus-row = 0;
             } else if (root.settings-open) {
                 root.settings-open = false;
             } else if (root.playlist-open) {
@@ -1900,6 +2218,7 @@ export component MainWindow inherits Window {
     public function open-settings-page(page: int) {
         root.open-settings(true);
         root.settings-page = page;
+        root.focus-row = 0;
     }
 
     public function open-files(open: bool) {
@@ -1918,12 +2237,17 @@ export component MainWindow inherits Window {
         root.playlist-open = false;
         root.settings-open = false;
         root.files-open = false;
+        // The ring goes back to the top with the panel. It is also what the
+        // way in wants when everything closes over an empty window, which is
+        // the same number.
+        root.focus-row = 0;
     }
 
     keys := FocusScope {
         key-pressed(event) => {
             Chrome.bump();
-            if (root.on-open(event.text, event.modifiers.control, event.modifiers.shift)
+            if (root.on-focus(event.text, event.modifiers.shift)
+                || root.on-open(event.text, event.modifiers.control, event.modifiers.shift)
                 || root.on-playback(event.text)
                 || root.on-seek(event.text, event.modifiers.control)
                 || root.on-volume(event.text)
@@ -2054,6 +2378,7 @@ export component MainWindow inherits Window {
                 DrillRow {
                     icon: @image-url("../../../public/icons/glass.svg");
                     label: "Liquid glass";
+                    focused: root.settings-open && root.focus-row == 0;
                     opened => {
                         root.settings-page = 1;
                     }
@@ -2069,6 +2394,7 @@ export component MainWindow inherits Window {
                         ? @image-url("../../../public/icons/ambience-on.svg")
                         : @image-url("../../../public/icons/ambience-slash.svg");
                     label: "Ambient border";
+                    focused: root.settings-open && root.focus-row == 1;
                     opened => {
                         root.settings-page = 2;
                     }
@@ -2083,6 +2409,7 @@ export component MainWindow inherits Window {
                 DrillRow {
                     icon: @image-url("../../../public/icons/subtitle-time.svg");
                     label: "Timing, size & position";
+                    focused: root.settings-open && root.focus-row == 2;
                     opened => {
                         root.settings-page = 3;
                     }
@@ -2094,6 +2421,7 @@ export component MainWindow inherits Window {
                 DrillRow {
                     icon: @image-url("../../../public/icons/shortcuts.svg");
                     label: "Shortcuts";
+                    focused: root.settings-open && root.focus-row == 3;
                     opened => {
                         root.settings-page = 4;
                     }
@@ -2103,14 +2431,16 @@ export component MainWindow inherits Window {
             if root.settings-page == 1: VerticalLayout {
                 BackRow {
                     label: "LIQUID GLASS";
+                    focused: root.focus-row == 0;
                     back => {
                         root.settings-page = 0;
                     }
                 }
-                for item in root.glass-params: ParamSlider {
+                for item[idx] in root.glass-params: ParamSlider {
                     label: item.label;
                     fraction: item.fraction;
                     readout: item.readout;
+                    focused: root.focus-row == idx + 1;
                     moved(f) => {
                         root.set-param(item.index, f);
                     }
@@ -2120,6 +2450,7 @@ export component MainWindow inherits Window {
                 }
                 MenuRow {
                     label: "Reset to defaults";
+                    focused: root.focus-row == root.settings-focus-count - 1;
                     picked => {
                         root.reset-section(0);
                     }
@@ -2129,14 +2460,16 @@ export component MainWindow inherits Window {
             if root.settings-page == 2: VerticalLayout {
                 BackRow {
                     label: "AMBIENT BORDER";
+                    focused: root.focus-row == 0;
                     back => {
                         root.settings-page = 0;
                     }
                 }
-                for item in root.border-params: ParamSlider {
+                for item[idx] in root.border-params: ParamSlider {
                     label: item.label;
                     fraction: item.fraction;
                     readout: item.readout;
+                    focused: root.focus-row == idx + 1;
                     moved(f) => {
                         root.set-param(item.index, f);
                     }
@@ -2146,6 +2479,7 @@ export component MainWindow inherits Window {
                 }
                 MenuRow {
                     label: "Reset to defaults";
+                    focused: root.focus-row == root.settings-focus-count - 1;
                     picked => {
                         root.reset-section(1);
                     }
@@ -2159,6 +2493,7 @@ export component MainWindow inherits Window {
             if root.settings-page == 3: VerticalLayout {
                 BackRow {
                     label: "SUBTITLES";
+                    focused: root.focus-row == 0;
                     back => {
                         root.settings-page = 0;
                     }
@@ -2166,6 +2501,7 @@ export component MainWindow inherits Window {
                 StepperRow {
                     icon: @image-url("../../../public/icons/clock.svg");
                     label: "Timing";
+                    focused: root.focus-row == 1;
                     value: root.sub-delay-text;
                     stepped(dir) => {
                         root.nudge-sub-delay(dir * root.delay-step);
@@ -2174,6 +2510,7 @@ export component MainWindow inherits Window {
                 StepperRow {
                     icon: @image-url("../../../public/icons/text-size.svg");
                     label: "Size";
+                    focused: root.focus-row == 2;
                     value: root.sub-scale-text;
                     stepped(dir) => {
                         root.nudge-sub-scale(dir * root.sub-scale-step);
@@ -2182,6 +2519,7 @@ export component MainWindow inherits Window {
                 StepperRow {
                     icon: @image-url("../../../public/icons/arrows-up-down.svg");
                     label: "Position";
+                    focused: root.focus-row == 3;
                     value: root.sub-pos-text;
                     stepped(dir) => {
                         root.nudge-sub-pos(dir * root.sub-pos-step);
@@ -2192,6 +2530,7 @@ export component MainWindow inherits Window {
                 }
                 MenuRow {
                     label: "Reset to defaults";
+                    focused: root.focus-row == root.settings-focus-count - 1;
                     picked => {
                         root.reset-subtitles();
                     }
@@ -2201,6 +2540,7 @@ export component MainWindow inherits Window {
             if root.settings-page == 4: VerticalLayout {
                 BackRow {
                     label: "SHORTCUTS";
+                    focused: root.focus-row == 0;
                     back => {
                         root.settings-page = 0;
                     }
@@ -2261,13 +2601,15 @@ export component MainWindow inherits Window {
                 if root.has-subs: MenuRow {
                     label: "Off";
                     active: !root.subs-visible;
+                    focused: root.menu-open && root.focus-row == 0;
                     picked => {
                         root.select-subtitle(-1);
                     }
                 }
-                for track in root.sub-tracks: MenuRow {
+                for track[idx] in root.sub-tracks: MenuRow {
                     label: track.label;
                     active: track.selected;
+                    focused: root.menu-open && root.focus-row == idx + 1;
                     picked => {
                         root.select-subtitle(track.id);
                     }
@@ -2277,13 +2619,15 @@ export component MainWindow inherits Window {
             if root.has-audio: MenuHeading {
                 text: "AUDIO";
             }
-            ScrollList {
+            audio-list := ScrollList {
                 height: root.audio-list-h;
                 content-height: root.audio-natural;
 
-                for track in root.audio-tracks: MenuRow {
+                for track[idx] in root.audio-tracks: MenuRow {
                     label: track.label;
                     active: track.selected;
+                    focused: root.menu-open
+                        && root.focus-row == root.subs-focus-count + idx;
                     picked => {
                         root.select-audio(track.id);
                     }
@@ -2316,6 +2660,7 @@ export component MainWindow inherits Window {
             ShortcutRow {
                 label: "Open file…";
                 shortcut: "Ctrl+O";
+                focused: root.files-open && root.focus-row == 0;
                 picked => {
                     root.files-open = false;
                     root.open-file();
@@ -2324,6 +2669,7 @@ export component MainWindow inherits Window {
             ShortcutRow {
                 label: "Open folder…";
                 shortcut: "Ctrl+Shift+O";
+                focused: root.files-open && root.focus-row == 1;
                 picked => {
                     root.files-open = false;
                     root.open-folder();
@@ -2362,11 +2708,12 @@ export component MainWindow inherits Window {
                 height: root.playlist-list-h;
                 content-height: root.playlist-natural;
 
-                for entry in root.playlist: PlaylistRow {
+                for entry[idx] in root.playlist: PlaylistRow {
                     label: entry.label;
                     length: entry.length;
                     progress: entry.progress;
                     active: entry.current;
+                    focused: root.playlist-open && root.focus-row == idx;
                     picked => {
                         root.play-index(entry.index);
                     }
@@ -2380,6 +2727,8 @@ export component MainWindow inherits Window {
             ToggleRow {
                 label: "Autoplay next";
                 checked: root.autoplay;
+                focused: root.playlist-open
+                    && root.focus-row == root.playlist.length;
                 toggled(on) => {
                     root.autoplay = on;
                     root.set-autoplay(on);
@@ -2645,6 +2994,7 @@ export component MainWindow inherits Window {
             if root.fatal == "": ShortcutRow {
                 label: "Open file…";
                 shortcut: "Ctrl+O";
+                focused: !root.has-file && root.focus-row == 0;
                 inert: root.opening;
                 opacity: root.opening ? 0.5 : 1.0;
                 animate opacity { duration: 120ms; easing: ease-out; }
@@ -2655,6 +3005,7 @@ export component MainWindow inherits Window {
             if root.fatal == "": ShortcutRow {
                 label: "Open folder…";
                 shortcut: "Ctrl+Shift+O";
+                focused: !root.has-file && root.focus-row == 1;
                 inert: root.opening;
                 opacity: root.opening ? 0.5 : 1.0;
                 animate opacity { duration: 120ms; easing: ease-out; }
@@ -2668,6 +3019,7 @@ export component MainWindow inherits Window {
             if root.fatal == "": ShortcutRow {
                 label: "Settings";
                 shortcut: "S";
+                focused: !root.has-file && root.focus-row == 2;
                 picked => {
                     root.open-settings(true);
                 }
