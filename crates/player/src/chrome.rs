@@ -9,6 +9,12 @@
 //! window, so a button or menu row buried inside a reusable component can
 //! report it without every call site threading a callback down.
 //!
+//! The pointer is hooked up here too. It is the same policy wearing another
+//! face — the cursor goes when the chrome does — and it is the same clock
+//! that decides, so the two cannot drift apart and disagree about whether
+//! anything has happened lately. What that takes on each platform lives in
+//! `cursor`.
+//!
 //! The subtlety that makes this work at all: Slint's `TouchArea::moved` only
 //! fires while the pointer is *held down*. Plain hovering has to come through
 //! `pointer-event`, which is delivered for `PointerEventKind::Move`
@@ -67,6 +73,16 @@ pub fn install(ui: &MainWindow, activity: Activity) -> slint::Timer {
     {
         let activity = activity.clone();
         ui.global::<Chrome>().on_activity(move || activity.bump());
+    }
+
+    {
+        // The interface decides; this only carries it to the window. Held by
+        // the callback rather than by the timer below because the pointer has
+        // to come back the moment the hand moves, and the timer would make
+        // that up to a poll late.
+        let mut pointer = crate::cursor::Pointer::new();
+        ui.global::<Chrome>()
+            .on_hide_pointer(move |hide| pointer.set_hidden(hide));
     }
 
     let timer = slint::Timer::default();

@@ -53,6 +53,7 @@ mod actions;
 mod audio;
 mod chrome;
 mod commands;
+mod cursor;
 mod dialog;
 mod diagnostics;
 mod dropped;

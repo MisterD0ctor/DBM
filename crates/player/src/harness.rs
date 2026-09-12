@@ -45,6 +45,12 @@
 //!                         one actually moves it.
 //! * `DBM_KEY_TEST=1`    — dispatches real key events into the window, for
 //!                         shortcuts whose effect is otherwise off-screen.
+//! * `DBM_CURSOR_TEST=1` — waits out the idle clock with a film playing and
+//!                         asks Windows whether a cursor is on screen, then
+//!                         moves the pointer and asks again. The interface's
+//!                         own `pointer-hidden` is not evidence: the binding
+//!                         this replaced set that property correctly for
+//!                         months and the pointer never went anywhere.
 //! * `DBM_PANEL_TEST=1`  — opens each panel in turn and counts the glass
 //!                         rects the UI publishes. All three share a corner,
 //!                         so two open at once would stack.
@@ -150,6 +156,9 @@ pub fn install(
     }
     if std::env::var_os("DBM_REACH_TEST").is_some() {
         timers.push(reach_test(ui));
+    }
+    if std::env::var_os("DBM_CURSOR_TEST").is_some() {
+        timers.push(cursor_test(ui));
     }
     if std::env::var_os("DBM_PANEL_TEST").is_some() {
         timers.push(panel_test(ui));
@@ -608,6 +617,82 @@ fn preview_test(ui: &MainWindow) -> slint::Timer {
         },
     );
     timer
+}
+
+/// Watch the pointer disappear and come back.
+///
+/// Timed around the three seconds the chrome waits, with the film left
+/// playing: the run starts with a real move, so the clock starts from a known
+/// point rather than from whenever the window last saw the hand.
+///
+/// Both halves matter and the second one more. A pointer that hides is only
+/// half a feature — one that does not come back the moment the hand moves is
+/// worse than one that never left.
+fn cursor_test(ui: &MainWindow) -> slint::Timer {
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut step = 0usize;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(500),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            match step {
+                0 => {
+                    // The real one, not a dispatched event. `ShowCursor`
+                    // keeps its display count on this thread's input queue,
+                    // so it governs the pointer only while the pointer is
+                    // over this window — and a test that asked the system
+                    // about a pointer sitting on some other window would be
+                    // reading an answer about somebody else's cursor.
+                    park_pointer(&ui);
+                    hover(&ui, 40.0, 40.0);
+                    report_cursor(&ui, "hand just moved");
+                }
+                2 => report_cursor(&ui, "a second later"),
+                // Past HIDE_AFTER, plus a poll for the clock to notice.
+                8 => report_cursor(&ui, "chrome faded"),
+                9 => {
+                    hover(&ui, 60.0, 80.0);
+                    eprintln!("dbm: cursor  --- the hand moves ---");
+                }
+                10 => report_cursor(&ui, "hand moved again"),
+                11 => eprintln!("dbm: --- cursor test done ---"),
+                _ => {}
+            }
+            step += 1;
+        },
+    );
+    timer
+}
+
+/// Put the physical pointer in the middle of the window.
+#[cfg(windows)]
+fn park_pointer(ui: &MainWindow) {
+    let at = ui.window().position();
+    let size = ui.window().size();
+    let (x, y) = (
+        at.x + size.width as i32 / 2,
+        at.y + size.height as i32 / 2,
+    );
+    let moved = unsafe { windows::Win32::UI::WindowsAndMessaging::SetCursorPos(x, y) };
+    eprintln!("dbm: cursor  parked at {x},{y} ({})", if moved.is_ok() { "ok" } else { "refused" });
+}
+
+#[cfg(not(windows))]
+fn park_pointer(_ui: &MainWindow) {}
+
+fn report_cursor(ui: &MainWindow, when: &str) {
+    let asked = ui.get_pointer_hidden();
+    let on_screen = match crate::cursor::on_screen() {
+        Some(true) => "on screen",
+        Some(false) => "hidden",
+        None => "not answerable on this platform",
+    };
+    eprintln!(
+        "dbm: cursor  {when:<18} interface wants it {:<8} | system says {on_screen}",
+        if asked { "hidden" } else { "shown" }
+    );
 }
 
 fn hover(ui: &MainWindow, x: f32, y: f32) {

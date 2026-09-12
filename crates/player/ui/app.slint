@@ -41,6 +41,16 @@ export global Chrome {
         Chrome.activity();
     }
 
+    /// Ask for the pointer to leave the screen, or to come back.
+    ///
+    /// A callback rather than a property the Rust side polls, because the two
+    /// directions are not equally urgent. Hiding can wait — it happens three
+    /// seconds after the hand stopped, and a fifth of a second either way is
+    /// not a thing anyone can see. Coming back cannot: the pointer has to be
+    /// under the hand the instant it moves, and a clock ticking five times a
+    /// second would leave it missing after the chrome was already up.
+    callback hide-pointer(hide: bool);
+
     /// Pointer activity, and whether a button went down with it. The same
     /// wake-up as `bump`, plus the ring standing down: the hand has taken
     /// over, and two cursors on one panel is one too many.
@@ -1367,11 +1377,24 @@ export component MainWindow inherits Window {
         || root.menu-open || root.playlist-open || root.settings-open
         || root.files-open;
 
-    // A film ending is something happening, even though nobody touched
-    // anything: the picture stops, and the one useful thing left is on
-    // screen. Waking the clock brings the bar back with the button and gives
-    // the fade the frames it needs — nothing else is asking for any, since
-    // mpv has stopped producing them.
+    /// Whether the pointer should be off screen.
+    ///
+    /// Over a film, with the chrome gone. Not with an empty window: there is
+    /// nothing to keep clean, and the pointer is how the one control on
+    /// screen is reached — taking it away three seconds after launch would
+    /// leave a black window with a way in that could not be clicked.
+    ///
+    /// The decision is made here, where an open panel and a loaded file are
+    /// already known, and carried out in `cursor` on the Rust side, which
+    /// explains why a `mouse-cursor` binding cannot do it. `out` so a test
+    /// can read the decision; whether it was obeyed is a question for the
+    /// system, not for this property.
+    out property <bool> pointer-hidden: root.has-file && !root.controls-visible;
+
+    changed pointer-hidden => {
+        Chrome.hide-pointer(root.pointer-hidden);
+    }
+
     // A ring that has walked off the bottom of a list is no better than no
     // ring. Only the two lists that scroll need this; the settings pages are
     // sized to their contents.
@@ -1404,6 +1427,11 @@ export component MainWindow inherits Window {
         root.focus-scroll();
     }
 
+    // A film ending is something happening, even though nobody touched
+    // anything: the picture stops, and the one useful thing left is on
+    // screen. Waking the clock brings the bar back with the button and gives
+    // the fade the frames it needs — nothing else is asking for any, since
+    // mpv has stopped producing them.
     changed at-end => {
         if (root.at-end) {
             Chrome.bump();
@@ -2452,16 +2480,13 @@ export component MainWindow inherits Window {
     }
 
     // Sits under the chrome, so buttons above take clicks first. The cursor
-    // goes with the chrome, as it should in a player.
+    // goes with the chrome, as it should in a player — but not from here: a
+    // `mouse-cursor` binding was the obvious way to write that and is read
+    // only while a mouse event is being routed, which is never the moment the
+    // pointer should go. `pointer-hidden` above carries it instead.
     video-surface := TouchArea {
         width: 100%;
         height: 100%;
-        // Hidden only over a film. With nothing loaded there is nothing to
-        // keep clean, and the pointer is how the one control on screen is
-        // reached — taking it away three seconds after launch left a black
-        // window with a way in that could not be clicked.
-        mouse-cursor: root.controls-visible || !root.has-file
-            ? MouseCursor.default : MouseCursor.none;
         pointer-event(event) => {
             Chrome.pointed(event.kind == PointerEventKind.down);
         }
