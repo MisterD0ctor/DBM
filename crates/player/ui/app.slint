@@ -563,22 +563,25 @@ component ParamSlider inherits Rectangle {
 /// to a bound property in Slint drops the binding for good, which would leave
 /// the switch stuck the next time the same state changed from a key or from
 /// Rust.
+/// A row that is a switch and nothing else.
+///
+/// It used to be able to lead somewhere as well, which divided it into two
+/// hit zones — the left four fifths toggling, the right 48px navigating —
+/// with nothing on screen to say where the boundary was, and one wash across
+/// both because lighting half a row reads as the row being cut in two. A
+/// click aimed at the chevron that landed short turned the effect off
+/// instead. The rows that drilled now say so by looking like the rows that
+/// drill, and this one has one target again.
 component ToggleRow inherits Rectangle {
     in property <string> label;
     in property <bool> checked;
-    /// Whether the row also leads to a page of its own.
-    in property <bool> drills: false;
     /// The value the row wants; the owner of the state applies it.
     callback toggled(bool);
-    callback opened();
 
     height: 40px;
 
-    // Either half lights the whole row: the two targets sit flush against
-    // each other, and washing only one of them would read as the row being
-    // cut in two rather than as one row with two things to press.
     RowHighlight {
-        lit: switch-touch.has-hover || chevron-touch.has-hover;
+        lit: switch-touch.has-hover;
         shade: Rows.hover-soft;
     }
 
@@ -620,26 +623,9 @@ component ToggleRow inherits Rectangle {
             horizontal-stretch: 1;
         }
 
-        Rectangle {
-            width: root.drills ? 18px : 0px;
-
-            Image {
-                source: @image-url("../../../public/icons/angle-small-right.svg");
-                width: 18px;
-                height: 18px;
-                x: 0;
-                y: (parent.height - self.height) / 2;
-                image-fit: contain;
-                visible: root.drills;
-                colorize: chevron-touch.has-hover ? #ffffff : #ffffff70;
-            }
-        }
     }
 
-    // The switch half is everything the chevron does not claim, so the more
-    // common action gets the larger target.
     switch-touch := TouchArea {
-        width: root.drills ? parent.width - 48px : parent.width;
         mouse-cursor: pointer;
         pointer-event(event) => {
             Chrome.bump();
@@ -648,22 +634,12 @@ component ToggleRow inherits Rectangle {
             root.toggled(!root.checked);
         }
     }
-
-    chevron-touch := TouchArea {
-        x: parent.width - 48px;
-        width: root.drills ? 48px : 0px;
-        mouse-cursor: pointer;
-        pointer-event(event) => {
-            Chrome.bump();
-        }
-        clicked => {
-            root.opened();
-        }
-    }
 }
 
-/// A row that only leads somewhere. The same affordance as `ToggleRow`
-/// without the switch, for a page that has nothing to turn on or off.
+/// A row that leads somewhere: an icon naming the subject, the label, and a
+/// chevron. Every row in the settings tree is one of these now — an effect
+/// that can be turned off says so with its glyph rather than with a switch,
+/// because a switch beside a chevron is two things to press in one row.
 component DrillRow inherits Rectangle {
     in property <image> icon;
     in property <string> label;
@@ -1008,7 +984,6 @@ export component MainWindow inherits Window {
     // Effect switches. in-out because they are pushed from the saved
     // settings at startup and assigned here when clicked or keyed.
     in-out property <bool> ambience-on: true;
-    in-out property <bool> glass-on: true;
     in-out property <bool> autoplay: true;
     /// Registry index and its new normalised position.
     callback set-param(int, float);
@@ -1016,7 +991,6 @@ export component MainWindow inherits Window {
     /// matching `settings::Section`.
     callback reset-section(int);
     callback set-ambience(bool);
-    callback set-glass(bool);
     callback set-autoplay(bool);
 
     // --- actions, executed on the Rust side ---
@@ -1157,16 +1131,27 @@ export component MainWindow inherits Window {
     /// How far a surface sits below its place before it arrives.
     property <length> lift: 6px;
 
-    property <float> bar-shown: root.controls-visible ? 1.0 : 0.0;
+    // The bar describes a film. With none loaded, ten of its fifteen
+    // controls cannot do anything if they are pressed — there is nothing to
+    // pause, nothing to seek, no track to pick, no picture to fit to the
+    // window — and the five that work are a volume for silence. Showing them
+    // is the interface claiming something it cannot keep.
+    property <float> bar-shown: root.controls-visible && root.has-file ? 1.0 : 0.0;
     property <float> menu-shown: root.menu-open ? 1.0 : 0.0;
     property <float> playlist-shown: root.playlist-open ? 1.0 : 0.0;
     property <float> settings-shown: root.settings-open ? 1.0 : 0.0;
     property <float> files-shown: root.files-open ? 1.0 : 0.0;
     property <float> preview-shown: root.preview-open ? 1.0 : 0.0;
     property <float> end-shown: root.at-end && root.has-file ? 1.0 : 0.0;
+    /// The way in. Not gated on the idle clock: there is no film to keep
+    /// clean, and an empty window that hides its only control after three
+    /// seconds is a window with nothing in it at all. It stands down only for
+    /// the settings panel, which is the one surface that can open over it.
+    property <float> invite-shown: !root.has-file && !root.settings-open
+        ? 1.0 : 0.0;
 
     animate bar-shown, menu-shown, playlist-shown, settings-shown,
-            files-shown, preview-shown, end-shown {
+            files-shown, preview-shown, end-shown, invite-shown {
         duration: root.fade;
         easing: ease-out;
     }
@@ -1184,6 +1169,23 @@ export component MainWindow inherits Window {
     property <length> files-rise: (1.0 - root.files-shown) * root.lift;
     property <length> preview-rise: (1.0 - root.preview-shown) * root.lift;
     property <length> end-rise: (1.0 - root.end-shown) * root.lift;
+    property <length> invite-rise: (1.0 - root.invite-shown) * root.lift;
+
+    // --- the way in ---------------------------------------------------------
+    //
+    // Three rows and a sentence, centred. All three routes already worked;
+    // only one of them was ever visible, at the right-hand end of a pill with
+    // no bounds, behind a folder glyph nobody had been told about.
+    //
+    // Wider than the panel that holds the same two rows off the bar: that one
+    // hangs from the button that opened it and is read in a glance, this one
+    // stands alone in the middle of an empty window and carries a sentence.
+    property <length> invite-w: 320px;
+    property <length> invite-h:
+        root.panel-pad + 3 * 34px + Rows.group-gap + root.invite-note-h;
+    property <length> invite-note-h: 22px;
+    property <length> invite-x: (root.width - root.invite-w) / 2;
+    property <length> invite-y: (root.height - root.invite-h) / 2;
 
     // --- bar geometry ---
     //
@@ -1312,9 +1314,15 @@ export component MainWindow inherits Window {
             max(root.panel-margin, root.width - w - root.panel-margin));
     }
     property <length> flash-y: (root.height - root.flash-ring) / 2;
-    /// Under the ring, or in its place when there is no ring.
+    /// Under the ring, or in its place when there is no ring — and under the
+    /// way in when that is what is on screen. Both are centred, so a notice
+    /// otherwise drew straight through the rows it was answering, at the one
+    /// moment it most needs to be read: "There is nothing at that path" sits
+    /// under the row that went looking for it.
     property <length> flash-text-y: root.flash-is-notice
-        ? (root.height - root.flash-text-h) / 2
+        ? (root.has-file
+            ? (root.height - root.flash-text-h) / 2
+            : root.invite-y + root.invite-h + 12px)
         : root.flash-y + root.flash-ring + 12px;
     /// Long enough to read a two-character number, short enough that a held
     /// key is a flicker rather than a strobe — and long enough to read a
@@ -1433,6 +1441,10 @@ export component MainWindow inherits Window {
     // cases in it to be worth checking rather than trusting.
     property <length> row-h: 34px;
     property <length> heading-h: 28px;
+    /// A row carrying a switch. Taller than a list row because the switch is
+    /// taller than a line of text, and fixed furniture wherever it appears —
+    /// the autoplay row under the playlist, the effect rows in the settings.
+    property <length> toggle-h: 40px;
 
     /// Every key the handlers below answer to.
     ///
@@ -1490,15 +1502,13 @@ export component MainWindow inherits Window {
     out property <length> audio-list-h: root.tracks-avail - root.subs-list-h;
 
     out property <length> playlist-natural: root.playlist.length * root.row-h;
-    /// The autoplay row is fixed furniture, like the heading.
-    property <length> autoplay-h: 40px;
     out property <length> playlist-h: min(
         root.panel-pad + root.heading-h + root.playlist-natural
-            + Rows.group-gap + root.autoplay-h,
+            + Rows.group-gap + root.toggle-h,
         root.panel-max-h);
     out property <length> playlist-list-h: max(0px,
         root.playlist-h - root.panel-pad - root.heading-h
-            - Rows.group-gap - root.autoplay-h);
+            - Rows.group-gap - root.toggle-h);
 
     /// Scroll offsets, for the test that checks a wheel over a list moves it.
     out property <length> subs-scroll: subs-list.offset;
@@ -1584,6 +1594,15 @@ export component MainWindow inherits Window {
                 ? root.flash-text-h : 0,
             opacity: root.flash-shown,
             radius: root.flash-text-h / 2,
+            tint: 1.0,
+        },
+        {
+            x: root.invite-x,
+            y: root.invite-y + root.invite-rise,
+            width: root.invite-shown > root.shown-epsilon ? root.invite-w : 0,
+            height: root.invite-shown > root.shown-epsilon ? root.invite-h : 0,
+            opacity: root.invite-shown,
+            radius: root.panel-radius,
             tint: 1.0,
         },
         {
@@ -1900,7 +1919,12 @@ export component MainWindow inherits Window {
     video-surface := TouchArea {
         width: 100%;
         height: 100%;
-        mouse-cursor: root.controls-visible ? MouseCursor.default : MouseCursor.none;
+        // Hidden only over a film. With nothing loaded there is nothing to
+        // keep clean, and the pointer is how the one control on screen is
+        // reached — taking it away three seconds after launch left a black
+        // window with a way in that could not be clicked.
+        mouse-cursor: root.controls-visible || !root.has-file
+            ? MouseCursor.default : MouseCursor.none;
         pointer-event(event) => {
             Chrome.bump();
         }
@@ -1952,7 +1976,11 @@ export component MainWindow inherits Window {
             // handed whatever is left and scrolls inside it.
             : root.settings-page == 4
                 ? 34px + root.shortcuts-natural
-            : 3 * 28px + 2 * 40px + 2 * 34px;
+            // Three headings and four rows that lead somewhere. Named
+            // rather than arithmetic on bare numbers: the rows this page has
+            // lost were invisible inside `2 * 40px`, and the panel stood six
+            // pixels taller than its contents until someone looked at it.
+            : 3 * root.heading-h + 4 * root.row-h;
 
         width: 340px;
         height: min(root.panel-pad + self.body, root.panel-max-h);
@@ -1979,26 +2007,35 @@ export component MainWindow inherits Window {
                 MenuHeading {
                     text: "EFFECTS";
                 }
-                ToggleRow {
+                // No switch. Turning the glass off set the panel count to
+                // zero for every rect on screen — including the panel this row
+                // is printed on, which became a fully transparent rectangle:
+                // six rows of text floating on moving video, with the switch
+                // among them invisible and the only way back. A control that
+                // erases itself is not a setting.
+                //
+                // The material is the product, so it is not optional. What is
+                // here is the tuning, which is the part worth reaching. The
+                // flag still exists in the settings file for anyone who wants
+                // to turn it off by hand while working on the shader.
+                DrillRow {
+                    icon: @image-url("../../../public/icons/glass.svg");
                     label: "Liquid glass";
-                    checked: root.glass-on;
-                    drills: true;
-                    toggled(on) => {
-                        root.glass-on = on;
-                        root.set-glass(on);
-                    }
                     opened => {
                         root.settings-page = 1;
                     }
                 }
-                ToggleRow {
+                // The same glyph pair the bar button wears, for the same
+                // reason: the row no longer carries a switch, so the icon is
+                // what says whether the effect is on. B turns it off, and so
+                // does the button on the bar — both of which are to hand
+                // while a film is playing, which is when it is worth turning
+                // off at all. What is here is the tuning.
+                DrillRow {
+                    icon: root.ambience-on
+                        ? @image-url("../../../public/icons/ambience-on.svg")
+                        : @image-url("../../../public/icons/ambience-slash.svg");
                     label: "Ambient border";
-                    checked: root.ambience-on;
-                    drills: true;
-                    toggled(on) => {
-                        root.ambience-on = on;
-                        root.set-ambience(on);
-                    }
                     opened => {
                         root.settings-page = 2;
                     }
@@ -2021,11 +2058,8 @@ export component MainWindow inherits Window {
                 MenuHeading {
                     text: "KEYBOARD";
                 }
-                // No icon: the set has no keyboard glyph, and borrowing one
-                // from elsewhere would be the first icon here that somebody
-                // else drew. The slot is fixed width, so the label still
-                // lines up with the row above it.
                 DrillRow {
+                    icon: @image-url("../../../public/icons/shortcuts.svg");
                     label: "Shortcuts";
                     opened => {
                         root.settings-page = 4;
@@ -2445,6 +2479,101 @@ export component MainWindow inherits Window {
             font-size: 11px;
             horizontal-alignment: center;
             vertical-alignment: center;
+        }
+    }
+
+    // --- the way in ---------------------------------------------------------
+    //
+    // Glass, like every other surface, and no fill — which was not obvious.
+    // There is no film yet, so the first attempt gave this one pane a flat
+    // fill on the assumption that a material computed from the frame cannot
+    // exist before the frame does.
+    //
+    // It can. The pipeline composites whether or not mpv has anything to
+    // show, so at rest the glass pass runs over a black frame: the tint pull
+    // and the rim still resolve, and the result is a faint lift with an edge
+    // on it — which is what the settings panel has always looked like when
+    // opened on an empty window. The hand-mixed fill was an approximation of
+    // something already there, and it covered the real thing, since Slint
+    // draws over the composited frame. Panels carry no background for exactly
+    // this reason.
+    Rectangle {
+        x: root.invite-x;
+        y: root.invite-y + root.invite-rise;
+        width: root.invite-w;
+        height: root.invite-h;
+        visible: root.invite-shown > root.shown-epsilon;
+        opacity: root.invite-shown;
+        clip: true;
+
+        // As on every panel: the padding is part of the surface, so a click
+        // that misses a row must not reach the play/pause handler under it.
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.bump();
+            }
+        }
+
+        VerticalLayout {
+            padding-top: Rows.panel-pad;
+            padding-bottom: Rows.panel-pad;
+
+            // The same two rows, the same words and the same keys as the panel
+            // that hangs off the bar. A person who learns them here knows
+            // where they are later.
+            ShortcutRow {
+                label: "Open file…";
+                shortcut: "Ctrl+O";
+                picked => {
+                    root.open-file();
+                }
+            }
+            ShortcutRow {
+                label: "Open folder…";
+                shortcut: "Ctrl+Shift+O";
+                picked => {
+                    root.open-folder();
+                }
+            }
+            // The bar carried the only way to the settings, and the bar is
+            // gone until a film is. The key is stated for the same reason the
+            // other two are: it is the one that survives the window.
+            ShortcutRow {
+                label: "Settings";
+                shortcut: "S";
+                picked => {
+                    root.open-settings(true);
+                }
+            }
+
+            Rectangle {
+                height: Rows.group-gap;
+            }
+
+            // Dropping a file has always worked and has never been mentioned
+            // anywhere. Stated rather than demonstrated: the shell's older
+            // drop route reports nothing until the file has landed, so there
+            // is no honest moment to light anything up.
+            Rectangle {
+                height: root.invite-note-h;
+
+                HorizontalLayout {
+                    padding-left: Rows.label-x;
+                    padding-right: Rows.trail-x;
+
+                    Text {
+                        text: "or drop a file anywhere here";
+                        // One step above a shortcut hint rather than level
+                        // with it: this is the only place the third way in is
+                        // ever mentioned, and at hint weight it was a line
+                        // nobody would read twice.
+                        color: #ffffff90;
+                        font-size: 11px;
+                        vertical-alignment: center;
+                        horizontal-alignment: left;
+                    }
+                }
+            }
         }
     }
 

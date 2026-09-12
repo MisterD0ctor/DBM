@@ -1033,42 +1033,36 @@ fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
             let flip = |name: &str, on: bool| eprintln!("dbm: {name} -> {on}");
             match step {
                 0 => ui.set_settings_open(true),
+                // The glass no longer has a switch, so the ambient border is
+                // the only effect left to flip. What the probe reads between
+                // these steps is still the point: glass is sampled out of the
+                // framebuffer under the panel that is open.
                 1 => {
-                    ui.set_glass_on(false);
-                    ui.invoke_set_glass(false);
-                    flip("glass", false);
-                }
-                2 => {
-                    ui.set_glass_on(true);
-                    ui.invoke_set_glass(true);
-                    flip("glass", true);
-                }
-                3 => {
                     ui.set_ambience_on(false);
                     ui.invoke_set_ambience(false);
                     flip("ambience", false);
                 }
-                4 => {
+                2 => {
                     ui.set_ambience_on(true);
                     ui.invoke_set_ambience(true);
                     flip("ambience", true);
                 }
-                5 => {
+                3 => {
                     ui.set_autoplay(false);
                     ui.invoke_set_autoplay(false);
                 }
                 // A blocking read, which is only acceptable here: this is a
                 // one-shot diagnostic step, not the frame path. Autoplay has
                 // no picture to check, so mpv itself is the witness.
-                6 => eprintln!(
+                4 => eprintln!(
                     "dbm: autoplay off -> keep-open={:?}",
                     mpv.get_property("keep-open")
                 ),
-                7 => {
+                5 => {
                     ui.set_autoplay(true);
                     ui.invoke_set_autoplay(true);
                 }
-                8 => eprintln!(
+                6 => eprintln!(
                     "dbm: autoplay on  -> keep-open={:?}",
                     mpv.get_property("keep-open")
                 ),
@@ -1078,17 +1072,17 @@ fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
                 // pipeline is already covered by `DBM_PARAM_TEST`, and what
                 // broke before was the model, which lost the drag when it
                 // was rebuilt instead of updated in place.
-                9 => {
+                7 => {
                     ui.invoke_set_param(7, 1.0);
                     eprintln!("dbm: tint driven to max");
                 }
-                10 => report_row(&ui, "after tint max"),
-                11 => {
+                8 => report_row(&ui, "after tint max"),
+                9 => {
                     ui.invoke_reset_section(0);
                     eprintln!("dbm: glass section reset");
                 }
-                12 => report_row(&ui, "after reset"),
-                13 => eprintln!("dbm: --- toggle test done ---"),
+                10 => report_row(&ui, "after reset"),
+                11 => eprintln!("dbm: --- toggle test done ---"),
                 _ => {}
             }
             step += 1;

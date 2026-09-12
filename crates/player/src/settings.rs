@@ -214,6 +214,11 @@ impl Store {
         self.ambience_on.get()
     }
 
+    /// Read on every parameter change and never written from the interface:
+    /// there is no switch any more, because turning the glass off erased the
+    /// panel the switch was printed on. The flag survives in the settings
+    /// file, which is plain text, for anyone working on the shader who wants
+    /// the unrefracted picture back for a minute.
     pub fn glass_on(&self) -> bool {
         self.glass_on.get()
     }
@@ -224,11 +229,6 @@ impl Store {
 
     pub fn set_ambience(&self, on: bool) {
         self.ambience_on.set(on);
-        self.touch();
-    }
-
-    pub fn set_glass(&self, on: bool) {
-        self.glass_on.set(on);
         self.touch();
     }
 

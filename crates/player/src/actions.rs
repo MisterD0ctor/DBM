@@ -200,13 +200,6 @@ pub fn wire(
         });
     }
     {
-        let (params, seen) = (params.clone(), activity.clone());
-        ui.on_set_glass(move |on| {
-            seen.bump();
-            params.set_glass(on);
-        });
-    }
-    {
         let (params, seen, mpv) = (params.clone(), activity.clone(), mpv.clone());
         ui.on_set_autoplay(move |on| {
             seen.bump();
@@ -279,7 +272,6 @@ pub fn wire(
     }
 
     ui.set_ambience_on(params.ambience_on());
-    ui.set_glass_on(params.glass_on());
     ui.set_autoplay(params.autoplay());
     commands::set_autoplay(mpv, params.autoplay());
     commands::set_sub_scale(mpv, params.sub_scale() as f64);
