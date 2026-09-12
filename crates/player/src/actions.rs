@@ -227,9 +227,22 @@ pub fn wire(
     }
     {
         let (worker, seen) = (worker.clone(), activity.clone());
+        let weak = ui.as_weak();
         ui.on_open_path(move |path| {
             seen.bump();
             let path = std::path::PathBuf::from(path.as_str());
+            // Say so before handing it over. Everything past this point is on
+            // another thread — a `read_dir` that the playlist module warns can
+            // take seconds on a network share, an m3u write, a `loadlist`, and
+            // then mpv's own open — and for all of it the interface used to be
+            // indistinguishable from one that had ignored the click.
+            //
+            // Set here rather than in the dialog handlers so a drop and the
+            // command line get it too: this is the one funnel they share.
+            if let Some(ui) = weak.upgrade() {
+                ui.set_opening_name(opening_name(&path).into());
+                ui.set_opening(true);
+            }
             // Same job the command line goes through, scan and all.
             worker.submit(move |_mpv| {
                 Some(crate::worker::Completion::Opened(crate::playlist::prepare(
@@ -354,4 +367,20 @@ fn wire_fullscreen(ui: &MainWindow) {
 fn set_fullscreen(ui: &MainWindow, on: bool) {
     ui.window().set_fullscreen(on);
     ui.set_fullscreen(on);
+}
+
+/// What to call the thing being opened while it is being opened.
+///
+/// The file's or folder's own name, not the path: the line it goes into is one
+/// row wide, and the part that identifies it to the person who just picked it
+/// is the end. No extension — `naming` strips it everywhere else too, and
+/// "Opening S02E01.mkv…" reads like a file manager rather than a player.
+fn opening_name(path: &std::path::Path) -> String {
+    let name = if path.is_dir() {
+        path.file_name().map(std::ffi::OsStr::to_string_lossy)
+    } else {
+        path.file_stem().map(std::ffi::OsStr::to_string_lossy)
+    };
+    name.map(std::borrow::Cow::into_owned)
+        .unwrap_or_else(|| path.display().to_string())
 }

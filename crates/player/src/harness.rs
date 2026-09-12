@@ -442,6 +442,14 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 "tracks" => ui.invoke_open_menu(true),
                 "playlist" => ui.invoke_open_playlist(true),
                 "files" => ui.invoke_open_files(true),
+                // Held rather than provoked. A real open clears this the
+                // moment mpv reports a file, which on a local disk is too few
+                // frames to photograph — and the case worth looking at is the
+                // slow one, which needs a network share to reproduce.
+                "opening" => {
+                    ui.set_opening_name("Game of Thrones Season 7".into());
+                    ui.set_opening(true);
+                }
                 "settings" => ui.invoke_open_settings_page(0),
                 "glass" => ui.invoke_open_settings_page(1),
                 "ambience" => ui.invoke_open_settings_page(2),

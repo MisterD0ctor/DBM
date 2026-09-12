@@ -87,6 +87,12 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     // showing a play glyph over a running picture. The end-of-playback button
     // is gated on this too, so it never appeared for those files either.
     ui.set_has_file(player.path.is_some());
+    // And the open is over the moment mpv admits to a file. Cleared from the
+    // same place `has_file` is derived, so the two cannot disagree: the bar
+    // arriving and the "Opening…" line leaving are one event.
+    if player.path.is_some() {
+        ui.set_opening(false);
+    }
     // A finished file, and whether there is another one after it. mpv only
     // reports `eof-reached` while it is holding the last frame open, which is
     // exactly when the interface has something to offer.

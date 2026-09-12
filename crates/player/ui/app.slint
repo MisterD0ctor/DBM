@@ -552,26 +552,20 @@ component ParamSlider inherits Rectangle {
     }
 }
 
-/// A row that is a switch, optionally also a way further in.
+/// A row that is a switch and nothing else.
 ///
-/// The arrangement every settings list uses, and it is what makes both of the
-/// things asked of this panel possible at once: the common action (on or off)
-/// takes one click, and the detail behind it is one deliberate step away
-/// rather than hidden or in the way.
+/// It used to be able to lead somewhere as well, which divided it into two hit
+/// zones — the left four fifths toggling, the right 48px navigating — with
+/// nothing on screen to say where the boundary was, and one wash across both
+/// because lighting half a row reads as the row being cut in two. A click
+/// aimed at the chevron that landed short turned off the effect it was
+/// reaching past. The rows that drilled now look like the rows that drill, and
+/// this one has one target again.
 ///
 /// Reports the value it wants rather than flipping `checked` itself. Assigning
 /// to a bound property in Slint drops the binding for good, which would leave
 /// the switch stuck the next time the same state changed from a key or from
 /// Rust.
-/// A row that is a switch and nothing else.
-///
-/// It used to be able to lead somewhere as well, which divided it into two
-/// hit zones — the left four fifths toggling, the right 48px navigating —
-/// with nothing on screen to say where the boundary was, and one wash across
-/// both because lighting half a row reads as the row being cut in two. A
-/// click aimed at the chevron that landed short turned the effect off
-/// instead. The rows that drilled now say so by looking like the rows that
-/// drill, and this one has one target again.
 component ToggleRow inherits Rectangle {
     in property <string> label;
     in property <bool> checked;
@@ -983,6 +977,19 @@ export component MainWindow inherits Window {
     in property <[ParamItem]> border-params;
     // Effect switches. in-out because they are pushed from the saved
     // settings at startup and assigned here when clicked or keyed.
+    /// Whether an open is in flight: the dialog has closed, and somewhere
+    /// between a directory scan and mpv's first frame there is nothing to
+    /// show yet.
+    ///
+    /// Set when the path is handed to the worker and cleared when mpv admits
+    /// to having a file — so it covers the scan, the playlist write, the
+    /// `loadlist` and mpv's own open, which is the whole of the gap. Nothing
+    /// in here ever blocks; that is the point of the architecture, and it is
+    /// also why the interface had no natural moment to admit to latency.
+    in property <bool> opening: false;
+    /// What is being opened, named the way a person would name it: the file
+    /// or the folder, not the path.
+    in property <string> opening-name: "";
     in-out property <bool> ambience-on: true;
     in-out property <bool> autoplay: true;
     /// Registry index and its new normalised position.
@@ -2521,9 +2528,25 @@ export component MainWindow inherits Window {
             // The same two rows, the same words and the same keys as the panel
             // that hangs off the bar. A person who learns them here knows
             // where they are later.
+            // Inert while an open is in flight, and dimmed so that it shows.
+            // A folder scan can take seconds on a network share, and the row
+            // that started it is the row most likely to be clicked again —
+            // which would queue a second scan behind the first and open
+            // whichever finished last.
+            //
+            // Dimmed here rather than inside `ShortcutRow`, because `inert`
+            // means two different things: a row that has stopped answering,
+            // and a row that never offered. The shortcuts reference is built
+            // out of the second kind and would be wrong to fade.
+            //
+            // Settings is deliberately left alone. It still works, and a row
+            // at full strength beside two faded ones says which is which.
             ShortcutRow {
                 label: "Open file…";
                 shortcut: "Ctrl+O";
+                inert: root.opening;
+                opacity: root.opening ? 0.5 : 1.0;
+                animate opacity { duration: 120ms; easing: ease-out; }
                 picked => {
                     root.open-file();
                 }
@@ -2531,6 +2554,9 @@ export component MainWindow inherits Window {
             ShortcutRow {
                 label: "Open folder…";
                 shortcut: "Ctrl+Shift+O";
+                inert: root.opening;
+                opacity: root.opening ? 0.5 : 1.0;
+                animate opacity { duration: 120ms; easing: ease-out; }
                 picked => {
                     root.open-folder();
                 }
@@ -2550,6 +2576,9 @@ export component MainWindow inherits Window {
                 height: Rows.group-gap;
             }
 
+            // Two jobs, one line, because they never want saying at the same
+            // time: what else you could do, and what is happening now.
+            //
             // Dropping a file has always worked and has never been mentioned
             // anywhere. Stated rather than demonstrated: the shell's older
             // drop route reports nothing until the file has landed, so there
@@ -2562,7 +2591,9 @@ export component MainWindow inherits Window {
                     padding-right: Rows.trail-x;
 
                     Text {
-                        text: "or drop a file anywhere here";
+                        text: root.opening
+                            ? "Opening " + root.opening-name + "…"
+                            : "or drop a file anywhere here";
                         // One step above a shortcut hint rather than level
                         // with it: this is the only place the third way in is
                         // ever mentioned, and at hint weight it was a line
@@ -2571,6 +2602,7 @@ export component MainWindow inherits Window {
                         font-size: 11px;
                         vertical-alignment: center;
                         horizontal-alignment: left;
+                        overflow: elide;
                     }
                 }
             }
@@ -2712,7 +2744,9 @@ export component MainWindow inherits Window {
     // Font settings must match the visible title exactly; that is the whole
     // contract of this element.
     title-measure := Text {
-        text: root.has-file ? root.media-title : "No file open";
+        text: root.opening
+            ? "Opening " + root.opening-name + "…"
+            : root.has-file ? root.media-title : "No file open";
         font-size: 13px;
         font-weight: 600;
         visible: false;
@@ -2797,7 +2831,14 @@ export component MainWindow inherits Window {
             spacing: root.btn-gap;
 
             Text {
-                text: root.has-file ? root.media-title : "No file open";
+                // Opening something else while one film plays: the pill names
+                // what is arriving rather than going on claiming what is
+                // already there. It is the one piece of chrome that is always
+                // up, always about which file this is, and already sized to
+                // elide a name that does not fit.
+                text: root.opening
+                    ? "Opening " + root.opening-name + "…"
+                    : root.has-file ? root.media-title : "No file open";
                 color: #ffffffe0;
                 font-size: 13px;
                 font-weight: 600;

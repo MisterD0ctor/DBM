@@ -293,6 +293,12 @@ impl Driver {
             &self.audio,
         );
         for notice in std::mem::take(&mut self.notices) {
+            // A notice means something concluded, which is the backstop for
+            // an open that never produces a file: a container mpv cannot
+            // read raises its `EndFile` failure here and `has_file` never
+            // turns true, so without this the line would say "Opening…"
+            // until the next successful one.
+            ui.set_opening(false);
             say(&ui, notice);
         }
         if moved {
@@ -347,6 +353,8 @@ impl Driver {
                 }
                 Completion::Opened(Err(e)) => {
                     eprintln!("dbm: cannot open: {e}");
+                    // Nothing was found to load, so no file is coming.
+                    ui.set_opening(false);
                     say(&ui, e);
                 }
                 Completion::Notice(text) => say(&ui, text),
