@@ -172,6 +172,37 @@ global Rows {
     out property <color> focus: #ffffff2e;
 }
 
+/// The mark on the row that is the current one — the subtitle track in use,
+/// the episode playing.
+///
+/// A shape, because a text style was not enough. Weight and alpha were
+/// carrying this alone, and in a list of names that differ by two characters,
+/// read at a glance, over moving video, they were close to invisible — and
+/// once a focus wash could land on any row, the one row that mattered was the
+/// hardest of all to find.
+///
+/// It sits inside the wash rather than at the row's edge, so a row that is
+/// both current and focused wears both marks without them touching. That is
+/// the whole point of using a shape here: the wash and the bar are different
+/// channels, and neither has to give way to the other.
+component ActiveMark inherits Rectangle {
+    in property <bool> on;
+
+    width: 100%;
+    height: 100%;
+
+    Rectangle {
+        x: Rows.gap + 4px;
+        y: (parent.height - self.height) / 2;
+        width: 3px;
+        height: 14px;
+        border-radius: self.width / 2;
+        background: #ffffff;
+        opacity: root.on ? 1.0 : 0.0;
+        animate opacity { duration: Motion.highlight; }
+    }
+}
+
 /// The wash behind a hovered row. Fills the row it is placed in and insets
 /// itself; the row says only whether it is lit.
 component RowHighlight inherits Rectangle {
@@ -242,6 +273,13 @@ export struct PlaylistItem {
 component IconButton inherits Rectangle {
     in property <image> icon;
     /// Lit glyph: the thing this button controls is on.
+    ///
+    /// Every button that sets this swaps its own glyph as well — muted for
+    /// unmuted, slashed for unslashed — and between the two marks that is
+    /// enough. A wash behind an engaged button was tried and taken back out:
+    /// on a bar of seven controls it made the state read as chrome rather
+    /// than as the glyph, and the glyph is the thing that says which state it
+    /// is rather than merely that there is one.
     in property <bool> active;
     /// Held background: the panel this button opens is showing. A separate
     /// channel from `active` because a button can mean both at once - the
@@ -301,6 +339,10 @@ component MenuRow inherits Rectangle {
         shade: root.ring ? Rows.focus : Rows.hover;
     }
 
+    ActiveMark {
+        on: root.active;
+    }
+
     Text {
         x: Rows.label-x;
         width: parent.width - Rows.label-x - Rows.trail-x;
@@ -347,6 +389,10 @@ component PlaylistRow inherits Rectangle {
     RowHighlight {
         lit: touch.has-hover || root.ring;
         shade: root.ring ? Rows.focus : Rows.hover;
+    }
+
+    ActiveMark {
+        on: root.active;
     }
 
     Text {
