@@ -119,6 +119,53 @@ global Motion {
     out property <duration> highlight: 45ms;
 }
 
+/// The type scale. Eight roles over four sizes.
+///
+/// Named here rather than written at each of the twenty-eight places text
+/// appears, because a scale spread across twenty-eight literals cannot be
+/// judged — only audited, and it had already drifted: every readout in the
+/// interface was sitting a step below the size the design system claims for
+/// it. That is how a timestamp ended up at 11px over moving video, where a
+/// figure has to be read at a glance and got smaller than the glyphs around
+/// it.
+///
+/// The floor is 12px and it is only for capitals, which are read by their
+/// shape. Below that, white text over arbitrary moving content stops being
+/// read and starts being recognised — fine for a heading whose wording you
+/// already know, no use at all for a number that changes.
+///
+/// Roles rather than sizes, and several roles share a size: what separates a
+/// title from a body line is weight, and what separates a readout from a hint
+/// is that one is a figure and the other is prose. Two names on one value cost
+/// nothing and keep the next change from having to be everywhere at once.
+global Type {
+    /// 600. The media title, the flash, a fatal headline, the playlist entry
+    /// that is playing.
+    out property <length> title: 14px;
+    /// 400. Row labels, menu items, switch labels — anything that is the name
+    /// of something you can press.
+    out property <length> body: 14px;
+    /// 600. A playlist heading carrying a show's name rather than a section
+    /// name. One step down from a title so it groups without announcing.
+    out property <length> named: 13px;
+    /// 400. Figures: timestamps, slider and stepper values, a row's running
+    /// time, a shortcut's keys — and the labels of the dense rows those sit
+    /// in, which read as part of the same line rather than as menu entries.
+    out property <length> readout: 13px;
+    /// 400. Prose the interface adds underneath something else: the drop hint,
+    /// the line saying a driver update is the usual fix. A readout's size and
+    /// its own name, because prose is what would want a different one first.
+    out property <length> hint: 13px;
+    /// 700, capitals. Section headings, and the way back out of a page.
+    out property <length> label: 12px;
+    /// A character standing in for an icon — the stepper's minus and plus.
+    /// Sized against the 26px disc it sits in, not against the text.
+    out property <length> glyph: 16px;
+    /// The one thing the interface says louder than the rest: the word on the
+    /// end-of-file pill, sized against the 24px arrow beside it.
+    out property <length> prompt: 16px;
+}
+
 /// Metrics for the wash behind a hovered row.
 ///
 /// Rows span the full width of a panel, but a panel's glass has rounded
@@ -349,7 +396,7 @@ component MenuRow inherits Rectangle {
         height: 100%;
         text: root.label;
         color: root.active ? #ffffff : #ffffffb0;
-        font-size: 13px;
+        font-size: Type.body;
         font-weight: root.active ? 700 : 400;
         vertical-alignment: center;
         overflow: elide;
@@ -403,7 +450,7 @@ component PlaylistRow inherits Rectangle {
         height: 100%;
         text: root.label;
         color: root.active ? #ffffff : #ffffffb0;
-        font-size: 13px;
+        font-size: Type.body;
         font-weight: root.active ? 700 : 400;
         vertical-alignment: center;
         overflow: elide;
@@ -415,7 +462,7 @@ component PlaylistRow inherits Rectangle {
         height: 100%;
         text: root.length;
         color: #ffffff70;
-        font-size: 11px;
+        font-size: Type.readout;
         vertical-alignment: center;
     }
 
@@ -556,7 +603,7 @@ component ShortcutRow inherits Rectangle {
         Text {
             text: root.label;
             color: #ffffffb0;
-            font-size: 13px;
+            font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
         }
@@ -564,7 +611,7 @@ component ShortcutRow inherits Rectangle {
         Text {
             text: root.shortcut;
             color: #ffffff70;
-            font-size: 11px;
+            font-size: Type.readout;
             vertical-alignment: center;
         }
     }
@@ -613,7 +660,7 @@ component ParamSlider inherits Rectangle {
             width: 78px;
             text: root.label;
             color: #ffffffb0;
-            font-size: 11px;
+            font-size: Type.readout;
             vertical-alignment: center;
         }
 
@@ -661,7 +708,7 @@ component ParamSlider inherits Rectangle {
             width: 46px;
             text: root.readout;
             color: #ffffff80;
-            font-size: 11px;
+            font-size: Type.readout;
             horizontal-alignment: right;
             vertical-alignment: center;
         }
@@ -733,7 +780,7 @@ component ToggleRow inherits Rectangle {
         Text {
             text: root.label;
             color: #ffffffe0;
-            font-size: 13px;
+            font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
         }
@@ -794,7 +841,7 @@ component DrillRow inherits Rectangle {
         Text {
             text: root.label;
             color: #ffffffb0;
-            font-size: 13px;
+            font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
         }
@@ -840,7 +887,7 @@ component StepButton inherits Rectangle {
     Text {
         text: root.glyph;
         color: #ffffffdd;
-        font-size: 15px;
+        font-size: Type.glyph;
         width: 100%;
         height: 100%;
         horizontal-alignment: center;
@@ -906,7 +953,7 @@ component StepperRow inherits Rectangle {
         Text {
             text: root.label;
             color: #ffffffb0;
-            font-size: 12px;
+            font-size: Type.readout;
             vertical-alignment: center;
             horizontal-stretch: 1;
         }
@@ -928,7 +975,7 @@ component StepperRow inherits Rectangle {
             width: 62px;
             text: root.value;
             color: #ffffffe0;
-            font-size: 12px;
+            font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
@@ -991,7 +1038,7 @@ component BackRow inherits Rectangle {
         Text {
             text: root.label;
             color: touch.has-hover ? #ffffff : #ffffff90;
-            font-size: 11px;
+            font-size: Type.label;
             font-weight: 700;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -1022,7 +1069,7 @@ component EmptyRow inherits Rectangle {
         height: 100%;
         text: root.label;
         color: #ffffff70;
-        font-size: 13px;
+        font-size: Type.body;
         vertical-alignment: center;
         overflow: elide;
     }
@@ -1049,7 +1096,7 @@ component MenuHeading inherits Rectangle {
         height: 100%;
         text: root.text;
         color: root.titular ? #ffffffc4 : #ffffff80;
-        font-size: root.titular ? 12px : 11px;
+        font-size: root.titular ? Type.named : Type.label;
         font-weight: root.titular ? 600 : 700;
         vertical-alignment: center;
         overflow: elide;
@@ -1472,7 +1519,7 @@ export component MainWindow inherits Window {
     property <length> pill-radius: root.pill-h / 2;
     property <length> pill-gap: 10px;
     /// Shorter than the control pills: they hold a 24px glyph, these hold a
-    /// line of 11px text.
+    /// single line of type.
     property <length> timeline-h: 28px;
     /// Wide enough for "1:23:45" without the pill resizing when a film ticks
     /// past the hour — the same reasoning as the title pill, for the same
@@ -2908,7 +2955,7 @@ export component MainWindow inherits Window {
             height: 100%;
             text: root.elapsed;
             color: #ffffffd0;
-            font-size: 11px;
+            font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
@@ -2991,7 +3038,7 @@ export component MainWindow inherits Window {
             height: 100%;
             text: root.total;
             color: #ffffffd0;
-            font-size: 11px;
+            font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
@@ -3056,7 +3103,7 @@ export component MainWindow inherits Window {
                         Text {
                             text: root.fatal;
                             color: #ffffffe0;
-                            font-size: 13px;
+                            font-size: Type.title;
                             font-weight: 600;
                             vertical-alignment: center;
                         }
@@ -3079,7 +3126,7 @@ export component MainWindow inherits Window {
                         Text {
                             text: root.fatal-detail;
                             color: #ffffffb0;
-                            font-size: 12px;
+                            font-size: Type.hint;
                             wrap: word-wrap;
                             overflow: elide;
                             vertical-alignment: top;
@@ -3101,7 +3148,7 @@ export component MainWindow inherits Window {
                         Text {
                             text: "Updating the graphics driver is the usual fix.";
                             color: #ffffff90;
-                            font-size: 11px;
+                            font-size: Type.hint;
                             vertical-alignment: center;
                         }
                     }
@@ -3185,7 +3232,7 @@ export component MainWindow inherits Window {
                         // ever mentioned, and at hint weight it was a line
                         // nobody would read twice.
                         color: #ffffff90;
-                        font-size: 11px;
+                        font-size: Type.hint;
                         vertical-alignment: center;
                         horizontal-alignment: left;
                         overflow: elide;
@@ -3232,7 +3279,7 @@ export component MainWindow inherits Window {
             x: root.flash-text-pad;
             text: root.flash-text;
             color: #ffffff;
-            font-size: 13px;
+            font-size: Type.title;
             font-weight: 600;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -3245,7 +3292,7 @@ export component MainWindow inherits Window {
     /// match the visible text exactly.
     flash-measure := Text {
         text: root.flash-text;
-        font-size: 13px;
+        font-size: Type.title;
         font-weight: 600;
         visible: false;
         width: 0px;
@@ -3289,7 +3336,7 @@ export component MainWindow inherits Window {
             Text {
                 text: root.end-label;
                 color: #ffffff;
-                font-size: 15px;
+                font-size: Type.prompt;
                 font-weight: 600;
                 vertical-alignment: center;
             }
@@ -3316,7 +3363,7 @@ export component MainWindow inherits Window {
     /// `title-measure`: these settings must match the visible text exactly.
     end-measure := Text {
         text: root.end-label;
-        font-size: 15px;
+        font-size: Type.prompt;
         font-weight: 600;
         visible: false;
         width: 0px;
@@ -3333,7 +3380,7 @@ export component MainWindow inherits Window {
         text: root.opening
             ? "Opening " + root.opening-name + "…"
             : root.has-file ? root.media-title : "No file open";
-        font-size: 13px;
+        font-size: Type.title;
         font-weight: 600;
         visible: false;
         width: 0px;
@@ -3387,7 +3434,7 @@ export component MainWindow inherits Window {
             height: root.preview-has-tile ? root.preview-caption : root.preview-h;
             text: root.preview-time;
             color: #ffffffe6;
-            font-size: 12px;
+            font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
         }
@@ -3426,7 +3473,7 @@ export component MainWindow inherits Window {
                     ? "Opening " + root.opening-name + "…"
                     : root.has-file ? root.media-title : "No file open";
                 color: #ffffffe0;
-                font-size: 13px;
+                font-size: Type.title;
                 font-weight: 600;
                 // The pill is a fixed width, so a long title elides rather
                 // than pushing the playlist button out of the pill.

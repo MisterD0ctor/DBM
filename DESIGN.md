@@ -19,24 +19,36 @@ colors:
 typography:
   title:
     fontFamily: "system UI (Segoe UI on Windows)"
-    fontSize: "13px"
+    fontSize: "14px"
     fontWeight: 600
   body:
     fontFamily: "system UI (Segoe UI on Windows)"
-    fontSize: "13px"
+    fontSize: "14px"
     fontWeight: 400
   named:
     fontFamily: "system UI (Segoe UI on Windows)"
-    fontSize: "12px"
+    fontSize: "13px"
     fontWeight: 600
   readout:
     fontFamily: "system UI (Segoe UI on Windows)"
-    fontSize: "12px"
+    fontSize: "13px"
+    fontWeight: 400
+  hint:
+    fontFamily: "system UI (Segoe UI on Windows)"
+    fontSize: "13px"
     fontWeight: 400
   label:
     fontFamily: "system UI (Segoe UI on Windows)"
-    fontSize: "11px"
+    fontSize: "12px"
     fontWeight: 700
+  glyph:
+    fontFamily: "system UI (Segoe UI on Windows)"
+    fontSize: "16px"
+    fontWeight: 400
+  prompt:
+    fontFamily: "system UI (Segoe UI on Windows)"
+    fontSize: "16px"
+    fontWeight: 600
 rounded:
   row: "16px"
   panel: "32px"
@@ -164,7 +176,7 @@ hierarchy; there is no second colour to promote anything with.
 - **Faint** (`#ffffff70`): chevrons at rest, and text stating an absence.
 - **Glyph at rest** (`#ffffffbb`): an icon button's own glyph before it is
   hovered. A hair above Body, and deliberately its own value: a 24px mark and a
-  13px word at the same alpha do not read as the same weight.
+  14px word at the same alpha do not read as the same weight.
 - **Rail** (`#ffffff2e`): the unfilled length of every track and switch.
 - **Hover wash** (`#ffffff1f`) and **soft wash** (`#ffffff14`): the inset
   highlight behind a hovered row; soft where the row is a heading or a switch.
@@ -193,12 +205,38 @@ film, so the type has no voice of its own; it is sized, weighted and spaced for
 legibility over arbitrary moving content and nothing else.
 
 ### Hierarchy
-- **Title** (600, 13px): the media title in the bar, and the current playlist entry.
-- **Body** (400, 13px): row labels, menu items, switch labels.
-- **Named** (600, 12px): a playlist heading that is a show's name rather than a
+- **Title** (600, 14px): the media title in the bar, the flash, a fatal
+  headline, and the playlist entry that is playing.
+- **Body** (400, 14px): row labels, menu items, switch labels — the name of
+  anything you can press.
+- **Named** (600, 13px): a playlist heading that is a show's name rather than a
   section label.
-- **Readout** (400, 12px): timestamps, slider values, stepper values.
-- **Label** (700, 11px): section headings, written in capitals.
+- **Readout** (400, 13px): figures — timestamps, slider and stepper values, a
+  row's running time, a shortcut's keys — and the labels of the dense rows
+  those sit in, which read as part of the same line rather than as menu entries.
+- **Hint** (400, 13px): prose added underneath something else — the drop hint,
+  the line saying a driver update is the usual fix. A readout's size under its
+  own name, because prose is what would want a different one first.
+- **Label** (700, 12px): section headings, written in capitals.
+- **Glyph** (400, 16px): a character standing in for an icon — the stepper's
+  minus and plus, sized against the 26px disc rather than against the text.
+- **Prompt** (600, 16px): the one thing the interface says louder than the
+  rest, the word on the end-of-file pill, sized against the 24px arrow beside it.
+
+The scale lives in the `Type` global in `app.slint`, not at its use sites.
+Four sizes, eight roles, and several roles deliberately share a size: what
+separates a title from a body line is weight, and what separates a readout from
+a hint is that one is a figure and the other is prose.
+
+### Named Rules
+
+**The Twelve Pixel Floor.** Nothing is smaller than 12px, and 12px is only for
+capitals, which are read by their shape. Below that, white text over arbitrary
+moving content stops being read and starts being recognised — which is fine for
+a heading whose wording you already know and no use at all for a number that
+changes. The scale was a step lower than this until every readout in the
+interface was found sitting below even the size this document claimed for it;
+naming the roles in one place is what keeps that from happening quietly again.
 
 ### Named Rules
 
