@@ -8,3 +8,6 @@ target
 .DS_Store
 *.suo
 *.sw?
+
+# Impeccable critique snapshots — generated reports
+.impeccable/
