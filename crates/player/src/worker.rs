@@ -1,0 +1,133 @@
+//! Somewhere to put work that must not touch the UI thread.
+//!
+//! The rule this exists to enforce: **nothing on the frame path may block.**
+//! Two separate incidents have come from breaking it — six
+//! `mpv_get_property_string` calls per frame cost 220ms each during a resize,
+//! and a synchronous exact seek cost 195ms per drag update. Reading the track
+//! list is the same shape (~80ms on load), and scanning a folder will be far
+//! worse.
+//!
+//! So: one background thread, a queue of jobs in, a queue of completions out.
+//! Jobs get a `&Mpv` and may block as long as they like. Completions are
+//! drained on the UI thread once per frame, and the loop is woken so a paused
+//! player notices them promptly rather than waiting for the next video frame.
+//!
+//! Completions are an enum rather than a boxed `Any` so that every kind of
+//! background work is visible in one place, and adding one is a compile
+//! error until it is handled.
+
+use std::sync::mpsc::{self, Receiver, Sender, TryIter};
+use std::sync::Arc;
+use std::thread::JoinHandle;
+
+use crate::mpv::Mpv;
+use crate::tracks::{PlaylistEntry, Track};
+use crate::MainWindow;
+
+/// Track and playlist contents, read together because they are invalidated
+/// together and a single job means a single round trip.
+pub struct Lists {
+    pub tracks: Vec<Track>,
+    pub playlist: Vec<PlaylistEntry>,
+    /// One per playlist entry, in the same order: how long it is and how far
+    /// into it the resume point sits. Read here rather than in a job of its
+    /// own because it is answered *from* the playlist — the paths have to be
+    /// known before the lookup can start, and they are known right here.
+    pub progress: Vec<crate::durations::Progress>,
+    /// The generation this was read for, so a stale result can be discarded
+    /// if the lists moved again while the job was running.
+    pub generation: u64,
+}
+
+/// A playlist that has been scanned and written out, ready to hand to mpv.
+pub struct Playlist {
+    /// The M3U on disk.
+    pub m3u: std::path::PathBuf,
+    /// Which entry to start on.
+    pub start: usize,
+    pub count: usize,
+}
+
+/// Work that finished. Add a variant per kind of background job.
+pub enum Completion {
+    Lists(Lists),
+    Opened(Result<Playlist, String>),
+}
+
+type Job = Box<dyn FnOnce(&Mpv) -> Option<Completion> + Send + 'static>;
+
+pub struct Worker {
+    jobs: Option<Sender<Job>>,
+    results: Receiver<Completion>,
+    thread: Option<JoinHandle<()>>,
+}
+
+impl Worker {
+    pub fn spawn(mpv: Arc<Mpv>, ui: slint::Weak<MainWindow>) -> Self {
+        let (jobs_tx, jobs_rx) = mpsc::channel::<Job>();
+        let (results_tx, results_rx) = mpsc::channel::<Completion>();
+
+        let thread = std::thread::Builder::new()
+            .name("dbm-worker".into())
+            .spawn(move || {
+                // Ends when the sender is dropped, which is how `Drop` below
+                // asks the thread to stop.
+                for job in jobs_rx {
+                    let Some(completion) = job(&mpv) else {
+                        continue;
+                    };
+                    if results_tx.send(completion).is_err() {
+                        break;
+                    }
+                    // Nudge the loop: while paused there are no frames, and
+                    // the completion would otherwise sit until something
+                    // else caused a redraw.
+                    let _ = ui.upgrade_in_event_loop(|ui| {
+                        slint::ComponentHandle::window(&ui).request_redraw()
+                    });
+                }
+            })
+            .expect("spawning the worker thread");
+
+        Self {
+            jobs: Some(jobs_tx),
+            results: results_rx,
+            thread: Some(thread),
+        }
+    }
+
+    /// Queue work with no result to report — a blocking read followed by
+    /// commands, say. Convenience over `submit` returning `None`.
+    pub fn run(&self, job: impl FnOnce(&Mpv) + Send + 'static) -> bool {
+        self.submit(move |mpv| {
+            job(mpv);
+            None
+        })
+    }
+
+    /// Queue work. Returns whether it was accepted — a `false` means the
+    /// worker is shutting down.
+    pub fn submit(
+        &self,
+        job: impl FnOnce(&Mpv) -> Option<Completion> + Send + 'static,
+    ) -> bool {
+        self.jobs
+            .as_ref()
+            .is_some_and(|tx| tx.send(Box::new(job)).is_ok())
+    }
+
+    /// Everything that finished since the last call. Never blocks.
+    pub fn drain(&self) -> TryIter<'_, Completion> {
+        self.results.try_iter()
+    }
+}
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        // Closing the job channel is what ends the loop in the thread.
+        self.jobs = None;
+        if let Some(t) = self.thread.take() {
+            let _ = t.join();
+        }
+    }
+}

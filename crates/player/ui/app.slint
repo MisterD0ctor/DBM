@@ -1,0 +1,2841 @@
+// Division of labour: this file owns layout and content, the render pipeline
+// owns material. A glass panel declares its geometry here and publishes it
+// through `glass-rects`; the pipeline reads that every frame and draws the
+// actual glass — refraction, Fresnel, chromatic fringe — into the frame
+// before Slint composites this scene over it.
+//
+// So panels deliberately have no background of their own. Give one a fill
+// here and you are painting over the glass, not on it.
+
+/// A panel the pipeline should render glass beneath. Lengths are logical
+/// pixels; the Rust side scales them by the window's scale factor.
+/// Chrome visibility. Every interactive element reports activity here; the
+/// Rust side owns the idle clock and pushes `idle` back.
+///
+/// A global rather than a callback on MainWindow because activity comes from
+/// deep inside reusable components (buttons, menu rows), and threading a
+/// callback through every one of them would be noise at each call site.
+export global Chrome {
+    /// Reports activity to the Rust side, which owns the idle clock.
+    callback activity();
+    /// Whether nothing has happened for a while.
+    ///
+    /// Cleared here rather than by the timer that sets it. The timer polls
+    /// only a few times a second, and waiting for it left the cursor and
+    /// chrome hidden for a visible moment after the mouse moved - the
+    /// pointer would blink out just as the interface came back.
+    in-out property <bool> idle: false;
+
+    /// Call on any activity. Wakes the interface immediately and resets the
+    /// clock behind it.
+    public function bump() {
+        Chrome.idle = false;
+        Chrome.activity();
+    }
+}
+
+/// Brief feedback for an action whose effect is otherwise off screen.
+///
+/// A global for the same reason `Chrome` is one: it is raised from the key
+/// handlers, which are functions rather than elements, and threading a
+/// callback down to each of them would be noise at every call site.
+///
+/// Only the actions the bar cannot speak for are here. Mute, volume,
+/// subtitles and panscan all move a control that is already on screen — a
+/// key press wakes the chrome — and saying it twice is not saying it better.
+/// What is left is what nothing else shows: which way a seek went, that the
+/// file changed, and what the subtitle delay landed on.
+export global Flash {
+    // Which glyph, as an index into the window's own list: `@image-url`
+    // resolves at compile time, so the images cannot live here. Named rather
+    // than numbered at the call sites, since the order of that list is
+    // invisible from them.
+    out property <int> seek-back: 0;
+    out property <int> seek-forward: 1;
+    out property <int> previous: 2;
+    out property <int> next: 3;
+    out property <int> restart: 4;
+    out property <int> delay: 5;
+
+    in-out property <int> icon: 0;
+    /// Where across the picture it appears, 0..1. A seek is thrown towards
+    /// the side it seeks to; everything else sits in the middle.
+    in-out property <float> at: 0.5;
+    /// Bumped on every raise, so the window can restart the dwell even when
+    /// the same action repeats — which is the common case, since these are
+    /// keys people hold.
+    in-out property <int> seq: 0;
+
+    public function show(icon: int, at: float) {
+        Flash.icon = icon;
+        Flash.at = at;
+        Flash.seq += 1;
+    }
+}
+
+/// How long the wash under a pointer takes to arrive.
+///
+/// One value for every hover highlight — bar buttons, steppers, menu rows —
+/// because they are the same gesture and reading them at different speeds is
+/// what makes an interface feel loose. Short on purpose: a highlight is
+/// feedback that the pointer landed, and feedback that arrives after the eye
+/// has already moved on is not feedback.
+global Motion {
+    out property <duration> highlight: 45ms;
+}
+
+/// Metrics for the wash behind a hovered row.
+///
+/// Rows span the full width of a panel, but a panel's glass has rounded
+/// corners and a row does not — so a full-bleed highlight leaks past the glass
+/// wherever the corner is still curving in, which is the first and last row of
+/// every list. Insetting the wash and rounding it keeps it on the glass, and
+/// reads as deliberate besides: it is what a native menu does.
+///
+/// 6px clears the worst of it. A 32px corner has curved 5.5px inward by the
+/// time it reaches the 14px panel padding where the first row starts.
+global Rows {
+    // Every row wears the same corner, and the panel is built around it.
+    //
+    // Two corners are concentric — they share a centre, so the gap between
+    // them stays even the whole way round — when their radii differ by
+    // exactly that gap. So rather than give the end rows a corner of their
+    // own, the gap is made the same on all four sides and the panel takes
+    // whatever radius that implies. The first and last rows then come out
+    // concentric on their own, and every row in between is identical to
+    // them. Anything else and the curves pinch at 45 degrees while still
+    // meeting cleanly on the axes, which is the part the eye catches.
+    //
+    // Turn `radius` or `gap`; `panel-radius` follows, and the invariant
+    // cannot be broken by editing one of the three.
+    out property <length> radius: 16px;
+    out property <length> gap: 16px;
+    out property <length> panel-radius: Rows.radius + Rows.gap;
+    /// Panel padding is the gap: it is what puts the end rows the same
+    /// distance from the panel edge as every row is from the sides.
+    out property <length> panel-pad: Rows.gap;
+
+    /// Where a label starts, and where a trailing control ends — measured
+    /// from the panel edge, so text sits inside the wash rather than on its
+    /// rim.
+    out property <length> label-x: Rows.gap + 14px;
+    out property <length> trail-x: Rows.gap + 10px;
+    /// Space before a row that is not one of the list above it — a reset, a
+    /// setting about the list. Without it the eye reads one more entry and
+    /// only the wording says otherwise.
+    out property <length> group-gap: 10px;
+
+    /// A row that can be picked, and one that is only a heading or a way back.
+    out property <color> hover: #ffffff1f;
+    out property <color> hover-soft: #ffffff14;
+}
+
+/// The wash behind a hovered row. Fills the row it is placed in and insets
+/// itself; the row says only whether it is lit.
+component RowHighlight inherits Rectangle {
+    in property <bool> lit;
+    in property <color> shade: Rows.hover;
+
+    width: 100%;
+    height: 100%;
+
+    // Full row height, so adjacent washes meet rather than leaving a seam,
+    // and so the first and last ones sit exactly `gap` from the panel edge —
+    // the panel's padding being the same gap. That is the whole trick: no row
+    // is a special case.
+    Rectangle {
+        x: Rows.gap;
+        width: parent.width - 2 * Rows.gap;
+        height: 100%;
+        border-radius: Rows.radius;
+        background: root.lit ? root.shade : transparent;
+        animate background { duration: Motion.highlight; }
+    }
+}
+
+export struct GlassRect {
+    x: length,
+    y: length,
+    width: length,
+    height: length,
+    radius: length,
+    /// How much the glass pulls toward its tint colour, 0..1.
+    tint: float,
+    /// How far the surface has faded in, 0..1. The glass is drawn under the
+    /// panel, so it has to arrive with it — glass at full strength beneath a
+    /// half-faded surface reads as a hole in the picture.
+    opacity: float,
+}
+
+export struct ParamItem {
+    /// Index into the registry on the Rust side. Carried on the row because
+    /// the sliders are split across pages now, so a repeater's position in
+    /// its own list no longer identifies the parameter.
+    index: int,
+    label: string,
+    /// Normalised 0..1, so the slider needs no knowledge of the real range.
+    fraction: float,
+    /// Formatted for display by the Rust side, which owns the range.
+    readout: string,
+}
+
+export struct TrackItem {
+    id: int,
+    label: string,
+    selected: bool,
+}
+
+export struct PlaylistItem {
+    index: int,
+    label: string,
+    current: bool,
+    /// How long this file is, already formatted. Empty when the player has
+    /// never opened it and so has no idea.
+    length: string,
+    /// How far through it the resume point sits, 0..1. Zero for a file that
+    /// was never started — and for one that was finished and reset.
+    progress: float,
+}
+
+component IconButton inherits Rectangle {
+    in property <image> icon;
+    /// Lit glyph: the thing this button controls is on.
+    in property <bool> active;
+    /// Held background: the panel this button opens is showing. A separate
+    /// channel from `active` because a button can mean both at once - the
+    /// subtitles button shows whether subtitles are on *and* whether its
+    /// menu is open, and one highlight cannot say both.
+    in property <bool> open;
+    // The icon set is drawn for 24x24; anything else resamples it.
+    in property <length> glyph: 24px;
+    callback clicked();
+
+    width: 40px;
+    height: 40px;
+    border-radius: self.height / 2;
+    background: root.open ? #ffffff2e : touch.has-hover ? #ffffff24 : transparent;
+    animate background { duration: Motion.highlight; }
+
+    Image {
+        source: root.icon;
+        width: root.glyph;
+        height: root.glyph;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        image-fit: contain;
+        colorize: root.active ? #ffffff : #ffffffbb;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        // `moved` only fires while a button is held, so plain hovering has
+        // to come through `pointer-event`.
+        pointer-event(event) => {
+            Chrome.bump();
+        }
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// One selectable line in the menu. Note it has no opaque background: the
+/// glass beneath comes from the pipeline, and only the hover state adds a
+/// wash on top of it.
+component MenuRow inherits Rectangle {
+    in property <string> label;
+    in property <bool> active;
+    callback picked();
+
+    height: 34px;
+
+    RowHighlight {
+        lit: touch.has-hover;
+    }
+
+    Text {
+        x: Rows.label-x;
+        width: parent.width - Rows.label-x - Rows.trail-x;
+        height: 100%;
+        text: root.label;
+        color: root.active ? #ffffff : #ffffffb0;
+        font-size: 13px;
+        font-weight: root.active ? 700 : 400;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.bump();
+        }
+        clicked => {
+            root.picked();
+        }
+    }
+}
+
+/// A playlist line: what it is, how long it is, and how far into it you got.
+///
+/// A `MenuRow` with two more facts on it, rather than a parameterised
+/// `MenuRow`: the label has to make room for the time, which means the two
+/// know about each other, and a row that is sometimes a plain menu row and
+/// sometimes this would carry that arithmetic everywhere it is used.
+component PlaylistRow inherits Rectangle {
+    in property <string> label;
+    in property <string> length;
+    in property <float> progress;
+    in property <bool> active;
+    callback picked();
+
+    height: 34px;
+
+    RowHighlight {
+        lit: touch.has-hover;
+    }
+
+    Text {
+        x: Rows.label-x;
+        // Clear of the time on the trailing edge, so a long title elides
+        // rather than running underneath it.
+        width: parent.width - Rows.label-x - Rows.trail-x - time.width - Rows.group-gap;
+        height: 100%;
+        text: root.label;
+        color: root.active ? #ffffff : #ffffffb0;
+        font-size: 13px;
+        font-weight: root.active ? 700 : 400;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // Right-aligned, so a column of them reads as a column.
+    time := Text {
+        x: parent.width - Rows.trail-x - self.width;
+        height: 100%;
+        text: root.length;
+        color: #ffffff70;
+        font-size: 11px;
+        vertical-alignment: center;
+    }
+
+    // A hairline rather than a bar: it is something the row knows, not
+    // something to operate. It sits under the title and stops where the
+    // title's column stops.
+    //
+    // Held to the bottom edge, and the unfilled part kept visible along its
+    // whole length. That part is what makes it read as a measure: a lone
+    // bright segment under a title is an underline, and the same segment on a
+    // track that runs the width of the row is a quarter of the way in.
+    Rectangle {
+        x: Rows.label-x;
+        y: parent.height - 6px;
+        width: parent.width - Rows.label-x - Rows.trail-x;
+        height: 2px;
+        visible: root.progress > 0.001;
+        background: #ffffff2e;
+        border-radius: 1px;
+
+        Rectangle {
+            x: 0;
+            width: parent.width * root.progress;
+            height: 100%;
+            background: #ffffffd0;
+            border-radius: 1px;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.bump();
+        }
+        clicked => {
+            root.picked();
+        }
+    }
+}
+
+/// A list that scrolls when it is handed less height than its content needs.
+///
+/// The height comes from the caller and the content height is arithmetic on
+/// the row count, so nothing here has to measure anything — which keeps panel
+/// geometry a calculation rather than a layout query, for the reason given at
+/// the top of `MainWindow`.
+component ScrollList inherits Rectangle {
+    /// What the rows add up to, unconstrained.
+    in property <length> content-height;
+    /// How far the list has been scrolled, as the negative offset Flickable
+    /// keeps. Exposed so a test can confirm the wheel reaches it — there is
+    /// otherwise nothing on screen a test can read.
+    out property <length> offset: flick.viewport-y;
+
+    clip: true;
+
+    flick := Flickable {
+        width: 100%;
+        height: 100%;
+        viewport-width: self.width;
+        viewport-height: root.content-height;
+
+        VerticalLayout {
+            // Rows keep their own height instead of being stretched to fill,
+            // so a short list sits at the top rather than spreading out.
+            alignment: start;
+            @children
+        }
+    }
+
+    // A hint, not a control: it says there is more below and roughly where
+    // you are. The flick and the wheel are what move the list.
+    Rectangle {
+        x: parent.width - 7px;
+        y: 2px;
+        width: 3px;
+        height: parent.height - 4px;
+        border-radius: self.width / 2;
+        background: #ffffff14;
+        visible: root.content-height > root.height;
+
+        Rectangle {
+            width: 100%;
+            // Proportional to how much of the list is on screen, with a floor
+            // so a very long list still leaves something to see.
+            height: max(24px, parent.height * (root.height / root.content-height));
+            y: (parent.height - self.height)
+                * (-flick.viewport-y / max(1px, root.content-height - root.height));
+            border-radius: parent.border-radius;
+            background: #ffffff70;
+        }
+    }
+}
+
+/// A menu row with its keyboard shortcut on the right. Where a row has one,
+/// showing it is how the shortcut gets learned.
+component ShortcutRow inherits Rectangle {
+    in property <string> label;
+    in property <string> shortcut;
+    /// A row that states a binding rather than performing one. It takes no
+    /// pointer and lights up for nobody: a wash under a row that does
+    /// nothing when clicked is an offer the row cannot keep.
+    in property <bool> inert: false;
+    callback picked();
+
+    height: 34px;
+
+    RowHighlight {
+        lit: !root.inert && touch.has-hover;
+    }
+
+    HorizontalLayout {
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+        spacing: 12px;
+
+        Text {
+            text: root.label;
+            color: #ffffffb0;
+            font-size: 13px;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+
+        Text {
+            text: root.shortcut;
+            color: #ffffff70;
+            font-size: 11px;
+            vertical-alignment: center;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: root.inert ? default : pointer;
+        pointer-event(event) => {
+            Chrome.bump();
+        }
+        clicked => {
+            if (!root.inert) {
+                root.picked();
+            }
+        }
+    }
+}
+
+/// A labelled slider. Reports a normalised position; the range lives in the
+/// registry on the Rust side.
+component ParamSlider inherits Rectangle {
+    in property <string> label;
+    in property <float> fraction;
+    in property <string> readout;
+    callback moved(float);
+
+    height: 30px;
+
+    HorizontalLayout {
+        spacing: 10px;
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+
+        Text {
+            width: 78px;
+            text: root.label;
+            color: #ffffffb0;
+            font-size: 11px;
+            vertical-alignment: center;
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+
+            Rectangle {
+                y: (parent.height - self.height) / 2;
+                width: 100%;
+                height: drag.has-hover || drag.pressed ? 6px : 4px;
+                border-radius: self.height / 2;
+                background: #ffffff2e;
+                animate height { duration: 90ms; }
+
+                Rectangle {
+                    x: 0;
+                    width: parent.width * clamp(root.fraction, 0, 1);
+                    height: parent.height;
+                    border-radius: parent.border-radius;
+                    background: #ffffffcc;
+                }
+            }
+
+            drag := TouchArea {
+                mouse-cursor: pointer;
+                pointer-event(event) => {
+                    Chrome.bump();
+                }
+                moved => {
+                    if (self.pressed) {
+                        root.moved(self.mouse-x / self.width);
+                    }
+                }
+                clicked => {
+                    root.moved(self.mouse-x / self.width);
+                }
+            }
+        }
+
+        Text {
+            width: 46px;
+            text: root.readout;
+            color: #ffffff80;
+            font-size: 11px;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+    }
+}
+
+/// A row that is a switch, optionally also a way further in.
+///
+/// The arrangement every settings list uses, and it is what makes both of the
+/// things asked of this panel possible at once: the common action (on or off)
+/// takes one click, and the detail behind it is one deliberate step away
+/// rather than hidden or in the way.
+///
+/// Reports the value it wants rather than flipping `checked` itself. Assigning
+/// to a bound property in Slint drops the binding for good, which would leave
+/// the switch stuck the next time the same state changed from a key or from
+/// Rust.
+component ToggleRow inherits Rectangle {
+    in property <string> label;
+    in property <bool> checked;
+    /// Whether the row also leads to a page of its own.
+    in property <bool> drills: false;
+    /// The value the row wants; the owner of the state applies it.
+    callback toggled(bool);
+    callback opened();
+
+    height: 40px;
+
+    // Either half lights the whole row: the two targets sit flush against
+    // each other, and washing only one of them would read as the row being
+    // cut in two rather than as one row with two things to press.
+    RowHighlight {
+        lit: switch-touch.has-hover || chevron-touch.has-hover;
+        shade: Rows.hover-soft;
+    }
+
+    HorizontalLayout {
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+        spacing: 12px;
+
+        Rectangle {
+            width: 34px;
+
+            Rectangle {
+                y: (parent.height - self.height) / 2;
+                width: 100%;
+                height: 18px;
+                border-radius: self.height / 2;
+                background: root.checked ? #ffffffcc : #ffffff2e;
+                animate background { duration: 120ms; }
+
+                Rectangle {
+                    x: root.checked ? parent.width - self.width - 2px : 2px;
+                    y: 2px;
+                    width: 14px;
+                    height: 14px;
+                    border-radius: self.height / 2;
+                    // Dark on the lit track, light on the dark one: the knob
+                    // reads as a hole punched in the switch either way.
+                    background: root.checked ? #101010e6 : #ffffffcc;
+                    animate x { duration: 120ms; easing: ease-out; }
+                }
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: #ffffffe0;
+            font-size: 13px;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+
+        Rectangle {
+            width: root.drills ? 18px : 0px;
+
+            Image {
+                source: @image-url("../../../public/icons/angle-small-right.svg");
+                width: 18px;
+                height: 18px;
+                x: 0;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+                visible: root.drills;
+                colorize: chevron-touch.has-hover ? #ffffff : #ffffff70;
+            }
+        }
+    }
+
+    // The switch half is everything the chevron does not claim, so the more
+    // common action gets the larger target.
+    switch-touch := TouchArea {
+        width: root.drills ? parent.width - 48px : parent.width;
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.bump();
+        }
+        clicked => {
+            root.toggled(!root.checked);
+        }
+    }
+
+    chevron-touch := TouchArea {
+        x: parent.width - 48px;
+        width: root.drills ? 48px : 0px;
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.bump();
+        }
+        clicked => {
+            root.opened();
+        }
+    }
+}
+
+/// A row that only leads somewhere. The same affordance as `ToggleRow`
+/// without the switch, for a page that has nothing to turn on or off.
+component DrillRow inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    callback opened();
+
+    height: 34px;
+
+    RowHighlight {
+        lit: touch.has-hover;
+    }
+
+    HorizontalLayout {
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+        spacing: 10px;
+
+        Rectangle {
+            width: 18px;
+
+            Image {
+                source: root.icon;
+                width: 18px;
+                height: 18px;
+                x: 0;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+                colorize: #ffffffb0;
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: #ffffffb0;
+            font-size: 13px;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+
+        Rectangle {
+            width: 18px;
+
+            Image {
+                source: @image-url("../../../public/icons/angle-small-right.svg");
+                width: 18px;
+                height: 18px;
+                x: 0;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+                colorize: touch.has-hover ? #ffffff : #ffffff70;
+            }
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.bump();
+        }
+        clicked => {
+            root.opened();
+        }
+    }
+}
+
+/// One end of a stepper. Small, round and repeated, so it is its own thing
+/// rather than two copies of the same block inside `StepperRow`.
+component StepButton inherits Rectangle {
+    in property <string> glyph;
+    callback clicked();
+
+    width: 26px;
+    height: 26px;
+    border-radius: self.height / 2;
+    background: touch.has-hover ? #ffffff2e : #ffffff14;
+    animate background { duration: Motion.highlight; }
+
+    Text {
+        text: root.glyph;
+        color: #ffffffdd;
+        font-size: 15px;
+        width: 100%;
+        height: 100%;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.bump();
+        }
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// An adjustment with no meaningful range to drag across.
+///
+/// A stepper rather than a slider because these are read as numbers, not as
+/// positions: a subtitle delay is +0.30 s, and the useful move is one step at
+/// a time. Sliders are for the material parameters, where the eye judges the
+/// result and the number is incidental.
+component StepperRow inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    in property <string> value;
+    /// -1 or +1; the caller owns the step size.
+    callback stepped(float);
+
+    height: 38px;
+
+    HorizontalLayout {
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+        spacing: 8px;
+
+        Rectangle {
+            width: 18px;
+
+            Image {
+                source: root.icon;
+                width: 18px;
+                height: 18px;
+                x: 0;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+                colorize: #ffffff90;
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: #ffffffb0;
+            font-size: 12px;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+
+        Rectangle {
+            width: 26px;
+
+            StepButton {
+                y: (parent.height - self.height) / 2;
+                // U+2212, not a hyphen: it matches the digits either side.
+                glyph: "−";
+                clicked => {
+                    root.stepped(-1);
+                }
+            }
+        }
+
+        Text {
+            width: 62px;
+            text: root.value;
+            color: #ffffffe0;
+            font-size: 12px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        Rectangle {
+            width: 26px;
+
+            StepButton {
+                y: (parent.height - self.height) / 2;
+                glyph: "+";
+                clicked => {
+                    root.stepped(1);
+                }
+            }
+        }
+    }
+}
+
+/// Header for a page that has one above it. Doubles as the way back, since a
+/// title bar is where the eye already is when leaving a page.
+component BackRow inherits Rectangle {
+    in property <string> label;
+    callback back();
+
+    height: 34px;
+
+    RowHighlight {
+        lit: touch.has-hover;
+        shade: Rows.hover-soft;
+    }
+
+    // The arrow hangs in the margin so the label lands on `Rows.label-x`,
+    // where every other heading and row label in the panel starts. A back row
+    // is the page's heading; indenting it past its own content — which is
+    // what giving the arrow its own column did — reads as a mistake.
+    HorizontalLayout {
+        padding-left: Rows.gap;
+        padding-right: Rows.trail-x;
+        spacing: 0px;
+
+        Rectangle {
+            width: Rows.label-x - Rows.gap;
+
+            Image {
+                source: @image-url("../../../public/icons/angle-small-left.svg");
+                width: 14px;
+                height: 14px;
+                x: 0;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+                colorize: touch.has-hover ? #ffffff : #ffffffa0;
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: touch.has-hover ? #ffffff : #ffffff90;
+            font-size: 11px;
+            font-weight: 700;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.bump();
+        }
+        clicked => {
+            root.back();
+        }
+    }
+}
+
+/// A line that states a fact rather than offering an action. No hover, no
+/// hit area: there is nothing here to press.
+component EmptyRow inherits Rectangle {
+    in property <string> label;
+
+    height: 34px;
+
+    Text {
+        x: Rows.label-x;
+        width: parent.width - Rows.label-x - Rows.trail-x;
+        height: 100%;
+        text: root.label;
+        color: #ffffff70;
+        font-size: 13px;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}
+
+/// A section label.
+///
+/// A box around the text rather than the text itself, so it can be given the
+/// panel's width and elide within it: a heading used to be a fixed word, and
+/// can now be a show's name of any length.
+component MenuHeading inherits Rectangle {
+    in property <string> text;
+    /// A name rather than a label — the show a playlist is all of. It is the
+    /// most informative thing in the panel, so it is not dimmed to the weight
+    /// of a section kicker like SUBTITLES or EFFECTS.
+    in property <bool> titular;
+
+    height: 28px;
+
+    Text {
+        // Aligned with the row labels below it, not with the panel edge.
+        x: Rows.label-x;
+        width: parent.width - Rows.label-x - Rows.trail-x;
+        height: 100%;
+        text: root.text;
+        color: root.titular ? #ffffffc4 : #ffffff80;
+        font-size: root.titular ? 12px : 11px;
+        font-weight: root.titular ? 600 : 700;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}
+
+export component MainWindow inherits Window {
+    // The title bar and the task bar. 128px because that is the largest of
+    // the set that is a plain square PNG, and window managers scale down
+    // better than they scale up. The executable's own icon is a different
+    // thing — a Windows resource, compiled in — and is not wired yet.
+    icon: @image-url("../icons/128x128@2x.png");
+
+    // --- from the render pipeline ---
+    // Written from the rendering notifier. Only reassigned when the texture
+    // is recreated, never per frame.
+    in property <image> video-frame;
+    // Targets are allocated grow-only so resizing costs no reallocation,
+    // which leaves the texture larger than the image drawn into it. This is
+    // the active region; the source-clip below trims the slack off.
+    in property <int> video-clip-w: 1;
+    in property <int> video-clip-h: 1;
+
+    // --- mirrored from mpv, via PlayerState ---
+    in property <string> media-title;
+    in property <string> elapsed: "0:00";
+    in property <string> total: "0:00";
+    /// Playback position, 0..1.
+    in property <float> progress: 0;
+    in property <bool> paused;
+    in property <bool> muted;
+    in property <float> volume: 100;
+    in property <bool> has-file;
+    /// mpv is holding the last frame of a finished file.
+    in property <bool> at-end;
+    /// ...and there is nothing after it in the playlist, so the only thing
+    /// left to offer is this file again.
+    in property <bool> at-last;
+    in property <bool> subs-visible;
+    in property <bool> panscan;
+    // Subtitle adjustments, formatted on the Rust side, which owns the units.
+    // --- seek preview ---
+    // The thumbnail is one tile of a sprite atlas, picked with the same
+    // `source-clip` the video surface uses. Nothing here knows how the atlas
+    // was made; it is handed a picture and two offsets.
+    in property <string> preview-time: "0:00";
+    in property <image> preview-sprite;
+    in property <int> preview-tile-w;
+    in property <int> preview-tile-h;
+    in property <int> preview-clip-x;
+    in property <int> preview-clip-y;
+
+    in property <string> sub-delay-text: "0.00 s";
+    in property <string> sub-scale-text: "1.00x";
+    in property <string> sub-pos-text: "100%";
+    in property <[TrackItem]> sub-tracks;
+    in property <[TrackItem]> audio-tracks;
+    in property <[PlaylistItem]> playlist;
+    /// What to call the playlist. The show's name when every entry is from
+    /// one, and "PLAYLIST" otherwise — decided on the Rust side, where the
+    /// names are parsed.
+    in property <string> playlist-heading: "PLAYLIST";
+    /// Whether that heading is a show's name or the generic label.
+    in property <bool> playlist-named;
+    // One list per settings page. Split on the Rust side rather than
+    // filtered here, so a page binds straight to its own rows.
+    in property <[ParamItem]> glass-params;
+    in property <[ParamItem]> border-params;
+    // Effect switches. in-out because they are pushed from the saved
+    // settings at startup and assigned here when clicked or keyed.
+    in-out property <bool> ambience-on: true;
+    in-out property <bool> glass-on: true;
+    in-out property <bool> autoplay: true;
+    /// Registry index and its new normalised position.
+    callback set-param(int, float);
+    /// Restore one section to its defaults. 0 glass, 1 ambient border -
+    /// matching `settings::Section`.
+    callback reset-section(int);
+    callback set-ambience(bool);
+    callback set-glass(bool);
+    callback set-autoplay(bool);
+
+    // --- actions, executed on the Rust side ---
+    // Key handling lives here rather than in Rust because the `Key.*`
+    // constants map to private unicode characters; comparing them in this
+    // file keeps that mapping where Slint owns it, and leaves Rust with
+    // named intentions rather than keycodes.
+    callback toggle-pause();
+    callback toggle-mute();
+    callback toggle-subtitles();
+    callback toggle-panscan();
+    callback toggle-fullscreen();
+    callback leave-fullscreen();
+    callback restart();
+    /// This file again, from the start, playing.
+    callback replay();
+    /// The next file, playing.
+    callback play-next();
+    /// Seconds, signed.
+    callback seek-relative(float);
+    /// Absolute position as 0..1 of the file, landing exactly.
+    callback seek-fraction(float);
+    /// A drag in progress. Coalesced and seeked cheaply on the Rust side;
+    /// the exact landing happens on release via `seek-fraction`.
+    callback seek-scrub(float);
+    /// Where the pointer is over the timeline, 0..1. Answered by setting
+    /// `preview-time` and the tile offsets below — the formatting and the
+    /// tile arithmetic both live on the Rust side, where they are testable
+    /// and where the one copy of each already is.
+    callback preview-at(float);
+    /// A finished thumbnail atlas: path, tile width, tile height, grid. Comes
+    /// from the thread that built it, by way of the event loop.
+    callback preview-ready(string, int, int, int);
+    callback nudge-volume(float);
+    callback nudge-sub-delay(float);
+    callback nudge-sub-scale(float);
+    callback nudge-sub-pos(float);
+    /// Timing, size and placement all back to their defaults.
+    callback reset-subtitles();
+    /// -1 previous, +1 next.
+    callback playlist-step(int);
+    /// Ask for a video, or for a folder to play through.
+    callback open-file();
+    callback open-folder();
+    /// A path to open, however it was arrived at. The dialog answers here,
+    /// and a future drag-and-drop would too.
+    callback open-path(string);
+    /// Track id, or -1 to turn subtitles off.
+    callback select-subtitle(int);
+    callback select-audio(int);
+    callback play-index(int);
+    callback set-volume(float);
+    /// A click on the video. Deferred in Rust so a double-click can cancel
+    /// it, rather than pausing and unpausing on the way to fullscreen.
+    callback video-clicked();
+    callback video-double-clicked();
+
+    // Pushed from Rust at startup so `commands.rs` stays the single place
+    // these are defined.
+    in property <float> seek-step: 10;
+    in property <float> volume-step: 2;
+    in property <float> delay-step: 0.1;
+    in property <float> sub-scale-step: 0.05;
+    in property <float> sub-pos-step: 2;
+    in property <float> scroll-seek-step: 1;
+    /// Matches mpv's own ceiling, so 100% sits where mpv puts it.
+    in property <float> volume-max: 200;
+
+    // Indexed rather than picked by a conditional chain: twenty branches is
+    // the exact shape that overflowed the compiler's stack.
+    property <[image]> volume-icons: [
+        @image-url("../../../public/icons/volume-000.svg"),
+        @image-url("../../../public/icons/volume-001.svg"),
+        @image-url("../../../public/icons/volume-010.svg"),
+        @image-url("../../../public/icons/volume-020.svg"),
+        @image-url("../../../public/icons/volume-030.svg"),
+        @image-url("../../../public/icons/volume-040.svg"),
+        @image-url("../../../public/icons/volume-050.svg"),
+        @image-url("../../../public/icons/volume-060.svg"),
+        @image-url("../../../public/icons/volume-070.svg"),
+        @image-url("../../../public/icons/volume-080.svg"),
+        @image-url("../../../public/icons/volume-090.svg"),
+        @image-url("../../../public/icons/volume-100.svg"),
+        @image-url("../../../public/icons/volume-110.svg"),
+        @image-url("../../../public/icons/volume-120.svg"),
+        @image-url("../../../public/icons/volume-130.svg"),
+        @image-url("../../../public/icons/volume-140.svg"),
+        @image-url("../../../public/icons/volume-150.svg"),
+        @image-url("../../../public/icons/volume-160.svg"),
+        @image-url("../../../public/icons/volume-170.svg"),
+        @image-url("../../../public/icons/volume-180.svg"),
+    ];
+    // 0 is silence, 1 the "barely on" glyph, then one per 10 units.
+    property <int> volume-index: root.volume < 0.5 ? 0
+        : root.volume < 10 ? 1
+        : Math.min(19, 1 + Math.floor(root.volume / 10));
+
+    // in-out so the eventual toolbar button (and the input test) can
+    // open it, not just the keyboard.
+    in-out property <bool> menu-open: false;
+    in-out property <bool> playlist-open: false;
+    in-out property <bool> files-open: false;
+    in-out property <bool> settings-open: false;
+    /// Which page the settings panel shows: 0 the list, 1 glass, 2 ambient
+    /// border, 3 subtitles. Pages replace each other in place rather than
+    /// opening further panels, so there is only ever one settings surface -
+    /// and only one glass rect - on screen.
+    property <int> settings-page: 0;
+    in-out property <bool> fullscreen: false;
+    // Rust owns the idle clock; the policy for what that means lives here.
+    // An open menu counts as interaction even with the pointer still.
+    property <bool> controls-visible: !Chrome.idle
+        || root.menu-open || root.playlist-open || root.settings-open
+        || root.files-open;
+
+    // A film ending is something happening, even though nobody touched
+    // anything: the picture stops, and the one useful thing left is on
+    // screen. Waking the clock brings the bar back with the button and gives
+    // the fade the frames it needs — nothing else is asking for any, since
+    // mpv has stopped producing them.
+    changed at-end => {
+        if (root.at-end) {
+            Chrome.bump();
+        }
+    }
+    property <length> panel-radius: Rows.panel-radius;
+    property <length> panel-margin: 24px;
+
+    // --- appearing and disappearing ---
+    //
+    // Every surface fades and rises into place, as they did in the old build:
+    // a short fade with a few pixels of travel, which is enough to read as
+    // something arriving rather than something that was abruptly always
+    // there. Each has one animated number saying how far in it is; the
+    // opacity, the offset and the glass rect all come off that, so they
+    // cannot drift apart mid-animation.
+    property <duration> fade: 120ms;
+    /// How far a surface sits below its place before it arrives.
+    property <length> lift: 6px;
+
+    property <float> bar-shown: root.controls-visible ? 1.0 : 0.0;
+    property <float> menu-shown: root.menu-open ? 1.0 : 0.0;
+    property <float> playlist-shown: root.playlist-open ? 1.0 : 0.0;
+    property <float> settings-shown: root.settings-open ? 1.0 : 0.0;
+    property <float> files-shown: root.files-open ? 1.0 : 0.0;
+    property <float> preview-shown: root.preview-open ? 1.0 : 0.0;
+    property <float> end-shown: root.at-end && root.has-file ? 1.0 : 0.0;
+
+    animate bar-shown, menu-shown, playlist-shown, settings-shown,
+            files-shown, preview-shown, end-shown {
+        duration: root.fade;
+        easing: ease-out;
+    }
+
+    /// Below the threshold a surface is gone: not drawn, not hit-tested, and
+    /// its rect dropped on the Rust side rather than uploaded as invisible
+    /// glass.
+    property <float> shown-epsilon: 0.004;
+
+    /// The rise, per surface. Zero once arrived.
+    property <length> bar-rise: (1.0 - root.bar-shown) * root.lift;
+    property <length> menu-rise: (1.0 - root.menu-shown) * root.lift;
+    property <length> playlist-rise: (1.0 - root.playlist-shown) * root.lift;
+    property <length> settings-rise: (1.0 - root.settings-shown) * root.lift;
+    property <length> files-rise: (1.0 - root.files-shown) * root.lift;
+    property <length> preview-rise: (1.0 - root.preview-shown) * root.lift;
+    property <length> end-rise: (1.0 - root.end-shown) * root.lift;
+
+    // --- bar geometry ---
+    //
+    // Every length below is arithmetic on constants and `root.width`, never a
+    // question asked of a layout. `glass-rects` samples this geometry once a
+    // frame to tell the pipeline where to draw glass, and a binding that
+    // depends on a layout forces a full layout pass each time it is read -
+    // which is what once dragged a resize drag down to 4fps.
+    //
+    // The same constants drive the pills, the controls inside them and the
+    // anchor points the panels hang from, so there is nothing to keep in
+    // agreement by hand.
+    property <length> btn: 40px;
+    property <length> btn-gap: 6px;
+    property <length> pill-pad: 4px;
+    property <length> vol-w: 96px;
+    /// Inset for text sitting directly on a pill, rather than on a button
+    /// within one. `pill-pad` is the gap around a 40px glyph button, which is
+    /// already round and already clear of the capsule's corner; a line of
+    /// text at the same inset runs straight into the curve. Matches the 18px
+    /// the menu rows use, so a label starts at the same place everywhere.
+    property <length> pill-text-pad: 18px;
+    property <length> pill-h: root.btn + 2 * root.pill-pad;
+    property <length> pill-radius: root.pill-h / 2;
+    property <length> pill-gap: 10px;
+    /// Shorter than the control pills: they hold a 24px glyph, these hold a
+    /// line of 11px text.
+    property <length> timeline-h: 28px;
+    /// Wide enough for "1:23:45" without the pill resizing when a film ticks
+    /// past the hour — the same reasoning as the title pill, for the same
+    /// reason: a pill that resizes itself never sits still.
+    property <length> time-w: 60px;
+
+    property <length> bar-x: root.panel-margin;
+    property <length> bar-w: root.width - 2 * root.panel-margin;
+    /// Transport: previous, back, play, forward, next.
+    property <length> center-w: 2 * root.pill-pad + 5 * root.btn + 4 * root.btn-gap;
+    /// Mute, volume, ambience, subtitles, settings, panscan, fullscreen.
+    property <length> right-w:
+        2 * root.pill-pad + 6 * root.btn + root.vol-w + 6 * root.btn-gap;
+    /// Everything in the title pill that is not the title: the text inset,
+    /// the two buttons with their gaps, and the padding after them.
+    property <length> left-fixed:
+        root.pill-text-pad + 2 * root.btn + 2 * root.btn-gap + root.pill-pad;
+    /// The title pill hugs its title, up to what the centred transport
+    /// leaves room for. Past that the title elides and the pill stops
+    /// growing.
+    property <length> left-w: clamp(
+        root.title-w + root.left-fixed,
+        root.left-fixed,
+        (root.bar-w - root.center-w) / 2 - root.pill-gap);
+    /// Width the title wants. Measured off a `Text` that is never drawn -
+    /// see `title-measure` at the bottom of the component - because the pill
+    /// cannot ask the title it contains how wide to be without the question
+    /// running in a circle.
+    property <length> title-w: title-measure.preferred-width;
+
+    // A pill that resizes itself on every file change would be a flicker;
+    // moving there over a moment reads as deliberate. The glass follows
+    // because it is drawn from this same property.
+    animate left-w {
+        duration: 160ms;
+        easing: ease-in-out;
+    }
+
+    // --- end of playback ---
+    //
+    // One pill in the middle of the picture, because the middle of the
+    // picture is where the film just stopped and there is nothing else on
+    // screen competing for the look. It is the same capsule as the bar's,
+    // wearing the same glass: a finished film is still the same interface.
+    property <length> end-h: root.pill-h;
+    /// Text inset, matching the title pill's.
+    property <length> end-pad: root.pill-text-pad;
+    property <length> end-gap: 12px;
+    property <length> end-w:
+        2 * root.end-pad + 24px + root.end-gap + end-measure.preferred-width;
+    property <length> end-x: (root.width - root.end-w) / 2;
+    property <length> end-y: (root.height - root.end-h) / 2;
+    /// Restart at the end of the last file, next at the end of any other —
+    /// which only happens with autoplay off, since otherwise mpv has already
+    /// moved on by the time anyone could read it.
+    property <string> end-label: root.at-last ? "Restart" : "Next";
+
+    // --- the action flash ---
+    //
+    // A glyph in a ring at the centre of the picture, and under it the one
+    // number that has nowhere else to appear. It lives about a second and
+    // takes no pointer events — it is an answer, not a control.
+    property <[image]> flash-icons: [
+        @image-url("../../../public/icons/seek-backward.svg"),
+        @image-url("../../../public/icons/seek-forward.svg"),
+        @image-url("../../../public/icons/step-backward.svg"),
+        @image-url("../../../public/icons/step-forward.svg"),
+        @image-url("../../../public/icons/rewind.svg"),
+        @image-url("../../../public/icons/subtitle-time.svg"),
+    ];
+    /// The size the icon set is drawn for. The ring gives it presence
+    /// instead of scaling it up to get some.
+    property <length> flash-glyph: 24px;
+    /// 16px of air around the glyph, which is twice what a bar button gives
+    /// the same 24px and reads as deliberate beside it. Wider than that and
+    /// the ring stops being a setting for the glyph and becomes the subject.
+    property <length> flash-ring: root.flash-glyph + 2 * 16px;
+    /// The delay's flash shows the figure it lands on, not the one it left.
+    /// mpv reports the new value a beat after the key; this binding is live,
+    /// so the number catches up well inside the dwell. Every other action is
+    /// its glyph alone.
+    property <string> flash-text: Flash.icon == Flash.delay ? root.sub-delay-text : "";
+    property <length> flash-text-h: 28px;
+    property <length> flash-text-pad: 14px;
+    property <length> flash-text-w:
+        flash-measure.preferred-width + 2 * root.flash-text-pad;
+    /// Centred on `Flash.at`, and never allowed off the edge of the window.
+    function flash-x(w: length) -> length {
+        return clamp(root.width * Flash.at - w / 2,
+            root.panel-margin,
+            max(root.panel-margin, root.width - w - root.panel-margin));
+    }
+    property <length> flash-y: (root.height - root.flash-ring) / 2;
+    property <length> flash-text-y: root.flash-y + root.flash-ring + 12px;
+    /// Long enough to read a two-character number, short enough that a held
+    /// key is a flicker rather than a strobe.
+    property <duration> flash-dwell: 700ms;
+    property <float> flash-shown: 0;
+    animate flash-shown {
+        duration: root.fade;
+        easing: ease-out;
+    }
+    property <length> flash-rise: (1.0 - root.flash-shown) * root.lift;
+
+    // Watching the global through a local property: `changed` handlers
+    // belong to the element that declares the property, and the raise has to
+    // restart the dwell rather than extend it.
+    property <int> flash-seq: Flash.seq;
+    changed flash-seq => {
+        root.flash-shown = 1.0;
+        flash-timer.stop();
+        flash-timer.start();
+    }
+
+    flash-timer := Timer {
+        interval: root.flash-dwell;
+        running: false;
+        triggered => {
+            root.flash-shown = 0.0;
+            flash-timer.stop();
+        }
+    }
+
+    property <length> pills-y: root.height - root.panel-margin - root.pill-h;
+    out property <length> timeline-y: root.pills-y - root.pill-gap - root.timeline-h;
+    property <length> center-x: root.bar-x + (root.bar-w - root.center-w) / 2;
+    property <length> right-x: root.bar-x + root.bar-w - root.right-w;
+
+    /// The track runs between the two time pills, clear of both.
+    property <length> total-x: root.bar-x + root.bar-w - root.time-w;
+    out property <length> scrub-x: root.bar-x + root.time-w + root.pill-gap;
+    out property <length> scrub-w: root.bar-w - 2 * (root.time-w + root.pill-gap);
+
+    // Where each control sits inside the right pill, and so where a panel
+    // hanging off it should point.
+    property <length> rp-ambience:
+        root.pill-pad + root.btn + root.btn-gap + root.vol-w + root.btn-gap;
+    property <length> rp-subs: root.rp-ambience + root.btn + root.btn-gap;
+    property <length> rp-settings: root.rp-subs + root.btn + root.btn-gap;
+
+    out property <length> subs-anchor: root.right-x + root.rp-subs + root.btn / 2;
+    property <length> settings-anchor: root.right-x + root.rp-settings + root.btn / 2;
+    // Title, then playlist, then open — so the two buttons are the last
+    // things in the pill and the title takes whatever is left.
+    property <length> lp-open: root.left-w - root.pill-pad - root.btn;
+    property <length> lp-playlist: root.lp-open - root.btn-gap - root.btn;
+
+    property <length> files-anchor: root.bar-x + root.lp-open + root.btn / 2;
+    out property <length> playlist-anchor:
+        root.bar-x + root.lp-playlist + root.btn / 2;
+
+    // --- seek preview ---
+    //
+    // Shown while the pointer is over the timeline, centred on it, and kept
+    // inside the bar's own margins so it never hangs off the window. Sized to
+    // the tile when there is one and to the timestamp alone when there is
+    // not, so it is useful before the thumbnails finish — and on machines
+    // with no ffmpeg, where they never will.
+    // Tied to the bar, not just to the pointer: a pointer resting on the
+    // track never bumps the idle clock, so without this the chrome could fade
+    // out from under a preview and leave it floating on its own.
+    property <bool> preview-open:
+        (scrub.has-hover || scrub.pressed) && root.controls-visible;
+    property <bool> preview-has-tile: root.preview-tile-w > 0 && root.preview-tile-h > 0;
+    /// Wide enough for the glass to be glass.
+    ///
+    /// The bevel is a fraction of the corner radius, so a 14px corner rolls
+    /// over about 8px — and at 5px of padding the thumbnail sat on top of
+    /// most of it. The material was there and there was nowhere to see it.
+    property <length> preview-pad: 9px;
+    /// Its own corner, not the panels': a surface this small wearing a 32px
+    /// radius would be all corner.
+    property <length> preview-radius: 18px;
+    /// Concentric with it, by the same rule the rows follow — an inner corner
+    /// shares a centre with an outer one when their radii differ by the gap
+    /// between them, and the thumbnail's gap is the padding on all three
+    /// sides it touches.
+    property <length> preview-tile-radius: root.preview-radius - root.preview-pad;
+    property <length> preview-caption: 22px;
+    property <length> preview-w: root.preview-has-tile
+        ? root.preview-tile-w * 1px + 2 * root.preview-pad
+        : 74px;
+    property <length> preview-h: root.preview-has-tile
+        ? root.preview-tile-h * 1px + 2 * root.preview-pad + root.preview-caption
+        : 26px;
+    /// Where along the track the pointer is, in the track's own coordinates.
+    property <length> preview-cursor: clamp(scrub.mouse-x, 0px, root.scrub-w);
+    property <length> preview-x: clamp(
+        root.scrub-x + root.preview-cursor - root.preview-w / 2,
+        root.bar-x,
+        root.bar-x + root.bar-w - root.preview-w);
+    property <length> preview-y: root.timeline-y - 10px - root.preview-h;
+
+    /// Room for a panel between the top margin and the bar.
+    property <length> panel-max-h: root.timeline-y - 12px - 2 * root.panel-margin;
+
+    // --- list panels ---
+    //
+    // A panel is capped at what fits above the bar, and its lists take what
+    // is left over. Where two lists share a panel they get a fair share each,
+    // except that a list which fits in its share keeps its full height and
+    // hands the remainder to the other — so one long list beside one short
+    // one is not made to scroll for nothing. This is what the old build did
+    // by measuring elements; here the row counts are known, so it is
+    // arithmetic.
+    //
+    // `out` so a test can read the split back: the fairness rule has enough
+    // cases in it to be worth checking rather than trusting.
+    property <length> row-h: 34px;
+    property <length> heading-h: 28px;
+
+    /// Every key the handlers below answer to.
+    ///
+    /// One list, read by the panel, sitting directly above the functions that
+    /// implement it — because a reference card and the bindings it describes
+    /// drift apart the moment they live in different files.
+    property <[{label: string, keys: string}]> shortcuts: [
+        { label: "Play / pause", keys: "Space" },
+        { label: "Back / forward 10s", keys: "← →" },
+        { label: "Previous / next file", keys: "Ctrl + ← →" },
+        { label: "Start again", keys: "Home" },
+        { label: "Volume", keys: "↑ ↓" },
+        { label: "Mute", keys: "M" },
+        { label: "Subtitles on / off", keys: "C" },
+        { label: "Subtitles earlier / later", keys: "Z / Shift + Z" },
+        { label: "Fill or fit the window", keys: "T" },
+        { label: "Ambient border", keys: "B" },
+        { label: "Settings", keys: "S" },
+        { label: "Fullscreen", keys: "F" },
+        { label: "Open file", keys: "Ctrl + O" },
+        { label: "Open folder", keys: "Ctrl + Shift + O" },
+        { label: "Close, or leave fullscreen", keys: "Esc" },
+    ];
+    property <length> shortcuts-natural: root.shortcuts.length * 34px;
+    /// What is left of the panel once the back row has had its share. The
+    /// list scrolls into it, because fifteen rows do not fit above the bar on
+    /// a small window and a reference that is cut off is not one.
+    property <length> shortcuts-list-h:
+        max(0px, settings.height - root.panel-pad - 34px);
+    property <length> panel-pad: 2 * Rows.panel-pad;
+
+    // A heading with no rows under it is noise, and two of them over a file
+    // with neither subtitles nor alternate audio is a panel that says nothing
+    // twice. Each section appears only when it has something in it, and a
+    // file with neither says so in one line.
+    property <bool> has-subs: root.sub-tracks.length > 0;
+    property <bool> has-audio: root.audio-tracks.length > 0;
+    property <bool> no-tracks: !root.has-subs && !root.has-audio;
+
+    /// The "Off" row belongs to the subtitle list, so it counts with it.
+    out property <length> subs-natural:
+        root.has-subs ? (1 + root.sub-tracks.length) * root.row-h : 0px;
+    out property <length> audio-natural:
+        root.has-audio ? root.audio-tracks.length * root.row-h : 0px;
+    property <length> tracks-fixed: root.panel-pad
+        + (root.has-subs ? root.heading-h : 0px)
+        + (root.has-audio ? root.heading-h : 0px)
+        + (root.no-tracks ? root.row-h : 0px);
+    out property <length> tracks-h: min(
+        root.tracks-fixed + root.subs-natural + root.audio-natural,
+        root.panel-max-h);
+    out property <length> tracks-avail: max(0px, root.tracks-h - root.tracks-fixed);
+    out property <length> subs-list-h: min(root.subs-natural,
+        max(root.tracks-avail / 2, root.tracks-avail - root.audio-natural));
+    out property <length> audio-list-h: root.tracks-avail - root.subs-list-h;
+
+    out property <length> playlist-natural: root.playlist.length * root.row-h;
+    /// The autoplay row is fixed furniture, like the heading.
+    property <length> autoplay-h: 40px;
+    out property <length> playlist-h: min(
+        root.panel-pad + root.heading-h + root.playlist-natural
+            + Rows.group-gap + root.autoplay-h,
+        root.panel-max-h);
+    out property <length> playlist-list-h: max(0px,
+        root.playlist-h - root.panel-pad - root.heading-h
+            - Rows.group-gap - root.autoplay-h);
+
+    /// Scroll offsets, for the test that checks a wheel over a list moves it.
+    out property <length> subs-scroll: subs-list.offset;
+    out property <length> playlist-scroll: playlist-list.offset;
+
+    /// Centre a panel on the control it belongs to, without letting it walk
+    /// off either edge. A panel pinned to a margin still reads as belonging
+    /// to its button, where one clipped at the window edge would not.
+    pure function anchored-x(centre: length, w: length) -> length {
+        return clamp(centre - w / 2,
+            root.panel-margin,
+            root.width - w - root.panel-margin);
+    }
+
+    // A closed menu publishes a zero-sized rect; the Rust side drops those
+    // rather than the array changing length, which keeps this a plain
+    // literal instead of something conditionally built.
+    out property <[GlassRect]> glass-rects: [
+        {
+            x: root.bar-x,
+            y: root.timeline-y + root.bar-rise,
+            width: root.bar-shown > root.shown-epsilon ? root.time-w : 0,
+            height: root.bar-shown > root.shown-epsilon ? root.timeline-h : 0,
+            opacity: root.bar-shown,
+            radius: root.timeline-h / 2,
+            // Opt in to tinting; the strength is the global slider.
+            tint: 1.0,
+        },
+        {
+            x: root.total-x,
+            y: root.timeline-y + root.bar-rise,
+            width: root.bar-shown > root.shown-epsilon ? root.time-w : 0,
+            height: root.bar-shown > root.shown-epsilon ? root.timeline-h : 0,
+            opacity: root.bar-shown,
+            radius: root.timeline-h / 2,
+            tint: 1.0,
+        },
+        {
+            x: root.bar-x,
+            y: root.pills-y + root.bar-rise,
+            width: root.bar-shown > root.shown-epsilon ? root.left-w : 0,
+            height: root.bar-shown > root.shown-epsilon ? root.pill-h : 0,
+            opacity: root.bar-shown,
+            radius: root.pill-radius,
+            tint: 1.0,
+        },
+        {
+            x: root.center-x,
+            y: root.pills-y + root.bar-rise,
+            width: root.bar-shown > root.shown-epsilon ? root.center-w : 0,
+            height: root.bar-shown > root.shown-epsilon ? root.pill-h : 0,
+            opacity: root.bar-shown,
+            radius: root.pill-radius,
+            tint: 1.0,
+        },
+        {
+            x: root.right-x,
+            y: root.pills-y + root.bar-rise,
+            width: root.bar-shown > root.shown-epsilon ? root.right-w : 0,
+            height: root.bar-shown > root.shown-epsilon ? root.pill-h : 0,
+            opacity: root.bar-shown,
+            radius: root.pill-radius,
+            tint: 1.0,
+        },
+        {
+            x: root.flash-x(root.flash-ring),
+            y: root.flash-y + root.flash-rise,
+            width: root.flash-shown > root.shown-epsilon ? root.flash-ring : 0,
+            height: root.flash-shown > root.shown-epsilon ? root.flash-ring : 0,
+            opacity: root.flash-shown,
+            // Half the size, so the rounded box the shader draws is a circle.
+            radius: root.flash-ring / 2,
+            tint: 1.0,
+        },
+        {
+            x: root.flash-x(root.flash-text-w),
+            y: root.flash-text-y + root.flash-rise,
+            width: root.flash-shown > root.shown-epsilon && root.flash-text != ""
+                ? root.flash-text-w : 0,
+            height: root.flash-shown > root.shown-epsilon && root.flash-text != ""
+                ? root.flash-text-h : 0,
+            opacity: root.flash-shown,
+            radius: root.flash-text-h / 2,
+            tint: 1.0,
+        },
+        {
+            x: root.end-x,
+            y: root.end-y + root.end-rise,
+            width: root.end-shown > root.shown-epsilon ? root.end-w : 0,
+            height: root.end-shown > root.shown-epsilon ? root.end-h : 0,
+            opacity: root.end-shown,
+            radius: root.end-h / 2,
+            tint: 1.0,
+        },
+        {
+            x: root.preview-x,
+            y: root.preview-y + root.preview-rise,
+            width: root.preview-shown > root.shown-epsilon ? root.preview-w : 0,
+            height: root.preview-shown > root.shown-epsilon ? root.preview-h : 0,
+            opacity: root.preview-shown,
+            // The bevel follows from the radius, so the preview gets a rim in
+            // proportion to its size rather than the panels'.
+            radius: root.preview-radius,
+            tint: 1.0,
+        },
+        {
+            x: menu.x,
+            y: menu.y + root.menu-rise,
+            width: root.menu-shown > root.shown-epsilon ? menu.width : 0,
+            height: root.menu-shown > root.shown-epsilon ? root.tracks-h : 0,
+            opacity: root.menu-shown,
+            radius: root.panel-radius,
+            // Opt in to tinting; the strength is the global slider.
+            tint: 1.0,
+        },
+        {
+            x: files-panel.x,
+            y: files-panel.y + root.files-rise,
+            width: root.files-shown > root.shown-epsilon ? files-panel.width : 0,
+            height: root.files-shown > root.shown-epsilon ? files-panel.height : 0,
+            opacity: root.files-shown,
+            radius: root.panel-radius,
+            tint: 1.0,
+        },
+        {
+            x: playlist-panel.x,
+            y: playlist-panel.y + root.playlist-rise,
+            width: root.playlist-shown > root.shown-epsilon ? playlist-panel.width : 0,
+            height: root.playlist-shown > root.shown-epsilon ? root.playlist-h : 0,
+            opacity: root.playlist-shown,
+            radius: root.panel-radius,
+            tint: 1.0,
+        },
+        {
+            x: settings.x,
+            y: settings.y + root.settings-rise,
+            width: root.settings-shown > root.shown-epsilon ? settings.width : 0,
+            height: root.settings-shown > root.shown-epsilon ? settings.height : 0,
+            opacity: root.settings-shown,
+            radius: root.panel-radius,
+            // Opt in to tinting; the strength is the global slider.
+            tint: 1.0,
+        },
+    ];
+
+    title: "Death by MPV";
+    preferred-width: 1280px;
+    preferred-height: 720px;
+    // Narrower than this and the three pills would meet. The old build
+    // reflowed buttons into a second row at this point, driven by measuring
+    // element widths; a floor costs one line and no moving parts.
+    min-width: 900px;
+    min-height: 480px;
+    background: #000000;
+    forward-focus: keys;
+
+    // Key dispatch is split across several small functions rather than one
+    // long chain. Slint's compiler recurses once per nested statement, and a
+    // single handler with every binding in it overflowed the build script's
+    // stack — in debug builds only, since those frames are fatter. Grouping
+    // keeps each tree shallow, and reads better besides.
+    //
+    // It lives here rather than in Rust because the `Key.*` constants map to
+    // private unicode characters; comparing them where Slint owns that
+    // mapping leaves Rust with named intentions instead of keycodes.
+    function on-playback(text: string) -> bool {
+        if (text == " ") {
+            // Same reasoning as the play button: at the end of a file there
+            // is nothing to un-pause.
+            if (root.at-end) {
+                root.replay();
+            } else {
+                root.toggle-pause();
+            }
+            return true;
+        }
+        if (text == Key.Home) {
+            root.restart();
+            Flash.show(Flash.restart, 0.5);
+            return true;
+        }
+        return false;
+    }
+
+    function on-seek(text: string, ctrl: bool) -> bool {
+        if (text == Key.LeftArrow) {
+            if (ctrl) {
+                root.playlist-step(-1);
+                Flash.show(Flash.previous, 0.5);
+            } else {
+                root.seek-relative(-root.seek-step);
+                Flash.show(Flash.seek-back, 0.2);
+            }
+            return true;
+        }
+        if (text == Key.RightArrow) {
+            if (ctrl) {
+                root.playlist-step(1);
+                Flash.show(Flash.next, 0.5);
+            } else if (root.at-end) {
+                // Seeking forward from the end has nowhere to go. Forward
+                // means the next file, or this one again if there is none.
+                if (root.at-last) {
+                    root.replay();
+                } else {
+                    root.play-next();
+                }
+            } else {
+                root.seek-relative(root.seek-step);
+                Flash.show(Flash.seek-forward, 0.8);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    function on-volume(text: string) -> bool {
+        if (text == Key.UpArrow) {
+            root.nudge-volume(root.volume-step);
+            return true;
+        }
+        if (text == Key.DownArrow) {
+            root.nudge-volume(-root.volume-step);
+            return true;
+        }
+        if (text == "m" || text == "M") {
+            root.toggle-mute();
+            return true;
+        }
+        return false;
+    }
+
+    // Lower-case z pulls the subtitles earlier, shifted Z pushes them later —
+    // mpv's own convention, and the shift state is already in the character.
+    function on-subtitles(text: string) -> bool {
+        if (text == "c" || text == "C") {
+            root.toggle-subtitles();
+            return true;
+        }
+        if (text == "z") {
+            root.nudge-sub-delay(-root.delay-step);
+            Flash.show(Flash.delay, 0.5);
+            return true;
+        }
+        if (text == "Z") {
+            root.nudge-sub-delay(root.delay-step);
+            Flash.show(Flash.delay, 0.5);
+            return true;
+        }
+        return false;
+    }
+
+    // Ctrl+O for a file, Ctrl+Shift+O for a folder — as they were.
+    function on-open(text: string, ctrl: bool, shift: bool) -> bool {
+        // Ctrl+letter arrives as the letter on some platforms and as the
+        // control character on others; U+000F is Ctrl+O. Accepting both costs
+        // one comparison and removes a whole class of "works on my machine".
+        if (ctrl && (text == "o" || text == "O" || text == "\u{000F}")) {
+            if (shift) {
+                root.open-folder();
+            } else {
+                root.open-file();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    function on-window(text: string) -> bool {
+        if (text == "f" || text == "F" || text == Key.F11) {
+            root.toggle-fullscreen();
+            return true;
+        }
+        if (text == "t" || text == "T") {
+            root.toggle-panscan();
+            return true;
+        }
+        if (text == "s" || text == "S") {
+            root.open-settings(!root.settings-open);
+            return true;
+        }
+        if (text == "b" || text == "B") {
+            // Kept on a key even though it now lives in the settings panel:
+            // it is the one effect worth toggling mid-film.
+            root.ambience-on = !root.ambience-on;
+            root.set-ambience(root.ambience-on);
+            return true;
+        }
+        // One Escape dismisses one thing, innermost first: a settings
+        // page, then a panel, then fullscreen.
+        if (text == Key.Escape) {
+            if (root.settings-open && root.settings-page != 0) {
+                root.settings-page = 0;
+            } else if (root.settings-open) {
+                root.settings-open = false;
+            } else if (root.playlist-open) {
+                root.playlist-open = false;
+            } else if (root.files-open) {
+                root.files-open = false;
+            } else if (root.menu-open) {
+                root.menu-open = false;
+            } else {
+                root.leave-fullscreen();
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // All three panels occupy the same corner above the bar, so opening one
+    // puts the others away. Funnelled through functions rather than repeated
+    // at each button and key, which is how they would drift out of agreement.
+    //
+    // Each also resets its own page on the way out. A fresh open starting
+    // halfway down a stack of pages shows controls with no hint of what they
+    // belong to.
+    public function open-menu(open: bool) {
+        root.menu-open = open;
+        if (open) {
+            root.close-others();
+            root.menu-open = true;
+        }
+    }
+
+    public function open-playlist(open: bool) {
+        root.playlist-open = open;
+        if (open) {
+            root.close-others();
+            root.playlist-open = true;
+        }
+    }
+
+    public function open-settings(open: bool) {
+        root.settings-open = open;
+        root.settings-page = 0;
+        if (open) {
+            root.close-others();
+            root.settings-open = true;
+        }
+    }
+
+    /// Show one settings page, opening the panel if it is shut. Public so a
+    /// test can walk the pages; a panel that sizes itself per page is exactly
+    /// the kind of arithmetic worth checking against what is drawn.
+    public function open-settings-page(page: int) {
+        root.open-settings(true);
+        root.settings-page = page;
+    }
+
+    public function open-files(open: bool) {
+        root.files-open = open;
+        if (open) {
+            root.close-others();
+            root.files-open = true;
+        }
+    }
+
+    /// Shut everything, so an opener only has to reopen its own. Cheaper to
+    /// read than four lists of the other three, and adding a fifth panel
+    /// cannot forget one.
+    function close-others() {
+        root.menu-open = false;
+        root.playlist-open = false;
+        root.settings-open = false;
+        root.files-open = false;
+    }
+
+    keys := FocusScope {
+        key-pressed(event) => {
+            Chrome.bump();
+            if (root.on-open(event.text, event.modifiers.control, event.modifiers.shift)
+                || root.on-playback(event.text)
+                || root.on-seek(event.text, event.modifiers.control)
+                || root.on-volume(event.text)
+                || root.on-subtitles(event.text)
+                || root.on-window(event.text)) {
+                return EventResult.accept;
+            }
+            return EventResult.reject;
+        }
+    }
+
+    // Video, ambient border and glass, already composited by the pipeline.
+    Image {
+        source: root.video-frame;
+        source-clip-x: 0;
+        source-clip-y: 0;
+        source-clip-width: root.video-clip-w;
+        source-clip-height: root.video-clip-h;
+        width: 100%;
+        height: 100%;
+        image-fit: fill;
+    }
+
+    // Sits under the chrome, so buttons above take clicks first. The cursor
+    // goes with the chrome, as it should in a player.
+    video-surface := TouchArea {
+        width: 100%;
+        height: 100%;
+        mouse-cursor: root.controls-visible ? MouseCursor.default : MouseCursor.none;
+        pointer-event(event) => {
+            Chrome.bump();
+        }
+        clicked => {
+            root.video-clicked();
+        }
+        double-clicked => {
+            root.video-double-clicked();
+        }
+        scroll-event(event) => {
+            Chrome.bump();
+            root.nudge-volume(event.delta-y > 0 ? root.volume-step : -root.volume-step);
+            return EventResult.accept;
+        }
+    }
+
+    // Settings. The front page is a list of what can be adjusted; the
+    // controls behind each entry are a page of their own. Everything tunable
+    // lives here - the two effects and the subtitle adjustments - so there is
+    // one place to look rather than a popover per feature.
+    //
+    // The slider rows come from the registry in `settings`, so this panel
+    // needs no editing when a knob is added.
+    settings := Rectangle {
+        // Each page's height from row counts and constants, never from the
+        // layout's own `preferred-height`: `glass-rects` samples the panel
+        // geometry every frame, and depending on a layout there forces a full
+        // layout pass per frame - enough on its own to drag a resize to 4fps.
+        /// Back row, the controls, the gap, and the reset that follows it.
+        property <length> body:
+            root.settings-page == 1
+                ? 34px + root.glass-params.length * 30px + Rows.group-gap + 34px
+            : root.settings-page == 2
+                ? 34px + root.border-params.length * 30px + Rows.group-gap + 34px
+            : root.settings-page == 3
+                ? 34px + 3 * 38px + Rows.group-gap + 34px
+            // The shortcuts are a list rather than a page of controls: it is
+            // handed whatever is left and scrolls inside it.
+            : root.settings-page == 4
+                ? 34px + root.shortcuts-natural
+            : 3 * 28px + 2 * 40px + 2 * 34px;
+
+        width: 340px;
+        height: min(root.panel-pad + self.body, root.panel-max-h);
+        x: root.anchored-x(root.settings-anchor, self.width);
+        y: root.timeline-y - self.height - 12px + root.settings-rise;
+        visible: root.settings-shown > root.shown-epsilon;
+        opacity: root.settings-shown;
+        clip: true;
+
+        // Catches everything the rows do not. A panel is a surface, not a
+        // window onto the video behind it, so a click on its padding must
+        // not reach the play/pause handler underneath.
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.bump();
+            }
+        }
+
+        VerticalLayout {
+            padding-top: Rows.panel-pad;
+            padding-bottom: Rows.panel-pad;
+
+            if root.settings-page == 0: VerticalLayout {
+                MenuHeading {
+                    text: "EFFECTS";
+                }
+                ToggleRow {
+                    label: "Liquid glass";
+                    checked: root.glass-on;
+                    drills: true;
+                    toggled(on) => {
+                        root.glass-on = on;
+                        root.set-glass(on);
+                    }
+                    opened => {
+                        root.settings-page = 1;
+                    }
+                }
+                ToggleRow {
+                    label: "Ambient border";
+                    checked: root.ambience-on;
+                    drills: true;
+                    toggled(on) => {
+                        root.ambience-on = on;
+                        root.set-ambience(on);
+                    }
+                    opened => {
+                        root.settings-page = 2;
+                    }
+                }
+
+                // No switch of its own: subtitles are turned on and off from
+                // the bar, and from the Off row in the tracks menu. What is
+                // here is only the tuning, which is what this panel is for.
+                MenuHeading {
+                    text: "SUBTITLES";
+                }
+                DrillRow {
+                    icon: @image-url("../../../public/icons/subtitle-time.svg");
+                    label: "Timing, size & position";
+                    opened => {
+                        root.settings-page = 3;
+                    }
+                }
+
+                MenuHeading {
+                    text: "KEYBOARD";
+                }
+                // No icon: the set has no keyboard glyph, and borrowing one
+                // from elsewhere would be the first icon here that somebody
+                // else drew. The slot is fixed width, so the label still
+                // lines up with the row above it.
+                DrillRow {
+                    label: "Shortcuts";
+                    opened => {
+                        root.settings-page = 4;
+                    }
+                }
+            }
+
+            if root.settings-page == 1: VerticalLayout {
+                BackRow {
+                    label: "LIQUID GLASS";
+                    back => {
+                        root.settings-page = 0;
+                    }
+                }
+                for item in root.glass-params: ParamSlider {
+                    label: item.label;
+                    fraction: item.fraction;
+                    readout: item.readout;
+                    moved(f) => {
+                        root.set-param(item.index, f);
+                    }
+                }
+                Rectangle {
+                    height: Rows.group-gap;
+                }
+                MenuRow {
+                    label: "Reset to defaults";
+                    picked => {
+                        root.reset-section(0);
+                    }
+                }
+            }
+
+            if root.settings-page == 2: VerticalLayout {
+                BackRow {
+                    label: "AMBIENT BORDER";
+                    back => {
+                        root.settings-page = 0;
+                    }
+                }
+                for item in root.border-params: ParamSlider {
+                    label: item.label;
+                    fraction: item.fraction;
+                    readout: item.readout;
+                    moved(f) => {
+                        root.set-param(item.index, f);
+                    }
+                }
+                Rectangle {
+                    height: Rows.group-gap;
+                }
+                MenuRow {
+                    label: "Reset to defaults";
+                    picked => {
+                        root.reset-section(1);
+                    }
+                }
+            }
+
+            // Steppers rather than sliders: these are read as numbers, and
+            // the useful move is one step at a time. Sliders are for the
+            // material parameters, where the eye judges the result and the
+            // number is incidental.
+            if root.settings-page == 3: VerticalLayout {
+                BackRow {
+                    label: "SUBTITLES";
+                    back => {
+                        root.settings-page = 0;
+                    }
+                }
+                StepperRow {
+                    icon: @image-url("../../../public/icons/clock.svg");
+                    label: "Timing";
+                    value: root.sub-delay-text;
+                    stepped(dir) => {
+                        root.nudge-sub-delay(dir * root.delay-step);
+                    }
+                }
+                StepperRow {
+                    icon: @image-url("../../../public/icons/text-size.svg");
+                    label: "Size";
+                    value: root.sub-scale-text;
+                    stepped(dir) => {
+                        root.nudge-sub-scale(dir * root.sub-scale-step);
+                    }
+                }
+                StepperRow {
+                    icon: @image-url("../../../public/icons/arrows-up-down.svg");
+                    label: "Position";
+                    value: root.sub-pos-text;
+                    stepped(dir) => {
+                        root.nudge-sub-pos(dir * root.sub-pos-step);
+                    }
+                }
+                Rectangle {
+                    height: Rows.group-gap;
+                }
+                MenuRow {
+                    label: "Reset to defaults";
+                    picked => {
+                        root.reset-subtitles();
+                    }
+                }
+            }
+
+            if root.settings-page == 4: VerticalLayout {
+                BackRow {
+                    label: "SHORTCUTS";
+                    back => {
+                        root.settings-page = 0;
+                    }
+                }
+                ScrollList {
+                    height: root.shortcuts-list-h;
+                    content-height: root.shortcuts-natural;
+
+                    for item in root.shortcuts: ShortcutRow {
+                        label: item.label;
+                        shortcut: item.keys;
+                        inert: true;
+                    }
+                }
+            }
+        }
+    }
+
+    // Tracks. Subtitles and audio together, because picking one is usually
+    // the same errand: getting a foreign film to say the right things.
+    //
+    // Sized to its content, so the glass rect it publishes always matches
+    // what is drawn - see the note on `settings.body` for why the height is
+    // arithmetic rather than a layout query.
+    menu := Rectangle {
+        width: 380px;
+        height: root.tracks-h;
+        clip: true;
+        x: root.anchored-x(root.subs-anchor, self.width);
+        y: root.timeline-y - self.height - 12px + root.menu-rise;
+        visible: root.menu-shown > root.shown-epsilon;
+        opacity: root.menu-shown;
+
+        // Catches everything the rows do not. A panel is a surface, not a
+        // window onto the video behind it, so a click on its padding must
+        // not reach the play/pause handler underneath.
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.bump();
+            }
+        }
+
+        VerticalLayout {
+            padding-top: Rows.panel-pad;
+            padding-bottom: Rows.panel-pad;
+
+            if root.no-tracks: EmptyRow {
+                label: "No subtitle or audio tracks";
+            }
+
+            if root.has-subs: MenuHeading {
+                text: "SUBTITLES";
+            }
+            subs-list := ScrollList {
+                height: root.subs-list-h;
+                content-height: root.subs-natural;
+
+                if root.has-subs: MenuRow {
+                    label: "Off";
+                    active: !root.subs-visible;
+                    picked => {
+                        root.select-subtitle(-1);
+                    }
+                }
+                for track in root.sub-tracks: MenuRow {
+                    label: track.label;
+                    active: track.selected;
+                    picked => {
+                        root.select-subtitle(track.id);
+                    }
+                }
+            }
+
+            if root.has-audio: MenuHeading {
+                text: "AUDIO";
+            }
+            ScrollList {
+                height: root.audio-list-h;
+                content-height: root.audio-natural;
+
+                for track in root.audio-tracks: MenuRow {
+                    label: track.label;
+                    active: track.selected;
+                    picked => {
+                        root.select-audio(track.id);
+                    }
+                }
+            }
+        }
+    }
+
+    // Opening. Two rows, so it stays a menu rather than becoming a mode: the
+    // button says what it is for, and the rows say what the difference is.
+    files-panel := Rectangle {
+        width: 260px;
+        height: root.panel-pad + 2 * 34px;
+        clip: true;
+        x: root.anchored-x(root.files-anchor, self.width);
+        y: root.timeline-y - self.height - 12px + root.files-rise;
+        visible: root.files-shown > root.shown-epsilon;
+        opacity: root.files-shown;
+
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.bump();
+            }
+        }
+
+        VerticalLayout {
+            padding-top: Rows.panel-pad;
+            padding-bottom: Rows.panel-pad;
+
+            ShortcutRow {
+                label: "Open file…";
+                shortcut: "Ctrl+O";
+                picked => {
+                    root.files-open = false;
+                    root.open-file();
+                }
+            }
+            ShortcutRow {
+                label: "Open folder…";
+                shortcut: "Ctrl+Shift+O";
+                picked => {
+                    root.files-open = false;
+                    root.open-folder();
+                }
+            }
+        }
+    }
+
+    // Playlist. Its own panel rather than a third section of the tracks menu:
+    // it is the one list that grows without bound, and it carries a setting
+    // of its own.
+    playlist-panel := Rectangle {
+        width: 380px;
+        height: root.playlist-h;
+        clip: true;
+        x: root.anchored-x(root.playlist-anchor, self.width);
+        y: root.timeline-y - self.height - 12px + root.playlist-rise;
+        visible: root.playlist-shown > root.shown-epsilon;
+        opacity: root.playlist-shown;
+
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.bump();
+            }
+        }
+
+        VerticalLayout {
+            padding-top: Rows.panel-pad;
+            padding-bottom: Rows.panel-pad;
+
+            MenuHeading {
+                text: root.playlist-heading;
+                titular: root.playlist-named;
+            }
+            playlist-list := ScrollList {
+                height: root.playlist-list-h;
+                content-height: root.playlist-natural;
+
+                for entry in root.playlist: PlaylistRow {
+                    label: entry.label;
+                    length: entry.length;
+                    progress: entry.progress;
+                    active: entry.current;
+                    picked => {
+                        root.play-index(entry.index);
+                    }
+                }
+            }
+            // Stays put at the bottom rather than scrolling away with the
+            // entries: it is a setting about the list, not part of it.
+            Rectangle {
+                height: Rows.group-gap;
+            }
+            ToggleRow {
+                label: "Autoplay next";
+                checked: root.autoplay;
+                toggled(on) => {
+                    root.autoplay = on;
+                    root.set-autoplay(on);
+                }
+            }
+        }
+    }
+
+    // The bar is four separate pieces of glass rather than one slab: a
+    // timeline, and three pills that group what belongs together. Content
+    // only - the glass beneath each one is the pipeline's, published through
+    // `glass-rects` above.
+    //
+    // Each is positioned from the constants at the top of the component
+    // rather than by a layout, so reading its geometry every frame costs
+    // nothing. Inside a pill a HorizontalLayout is fine: nothing outside
+    // asks it where its children ended up.
+
+    // --- timeline ---
+    //
+    // Three pieces rather than one long pill: a pill at each end holding a
+    // time, and the track itself bare over the video between them. The glass
+    // follows the content, so the long thin run where nothing is written
+    // gets none of it.
+
+    Rectangle {
+        x: root.bar-x;
+        y: root.timeline-y + root.bar-rise;
+        width: root.time-w;
+        height: root.timeline-h;
+        visible: root.bar-shown > root.shown-epsilon;
+        opacity: root.bar-shown;
+
+        // A pill is a surface, not a window onto the video behind it, so a
+        // click on one must not reach the play/pause handler underneath.
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.bump();
+            }
+        }
+
+        Text {
+            width: 100%;
+            height: 100%;
+            text: root.elapsed;
+            color: #ffffffd0;
+            font-size: 11px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    // No pill of its own. The hit area is deliberately the full height of
+    // the row rather than the track it draws - a 5px target is miserable to
+    // grab - which is why it is a rectangle and not just the bar.
+    Rectangle {
+        x: root.scrub-x;
+        y: root.timeline-y + root.bar-rise;
+        width: root.scrub-w;
+        height: root.timeline-h;
+        visible: root.bar-shown > root.shown-epsilon;
+        opacity: root.bar-shown;
+
+        Rectangle {
+            y: (parent.height - self.height) / 2;
+            width: 100%;
+            height: scrub.has-hover || scrub.pressed ? 7px : 5px;
+            border-radius: self.height / 2;
+            background: #ffffff2e;
+            animate height { duration: 100ms; easing: ease-out; }
+
+            // Width-driven rather than clipped, so it stays crisp at any
+            // size and needs no layer.
+            Rectangle {
+                x: 0;
+                width: parent.width * clamp(root.progress, 0, 1);
+                height: parent.height;
+                border-radius: parent.border-radius;
+                background: #ffffffe6;
+            }
+        }
+
+        scrub := TouchArea {
+            mouse-cursor: pointer;
+            pointer-event(event) => {
+                Chrome.bump();
+                // Also on enter and exit, not only on movement: a pointer
+                // that arrives and stops still wants a preview.
+                root.preview-at(self.mouse-x / self.width);
+            }
+            moved => {
+                root.preview-at(self.mouse-x / self.width);
+                // `moved` fires on hover too; the press check is what makes
+                // this a drag rather than a follow-the-cursor seek.
+                if (self.pressed) {
+                    root.seek-scrub(self.mouse-x / self.width);
+                }
+            }
+            clicked => {
+                root.seek-fraction(self.mouse-x / self.width);
+            }
+            scroll-event(event) => {
+                root.seek-relative(event.delta-y > 0
+                    ? root.scroll-seek-step
+                    : -root.scroll-seek-step);
+                return EventResult.accept;
+            }
+        }
+    }
+
+    Rectangle {
+        x: root.total-x;
+        y: root.timeline-y + root.bar-rise;
+        width: root.time-w;
+        height: root.timeline-h;
+        visible: root.bar-shown > root.shown-epsilon;
+        opacity: root.bar-shown;
+
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.bump();
+            }
+        }
+
+        Text {
+            width: 100%;
+            height: 100%;
+            text: root.total;
+            color: #ffffffd0;
+            font-size: 11px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    // --- the action flash ---------------------------------------------------
+    //
+    // No `TouchArea` anywhere in here, deliberately: it sits over the middle
+    // of the picture, where a click means play or pause.
+    Rectangle {
+        x: root.flash-x(root.flash-ring);
+        y: root.flash-y + root.flash-rise;
+        width: root.flash-ring;
+        height: root.flash-ring;
+        visible: root.flash-shown > root.shown-epsilon;
+        opacity: root.flash-shown;
+
+        Image {
+            source: root.flash-icons[Flash.icon];
+            width: root.flash-glyph;
+            height: root.flash-glyph;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            image-fit: contain;
+            colorize: #ffffff;
+        }
+    }
+
+    Rectangle {
+        x: root.flash-x(root.flash-text-w);
+        y: root.flash-text-y + root.flash-rise;
+        width: root.flash-text-w;
+        height: root.flash-text-h;
+        visible: root.flash-shown > root.shown-epsilon && root.flash-text != "";
+        opacity: root.flash-shown;
+
+        Text {
+            width: 100%;
+            height: 100%;
+            text: root.flash-text;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 600;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    /// Measured, never drawn — the pill is sized around a figure that
+    /// changes width. Same contract as the other two: these settings must
+    /// match the visible text exactly.
+    flash-measure := Text {
+        text: root.flash-text;
+        font-size: 13px;
+        font-weight: 600;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    // --- the button a finished film leaves behind ---------------------------
+    //
+    // Deliberately not tied to `controls-visible`: the bar hides itself after
+    // a few still seconds, and this is the one thing that should still be
+    // there when it does. Nothing has happened, but something is waiting.
+    Rectangle {
+        x: root.end-x;
+        y: root.end-y + root.end-rise;
+        width: root.end-w;
+        height: root.end-h;
+        visible: root.end-shown > root.shown-epsilon;
+        opacity: root.end-shown;
+        border-radius: self.height / 2;
+        background: end-touch.has-hover ? #ffffff24 : transparent;
+        animate background {
+            duration: Motion.highlight;
+        }
+
+        HorizontalLayout {
+            padding-left: root.end-pad;
+            padding-right: root.end-pad;
+            spacing: root.end-gap;
+            alignment: center;
+
+            Image {
+                source: root.at-last
+                    ? @image-url("../../../public/icons/rewind.svg")
+                    : @image-url("../../../public/icons/step-forward.svg");
+                width: 24px;
+                height: 24px;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+                colorize: #ffffff;
+            }
+            Text {
+                text: root.end-label;
+                color: #ffffff;
+                font-size: 15px;
+                font-weight: 600;
+                vertical-alignment: center;
+            }
+        }
+
+        end-touch := TouchArea {
+            mouse-cursor: pointer;
+            pointer-event(event) => {
+                Chrome.bump();
+            }
+            clicked => {
+                Chrome.bump();
+                if (root.at-last) {
+                    root.replay();
+                } else {
+                    root.play-next();
+                }
+            }
+        }
+    }
+
+    /// Measured, never drawn — the pill is sized around the word it holds, and
+    /// only the font knows how wide that is. Same contract as
+    /// `title-measure`: these settings must match the visible text exactly.
+    end-measure := Text {
+        text: root.end-label;
+        font-size: 15px;
+        font-weight: 600;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    // Never drawn, only measured. It has to be a real `Text` because only
+    // the font knows how wide a string is, and it has to be outside the pill
+    // because the pill's width depends on the answer.
+    //
+    // Font settings must match the visible title exactly; that is the whole
+    // contract of this element.
+    title-measure := Text {
+        text: root.has-file ? root.media-title : "No file open";
+        font-size: 13px;
+        font-weight: 600;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    // Floats above the timeline while the pointer is on it. Declared after
+    // the track so it draws over the bar, and with no TouchArea of its own —
+    // it must never take the pointer away from the track it is describing.
+    Rectangle {
+        x: root.preview-x;
+        y: root.preview-y + root.preview-rise;
+        width: root.preview-w;
+        height: root.preview-h;
+        visible: root.preview-shown > root.shown-epsilon;
+        opacity: root.preview-shown;
+        clip: true;
+
+        // An `Image` has no corner of its own, so the rounding is a clip on
+        // the box around it. Square corners inside a rounded panel are what
+        // makes a thumbnail look pasted on rather than set in.
+        Rectangle {
+            x: root.preview-pad;
+            y: root.preview-pad;
+            width: root.preview-tile-w * 1px;
+            height: root.preview-tile-h * 1px;
+            visible: root.preview-has-tile;
+            border-radius: root.preview-tile-radius;
+            clip: true;
+
+            Image {
+                width: 100%;
+                height: 100%;
+                source: root.preview-sprite;
+                // One tile out of the atlas, the same way the video surface
+                // takes the used region out of a grow-only target.
+                source-clip-x: root.preview-clip-x;
+                source-clip-y: root.preview-clip-y;
+                source-clip-width: root.preview-tile-w;
+                source-clip-height: root.preview-tile-h;
+                image-fit: fill;
+            }
+        }
+
+        Text {
+            x: 0;
+            y: root.preview-has-tile
+                ? root.preview-h - root.preview-caption - root.preview-pad
+                : 0;
+            width: 100%;
+            height: root.preview-has-tile ? root.preview-caption : root.preview-h;
+            text: root.preview-time;
+            color: #ffffffe6;
+            font-size: 12px;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    // --- what is loaded ---
+    Rectangle {
+        x: root.bar-x;
+        y: root.pills-y + root.bar-rise;
+        width: root.left-w;
+        height: root.pill-h;
+        visible: root.bar-shown > root.shown-epsilon;
+        opacity: root.bar-shown;
+        clip: true;
+
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.bump();
+            }
+        }
+
+        HorizontalLayout {
+            padding-left: root.pill-text-pad;
+            padding-right: root.pill-pad;
+            padding-top: root.pill-pad;
+            padding-bottom: root.pill-pad;
+            spacing: root.btn-gap;
+
+            Text {
+                text: root.has-file ? root.media-title : "No file open";
+                color: #ffffffe0;
+                font-size: 13px;
+                font-weight: 600;
+                // The pill is a fixed width, so a long title elides rather
+                // than pushing the playlist button out of the pill.
+                overflow: elide;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+                horizontal-alignment: left;
+            }
+
+            IconButton {
+                icon: @image-url("../../../public/icons/playlist.svg");
+                open: root.playlist-open;
+                clicked => {
+                    root.open-playlist(!root.playlist-open);
+                }
+            }
+            IconButton {
+                icon: @image-url("../../../public/icons/folder-open.svg");
+                open: root.files-open;
+                clicked => {
+                    root.open-files(!root.files-open);
+                }
+            }
+        }
+    }
+
+    // --- transport ---
+    Rectangle {
+        x: root.center-x;
+        y: root.pills-y + root.bar-rise;
+        width: root.center-w;
+        height: root.pill-h;
+        visible: root.bar-shown > root.shown-epsilon;
+        opacity: root.bar-shown;
+
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.bump();
+            }
+        }
+
+        HorizontalLayout {
+            padding: root.pill-pad;
+            spacing: root.btn-gap;
+
+            IconButton {
+                icon: @image-url("../../../public/icons/step-backward.svg");
+                clicked => {
+                    root.playlist-step(-1);
+                }
+            }
+            IconButton {
+                icon: @image-url("../../../public/icons/seek-backward.svg");
+                clicked => {
+                    root.seek-relative(-root.seek-step);
+                }
+            }
+            IconButton {
+                // Three states, not two. At the end of a file there is
+                // nothing to resume, so the button offers the only thing
+                // pressing play could sensibly mean there: start it again.
+                // With no file open at all there is nothing to pause, and a
+                // pause glyph would claim something is running.
+                icon: root.at-end
+                    ? @image-url("../../../public/icons/rewind.svg")
+                    : root.paused || !root.has-file
+                    ? @image-url("../../../public/icons/play.svg")
+                    : @image-url("../../../public/icons/pause.svg");
+                clicked => {
+                    if (root.at-end) {
+                        root.replay();
+                    } else {
+                        root.toggle-pause();
+                    }
+                }
+            }
+            IconButton {
+                icon: @image-url("../../../public/icons/seek-forward.svg");
+                clicked => {
+                    root.seek-relative(root.seek-step);
+                }
+            }
+            IconButton {
+                icon: @image-url("../../../public/icons/step-forward.svg");
+                clicked => {
+                    root.playlist-step(1);
+                }
+            }
+        }
+    }
+
+    // --- sound, effects and the rest ---
+    Rectangle {
+        x: root.right-x;
+        y: root.pills-y + root.bar-rise;
+        width: root.right-w;
+        height: root.pill-h;
+        visible: root.bar-shown > root.shown-epsilon;
+        opacity: root.bar-shown;
+
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.bump();
+            }
+        }
+
+        HorizontalLayout {
+            padding: root.pill-pad;
+            spacing: root.btn-gap;
+
+            IconButton {
+                icon: root.muted
+                    ? @image-url("../../../public/icons/volume-mute.svg")
+                    : root.volume-icons[root.volume-index];
+                active: root.muted;
+                clicked => {
+                    root.toggle-mute();
+                }
+            }
+
+            // Volume, spanning mpv's full 0..200 range.
+            Rectangle {
+                width: root.vol-w;
+
+                Rectangle {
+                    y: (parent.height - self.height) / 2;
+                    width: 100%;
+                    height: vol.has-hover || vol.pressed ? 7px : 5px;
+                    border-radius: self.height / 2;
+                    background: #ffffff2e;
+                    animate height { duration: 100ms; easing: ease-out; }
+
+                    Rectangle {
+                        x: 0;
+                        width: parent.width
+                            * clamp(root.muted ? 0 : root.volume / root.volume-max, 0, 1);
+                        height: parent.height;
+                        border-radius: parent.border-radius;
+                        background: #ffffffcc;
+                    }
+                }
+
+                vol := TouchArea {
+                    mouse-cursor: pointer;
+                    pointer-event(event) => {
+                        Chrome.bump();
+                    }
+                    moved => {
+                        if (self.pressed) {
+                            root.set-volume(self.mouse-x / self.width * root.volume-max);
+                        }
+                    }
+                    clicked => {
+                        root.set-volume(self.mouse-x / self.width * root.volume-max);
+                    }
+                    scroll-event(event) => {
+                        root.nudge-volume(event.delta-y > 0
+                            ? root.volume-step
+                            : -root.volume-step);
+                        return EventResult.accept;
+                    }
+                }
+            }
+
+            // Its sliders live in the settings panel now, which left this
+            // button with nothing to open - so it is simply the switch.
+            IconButton {
+                icon: root.ambience-on
+                    ? @image-url("../../../public/icons/ambience-on.svg")
+                    : @image-url("../../../public/icons/ambience-slash.svg");
+                active: root.ambience-on;
+                clicked => {
+                    root.ambience-on = !root.ambience-on;
+                    root.set-ambience(root.ambience-on);
+                }
+            }
+            // Opens the tracks menu, whose first row turns subtitles off.
+            // The glyph still reports whether they are on, so the button
+            // says something even when the menu is shut.
+            IconButton {
+                icon: root.subs-visible
+                    ? @image-url("../../../public/icons/subtitles-solid.svg")
+                    : @image-url("../../../public/icons/subtitles-slash.svg");
+                active: root.subs-visible;
+                open: root.menu-open;
+                clicked => {
+                    root.open-menu(!root.menu-open);
+                }
+            }
+            IconButton {
+                icon: @image-url("../../../public/icons/settings.svg");
+                open: root.settings-open;
+                clicked => {
+                    root.open-settings(!root.settings-open);
+                }
+            }
+            IconButton {
+                icon: root.panscan
+                    ? @image-url("../../../public/icons/panscan-on.svg")
+                    : @image-url("../../../public/icons/panscan-off.svg");
+                active: root.panscan;
+                clicked => {
+                    root.toggle-panscan();
+                }
+            }
+            IconButton {
+                icon: root.fullscreen
+                    ? @image-url("../../../public/icons/fullscreen-off.svg")
+                    : @image-url("../../../public/icons/fullscreen-on.svg");
+                clicked => {
+                    root.toggle-fullscreen();
+                }
+            }
+        }
+    }
+}

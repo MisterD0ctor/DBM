@@ -1,0 +1,46 @@
+[package]
+name = "dbm-player"
+# The product's version line continues from the Tauri build, which released
+# 0.2.0. This is the same player to anyone installing it, and a version that
+# went backwards would be a lie to the installer and to anyone updating.
+version = "0.3.0"
+edition = "2021"
+description = "A video player built on mpv"
+# The toolkit and the bundled libmpv both require it; see THIRD-PARTY.md.
+license = "GPL-3.0-or-later"
+repository = "https://github.com/MisterD0ctor/DBM"
+
+[dependencies]
+slint = { version = "1.17", features = ["raw-window-handle-06"] }
+glow = "0.16"
+libloading = "0.8"
+raw-window-handle = "0.6"
+rfd = "0.17.2"
+# The duration cache: a flat path-to-seconds map, and the MD5 mpv names its
+# watch-later files by — see `durations`.
+serde_json = "1"
+md-5 = "0.11"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+    # The media overlay and the transport buttons on a headset — see `smtc`.
+    "Media",
+    "Foundation",
+    "Win32_System_WinRT_Media",
+    # Reading the overlay back and asking it for a button, for `DBM_SMTC_TEST`.
+    "Media_Control",
+    "Win32_Foundation",
+    # Taking over the window's drop target — see `dropped`.
+    "Win32_System_Ole",
+    "Win32_System_Memory",
+    "Win32_Graphics_Gdi",
+    "Win32_UI_Shell",
+    "Win32_UI_WindowsAndMessaging",
+] }
+
+[build-dependencies]
+slint-build = "1.17"
+
+# The executable's own icon and version block — see `build.rs`.
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"

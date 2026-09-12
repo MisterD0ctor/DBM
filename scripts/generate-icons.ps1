@@ -1,4 +1,10 @@
-# Regenerate every file in src-tauri/icons from a single source PNG.
+# Regenerate every file in crates/player/icons from a single source PNG.
+#
+# Still delegates to `cargo tauri icon`. The application no longer has
+# anything to do with Tauri, but its icon generator is a perfectly good tool
+# and installing it to regenerate a set once in a while costs nothing; it
+# produces more shapes than this player uses (the Store and mobile logos are
+# left over) and that is the only reason they are there.
 #
 # Delegates to `cargo tauri icon`, which is what Tauri uses internally and
 # produces the exact set the project ships: 32x32.png, 128x128.png,
@@ -18,7 +24,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
-$iconsDir = Join-Path $repoRoot "src-tauri\icons"
+$iconsDir = Join-Path $repoRoot "crates\player\icons"
 
 if (-not (Test-Path $Source)) {
     throw "Source image not found: $Source"
