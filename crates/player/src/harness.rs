@@ -442,6 +442,21 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 "tracks" => ui.invoke_open_menu(true),
                 "playlist" => ui.invoke_open_playlist(true),
                 "files" => ui.invoke_open_files(true),
+                // The three graphics failures all need a driver that does
+                // not work, which is not something a test can arrange. The
+                // wording is the part worth looking at anyway: it is the only
+                // account of the failure that ever reaches anyone, since the
+                // console it used to print to does not exist in a packaged
+                // build.
+                "fatal" => {
+                    ui.set_fatal("The player cannot show video on this computer.".into());
+                    ui.set_fatal_detail(
+                        "The graphics driver would not build the player's shaders. \
+                         compiling glass.frag: 0(213) : error C1503: undefined \
+                         variable \"backdrop\""
+                            .into(),
+                    );
+                }
                 // Held rather than provoked. A real open clears this the
                 // moment mpv reports a file, which on a local disk is too few
                 // frames to photograph — and the case worth looking at is the

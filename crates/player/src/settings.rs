@@ -437,17 +437,25 @@ impl Persister {
         self.since.set(None);
         let values = self.store.to_saved();
         let path = path.to_path_buf();
-        self.worker.run(move |_mpv| {
+        // `submit` rather than `run`: a failure here is the one the person
+        // tuning most needs to hear about, because everything they have just
+        // adjusted is in it.
+        self.worker.submit(move |_mpv| {
             let borrowed: Vec<(&str, f32)> =
                 values.iter().map(|(n, v)| (n.as_str(), *v)).collect();
-            save_owned(&path, &borrowed);
+            save_owned(&path, &borrowed)
+                .err()
+                .map(crate::worker::Completion::Notice)
         });
     }
 }
 
-/// Write settings out. Runs on the worker; a failure is reported and dropped,
-/// because losing a saved slider must not take the player down.
-fn save_owned(path: &std::path::Path, values: &[(&str, f32)]) {
+/// Write settings out. Runs on the worker, and returns what to say if it
+/// fails rather than failing loudly: losing a saved slider must not take the
+/// player down, but it must not pass in silence either. Every material
+/// parameter the person has just tuned is in this file, and the first they
+/// knew of it not being written was the next time they started the player.
+fn save_owned(path: &std::path::Path, values: &[(&str, f32)]) -> Result<(), String> {
     use std::fmt::Write as _;
     let mut out = String::from("# Death by MPV - material parameters\n");
     for (name, value) in values {
@@ -456,7 +464,8 @@ fn save_owned(path: &std::path::Path, values: &[(&str, f32)]) {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    if let Err(e) = std::fs::write(path, out) {
+    std::fs::write(path, out).map_err(|e| {
         eprintln!("dbm: could not save settings: {e}");
-    }
+        format!("Settings could not be saved — {e}")
+    })
 }

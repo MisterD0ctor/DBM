@@ -977,6 +977,18 @@ export component MainWindow inherits Window {
     in property <[ParamItem]> border-params;
     // Effect switches. in-out because they are pushed from the saved
     // settings at startup and assigned here when clicked or keyed.
+    /// Why the player cannot show video at all, or empty when it can.
+    ///
+    /// Set once, during graphics setup, and never cleared: all three ways it
+    /// can be set leave the player with no render context and therefore no
+    /// film and no glass for the rest of the run. Nothing that happens
+    /// afterwards can undo it, so nothing tries.
+    in property <string> fatal: "";
+    /// The failure in the graphics driver's or mpv's own words. Kept apart
+    /// from the sentence above so the sentence stays one a person can read,
+    /// and because in a packaged build there is no console for this to go to
+    /// instead — which is the whole reason it is on screen.
+    in property <string> fatal-detail: "";
     /// Whether an open is in flight: the dialog has closed, and somewhere
     /// between a directory scan and mpv's first frame there is nothing to
     /// show yet.
@@ -1187,10 +1199,24 @@ export component MainWindow inherits Window {
     // Wider than the panel that holds the same two rows off the bar: that one
     // hangs from the button that opened it and is read in a glance, this one
     // stands alone in the middle of an empty window and carries a sentence.
-    property <length> invite-w: 320px;
-    property <length> invite-h:
-        root.panel-pad + 3 * 34px + Rows.group-gap + root.invite-note-h;
+    //
+    // Wider again when it is carrying a failure rather than an offer. The
+    // sentence naming what is wrong is one a person reads once and acts on,
+    // so it is not allowed to elide; and what follows it is a driver's own
+    // error text, which is the only copy of that text anyone will ever see.
+    property <length> invite-w: root.fatal != "" ? 420px : 320px;
+    property <length> invite-h: root.fatal != ""
+        ? root.panel-pad + root.invite-line-h + Rows.group-gap
+            + root.invite-detail-h + Rows.group-gap + root.invite-note-h
+        : root.panel-pad + 3 * 34px + Rows.group-gap + root.invite-note-h;
     property <length> invite-note-h: 22px;
+    /// One line of 13px, for the sentence that names the failure.
+    property <length> invite-line-h: 22px;
+    /// Three lines of 12px, for the driver's account of it. Three because it
+    /// is what fits beside the rest without the pane growing taller than the
+    /// one it replaces, and because a fourth line of a shader log says no
+    /// more to the person reading it than the third did.
+    property <length> invite-detail-h: 54px;
     property <length> invite-x: (root.width - root.invite-w) / 2;
     property <length> invite-y: (root.height - root.invite-h) / 2;
 
@@ -1470,7 +1496,7 @@ export component MainWindow inherits Window {
         { label: "Fill or fit the window", keys: "T" },
         { label: "Ambient border", keys: "B" },
         { label: "Settings", keys: "S" },
-        { label: "Fullscreen", keys: "F" },
+        { label: "Fullscreen", keys: "F / F11" },
         { label: "Open file", keys: "Ctrl + O" },
         { label: "Open folder", keys: "Ctrl + Shift + O" },
         { label: "Close, or leave fullscreen", keys: "Esc" },
@@ -2509,6 +2535,14 @@ export component MainWindow inherits Window {
         y: root.invite-y + root.invite-rise;
         width: root.invite-w;
         height: root.invite-h;
+        // The one case that earns a fill. Every one of the three failures
+        // that sets `fatal` leaves the player with no render context, so the
+        // glass pass never runs and the rect published for this pane is drawn
+        // by nobody — the message would be bare text on black, which is how
+        // the interface looked before any of this work and is a poor way to
+        // explain itself. Everywhere else the material is real.
+        background: root.fatal != "" ? #ffffff14 : transparent;
+        border-radius: root.fatal != "" ? root.panel-radius : 0px;
         visible: root.invite-shown > root.shown-epsilon;
         opacity: root.invite-shown;
         clip: true;
@@ -2524,6 +2558,73 @@ export component MainWindow inherits Window {
         VerticalLayout {
             padding-top: Rows.panel-pad;
             padding-bottom: Rows.panel-pad;
+
+            // Nothing here can work, so nothing here is offered. Rows that
+            // open a file are a promise this window cannot keep: there is no
+            // render context, so a film would load and play with no picture
+            // and no way to tell that it had.
+            if root.fatal != "": VerticalLayout {
+                Rectangle {
+                    height: root.invite-line-h;
+
+                    HorizontalLayout {
+                        padding-left: Rows.label-x;
+                        padding-right: Rows.trail-x;
+
+                        Text {
+                            text: root.fatal;
+                            color: #ffffffe0;
+                            font-size: 13px;
+                            font-weight: 600;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+
+                Rectangle {
+                    height: Rows.group-gap;
+                }
+
+                // The driver's own words. Allowed to wrap and to run to three
+                // lines, because this is the only copy of it that exists.
+                Rectangle {
+                    height: root.invite-detail-h;
+
+                    HorizontalLayout {
+                        padding-left: Rows.label-x;
+                        padding-right: Rows.label-x;
+
+                        Text {
+                            text: root.fatal-detail;
+                            color: #ffffffb0;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                            overflow: elide;
+                            vertical-alignment: top;
+                        }
+                    }
+                }
+
+                Rectangle {
+                    height: Rows.group-gap;
+                }
+
+                Rectangle {
+                    height: root.invite-note-h;
+
+                    HorizontalLayout {
+                        padding-left: Rows.label-x;
+                        padding-right: Rows.trail-x;
+
+                        Text {
+                            text: "Updating the graphics driver is the usual fix.";
+                            color: #ffffff90;
+                            font-size: 11px;
+                            vertical-alignment: center;
+                        }
+                    }
+                }
+            }
 
             // The same two rows, the same words and the same keys as the panel
             // that hangs off the bar. A person who learns them here knows
@@ -2541,7 +2642,7 @@ export component MainWindow inherits Window {
             //
             // Settings is deliberately left alone. It still works, and a row
             // at full strength beside two faded ones says which is which.
-            ShortcutRow {
+            if root.fatal == "": ShortcutRow {
                 label: "Open file…";
                 shortcut: "Ctrl+O";
                 inert: root.opening;
@@ -2551,7 +2652,7 @@ export component MainWindow inherits Window {
                     root.open-file();
                 }
             }
-            ShortcutRow {
+            if root.fatal == "": ShortcutRow {
                 label: "Open folder…";
                 shortcut: "Ctrl+Shift+O";
                 inert: root.opening;
@@ -2564,7 +2665,7 @@ export component MainWindow inherits Window {
             // The bar carried the only way to the settings, and the bar is
             // gone until a film is. The key is stated for the same reason the
             // other two are: it is the one that survives the window.
-            ShortcutRow {
+            if root.fatal == "": ShortcutRow {
                 label: "Settings";
                 shortcut: "S";
                 picked => {
@@ -2572,7 +2673,7 @@ export component MainWindow inherits Window {
                 }
             }
 
-            Rectangle {
+            if root.fatal == "": Rectangle {
                 height: Rows.group-gap;
             }
 
@@ -2583,7 +2684,7 @@ export component MainWindow inherits Window {
             // anywhere. Stated rather than demonstrated: the shell's older
             // drop route reports nothing until the file has landed, so there
             // is no honest moment to light anything up.
-            Rectangle {
+            if root.fatal == "": Rectangle {
                 height: root.invite-note-h;
 
                 HorizontalLayout {

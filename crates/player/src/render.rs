@@ -196,9 +196,35 @@ impl Driver {
         }
     }
 
+    /// Say, on screen, that there will be no video this run.
+    ///
+    /// All three callers leave the player without a render context, which
+    /// means no film, no glass, and — since the glass pass is what draws every
+    /// surface in the interface — no chrome either. `eprintln!` was the only
+    /// report any of them made, and a packaged build has no console to make it
+    /// to, so the window simply sat there black and a person could reasonably
+    /// conclude the player was broken rather than the driver.
+    ///
+    /// The way in says it, because the way in is what is on screen when no
+    /// file is loaded and no file can now be loaded. It drops its rows: they
+    /// offer to open something that could only play invisibly.
+    fn fatal(&self, reason: &str, detail: String) {
+        eprintln!("dbm: {reason} — {detail}");
+        if let Some(ui) = self.ui.upgrade() {
+            ui.set_fatal(reason.into());
+            ui.set_fatal_detail(detail.into());
+        }
+    }
+
     fn setup(&mut self, api: &GraphicsAPI) {
         let GraphicsAPI::NativeOpenGL { get_proc_address } = api else {
-            eprintln!("dbm: expected an OpenGL renderer, got something else");
+            self.fatal(
+                "The player cannot show video on this computer.",
+                "Slint gave the player a renderer that is not OpenGL. The film \
+                 and the glass are both drawn through OpenGL, so neither can be \
+                 drawn without it."
+                    .into(),
+            );
             return;
         };
         let gl = unsafe { glow::Context::from_loader_function_cstr(|s| get_proc_address(s)) };
@@ -207,7 +233,10 @@ impl Driver {
         let pipeline = match Pipeline::new(&gl) {
             Ok(p) => p,
             Err(e) => {
-                eprintln!("dbm: shader pipeline: {e}");
+                self.fatal(
+                    "The player cannot show video on this computer.",
+                    format!("The graphics driver would not build the player's shaders. {e}"),
+                );
                 return;
             }
         };
@@ -245,7 +274,10 @@ impl Driver {
                     _mpv: self.mpv.clone(),
                 });
             }
-            Err(e) => eprintln!("dbm: mpv render context: {e}"),
+            Err(e) => self.fatal(
+                "The player cannot show video on this computer.",
+                format!("mpv could not attach to the player's graphics context. {e}"),
+            ),
         }
     }
 
