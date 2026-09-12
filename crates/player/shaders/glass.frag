@@ -101,6 +101,40 @@ uniform vec3 u_tint;
 /// a panel takes tint at all; this says how much, and is the slider.
 uniform float u_tint_amount;
 
+// --- absorption -------------------------------------------------------------
+//
+// Every word in the interface sits on glass, and the glass shows whatever the
+// film is showing. Over a night scene that is free; over snow, a white room or
+// a title card the panel resolved to roughly 0.85 luminance and the body text
+// at 69% white resolved to nothing. The type was described as being sized and
+// weighted for legibility over arbitrary moving content, and nothing in this
+// shader was holding up that end of it.
+//
+// The tint above cannot fix it: it mixes toward a fixed mid grey, so at full
+// strength a panel still sits at that grey's luminance no matter how bright
+// the backdrop. What is needed is absorption — a pane that transmits less the
+// more there is to transmit, which is what tinted glass physically does.
+//
+// Applied to the transmitted component only. Everything that makes the
+// material read as glass — the Fresnel rim, the sky highlight, the mirrored
+// backdrop — is added after this and is untouched, so a panel over a bright
+// scene goes deep and keeps its edge rather than turning into a flat card.
+//
+// Not a uniform and not a slider, deliberately. The tint is a matter of taste
+// and has a control; this is the floor under it, and a floor one click from
+// zero is not one.
+
+/// Luminance the backdrop has to reach before any absorption starts. Below it
+/// nothing changes at all, which is most films most of the time.
+const float ABSORB_FROM = 0.22;
+/// How much is absorbed once the backdrop is white. 0.86 leaves 14% of a white
+/// frame coming through, which puts a panel near 0.12 luminance — where white
+/// at 69% alpha, the dimmest body text in the interface, clears 4.5:1.
+const float ABSORB_MAX = 0.86;
+/// Rec. 709, matching how the eye weights the three channels rather than
+/// averaging them: a saturated green frame is far brighter than its mean.
+const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
+
 vec3 base_at(vec2 p) {
     return texture(u_base, clamp(p, vec2(0.0), vec2(1.0)) * u_base_scale).rgb;
 }
@@ -208,6 +242,20 @@ void main() {
             blur_at(v_uv + transmission_offset * (1.0 - ab)).b
         );
 
+        // Tint first. Glass is not a neutral filter, and without this a panel
+        // over dark video reads as a hole rather than a surface.
+        refracted = mix(refracted, u_tint, clamp(u_panel_style[i].y * u_tint_amount, 0.0, 1.0));
+
+        // Then absorb, by how bright what is left turned out to be. The
+        // sample is already blurred, so a small specular glint under a panel
+        // does not pull the whole surface down — only a genuinely bright area
+        // does, and it does so smoothly across the panel rather than in
+        // patches. Opted in per panel by the same flag as the tint.
+        float backdrop = dot(refracted, LUMA);
+        float absorbed = smoothstep(ABSORB_FROM, 1.0, backdrop)
+            * ABSORB_MAX * u_panel_style[i].y;
+        refracted *= 1.0 - absorbed;
+
         // Exact unpolarised Fresnel reflectance, averaging s and p. Written
         // in D so it needs no further trigonometry:
         //
@@ -252,10 +300,6 @@ void main() {
 
         // Fresnel decides how much of each the viewer gets.
         vec3 glass = mix(refracted, specular, reflectance);
-
-        // Tint last. Glass is not a neutral filter, and without this a panel
-        // over dark video reads as a hole rather than a surface.
-        glass = mix(glass, u_tint, clamp(u_panel_style[i].y * u_tint_amount, 0.0, 1.0));
 
         col = mix(col, glass, coverage);
     }
