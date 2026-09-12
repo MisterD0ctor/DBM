@@ -87,7 +87,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let file = std::env::args().nth(1);
 
     let ui = MainWindow::new()?;
-    ui.set_has_file(file.is_some());
 
     // `Arc` for two reasons: the address of the `Mpv` must stay put, because
     // the render context keeps a raw pointer to the symbol table inside it;

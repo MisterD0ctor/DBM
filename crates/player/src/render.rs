@@ -113,6 +113,8 @@ pub struct Driver {
     /// Reply ids seen this frame, routed below. Reused to avoid allocating
     /// on the frame path.
     replies: Vec<u64>,
+    /// What the interface should say out loud this frame. Same reuse.
+    notices: Vec<String>,
     /// Which playlist entry to start on once `loadlist` reports done.
     pending_start: Option<usize>,
     params: Rc<Store>,
@@ -155,6 +157,7 @@ impl Driver {
             durations: crate::durations::Recorder::default(),
             playlist_open: false,
             replies: Vec::new(),
+            notices: Vec::new(),
             pending_start: None,
             params,
             audio,
@@ -286,8 +289,12 @@ impl Driver {
             &self.mpv,
             &mut self.player,
             &mut self.replies,
+            &mut self.notices,
             &self.audio,
         );
+        for notice in std::mem::take(&mut self.notices) {
+            say(&ui, notice);
+        }
         if moved {
             sync::push_scalars(&ui, &self.player);
         }
@@ -338,7 +345,11 @@ impl Driver {
                     self.pending_start = Some(list.start);
                     commands::load_list(&self.mpv, &list.m3u, list.start);
                 }
-                Completion::Opened(Err(e)) => eprintln!("dbm: cannot open: {e}"),
+                Completion::Opened(Err(e)) => {
+                    eprintln!("dbm: cannot open: {e}");
+                    say(&ui, e);
+                }
+                Completion::Notice(text) => say(&ui, text),
             }
         }
         let t = self.diag.mark_lists(t);
@@ -401,6 +412,15 @@ impl Driver {
             ui.set_video_clip_h(h);
         });
     }
+}
+
+/// Put one sentence on screen, in the capsule the action flash already uses.
+///
+/// The alternative this replaces was `eprintln!` — which in a packaged build
+/// goes to a console that does not exist, so every failure was indistinguishable
+/// from the player ignoring you.
+fn say(ui: &MainWindow, text: String) {
+    ui.global::<crate::Flash>().invoke_notice(text.into());
 }
 
 /// Point a Slint image property at a target, but only when something actually

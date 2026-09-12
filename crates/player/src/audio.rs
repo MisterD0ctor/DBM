@@ -25,7 +25,7 @@ use std::time::Duration;
 
 use crate::mpv::{Event, Mpv, Value, FORMAT_STRING};
 use crate::tracks::{self, TrackKind};
-use crate::worker::Worker;
+use crate::worker::{Completion, Worker};
 
 /// How long the device list must stay still before the audio chain is touched.
 ///
@@ -146,15 +146,18 @@ impl Watchdog {
         }
         let remembered = self.last_track.borrow().clone();
         // Reads the track list and writes properties, both of which block on
-        // mpv's core lock.
-        self.worker.run(move |mpv| reopen(mpv, remembered.as_deref()));
+        // mpv's core lock. Returns a notice when it actually repaired
+        // something, so the interface can say so.
+        self.worker
+            .submit(move |mpv| reopen(mpv, remembered.as_deref()).map(Completion::Notice));
     }
 }
 
 /// Rebuild mpv's audio chain, output included.
 ///
-/// **Worker thread only.**
-fn reopen(mpv: &Mpv, remembered: Option<&str>) {
+/// **Worker thread only.** Returns what to tell the person watching, or
+/// `None` when there was nothing to repair.
+fn reopen(mpv: &Mpv, remembered: Option<&str>) -> Option<String> {
     let tracks = tracks::read_tracks(mpv);
     let audio: Vec<i64> = tracks::of_kind(&tracks, TrackKind::Audio)
         .iter()
@@ -163,10 +166,17 @@ fn reopen(mpv: &Mpv, remembered: Option<&str>) {
     // Nothing loaded, or a file with no audio at all: nothing to restore, and
     // an id from a previous file would only be rejected.
     if audio.is_empty() {
-        return;
+        return None;
     }
 
     let current = mpv.get_property("aid");
+    // Whether the person watching actually lost sound. mpv drops the track
+    // when the device dies, and *that* is the case worth mentioning; a device
+    // appearing while audio played fine the whole time repairs the output
+    // underneath and nobody heard a thing, so nobody needs telling.
+    let was_silent = !current
+        .as_deref()
+        .is_some_and(|id| id.parse::<u32>().is_ok());
     let target = match current.as_deref() {
         // Still selected, so mpv kept the track and it is the output
         // underneath that needs re-opening.
@@ -184,7 +194,7 @@ fn reopen(mpv: &Mpv, remembered: Option<&str>) {
                 // who had turned it off — including off in an earlier session,
                 // which watch-later restores and `user_disabled` cannot know
                 // about. Silence that was asked for is not a fault to fix.
-                None => return,
+                None => return None,
             }
         }
     };
@@ -194,7 +204,7 @@ fn reopen(mpv: &Mpv, remembered: Option<&str>) {
     // output — which is the entire point of coming here.
     if let Err(e) = mpv.set_property("aid", "no") {
         eprintln!("dbm: audio recovery: could not drop the audio track: {e}");
-        return;
+        return None;
     }
     if let Err(e) = mpv.set_property("aid", &target) {
         eprintln!("dbm: audio recovery: could not reselect track {target}: {e}");
@@ -203,9 +213,12 @@ fn reopen(mpv: &Mpv, remembered: Option<&str>) {
         if let Err(e) = mpv.set_property("aid", "auto") {
             eprintln!("dbm: audio recovery: falling back to auto failed too: {e}");
         }
-        return;
+        return None;
     }
     eprintln!("dbm: audio recovery: reselected audio track {target}");
+    // Names what happened rather than what was done to fix it: "reselected
+    // audio track 1" is the log's business, not the viewer's.
+    was_silent.then(|| "Sound is back".to_string())
 }
 
 /// Said once. A list that cannot be read means recovery will never fire, which

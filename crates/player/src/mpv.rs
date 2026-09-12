@@ -98,6 +98,19 @@ struct RawEvent {
     data: *mut c_void,
 }
 
+/// `mpv_event_end_file`. Only the first two fields are read; the rest of the
+/// struct is longer and is never touched, which is safe because mpv owns the
+/// allocation and we only ever read a prefix of it.
+#[repr(C)]
+struct RawEventEndFile {
+    reason: c_int,
+    error: c_int,
+}
+
+/// `MPV_END_FILE_REASON_ERROR`. The other reasons — EOF, stop, quit, redirect
+/// — are ordinary endings and say nothing worth interrupting anyone about.
+const END_FILE_REASON_ERROR: c_int = 4;
+
 #[repr(C)]
 struct RawEventProperty {
     name: *const c_char,
@@ -124,7 +137,11 @@ pub enum Event {
     CommandReply { id: u64 },
     StartFile,
     FileLoaded,
-    EndFile,
+    /// A file stopped playing. `failure` carries mpv's own description when it
+    /// stopped *because it could not be played*, and is `None` for every
+    /// ordinary ending. Without this the interface cannot tell "the film
+    /// finished" from "that file is not a video", and showed neither.
+    EndFile { failure: Option<String> },
     Seek,
     PlaybackRestart,
     Shutdown,
@@ -181,6 +198,10 @@ struct Lib {
         unsafe extern "C" fn(*mut MpvHandle, *const c_char, *const c_char) -> c_int,
     mpv_get_property_string: unsafe extern "C" fn(*mut MpvHandle, *const c_char) -> *mut c_char,
     mpv_free: unsafe extern "C" fn(*mut c_void),
+    /// Turns an mpv error code into a sentence. mpv's own wording is better
+    /// than anything invented here — "Unrecognized file format" rather than
+    /// "error -13".
+    mpv_error_string: unsafe extern "C" fn(c_int) -> *const c_char,
     mpv_command_async:
         unsafe extern "C" fn(*mut MpvHandle, u64, *mut *const c_char) -> c_int,
     mpv_observe_property:
@@ -220,6 +241,7 @@ impl Lib {
             mpv_set_property_string: sym!(library, "mpv_set_property_string"),
             mpv_get_property_string: sym!(library, "mpv_get_property_string"),
             mpv_free: sym!(library, "mpv_free"),
+            mpv_error_string: sym!(library, "mpv_error_string"),
             mpv_command_async: sym!(library, "mpv_command_async"),
             mpv_observe_property: sym!(library, "mpv_observe_property"),
             mpv_wait_event: sym!(library, "mpv_wait_event"),
@@ -425,7 +447,15 @@ impl Mpv {
             }),
             EVENT_START_FILE => Some(Event::StartFile),
             EVENT_FILE_LOADED => Some(Event::FileLoaded),
-            EVENT_END_FILE => Some(Event::EndFile),
+            EVENT_END_FILE => {
+                // Absent data means an ending with no detail, which is the
+                // ordinary case and not a failure.
+                let failure = (!ev.data.is_null())
+                    .then(|| unsafe { &*(ev.data as *const RawEventEndFile) })
+                    .filter(|end| end.reason == END_FILE_REASON_ERROR)
+                    .map(|end| self.error_text(end.error));
+                Some(Event::EndFile { failure })
+            }
             EVENT_SEEK => Some(Event::Seek),
             EVENT_PLAYBACK_RESTART => Some(Event::PlaybackRestart),
             EVENT_PROPERTY_CHANGE => {
@@ -464,6 +494,16 @@ impl Mpv {
             }
             _ => None,
         }
+    }
+
+    /// mpv's own description of an error code.
+    fn error_text(&self, code: c_int) -> String {
+        let raw = unsafe { (self.lib.mpv_error_string)(code) };
+        if raw.is_null() {
+            return "unknown error".into();
+        }
+        // Static storage owned by mpv; not ours to free.
+        unsafe { CStr::from_ptr(raw) }.to_string_lossy().into_owned()
     }
 
     pub fn command_async(&self, reply_id: u64, args: &[&str]) -> Result<()> {

@@ -33,16 +33,27 @@ pub fn drain_events(
     mpv: &Mpv,
     player: &mut PlayerState,
     replies: &mut Vec<u64>,
+    notices: &mut Vec<String>,
     audio: &Rc<crate::audio::Watchdog>,
 ) -> bool {
     let mut dirty = false;
     replies.clear();
+    notices.clear();
     while let Some(event) = mpv.poll_event() {
         // Command completions are not state; they belong to whoever issued
         // the command, so they are collected for the driver to route.
         if let Event::CommandReply { id } = event {
             replies.push(id);
             continue;
+        }
+        // A file that stopped because it could not be played. mpv knows why
+        // and says so in its own words, which are better than any wording
+        // invented here — "Unrecognized file format" beats "playback error".
+        if let Event::EndFile {
+            failure: Some(reason),
+        } = &event
+        {
+            notices.push(format!("Could not play that file — {reason}"));
         }
         // Not everything mpv reports is state the interface shows. The
         // watchdog reads the same stream for the device list and the audio
@@ -67,6 +78,15 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_sub_delay_text(format_delay(player.sub_delay).into());
     ui.set_sub_scale_text(format!("{:.2}x", player.sub_scale).into());
     ui.set_sub_pos_text(format!("{:.0}%", player.sub_pos).into());
+    // Whether anything is loaded at all.
+    //
+    // Derived from mpv every frame rather than set once at startup. It used to
+    // be written exactly once, in `main`, from the command line — so a file
+    // opened through the dialog, the folder button or a drop never touched it,
+    // and the interface spent the whole film insisting "No file open" while
+    // showing a play glyph over a running picture. The end-of-playback button
+    // is gated on this too, so it never appeared for those files either.
+    ui.set_has_file(player.path.is_some());
     // A finished file, and whether there is another one after it. mpv only
     // reports `eof-reached` while it is holding the last frame open, which is
     // exactly when the interface has something to offer.

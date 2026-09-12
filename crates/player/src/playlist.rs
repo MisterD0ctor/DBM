@@ -21,6 +21,15 @@ pub const VIDEO_EXTENSIONS: &[&str] = &[
     "mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "mpg", "mpeg", "ts", "m2ts",
 ];
 
+/// A folder's own name, for a message that has to fit on one line. The full
+/// path goes to the log; a capsule in the middle of the picture gets the part
+/// that identifies it to the person who opened it.
+fn folder_name(dir: &Path) -> String {
+    dir.file_name()
+        .map(|n| n.to_string_lossy().into_owned())
+        .unwrap_or_else(|| dir.display().to_string())
+}
+
 pub fn is_video_file(path: &Path) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
@@ -59,7 +68,7 @@ pub fn resolve(path: &Path) -> Result<Selection, String> {
         return Ok(Selection { videos, start: 0 });
     }
     if !path.is_file() {
-        return Err(format!("not a file or directory: {}", path.display()));
+        return Err(format!("There is nothing at {}", path.display()));
     }
 
     let dir = path.parent().ok_or("file has no parent directory")?;
@@ -85,7 +94,7 @@ fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, String> {
         .filter(|p| p.is_file() && is_video_file(p))
         .collect();
     if videos.is_empty() {
-        return Err(format!("no video files in {}", dir.display()));
+        return Err(format!("No video files in {}", folder_name(dir)));
     }
     videos.sort();
     Ok(videos)
@@ -117,7 +126,7 @@ fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, String> {
     }
 
     if videos.is_empty() {
-        return Err(format!("no video files under {}", dir.display()));
+        return Err(format!("No video files under {}", folder_name(dir)));
     }
     videos.sort();
     Ok(videos)

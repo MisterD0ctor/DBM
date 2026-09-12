@@ -58,6 +58,13 @@ export global Flash {
     out property <int> delay: 5;
 
     in-out property <int> icon: 0;
+    /// A sentence, when the player has something to say rather than something
+    /// to acknowledge. Empty for an ordinary action flash.
+    ///
+    /// A notice shows the capsule alone, with no ring: the icon set has no
+    /// glyph for a failure, and a Unicode character standing in for one would
+    /// be the only borrowed mark in the interface.
+    in-out property <string> message: "";
     /// Where across the picture it appears, 0..1. A seek is thrown towards
     /// the side it seeks to; everything else sits in the middle.
     in-out property <float> at: 0.5;
@@ -68,7 +75,17 @@ export global Flash {
 
     public function show(icon: int, at: float) {
         Flash.icon = icon;
+        Flash.message = "";
         Flash.at = at;
+        Flash.seq += 1;
+    }
+
+    /// Say something. Used where the alternative was a line on a console that
+    /// a packaged build does not have — a file that will not play, a folder
+    /// with nothing in it, sound coming back after a device disappeared.
+    public function notice(text: string) {
+        Flash.message = text;
+        Flash.at = 0.5;
         Flash.seq += 1;
     }
 }
@@ -493,7 +510,11 @@ component ParamSlider inherits Rectangle {
                 height: drag.has-hover || drag.pressed ? 6px : 4px;
                 border-radius: self.height / 2;
                 background: #ffffff2e;
-                animate height { duration: 90ms; }
+                // The same 100ms the timeline and volume tracks grow at, with
+                // the same easing. It was 90ms with no easing, which matched
+                // nothing in the file and was documented nowhere — one
+                // gesture, one speed.
+                animate height { duration: 100ms; easing: ease-out; }
 
                 Rectangle {
                     x: 0;
@@ -1267,15 +1288,23 @@ export component MainWindow inherits Window {
     /// the same 24px and reads as deliberate beside it. Wider than that and
     /// the ring stops being a setting for the glyph and becomes the subject.
     property <length> flash-ring: root.flash-glyph + 2 * 16px;
+    /// Whether this is the player speaking rather than acknowledging a key.
+    property <bool> flash-is-notice: Flash.message != "";
     /// The delay's flash shows the figure it lands on, not the one it left.
     /// mpv reports the new value a beat after the key; this binding is live,
     /// so the number catches up well inside the dwell. Every other action is
     /// its glyph alone.
-    property <string> flash-text: Flash.icon == Flash.delay ? root.sub-delay-text : "";
+    property <string> flash-text: root.flash-is-notice
+        ? Flash.message
+        : Flash.icon == Flash.delay ? root.sub-delay-text : "";
     property <length> flash-text-h: 28px;
     property <length> flash-text-pad: 14px;
-    property <length> flash-text-w:
-        flash-measure.preferred-width + 2 * root.flash-text-pad;
+    /// Wide enough for the words, never wider than the bar. A failure can
+    /// name a path, and a capsule running off both edges of the window is a
+    /// worse way to fail than the failure it is reporting.
+    property <length> flash-text-w: min(
+        flash-measure.preferred-width + 2 * root.flash-text-pad,
+        root.bar-w);
     /// Centred on `Flash.at`, and never allowed off the edge of the window.
     function flash-x(w: length) -> length {
         return clamp(root.width * Flash.at - w / 2,
@@ -1283,10 +1312,14 @@ export component MainWindow inherits Window {
             max(root.panel-margin, root.width - w - root.panel-margin));
     }
     property <length> flash-y: (root.height - root.flash-ring) / 2;
-    property <length> flash-text-y: root.flash-y + root.flash-ring + 12px;
+    /// Under the ring, or in its place when there is no ring.
+    property <length> flash-text-y: root.flash-is-notice
+        ? (root.height - root.flash-text-h) / 2
+        : root.flash-y + root.flash-ring + 12px;
     /// Long enough to read a two-character number, short enough that a held
-    /// key is a flicker rather than a strobe.
-    property <duration> flash-dwell: 700ms;
+    /// key is a flicker rather than a strobe — and long enough to read a
+    /// sentence when there is one.
+    property <duration> flash-dwell: root.flash-is-notice ? 3200ms : 700ms;
     property <float> flash-shown: 0;
     animate flash-shown {
         duration: root.fade;
@@ -1533,8 +1566,10 @@ export component MainWindow inherits Window {
         {
             x: root.flash-x(root.flash-ring),
             y: root.flash-y + root.flash-rise,
-            width: root.flash-shown > root.shown-epsilon ? root.flash-ring : 0,
-            height: root.flash-shown > root.shown-epsilon ? root.flash-ring : 0,
+            width: root.flash-shown > root.shown-epsilon && !root.flash-is-notice
+                ? root.flash-ring : 0,
+            height: root.flash-shown > root.shown-epsilon && !root.flash-is-notice
+                ? root.flash-ring : 0,
             opacity: root.flash-shown,
             // Half the size, so the rounded box the shader draws is a circle.
             radius: root.flash-ring / 2,
@@ -1870,7 +1905,18 @@ export component MainWindow inherits Window {
             Chrome.bump();
         }
         clicked => {
-            root.video-clicked();
+            // Clicking away from an open panel closes it, which is what every
+            // desktop menu does and what the hand expects. Without this the
+            // click fell through to play/pause, so the instinct to dismiss
+            // stopped the film and left the panel up: two wrong answers to one
+            // click. Same precedence as the Escape ladder.
+            if (root.menu-open || root.playlist-open || root.settings-open
+                || root.files-open) {
+                root.close-others();
+                root.settings-page = 0;
+            } else {
+                root.video-clicked();
+            }
         }
         double-clicked => {
             root.video-double-clicked();
@@ -2411,7 +2457,7 @@ export component MainWindow inherits Window {
         y: root.flash-y + root.flash-rise;
         width: root.flash-ring;
         height: root.flash-ring;
-        visible: root.flash-shown > root.shown-epsilon;
+        visible: root.flash-shown > root.shown-epsilon && !root.flash-is-notice;
         opacity: root.flash-shown;
 
         Image {
@@ -2434,14 +2480,16 @@ export component MainWindow inherits Window {
         opacity: root.flash-shown;
 
         Text {
-            width: 100%;
+            width: parent.width - 2 * root.flash-text-pad;
             height: 100%;
+            x: root.flash-text-pad;
             text: root.flash-text;
             color: #ffffff;
             font-size: 13px;
             font-weight: 600;
             horizontal-alignment: center;
             vertical-alignment: center;
+            overflow: elide;
         }
     }
 
@@ -2762,6 +2810,18 @@ export component MainWindow inherits Window {
                         height: parent.height;
                         border-radius: parent.border-radius;
                         background: #ffffffcc;
+                    }
+
+                    // Unity gain. The track runs to mpv's full 200%, so
+                    // ordinary volume sits at its midpoint — a half-empty bar
+                    // at normal level, with nothing saying where normal is.
+                    // The mark reverses against the fill the way the switch
+                    // knob does, so it reads on either side of itself.
+                    Rectangle {
+                        x: (parent.width - self.width) / 2;
+                        width: 1px;
+                        height: parent.height;
+                        background: root.volume >= 100 ? #101010e6 : #ffffff90;
                     }
                 }
 

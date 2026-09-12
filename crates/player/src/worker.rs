@@ -52,6 +52,11 @@ pub struct Playlist {
 pub enum Completion {
     Lists(Lists),
     Opened(Result<Playlist, String>),
+    /// Something the person watching should be told, raised from a background
+    /// job. The audio watchdog is the first caller: it repairs the audio chain
+    /// silently, and silence is exactly what made the original fault so
+    /// baffling.
+    Notice(String),
 }
 
 type Job = Box<dyn FnOnce(&Mpv) -> Option<Completion> + Send + 'static>;

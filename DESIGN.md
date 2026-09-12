@@ -162,6 +162,9 @@ hierarchy; there is no second colour to promote anything with.
 - **Back** (`#ffffff90`): the label of a back row, which is a heading you can press.
 - **Kicker** (`#ffffff80`): section labels — SUBTITLES, AUDIO, EFFECTS.
 - **Faint** (`#ffffff70`): chevrons at rest, and text stating an absence.
+- **Glyph at rest** (`#ffffffbb`): an icon button's own glyph before it is
+  hovered. A hair above Body, and deliberately its own value: a 24px mark and a
+  13px word at the same alpha do not read as the same weight.
 - **Rail** (`#ffffff2e`): the unfilled length of every track and switch.
 - **Hover wash** (`#ffffff1f`) and **soft wash** (`#ffffff14`): the inset
   highlight behind a hovered row; soft where the row is a heading or a switch.
@@ -292,7 +295,7 @@ the axes, which is exactly the part the eye catches.
 
 ### Icon buttons
 - **Shape:** circle (40px, radius 20px), glyph drawn at 24px
-- **Default:** transparent, glyph at Body alpha (`#ffffffbb`)
+- **Default:** transparent, glyph at `#ffffffbb`
 - **Hover:** wash at `#ffffff24`, 45ms ease-out; glyph to Lit
 - **Open:** a held wash at `#ffffff2e` for as long as the panel it opened is
   showing — a separate channel from the lit glyph, because a button can mean

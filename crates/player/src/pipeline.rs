@@ -28,7 +28,7 @@ use crate::mpv::RenderContext;
 /// Depth of the downsample pyramid; the smallest level is 1/2^LEVELS of the
 /// window. This sets how far the blur reaches, independently of the
 /// resolution it comes back at.
-const LEVELS: usize = 2;
+const LEVELS: usize = 1;
 /// Pyramid level the upsample chain stops at, and so the resolution of the
 /// blur texture: 0 is native, 1 half, 2 quarter.
 ///
@@ -169,7 +169,7 @@ pub struct GlassParams {
 impl Default for GlassParams {
     fn default() -> Self {
         Self {
-            blur_sigma: 2.3,
+            blur_sigma: 2.0,
             blur: 1.0,
             // The rim runs the full width of the corner radius, and the
             // glass is as thick as that rim is wide.
@@ -184,7 +184,7 @@ impl Default for GlassParams {
             sky: 0.0,
             // Light from the upper left, the convention every OS uses.
             light_dir: [-0.707, -0.707],
-            tint: [0.01, 0.01, 0.01],
+            tint: [0.3, 0.3, 0.3],
             tint_amount: 0.2,
         }
     }

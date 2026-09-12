@@ -112,7 +112,10 @@ impl PlayerState {
                 self.tracks_generation = self.tracks_generation.wrapping_add(1);
                 true
             }
-            Event::StartFile | Event::EndFile | Event::Seek | Event::PlaybackRestart => true,
+            Event::StartFile
+            | Event::EndFile { .. }
+            | Event::Seek
+            | Event::PlaybackRestart => true,
             // Filtered out in  before reaching here - command
             // completions are routed to whoever issued them.
             Event::CommandReply { .. } | Event::Shutdown => false,
