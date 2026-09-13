@@ -8,8 +8,8 @@ colors:
   text-readout: "#ffffffd0"
   text-named: "#ffffffc4"
   text-body: "#ffffffb0"
-  text-back: "#ffffff90"
-  text-kicker: "#ffffff80"
+  text-hint: "#ffffff90"
+  text-kicker: "#ffffffa0"
   text-faint: "#ffffff70"
   rail: "#ffffff2e"
   wash-hover: "#ffffff1f"
@@ -40,7 +40,8 @@ typography:
   label:
     fontFamily: "system UI (Segoe UI on Windows)"
     fontSize: "12px"
-    fontWeight: 700
+    fontWeight: 400
+    letterSpacing: "1px"
   glyph:
     fontFamily: "system UI (Segoe UI on Windows)"
     fontSize: "16px"
@@ -171,8 +172,15 @@ hierarchy; there is no second colour to promote anything with.
   weight because numbers read heavier than words at the same alpha.
 - **Named** (`#ffffffc4`): a playlist heading that carries a show's name.
 - **Body** (`#ffffffb0`): every ordinary row label and menu item.
-- **Back** (`#ffffff90`): the label of a back row, which is a heading you can press.
-- **Kicker** (`#ffffff80`): section labels — SUBTITLES, AUDIO, EFFECTS.
+- **Kicker** (`#ffffffa0`): section labels — SUBTITLES, AUDIO, EFFECTS — and
+  the label of a back row, which is a heading you can press. Brighter than the
+  rungs below it *because* it is the lightest type in the system: tracked
+  capitals at 400 put down thin strokes, and thin strokes at a low alpha
+  dissolve. It is subordinate by shape, so it does not have to be faint.
+- **Hint** (`#ffffff90`): prose added under something else — the line saying a
+  driver update is the usual fix, the third way to open a file.
+- **Dim readout** (`#ffffff80`): a slider's own value, which sits beside the
+  name of the thing it sets and must not compete with it.
 - **Faint** (`#ffffff70`): chevrons at rest, and text stating an absence.
 - **Glyph at rest** (`#ffffffbb`): an icon button's own glyph before it is
   hovered. A hair above Body, and deliberately its own value: a 24px mark and a
@@ -230,6 +238,20 @@ a hint is that one is a figure and the other is prose.
 
 ### Named Rules
 
+**The Label Must Not Out-Ink Its Content.** A section label is furniture; the
+rows under it are the point. At 700 a kicker put down 34.9 lit pixels per
+character against a body row's 25.6 — heavier ink than the thing it labelled,
+while the alpha ladder claimed it was quieter — and the only cue left telling
+them apart was the capitals. Capitals alone are not enough in a list of
+nineteen. A label is told from its content by case, size, tracking and weight;
+it is never told apart by being the boldest thing on the page.
+
+Two things follow, both learned the hard way. **Tracking is the cue**: capitals
+set solid read as a word, capitals with air between them read as a label. And
+**600 is not a weight here** — Segoe UI ships Semibold as its own family rather
+than as a weight of Segoe UI, so 600 and 700 rasterise identically, to the
+pixel. Going lighter means going to 400.
+
 **The Twelve Pixel Floor.** Nothing is smaller than 12px, and 12px is only for
 capitals, which are read by their shape. Below that, white text over arbitrary
 moving content stops being read and starts being recognised — which is fine for
@@ -238,11 +260,9 @@ changes. The scale was a step lower than this until every readout in the
 interface was found sitting below even the size this document claimed for it;
 naming the roles in one place is what keeps that from happening quietly again.
 
-### Named Rules
-
 **The Capitals Rule.** The interface shouts its own words and never the user's.
-SUBTITLES, AUDIO and EFFECTS are capitals at 11/700 because they name parts of
-the application. A show's name, a track's name, a filename — anything that came
+SUBTITLES, AUDIO and EFFECTS are tracked capitals at 12/400 because they name
+parts of the application. A show's name, a track's name, a filename — anything that came
 from the user's library — keeps its own case and gets the Named role instead.
 Capitalising someone's content is how a tool starts sounding like a database.
 
@@ -430,8 +450,10 @@ row already has, beside the fact that is already there.
 ### Panels
 - **Shape:** 32px radius, 16px padding, no background of its own
 - **Entry:** fade and 6px rise over 120ms ease-out, glass fading with the surface
-- **Headings:** capitals at Kicker, except a playlist heading carrying a show
-  name, which takes the Named role. A heading with a group above it carries the
+- **Headings:** tracked capitals at Kicker, except a playlist heading carrying
+  a show name, which takes the Named role — natural case, no tracking, and the
+  only heading in the system heavier than the rows beneath it, because a show's
+  name is content rather than furniture. A heading with a group above it carries the
   10px gap itself rather than being pushed down by the row above, because the
   last row of a group does not know that it is last
 - **Trailing rows:** a reset or a setting *about* the list gets a 10px gap above

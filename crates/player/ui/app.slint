@@ -209,8 +209,25 @@ global Type {
     /// the line saying a driver update is the usual fix. A readout's size and
     /// its own name, because prose is what would want a different one first.
     out property <length> hint: 13px;
-    /// 700, capitals. Section headings, and the way back out of a page.
+    /// 400, capitals, tracked. Section headings, and the way back out of
+    /// a page.
     out property <length> label: 12px;
+    /// Tracking for that role, and only that role.
+    ///
+    /// Capitals set solid read as a word; capitals with air between them read
+    /// as a label, which is the whole job — and it is what lets the weight
+    /// come all the way down without the kicker losing its identity.
+    ///
+    /// It had to come down. At 700 a section label put more ink on screen per
+    /// character than the rows beneath it — 34.9 lit pixels against 25.6 —
+    /// so the alpha ladder said kicker while the page said heading, and the
+    /// only thing telling the two apart was the capitals.
+    ///
+    /// 600 was tried first and changed nothing: Segoe UI ships Semibold as
+    /// its own family rather than as a weight of Segoe UI, so 600 and 700
+    /// rasterise identically here, to the pixel. Tracked capitals at the
+    /// body's own weight is the treatment that was wanted anyway.
+    out property <length> label-track: 1px;
     /// A character standing in for an icon — the stepper's minus and plus.
     /// Sized against the 26px disc it sits in, not against the text.
     out property <length> glyph: 16px;
@@ -1133,9 +1150,10 @@ component BackRow inherits Rectangle {
 
         Text {
             text: root.label;
-            color: touch.has-hover ? #ffffff : #ffffff90;
+            color: touch.has-hover ? #ffffff : #ffffffb0;
             font-size: Type.label;
-            font-weight: 700;
+            font-weight: 400;
+            letter-spacing: Type.label-track;
             vertical-alignment: center;
             horizontal-stretch: 1;
         }
@@ -1202,9 +1220,14 @@ component MenuHeading inherits Rectangle {
         y: parent.height - self.height;
         height: 28px;
         text: root.text;
-        color: root.titular ? #ffffffc4 : #ffffff80;
+        color: root.titular ? #ffffffc4 : #ffffffa0;
         font-size: root.titular ? Type.named : Type.label;
-        font-weight: root.titular ? 600 : 700;
+        // A kicker is lighter than the rows it labels, not heavier. What
+        // tells it from them is case, size, alpha and the tracking, and not
+        // stroke weight — which is the one axis a label must not beat its
+        // own content on. A show's name is content and keeps its weight.
+        font-weight: root.titular ? 600 : 400;
+        letter-spacing: root.titular ? 0 : Type.label-track;
         vertical-alignment: center;
         overflow: elide;
     }
