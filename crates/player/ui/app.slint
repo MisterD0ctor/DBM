@@ -1196,9 +1196,12 @@ component EmptyRow inherits Rectangle {
 /// can now be a show's name of any length.
 component MenuHeading inherits Rectangle {
     in property <string> text;
-    /// A name rather than a label — the show a playlist is all of. It is the
-    /// most informative thing in the panel, so it is not dimmed to the weight
-    /// of a section kicker like SUBTITLES or EFFECTS.
+    /// A name rather than a label — the show a playlist is all of. Natural
+    /// case, its own size, no tracking, and a brighter alpha than a section
+    /// kicker like SUBTITLES or EFFECTS, because it is the user's word and
+    /// not the interface's. Everything else about it is the same, including
+    /// the weight: the difference between the two is what they are, and
+    /// nothing else needs to say so.
     in property <bool> titular;
     /// Whether a group already ended above this one.
     ///
@@ -1224,9 +1227,17 @@ component MenuHeading inherits Rectangle {
         font-size: root.titular ? Type.named : Type.label;
         // A kicker is lighter than the rows it labels, not heavier. What
         // tells it from them is case, size, alpha and the tracking, and not
-        // stroke weight — which is the one axis a label must not beat its
-        // own content on. A show's name is content and keeps its weight.
-        font-weight: root.titular ? 600 : 400;
+        // stroke weight — the one axis a label must not beat its own content
+        // on.
+        //
+        // The same weight for a show's name, which is the other thing this
+        // slot can hold. It was 600 while the kicker was 700 and the two
+        // read as one family; at 400 against 600 they stopped, and since 600
+        // is Bold here it had become a small copy of the playing row rather
+        // than a heading. A name is still not a label — it keeps its own
+        // case, its own size and a brighter alpha — but both are headings,
+        // and a panel should not look like it was designed twice.
+        font-weight: 400;
         letter-spacing: root.titular ? 0 : Type.label-track;
         vertical-alignment: center;
         overflow: elide;

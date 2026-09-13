@@ -28,7 +28,7 @@ typography:
   named:
     fontFamily: "system UI (Segoe UI on Windows)"
     fontSize: "13px"
-    fontWeight: 600
+    fontWeight: 400
   readout:
     fontFamily: "system UI (Segoe UI on Windows)"
     fontSize: "13px"
@@ -217,8 +217,11 @@ legibility over arbitrary moving content and nothing else.
   headline, and the playlist entry that is playing.
 - **Body** (400, 14px): row labels, menu items, switch labels — the name of
   anything you can press.
-- **Named** (600, 13px): a playlist heading that is a show's name rather than a
-  section label.
+- **Named** (400, 13px): a playlist heading that is a show's name rather than a
+  section label. The Label role's weight and neither of its other habits: its
+  own case, its own size, no tracking, and a brighter alpha. Both fill the same
+  slot at the top of a panel, so what separates them is what they *are* — the
+  user's word or the interface's — and nothing else has to say it.
 - **Readout** (400, 13px): figures — timestamps, slider and stepper values, a
   row's running time, a shortcut's keys — and the labels of the dense rows
   those sit in, which read as part of the same line rather than as menu entries.
@@ -237,6 +240,12 @@ separates a title from a body line is weight, and what separates a readout from
 a hint is that one is a figure and the other is prose.
 
 ### Named Rules
+
+**One Weight For Headings.** Every heading in the system is 400, whatever it
+holds. A show's name at 600 beside a kicker at 400 read as two different
+designs in two panels — and since 600 is Bold here, it had also become a small
+copy of the playing row rather than a heading of its own. A panel's top line is
+one slot; only the thing in it should differ.
 
 **The Label Must Not Out-Ink Its Content.** A section label is furniture; the
 rows under it are the point. At 700 a kicker put down 34.9 lit pixels per
@@ -451,9 +460,8 @@ row already has, beside the fact that is already there.
 - **Shape:** 32px radius, 16px padding, no background of its own
 - **Entry:** fade and 6px rise over 120ms ease-out, glass fading with the surface
 - **Headings:** tracked capitals at Kicker, except a playlist heading carrying
-  a show name, which takes the Named role — natural case, no tracking, and the
-  only heading in the system heavier than the rows beneath it, because a show's
-  name is content rather than furniture. A heading with a group above it carries the
+  a show name, which takes the Named role — natural case, no tracking, one
+  step of alpha brighter, and the same weight. A heading with a group above it carries the
   10px gap itself rather than being pushed down by the row above, because the
   last row of a group does not know that it is last
 - **Trailing rows:** a reset or a setting *about* the list gets a 10px gap above
