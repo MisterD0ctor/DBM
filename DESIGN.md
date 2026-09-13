@@ -228,7 +228,7 @@ legibility over arbitrary moving content and nothing else.
 - **Hint** (400, 13px): prose added underneath something else — the drop hint,
   the line saying a driver update is the usual fix. A readout's size under its
   own name, because prose is what would want a different one first.
-- **Label** (700, 12px): section headings, written in capitals.
+- **Label** (400, 12px, tracked 1px): section headings, written in capitals.
 - **Glyph** (400, 16px): a character standing in for an icon — the stepper's
   minus and plus, sized against the 26px disc rather than against the text.
 - **Prompt** (600, 16px): the one thing the interface says louder than the
@@ -464,6 +464,14 @@ row already has, beside the fact that is already there.
   step of alpha brighter, and the same weight. A heading with a group above it carries the
   10px gap itself rather than being pushed down by the row above, because the
   last row of a group does not know that it is last
+- **Heading icons:** a heading over rows without icons of their own carries
+  one — the playlist, SUBTITLES and AUDIO in the tracks panel, every group on
+  the shortcuts page. 16px, not a row's 18px, because the words beside it are
+  12px capitals rather than 14px text; at the heading's own alpha, so mark and
+  words are one thing; starting on the row-label line with the words 8px after
+  it. It cannot hang in the margin as the back row's chevron does: that margin
+  is 14px to the edge of the wash. The settings page's headings have none,
+  because every row under them already wears one
 - **Trailing rows:** a reset or a setting *about* the list gets a 10px gap above
   it. Without it the eye reads one more entry and only the wording says otherwise.
 

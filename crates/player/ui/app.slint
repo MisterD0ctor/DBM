@@ -1212,18 +1212,44 @@ component MenuHeading inherits Rectangle {
     /// the heading rather than to the row above, because the row above does
     /// not know it is last.
     in property <bool> after-content;
+    /// What the section is about, drawn before the words. Optional: a heading
+    /// over rows that carry icons of their own — the settings page — would
+    /// only be saying it twice.
+    in property <image> icon;
+    private property <bool> iconic: root.icon.width > 0;
+    /// Smaller than a row's 18px, because the words beside it are smaller
+    /// than a row's: 12px capitals, not 14px lowercase. At a row's size the
+    /// mark outweighed the label it introduced.
+    private property <length> icon-size: 16px;
+    private property <length> icon-gap: 8px;
+    private property <color> ink: root.titular ? #ffffffcb : #ffffffb1;
 
     height: 28px + (root.after-content ? Rows.group-gap : 0px);
 
+    // Starts where the row labels start, and the words move over for it.
+    // It cannot hang in the margin the way the back row's arrow does: that
+    // margin is 14px to the edge of the wash, which a 14px chevron fits and
+    // a 16px mark with space after it does not.
+    if root.iconic: Image {
+        source: root.icon;
+        x: Rows.label-x;
+        y: parent.height - 28px + (28px - self.height) / 2;
+        width: root.icon-size;
+        height: root.icon-size;
+        image-fit: contain;
+        // The heading's own alpha, so the mark and the words are one thing.
+        colorize: root.ink;
+    }
+
     Text {
         // Aligned with the row labels below it, not with the panel edge.
-        x: Rows.label-x;
-        width: parent.width - Rows.label-x - Rows.trail-x;
+        x: Rows.label-x + (root.iconic ? root.icon-size + root.icon-gap : 0px);
+        width: parent.width - self.x - Rows.trail-x;
         // Held to the bottom 28px, so the gap above stays above.
         y: parent.height - self.height;
         height: 28px;
         text: root.text;
-        color: root.titular ? #ffffffcb : #ffffffb1;
+        color: root.ink;
         font-size: root.titular ? Type.named : Type.label;
         // A kicker is lighter than the rows it labels, not heavier. What
         // tells it from them is case, size, alpha and the tracking, and not
@@ -1993,31 +2019,38 @@ export component MainWindow inherits Window {
     /// one above it when it does not. Kept in the rows rather than in a
     /// structure of its own so that moving a key from one group to another
     /// is moving one line, which is the only edit this list ever gets.
-    property <[{label: string, keys: string, heading: string}]> shortcuts: [
-        { heading: "PLAYBACK", label: "Play / pause", keys: "Space" },
+    property <[{label: string, keys: string, heading: string, icon: image}]> shortcuts: [
+        { heading: "PLAYBACK", icon: @image-url("../../../public/icons/play-pause.svg"),
+          label: "Play / pause", keys: "Space" },
         { label: "Back / forward 10s", keys: "← →" },
         { label: "Start again", keys: "Home" },
         { label: "Previous / next file", keys: "Ctrl + ← →" },
 
-        { heading: "SOUND", label: "Volume", keys: "↑ ↓" },
+        { heading: "SOUND", icon: @image-url("../../../public/icons/volume.svg"),
+          label: "Volume", keys: "↑ ↓" },
         { label: "Mute", keys: "M" },
 
-        { heading: "SUBTITLES", label: "Subtitles on / off", keys: "C" },
+        { heading: "SUBTITLES", icon: @image-url("../../../public/icons/subtitles.svg"),
+          label: "Subtitles on / off", keys: "C" },
         { label: "Subtitles earlier / later", keys: "Z / Shift + Z" },
 
-        { heading: "PICTURE", label: "Fill or fit the window", keys: "T" },
+        { heading: "PICTURE", icon: @image-url("../../../public/icons/monitor.svg"),
+          label: "Fill or fit the window", keys: "T" },
         { label: "Fullscreen", keys: "F / F11" },
         { label: "Ambient border", keys: "B" },
 
-        { heading: "PANELS", label: "Tracks", keys: "A" },
+        { heading: "PANELS", icon: @image-url("../../../public/icons/panel.svg"),
+          label: "Tracks", keys: "A" },
         { label: "Playlist", keys: "P" },
         { label: "Settings", keys: "S" },
 
-        { heading: "KEYBOARD", label: "Move in a panel", keys: "↑ ↓" },
+        { heading: "KEYBOARD", icon: @image-url("../../../public/icons/keyboard.svg"),
+          label: "Move in a panel", keys: "↑ ↓" },
         { label: "Choose, or adjust", keys: "Enter, ← →" },
         { label: "Close, or leave fullscreen", keys: "Esc" },
 
-        { heading: "FILES", label: "Open file", keys: "Ctrl + O" },
+        { heading: "FILES", icon: @image-url("../../../public/icons/folder-open.svg"),
+          label: "Open file", keys: "Ctrl + O" },
         { label: "Open folder", keys: "Ctrl + Shift + O" },
     ];
     /// How many of the rows above open a section.
@@ -3013,6 +3046,7 @@ export component MainWindow inherits Window {
                     for item[idx] in root.shortcuts: VerticalLayout {
                         if item.heading != "": MenuHeading {
                             text: item.heading;
+                            icon: item.icon;
                             after-content: idx > 0;
                         }
                         ShortcutRow {
@@ -3060,6 +3094,7 @@ export component MainWindow inherits Window {
 
             if root.has-subs: MenuHeading {
                 text: "SUBTITLES";
+                icon: @image-url("../../../public/icons/subtitles.svg");
             }
             subs-list := ScrollList {
                 height: root.subs-list-h;
@@ -3097,6 +3132,7 @@ export component MainWindow inherits Window {
 
             if root.has-audio: MenuHeading {
                 text: "AUDIO";
+                icon: @image-url("../../../public/icons/speaking.svg");
                 after-content: root.has-subs;
             }
             audio-list := ScrollList {
@@ -3183,6 +3219,9 @@ export component MainWindow inherits Window {
             MenuHeading {
                 text: root.playlist-heading;
                 titular: root.playlist-named;
+                // The same mark as the button that opened the panel, whether
+                // the words beside it are PLAYLIST or a show's name.
+                icon: @image-url("../../../public/icons/playlist.svg");
             }
             playlist-list := ScrollList {
                 height: root.playlist-list-h;
