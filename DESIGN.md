@@ -284,13 +284,23 @@ the renderer where to draw, and a binding that depends on a layout forces a full
 layout pass on every one of those reads.
 
 **Density:** rows are 34px, headings 28px, switch rows 40px, stepper rows 38px.
-The window floors at 900×480, below which the three pills would meet.
+A heading that follows a group is 38px — the same 28px with the 10px group gap
+carried above it. The window floors at 900×480, below which the three pills
+would meet.
 
 ### Named Rules
 
 **The One Panel Rule.** Opening any panel closes the others. Two sheets of glass
 over the same film is noise, and it doubles the refraction cost on the one
 surface the design exists for.
+
+**The Gap Goes Above Rule.** The 10px group gap always sits above the thing that
+starts something new, never below the thing that ended — above a section
+heading, above a trailing reset. Split evenly, or left out, a heading sits the
+same distance from the group it names as from the group it follows: measured at
+30px above and 32px below on the shortcuts list, which is a label equidistant
+between two things, labelling neither. Spacing is the only thing in a list of
+identical rows that says where one idea stops.
 
 ## Elevation & Depth
 
@@ -421,7 +431,9 @@ row already has, beside the fact that is already there.
 - **Shape:** 32px radius, 16px padding, no background of its own
 - **Entry:** fade and 6px rise over 120ms ease-out, glass fading with the surface
 - **Headings:** capitals at Kicker, except a playlist heading carrying a show
-  name, which takes the Named role
+  name, which takes the Named role. A heading with a group above it carries the
+  10px gap itself rather than being pushed down by the row above, because the
+  last row of a group does not know that it is last
 - **Trailing rows:** a reset or a setting *about* the list gets a 10px gap above
   it. Without it the eye reads one more entry and only the wording says otherwise.
 

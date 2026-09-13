@@ -1113,14 +1113,25 @@ component MenuHeading inherits Rectangle {
     /// most informative thing in the panel, so it is not dimmed to the weight
     /// of a section kicker like SUBTITLES or EFFECTS.
     in property <bool> titular;
+    /// Whether a group already ended above this one.
+    ///
+    /// If it did, the heading takes the group gap above it. Set level, a
+    /// kicker sits the same distance from the group it names as from the one
+    /// it follows — measured at 30px above and 32px below — and a label
+    /// equidistant between two things labels neither. The space belongs to
+    /// the heading rather than to the row above, because the row above does
+    /// not know it is last.
+    in property <bool> after-content;
 
-    height: 28px;
+    height: 28px + (root.after-content ? Rows.group-gap : 0px);
 
     Text {
         // Aligned with the row labels below it, not with the panel edge.
         x: Rows.label-x;
         width: parent.width - Rows.label-x - Rows.trail-x;
-        height: 100%;
+        // Held to the bottom 28px, so the gap above stays above.
+        y: parent.height - self.height;
+        height: 28px;
         text: root.text;
         color: root.titular ? #ffffffc4 : #ffffff80;
         font-size: root.titular ? Type.named : Type.label;
@@ -1803,28 +1814,49 @@ export component MainWindow inherits Window {
     /// One list, read by the panel, sitting directly above the functions that
     /// implement it — because a reference card and the bindings it describes
     /// drift apart the moment they live in different files.
-    property <[{label: string, keys: string}]> shortcuts: [
-        { label: "Play / pause", keys: "Space" },
+    /// A row opens a section when it carries a heading, and belongs to the
+    /// one above it when it does not. Kept in the rows rather than in a
+    /// structure of its own so that moving a key from one group to another
+    /// is moving one line, which is the only edit this list ever gets.
+    property <[{label: string, keys: string, heading: string}]> shortcuts: [
+        { heading: "PLAYBACK", label: "Play / pause", keys: "Space" },
         { label: "Back / forward 10s", keys: "← →" },
-        { label: "Previous / next file", keys: "Ctrl + ← →" },
         { label: "Start again", keys: "Home" },
-        { label: "Volume", keys: "↑ ↓" },
+        { label: "Previous / next file", keys: "Ctrl + ← →" },
+
+        { heading: "SOUND", label: "Volume", keys: "↑ ↓" },
         { label: "Mute", keys: "M" },
-        { label: "Subtitles on / off", keys: "C" },
+
+        { heading: "SUBTITLES", label: "Subtitles on / off", keys: "C" },
         { label: "Subtitles earlier / later", keys: "Z / Shift + Z" },
-        { label: "Fill or fit the window", keys: "T" },
+
+        { heading: "PICTURE", label: "Fill or fit the window", keys: "T" },
+        { label: "Fullscreen", keys: "F / F11" },
         { label: "Ambient border", keys: "B" },
-        { label: "Tracks", keys: "A" },
+
+        { heading: "PANELS", label: "Tracks", keys: "A" },
         { label: "Playlist", keys: "P" },
         { label: "Settings", keys: "S" },
-        { label: "Move in a panel", keys: "↑ ↓" },
+
+        { heading: "KEYBOARD", label: "Move in a panel", keys: "↑ ↓" },
         { label: "Choose, or adjust", keys: "Enter, ← →" },
-        { label: "Fullscreen", keys: "F / F11" },
-        { label: "Open file", keys: "Ctrl + O" },
-        { label: "Open folder", keys: "Ctrl + Shift + O" },
         { label: "Close, or leave fullscreen", keys: "Esc" },
+
+        { heading: "FILES", label: "Open file", keys: "Ctrl + O" },
+        { label: "Open folder", keys: "Ctrl + Shift + O" },
     ];
-    property <length> shortcuts-natural: root.shortcuts.length * 34px;
+    /// How many of the rows above open a section.
+    ///
+    /// Counted by hand because Slint cannot fold an array and this list's
+    /// height has to be arithmetic, for the reason given at the top of
+    /// `MainWindow`. Miscount it and the panel stands taller or shorter than
+    /// what is in it, which is the failure the settings pages already found
+    /// once the hard way.
+    property <int> shortcut-sections: 7;
+    property <length> shortcuts-natural: root.shortcuts.length * root.row-h
+        + root.shortcut-sections * root.heading-h
+        // The space above every heading but the first.
+        + (root.shortcut-sections - 1) * Rows.group-gap;
     /// What is left of the panel once the back row has had its share. The
     /// list scrolls into it, because fifteen rows do not fit above the bar on
     /// a small window and a reference that is cut off is not one.
@@ -1848,6 +1880,8 @@ export component MainWindow inherits Window {
     property <length> tracks-fixed: root.panel-pad
         + (root.has-subs ? root.heading-h : 0px)
         + (root.has-audio ? root.heading-h : 0px)
+        // AUDIO takes the gap above it only when SUBTITLES came first.
+        + (root.has-subs && root.has-audio ? Rows.group-gap : 0px)
         + (root.no-tracks ? root.row-h : 0px);
     out property <length> tracks-h: min(
         root.tracks-fixed + root.subs-natural + root.audio-natural,
@@ -2572,7 +2606,8 @@ export component MainWindow inherits Window {
             // rather than arithmetic on bare numbers: the rows this page has
             // lost were invisible inside `2 * 40px`, and the panel stood six
             // pixels taller than its contents until someone looked at it.
-            : 3 * root.heading-h + 4 * root.row-h;
+            // Two of the three headings follow a group and take the gap.
+            : 3 * root.heading-h + 4 * root.row-h + 2 * Rows.group-gap;
 
         width: 340px;
         height: min(root.panel-pad + self.body, root.panel-max-h);
@@ -2640,6 +2675,7 @@ export component MainWindow inherits Window {
                 // here is only the tuning, which is what this panel is for.
                 MenuHeading {
                     text: "SUBTITLES";
+                    after-content: true;
                 }
                 DrillRow {
                     icon: @image-url("../../../public/icons/subtitle-time.svg");
@@ -2652,6 +2688,7 @@ export component MainWindow inherits Window {
 
                 MenuHeading {
                     text: "KEYBOARD";
+                    after-content: true;
                 }
                 DrillRow {
                     icon: @image-url("../../../public/icons/shortcuts.svg");
@@ -2784,10 +2821,20 @@ export component MainWindow inherits Window {
                     height: root.shortcuts-list-h;
                     content-height: root.shortcuts-natural;
 
-                    for item in root.shortcuts: ShortcutRow {
-                        label: item.label;
-                        shortcut: item.keys;
-                        inert: true;
+                    // The heading rides with the first row of its group
+                    // rather than standing between groups as an entry of its
+                    // own, so there is one list here and not two that have to
+                    // be kept in step.
+                    for item[idx] in root.shortcuts: VerticalLayout {
+                        if item.heading != "": MenuHeading {
+                            text: item.heading;
+                            after-content: idx > 0;
+                        }
+                        ShortcutRow {
+                            label: item.label;
+                            shortcut: item.keys;
+                            inert: true;
+                        }
                     }
                 }
             }
@@ -2853,6 +2900,7 @@ export component MainWindow inherits Window {
 
             if root.has-audio: MenuHeading {
                 text: "AUDIO";
+                after-content: root.has-subs;
             }
             audio-list := ScrollList {
                 height: root.audio-list-h;
