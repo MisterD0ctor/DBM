@@ -26,6 +26,9 @@
 //!                         `DBM_TRACE=1`: the point is that draws carry on
 //!                         while it is open, which is the whole reason the
 //!                         dialog does not run on this thread.
+//! * `DBM_SHOWCASE=tip` and `tip-edge` rest the pointer on a button in the
+//!                         right-hand pill instead of in the corner, which
+//!                         is the only way the hover label is ever on screen.
 //! * `DBM_SHOWCASE=<surface>` — holds one surface open with the chrome
 //!                         awake, so the window can be photographed. The
 //!                         only way to actually look at this interface:
@@ -437,15 +440,31 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             // Any pointer event resets the idle clock. For the preview the
             // pointer also has to be *on* the track, so that one parks there
             // and the rest stay clear of the controls.
-            let (x, y) = if surface == "preview" {
-                (
+            // A hover label needs the pointer to stop on a button and stay
+            // there, which is the one thing the default corner hover cannot
+            // do. The coordinates are the right-hand pill's buttons at the
+            // window this harness opens; they are a photograph's aim, not
+            // geometry anything depends on.
+            let (x, y) = match surface.as_str() {
+                "preview" => (
                     ui.get_scrub_x() + ui.get_scrub_w() * 0.62,
                     ui.get_timeline_y() + 14.0,
-                )
-            } else {
-                (40.0, 40.0)
+                ),
+                // The settings gear, mid-pill.
+                "tip" | "tip-idle" | "tip-open" => (1140.0, 672.0),
+                // The last button there is, to see the clamp hold a tip
+                // inside the margin rather than off the window.
+                "tip-edge" => (1232.0, 672.0),
+                _ => (40.0, 40.0),
             };
-            hover(&ui, x, y);
+            // Everything else here keeps hovering so the chrome stays up.
+            // This one stops, on purpose: a pointer resting on a button
+            // raises no events, the idle clock runs out under a label that
+            // is already up, and the bar it points at leaves without it.
+            // Capture this one well past HIDE_AFTER.
+            if !(surface == "tip-idle" && tick > 8) {
+                hover(&ui, x, y);
+            }
 
             // The flash is a moment, not a surface: the only way to hold one
             // still long enough to look at is to keep raising it.
@@ -484,6 +503,10 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     ui.set_opening_name("Game of Thrones Season 7".into());
                     ui.set_opening(true);
                 }
+                // A panel open under the pointer that is resting on the
+                // button which opened it. Tips stand down for any panel, so
+                // the right photograph here is of nothing at all.
+                "tip-open" => ui.invoke_open_settings_page(0),
                 "settings" => ui.invoke_open_settings_page(0),
                 "glass" => ui.invoke_open_settings_page(1),
                 "ambience" => ui.invoke_open_settings_page(2),

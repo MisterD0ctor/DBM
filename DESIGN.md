@@ -437,6 +437,37 @@ row already has, beside the fact that is already there.
 - **Trailing rows:** a reset or a setting *about* the list gets a 10px gap above
   it. Without it the eye reads one more entry and only the wording says otherwise.
 
+### The hover label
+
+A 28px capsule of glass that names the control under the pointer and gives the
+key that does the same thing. The name is Body, the key is Faint at Readout
+size, 12px apart — the two roles of a shortcuts row, unchanged, because the tip
+is that list arriving one row at a time where the question was asked.
+
+- **500ms before it opens**, then a fade and a 6px rise like any other surface.
+  Long enough that crossing the bar raises nothing; short enough that stopping
+  on a glyph feels answered rather than eventually attended to.
+- **Above the timeline row, on the line panels open from**, centred on its
+  control and clamped inside the bar's margins. There is nowhere closer: the
+  row between is one unbroken pane, and a tip laid over it would be glass on
+  glass.
+- **It says what pressing will do**, not what the glyph already shows. The
+  glyph says which state you are in; the label is the only thing that can say
+  what happens next, so a muted control offers *Unmute*.
+- **One surface for the whole bar.** Only one is ever up, and thirteen would be
+  thirteen more rects published to the renderer for a thing that is never in
+  two places.
+
+### Named Rules
+
+**The Label Cannot Outlive Its Control.** Whether a tip is drawn is an
+expression, never a decision taken when the pointer arrives. Both ways it can
+go wrong happen afterwards: a pointer resting on a button raises no events, so
+the idle clock runs out under a label that is already up and the bar leaves
+without it; and a panel can open underneath one, which it did, over the very
+row the tip was covering, because the check for that ran once on hover and
+never again.
+
 ### The seek preview
 The signature component. A thumbnail from an 8×8 ffmpeg sprite atlas, one tile
 picked with a source-clip, inside an 18px glass panel with 9px of padding and a

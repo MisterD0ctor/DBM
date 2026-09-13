@@ -127,6 +127,49 @@ export global Flash {
 /// has already moved on is not feedback.
 global Motion {
     out property <duration> highlight: 45ms;
+    /// How long the pointer has to rest on a control before it says its name.
+    ///
+    /// Long enough that crossing the bar on the way somewhere else raises
+    /// nothing, short enough that stopping on a glyph you do not recognise
+    /// feels like it answered rather than like it eventually got round to it.
+    out property <duration> tip-delay: 500ms;
+}
+
+/// What a control is called, and which key does the same thing.
+///
+/// The bar is thirteen drawn marks and no words. They are the project's own
+/// icons and the set is the better for having no labels stamped under it, but
+/// a mark that is never explained anywhere teaches nobody: the only account
+/// of what they do lived on a panel you had to know to open in order to find
+/// out what the button that opens it does.
+///
+/// One surface for the whole bar rather than one per button. Only ever one
+/// tip is up, and thirteen labels would be thirteen more rects published to
+/// the renderer for a thing that is never in two places at once.
+///
+/// The key rides along because that is the part worth learning. A tooltip
+/// that only repeats the glyph is a label; one that names the key is the
+/// reference card arriving where the question was asked.
+export global Tip {
+    in-out property <string> label;
+    in-out property <string> keys;
+    /// Centre of the control it belongs to, in window coordinates.
+    in-out property <length> cx;
+    /// Bumped on every arrival and departure, so the window can watch one
+    /// property rather than three.
+    in-out property <int> seq;
+
+    public function point(label: string, keys: string, cx: length) {
+        Tip.label = label;
+        Tip.keys = keys;
+        Tip.cx = cx;
+        Tip.seq += 1;
+    }
+
+    public function clear() {
+        Tip.label = "";
+        Tip.seq += 1;
+    }
 }
 
 /// The type scale. Eight roles over four sizes.
@@ -345,6 +388,10 @@ component IconButton inherits Rectangle {
     in property <bool> open;
     // The icon set is drawn for 24x24; anything else resamples it.
     in property <length> glyph: 24px;
+    /// What this button is called, and the key that does the same thing.
+    /// A button with no `tip` stays silent rather than showing an empty one.
+    in property <string> tip;
+    in property <string> keys;
     callback clicked();
 
     width: 40px;
@@ -373,7 +420,29 @@ component IconButton inherits Rectangle {
         clicked => {
             root.clicked();
         }
+
+        // Asked for once, on arrival and departure, rather than bound - so
+        // `absolute-position`, which is a question for the layout, is put
+        // when a hand moves and not once a frame.
+        //
+        // Leaving only clears the tip if the tip is still this button's.
+        // Sliding along a row of them fires the next button's arrival and
+        // this one's departure in an order nobody promises, and the wrong
+        // order would take down the label that just went up.
+        changed has-hover => {
+            if (root.tip == "") {
+                return;
+            }
+            if (self.has-hover) {
+                Tip.point(root.tip, root.keys, root.tip-cx);
+            } else if (Tip.cx == root.tip-cx) {
+                Tip.clear();
+            }
+        }
     }
+
+    private property <length> tip-cx:
+        root.absolute-position.x + root.width / 2;
 }
 
 /// One selectable line in the menu. Note it has no opaque background: the
@@ -1500,7 +1569,7 @@ export component MainWindow inherits Window {
         ? 1.0 : 0.0;
 
     animate bar-shown, menu-shown, playlist-shown, settings-shown,
-            files-shown, preview-shown, end-shown, invite-shown {
+            files-shown, preview-shown, end-shown, invite-shown, tip-shown {
         duration: root.fade;
         easing: ease-out;
     }
@@ -1714,6 +1783,73 @@ export component MainWindow inherits Window {
         triggered => {
             root.flash-shown = 0.0;
             flash-timer.stop();
+        }
+    }
+
+    /// Tips open on the same line panels do, and a panel is 340px of glass
+    /// anchored to whichever button opened it. Rather than work out per
+    /// frame whether this particular tip would land under this particular
+    /// panel, the tip stands down while any of them is up. It costs the
+    /// label on a button at the far end of the bar from an open panel, which
+    /// is a smaller thing than two sheets of glass in the same place.
+    property <bool> panel-open: root.menu-open || root.playlist-open
+        || root.files-open || root.settings-open;
+
+    property <length> tip-h: 28px;
+    property <length> tip-pad: 12px;
+    /// Between the name and the key, matching the shortcuts list exactly:
+    /// the tip is that list arriving one row at a time.
+    property <length> tip-gap: 12px;
+    property <length> tip-w: min(
+        tip-label-measure.preferred-width
+            + (Tip.keys != "" ? root.tip-gap + tip-keys-measure.preferred-width : 0px)
+            + 2 * root.tip-pad,
+        root.bar-w);
+    /// Centred on its button, then pushed back inside the bar's own margins
+    /// so a tip on the last button does not hang off the window.
+    property <length> tip-x: clamp(Tip.cx - root.tip-w / 2,
+        root.bar-x, root.bar-x + root.bar-w - root.tip-w);
+    /// Above the timeline row, on the line panels open from, rather than
+    /// tucked against the button it names. There is nowhere closer: the row
+    /// between them is one unbroken pane now, and a tip laid over it would
+    /// be glass on glass - the thing the panel rule exists to prevent.
+    property <length> tip-y: root.timeline-y - root.tip-h - 12px;
+    property <float> tip-shown: 0.0;
+    /// What is actually drawn, and the only thing that decides it.
+    ///
+    /// Both of the ways a tip can be wrong are things that happen to it
+    /// after it is up, so neither can be settled when the pointer arrives.
+    /// A pointer resting on a button raises no events, so the idle clock
+    /// runs out underneath a label that is already there and the bar leaves
+    /// without it. And a panel can open under one — which it did, over the
+    /// very row the tip was covering, because the check for that ran once on
+    /// hover and never again.
+    ///
+    /// So it is an expression rather than a decision: scaled by the bar it
+    /// cannot outlive what it points at, and cleared by any open panel it
+    /// cannot be the second sheet of glass in the same place.
+    property <float> tip-on: root.panel-open
+        ? 0.0
+        : root.tip-shown * root.bar-shown;
+    property <length> tip-rise: (1.0 - root.tip-shown) * 6px;
+
+    // Watching the global through a local property, for the reason the flash
+    // does: a `changed` handler belongs to the element that declares it.
+    property <int> tip-seq: Tip.seq;
+    changed tip-seq => {
+        tip-timer.stop();
+        root.tip-shown = 0.0;
+        if (Tip.label != "") {
+            tip-timer.start();
+        }
+    }
+
+    tip-timer := Timer {
+        interval: Motion.tip-delay;
+        running: false;
+        triggered => {
+            root.tip-shown = 1.0;
+            tip-timer.stop();
         }
     }
 
@@ -1997,6 +2133,16 @@ export component MainWindow inherits Window {
                 ? root.flash-text-h : 0,
             opacity: root.flash-shown,
             radius: root.flash-text-h / 2,
+            tint: 1.0,
+        },
+        // The hover label. Glass like everything else that carries words.
+        {
+            x: root.tip-x,
+            y: root.tip-y + root.tip-rise,
+            width: root.tip-on > root.shown-epsilon ? root.tip-w : 0,
+            height: root.tip-on > root.shown-epsilon ? root.tip-h : 0,
+            opacity: root.tip-on,
+            radius: root.tip-h / 2,
             tint: 1.0,
         },
         {
@@ -3481,6 +3627,62 @@ export component MainWindow inherits Window {
         height: 0px;
     }
 
+    // --- the hover label ----------------------------------------------------
+    //
+    // Declared last so it sits over the bar it explains. It never overlaps
+    // the bar in practice - it opens a row above it - but a label that could
+    // end up beneath the thing it is labelling is a bug waiting for a
+    // narrower window.
+
+    tip-label-measure := Text {
+        text: Tip.label;
+        font-size: Type.body;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    tip-keys-measure := Text {
+        text: Tip.keys;
+        font-size: Type.readout;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    Rectangle {
+        x: root.tip-x;
+        y: root.tip-y + root.tip-rise;
+        width: root.tip-w;
+        height: root.tip-h;
+        visible: root.tip-on > root.shown-epsilon;
+        opacity: root.tip-on;
+
+        HorizontalLayout {
+            padding-left: root.tip-pad;
+            padding-right: root.tip-pad;
+            spacing: root.tip-gap;
+            alignment: center;
+
+            Text {
+                // The two roles of a shortcuts row, unchanged. The name is
+                // what you asked for and the key is what you get for having
+                // asked twice.
+                text: Tip.label;
+                color: #ffffffb0;
+                font-size: Type.body;
+                vertical-alignment: center;
+            }
+
+            if Tip.keys != "": Text {
+                text: Tip.keys;
+                color: #ffffff70;
+                font-size: Type.readout;
+                vertical-alignment: center;
+            }
+        }
+    }
+
     // Never drawn, only measured. It has to be a real `Text` because only
     // the font knows how wide a string is, and it has to be outside the pill
     // because the pill's width depends on the answer.
@@ -3596,6 +3798,8 @@ export component MainWindow inherits Window {
 
             IconButton {
                 icon: @image-url("../../../public/icons/playlist.svg");
+                tip: "Playlist";
+                keys: "P";
                 open: root.playlist-open;
                 clicked => {
                     root.open-playlist(!root.playlist-open);
@@ -3603,6 +3807,8 @@ export component MainWindow inherits Window {
             }
             IconButton {
                 icon: @image-url("../../../public/icons/folder-open.svg");
+                tip: "Open folder";
+                keys: "Ctrl + Shift + O";
                 open: root.files-open;
                 clicked => {
                     root.open-files(!root.files-open);
@@ -3632,12 +3838,16 @@ export component MainWindow inherits Window {
 
             IconButton {
                 icon: @image-url("../../../public/icons/step-backward.svg");
+                tip: "Previous file";
+                keys: "Ctrl + ←";
                 clicked => {
                     root.playlist-step(-1);
                 }
             }
             IconButton {
                 icon: @image-url("../../../public/icons/seek-backward.svg");
+                tip: "Back 10 seconds";
+                keys: "←";
                 clicked => {
                     root.seek-relative(-root.seek-step);
                 }
@@ -3653,6 +3863,12 @@ export component MainWindow inherits Window {
                     : root.paused || !root.has-file
                     ? @image-url("../../../public/icons/play.svg")
                     : @image-url("../../../public/icons/pause.svg");
+                // The same three states the glyph has. A button offering to
+                // start a finished film again should not say "Play", which
+                // is what it would resume rather than what it will do.
+                tip: root.at-end ? "Start again"
+                    : root.paused || !root.has-file ? "Play" : "Pause";
+                keys: root.at-end ? "Home" : "Space";
                 clicked => {
                     if (root.at-end) {
                         root.replay();
@@ -3663,12 +3879,16 @@ export component MainWindow inherits Window {
             }
             IconButton {
                 icon: @image-url("../../../public/icons/seek-forward.svg");
+                tip: "Forward 10 seconds";
+                keys: "→";
                 clicked => {
                     root.seek-relative(root.seek-step);
                 }
             }
             IconButton {
                 icon: @image-url("../../../public/icons/step-forward.svg");
+                tip: "Next file";
+                keys: "Ctrl + →";
                 clicked => {
                     root.playlist-step(1);
                 }
@@ -3699,6 +3919,11 @@ export component MainWindow inherits Window {
                 icon: root.muted
                     ? @image-url("../../../public/icons/volume-mute.svg")
                     : root.volume-icons[root.volume-index];
+                // What pressing it will do, not what the glyph shows. The
+                // glyph already says which state you are in; the label is
+                // the only place that can say what happens next.
+                tip: root.muted ? "Unmute" : "Mute";
+                keys: "M";
                 active: root.muted;
                 clicked => {
                     root.toggle-mute();
@@ -3787,6 +4012,10 @@ export component MainWindow inherits Window {
                 icon: root.ambience-on
                     ? @image-url("../../../public/icons/ambience-on.svg")
                     : @image-url("../../../public/icons/ambience-slash.svg");
+                tip: root.ambience-on
+                    ? "Turn off the ambient border"
+                    : "Turn on the ambient border";
+                keys: "B";
                 active: root.ambience-on;
                 clicked => {
                     root.ambience-on = !root.ambience-on;
@@ -3800,6 +4029,11 @@ export component MainWindow inherits Window {
                 icon: root.subs-visible
                     ? @image-url("../../../public/icons/subtitles-solid.svg")
                     : @image-url("../../../public/icons/subtitles-slash.svg");
+                // "Tracks", because that is what the panel is called
+                // everywhere else and it holds audio as well. The glyph is a
+                // subtitle mark because that is the track people come for.
+                tip: "Tracks";
+                keys: "A";
                 active: root.subs-visible;
                 open: root.menu-open;
                 clicked => {
@@ -3808,6 +4042,8 @@ export component MainWindow inherits Window {
             }
             IconButton {
                 icon: @image-url("../../../public/icons/settings.svg");
+                tip: "Settings";
+                keys: "S";
                 open: root.settings-open;
                 clicked => {
                     root.open-settings(!root.settings-open);
@@ -3817,6 +4053,10 @@ export component MainWindow inherits Window {
                 icon: root.panscan
                     ? @image-url("../../../public/icons/panscan-on.svg")
                     : @image-url("../../../public/icons/panscan-off.svg");
+                // The shortcuts list has to name both directions in one
+                // row. A live control knows which way it is about to go.
+                tip: root.panscan ? "Fit the window" : "Fill the window";
+                keys: "T";
                 active: root.panscan;
                 clicked => {
                     root.toggle-panscan();
@@ -3826,6 +4066,8 @@ export component MainWindow inherits Window {
                 icon: root.fullscreen
                     ? @image-url("../../../public/icons/fullscreen-off.svg")
                     : @image-url("../../../public/icons/fullscreen-on.svg");
+                tip: root.fullscreen ? "Leave fullscreen" : "Fullscreen";
+                keys: "F";
                 clicked => {
                     root.toggle-fullscreen();
                 }
