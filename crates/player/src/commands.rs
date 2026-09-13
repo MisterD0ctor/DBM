@@ -80,14 +80,21 @@ pub fn toggle_mute(mpv: &Mpv) {
 /// Reading at the moment of the decision is guaranteed fresh in a way a
 /// mirrored copy is not, which is worth a thread hop.
 pub fn toggle_subtitles(mpv: &Mpv) {
-    if mpv.get_bool("sub-visibility") {
-        set_prop(mpv, "sub-visibility", "no");
-        return;
-    }
-
     let tracks = crate::tracks::read_tracks(mpv);
     let subs = crate::tracks::of_kind(&tracks, crate::tracks::TrackKind::Sub);
     if subs.is_empty() {
+        return;
+    }
+
+    // Showing, not merely visible. `sub-visibility` can be on for a file mpv
+    // selected no subtitle track for, which puts nothing on screen — and
+    // turning that off spent the press without changing anything anybody
+    // could see. The next press did the work, so the key took two goes the
+    // first time it was used on such a file.
+    let showing = mpv.get_bool("sub-visibility")
+        && crate::tracks::selected(&tracks, crate::tracks::TrackKind::Sub).is_some();
+    if showing {
+        set_prop(mpv, "sub-visibility", "no");
         return;
     }
     // Only trust the current selection if it names a track this file has.

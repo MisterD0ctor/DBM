@@ -73,7 +73,15 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_paused(player.paused);
     ui.set_muted(player.muted);
     ui.set_volume(player.volume as f32);
-    ui.set_subs_visible(player.sub_visibility);
+    // mpv's `sub-visibility` is only half of it: it can be on with no
+    // subtitle track selected, which puts nothing on screen. The interface
+    // asks whether subtitles are showing, and answers the tracks menu's Off
+    // row and the bar's own glyph with it — both of which were claiming
+    // subtitles were on for a file mpv had chosen none for.
+    ui.set_subs_visible(
+        player.sub_visibility
+            && tracks::selected(&player.tracks, TrackKind::Sub).is_some(),
+    );
     ui.set_panscan(player.panscan > 0.5);
     ui.set_sub_delay_text(format_delay(player.sub_delay).into());
     ui.set_sub_scale_text(format!("{:.2}x", player.sub_scale).into());

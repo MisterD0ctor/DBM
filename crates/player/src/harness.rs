@@ -478,6 +478,27 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             }
             match surface.as_str() {
                 "tracks" => ui.invoke_open_menu(true),
+                // The same menu with a subtitle track chosen and then
+                // turned off, which is where Off and the track mpv still
+                // calls selected were both lit at once. Choosing first
+                // matters: a file whose subtitles were never on has nothing
+                // selected to contradict Off, so the state that was wrong is
+                // not the state a file arrives in.
+                // The positive case, for the same reason: a list that can
+                // show two answers can also show none.
+                "subs-on" => {
+                    ui.invoke_open_menu(true);
+                    if let Some(first) = ui.get_sub_tracks().row_data(0) {
+                        ui.invoke_select_subtitle(first.id);
+                    }
+                }
+                "subs-off" => {
+                    ui.invoke_open_menu(true);
+                    if let Some(first) = ui.get_sub_tracks().row_data(0) {
+                        ui.invoke_select_subtitle(first.id);
+                    }
+                    ui.invoke_select_subtitle(-1);
+                }
                 "playlist" => ui.invoke_open_playlist(true),
                 "files" => ui.invoke_open_files(true),
                 // The three graphics failures all need a driver that does
@@ -988,20 +1009,39 @@ fn key_test(ui: &MainWindow) -> slint::Timer {
         move || {
             let Some(ui) = weak.upgrade() else { return };
             match step {
+                // C, twice, on a file whose subtitles are not showing. The
+                // first press has to turn them on: it used to turn off a
+                // `sub-visibility` that was already showing nothing, which
+                // from the outside was a key that did nothing.
+                //
+                // Before the dialogs, not after. The two that follow put a
+                // file chooser on screen and it keeps the keyboard, so
+                // anything pressed after them is pressed at the dialog.
                 0 => {
-                    eprintln!("dbm: pressing Ctrl+O");
-                    chord(&ui, &[Key::Control], "o");
+                    eprintln!("dbm: subs showing {}", ui.get_subs_visible());
+                    eprintln!("dbm: pressing C");
+                    chord(&ui, &[], "c");
                 }
                 1 => {
-                    eprintln!("dbm: pressing Ctrl+Shift+O");
-                    chord(&ui, &[Key::Control, Key::Shift], "O");
+                    eprintln!("dbm: subs showing {}", ui.get_subs_visible());
+                    eprintln!("dbm: pressing C again");
+                    chord(&ui, &[], "c");
                 }
                 2 => {
+                    eprintln!("dbm: subs showing {}", ui.get_subs_visible());
                     eprintln!("dbm: pressing B (ambience)");
                     chord(&ui, &[], "b");
                 }
                 3 => eprintln!("dbm: ambience now {}", ui.get_ambience_on()),
-                4 => eprintln!("dbm: --- key test done ---"),
+                4 => {
+                    eprintln!("dbm: pressing Ctrl+O");
+                    chord(&ui, &[Key::Control], "o");
+                }
+                5 => {
+                    eprintln!("dbm: pressing Ctrl+Shift+O");
+                    chord(&ui, &[Key::Control, Key::Shift], "O");
+                }
+                7 => eprintln!("dbm: --- key test done ---"),
                 _ => {}
             }
             step += 1;

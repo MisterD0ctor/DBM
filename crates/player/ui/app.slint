@@ -1276,6 +1276,11 @@ export component MainWindow inherits Window {
     /// ...and there is nothing after it in the playlist, so the only thing
     /// left to offer is this file again.
     in property <bool> at-last;
+    /// Whether subtitles are actually on screen — mpv's `sub-visibility`
+    /// *and* a track selected to be visible. Either half alone is a state
+    /// the interface would report wrongly: visibility on with no track
+    /// chosen shows nothing, and a track chosen with visibility off is the
+    /// one the next toggle will bring back rather than the one running.
     in property <bool> subs-visible;
     in property <bool> panscan;
     // Subtitle adjustments, formatted on the Rust side, which owns the units.
@@ -3070,7 +3075,19 @@ export component MainWindow inherits Window {
                 }
                 for track[idx] in root.sub-tracks: MenuRow {
                     label: track.label;
-                    active: track.selected;
+                    // Not `track.selected` on its own. Turning subtitles off
+                    // leaves `sid` where it was, deliberately, so that
+                    // turning them back on returns to this track rather than
+                    // to whatever mpv would pick — which means mpv goes on
+                    // reporting it as the selected track for the whole time
+                    // it is not being shown.
+                    //
+                    // Off and the tracks are one list asking one question, so
+                    // they cannot be answered out of two facts. A row is the
+                    // current choice only if subtitles are on at all. The
+                    // remembered track is remembered, not current, and it
+                    // lights again the moment it is showing.
+                    active: track.selected && root.subs-visible;
                     focused: root.menu-open && root.focus-row == idx + 1;
                     picked => {
                         root.select-subtitle(track.id);
