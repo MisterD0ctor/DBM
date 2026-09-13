@@ -252,9 +252,14 @@ void main() {
         // does, and it does so smoothly across the panel rather than in
         // patches. Opted in per panel by the same flag as the tint.
         float backdrop = dot(refracted, LUMA);
-        float absorbed = smoothstep(ABSORB_FROM, 1.0, backdrop)
-            * ABSORB_MAX * u_panel_style[i].y;
+        float absorbed = (1.0 - 0.75 * (1.0 - exp(-1.5 * backdrop)) / backdrop) 
+                        * u_panel_style[i].y;
+
         refracted *= 1.0 - absorbed;
+        vec3 gray = vec3(max(max(refracted.r, refracted.g), refracted.b));
+
+        // Saturate darkened areas        
+        refracted = mix(gray, refracted, 1.0 / (1.0 - 2.0 * absorbed * absorbed));
 
         // Exact unpolarised Fresnel reflectance, averaging s and p. Written
         // in D so it needs no further trigonometry:
@@ -293,7 +298,7 @@ void main() {
         float reflection_ratio = -2.0 * slope / denom;
         vec2 reflection_offset =
             -box_normal * reflection_ratio * height * bevel / u_size;
-        vec3 reflected = blur_at(v_uv + reflection_offset) * u_specular;
+        vec3 reflected = base_at(v_uv + reflection_offset) * u_specular;
 
         // Cross-fade the two as the mirrored ray swings through horizontal.
         vec3 specular = mix(reflected, vec3(sky), smoothstep(-0.7, 0.0, mirror.y)); 
