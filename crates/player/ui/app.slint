@@ -3643,12 +3643,32 @@ export component MainWindow inherits Window {
                     // Unity gain. The track runs to mpv's full 200%, so
                     // ordinary volume sits at its midpoint — a half-empty bar
                     // at normal level, with nothing saying where normal is.
-                    // The mark reverses against the fill the way the switch
-                    // knob does, so it reads on either side of itself.
+                    //
+                    // A dot rather than a line. A line the full height of the
+                    // track divides it, and a divided track reads as two
+                    // ranges rather than as one with a landmark in it — which
+                    // is the opposite of what this says: everything above
+                    // normal is still the same volume control.
+                    //
+                    // Sized off the track and inset a pixel top and bottom, so
+                    // it stays round and keeps its margin when the track grows
+                    // under the pointer rather than sitting in the middle of a
+                    // thicker one. It reverses against the fill the way the
+                    // switch knob does, so it reads on either side of itself.
+                    //
+                    // At exactly normal the fill ends on the mark and the dot
+                    // straddles the two, which no single colour survives whole.
+                    // It turns dark there rather than waiting until the fill
+                    // has cleared it: dark leaves a visible notch bitten out of
+                    // the fill's end, where light simply extends the fill's
+                    // rounded cap by a pixel and says nothing at all. Both were
+                    // photographed; this is the one you can see.
                     Rectangle {
                         x: (parent.width - self.width) / 2;
-                        width: 1px;
-                        height: parent.height;
+                        y: (parent.height - self.height) / 2;
+                        width: self.height;
+                        height: parent.height - 2px;
+                        border-radius: self.height / 2;
                         background: root.volume >= 100 ? #101010e6 : #ffffff90;
                     }
                 }
