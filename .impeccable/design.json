@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-12T00:25:24Z",
+  "generatedAt": "2026-09-13T21:05:00Z",
   "title": "Design System: Death by MPV",
   "extensions": {
     "colorMeta": {
@@ -8,286 +8,159 @@
         "role": "primary",
         "displayName": "Lit",
         "canonical": "#ffffff",
-        "tonalRamp": [
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff2e",
-          "#ffffff70",
-          "#ffffff80",
-          "#ffffff90",
-          "#ffffffb0",
-          "#ffffffe0"
-        ]
+        "tonalRamp": ["#ffffff14", "#ffffff2e", "#ffffff80", "#ffffff97", "#ffffffb1", "#ffffffd8", "#fffffff2", "#ffffff"]
       },
       "text-strong": {
         "role": "neutral",
         "displayName": "Strong",
-        "canonical": "#ffffffe6",
-        "tonalRamp": [
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff2e",
-          "#ffffff70",
-          "#ffffff80",
-          "#ffffff90",
-          "#ffffffb0",
-          "#ffffffe0"
-        ]
+        "canonical": "#fffffff2",
+        "tonalRamp": ["#ffffff14", "#ffffff2e", "#ffffff80", "#ffffff97", "#ffffffb1", "#ffffffd8", "#fffffff2", "#ffffff"]
       },
       "text-title": {
         "role": "neutral",
         "displayName": "Title",
-        "canonical": "#ffffffe0",
-        "tonalRamp": [
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff2e",
-          "#ffffff70",
-          "#ffffff80",
-          "#ffffff90",
-          "#ffffffb0",
-          "#ffffffe0"
-        ]
+        "canonical": "#ffffffe5",
+        "tonalRamp": ["#ffffff14", "#ffffff2e", "#ffffff80", "#ffffff97", "#ffffffb1", "#ffffffd8", "#fffffff2", "#ffffff"]
       },
       "text-readout": {
         "role": "neutral",
         "displayName": "Readout",
-        "canonical": "#ffffffd0",
-        "tonalRamp": [
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff2e",
-          "#ffffff70",
-          "#ffffff80",
-          "#ffffff90",
-          "#ffffffb0",
-          "#ffffffe0"
-        ]
+        "canonical": "#ffffffd8",
+        "tonalRamp": ["#ffffff14", "#ffffff2e", "#ffffff80", "#ffffff97", "#ffffffb1", "#ffffffd8", "#fffffff2", "#ffffff"]
       },
       "text-named": {
         "role": "neutral",
         "displayName": "Named",
-        "canonical": "#ffffffc4",
-        "tonalRamp": [
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff2e",
-          "#ffffff70",
-          "#ffffff80",
-          "#ffffff90",
-          "#ffffffb0",
-          "#ffffffe0"
-        ]
+        "canonical": "#ffffffcb",
+        "tonalRamp": ["#ffffff14", "#ffffff2e", "#ffffff80", "#ffffff97", "#ffffffb1", "#ffffffd8", "#fffffff2", "#ffffff"]
       },
       "text-body": {
         "role": "neutral",
         "displayName": "Body",
-        "canonical": "#ffffffb0",
-        "tonalRamp": [
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff2e",
-          "#ffffff70",
-          "#ffffff80",
-          "#ffffff90",
-          "#ffffffb0",
-          "#ffffffe0"
-        ]
+        "canonical": "#ffffffbe",
+        "tonalRamp": ["#ffffff14", "#ffffff2e", "#ffffff80", "#ffffff97", "#ffffffb1", "#ffffffd8", "#fffffff2", "#ffffff"]
       },
-      "text-back": {
+      "text-glyph": {
         "role": "neutral",
-        "displayName": "Back",
-        "canonical": "#ffffff90",
-        "tonalRamp": [
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff2e",
-          "#ffffff70",
-          "#ffffff80",
-          "#ffffff90",
-          "#ffffffb0",
-          "#ffffffe0"
-        ]
+        "displayName": "Glyph at rest",
+        "canonical": "#ffffffbb",
+        "tonalRamp": ["#ffffff14", "#ffffff2e", "#ffffff80", "#ffffff97", "#ffffffb1", "#ffffffd8", "#fffffff2", "#ffffff"]
       },
       "text-kicker": {
         "role": "neutral",
         "displayName": "Kicker",
-        "canonical": "#ffffff80",
-        "tonalRamp": [
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff2e",
-          "#ffffff70",
-          "#ffffff80",
-          "#ffffff90",
-          "#ffffffb0",
-          "#ffffffe0"
-        ]
+        "canonical": "#ffffffb1",
+        "tonalRamp": ["#ffffff14", "#ffffff2e", "#ffffff80", "#ffffff97", "#ffffffb1", "#ffffffd8", "#fffffff2", "#ffffff"]
+      },
+      "text-hint": {
+        "role": "neutral",
+        "displayName": "Hint",
+        "canonical": "#ffffffa4",
+        "tonalRamp": ["#ffffff14", "#ffffff2e", "#ffffff80", "#ffffff97", "#ffffffb1", "#ffffffd8", "#fffffff2", "#ffffff"]
       },
       "text-faint": {
         "role": "neutral",
         "displayName": "Faint",
-        "canonical": "#ffffff70",
-        "tonalRamp": [
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff2e",
-          "#ffffff70",
-          "#ffffff80",
-          "#ffffff90",
-          "#ffffffb0",
-          "#ffffffe0"
-        ]
+        "canonical": "#ffffff97",
+        "tonalRamp": ["#ffffff14", "#ffffff2e", "#ffffff80", "#ffffff97", "#ffffffb1", "#ffffffd8", "#fffffff2", "#ffffff"]
+      },
+      "text-dim": {
+        "role": "neutral",
+        "displayName": "Dim readout",
+        "canonical": "#ffffff80",
+        "tonalRamp": ["#ffffff14", "#ffffff2e", "#ffffff80", "#ffffff97", "#ffffffb1", "#ffffffd8", "#fffffff2", "#ffffff"]
+      },
+      "fill": {
+        "role": "neutral",
+        "displayName": "Fill",
+        "canonical": "#ffffffcc",
+        "tonalRamp": ["#ffffff14", "#ffffff2e", "#ffffff80", "#ffffff97", "#ffffffb1", "#ffffffcc", "#fffffff2", "#ffffff"]
       },
       "rail": {
         "role": "neutral",
         "displayName": "Rail",
         "canonical": "#ffffff2e",
-        "tonalRamp": [
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff2e",
-          "#ffffff70",
-          "#ffffff80",
-          "#ffffff90",
-          "#ffffffb0",
-          "#ffffffe0"
-        ]
+        "tonalRamp": ["#ffffff0a", "#ffffff14", "#ffffff1f", "#ffffff24", "#ffffff2e", "#ffffff40", "#ffffff60", "#ffffff80"]
+      },
+      "wash-strong": {
+        "role": "neutral",
+        "displayName": "Strong wash",
+        "canonical": "#ffffff2e",
+        "tonalRamp": ["#ffffff0a", "#ffffff14", "#ffffff1f", "#ffffff24", "#ffffff2e", "#ffffff40", "#ffffff60", "#ffffff80"]
+      },
+      "wash-button": {
+        "role": "neutral",
+        "displayName": "Button wash",
+        "canonical": "#ffffff24",
+        "tonalRamp": ["#ffffff0a", "#ffffff14", "#ffffff1f", "#ffffff24", "#ffffff2e", "#ffffff40", "#ffffff60", "#ffffff80"]
       },
       "wash-hover": {
         "role": "neutral",
         "displayName": "Hover wash",
         "canonical": "#ffffff1f",
-        "tonalRamp": [
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff2e",
-          "#ffffff70",
-          "#ffffff80",
-          "#ffffff90",
-          "#ffffffb0",
-          "#ffffffe0"
-        ]
+        "tonalRamp": ["#ffffff0a", "#ffffff14", "#ffffff1f", "#ffffff24", "#ffffff2e", "#ffffff40", "#ffffff60", "#ffffff80"]
       },
       "wash-soft": {
         "role": "neutral",
         "displayName": "Soft wash",
         "canonical": "#ffffff14",
-        "tonalRamp": [
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff2e",
-          "#ffffff70",
-          "#ffffff80",
-          "#ffffff90",
-          "#ffffffb0",
-          "#ffffffe0"
-        ]
+        "tonalRamp": ["#ffffff0a", "#ffffff14", "#ffffff1f", "#ffffff24", "#ffffff2e", "#ffffff40", "#ffffff60", "#ffffff80"]
       },
       "knob-on": {
-        "role": "secondary",
+        "role": "neutral",
         "displayName": "Knob",
         "canonical": "#101010e6",
-        "tonalRamp": [
-          "#101010",
-          "#1c1c1c",
-          "#2a2a2a",
-          "#3d3d3d",
-          "#585858",
-          "#7d7d7d",
-          "#adadad",
-          "#e2e2e2"
-        ]
+        "tonalRamp": ["#101010", "#1c1c1c", "#2a2a2a", "#3d3d3d", "#585858", "#7d7d7d", "#adadad", "#e2e2e2"]
       },
       "void": {
         "role": "neutral",
         "displayName": "Void",
         "canonical": "#000000",
-        "tonalRamp": [
-          "#000000",
-          "#0a0a0a",
-          "#151515",
-          "#232323",
-          "#363636",
-          "#5a5a5a",
-          "#939393",
-          "#d6d6d6"
-        ]
+        "tonalRamp": ["#000000", "#0a0a0a", "#151515", "#232323", "#363636", "#5a5a5a", "#939393", "#d6d6d6"]
       }
     },
     "typographyMeta": {
-      "title": {
-        "displayName": "Title",
-        "purpose": "The media title in the bar, and the current playlist entry."
-      },
-      "body": {
-        "displayName": "Body",
-        "purpose": "Row labels, menu items, switch labels."
-      },
-      "named": {
-        "displayName": "Named",
-        "purpose": "A playlist heading carrying a show's name rather than a section label."
-      },
-      "readout": {
-        "displayName": "Readout",
-        "purpose": "Timestamps, slider values, stepper values."
-      },
-      "label": {
-        "displayName": "Label",
-        "purpose": "Section headings, in capitals. The interface's own words only."
-      }
+      "title": { "displayName": "Title", "purpose": "The media title in the bar, the flash, a fatal headline." },
+      "body": { "displayName": "Body", "purpose": "Row labels, menu items, switch labels: the name of anything you can press. The current row takes Lit at 700." },
+      "named": { "displayName": "Named", "purpose": "A playlist heading carrying a show's name rather than a section label." },
+      "readout": { "displayName": "Readout", "purpose": "Timestamps, slider and stepper values, a row's running time, a shortcut's keys, and the labels of the dense rows those sit in." },
+      "hint": { "displayName": "Hint", "purpose": "Prose added underneath something else: the drop hint, the driver-update line, a driver's own error text." },
+      "label": { "displayName": "Label", "purpose": "Section headings and back rows, in tracked capitals. The interface's own words only." },
+      "glyph": { "displayName": "Glyph", "purpose": "A character standing in for an icon: the stepper's minus and plus." },
+      "prompt": { "displayName": "Prompt", "purpose": "The word on the end-of-file pill, sized against its 24px arrow." }
     },
     "shadows": [],
     "motion": [
-      {
-        "name": "highlight",
-        "value": "45ms ease-out",
-        "purpose": "Hover wash on buttons, steppers and rows. One value for every hover, because they are the same gesture."
-      },
-      {
-        "name": "surface",
-        "value": "120ms ease-out",
-        "purpose": "A panel or the bar fading in, paired with 6px of rise. The glass fades with it."
-      },
-      {
-        "name": "lift",
-        "value": "6px",
-        "purpose": "How far a surface sits below its place before it arrives."
-      },
-      {
-        "name": "track-grow",
-        "value": "100ms ease-out",
-        "purpose": "A slider or timeline track thickening from 5px to 7px under the pointer."
-      },
-      {
-        "name": "switch",
-        "value": "120ms ease-out",
-        "purpose": "The toggle knob crossing its track, and the track's colour with it."
-      },
-      {
-        "name": "title-width",
-        "value": "160ms ease-in-out",
-        "purpose": "The title pill resizing to a new filename. Slower than a state change because it is a layout move, and a pill that jumped would flicker."
-      }
+      { "name": "highlight", "value": "45ms", "purpose": "Every hover wash, the active mark, the held button background. One value for every hover, because they are the same gesture." },
+      { "name": "surface", "value": "120ms ease-out", "purpose": "Any surface fading in or out, paired with the 6px lift. The glass fades with it." },
+      { "name": "lift", "value": "6px", "purpose": "How far a surface sits below its place before it arrives." },
+      { "name": "track-grow", "value": "100ms ease-out", "purpose": "A track thickening under the pointer: 5px to 7px on the timeline and volume, 4px to 6px on a settings slider." },
+      { "name": "switch", "value": "120ms ease-out", "purpose": "The toggle knob crossing its track, and the track's colour with it." },
+      { "name": "title-width", "value": "160ms ease-in-out", "purpose": "The title pill resizing to a new filename. A pill that jumped would flicker." },
+      { "name": "tip-delay", "value": "500ms", "purpose": "How long the pointer rests on a control before its hover label opens." },
+      { "name": "flash-dwell", "value": "700ms / 3200ms", "purpose": "How long the action flash stays: a glyph and a figure, or a sentence from the player." }
     ],
     "breakpoints": [
-      {
-        "name": "min-window",
-        "value": "900x480",
-        "purpose": "Below this the three control pills would meet. Enforced as the window's minimum size rather than by reflowing."
-      }
+      { "name": "min-window", "value": "900x480", "purpose": "Below this the three control pills would meet. Enforced as the window's minimum size rather than by reflowing." }
     ],
     "material": {
-      "note": "The canonical glass and ambient-border values, as tuned by the author. Not expressible as Stitch tokens: they are shader uniforms.",
+      "note": "The glass and ambient-border defaults as the code ships them (pipeline.rs). Not expressible as Stitch tokens: they are shader uniforms, and each is a slider in the settings panel.",
       "glass": {
-        "blur": 2.3,
+        "blur": 2.0,
         "bevel": 1.0,
         "refract": 1.0,
         "ior": 3.0,
-        "fringe": 0.1,
-        "reflect": 1.0,
+        "aberration": 0.1,
+        "specular": 1.0,
         "sky": 0.0,
-        "tint": 0.2
+        "tint": 0.2,
+        "tintColor": [0.3, 0.3, 0.3],
+        "lightDirection": [-0.707, -0.707]
+      },
+      "absorption": {
+        "curve": "absorbed = 1 - 0.75 * (1 - exp(-1.5 * luma)) / luma, then a saturation lift on what remains",
+        "appliesTo": "the transmitted component only, on panels that opt into the tint (all of them)",
+        "adjustable": false
       },
       "border": {
         "edgeBlur": 0.007,
@@ -308,78 +181,86 @@
       "name": "Icon Button",
       "kind": "button",
       "refersTo": "icon-button",
-      "description": "Every control in the bar. 40px circle, 24px glyph. Illustrative only. The implementation is Slint, not HTML; these snippets reproduce the appearance so a panel has something faithful to render.",
-      "html": "<button class=\"ds-icon-btn\" aria-label=\"Settings\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.36.44.63.8.76H21a2 2 0 1 1 0 4h-.09c-.36.13-.66.4-.8.76z\"/></svg></button>",
-      "css": ".ds-icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border: none; border-radius: 20px; background: transparent; color: #ffffffbb; cursor: pointer; transition: background 45ms ease-out, color 45ms ease-out; } .ds-icon-btn:hover { background: #ffffff24; color: #ffffff; } .ds-icon-btn:focus-visible { outline: 2px solid #ffffffcc; outline-offset: 2px; } .ds-icon-btn[aria-expanded=\"true\"] { background: #ffffff2e; color: #ffffff; }"
+      "description": "Every control in the bar. 40px circle, 24px glyph, a held wash while its panel is open. Illustrative only: the implementation is Slint, not HTML, and the real glyphs are the project's own 24x24 set.",
+      "html": "<div class=\"ds-icon-row\"><button class=\"ds-icon-btn\" aria-label=\"Settings\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.36.44.63.8.76H21a2 2 0 1 1 0 4h-.09c-.36.13-.66.4-.8.76z\"/></svg></button><button class=\"ds-icon-btn ds-icon-btn-open\" aria-label=\"Tracks\" aria-expanded=\"true\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\"/><path d=\"M7 14h4M13 14h4M7 10h10\"/></svg></button></div>",
+      "css": ".ds-icon-row { display: inline-flex; gap: 6px; padding: 4px; } .ds-icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border: none; border-radius: 20px; background: transparent; color: #ffffffbb; cursor: pointer; transition: background 45ms, color 45ms; } .ds-icon-btn:hover { background: #ffffff24; color: #ffffff; } .ds-icon-btn:focus-visible { outline: none; background: #ffffff2e; } .ds-icon-btn-open { background: #ffffff2e; }"
     },
     {
       "name": "Menu Row",
       "kind": "list item",
       "refersTo": "menu-row",
-      "description": "One selectable line in a panel. The hover wash insets 16px so it never runs past the panel's rounded corner. Illustrative only. The implementation is Slint, not HTML; these snippets reproduce the appearance so a panel has something faithful to render.",
-      "html": "<div class=\"ds-rows\"><div class=\"ds-row ds-row-active\">English</div><div class=\"ds-row\">日本語</div><div class=\"ds-row\">Français</div></div>",
-      "css": ".ds-rows { display: flex; flex-direction: column; } .ds-row { height: 34px; display: flex; align-items: center; padding: 0 26px 0 30px; font-size: 13px; font-weight: 400; color: #ffffffb0; position: relative; cursor: pointer; } .ds-row::before { content: \"\"; position: absolute; inset: 0 16px; border-radius: 16px; background: transparent; transition: background 45ms ease-out; z-index: -1; } .ds-row:hover::before { background: #ffffff1f; } .ds-row-active { color: #ffffff; font-weight: 700; }"
+      "description": "One selectable line in a panel. The wash insets 16px so it never runs past the panel's rounded corner; the current row wears Lit, 700 and a 3x14 mark. Illustrative only.",
+      "html": "<div class=\"ds-rows\"><div class=\"ds-row ds-row-active\" tabindex=\"0\">English</div><div class=\"ds-row\" tabindex=\"0\">日本語</div><div class=\"ds-row\" tabindex=\"0\">Français</div></div>",
+      "css": ".ds-rows { display: flex; flex-direction: column; padding: 16px 0; width: 380px; } .ds-row { height: 34px; display: flex; align-items: center; padding: 0 26px 0 30px; font-size: 14px; font-weight: 400; color: #ffffffbe; position: relative; cursor: pointer; outline: none; } .ds-row::before { content: \"\"; position: absolute; inset: 0 16px; border-radius: 16px; background: transparent; transition: background 45ms; z-index: -1; } .ds-row:hover::before { background: #ffffff1f; } .ds-row:focus-visible::before { background: #ffffff2e; } .ds-row-active { color: #ffffff; font-weight: 700; } .ds-row-active::after { content: \"\"; position: absolute; left: 20px; top: 10px; width: 3px; height: 14px; border-radius: 2px; background: #ffffff; }"
     },
     {
-      "name": "Section Label",
+      "name": "Section Heading",
       "kind": "custom",
       "refersTo": "section-label",
-      "description": "Names a part of the application, so it is set in capitals. A show's name uses the Named role instead. Illustrative only. The implementation is Slint, not HTML; these snippets reproduce the appearance so a panel has something faithful to render.",
-      "html": "<div class=\"ds-kicker\">SUBTITLES</div>",
-      "css": ".ds-kicker { height: 28px; display: flex; align-items: center; padding: 0 26px 0 30px; font-size: 11px; font-weight: 700; color: #ffffff80; }"
+      "description": "Names a part of the application in tracked capitals at 12/400, with a 16px icon at the heading's own alpha where the rows below carry none. A show's name takes the Named role instead. Illustrative only.",
+      "html": "<div class=\"ds-headings\"><div class=\"ds-kicker\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\"/><path d=\"M7 14h4M13 14h4M7 10h10\"/></svg>SUBTITLES</div><div class=\"ds-kicker ds-kicker-named\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M9 6h12M9 12h12M9 18h12M3 5l3 2-3 2z\"/></svg>Wandering Road</div></div>",
+      "css": ".ds-headings { display: flex; flex-direction: column; width: 380px; } .ds-kicker { height: 28px; display: flex; align-items: center; gap: 8px; padding: 0 26px 0 30px; font-size: 12px; font-weight: 400; letter-spacing: 1px; color: #ffffffb1; } .ds-kicker-named { font-size: 13px; letter-spacing: 0; color: #ffffffcb; }"
     },
     {
       "name": "Parameter Slider",
       "kind": "input",
-      "refersTo": "menu-row",
-      "description": "A material parameter. The readout's precision comes from the parameter's range, not its value. Illustrative only. The implementation is Slint, not HTML; these snippets reproduce the appearance so a panel has something faithful to render.",
+      "refersTo": "slider-row",
+      "description": "A material parameter. The track grows 4px to 6px under the pointer; the readout's precision comes from the parameter's range, not its value. Illustrative only.",
       "html": "<div class=\"ds-slider\"><span class=\"ds-slider-label\">Bevel</span><span class=\"ds-track\"><span class=\"ds-fill\"></span></span><span class=\"ds-slider-value\">1.00</span></div>",
-      "css": ".ds-slider { height: 30px; display: flex; align-items: center; gap: 10px; padding: 0 26px 0 30px; font-size: 11px; color: #ffffffb0; } .ds-slider-label { width: 78px; } .ds-track { flex: 1; height: 5px; border-radius: 3px; background: #ffffff2e; transition: height 100ms ease-out; } .ds-slider:hover .ds-track { height: 7px; } .ds-fill { display: block; width: 50%; height: 100%; border-radius: inherit; background: #ffffffcc; } .ds-slider-value { width: 46px; text-align: right; color: #ffffff80; }"
+      "css": ".ds-slider { height: 30px; width: 340px; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 26px 0 30px; font-size: 13px; color: #ffffffbe; } .ds-slider-label { width: 78px; } .ds-track { flex: 1; height: 4px; border-radius: 3px; background: #ffffff2e; transition: height 100ms ease-out; } .ds-slider:hover .ds-track { height: 6px; } .ds-fill { display: block; width: 50%; height: 100%; border-radius: inherit; background: #ffffffcc; } .ds-slider-value { width: 46px; text-align: right; color: #ffffff80; }"
     },
     {
       "name": "Stepper Row",
       "kind": "input",
       "refersTo": "stepper-button",
-      "description": "For quantities read as numbers rather than positions — a subtitle delay, a size, a placement. Illustrative only. The implementation is Slint, not HTML; these snippets reproduce the appearance so a panel has something faithful to render.",
+      "description": "For quantities read as numbers rather than positions: a subtitle delay, a size, a placement. Illustrative only.",
       "html": "<div class=\"ds-stepper\"><span class=\"ds-stepper-label\">Timing</span><button class=\"ds-step\">−</button><span class=\"ds-stepper-value\">+0.30 s</span><button class=\"ds-step\">+</button></div>",
-      "css": ".ds-stepper { height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 26px 0 30px; font-size: 12px; color: #ffffffb0; } .ds-stepper-label { flex: 1; } .ds-step { width: 26px; height: 26px; border: none; border-radius: 13px; background: #ffffff14; color: #ffffffdd; font-size: 15px; line-height: 1; cursor: pointer; transition: background 45ms ease-out; } .ds-step:hover { background: #ffffff2e; } .ds-step:focus-visible { outline: 2px solid #ffffffcc; outline-offset: 2px; } .ds-stepper-value { width: 62px; text-align: center; color: #ffffffe0; }"
+      "css": ".ds-stepper { height: 38px; width: 340px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 26px 0 30px; font-size: 13px; color: #ffffffbe; } .ds-stepper-label { flex: 1; } .ds-step { width: 26px; height: 26px; border: none; border-radius: 13px; background: #ffffff14; color: #ffffffdd; font-size: 16px; line-height: 1; cursor: pointer; transition: background 45ms; } .ds-step:hover { background: #ffffff2e; } .ds-step:focus-visible { outline: none; background: #ffffff2e; } .ds-stepper-value { width: 62px; text-align: center; color: #ffffffe5; }"
     },
     {
       "name": "Switch Row",
       "kind": "input",
       "refersTo": "toggle-track-on",
-      "description": "A setting that is on or off. The knob is dark on a lit track and light on a dark one, so it reads as a hole punched through either way. Illustrative only. The implementation is Slint, not HTML; these snippets reproduce the appearance so a panel has something faithful to render.",
+      "description": "A setting that is on or off. The knob is dark on a lit track and light on a dark one, so it reads as a hole punched through either way. Illustrative only.",
       "html": "<div class=\"ds-switch-row\"><span class=\"ds-switch ds-switch-on\"><span class=\"ds-knob\"></span></span><span class=\"ds-switch-label\">Autoplay next</span></div>",
-      "css": ".ds-switch-row { height: 40px; display: flex; align-items: center; gap: 12px; padding: 0 26px 0 30px; font-size: 13px; color: #ffffffe0; } .ds-switch { width: 34px; height: 18px; border-radius: 9px; background: #ffffff2e; position: relative; transition: background 120ms ease-out; } .ds-switch-on { background: #ffffffcc; } .ds-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 7px; background: #ffffffcc; transition: left 120ms ease-out, background 120ms ease-out; } .ds-switch-on .ds-knob { left: 18px; background: #101010e6; }"
+      "css": ".ds-switch-row { height: 40px; display: flex; align-items: center; gap: 12px; padding: 0 26px 0 30px; font-size: 14px; color: #ffffffe5; } .ds-switch { width: 34px; height: 18px; border-radius: 9px; background: #ffffff2e; position: relative; transition: background 120ms; } .ds-switch-on { background: #ffffffcc; } .ds-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 7px; background: #ffffffcc; transition: left 120ms ease-out; } .ds-switch-on .ds-knob { left: 18px; background: #101010e6; }"
     },
     {
-      "name": "Control Pill",
-      "kind": "nav",
-      "refersTo": "control-pill",
-      "description": "A group of controls on one piece of glass. The dark fill here stands in for refraction, which no stylesheet can reproduce. Illustrative only. The implementation is Slint, not HTML; these snippets reproduce the appearance so a panel has something faithful to render.",
-      "html": "<div class=\"ds-pill\"><button class=\"ds-icon-btn\">⏮</button><button class=\"ds-icon-btn\">⏸</button><button class=\"ds-icon-btn\">⏭</button></div>",
-      "css": ".ds-pill { display: inline-flex; gap: 6px; padding: 4px; height: 48px; box-sizing: border-box; border-radius: 24px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); } .ds-pill .ds-icon-btn { font-size: 16px; }"
+      "name": "Timeline Row",
+      "kind": "custom",
+      "refersTo": "timeline-row",
+      "description": "One 28px pane across the bar: elapsed time, track, total. The track grows 5px to 7px under the pointer. The dark fill here stands in for refraction, which no stylesheet can reproduce. Illustrative only.",
+      "html": "<div class=\"ds-timeline\"><span class=\"ds-time\">0:24:10</span><span class=\"ds-scrub\"><span class=\"ds-played\"></span></span><span class=\"ds-time\">1:23:45</span></div>",
+      "css": ".ds-timeline { display: flex; align-items: center; gap: 10px; width: 640px; height: 28px; border-radius: 14px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); } .ds-time { width: 60px; text-align: center; font-size: 13px; color: #ffffffd8; } .ds-scrub { flex: 1; height: 5px; border-radius: 3px; background: #ffffff2e; transition: height 100ms ease-out; } .ds-timeline:hover .ds-scrub { height: 7px; } .ds-played { display: block; width: 30%; height: 100%; border-radius: inherit; background: #fffffff2; }"
     },
     {
-      "name": "Time Pill",
-      "kind": "chip",
-      "refersTo": "time-pill",
-      "description": "Fixed at 60px so it does not resize when a film passes the hour. Illustrative only. The implementation is Slint, not HTML; these snippets reproduce the appearance so a panel has something faithful to render.",
-      "html": "<span class=\"ds-time\">1:23:45</span>",
-      "css": ".ds-time { display: inline-grid; place-items: center; width: 60px; height: 28px; border-radius: 14px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); font-size: 11px; color: #ffffffd0; }"
+      "name": "Hover Label",
+      "kind": "custom",
+      "refersTo": "hover-label",
+      "description": "Names the control under the pointer and gives its key, 500ms after the pointer settles. Illustrative only.",
+      "html": "<span class=\"ds-tip\"><span class=\"ds-tip-name\">Unmute</span><span class=\"ds-tip-keys\">M</span></span>",
+      "css": ".ds-tip { display: inline-flex; align-items: center; gap: 12px; height: 28px; padding: 0 12px; border-radius: 14px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); } .ds-tip-name { font-size: 14px; color: #ffffffbe; } .ds-tip-keys { font-size: 13px; color: #ffffff97; }"
+    },
+    {
+      "name": "End-of-File Pill",
+      "kind": "button",
+      "refersTo": "end-pill",
+      "description": "The bar's 48px capsule in the middle of the picture where the film stopped. Outlives the idle clock. Illustrative only.",
+      "html": "<button class=\"ds-end\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"currentColor\"><path d=\"M6 5l10 7-10 7z\"/><rect x=\"17\" y=\"5\" width=\"2.5\" height=\"14\" rx=\"1\"/></svg>Next</button>",
+      "css": ".ds-end { display: inline-flex; align-items: center; gap: 12px; height: 48px; padding: 0 18px; border: none; border-radius: 24px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); color: #ffffff; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 45ms; } .ds-end:hover { background: rgba(60,62,68,0.6); } .ds-end:focus-visible { outline: none; background: rgba(60,62,68,0.6); }"
     },
     {
       "name": "Seek Preview",
       "kind": "card",
-      "refersTo": "panel",
-      "description": "The signature component: one tile of an ffmpeg sprite atlas, framed in glass with the timestamp beneath. Padding exceeds the bevel width so the material has room to render. Illustrative only. The implementation is Slint, not HTML; these snippets reproduce the appearance so a panel has something faithful to render.",
-      "html": "<figure class=\"ds-preview\"><span class=\"ds-preview-tile\"></span><figcaption class=\"ds-preview-time\">0:24</figcaption></figure>",
-      "css": ".ds-preview { margin: 0; padding: 9px; border-radius: 18px; background: rgba(16,18,24,0.6); backdrop-filter: blur(12px); display: inline-block; } .ds-preview-tile { display: block; width: 192px; height: 108px; border-radius: 9px; background: linear-gradient(135deg, #6d2f3a, #0e3a4a 55%, #0b1020); } .ds-preview-time { margin-top: 4px; height: 22px; display: grid; place-items: center; font-size: 12px; color: #ffffffe6; }"
+      "refersTo": "seek-preview",
+      "description": "The signature component: one tile of an ffmpeg sprite atlas, framed in glass with the timestamp beneath. Padding exceeds the bevel width so the material has room to render. Illustrative only.",
+      "html": "<figure class=\"ds-preview\"><span class=\"ds-preview-tile\"></span><figcaption class=\"ds-preview-time\">0:24:10</figcaption></figure>",
+      "css": ".ds-preview { margin: 0; padding: 9px 9px 0; border-radius: 18px; background: rgba(16,18,24,0.6); backdrop-filter: blur(12px); display: inline-block; } .ds-preview-tile { display: block; width: 192px; height: 108px; border-radius: 9px; background: linear-gradient(135deg, #6d2f3a, #0e3a4a 55%, #0b1020); } .ds-preview-time { height: 22px; padding-bottom: 9px; display: grid; place-items: center; font-size: 13px; color: #fffffff2; }"
     }
   ],
   "narrative": {
     "northStar": "The Cinema Window",
-    "overview": "Panes of real glass, laid over the film. Not a metaphor for glass — the interface is genuinely refractive: mpv's frame is rendered into the application's own GL context as a texture, and every surface bends the picture behind it through a rounded-box SDF, a dome profile, Snell's law and an exact unpolarised Fresnel term. Thickness, bevel and index of refraction are real parameters, and the rim behaves like a rim because it is one.\n\nThe consequence is that this system has almost no palette. Colour comes from whatever is playing. The interface is white at eleven alphas, a single near-black switch knob, and the void behind an unloaded window. Even the letterbox is not neutral: the ambient border extends the frame's own edge colours outward, so a red scene bleeds red into the bars. Nothing here is tinted by a brand.\n\nControls behave like instrument switches: definite, short, slightly firm. A hover wash lands in 45ms and surfaces arrive in 120ms with 6px of travel, which is fast enough that the movement registers as a response rather than an animation. Density is generous — a 16px gap on all four sides of every row, and panels that hold at most a heading and a list.",
+    "overview": "Panes of real glass, laid over the film. Not a metaphor for glass — the interface is genuinely refractive: mpv's frame is rendered into the application's own GL context as a texture, and every surface bends the picture behind it through a rounded-box SDF, a dome profile, Snell's law and an exact unpolarised Fresnel term. Thickness, bevel and index of refraction are real parameters, and the rim behaves like a rim because it is one.\n\nThe consequence is that this system has almost no palette. Colour comes from whatever is playing. The interface is white at sixteen alphas and full white, a single near-black switch knob, and the void behind an unloaded window. Even the letterbox is not neutral: the ambient border extends the frame's own edge colours outward, so a red scene bleeds red into the bars. Nothing here is tinted by a brand.\n\nControls behave like instrument switches: definite, short, slightly firm. A hover wash lands in 45ms and surfaces arrive in 120ms with 6px of travel, which is fast enough that the movement registers as a response rather than an animation. Density is generous — a 16px gap on all four sides of every row, and panels that hold at most a heading and a list.",
     "keyCharacteristics": [
       "Real per-pixel refraction, not a translucent blur panel",
       "No palette of its own; colour is the film's",
@@ -388,41 +269,20 @@
       "Uppercase for the interface's own labels, natural case for the user's content"
     ],
     "rules": [
-      {
-        "name": "The Borrowed Colour Rule",
-        "body": "The interface owns no hue. Any proposal that adds a brand colour, a semantic red/green, or an accent to this palette is a proposal to stop the film from being the only source of colour on screen. Status is carried by alpha and by glyph, never by hue.",
-        "section": "colors"
-      },
-      {
-        "name": "The Two-Step Rule",
-        "body": "Adjacent text roles differ by at least 0x20 of alpha. Closer than that and the hierarchy stops reading over moving video, where the backdrop changes faster than the eye can calibrate.",
-        "section": "colors"
-      },
-      {
-        "name": "The Capitals Rule",
-        "body": "The interface shouts its own words and never the user's. SUBTITLES, AUDIO and EFFECTS are capitals at 11/700 because they name parts of the application. A show's name, a track's name, a filename — anything that came from the user's library — keeps its own case and gets the Named role instead.",
-        "section": "typography"
-      },
-      {
-        "name": "The One Panel Rule",
-        "body": "Opening any panel closes the others. Two sheets of glass over the same film is noise, and it doubles the refraction cost on the one surface the design exists for.",
-        "section": "layout"
-      },
-      {
-        "name": "The Proportional Rim Rule",
-        "body": "Bevel is a fraction of the corner radius, never a count of pixels. The same absolute rim that looks right rolling around a 32px panel corner swallows a 28px time pill whole.",
-        "section": "elevation"
-      },
-      {
-        "name": "The Room to Be Glass Rule",
-        "body": "A surface must leave more margin around its contents than its own bevel is wide, or the material has nowhere to render.",
-        "section": "elevation"
-      },
-      {
-        "name": "The Concentric Rule",
-        "body": "Inner radius = outer radius − the gap between them. Anything else pinches the curves together at 45 degrees while still meeting cleanly on the axes, which is exactly the part the eye catches.",
-        "section": "shapes"
-      }
+      { "name": "The Borrowed Colour Rule", "section": "colors", "body": "The interface owns no hue. Any proposal that adds a brand colour, a semantic red/green, or an accent to this palette is a proposal to stop the film from being the only source of colour on screen. Status is carried by alpha and by glyph, never by hue." },
+      { "name": "The Two-Step Rule", "section": "colors", "body": "Adjacent text roles differ by at least 0x20 of alpha. Closer than that and the hierarchy stops reading over moving video, where the backdrop changes faster than the eye can calibrate. Currently broken, and the code is what is wrong: the text ladder now steps by 0x0d, and bringing the values back into line with the rule is open work." },
+      { "name": "One Weight For Headings", "section": "typography", "body": "Every heading in the system is 400, whatever it holds. A panel's top line is one slot; only the thing in it should differ." },
+      { "name": "The Label Must Not Out-Ink Its Content", "section": "typography", "body": "A section label is furniture; the rows under it are the point. A label is told from its content by case, size, tracking and weight; it is never told apart by being the boldest thing on the page." },
+      { "name": "The Twelve Pixel Floor", "section": "typography", "body": "Nothing is smaller than 12px, and 12px is only for capitals, which are read by their shape." },
+      { "name": "The Capitals Rule", "section": "typography", "body": "The interface shouts its own words and never the user's. SUBTITLES, AUDIO and EFFECTS are tracked capitals at 12/400 because they name parts of the application. A show's name, a track's name, a filename keeps its own case and gets the Named role instead." },
+      { "name": "The One Panel Rule", "section": "layout", "body": "Opening any panel closes the others. Two sheets of glass over the same film is noise, and it doubles the refraction cost on the one surface the design exists for. The hover label stands down while any panel is open, for the same reason." },
+      { "name": "The Gap Goes Above Rule", "section": "layout", "body": "The 10px group gap always sits above the thing that starts something new, never below the thing that ended — above a section heading, above a trailing reset." },
+      { "name": "The Proportional Rim Rule", "section": "elevation", "body": "Bevel is a fraction of the corner radius, never a count of pixels. One slider therefore means the same thing on every piece of glass, and a small pane simply has a small rolled edge." },
+      { "name": "The Room to Be Glass Rule", "section": "elevation", "body": "A surface must leave more margin around its contents than its own bevel is wide, or the material has nowhere to render." },
+      { "name": "The Transmissive Middle Rule", "section": "elevation", "body": "Absorption is applied to the transmitted component only, never to the rim, the sky highlight or the mirrored backdrop. A pane that exists to give something a ground must be tall enough to have a flat middle." },
+      { "name": "The Concentric Rule", "section": "shapes", "body": "Inner radius = outer radius − the gap between them. Anything else pinches the curves together at 45° while still meeting cleanly on the axes, which is exactly the part the eye catches." },
+      { "name": "The Not Under The Words Rule", "section": "components", "body": "A measure on a text row goes on the line, never beneath it. There is no length that is safe underneath; the fix is the line the row already has, beside the fact that is already there." },
+      { "name": "The Label Cannot Outlive Its Control", "section": "components", "body": "Whether a tip is drawn is an expression, never a decision taken when the pointer arrives." }
     ],
     "dos": [
       "Do derive every length from the constants at the top of the component. Panel geometry is read once per frame by the renderer; a binding that asks a layout for an answer costs a full layout pass each time.",
@@ -431,15 +291,17 @@
       "Do size a bevel as a fraction of its own corner radius.",
       "Do leave a surface more padding than its bevel is wide.",
       "Do capitalise the interface's own labels and leave the user's content in its own case.",
-      "Do fade glass with the surface above it."
+      "Do fade glass with the surface above it.",
+      "Do show where the keyboard is with the Strong wash, and only while the keyboard is being used."
     ],
     "donts": [
       "Don't add a hue. Not an accent, not a semantic red, not a brand colour. The film is the only source of colour on screen.",
-      "Don't give a panel a background fill. The glass beneath it is the surface; a fill paints over the thing this product exists for.",
+      "Don't give a panel a background fill. The glass beneath it is the surface; a fill paints over the thing this product exists for. The fatal-error pane is the one exception, because there is no glass to paint over.",
+      "Don't draw a border, a ring or a hairline. There is no outline anywhere in this interface, and a focus ring would make the keyboard the only thing that draws one.",
       "Don't let it drift toward the utilitarian player — VLC, MPC-HC, mpv's own OSC. Grey chrome, system widgets and dense toolbars are the failure mode that function-first reasoning always argues for, and the reason this was rebuilt.",
       "Don't open two panels at once.",
-      "Don't animate for its own sake. Motion here is a response: 45ms for a wash, 120ms for a surface, ease-out, no bounce, no overshoot.",
-      "Don't substitute an icon library. The set is 54 SVGs drawn at 24×24 as one family; extend it rather than replacing it."
+      "Don't animate for its own sake. Motion here is a response: 45ms for a wash, 100ms for a track, 120ms for a surface or a switch, ease-out, no bounce, no overshoot.",
+      "Don't substitute an icon library. The set is 59 SVGs drawn at 24×24 as one family; extend it rather than replacing it."
     ]
   }
 }
