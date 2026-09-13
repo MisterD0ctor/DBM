@@ -4,7 +4,9 @@
 //!
 //! * A filename like `Show.Name.S01E02.Episode.Title.1080p.WEB-DL.x264-GRP`
 //!   has a show, a season, an episode and a title in it, wrapped in release
-//!   metadata that means nothing once the file is playing.
+//!   metadata that means nothing once the file is playing. Fansub releases
+//!   often have no season at all — `[Group] Show - 01 (1080p)` — and number
+//!   a show's episodes straight through.
 //! * A track carries a language code, sometimes a title, and — for external
 //!   subtitles, where mpv uses the filename as the title — the same release
 //!   junk again, plus the flags that actually matter: forced, SDH, commentary.
@@ -236,7 +238,9 @@ fn trim_junk(s: &str) -> String {
 pub enum Media {
     Episode {
         show: String,
-        season: u32,
+        /// `None` for a release numbered straight through, as fansubs
+        /// usually are: `Show - 01`.
+        season: Option<u32>,
         episode: u32,
         /// A double episode: `S01E02-E03`.
         episode_end: Option<u32>,
@@ -256,6 +260,11 @@ pub enum Media {
 pub fn parse(path: &str) -> Media {
     let stem = strip_group(strip_extension(strip_path(path)));
     if let Some(episode) = parse_episode(stem) {
+        return episode;
+    }
+    // Only once there is no marker. `S2 - 01` has the same dash and number as
+    // `Show - 01`, and the season in front of it is the part worth having.
+    if let Some(episode) = parse_absolute(stem) {
         return episode;
     }
     let (title, year) = split_year(&clean_separators(stem));
@@ -429,14 +438,17 @@ fn episode_title(embedded: &str, episode: u32) -> Option<String> {
 }
 
 fn episode_line(
-    season: u32,
+    season: Option<u32>,
     episode: u32,
     episode_end: Option<u32>,
     title: Option<&str>,
 ) -> String {
+    // `E01` on its own where there is no season, in the same vocabulary as
+    // `S02E01` — a number that reads as an episode rather than as a count.
+    let season = season.map(|s| format!("S{s:02}")).unwrap_or_default();
     let number = match episode_end {
-        Some(end) => format!("S{season:02}E{episode:02}-E{end:02}"),
-        None => format!("S{season:02}E{episode:02}"),
+        Some(end) => format!("{season}E{episode:02}-E{end:02}"),
+        None => format!("{season}E{episode:02}"),
     };
     match title {
         Some(t) => format!("{number} · {t}"),
@@ -467,13 +479,99 @@ fn parse_episode(stem: &str) -> Option<Media> {
         let title = strip_metadata(&trim_junk(&clean_separators(&rest)));
         return Some(Media::Episode {
             show,
-            season,
+            season: Some(season),
             episode,
             episode_end,
             title: (!title.is_empty()).then_some(title),
         });
     }
     None
+}
+
+/// `Show - 01`: an episode numbered without a season.
+///
+/// The fansub convention, and one the season markers miss entirely. Without
+/// it a folder of `[Group] Show - 01.mkv` was a folder of films called
+/// `Show - 01` — and once each file's own title was read ahead of time the
+/// numbers went too, leaving episode titles in no visible order under a
+/// heading that said PLAYLIST.
+///
+/// Strict about what counts, because a dash and a number turn up in names
+/// that are not episodes. The dash has to stand between gaps, so
+/// `Spider-Man 2` is safe. The number has to be a whole token, so `1080p` is
+/// not episode 108; and it must be neither a plausible year nor a bare
+/// resolution, so `Some Film - 2019` stays a film.
+fn parse_absolute(stem: &str) -> Option<Media> {
+    let chars: Vec<char> = stem.chars().collect();
+    let gap = |c: Option<&char>| c.is_some_and(|c| matches!(c, ' ' | '_'));
+    for i in 1..chars.len() {
+        if chars[i] != '-' || !gap(chars.get(i - 1)) || !gap(chars.get(i + 1)) {
+            continue;
+        }
+        let start = skip_gap(&chars, i + 1);
+        let Some((episode, mut end)) = take_number(&chars, start, 4) else {
+            continue;
+        };
+        let digits = end - start;
+        // A revision, `03v2`, is still episode 3.
+        if chars.get(end).is_some_and(|c| c.eq_ignore_ascii_case(&'v'))
+            && chars.get(end + 1).is_some_and(|c| c.is_ascii_digit())
+        {
+            end += 1;
+            while chars.get(end).is_some_and(|c| c.is_ascii_digit()) {
+                end += 1;
+            }
+        }
+        if chars.get(end).is_some_and(|c| c.is_alphanumeric()) {
+            continue;
+        }
+        if digits == 4 && (1900..=2099).contains(&episode) {
+            continue;
+        }
+        if matches!(episode, 480 | 576 | 720 | 1080 | 1440 | 2160 | 4320) {
+            continue;
+        }
+        let show = trim_junk(&clean_separators(&chars[..i].iter().collect::<String>()));
+        if show.is_empty() {
+            continue;
+        }
+        // Bracketed groups after the number belong to the release, not the
+        // episode. `- 01 [ABCD1234]` is a checksum, and a checksum is not
+        // release vocabulary `strip_metadata` would know to cut.
+        let rest = without_brackets(&chars[end..].iter().collect::<String>());
+        let title = strip_metadata(&trim_junk(&clean_separators(&rest)));
+        return Some(Media::Episode {
+            show,
+            season: None,
+            episode,
+            episode_end: None,
+            title: (!title.is_empty()).then_some(title),
+        });
+    }
+    None
+}
+
+fn skip_gap(chars: &[char], i: usize) -> usize {
+    let mut j = i;
+    while chars.get(j).is_some_and(|c| matches!(c, ' ' | '_')) {
+        j += 1;
+    }
+    j
+}
+
+/// A string with every `[...]` group taken out.
+fn without_brackets(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut depth = 0usize;
+    for c in s.chars() {
+        match c {
+            '[' => depth += 1,
+            ']' if depth > 0 => depth -= 1,
+            _ if depth == 0 => out.push(c),
+            _ => {}
+        }
+    }
+    out
 }
 
 /// The marker at `i`, and where it ends.
@@ -865,7 +963,7 @@ pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
 mod tests {
     use super::*;
 
-    fn episode(name: &str) -> (String, u32, u32, Option<u32>, Option<String>) {
+    fn episode(name: &str) -> (String, Option<u32>, u32, Option<u32>, Option<String>) {
         match parse(name) {
             Media::Episode {
                 show,
@@ -882,7 +980,7 @@ mod tests {
     fn dashed_episode() {
         let (show, s, e, end, title) = episode("Show Name - S01E02 - Episode Title.mkv");
         assert_eq!(show, "Show Name");
-        assert_eq!((s, e, end), (1, 2, None));
+        assert_eq!((s, e, end), (Some(1), 2, None));
         assert_eq!(title.as_deref(), Some("Episode Title"));
     }
 
@@ -890,7 +988,7 @@ mod tests {
     fn dotted_episode() {
         let (show, s, e, _, title) = episode("Show.Name.S01E02.Episode.Title.1080p.WEB-DL.x264-GRP.mkv");
         assert_eq!(show, "Show Name");
-        assert_eq!((s, e), (1, 2));
+        assert_eq!((s, e), (Some(1), 2));
         assert_eq!(title.as_deref(), Some("Episode Title"));
     }
 
@@ -905,13 +1003,13 @@ mod tests {
     fn alternate_marker() {
         let (show, s, e, _, _) = episode("Show Name 1x02 Title.mkv");
         assert_eq!(show, "Show Name");
-        assert_eq!((s, e), (1, 2));
+        assert_eq!((s, e), (Some(1), 2));
     }
 
     #[test]
     fn spaced_marker() {
         let (_, s, e, _, _) = episode("Show - S01 E02 - Title.mkv");
-        assert_eq!((s, e), (1, 2));
+        assert_eq!((s, e), (Some(1), 2));
     }
 
     #[test]
@@ -924,8 +1022,87 @@ mod tests {
     fn anime_season_and_episode_without_an_e() {
         let (show, s, e, end, title) = episode(r"C:\Users\k\Videos\[EMBER] Sousou no Frieren S2 - 01.mkv");
         assert_eq!(show, "Sousou no Frieren");
-        assert_eq!((s, e, end), (2, 1, None));
+        assert_eq!((s, e, end), (Some(2), 1, None));
         assert_eq!(title, None);
+    }
+
+    #[test]
+    fn fansub_numbering_without_a_season() {
+        let (show, s, e, end, title) =
+            episode("[SubsPlease] Wandering Road - 01 (1080p) [ABCD1234].mkv");
+        assert_eq!(show, "Wandering Road");
+        assert_eq!((s, e, end), (None, 1, None));
+        assert_eq!(title, None);
+    }
+
+    #[test]
+    fn a_checksum_alone_is_not_a_title() {
+        let (_, _, e, _, title) = episode("[Grp] Wandering Road - 04 [ABCD1234].mkv");
+        assert_eq!(e, 4);
+        assert_eq!(title, None);
+    }
+
+    #[test]
+    fn a_title_after_the_number_is_kept() {
+        let (show, _, e, _, title) = episode("Wandering Road - 03 - Old Friends.mkv");
+        assert_eq!((show.as_str(), e), ("Wandering Road", 3));
+        assert_eq!(title.as_deref(), Some("Old Friends"));
+    }
+
+    #[test]
+    fn a_revision_is_the_same_episode() {
+        let (_, _, e, _, title) = episode("[Grp] Wandering Road - 03v2 [720p].mkv");
+        assert_eq!(e, 3);
+        assert_eq!(title, None);
+    }
+
+    #[test]
+    fn a_year_after_a_dash_is_a_film() {
+        assert!(matches!(parse("Some Film - 2019.mkv"), Media::Movie { .. }));
+    }
+
+    #[test]
+    fn a_resolution_after_a_dash_is_not_an_episode() {
+        assert!(matches!(parse("Some Show - 1080p.mkv"), Media::Movie { .. }));
+        assert!(matches!(parse("Some Show - 1080 WEB.mkv"), Media::Movie { .. }));
+    }
+
+    #[test]
+    fn a_hyphen_inside_a_name_is_not_a_dash() {
+        assert!(matches!(parse("Spider-Man 2.mkv"), Media::Movie { .. }));
+    }
+
+    #[test]
+    fn a_marked_season_wins_over_the_dash() {
+        // `S2 - 01` has the same dash and number, and the season is worth having.
+        let (_, s, e, _, _) = episode("[EMBER] Sousou no Frieren S2 - 01.mkv");
+        assert_eq!((s, e), (Some(2), 1));
+    }
+
+    #[test]
+    fn an_episode_without_a_season_is_numbered_on_its_own() {
+        assert_eq!(
+            titled("[Grp] Wandering Road - 01.mkv", Some("A Journey Begins")),
+            "Wandering Road \u{b7} E01 \u{b7} A Journey Begins"
+        );
+        // A tag that repeats the bare number says it once, as with a season.
+        assert_eq!(
+            titled("[Grp] Wandering Road - 01.mkv", Some("01 - A Journey Begins")),
+            "Wandering Road \u{b7} E01 \u{b7} A Journey Begins"
+        );
+    }
+
+    #[test]
+    fn a_fansub_folder_becomes_one_show() {
+        let list = listing(
+            [
+                ("[Grp] Wandering Road - 01.mkv", Some("A Journey Begins")),
+                ("[Grp] Wandering Road - 02.mkv", None),
+            ]
+            .into_iter(),
+        );
+        assert_eq!(list.heading.as_deref(), Some("Wandering Road"));
+        assert_eq!(list.rows, ["E01 \u{b7} A Journey Begins", "E02"]);
     }
 
     #[test]
