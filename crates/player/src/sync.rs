@@ -172,13 +172,23 @@ impl ListSync {
 fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_sub_tracks(track_model(player, TrackKind::Sub));
     ui.set_audio_tracks(track_model(player, TrackKind::Audio));
+    push_playlist(ui, player);
+}
+
+/// Hand the playlist alone to the UI.
+///
+/// Separate so a scan result, which changes nothing about the tracks, does
+/// not rebuild the subtitle and audio menus as well — and so a row the
+/// pointer is resting on is recreated no more often than it has to be.
+pub fn push_playlist(ui: &MainWindow, player: &PlayerState) {
     // Labelled as a list rather than one at a time: a season of one show
     // puts its name in the heading and leaves the rows to say what differs.
     let listing = crate::naming::listing(
         player
             .playlist
             .iter()
-            .map(|e| (e.filename.as_str(), e.embedded_title())),
+            .enumerate()
+            .map(|(row, e)| (e.filename.as_str(), player.known_title(row))),
     );
     ui.set_playlist_named(listing.heading.is_some());
     ui.set_playlist_heading(match &listing.heading {
@@ -195,7 +205,7 @@ fn push_lists(ui: &MainWindow, player: &PlayerState) {
                 // A file never played here has no length to show and no
                 // progress to draw; an empty string and a zero say so, and
                 // the row leaves both out rather than printing "0:00".
-                let progress = player.progress_of(row);
+                let progress = player.known_progress(row);
                 PlaylistItem {
                     index: e.index as i32,
                     label: label.into(),

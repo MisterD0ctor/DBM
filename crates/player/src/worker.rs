@@ -57,6 +57,9 @@ pub enum Completion {
     /// silently, and silence is exactly what made the original fault so
     /// baffling.
     Notice(String),
+    /// Playlist entries described by `probe` without being played: their
+    /// lengths and titles. Several at once when they came from the cache.
+    Probed(Vec<crate::probe::Found>),
 }
 
 type Job = Box<dyn FnOnce(&Mpv) -> Option<Completion> + Send + 'static>;
@@ -65,12 +68,44 @@ pub struct Worker {
     jobs: Option<Sender<Job>>,
     results: Receiver<Completion>,
     thread: Option<JoinHandle<()>>,
+    /// Kept so threads that are not this one can report through the same
+    /// queue — see [`Reporter`].
+    reply: Sender<Completion>,
+    waker: slint::Weak<MainWindow>,
+}
+
+/// A way for a thread of its own to hand results back as the worker does.
+///
+/// Some background work should not queue behind the worker — a scan of a
+/// large folder would hold the track menu empty until it finished — but its
+/// results still belong in the one enum drained once a frame, where every
+/// kind of background work is handled in one place.
+#[derive(Clone)]
+pub struct Reporter {
+    reply: Sender<Completion>,
+    waker: slint::Weak<MainWindow>,
+}
+
+impl Reporter {
+    /// Deliver, and wake a paused loop so it is noticed. Returns `false` once
+    /// the player is shutting down, which is the sender's cue to stop.
+    pub fn send(&self, completion: Completion) -> bool {
+        if self.reply.send(completion).is_err() {
+            return false;
+        }
+        let _ = self.waker.upgrade_in_event_loop(|ui| {
+            slint::ComponentHandle::window(&ui).request_redraw()
+        });
+        true
+    }
 }
 
 impl Worker {
     pub fn spawn(mpv: Arc<Mpv>, ui: slint::Weak<MainWindow>) -> Self {
         let (jobs_tx, jobs_rx) = mpsc::channel::<Job>();
         let (results_tx, results_rx) = mpsc::channel::<Completion>();
+        let reply = results_tx.clone();
+        let waker = ui.clone();
 
         let thread = std::thread::Builder::new()
             .name("dbm-worker".into())
@@ -98,6 +133,8 @@ impl Worker {
             jobs: Some(jobs_tx),
             results: results_rx,
             thread: Some(thread),
+            reply,
+            waker,
         }
     }
 
@@ -124,6 +161,14 @@ impl Worker {
     /// Everything that finished since the last call. Never blocks.
     pub fn drain(&self) -> TryIter<'_, Completion> {
         self.results.try_iter()
+    }
+
+    /// A handle another thread can report through.
+    pub fn reporter(&self) -> Reporter {
+        Reporter {
+            reply: self.reply.clone(),
+            waker: self.waker.clone(),
+        }
     }
 }
 

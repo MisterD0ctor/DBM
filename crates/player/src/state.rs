@@ -100,6 +100,13 @@ pub struct PlayerState {
     /// Parallel to `playlist`, and only as long as it: read in the same job,
     /// applied in the same step.
     pub progress: Vec<crate::durations::Progress>,
+    /// What `probe` found, by path.
+    ///
+    /// Only ever added to, and read *over* `playlist` and `progress` rather
+    /// than written into them: those are replaced wholesale by every list
+    /// read, and a read that left the worker before a probe landed would
+    /// otherwise put the row back the way it was.
+    pub probed: std::collections::HashMap<String, crate::probe::Found>,
 }
 
 impl PlayerState {
@@ -303,6 +310,52 @@ impl PlayerState {
     /// it wants — no length, no progress — is exactly the default.
     pub fn progress_of(&self, row: usize) -> crate::durations::Progress {
         self.progress.get(row).copied().unwrap_or_default()
+    }
+
+    /// Take delivery of described files. Returns whether any row changes.
+    pub fn apply_probed(&mut self, found: Vec<crate::probe::Found>) -> bool {
+        let mut changed = false;
+        for f in found {
+            if self.probed.get(&f.path) == Some(&f) {
+                continue;
+            }
+            changed |= self.playlist.iter().any(|e| e.filename == f.path);
+            self.probed.insert(f.path.clone(), f);
+        }
+        changed
+    }
+
+    /// [`progress_of`](Self::progress_of), with a probed length filling in
+    /// for one mpv has never reported.
+    pub fn known_progress(&self, row: usize) -> crate::durations::Progress {
+        let mut progress = self.progress_of(row);
+        if progress.seconds > 0.0 {
+            return progress;
+        }
+        let Some(found) = self.probed_for(row) else {
+            return progress;
+        };
+        if found.seconds > 0.0 {
+            progress.seconds = found.seconds;
+            if progress.start > 0.0 {
+                progress.fraction = (progress.start / found.seconds).clamp(0.0, 1.0) as f32;
+            }
+        }
+        progress
+    }
+
+    /// A row's embedded title: mpv's where mpv has opened the file, the
+    /// probe's otherwise. mpv's wins because it is the same tag read by the
+    /// thing actually playing it.
+    pub fn known_title(&self, row: usize) -> Option<&str> {
+        let entry = self.playlist.get(row)?;
+        entry
+            .embedded_title()
+            .or_else(|| self.probed_for(row)?.title.as_deref())
+    }
+
+    fn probed_for(&self, row: usize) -> Option<&crate::probe::Found> {
+        self.probed.get(&self.playlist.get(row)?.filename)
     }
 
     /// Playback progress in 0..1, preferring the elapsed/duration ratio so it

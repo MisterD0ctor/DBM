@@ -168,7 +168,7 @@ impl Drop for Cleanup {
 ///
 /// Two names because the vendored file keeps the target-triple suffix Tauri's
 /// sidecar mechanism requires, while a packaged build places it plainly.
-fn ffmpeg_path() -> Option<PathBuf> {
+pub(crate) fn ffmpeg_path() -> Option<PathBuf> {
     if let Some(explicit) = std::env::var_os("DBM_FFMPEG") {
         let path = PathBuf::from(explicit);
         return path.is_file().then_some(path);
@@ -194,12 +194,12 @@ fn ffmpeg_path() -> Option<PathBuf> {
 /// Four things can supply it — the override, the copy beside the executable,
 /// this crate's vendor directory, the `PATH` — so "the thumbnails are missing"
 /// is otherwise a question with no way to answer it.
-fn announce(ffmpeg: &Path) {
+pub(crate) fn announce(ffmpeg: &Path) {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| eprintln!("dbm: ffmpeg at {}", ffmpeg.display()));
 }
 
-fn command(ffmpeg: &Path) -> Command {
+pub(crate) fn command(ffmpeg: &Path) -> Command {
     let mut cmd = Command::new(ffmpeg);
     cmd.stdin(Stdio::null())
         .stdout(Stdio::null())
@@ -228,7 +228,7 @@ fn probe(ffmpeg: &Path, video: &Path) -> Option<(f64, Option<f64>)> {
 }
 
 /// `  Duration: 01:23:45.67, start: ...`
-fn parse_duration(text: &str) -> Option<f64> {
+pub(crate) fn parse_duration(text: &str) -> Option<f64> {
     let rest = text.split("Duration:").nth(1)?.trim_start();
     let clock = rest.split(',').next()?.trim();
     let mut parts = clock.split(':');

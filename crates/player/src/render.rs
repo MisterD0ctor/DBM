@@ -108,6 +108,8 @@ pub struct Driver {
     lists: sync::ListSync,
     /// Keeps the duration cache the playlist reads from up to date.
     durations: crate::durations::Recorder,
+    /// Describes the playlist's other files without playing them.
+    scan: crate::probe::Scan,
     /// Last seen state of the playlist panel, so its opening can be noticed.
     playlist_open: bool,
     /// Reply ids seen this frame, routed below. Reused to avoid allocating
@@ -155,6 +157,7 @@ impl Driver {
             worker,
             lists: sync::ListSync::default(),
             durations: crate::durations::Recorder::default(),
+            scan: crate::probe::Scan::default(),
             playlist_open: false,
             replies: Vec::new(),
             notices: Vec::new(),
@@ -370,10 +373,19 @@ impl Driver {
         self.lists.poll(&self.worker, &self.player);
         self.durations.poll(&self.worker, &self.player);
         poll_preview(&self.preview, &self.player, &self.ui, &ui);
+        // Several probe results can land in one drain; the playlist is
+        // rebuilt once for all of them.
+        let mut probed = false;
         for completion in self.worker.drain() {
             match completion {
                 Completion::Lists(lists) => {
                     self.lists.apply(&ui, &mut self.player, lists);
+                    // Here because this is where the playlist's paths become
+                    // known. The scan compares them with the last request and
+                    // does nothing when only the tracks moved.
+                    let paths: Vec<String> =
+                        self.player.playlist.iter().map(|e| e.filename.clone()).collect();
+                    self.scan.request(&paths, &self.worker);
                 }
                 Completion::Opened(Ok(list)) => {
                     eprintln!(
@@ -390,7 +402,11 @@ impl Driver {
                     say(&ui, e);
                 }
                 Completion::Notice(text) => say(&ui, text),
+                Completion::Probed(found) => probed |= self.player.apply_probed(found),
             }
+        }
+        if probed {
+            sync::push_playlist(&ui, &self.player);
         }
         let t = self.diag.mark_lists(t);
 

@@ -48,6 +48,11 @@
 //!                         one actually moves it.
 //! * `DBM_KEY_TEST=1`    — dispatches real key events into the window, for
 //!                         shortcuts whose effect is otherwise off-screen.
+//! * `DBM_SCAN_TEST=1`   — prints every playlist row's name and length as the
+//!                         background scan fills them in. Point `APPDATA` at
+//!                         an empty directory to watch it do a first scan,
+//!                         and run it again to see a second one come from
+//!                         the cache all at once.
 //! * `DBM_CURSOR_TEST=1` — waits out the idle clock with a film playing and
 //!                         asks Windows whether a cursor is on screen, then
 //!                         moves the pointer and asks again. The interface's
@@ -185,6 +190,9 @@ pub fn install(
     }
     if std::env::var_os("DBM_PROGRESS_TEST").is_some() {
         timers.push(progress_test(ui, mpv.clone()));
+    }
+    if std::env::var_os("DBM_SCAN_TEST").is_some() {
+        timers.push(scan_test(ui));
     }
     if std::env::var_os("DBM_END_TEST").is_some() {
         timers.push(end_test(ui));
@@ -1705,6 +1713,43 @@ fn report_drop(ui: &MainWindow, label: &str) {
         ui.get_media_title(),
         ui.get_playlist().row_count(),
     );
+}
+
+/// Watch the playlist describe files nobody has played.
+///
+/// Reported early and often, because *when* is the point: rows that are right
+/// eventually would also be the old behaviour, given long enough to play
+/// every episode.
+fn scan_test(ui: &MainWindow) -> slint::Timer {
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut step = 0usize;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(400),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            match step {
+                0 | 1 | 2 | 4 | 8 => report_rows(&ui, step * 400),
+                9 => eprintln!("dbm: --- scan test done ---"),
+                _ => {}
+            }
+            step += 1;
+        },
+    );
+    timer
+}
+
+fn report_rows(ui: &MainWindow, ms: usize) {
+    let rows = ui.get_playlist();
+    let timed = rows.iter().filter(|r| !r.length.is_empty()).count();
+    eprintln!(
+        "dbm: scan  at {ms:>4}ms  {timed} of {} rows have a length",
+        rows.row_count()
+    );
+    for row in rows.iter() {
+        eprintln!("dbm: scan      {:<44} {}", row.label.as_str(), row.length.as_str());
+    }
 }
 
 /// Check that a playlist row's length and progress are real.

@@ -37,6 +37,7 @@
 //! | `naming`      | filenames and track titles into something readable    |
 //! | `playlist`    | turning a path into a list of videos to play          |
 //! | `durations`   | how long each file is, and how far in you got         |
+//! | `probe`       | what a file says about itself before it is played     |
 //! | `preview`     | thumbnail atlases for the seek preview                |
 //! | `dialog`      | asking the desktop for a path, off the UI thread      |
 //! | `dropped`     | files dragged onto the window                         |
@@ -67,6 +68,7 @@ mod paths;
 mod pipeline;
 mod playlist;
 mod preview;
+mod probe;
 mod render;
 mod scrub;
 mod session;

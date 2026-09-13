@@ -22,6 +22,8 @@ use md5::Digest;
 /// The cache, as the Tauri build wrote it: a flat object of path to seconds.
 pub type Cache = HashMap<String, f64>;
 
+static WRITE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn cache_file() -> PathBuf {
     crate::paths::app_data_dir().join("durations.json")
 }
@@ -50,6 +52,10 @@ pub fn record(path: &str, seconds: f64) {
     if seconds <= 0.0 || path.is_empty() {
         return;
     }
+    // Two threads write here now: the worker, as files play, and the probe,
+    // as a folder is scanned. Each rewrites the whole file from what it just
+    // read, so without this one of two overlapping writes is simply lost.
+    let _guard = WRITE.lock().unwrap_or_else(|e| e.into_inner());
     let mut cache = load();
     if cache.get(path).copied() == Some(seconds) {
         return;
@@ -72,6 +78,13 @@ pub struct Progress {
     /// How far the resume point is through it, 0..1. Zero when there is no
     /// saved position, or no duration to measure it against.
     pub fraction: f32,
+    /// The resume point itself, in seconds, zero when there is none.
+    ///
+    /// Kept because `fraction` cannot be worked out without a length, and a
+    /// length can now arrive after this was read — from a probe of a file
+    /// that has a resume point but was never played long enough here for mpv
+    /// to report how long it is.
+    pub start: f64,
 }
 
 /// Look up every entry in a playlist at once.
@@ -91,6 +104,7 @@ pub fn of(paths: &[String]) -> Vec<Progress> {
             let start = resume_point(&watch_later, path).unwrap_or(0.0);
             Progress {
                 seconds,
+                start,
                 fraction: if seconds > 0.0 && start > 0.0 {
                     (start / seconds).clamp(0.0, 1.0) as f32
                 } else {
