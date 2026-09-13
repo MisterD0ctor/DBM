@@ -3,24 +3,19 @@ name: Death by MPV
 description: A video player whose interface is panes of real glass laid over the film.
 colors:
   lit: "#ffffff"
-  text-strong: "#fffffff2"
-  text-title: "#ffffffe5"
-  text-readout: "#ffffffd8"
-  text-named: "#ffffffcb"
-  text-body: "#ffffffbe"
-  text-glyph: "#ffffffbb"
-  text-kicker: "#ffffffb1"
-  text-hint: "#ffffffa4"
-  text-faint: "#ffffff97"
-  text-dim: "#ffffff80"
+  strong: "#ffffffe0"
+  body: "#ffffffc0"
+  quiet: "#ffffffa0"
+  dim: "#ffffff80"
+  played: "#fffffff2"
   fill: "#ffffffcc"
   rail: "#ffffff2e"
+  knob: "#101010e6"
+  ground: "#000000"
   wash-strong: "#ffffff2e"
   wash-button: "#ffffff24"
   wash-hover: "#ffffff1f"
   wash-soft: "#ffffff14"
-  knob-on: "#101010e6"
-  void: "#000000"
 typography:
   title:
     fontFamily: "system UI (Segoe UI on Windows)"
@@ -76,7 +71,7 @@ components:
   icon-button:
     size: "40px"
     rounded: "{rounded.button}"
-    textColor: "{colors.text-glyph}"
+    textColor: "{colors.body}"
     backgroundColor: "transparent"
   icon-button-hover:
     backgroundColor: "{colors.wash-button}"
@@ -91,17 +86,17 @@ components:
   timeline-row:
     height: "28px"
     rounded: "{rounded.timeline}"
-    textColor: "{colors.text-readout}"
+    textColor: "{colors.strong}"
     typography: "{typography.readout}"
     backgroundColor: "transparent"
   timeline-time:
     width: "60px"
-    textColor: "{colors.text-readout}"
+    textColor: "{colors.strong}"
     typography: "{typography.readout}"
   menu-row:
     height: "34px"
     padding: "0 26px 0 30px"
-    textColor: "{colors.text-body}"
+    textColor: "{colors.body}"
     typography: "{typography.body}"
     backgroundColor: "transparent"
   menu-row-hover:
@@ -115,23 +110,23 @@ components:
   section-label:
     height: "28px"
     padding: "0 26px 0 30px"
-    textColor: "{colors.text-kicker}"
+    textColor: "{colors.body}"
     typography: "{typography.label}"
   section-label-named:
     height: "28px"
     padding: "0 26px 0 30px"
-    textColor: "{colors.text-named}"
+    textColor: "{colors.body}"
     typography: "{typography.named}"
   slider-row:
     height: "30px"
     padding: "0 26px 0 30px"
-    textColor: "{colors.text-body}"
+    textColor: "{colors.body}"
     typography: "{typography.readout}"
   stepper-button:
     size: "26px"
     rounded: "13px"
     backgroundColor: "{colors.wash-soft}"
-    textColor: "#ffffffdd"
+    textColor: "{colors.strong}"
   stepper-button-hover:
     backgroundColor: "{colors.wash-strong}"
   toggle-track-on:
@@ -148,7 +143,7 @@ components:
     height: "28px"
     rounded: "14px"
     padding: "0 12px"
-    textColor: "{colors.text-body}"
+    textColor: "{colors.body}"
     typography: "{typography.body}"
   end-pill:
     height: "48px"
@@ -161,7 +156,7 @@ components:
   seek-preview:
     rounded: "{rounded.preview}"
     padding: "9px"
-    textColor: "{colors.text-strong}"
+    textColor: "{colors.strong}"
     typography: "{typography.readout}"
 ---
 
@@ -179,7 +174,7 @@ unpolarised Fresnel term. Thickness, bevel and index of refraction are real
 parameters, and the rim behaves like a rim because it is one.
 
 The consequence is that this system has almost no palette. Colour comes from
-whatever is playing. The interface is white at sixteen alphas and full white, a
+whatever is playing. The interface is white at ten alphas and full white, a
 single near-black switch knob, and the void behind an unloaded window. Even the
 letterbox is not neutral: the ambient border extends the frame's own edge
 colours outward, so a red scene bleeds red into the bars. Nothing here is tinted
@@ -194,6 +189,7 @@ panels that hold at most a heading and a list.
 **Key Characteristics:**
 - Real per-pixel refraction, not a translucent blur panel
 - No palette of its own; colour is the film's
+- Text on five alpha steps, 0x20 apart, from a floor that does not move
 - One radius rule: every corner nests concentrically inside its parent
 - Motion is short, eased out, and never bounces
 - Uppercase for the interface's own labels, natural case for the user's content
@@ -201,7 +197,9 @@ panels that hold at most a heading and a list.
 ## Colors
 
 A single hue — white — at an alpha ladder, over live video. The ladder *is* the
-hierarchy; there is no second colour to promote anything with.
+hierarchy; there is no second colour to promote anything with. Every value
+below is named once, in the `Paint` global at the top of `app.slint`, and
+nowhere else in the interface is a colour written out.
 
 ### Primary
 - **Lit** (`#ffffff`): the active state and nothing else. A selected track, the
@@ -210,42 +208,39 @@ hierarchy; there is no second colour to promote anything with.
   emphasis and it is spent sparingly.
 
 ### Neutral
-Text roles, brightest first:
 
-- **Strong** (`#fffffff2`): the played portion of the timeline, and the
-  timestamp under a seek preview — the places a near-solid white reads as a
-  measurement rather than as text.
-- **Title** (`#ffffffe5`): the media title in the bar, a fatal headline, a
-  switch's label and a stepper's value — the strongest running text.
-- **Readout** (`#ffffffd8`): the elapsed and total times, and the fill of a
-  playlist row's resume measure. Slightly under Title because numbers read
-  heavier than words at the same alpha.
-- **Named** (`#ffffffcb`): a playlist heading that carries a show's name.
-- **Body** (`#ffffffbe`): ordinary row labels, menu items, a hover label's name,
-  a slider's and a stepper's label, a driver's error text.
-- **Glyph at rest** (`#ffffffbb`): an icon button's own glyph before it is
-  hovered. Deliberately its own value rather than Body's: a 24px mark and a
-  14px word at the same alpha do not read as the same weight.
-- **Kicker** (`#ffffffb1`): section labels — SUBTITLES, AUDIO, EFFECTS — with
-  their icons; the label and chevron of a back row, which is a heading you can
-  press; and the icon and label of a row that leads to another page. Brighter
-  than the rungs below it *because* tracked capitals at 400 put down thin
-  strokes, and thin strokes at a low alpha dissolve. It is subordinate by
-  shape, so it does not have to be faint.
-- **Hint** (`#ffffffa4`): prose added under something else — the line saying a
-  driver update is the usual fix, the third way to open a file — and a
-  stepper row's icon.
-- **Faint** (`#ffffff97`): a shortcut's keys, a playlist row's running time, a
-  chevron at rest, a scroll thumb, and text stating an absence.
-- **Dim readout** (`#ffffff80`): a slider's own value, which sits beside the
-  name of the thing it sets and must not compete with it.
+**Text and glyphs** — four steps under Lit, each 0x20 below the one above:
 
-Marks and surfaces:
+- **Strong** (`#ffffffe0`): text that leads. The media title, the elapsed and
+  total times, the timestamp under a seek preview, a switch's label, a
+  stepper's value and its minus and plus, a fatal headline, and the fill of a
+  playlist row's resume measure.
+- **Body** (`#ffffffc0`): the ordinary run of the interface. Row labels and menu
+  items, a hover label's name, a slider's and a stepper's label, a driver's
+  error text; every section heading and its icon, and a show's name in the same
+  slot; back rows and drill rows; and every icon button's glyph at rest.
+- **Quiet** (`#ffffffa0`): what sits beside or under something else. A
+  shortcut's keys, a playlist row's running time, the prose hints, a chevron at
+  rest, a stepper row's icon, a scroll thumb, the unity dot where it sits off
+  the volume fill, and text stating an absence.
+- **Dim** (`#ffffff80`): a slider's own value, which sits beside the name of the
+  thing it sets and must not compete with it. **The floor**: see below.
 
+**Marks:**
+
+- **Played** (`#fffffff2`): the played length of the timeline — the one
+  near-solid white that reads as a measurement rather than as text.
 - **Fill** (`#ffffffcc`): the filled length of the volume track and every
   settings slider, a lit switch track, and an unlit switch's knob.
-- **Rail** (`#ffffff2e`): the unfilled length of every track and switch, and of
-  the resume measure.
+- **Rail** (`#ffffff2e`): the unfilled length of every track, switch and
+  measure.
+- **Knob** (`#101010e6`): the only non-white in the system. A dark disc on a lit
+  switch track, so the knob reads as a hole punched through it; the unity dot
+  where it sits on the fill.
+- **Ground** (`#000000`): the window before a frame exists.
+
+**Washes:**
+
 - **Strong wash** (`#ffffff2e`): where the keyboard is on a row; the held
   background of a button whose panel is open; a hovered stepper disc.
 - **Button wash** (`#ffffff24`): a hovered icon button, and the hovered
@@ -254,9 +249,6 @@ Marks and surfaces:
 - **Soft wash** (`#ffffff14`): a hovered row that is a heading or a switch; a
   stepper disc at rest; a scroll hint's rail; and the one panel fill in the
   system, on the fatal-error pane — see Elevation & Depth.
-- **Knob** (`#101010e6`): the only non-white in the system. A dark disc on a lit
-  switch track, so the knob reads as a hole punched through it.
-- **Void** (`#000000`): the window before a frame exists.
 
 ### Named Rules
 
@@ -265,17 +257,25 @@ a brand colour, a semantic red/green, or an accent to this palette is a proposal
 to stop the film from being the only source of colour on screen. Status is
 carried by alpha and by glyph, never by hue.
 
-**The Two-Step Rule.** Adjacent text roles differ by at least 0x20 of alpha.
+**The Two-Step Rule.** Adjacent text steps differ by at least 0x20 of alpha.
 Closer than that and the hierarchy stops reading over moving video, where the
-backdrop changes faster than the eye can calibrate.
+backdrop changes faster than the eye can calibrate. Measured over the same
+glass, the steps land at 1.00, 0.79, 0.56 and 0.39 luminance — Lit, Strong,
+Body, Quiet — each one plainly apart from the next.
 
-*Currently broken, and the code is what is wrong.* The text ladder was retuned
-brighter and now steps by 0x0d: Strong `f2`, Title `e5`, Readout `d8`, Named
-`cb`, Body `be`, Kicker `b1`, Hint `a4`, Faint `97` — with Glyph at rest (`bb`)
-three below Body, and only Dim readout (`80`) a clear step from its neighbour.
-The rule stands. Bringing the values back into line with it — by spreading the
-ladder or by merging roles that no longer need to differ — is open work, and no
-new role may be squeezed into the gaps meanwhile.
+The ladder had ten text roles on eight values 0x0d apart before this, because
+each role had been tuned on its own, one careful nudge at a time. Five steps
+cannot give ten roles a value each, and they should not have: **a new role
+takes an existing step.** Roles that sit in different places, or that differ by
+case, size or tracking, share one rather than wear a near-copy of it. A new step
+is only admissible with 0x20 clear on both sides, and there is no room left for
+one.
+
+**The Fixed Floor Rule.** The ladder is built upward from Dim (`#ffffff80`), and
+Dim does not move. The lowest step is what sets the worst-case contrast over a
+bright frame, where the glass's absorption is doing its hardest work; every step
+above it inherits its margin. Retuning the ladder means moving the steps above
+the floor, never the floor.
 
 ## Typography
 
@@ -292,10 +292,10 @@ legibility over arbitrary moving content and nothing else.
 - **Body** (400, 14px): row labels, menu items, switch labels — the name of
   anything you can press. The current row in a list takes Lit at 700 instead.
 - **Named** (400, 13px): a playlist heading that is a show's name rather than a
-  section label. The Label role's weight and neither of its other habits: its
-  own case, its own size, no tracking, and a brighter alpha. Both fill the same
-  slot at the top of a panel, so what separates them is what they *are* — the
-  user's word or the interface's — and nothing else has to say it.
+  section label. The Label role's weight and alpha and neither of its other
+  habits: its own case, its own size, no tracking. Both fill the same slot at
+  the top of a panel, so what separates them is what they *are* — the user's
+  word or the interface's — and nothing else has to say it.
 - **Readout** (400, 13px): figures — timestamps, slider and stepper values, a
   row's running time, a shortcut's keys — and the labels of the dense rows
   those sit in, which read as part of the same line rather than as menu entries.
@@ -328,8 +328,9 @@ rows under it are the point. At 700 a kicker put down 34.9 lit pixels per
 character against a body row's 25.6 — heavier ink than the thing it labelled,
 while the alpha ladder claimed it was quieter — and the only cue left telling
 them apart was the capitals. Capitals alone are not enough in a list of
-nineteen. A label is told from its content by case, size, tracking and weight;
-it is never told apart by being the boldest thing on the page.
+nineteen. A label is told from its content by case, size, tracking, its icon and
+the space above it; it wears its rows' own alpha, and it is never told apart by
+being the boldest thing on the page.
 
 Two things follow, both learned the hard way. **Tracking is the cue**: capitals
 set solid read as a word, capitals with air between them read as a label. And
@@ -505,7 +506,7 @@ the axes, which is exactly the part the eye catches.
 
 ### Icon buttons
 - **Shape:** circle (40px, radius 20px), glyph drawn at 24px
-- **Default:** transparent, glyph at Glyph at rest
+- **Default:** transparent, glyph at Body
 - **Hover:** Button wash, 45ms; glyph to Lit
 - **Active:** glyph to Lit, and every button that sets it swaps its own glyph as
   well — muted for unmuted, slashed for unslashed. A wash behind an engaged
@@ -519,15 +520,15 @@ the axes, which is exactly the part the eye catches.
 - **Shape:** capsule, height 48px (a 40px button with 4px of padding), radius 24px
 - **Background:** none. The pill is a glass rect published to the renderer; a
   fill here would paint over the material.
-- **Contents:** 40px buttons at 6px apart; the title pill's text is Title at
-  600, inset 18px, eliding.
+- **Contents:** 40px buttons at 6px apart; the title pill's text is the Title
+  role at Strong, inset 18px, eliding.
 
 ### Timeline row
 - **Shape:** one 28px capsule of glass across the bar's full width
-- **Times:** Readout, centred in 60px each — wide enough for `1:23:45`, so the
-  row does not shift when a film passes the hour
+- **Times:** Strong in Readout size, centred in 60px each — wide enough for
+  `1:23:45`, so the row does not shift when a film passes the hour
 - **Track:** 5px at Rail, growing to 7px under the pointer or a drag (100ms
-  ease-out); played length at Strong, width-driven so it stays crisp
+  ease-out); played length at Played, width-driven so it stays crisp
 - **Hit area:** the full row height, not the track it draws — a 5px target is
   miserable to grab. The wheel over it seeks.
 
@@ -536,7 +537,7 @@ the axes, which is exactly the part the eye catches.
   across mpv's full 0–200% range
 - **Unity dot:** a dot, not a line, at 100%. A line the height of the track
   divides it into two ranges; a dot is a landmark on one. It reverses against
-  the fill the way the switch knob does.
+  the fill the way the switch knob does: Knob on the fill, Quiet off it.
 
 ### Menu rows
 - **Shape:** 34px tall; the wash is inset 16px on both sides at a 16px radius,
@@ -551,13 +552,13 @@ the axes, which is exactly the part the eye catches.
 
 ### Playlist rows
 - **Shape:** a menu row with two more facts on it
-- **Running time:** Faint at Readout, right-aligned so a column of them reads
-  as a column; empty for a file never opened and not yet described
+- **Running time:** Quiet in Readout size, right-aligned so a column of them
+  reads as a column; empty for a file never opened and not yet described
 - **Title:** elides clear of the time and the measure, never under them
 
 ### The resume measure
 
-A 44×4 capsule on a playlist row, at Rail with a fill at Readout, sitting on
+A 44×4 capsule on a playlist row, at Rail with a fill at Strong, sitting on
 the row's own line 10px before the running time. It says how far into
 that file you got, and appears only when there is a resume point to show.
 
@@ -578,7 +579,7 @@ row already has, beside the fact that is already there.
 
 ### Scroll hint
 - **Shape:** a 3px rail at Soft wash, 7px from the list's right edge and inset
-  2px top and bottom; the thumb a capsule at Faint, proportional to how much of
+  2px top and bottom; the thumb a capsule at Quiet, proportional to how much of
   the list is visible, with a 24px floor
 - **Role:** a hint, not a control. It says there is more and roughly where you
   are; the wheel, the flick and the keyboard move the list. The keyboard scrolls
@@ -586,7 +587,7 @@ row already has, beside the fact that is already there.
 
 ### Sliders
 - **Row:** 30px; label 78px at Body in Readout size, value 46px right-aligned at
-  Dim readout
+  Dim
 - **Track:** 4px at Rail, growing to 6px on hover or press (100ms ease-out) —
   a step lighter than the bar's 5px tracks, because these sit inside a panel of
   rows rather than alone on glass
@@ -597,33 +598,33 @@ row already has, beside the fact that is already there.
   since the growing track already answers the pointer
 
 ### Steppers
-- **Row:** 38px; an 18px icon at Hint, the label at Body in Readout size, then
-  two 26px discs flanking a 62px value at Title
+- **Row:** 38px; an 18px icon at Quiet, the label at Body in Readout size, then
+  two 26px discs flanking a 62px value at Strong
 - **Discs:** Soft wash at rest, Strong wash on hover (45ms); `−` (U+2212, to match
-  the digits) and `+` in Glyph size at `#ffffffdd`
+  the digits) and `+` in Glyph size at Strong
 - **Use:** for quantities read as numbers rather than positions — a subtitle
   delay is +0.30 s and the useful move is one step. Sliders are for material
   parameters, where the eye judges the result and the number is incidental.
 
 ### Switches
-- **Row:** 40px; switch first, label after it at Title in Body size, 12px apart
+- **Row:** 40px; switch first, label after it at Strong in Body size, 12px apart
 - **Shape:** 34×18 capsule, 14px knob inset 2px
-- **On:** track at Fill, knob `#101010e6`; **off:** track at Rail, knob at Fill —
+- **On:** track at Fill, knob at Knob; **off:** track at Rail, knob at Fill —
   dark on the lit track, light on the dark one, so the knob reads as a hole
   punched through it either way
 - **Motion:** 120ms ease-out on the knob, 120ms on the track colour
 - **Hover:** Soft wash; one target for the whole row
 
 ### Drill rows
-- **Row:** 34px; an 18px icon and the label, both at Kicker, 10px apart, with a
-  chevron at the end — Faint at rest, Lit on hover
+- **Row:** 34px; an 18px icon and the label, both at Body, 10px apart, with a
+  chevron at the end — Quiet at rest, Lit on hover
 - **Use:** every row of the settings tree. An effect that can be turned off says
   so with its glyph rather than with a switch, because a switch beside a chevron
   is two things to press in one row.
 
 ### Back rows
 - **Row:** 34px, the page's heading and the way out of it at once
-- **Text:** Label role at Kicker, starting on the row-label line; Lit on hover,
+- **Text:** Label role at Body, starting on the row-label line; Lit on hover,
   over a Soft wash
 - **Chevron:** 14px, hanging in the 14px margin so the words land where every
   heading and row label in the panel starts
@@ -631,11 +632,11 @@ row already has, beside the fact that is already there.
 ### Panels
 - **Shape:** 32px radius, 16px padding, no background of its own
 - **Entry:** fade and 6px rise over 120ms ease-out, glass fading with the surface
-- **Headings:** tracked capitals at Kicker, except a playlist heading carrying
-  a show name, which takes the Named role — natural case, no tracking, one
-  step of alpha brighter, and the same weight. A heading with a group above it
-  carries the 10px gap itself rather than being pushed down by the row above,
-  because the last row of a group does not know that it is last
+- **Headings:** tracked capitals at Body, except a playlist heading carrying a
+  show name, which takes the Named role — natural case, no tracking, and the
+  same alpha and weight. A heading with a group above it carries the 10px gap
+  itself rather than being pushed down by the row above, because the last row
+  of a group does not know that it is last
 - **Heading icons:** a heading over rows without icons of their own carries
   one — the playlist, SUBTITLES and AUDIO in the tracks panel, every group on
   the shortcuts page. 16px, not a row's 18px, because the words beside it are
@@ -646,14 +647,14 @@ row already has, beside the fact that is already there.
   because every row under them already wears one
 - **Trailing rows:** a reset or a setting *about* the list gets a 10px gap above
   it. Without it the eye reads one more entry and only the wording says otherwise.
-- **Shortcut rows:** Body label, keys at Faint in Readout size, 12px apart. On
+- **Shortcut rows:** Body label, keys at Quiet in Readout size, 12px apart. On
   the reference page they are inert — no wash and no pointer, because a wash
   under a row that does nothing when clicked is an offer the row cannot keep.
 
 ### The hover label
 
 A 28px capsule of glass that names the control under the pointer and gives the
-key that does the same thing. The name is Body, the key is Faint at Readout
+key that does the same thing. The name is Body, the key is Quiet at Readout
 size, 12px apart with 12px of padding — the two roles of a shortcuts row,
 unchanged, because the tip is that list arriving one row at a time where the
 question was asked.
@@ -711,12 +712,12 @@ and this is what should still be there when it does.
 
 ### The way in
 With no film loaded, a 320px panel of glass centred in the window: Open file,
-Open folder and Settings as shortcut rows with their keys, then a line at Hint
+Open folder and Settings as shortcut rows with their keys, then a line at Quiet
 saying a file can be dropped anywhere. While an open is in flight the two open
 rows fade to half and stop answering, and the line names what is arriving —
 Settings stays at full strength, because it still works. Carrying a failure it
-widens to 420px and offers nothing: a Title headline at 600, the driver's own
-error text at Body in Hint size wrapping to three lines, and the line at Hint
+widens to 420px and offers nothing: a Title headline at Strong, the driver's own
+error text at Body in Hint size wrapping to three lines, and a line at Quiet
 saying a driver update is the usual fix.
 
 ## Do's and Don'ts
@@ -725,6 +726,8 @@ saying a driver update is the usual fix.
 - **Do** derive every length from the constants at the top of the component.
   Panel geometry is read once per frame by the renderer; a binding that asks a
   layout for an answer costs a full layout pass each time.
+- **Do** take every colour from the `Paint` global. A new role gets an existing
+  step; a colour written at its use site is how the ladder drifted last time.
 - **Do** keep radii concentric: inner = outer − gap (16 + 16 = 32).
 - **Do** express state in two channels where a control carries two meanings —
   glyph brightness for what it controls, held background for what it opened.
@@ -739,6 +742,9 @@ saying a driver update is the usual fix.
 ### Don't:
 - **Don't** add a hue. Not an accent, not a semantic red, not a brand colour.
   The film is the only source of colour on screen.
+- **Don't** add a text step between two existing ones, or move Dim. There is no
+  gap 0x20 wide left to put one in, and the floor is the contrast margin
+  everything else stands on.
 - **Don't** give a panel a background fill. The glass beneath it is the surface;
   a fill paints over the thing this product exists for. The fatal-error pane is
   the one exception, because there is no glass to paint over.

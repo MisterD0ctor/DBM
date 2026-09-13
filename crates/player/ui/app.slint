@@ -191,6 +191,70 @@ export global Tip {
 /// title from a body line is weight, and what separates a readout from a hint
 /// is that one is a figure and the other is prose. Two names on one value cost
 /// nothing and keep the next change from having to be everywhere at once.
+/// Every colour in the interface, named by what it is for.
+///
+/// One hue, white, at a few alphas, and one dark knob. Written here rather
+/// than at each use, because values scattered through a file drift apart one
+/// careful tweak at a time: that is how the text ladder came to have ten
+/// rungs 0x0d apart, most of them indistinguishable over a moving picture.
+global Paint {
+    // --- text and glyphs ------------------------------------------------------
+    //
+    // Five steps, each 0x20 above the last — the Two-Step Rule: closer than
+    // that and the steps stop reading as a hierarchy over moving video, where
+    // the backdrop changes faster than the eye can calibrate. Built upward
+    // from `dim`, which does not move: the floor is what sets the worst-case
+    // contrast over a bright frame, so everything else stands on it.
+    //
+    // Five steps cannot give ten roles a value each, and they should not
+    // have: roles that sit in different places, or differ by case, size or
+    // tracking, share a step rather than wear a near-copy of one.
+
+    /// The active state and nothing else: the current row, a control that is
+    /// on, the flash, the end-of-file prompt.
+    out property <color> lit: #ffffff;
+    /// Text that leads: the media title, times and values, a switch's label,
+    /// a fatal headline.
+    out property <color> strong: #ffffffe0;
+    /// Row labels, section headings and a show's name, glyphs at rest.
+    out property <color> body: #ffffffc0;
+    /// Beside or under something else: a shortcut's keys, a row's running
+    /// time, prose hints, chevrons at rest, a scroll thumb.
+    out property <color> quiet: #ffffffa0;
+    /// A slider's own value, beside the name of the thing it sets. The floor.
+    out property <color> dim: #ffffff80;
+
+    // --- marks ------------------------------------------------------------------
+
+    /// The played length of the timeline — the one near-solid white that reads
+    /// as a measurement rather than as text.
+    out property <color> played: #fffffff2;
+    /// The filled length of a slider or the volume; a lit switch track.
+    out property <color> fill: #ffffffcc;
+    /// The unfilled length of every track, switch and measure.
+    out property <color> rail: #ffffff2e;
+    /// Dark on a lit switch track, so the knob reads as a hole punched in it.
+    out property <color> knob: #101010e6;
+    /// The window before a frame exists.
+    out property <color> ground: #000000;
+
+    // --- washes -----------------------------------------------------------------
+
+    /// Where the keyboard is, and a button whose panel is open. A wash one step
+    /// above the hover rather than a ring drawn around the row: there is no
+    /// border anywhere in this interface, and introducing one for this would
+    /// make the keyboard the only thing that draws an outline. A pointer and a
+    /// keyboard are rarely both in play, and when they are, the stronger wash
+    /// is the one the keys will answer to.
+    out property <color> wash-strong: #ffffff2e;
+    /// A hovered icon button, or the end-of-file pill.
+    out property <color> wash-button: #ffffff24;
+    /// A hovered row.
+    out property <color> wash-hover: #ffffff1f;
+    /// A hovered row that is only a heading or a switch; a stepper disc at rest.
+    out property <color> wash-soft: #ffffff14;
+}
+
 global Type {
     /// 600. The media title, the flash, a fatal headline, the playlist entry
     /// that is playing.
@@ -277,16 +341,6 @@ global Rows {
     /// only the wording says otherwise.
     out property <length> group-gap: 10px;
 
-    /// A row that can be picked, and one that is only a heading or a way back.
-    out property <color> hover: #ffffff1f;
-    out property <color> hover-soft: #ffffff14;
-    /// Where the keyboard is. One step above the hover wash rather than a
-    /// ring drawn around the row: there is no border anywhere in this
-    /// interface, and introducing one for this would make the keyboard the
-    /// only thing that draws an outline. A pointer and a keyboard are rarely
-    /// both in play, and when they are, the stronger wash is the one the keys
-    /// will answer to.
-    out property <color> focus: #ffffff2e;
 }
 
 /// The mark on the row that is the current one — the subtitle track in use,
@@ -314,7 +368,7 @@ component ActiveMark inherits Rectangle {
         width: 3px;
         height: 14px;
         border-radius: self.width / 2;
-        background: #ffffff;
+        background: Paint.lit;
         opacity: root.on ? 1.0 : 0.0;
         animate opacity { duration: Motion.highlight; }
     }
@@ -324,7 +378,7 @@ component ActiveMark inherits Rectangle {
 /// itself; the row says only whether it is lit.
 component RowHighlight inherits Rectangle {
     in property <bool> lit;
-    in property <color> shade: Rows.hover;
+    in property <color> shade: Paint.wash-hover;
 
     width: 100%;
     height: 100%;
@@ -414,7 +468,7 @@ component IconButton inherits Rectangle {
     width: 40px;
     height: 40px;
     border-radius: self.height / 2;
-    background: root.open ? #ffffff2e : touch.has-hover ? #ffffff24 : transparent;
+    background: root.open ? Paint.wash-strong : touch.has-hover ? Paint.wash-button : transparent;
     animate background { duration: Motion.highlight; }
 
     Image {
@@ -424,7 +478,7 @@ component IconButton inherits Rectangle {
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
         image-fit: contain;
-        colorize: root.active ? #ffffff : #ffffffbb;
+        colorize: root.active ? Paint.lit : Paint.body;
     }
 
     touch := TouchArea {
@@ -479,7 +533,7 @@ component MenuRow inherits Rectangle {
 
     RowHighlight {
         lit: touch.has-hover || root.ring;
-        shade: root.ring ? Rows.focus : Rows.hover;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-hover;
     }
 
     ActiveMark {
@@ -491,7 +545,7 @@ component MenuRow inherits Rectangle {
         width: parent.width - Rows.label-x - Rows.trail-x;
         height: 100%;
         text: root.label;
-        color: root.active ? #ffffff : #ffffffbe;
+        color: root.active ? Paint.lit : Paint.body;
         font-size: Type.body;
         font-weight: root.active ? 700 : 400;
         vertical-alignment: center;
@@ -537,7 +591,7 @@ component PlaylistRow inherits Rectangle {
 
     RowHighlight {
         lit: touch.has-hover || root.ring;
-        shade: root.ring ? Rows.focus : Rows.hover;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-hover;
     }
 
     ActiveMark {
@@ -553,7 +607,7 @@ component PlaylistRow inherits Rectangle {
                 ? root.measure-w + Rows.group-gap : 0);
         height: 100%;
         text: root.label;
-        color: root.active ? #ffffff : #ffffffbe;
+        color: root.active ? Paint.lit : Paint.body;
         font-size: Type.body;
         font-weight: root.active ? 700 : 400;
         vertical-alignment: center;
@@ -565,7 +619,7 @@ component PlaylistRow inherits Rectangle {
         x: parent.width - Rows.trail-x - self.width;
         height: 100%;
         text: root.length;
-        color: #ffffff97;
+        color: Paint.quiet;
         font-size: Type.readout;
         vertical-alignment: center;
     }
@@ -591,7 +645,7 @@ component PlaylistRow inherits Rectangle {
         width: root.measure-w;
         height: 4px;
         visible: root.progress > 0.001;
-        background: #ffffff2e;
+        background: Paint.rail;
         border-radius: self.height / 2;
 
         Rectangle {
@@ -600,7 +654,7 @@ component PlaylistRow inherits Rectangle {
             // it was started at all, and one pixel of white does not.
             width: max(self.height, parent.width * root.progress);
             height: 100%;
-            background: #ffffffd8;
+            background: Paint.strong;
             border-radius: parent.border-radius;
         }
     }
@@ -669,7 +723,7 @@ component ScrollList inherits Rectangle {
         width: 3px;
         height: parent.height - 4px;
         border-radius: self.width / 2;
-        background: #ffffff14;
+        background: Paint.wash-soft;
         visible: root.content-height > root.height;
 
         Rectangle {
@@ -680,7 +734,7 @@ component ScrollList inherits Rectangle {
             y: (parent.height - self.height)
                 * (-flick.viewport-y / max(1px, root.content-height - root.height));
             border-radius: parent.border-radius;
-            background: #ffffff97;
+            background: Paint.quiet;
         }
     }
 }
@@ -705,7 +759,7 @@ component ShortcutRow inherits Rectangle {
 
     RowHighlight {
         lit: !root.inert && (touch.has-hover || root.ring);
-        shade: root.ring ? Rows.focus : Rows.hover;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-hover;
     }
 
     HorizontalLayout {
@@ -715,7 +769,7 @@ component ShortcutRow inherits Rectangle {
 
         Text {
             text: root.label;
-            color: #ffffffbe;
+            color: Paint.body;
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -723,7 +777,7 @@ component ShortcutRow inherits Rectangle {
 
         Text {
             text: root.shortcut;
-            color: #ffffff97;
+            color: Paint.quiet;
             font-size: Type.readout;
             vertical-alignment: center;
         }
@@ -761,7 +815,7 @@ component ParamSlider inherits Rectangle {
     // stand on, so the row lights like every other row under the ring.
     RowHighlight {
         lit: root.ring;
-        shade: Rows.focus;
+        shade: Paint.wash-strong;
     }
 
     HorizontalLayout {
@@ -772,7 +826,7 @@ component ParamSlider inherits Rectangle {
         Text {
             width: 78px;
             text: root.label;
-            color: #ffffffbe;
+            color: Paint.body;
             font-size: Type.readout;
             vertical-alignment: center;
         }
@@ -785,7 +839,7 @@ component ParamSlider inherits Rectangle {
                 width: 100%;
                 height: drag.has-hover || drag.pressed ? 6px : 4px;
                 border-radius: self.height / 2;
-                background: #ffffff2e;
+                background: Paint.rail;
                 // The same 100ms the timeline and volume tracks grow at, with
                 // the same easing. It was 90ms with no easing, which matched
                 // nothing in the file and was documented nowhere — one
@@ -797,7 +851,7 @@ component ParamSlider inherits Rectangle {
                     width: parent.width * clamp(root.fraction, 0, 1);
                     height: parent.height;
                     border-radius: parent.border-radius;
-                    background: #ffffffcc;
+                    background: Paint.fill;
                 }
             }
 
@@ -820,7 +874,7 @@ component ParamSlider inherits Rectangle {
         Text {
             width: 46px;
             text: root.readout;
-            color: #ffffff80;
+            color: Paint.dim;
             font-size: Type.readout;
             horizontal-alignment: right;
             vertical-alignment: center;
@@ -857,7 +911,7 @@ component ToggleRow inherits Rectangle {
 
     RowHighlight {
         lit: switch-touch.has-hover || root.ring;
-        shade: root.ring ? Rows.focus : Rows.hover-soft;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
     }
 
     HorizontalLayout {
@@ -873,7 +927,7 @@ component ToggleRow inherits Rectangle {
                 width: 100%;
                 height: 18px;
                 border-radius: self.height / 2;
-                background: root.checked ? #ffffffcc : #ffffff2e;
+                background: root.checked ? Paint.fill : Paint.rail;
                 animate background { duration: 120ms; }
 
                 Rectangle {
@@ -884,7 +938,7 @@ component ToggleRow inherits Rectangle {
                     border-radius: self.height / 2;
                     // Dark on the lit track, light on the dark one: the knob
                     // reads as a hole punched in the switch either way.
-                    background: root.checked ? #101010e6 : #ffffffcc;
+                    background: root.checked ? Paint.knob : Paint.fill;
                     animate x { duration: 120ms; easing: ease-out; }
                 }
             }
@@ -892,7 +946,7 @@ component ToggleRow inherits Rectangle {
 
         Text {
             text: root.label;
-            color: #ffffffe5;
+            color: Paint.strong;
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -929,7 +983,7 @@ component DrillRow inherits Rectangle {
 
     RowHighlight {
         lit: touch.has-hover || root.ring;
-        shade: root.ring ? Rows.focus : Rows.hover;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-hover;
     }
 
     HorizontalLayout {
@@ -947,13 +1001,13 @@ component DrillRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: #ffffffb1;
+                colorize: Paint.body;
             }
         }
 
         Text {
             text: root.label;
-            color: #ffffffb1;
+            color: Paint.body;
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -969,7 +1023,7 @@ component DrillRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: touch.has-hover ? #ffffff : #ffffff97;
+                colorize: touch.has-hover ? Paint.lit : Paint.quiet;
             }
         }
     }
@@ -994,12 +1048,12 @@ component StepButton inherits Rectangle {
     width: 26px;
     height: 26px;
     border-radius: self.height / 2;
-    background: touch.has-hover ? #ffffff2e : #ffffff14;
+    background: touch.has-hover ? Paint.wash-strong : Paint.wash-soft;
     animate background { duration: Motion.highlight; }
 
     Text {
         text: root.glyph;
-        color: #ffffffdd;
+        color: Paint.strong;
         font-size: Type.glyph;
         width: 100%;
         height: 100%;
@@ -1041,7 +1095,7 @@ component StepperRow inherits Rectangle {
     // them is where the keyboard is — the row is.
     RowHighlight {
         lit: root.ring;
-        shade: Rows.focus;
+        shade: Paint.wash-strong;
     }
 
     HorizontalLayout {
@@ -1059,13 +1113,13 @@ component StepperRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: #ffffffa4;
+                colorize: Paint.quiet;
             }
         }
 
         Text {
             text: root.label;
-            color: #ffffffbe;
+            color: Paint.body;
             font-size: Type.readout;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -1087,7 +1141,7 @@ component StepperRow inherits Rectangle {
         Text {
             width: 62px;
             text: root.value;
-            color: #ffffffe5;
+            color: Paint.strong;
             font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -1122,7 +1176,7 @@ component BackRow inherits Rectangle {
 
     RowHighlight {
         lit: touch.has-hover || root.ring;
-        shade: root.ring ? Rows.focus : Rows.hover-soft;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
     }
 
     // The arrow hangs in the margin so the label lands on `Rows.label-x`,
@@ -1144,13 +1198,13 @@ component BackRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: touch.has-hover ? #ffffff : #ffffffb1;
+                colorize: touch.has-hover ? Paint.lit : Paint.body;
             }
         }
 
         Text {
             text: root.label;
-            color: touch.has-hover ? #ffffff : #ffffffb1;
+            color: touch.has-hover ? Paint.lit : Paint.body;
             font-size: Type.label;
             font-weight: 400;
             letter-spacing: Type.label-track;
@@ -1182,7 +1236,7 @@ component EmptyRow inherits Rectangle {
         width: parent.width - Rows.label-x - Rows.trail-x;
         height: 100%;
         text: root.label;
-        color: #ffffff97;
+        color: Paint.quiet;
         font-size: Type.body;
         vertical-alignment: center;
         overflow: elide;
@@ -1197,11 +1251,11 @@ component EmptyRow inherits Rectangle {
 component MenuHeading inherits Rectangle {
     in property <string> text;
     /// A name rather than a label — the show a playlist is all of. Natural
-    /// case, its own size, no tracking, and a brighter alpha than a section
-    /// kicker like SUBTITLES or EFFECTS, because it is the user's word and
-    /// not the interface's. Everything else about it is the same, including
-    /// the weight: the difference between the two is what they are, and
-    /// nothing else needs to say so.
+    /// case, its own size and no tracking, where a section kicker like
+    /// SUBTITLES or EFFECTS has capitals and air, because it is the user's
+    /// word and not the interface's. Everything else about it is the same,
+    /// including the weight and the alpha: the difference between the two is
+    /// what they are, and nothing else needs to say so.
     in property <bool> titular;
     /// Whether a group already ended above this one.
     ///
@@ -1222,7 +1276,6 @@ component MenuHeading inherits Rectangle {
     /// mark outweighed the label it introduced.
     private property <length> icon-size: 16px;
     private property <length> icon-gap: 8px;
-    private property <color> ink: root.titular ? #ffffffcb : #ffffffb1;
 
     height: 28px + (root.after-content ? Rows.group-gap : 0px);
 
@@ -1238,7 +1291,7 @@ component MenuHeading inherits Rectangle {
         height: root.icon-size;
         image-fit: contain;
         // The heading's own alpha, so the mark and the words are one thing.
-        colorize: root.ink;
+        colorize: Paint.body;
     }
 
     Text {
@@ -1249,19 +1302,19 @@ component MenuHeading inherits Rectangle {
         y: parent.height - self.height;
         height: 28px;
         text: root.text;
-        color: root.ink;
+        color: Paint.body;
         font-size: root.titular ? Type.named : Type.label;
         // A kicker is lighter than the rows it labels, not heavier. What
-        // tells it from them is case, size, alpha and the tracking, and not
-        // stroke weight — the one axis a label must not beat its own content
-        // on.
+        // tells it from them is case, size and the tracking — it wears the
+        // rows' own alpha — and not stroke weight, the one axis a label must
+        // not beat its own content on.
         //
         // The same weight for a show's name, which is the other thing this
         // slot can hold. It was 600 while the kicker was 700 and the two
         // read as one family; at 400 against 600 they stopped, and since 600
         // is Bold here it had become a small copy of the playing row rather
         // than a heading. A name is still not a label — it keeps its own
-        // case, its own size and a brighter alpha — but both are headings,
+        // case and its own size — but both are headings,
         // and a panel should not look like it was designed twice.
         font-weight: 400;
         letter-spacing: root.titular ? 0 : Type.label-track;
@@ -2294,7 +2347,7 @@ export component MainWindow inherits Window {
     // element widths; a floor costs one line and no moving parts.
     min-width: 900px;
     min-height: 480px;
-    background: #000000;
+    background: Paint.ground;
     forward-focus: keys;
 
     // Key dispatch is split across several small functions rather than one
@@ -3300,7 +3353,7 @@ export component MainWindow inherits Window {
             width: root.time-w;
             height: 100%;
             text: root.elapsed;
-            color: #ffffffd8;
+            color: Paint.strong;
             font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -3323,7 +3376,7 @@ export component MainWindow inherits Window {
             width: 100%;
             height: scrub.has-hover || scrub.pressed ? 7px : 5px;
             border-radius: self.height / 2;
-            background: #ffffff2e;
+            background: Paint.rail;
             animate height { duration: 100ms; easing: ease-out; }
 
             // Width-driven rather than clipped, so it stays crisp at any
@@ -3333,7 +3386,7 @@ export component MainWindow inherits Window {
                 width: parent.width * clamp(root.progress, 0, 1);
                 height: parent.height;
                 border-radius: parent.border-radius;
-                background: #fffffff2;
+                background: Paint.played;
             }
         }
 
@@ -3384,7 +3437,7 @@ export component MainWindow inherits Window {
             width: root.time-w;
             height: 100%;
             text: root.total;
-            color: #ffffffd8;
+            color: Paint.strong;
             font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -3417,7 +3470,7 @@ export component MainWindow inherits Window {
         // by nobody — the message would be bare text on black, which is how
         // the interface looked before any of this work and is a poor way to
         // explain itself. Everywhere else the material is real.
-        background: root.fatal != "" ? #ffffff14 : transparent;
+        background: root.fatal != "" ? Paint.wash-soft : transparent;
         border-radius: root.fatal != "" ? root.panel-radius : 0px;
         visible: root.invite-shown > root.shown-epsilon;
         opacity: root.invite-shown;
@@ -3449,7 +3502,7 @@ export component MainWindow inherits Window {
 
                         Text {
                             text: root.fatal;
-                            color: #ffffffe5;
+                            color: Paint.strong;
                             font-size: Type.title;
                             font-weight: 600;
                             vertical-alignment: center;
@@ -3472,7 +3525,7 @@ export component MainWindow inherits Window {
 
                         Text {
                             text: root.fatal-detail;
-                            color: #ffffffbe;
+                            color: Paint.body;
                             font-size: Type.hint;
                             wrap: word-wrap;
                             overflow: elide;
@@ -3494,7 +3547,7 @@ export component MainWindow inherits Window {
 
                         Text {
                             text: "Updating the graphics driver is the usual fix.";
-                            color: #ffffffa4;
+                            color: Paint.quiet;
                             font-size: Type.hint;
                             vertical-alignment: center;
                         }
@@ -3574,11 +3627,12 @@ export component MainWindow inherits Window {
                         text: root.opening
                             ? "Opening " + root.opening-name + "…"
                             : "or drop a file anywhere here";
-                        // One step above a shortcut hint rather than level
-                        // with it: this is the only place the third way in is
-                        // ever mentioned, and at hint weight it was a line
-                        // nobody would read twice.
-                        color: #ffffffa4;
+                        // Quiet, the step a shortcut's keys sit on: prose
+                        // under the rows, not one of them. It was a hair
+                        // above the keys once, which no one could see over
+                        // a film and which the ladder no longer spends a
+                        // step on.
+                        color: Paint.quiet;
                         font-size: Type.hint;
                         vertical-alignment: center;
                         horizontal-alignment: left;
@@ -3608,7 +3662,7 @@ export component MainWindow inherits Window {
             x: (parent.width - self.width) / 2;
             y: (parent.height - self.height) / 2;
             image-fit: contain;
-            colorize: #ffffff;
+            colorize: Paint.lit;
         }
     }
 
@@ -3625,7 +3679,7 @@ export component MainWindow inherits Window {
             height: 100%;
             x: root.flash-text-pad;
             text: root.flash-text;
-            color: #ffffff;
+            color: Paint.lit;
             font-size: Type.title;
             font-weight: 600;
             horizontal-alignment: center;
@@ -3659,7 +3713,7 @@ export component MainWindow inherits Window {
         visible: root.end-shown > root.shown-epsilon;
         opacity: root.end-shown;
         border-radius: self.height / 2;
-        background: end-touch.has-hover ? #ffffff24 : transparent;
+        background: end-touch.has-hover ? Paint.wash-button : transparent;
         animate background {
             duration: Motion.highlight;
         }
@@ -3678,11 +3732,11 @@ export component MainWindow inherits Window {
                 height: 24px;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: #ffffff;
+                colorize: Paint.lit;
             }
             Text {
                 text: root.end-label;
-                color: #ffffff;
+                color: Paint.lit;
                 font-size: Type.prompt;
                 font-weight: 600;
                 vertical-alignment: center;
@@ -3759,14 +3813,14 @@ export component MainWindow inherits Window {
                 // what you asked for and the key is what you get for having
                 // asked twice.
                 text: Tip.label;
-                color: #ffffffbe;
+                color: Paint.body;
                 font-size: Type.body;
                 vertical-alignment: center;
             }
 
             if Tip.keys != "": Text {
                 text: Tip.keys;
-                color: #ffffff97;
+                color: Paint.quiet;
                 font-size: Type.readout;
                 vertical-alignment: center;
             }
@@ -3836,7 +3890,7 @@ export component MainWindow inherits Window {
             width: 100%;
             height: root.preview-has-tile ? root.preview-caption : root.preview-h;
             text: root.preview-time;
-            color: #fffffff2;
+            color: Paint.strong;
             font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -3875,7 +3929,7 @@ export component MainWindow inherits Window {
                 text: root.opening
                     ? "Opening " + root.opening-name + "…"
                     : root.has-file ? root.media-title : "No file open";
-                color: #ffffffe5;
+                color: Paint.strong;
                 font-size: Type.title;
                 font-weight: 600;
                 // The pill is a fixed width, so a long title elides rather
@@ -4029,7 +4083,7 @@ export component MainWindow inherits Window {
                     width: 100%;
                     height: vol.has-hover || vol.pressed ? 7px : 5px;
                     border-radius: self.height / 2;
-                    background: #ffffff2e;
+                    background: Paint.rail;
                     animate height { duration: 100ms; easing: ease-out; }
 
                     Rectangle {
@@ -4038,7 +4092,7 @@ export component MainWindow inherits Window {
                             * clamp(root.muted ? 0 : root.volume / root.volume-max, 0, 1);
                         height: parent.height;
                         border-radius: parent.border-radius;
-                        background: #ffffffcc;
+                        background: Paint.fill;
                     }
 
                     // Unity gain. The track runs to mpv's full 200%, so
@@ -4070,7 +4124,7 @@ export component MainWindow inherits Window {
                         width: self.height;
                         height: parent.height - 2px;
                         border-radius: self.height / 2;
-                        background: root.volume >= 100 ? #101010e6 : #ffffffa4;
+                        background: root.volume >= 100 ? Paint.knob : Paint.quiet;
                     }
                 }
 
