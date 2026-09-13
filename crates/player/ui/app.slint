@@ -1866,52 +1866,37 @@ export component MainWindow inherits Window {
     // rather than the array changing length, which keeps this a plain
     // literal instead of something conditionally built.
     out property <[GlassRect]> glass-rects: [
+        // The whole timeline row, times included, on one pane.
+        //
+        // The track went without glass for as long as there has been glass,
+        // because it is a line rather than a surface and a line looked like
+        // it needed no ground - which is true of every film darker than the
+        // interface, and of no other kind. Over a white frame the rail
+        // resolved to 1.02:1 against the picture and the played edge to
+        // 1.13:1 against the rail. Not dim: gone. The absorption in
+        // `glass.frag` was written for exactly this and every other piece of
+        // chrome opts into it; this one had nothing published to absorb with.
+        //
+        // The row's height rather than the track's 5px, and that is not a
+        // size picked by eye. The rim is the full corner radius, so a capsule
+        // is rim the whole way through, and absorption applies to the
+        // transmitted component only - the part a thin capsule does not have.
+        // Glass at the track's own size would be all edge and would darken
+        // for nobody, which is the one thing it is here to do.
+        //
+        // One pane rather than three: a time, the track, a time. They are one
+        // statement - where you are, out of how much - and cutting glass
+        // between them said they were three, while leaving the long run in
+        // the middle looking like the only part that needed a surface.
         {
             x: root.bar-x,
             y: root.timeline-y + root.bar-rise,
-            width: root.bar-shown > root.shown-epsilon ? root.time-w : 0,
+            width: root.bar-shown > root.shown-epsilon ? root.bar-w : 0,
             height: root.bar-shown > root.shown-epsilon ? root.timeline-h : 0,
             opacity: root.bar-shown,
-            radius: root.timeline-h / 2,
             // Opt in to tinting; the strength is the global slider.
             tint: 1.0,
-        },
-        {
-            x: root.total-x,
-            y: root.timeline-y + root.bar-rise,
-            width: root.bar-shown > root.shown-epsilon ? root.time-w : 0,
-            height: root.bar-shown > root.shown-epsilon ? root.timeline-h : 0,
-            opacity: root.bar-shown,
             radius: root.timeline-h / 2,
-            tint: 1.0,
-        },
-        // The track between them. It went without glass for as long as there
-        // has been glass, because it is a line rather than a surface and a
-        // line looked like it needed no ground - which is true of every film
-        // that is darker than the interface, and of no other kind.
-        //
-        // Over a white frame the rail resolved to 1.02:1 against the picture
-        // and the played edge to 1.13:1 against the rail. Not dim: gone. The
-        // absorption in `glass.frag` was written for exactly this and every
-        // other piece of chrome opts into it; this one could not, having
-        // nothing published to absorb with.
-        //
-        // The row rather than the 5px track, and that is not a size choice.
-        // The rim is the full corner radius, so a capsule is rim the whole
-        // way through, and absorption applies to the transmitted component
-        // only - the part a thin capsule does not have. Glass this small
-        // would be all edge and no ground, which is the one thing that was
-        // needed. At the row's height there is a flat middle to darken, and
-        // it takes the same height and radius as the two time pills it runs
-        // between, so the row reads as three pieces of one thing.
-        {
-            x: root.scrub-x,
-            y: root.timeline-y + root.bar-rise,
-            width: root.bar-shown > root.shown-epsilon ? root.scrub-w : 0,
-            height: root.bar-shown > root.shown-epsilon ? root.timeline-h : 0,
-            opacity: root.bar-shown,
-            radius: root.timeline-h / 2,
-            tint: 1.0,
         },
         {
             x: root.bar-x,
@@ -2970,8 +2955,8 @@ export component MainWindow inherits Window {
         }
     }
 
-    // The bar is four separate pieces of glass rather than one slab: a
-    // timeline, and three pills that group what belongs together. Content
+    // The bar is four separate pieces of glass rather than one slab: the
+    // timeline row, and three pills that group what belongs together. Content
     // only - the glass beneath each one is the pipeline's, published through
     // `glass-rects` above.
     //
@@ -2982,20 +2967,25 @@ export component MainWindow inherits Window {
 
     // --- timeline ---
     //
-    // Three pieces rather than one long pill: a pill at each end holding a
-    // time, and the track itself bare over the video between them. The glass
-    // follows the content, so the long thin run where nothing is written
-    // gets none of it.
+    // One pane the width of the bar, holding a time at each end and the track
+    // between them. Three elements on one surface rather than three surfaces:
+    // the elapsed time, how far along the film is, and how much of it there
+    // is are one statement, and glass cut between them said otherwise.
+    //
+    // Each end reaches the track, not just as far as its own text, so that
+    // every pixel of the pane is a surface. A gap here would be a hole
+    // through to the play/pause handler underneath, which is exactly what a
+    // sheet of glass is not.
 
     Rectangle {
         x: root.bar-x;
         y: root.timeline-y + root.bar-rise;
-        width: root.time-w;
+        width: root.time-w + root.pill-gap;
         height: root.timeline-h;
         visible: root.bar-shown > root.shown-epsilon;
         opacity: root.bar-shown;
 
-        // A pill is a surface, not a window onto the video behind it, so a
+        // A pane is a surface, not a window onto the video behind it, so a
         // click on one must not reach the play/pause handler underneath.
         TouchArea {
             pointer-event(event) => {
@@ -3004,7 +2994,9 @@ export component MainWindow inherits Window {
         }
 
         Text {
-            width: 100%;
+            // Centred over the 60px the figure owns, not over the reach of
+            // the surface behind it.
+            width: root.time-w;
             height: 100%;
             text: root.elapsed;
             color: #ffffffd0;
@@ -3073,9 +3065,9 @@ export component MainWindow inherits Window {
     }
 
     Rectangle {
-        x: root.total-x;
+        x: root.total-x - root.pill-gap;
         y: root.timeline-y + root.bar-rise;
-        width: root.time-w;
+        width: root.time-w + root.pill-gap;
         height: root.timeline-h;
         visible: root.bar-shown > root.shown-epsilon;
         opacity: root.bar-shown;
@@ -3087,7 +3079,8 @@ export component MainWindow inherits Window {
         }
 
         Text {
-            width: 100%;
+            x: root.pill-gap;
+            width: root.time-w;
             height: 100%;
             text: root.total;
             color: #ffffffd0;

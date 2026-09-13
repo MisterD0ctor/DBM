@@ -251,17 +251,25 @@ Capitalising someone's content is how a tool starts sounding like a database.
 A dark field with four glass objects along the bottom and at most one panel
 above them.
 
-**The bar** is six separate pieces, not one slab. The timeline row is three of
-them at 28px tall: a 60px time pill at each end and the track's own pane
-running between them. Below sit three control pills 48px tall — a title pill on
-the left, a 232px transport pill centred in the window, and a 380px pill on the
-right holding sound, effects and window controls. They sit 24px from the window
-edges with 10px between the timeline row and the pills.
+**The bar** is four separate pieces, not one slab. The timeline row is one pane
+28px tall running the full width, holding the elapsed time at its left end, the
+total at its right, and the track between them. Below sit three control pills
+48px tall — a title pill on the left, a 232px transport pill centred in the
+window, and a 380px pill on the right holding sound, effects and window
+controls. They sit 24px from the window edges with 10px between the timeline
+row and the pills.
 
-The track's pane is the newest and was the last thing here without one. A 5px
-line over a white frame resolved to 1.02:1 against the picture, and the played
-edge to 1.13:1 against the rail — not dim, gone. It is glass rather than a
-scrim because every other piece of chrome already solved this by being glass.
+The timeline row is one pane because it makes one statement: where you are, out
+of how much. It was three for a while — a pill around each time and the track
+bare over the video between them — which cut glass between parts of a sentence
+and left the long run in the middle looking like the only part that needed a
+surface. It also left the track with no glass at all, and a 5px line over a
+white frame resolved to 1.02:1 against the picture with the played edge at
+1.13:1 against the rail. Not dim: gone.
+
+A row with contents at both ends and nothing but a line in the middle is the
+one place in this system where **the glass is sized by what the row means, not
+by what is written in it.**
 
 **Panels** open above the bar, anchored to the button that opened them and
 clamped inside the same 24px margins. Only one is ever open. Each is capped at
