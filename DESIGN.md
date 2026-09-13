@@ -251,11 +251,17 @@ Capitalising someone's content is how a tool starts sounding like a database.
 A dark field with four glass objects along the bottom and at most one panel
 above them.
 
-**The bar** is five separate pieces, not one slab: two 60×28 time pills at the
-outer ends of the timeline, and three control pills 48px tall — a title pill on
+**The bar** is six separate pieces, not one slab. The timeline row is three of
+them at 28px tall: a 60px time pill at each end and the track's own pane
+running between them. Below sit three control pills 48px tall — a title pill on
 the left, a 232px transport pill centred in the window, and a 380px pill on the
 right holding sound, effects and window controls. They sit 24px from the window
 edges with 10px between the timeline row and the pills.
+
+The track's pane is the newest and was the last thing here without one. A 5px
+line over a white frame resolved to 1.02:1 against the picture, and the played
+edge to 1.13:1 against the rail — not dim, gone. It is glass rather than a
+scrim because every other piece of chrome already solved this by being glass.
 
 **Panels** open above the bar, anchored to the button that opened them and
 clamped inside the same 24px margins. Only one is ever open. Each is capped at
@@ -305,6 +311,16 @@ edge — which is also how real glass is made.
 contents than its own bevel is wide, or the material has nowhere to render. The
 seek preview shipped once with 5px of padding around a thumbnail and an 8px
 bevel; the glass was there and entirely invisible.
+
+**The Transmissive Middle Rule.** Absorption — the thing that keeps white text
+and white controls legible over a bright frame — is applied to the transmitted
+component only, never to the rim, the sky highlight or the mirrored backdrop.
+The rim is the full corner radius, so a capsule is rim the whole way through
+and has no transmitted component to darken. **A pane that exists to give
+something a ground must be tall enough to have a flat middle.** This is why the
+timeline's glass is the height of its row and not the height of its 5px track:
+glass at the track's own size would have been all edge and would have darkened
+for nobody, which is the one thing it was added to do.
 
 ## Shapes
 

@@ -1885,6 +1885,34 @@ export component MainWindow inherits Window {
             radius: root.timeline-h / 2,
             tint: 1.0,
         },
+        // The track between them. It went without glass for as long as there
+        // has been glass, because it is a line rather than a surface and a
+        // line looked like it needed no ground - which is true of every film
+        // that is darker than the interface, and of no other kind.
+        //
+        // Over a white frame the rail resolved to 1.02:1 against the picture
+        // and the played edge to 1.13:1 against the rail. Not dim: gone. The
+        // absorption in `glass.frag` was written for exactly this and every
+        // other piece of chrome opts into it; this one could not, having
+        // nothing published to absorb with.
+        //
+        // The row rather than the 5px track, and that is not a size choice.
+        // The rim is the full corner radius, so a capsule is rim the whole
+        // way through, and absorption applies to the transmitted component
+        // only - the part a thin capsule does not have. Glass this small
+        // would be all edge and no ground, which is the one thing that was
+        // needed. At the row's height there is a flat middle to darken, and
+        // it takes the same height and radius as the two time pills it runs
+        // between, so the row reads as three pieces of one thing.
+        {
+            x: root.scrub-x,
+            y: root.timeline-y + root.bar-rise,
+            width: root.bar-shown > root.shown-epsilon ? root.scrub-w : 0,
+            height: root.bar-shown > root.shown-epsilon ? root.timeline-h : 0,
+            opacity: root.bar-shown,
+            radius: root.timeline-h / 2,
+            tint: 1.0,
+        },
         {
             x: root.bar-x,
             y: root.pills-y + root.bar-rise,
