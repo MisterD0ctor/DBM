@@ -3,14 +3,14 @@ name: Death by MPV
 description: A video player whose interface is panes of real glass laid over the film.
 colors:
   lit: "#ffffff"
-  text-strong: "#ffffffe6"
-  text-title: "#ffffffe0"
-  text-readout: "#ffffffd0"
-  text-named: "#ffffffc4"
-  text-body: "#ffffffb0"
-  text-hint: "#ffffff90"
-  text-kicker: "#ffffffa0"
-  text-faint: "#ffffff70"
+  text-strong: "#fffffff2" # "#ffffffe6"
+  text-title: "#ffffffe5" #"#ffffffe0"
+  text-readout: "#ffffffd8" #"#ffffffd0"
+  text-named: "#ffffffcb" #"#ffffffc4"
+  text-body: "#ffffffbe" #"#ffffffb0"
+  text-kicker: "#ffffffb1" #"#ffffffa0"
+  text-hint: "#ffffffa4" #"#ffffff90"
+  text-faint: "#ffffff97" #"#ffffff70"
   rail: "#ffffff2e"
   wash-hover: "#ffffff1f"
   wash-soft: "#ffffff14"
@@ -165,23 +165,23 @@ hierarchy; there is no second colour to promote anything with.
   the system's only emphasis and it is spent sparingly.
 
 ### Neutral
-- **Strong** (`#ffffffe6`): the played portion of the timeline — the one place a
+- **Strong** (`#fffffff2`): the played portion of the timeline — the one place a
   near-solid white reads as a measurement rather than as text.
-- **Title** (`#ffffffe0`): the media title in the bar, the strongest running text.
-- **Readout** (`#ffffffd0`): timestamps and stepper values. Slightly under body
+- **Title** (`#ffffffe5`): the media title in the bar, the strongest running text.
+- **Readout** (`#ffffffd8`): timestamps and stepper values. Slightly under body
   weight because numbers read heavier than words at the same alpha.
-- **Named** (`#ffffffc4`): a playlist heading that carries a show's name.
-- **Body** (`#ffffffb0`): every ordinary row label and menu item.
-- **Kicker** (`#ffffffa0`): section labels — SUBTITLES, AUDIO, EFFECTS — and
+- **Named** (`#ffffffcb`): a playlist heading that carries a show's name.
+- **Body** (`#ffffffbe`): every ordinary row label and menu item.
+- **Kicker** (`#ffffffb1`): section labels — SUBTITLES, AUDIO, EFFECTS — and
   the label of a back row, which is a heading you can press. Brighter than the
   rungs below it *because* it is the lightest type in the system: tracked
   capitals at 400 put down thin strokes, and thin strokes at a low alpha
   dissolve. It is subordinate by shape, so it does not have to be faint.
-- **Hint** (`#ffffff90`): prose added under something else — the line saying a
+- **Hint** (`#ffffffa4`): prose added under something else — the line saying a
   driver update is the usual fix, the third way to open a file.
 - **Dim readout** (`#ffffff80`): a slider's own value, which sits beside the
   name of the thing it sets and must not compete with it.
-- **Faint** (`#ffffff70`): chevrons at rest, and text stating an absence.
+- **Faint** (`#ffffff97`): chevrons at rest, and text stating an absence.
 - **Glyph at rest** (`#ffffffbb`): an icon button's own glyph before it is
   hovered. A hair above Body, and deliberately its own value: a 24px mark and a
   14px word at the same alpha do not read as the same weight.

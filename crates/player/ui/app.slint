@@ -491,7 +491,7 @@ component MenuRow inherits Rectangle {
         width: parent.width - Rows.label-x - Rows.trail-x;
         height: 100%;
         text: root.label;
-        color: root.active ? #ffffff : #ffffffb0;
+        color: root.active ? #ffffff : #ffffffbe;
         font-size: Type.body;
         font-weight: root.active ? 700 : 400;
         vertical-alignment: center;
@@ -553,7 +553,7 @@ component PlaylistRow inherits Rectangle {
                 ? root.measure-w + Rows.group-gap : 0);
         height: 100%;
         text: root.label;
-        color: root.active ? #ffffff : #ffffffb0;
+        color: root.active ? #ffffff : #ffffffbe;
         font-size: Type.body;
         font-weight: root.active ? 700 : 400;
         vertical-alignment: center;
@@ -565,7 +565,7 @@ component PlaylistRow inherits Rectangle {
         x: parent.width - Rows.trail-x - self.width;
         height: 100%;
         text: root.length;
-        color: #ffffff70;
+        color: #ffffff97;
         font-size: Type.readout;
         vertical-alignment: center;
     }
@@ -600,7 +600,7 @@ component PlaylistRow inherits Rectangle {
             // it was started at all, and one pixel of white does not.
             width: max(self.height, parent.width * root.progress);
             height: 100%;
-            background: #ffffffd0;
+            background: #ffffffd8;
             border-radius: parent.border-radius;
         }
     }
@@ -680,7 +680,7 @@ component ScrollList inherits Rectangle {
             y: (parent.height - self.height)
                 * (-flick.viewport-y / max(1px, root.content-height - root.height));
             border-radius: parent.border-radius;
-            background: #ffffff70;
+            background: #ffffff97;
         }
     }
 }
@@ -715,7 +715,7 @@ component ShortcutRow inherits Rectangle {
 
         Text {
             text: root.label;
-            color: #ffffffb0;
+            color: #ffffffbe;
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -723,7 +723,7 @@ component ShortcutRow inherits Rectangle {
 
         Text {
             text: root.shortcut;
-            color: #ffffff70;
+            color: #ffffff97;
             font-size: Type.readout;
             vertical-alignment: center;
         }
@@ -772,7 +772,7 @@ component ParamSlider inherits Rectangle {
         Text {
             width: 78px;
             text: root.label;
-            color: #ffffffb0;
+            color: #ffffffbe;
             font-size: Type.readout;
             vertical-alignment: center;
         }
@@ -892,7 +892,7 @@ component ToggleRow inherits Rectangle {
 
         Text {
             text: root.label;
-            color: #ffffffe0;
+            color: #ffffffe5;
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -947,13 +947,13 @@ component DrillRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: #ffffffb0;
+                colorize: #ffffffb1;
             }
         }
 
         Text {
             text: root.label;
-            color: #ffffffb0;
+            color: #ffffffb1;
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -969,7 +969,7 @@ component DrillRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: touch.has-hover ? #ffffff : #ffffff70;
+                colorize: touch.has-hover ? #ffffff : #ffffff97;
             }
         }
     }
@@ -1059,13 +1059,13 @@ component StepperRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: #ffffff90;
+                colorize: #ffffffa4;
             }
         }
 
         Text {
             text: root.label;
-            color: #ffffffb0;
+            color: #ffffffbe;
             font-size: Type.readout;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -1087,7 +1087,7 @@ component StepperRow inherits Rectangle {
         Text {
             width: 62px;
             text: root.value;
-            color: #ffffffe0;
+            color: #ffffffe5;
             font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -1144,13 +1144,13 @@ component BackRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: touch.has-hover ? #ffffff : #ffffffa0;
+                colorize: touch.has-hover ? #ffffff : #ffffffb1;
             }
         }
 
         Text {
             text: root.label;
-            color: touch.has-hover ? #ffffff : #ffffffb0;
+            color: touch.has-hover ? #ffffff : #ffffffb1;
             font-size: Type.label;
             font-weight: 400;
             letter-spacing: Type.label-track;
@@ -1182,7 +1182,7 @@ component EmptyRow inherits Rectangle {
         width: parent.width - Rows.label-x - Rows.trail-x;
         height: 100%;
         text: root.label;
-        color: #ffffff70;
+        color: #ffffff97;
         font-size: Type.body;
         vertical-alignment: center;
         overflow: elide;
@@ -1223,7 +1223,7 @@ component MenuHeading inherits Rectangle {
         y: parent.height - self.height;
         height: 28px;
         text: root.text;
-        color: root.titular ? #ffffffc4 : #ffffffa0;
+        color: root.titular ? #ffffffcb : #ffffffb1;
         font-size: root.titular ? Type.named : Type.label;
         // A kicker is lighter than the rows it labels, not heavier. What
         // tells it from them is case, size, alpha and the tracking, and not
@@ -3261,7 +3261,7 @@ export component MainWindow inherits Window {
             width: root.time-w;
             height: 100%;
             text: root.elapsed;
-            color: #ffffffd0;
+            color: #ffffffd8;
             font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -3294,7 +3294,7 @@ export component MainWindow inherits Window {
                 width: parent.width * clamp(root.progress, 0, 1);
                 height: parent.height;
                 border-radius: parent.border-radius;
-                background: #ffffffe6;
+                background: #fffffff2;
             }
         }
 
@@ -3345,7 +3345,7 @@ export component MainWindow inherits Window {
             width: root.time-w;
             height: 100%;
             text: root.total;
-            color: #ffffffd0;
+            color: #ffffffd8;
             font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -3410,7 +3410,7 @@ export component MainWindow inherits Window {
 
                         Text {
                             text: root.fatal;
-                            color: #ffffffe0;
+                            color: #ffffffe5;
                             font-size: Type.title;
                             font-weight: 600;
                             vertical-alignment: center;
@@ -3433,7 +3433,7 @@ export component MainWindow inherits Window {
 
                         Text {
                             text: root.fatal-detail;
-                            color: #ffffffb0;
+                            color: #ffffffbe;
                             font-size: Type.hint;
                             wrap: word-wrap;
                             overflow: elide;
@@ -3455,7 +3455,7 @@ export component MainWindow inherits Window {
 
                         Text {
                             text: "Updating the graphics driver is the usual fix.";
-                            color: #ffffff90;
+                            color: #ffffffa4;
                             font-size: Type.hint;
                             vertical-alignment: center;
                         }
@@ -3539,7 +3539,7 @@ export component MainWindow inherits Window {
                         // with it: this is the only place the third way in is
                         // ever mentioned, and at hint weight it was a line
                         // nobody would read twice.
-                        color: #ffffff90;
+                        color: #ffffffa4;
                         font-size: Type.hint;
                         vertical-alignment: center;
                         horizontal-alignment: left;
@@ -3720,14 +3720,14 @@ export component MainWindow inherits Window {
                 // what you asked for and the key is what you get for having
                 // asked twice.
                 text: Tip.label;
-                color: #ffffffb0;
+                color: #ffffffbe;
                 font-size: Type.body;
                 vertical-alignment: center;
             }
 
             if Tip.keys != "": Text {
                 text: Tip.keys;
-                color: #ffffff70;
+                color: #ffffff97;
                 font-size: Type.readout;
                 vertical-alignment: center;
             }
@@ -3797,7 +3797,7 @@ export component MainWindow inherits Window {
             width: 100%;
             height: root.preview-has-tile ? root.preview-caption : root.preview-h;
             text: root.preview-time;
-            color: #ffffffe6;
+            color: #fffffff2;
             font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -3836,7 +3836,7 @@ export component MainWindow inherits Window {
                 text: root.opening
                     ? "Opening " + root.opening-name + "…"
                     : root.has-file ? root.media-title : "No file open";
-                color: #ffffffe0;
+                color: #ffffffe5;
                 font-size: Type.title;
                 font-weight: 600;
                 // The pill is a fixed width, so a long title elides rather
@@ -4031,7 +4031,7 @@ export component MainWindow inherits Window {
                         width: self.height;
                         height: parent.height - 2px;
                         border-radius: self.height / 2;
-                        background: root.volume >= 100 ? #101010e6 : #ffffff90;
+                        background: root.volume >= 100 ? #101010e6 : #ffffffa4;
                     }
                 }
 
