@@ -377,6 +377,27 @@ the axes, which is exactly the part the eye catches.
   is unreliable over moving video
 - **Hover:** wash at `#ffffff1f`, 45ms
 
+### The resume measure
+
+A 44×4 capsule on a playlist row, at Rail with a fill at Readout, sitting on
+the row's own line immediately before the running time. It says how far into
+that file you got, and appears only when there is a resume point to show.
+
+- **Fixed length, never a share of the row.** It has to read the same however
+  wide the panel is, and it must never reach a width that would make it a rule.
+- **A floor on the fill**, one capsule's height. A file barely started still
+  has to show that it was started, and a single pixel of white does not.
+
+### Named Rules
+
+**The Not Under The Words Rule.** A measure on a text row goes on the line,
+never beneath it. Under a title at the width of its column it is a divider —
+and it is one whichever way it is filled, so at the end of a file the fill
+covers the track and leaves a rule sitting between two titles. Under a title
+and short, it lands at about the width of the words above it and becomes an
+underline. There is no length that is safe underneath; the fix is the line the
+row already has, beside the fact that is already there.
+
 ### Sliders
 - **Track:** 5px tall at Rail, growing to 7px on hover or press (100ms ease-out)
 - **Fill:** width-driven from the left at `#ffffffcc`, never clipped, so it stays

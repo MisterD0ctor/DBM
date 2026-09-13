@@ -439,6 +439,12 @@ component PlaylistRow inherits Rectangle {
     in property <string> length;
     in property <float> progress;
     in property <bool> active;
+    /// Length of the resume measure. Fixed rather than a share of the row,
+    /// so it reads the same however wide the panel is and can never grow
+    /// into the width that would make it a rule. Shorter than the shortest
+    /// title the list is likely to hold, which is what keeps it from reading
+    /// as anything belonging to the words.
+    private property <length> measure-w: 44px;
     callback picked();
 
     height: 34px;
@@ -456,7 +462,9 @@ component PlaylistRow inherits Rectangle {
         x: Rows.label-x;
         // Clear of the time on the trailing edge, so a long title elides
         // rather than running underneath it.
-        width: parent.width - Rows.label-x - Rows.trail-x - time.width - Rows.group-gap;
+        width: parent.width - Rows.label-x - Rows.trail-x - time.width
+            - Rows.group-gap - (root.progress > 0.001
+                ? root.measure-w + Rows.group-gap : 0);
         height: 100%;
         text: root.label;
         color: root.active ? #ffffff : #ffffffb0;
@@ -476,29 +484,38 @@ component PlaylistRow inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // A hairline rather than a bar: it is something the row knows, not
-    // something to operate. It sits under the title and stops where the
-    // title's column stops.
+    // How far into this one you got. A hairline rather than a bar: it is
+    // something the row knows, not something to operate. The unfilled part
+    // stays visible along its whole length, because that is what makes it a
+    // measure rather than a mark - a lone bright segment says only that
+    // something happened, and the same segment on a track says how much.
     //
-    // Held to the bottom edge, and the unfilled part kept visible along its
-    // whole length. That part is what makes it read as a measure: a lone
-    // bright segment under a title is an underline, and the same segment on a
-    // track that runs the width of the row is a quarter of the way in.
+    // On the row's own line, beside the running time, and neither of the two
+    // places it was tried first. Under the title and the width of the column
+    // it is a divider: a 2px rule across a list row is one whichever way it
+    // is filled, and at the end of an episode the fill covers the track and
+    // leaves nothing but a rule between two titles. Under the title and
+    // short, it lands at about the width of the words above it and becomes
+    // an underline instead. Here it is neither, because it is not under
+    // anything - it sits where the row's other fact sits, and the row reads
+    // as one line: this episode, this far in, this long.
     Rectangle {
-        x: Rows.label-x;
-        y: parent.height - 6px;
-        width: parent.width - Rows.label-x - Rows.trail-x;
-        height: 2px;
+        x: time.x - Rows.group-gap - root.measure-w;
+        y: (parent.height - self.height) / 2;
+        width: root.measure-w;
+        height: 4px;
         visible: root.progress > 0.001;
         background: #ffffff2e;
-        border-radius: 1px;
+        border-radius: self.height / 2;
 
         Rectangle {
             x: 0;
-            width: parent.width * root.progress;
+            // Never a sliver: a file barely started still has to show that
+            // it was started at all, and one pixel of white does not.
+            width: max(self.height, parent.width * root.progress);
             height: 100%;
             background: #ffffffd0;
-            border-radius: 1px;
+            border-radius: parent.border-radius;
         }
     }
 
