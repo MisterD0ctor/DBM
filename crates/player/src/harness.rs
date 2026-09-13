@@ -250,6 +250,13 @@ fn input_test(ui: &MainWindow) -> slint::Timer {
                 22 => eprintln!("dbm: panscan now {}", ui.get_panscan()),
                 23 => ui.invoke_toggle_panscan(),
                 24 => eprintln!("dbm: panscan back to {}", ui.get_panscan()),
+                // The mute from step 11 is still on — nothing since has
+                // touched it, and the reports above say so at every step. Now
+                // the bar is used. The level has to arrive *and* the mute has
+                // to go: either alone is a volume nobody can hear.
+                25 => report(&ui, "still muted, about to use the bar"),
+                26 => ui.invoke_set_volume(120.0),
+                27 => report(&ui, "after the bar was used while muted"),
                 _ => {}
             }
             step += 1;
