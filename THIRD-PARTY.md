@@ -67,6 +67,21 @@ GPLv3-compatible. To regenerate the full list with versions:
 cargo install cargo-about && cargo about generate about.hbs
 ```
 
+## Typeface
+
+### Geist
+
+| | |
+|---|---|
+| Version | `v1.7.2`, from [vercel/geist-font](https://github.com/vercel/geist-font/releases/tag/v1.7.2) |
+| Files | `crates/player/fonts/Geist-Regular.ttf`, `Geist-SemiBold.ttf`, `Geist-Bold.ttf`, unmodified |
+| Terms | SIL Open Font License 1.1 — the full text is in [`crates/player/fonts/OFL.txt`](crates/player/fonts/OFL.txt). Copyright 2024 The Geist Project Authors. |
+
+Compiled into the executable by Slint rather than installed on the system.
+The OFL permits bundling a font with software under any licence, GPL
+included; it asks only that the font is not sold on its own and that its
+licence and copyright notice travel with it, which the file above does.
+
 ## Icons
 
 The 59 SVGs in `public/icons/` are the author's own work, drawn at 24×24 and

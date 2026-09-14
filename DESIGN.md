@@ -17,36 +17,36 @@ colors:
   wash-soft: "#ffffff14"
 typography:
   title:
-    fontFamily: "system UI (Segoe UI on Windows)"
+    fontFamily: "Geist"
     fontSize: "14px"
     fontWeight: 600
   body:
-    fontFamily: "system UI (Segoe UI on Windows)"
+    fontFamily: "Geist"
     fontSize: "14px"
     fontWeight: 400
   named:
-    fontFamily: "system UI (Segoe UI on Windows)"
+    fontFamily: "Geist"
     fontSize: "13px"
     fontWeight: 400
   readout:
-    fontFamily: "system UI (Segoe UI on Windows)"
+    fontFamily: "Geist"
     fontSize: "13px"
     fontWeight: 400
   hint:
-    fontFamily: "system UI (Segoe UI on Windows)"
+    fontFamily: "Geist"
     fontSize: "13px"
     fontWeight: 400
   label:
-    fontFamily: "system UI (Segoe UI on Windows)"
+    fontFamily: "Geist"
     fontSize: "12px"
     fontWeight: 400
     letterSpacing: "1px"
   glyph:
-    fontFamily: "system UI (Segoe UI on Windows)"
+    fontFamily: "Geist"
     fontSize: "16px"
     fontWeight: 400
   prompt:
-    fontFamily: "system UI (Segoe UI on Windows)"
+    fontFamily: "Geist"
     fontSize: "16px"
     fontWeight: 600
 rounded:
@@ -303,12 +303,21 @@ the floor, never the floor.
 
 ## Typography
 
-**All roles:** the platform UI font (Segoe UI on Windows) — there is no custom
-typeface and no display type anywhere in the product.
+**All roles:** Geist, compiled into the executable in the three weights the
+scale uses — 400, 600 and 700 — rather than asked of the system. There is no
+display type anywhere in the product, and no second family.
 
-**Character:** deliberately anonymous. The interface never speaks above the
-film, so the type has no voice of its own; it is sized, weighted and spaced for
-legibility over arbitrary moving content and nothing else.
+**Character:** quiet, not anonymous. The interface never speaks above the
+film, so the type is sized, weighted and spaced for legibility over arbitrary
+moving content before anything else. Geist replaced the platform font for what
+it does at that job: even, open shapes at 12–14px over a moving picture, and
+capitals that take tracking well — the section labels read more like labels
+in it than they did in Segoe UI. Bundled, it is also the same face on every
+platform the player runs on, where the system font was a different interface
+on each.
+
+A weight the scale does not already use is a fourth file in the binary, not a
+number to type; reach for 400 first.
 
 ### Hierarchy
 - **Title** (600, 14px): the media title in the bar, the flash, and a fatal
@@ -344,9 +353,9 @@ a hint is that one is a figure and the other is prose.
 
 **One Weight For Headings.** Every heading in the system is 400, whatever it
 holds. A show's name at 600 beside a kicker at 400 read as two different
-designs in two panels — and since 600 is Bold here, it had also become a small
-copy of the playing row rather than a heading of its own. A panel's top line is
-one slot; only the thing in it should differ.
+designs in two panels — and it had also become a small copy of the playing row
+rather than a heading of its own. A panel's top line is one slot; only the
+thing in it should differ.
 
 **The Label Must Not Out-Ink Its Content.** A section label is furniture; the
 rows under it are the point. At 700 a kicker put down 34.9 lit pixels per
@@ -359,9 +368,12 @@ being the boldest thing on the page.
 
 Two things follow, both learned the hard way. **Tracking is the cue**: capitals
 set solid read as a word, capitals with air between them read as a label. And
-**600 is not a weight here** — Segoe UI ships Semibold as its own family rather
-than as a weight of Segoe UI, so 600 and 700 rasterise identically, to the
-pixel. Going lighter means going to 400.
+**lighter means 400**. Under Segoe UI, 600 was not a weight at all — it ships
+Semibold as a family of its own, so 600 and 700 rasterised identically, to the
+pixel — and that is why the scale steps from 400 straight to its two bolds.
+Geist carries both, so the Title at 600 and the playing row at 700 now sit
+visibly apart; but a heading that needs to be quieter still goes to 400, not to
+the step between.
 
 **The Twelve Pixel Floor.** Nothing is smaller than 12px, and 12px is only for
 capitals, which are read by their shape. Below that, white text over arbitrary

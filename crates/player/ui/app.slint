@@ -1,3 +1,10 @@
+// The interface's typeface, compiled into the binary rather than asked of the
+// system: Geist, in the three weights the type scale uses — 400, 600 and 700.
+// See THIRD-PARTY.md for its licence.
+import "../fonts/Geist-Regular.ttf";
+import "../fonts/Geist-SemiBold.ttf";
+import "../fonts/Geist-Bold.ttf";
+
 // Division of labour: this file owns layout and content, the render pipeline
 // owns material. A glass panel declares its geometry here and publishes it
 // through `glass-rects`; the pipeline reads that every frame and draws the
@@ -304,10 +311,11 @@ global Type {
     /// so the alpha ladder said kicker while the page said heading, and the
     /// only thing telling the two apart was the capitals.
     ///
-    /// 600 was tried first and changed nothing: Segoe UI ships Semibold as
-    /// its own family rather than as a weight of Segoe UI, so 600 and 700
-    /// rasterise identically here, to the pixel. Tracked capitals at the
-    /// body's own weight is the treatment that was wanted anyway.
+    /// 600 was tried first and changed nothing: Segoe UI, the face then,
+    /// ships Semibold as its own family rather than as a weight of Segoe UI,
+    /// so 600 and 700 rasterised identically, to the pixel. Tracked capitals
+    /// at the body's own weight is the treatment that was wanted anyway, and
+    /// it stayed when Geist — which has both weights — replaced it.
     out property <length> label-track: 1px;
     /// A character standing in for an icon — the stepper's minus and plus.
     /// Sized against the 26px disc it sits in, not against the text.
@@ -2688,6 +2696,7 @@ export component MainWindow inherits Window {
     min-width: 900px;
     min-height: 480px;
     background: Paint.ground;
+    default-font-family: "Geist";
     forward-focus: keys;
 
     // Key dispatch is split across several small functions rather than one
