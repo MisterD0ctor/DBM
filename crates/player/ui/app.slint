@@ -1750,6 +1750,10 @@ export component MainWindow inherits Window {
     in property <[float]> chapter-marks;
     /// What the chapter playing is called.
     in property <string> chapter-label;
+    /// An episode's closing credits are playing: a chapter named for them,
+    /// in the file's second half, or one after it. Decided on the Rust side,
+    /// where the names are parsed.
+    in property <bool> credits-rolling;
     /// Whether subtitles are actually on screen — mpv's `sub-visibility`
     /// *and* a track selected to be visible. Either half alone is a state
     /// the interface would report wrongly: visibility on with no track
@@ -2088,6 +2092,15 @@ export component MainWindow inherits Window {
             Chrome.bump();
         }
     }
+
+    // The credits starting wakes the bar once, for the same reason, and asks
+    // for nothing more: the clock runs out as it always does and the bar
+    // leaves, so doing nothing is watching the credits.
+    changed credits-offered => {
+        if (root.credits-offered) {
+            Chrome.bump();
+        }
+    }
     property <length> panel-radius: Rows.panel-radius;
     property <length> panel-margin: 24px;
 
@@ -2115,6 +2128,10 @@ export component MainWindow inherits Window {
     property <float> files-shown: root.files-open ? 1.0 : 0.0;
     property <float> preview-shown: root.preview-open ? 1.0 : 0.0;
     property <float> end-shown: root.at-end && root.has-file ? 1.0 : 0.0;
+    /// Stands aside for an open panel, and for the seek preview when the two
+    /// would meet: glass is never laid on glass.
+    property <float> credits-shown: root.credits-offered && !root.panel-open
+        && !root.credits-crowded ? 1.0 : 0.0;
     /// The way in. Not gated on the idle clock: there is no film to keep
     /// clean, and an empty window that hides its only control after three
     /// seconds is a window with nothing in it at all. It stands down only for
@@ -2123,7 +2140,8 @@ export component MainWindow inherits Window {
         ? 1.0 : 0.0;
 
     animate bar-shown, menu-shown, playlist-shown, settings-shown,
-            files-shown, preview-shown, end-shown, invite-shown, tip-shown {
+            files-shown, preview-shown, end-shown, credits-shown, invite-shown,
+            tip-shown {
         duration: root.fade;
         easing: ease-out;
     }
@@ -2141,6 +2159,7 @@ export component MainWindow inherits Window {
     property <length> files-rise: (1.0 - root.files-shown) * root.lift;
     property <length> preview-rise: (1.0 - root.preview-shown) * root.lift;
     property <length> end-rise: (1.0 - root.end-shown) * root.lift;
+    property <length> credits-rise: (1.0 - root.credits-shown) * root.lift;
     property <length> invite-rise: (1.0 - root.invite-shown) * root.lift;
 
     // --- the way in ---------------------------------------------------------
@@ -2283,6 +2302,34 @@ export component MainWindow inherits Window {
     /// which only happens with autoplay off, since otherwise mpv has already
     /// moved on by the time anyone could read it.
     property <string> end-label: root.at-last ? "Restart" : "Next";
+
+    // --- the credits pill ---
+    //
+    // An episode's closing credits are when the next one is wanted, and they
+    // are also something people sit and watch. So the offer keeps out of the
+    // middle, where the names roll, and takes the bottom right corner on the
+    // bar's own lines: down at the margin while the bar is away, and lifted
+    // onto the row panels open from while it is up, so the two never meet.
+    //
+    // One choice, the end pill's single capsule: the same glyph Next wears,
+    // and the words for what it does.
+    /// Somewhere to go: the next file, or the next season found beside this
+    /// one when this is the last.
+    property <bool> credits-onward: !root.at-last || root.next-season-path != "";
+    property <bool> credits-offered: root.credits-rolling && root.has-file
+        && !root.at-end && root.credits-onward && root.fatal == "";
+    property <string> credits-label: "Next episode";
+    property <length> credits-w:
+        2 * root.pill-text-pad + 24px + root.end-gap + credits-measure.preferred-width;
+    property <length> credits-x: root.bar-x + root.bar-w - root.credits-w;
+    /// Rides the bar's own fade, so it moves exactly as far and as fast as
+    /// the bar arrives.
+    property <length> credits-y: root.pills-y
+        - root.bar-shown * (root.pills-y - root.timeline-y + 12px + root.pill-h);
+    /// The seek preview reaching the pill's column. The preview is what the
+    /// pointer is asking for, so the pill is the one to go.
+    property <bool> credits-crowded: root.preview-open
+        && root.preview-x + root.preview-w + 12px > root.credits-x;
 
     // --- the action flash ---
     //
@@ -2427,7 +2474,12 @@ export component MainWindow inherits Window {
     /// tucked against the button it names. There is nowhere closer: the row
     /// between them is one unbroken pane now, and a tip laid over it would
     /// be glass on glass - the thing the panel rule exists to prevent.
-    property <length> tip-y: root.timeline-y - root.tip-h - 12px;
+    property <length> tip-y: root.timeline-y - root.tip-h - 12px
+        - (root.tip-over-credits ? root.pill-h + 12px : 0px);
+    /// A tip that would land on the credits pill goes up a row instead, over
+    /// it. The pill is on that line first, and a tip is the one that moves.
+    property <bool> tip-over-credits: root.credits-offered && !root.panel-open
+        && root.tip-x + root.tip-w + 12px > root.credits-x;
     property <float> tip-shown: 0.0;
     /// What is actually drawn, and the only thing that decides it.
     ///
@@ -2801,6 +2853,15 @@ export component MainWindow inherits Window {
             height: root.end-shown > root.shown-epsilon ? root.end-h : 0,
             opacity: root.end-shown,
             radius: root.end-h / 2,
+            tint: 1.0,
+        },
+        {
+            x: root.credits-x,
+            y: root.credits-y + root.credits-rise,
+            width: root.credits-shown > root.shown-epsilon ? root.credits-w : 0,
+            height: root.credits-shown > root.shown-epsilon ? root.pill-h : 0,
+            opacity: root.credits-shown,
+            radius: root.pill-h / 2,
             tint: 1.0,
         },
         {
@@ -3387,6 +3448,16 @@ export component MainWindow inherits Window {
         }
     }
 
+    /// On to the next episode: the next file, or the next season when this
+    /// was the last of one.
+    function credits-activate() {
+        if (!root.at-last) {
+            root.play-next();
+        } else {
+            root.end-onward();
+        }
+    }
+
     function end-onward() {
         if (root.next-season-path != "") {
             if (!root.opening) {
@@ -3410,9 +3481,11 @@ export component MainWindow inherits Window {
     // opens. Kept, it is also where the ring comes back to when that panel
     // closes — on the button that opened it.
     out property <int> bar-focus: 0;
-    /// Thirteen buttons, and the end pill's choices after them while it is up.
+    /// Thirteen buttons, and the end pill's choices after them while it is
+    /// up, or the credits pill's one. The two are never up together.
     property <int> bar-count: 13
-        + (root.at-end && root.has-file ? (root.end-two ? 2 : 1) : 0);
+        + (root.at-end && root.has-file ? (root.end-two ? 2 : 1)
+            : root.credits-offered ? 1 : 0);
     property <bool> bar-reach: root.has-file && !root.panel-open && root.fatal == "";
 
     function on-bar(text: string, shift: bool) -> bool {
@@ -3470,7 +3543,11 @@ export component MainWindow inherits Window {
     /// the compiler, as the key handlers are.
     function bar-activate(index: int) {
         if (index >= 13) {
-            root.end-activate(index - 13);
+            if (root.at-end) {
+                root.end-activate(index - 13);
+            } else {
+                root.credits-activate();
+            }
         } else if (index < 7) {
             root.bar-activate-left(index);
         } else {
@@ -4728,6 +4805,41 @@ export component MainWindow inherits Window {
 
     end-folder-measure := Text {
         text: root.end-label;
+        font-size: Type.prompt;
+        font-weight: Type.weight-title;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    // --- the way on, while the credits roll ---------------------------------
+    //
+    // Not tied to `controls-visible`, for the end pill's reason: the bar
+    // leaves three still seconds after the credits start, and this stays.
+    Rectangle {
+        x: root.credits-x;
+        y: root.credits-y + root.credits-rise;
+        width: root.credits-w;
+        height: root.pill-h;
+        visible: root.credits-shown > root.shown-epsilon;
+        opacity: root.credits-shown;
+
+        EndChoice {
+            width: parent.width;
+            height: parent.height;
+            pad: root.pill-text-pad;
+            gap: root.end-gap;
+            focused: root.bar-reach && root.bar-focus == 13 && !root.at-end;
+            icon: @image-url("../../../public/icons/step-forward.svg");
+            label: root.credits-label;
+            picked => {
+                root.credits-activate();
+            }
+        }
+    }
+
+    credits-measure := Text {
+        text: root.credits-label;
         font-size: Type.prompt;
         font-weight: Type.weight-title;
         visible: false;

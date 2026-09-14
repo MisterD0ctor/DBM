@@ -604,7 +604,8 @@ the axes, which is exactly the part the eye catches.
 - **Focus:** the Strong wash and the glyph at Lit, while the keyboard is on it.
   The wash alone is the one an open panel holds; the lit glyph is what says the
   keyboard is here. Tab walks the bar left to right while a film is loaded and
-  nothing is open — then on to the end-of-file choices while that pill is up —
+  nothing is open — then on to the end-of-file choices, or the credits pill,
+  while either is up —
   and Enter presses; the arrows, Space and every other key keep their meaning
   wherever the ring stands, and Escape puts the ring away and leaves
   fullscreen in one press. The hover label comes up for the focused button as
@@ -856,6 +857,26 @@ folder. Restart alone was the least likely thing anyone wanted there. With two,
 each choice is a 40px capsule of its own, set 4px inside the pill (24 − 4 = 20,
 concentric) with its words still 18px from the pill's edge, 6px apart, each
 taking the Button wash on its own and the Strong wash under the keyboard.
+
+### The credits pill
+While an episode's closing credits play, the end pill's single capsule offers
+*Next episode* with the Next glyph. The credits are a chapter named for them —
+*End Credits*, *Credits*, *Outro*, *ED*, *Ending* — in the file's second half,
+and the pill stays from there to the end. Where no chapter has a real name —
+each titled with its own start time, *Chapter 7*, or nothing, as broadcast
+episodes split at their act breaks usually are — the last chapter is the
+credits if it runs three minutes or less. A file without chapters, or a film,
+never gets one. It needs somewhere to go: a later file, or at the
+end of a season the next season found beside it.
+
+It keeps out of the middle, where the names roll, and sits at the bottom right
+on the bar's lines: at the 24px margin while the bar is away, lifted 12px above
+the timeline row while it is up, riding the bar's own fade between the two.
+Its arrival wakes the bar once and holds nothing up — the clock runs out, the
+bar leaves, the pill stays, and doing nothing is watching the credits. Like the
+end pill it is not tied to the idle clock. It stands aside for an open panel
+and for the seek preview when the preview reaches its column; a hover label
+that would land on it goes up a row instead. Glass never lies on glass.
 
 ### The way in
 With no film loaded, a panel of glass centred in the window, over the backdrop:

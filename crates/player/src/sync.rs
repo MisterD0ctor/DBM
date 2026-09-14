@@ -147,6 +147,7 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_speed_text(state::format_speed(player.speed).into());
     ui.set_duration(player.duration as f32);
     ui.set_chapter_label(player.chapter_label().into());
+    ui.set_credits_rolling(player.credits_rolling());
     // Where the dialogs open: beside this file, or on the shelf above its
     // folder.
     ui.set_current_path(player.path.clone().unwrap_or_default().into());
@@ -223,6 +224,8 @@ fn push_lists(ui: &MainWindow, player: &PlayerState) {
         player.chapters.iter().map(|c| c.time as f32).collect::<Vec<_>>(),
     )));
     ui.set_chapter_label(player.chapter_label().into());
+    // The chapter's name arrives with the list, a moment after its number.
+    ui.set_credits_rolling(player.credits_rolling());
     push_playlist(ui, player);
 }
 

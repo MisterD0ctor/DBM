@@ -96,6 +96,13 @@
 //!                         for real, then holds it there to be photographed.
 //!                         Point `APPDATA` at a scratch directory: autoplay
 //!                         is a saved preference.
+//! * `DBM_CREDITS_TEST=1` — gives the file a credits chapter over its last
+//!                         two minutes and plays into it, so the credits pill
+//!                         comes up for real. It reports as the bar arrives
+//!                         and again after it has gone, which the pill must
+//!                         not. Needs an episode, and a later file beside it.
+//!                         `DBM_CREDITS_TEST=own` keeps the file's own
+//!                         chapters and plays into the last of them.
 //! * `DBM_SMTC_TEST=1`  — presses the real media keys and reads the OS media
 //!                         session back, so both directions of the overlay
 //!                         are checked against Windows rather than against
@@ -199,6 +206,9 @@ pub fn install(
     }
     if std::env::var_os("DBM_SCRUB_TEST").is_some() {
         timers.push(scrub_test(ui));
+    }
+    if std::env::var_os("DBM_CREDITS_TEST").is_some() {
+        timers.push(credits_test(ui, mpv.clone()));
     }
     Harnesses { _timers: timers }
 }
@@ -1678,6 +1688,94 @@ fn report_end(ui: &MainWindow, label: &str) {
         ui.get_paused(),
         ui.get_elapsed(),
         ui.get_total(),
+        rects.len(),
+        rects.join(" "),
+    );
+}
+
+/// Play into a file's closing credits.
+///
+/// Few files carry chapters and fewer name their credits, so the chapters
+/// are supplied: an ffmetadata file, which mpv takes through `chapters-file`,
+/// naming the last two minutes `End Credits`. mpv reads it when a file opens,
+/// so the file is opened again, the way the dialog would.
+fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut step = 0usize;
+    let mut credits_at = 0.0f64;
+    let own = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "own");
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(1000),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            match step {
+                2 if own => {
+                    let marks = ui.get_chapter_marks();
+                    credits_at = marks
+                        .row_count()
+                        .checked_sub(1)
+                        .and_then(|last| marks.row_data(last))
+                        .map_or(0.0, f64::from);
+                    eprintln!(
+                        "dbm: credits: the file's own {} chapters, the last from {credits_at:.1}s",
+                        marks.row_count()
+                    );
+                }
+                2 => {
+                    let duration = f64::from(ui.get_duration());
+                    credits_at = (duration - 120.0).max(duration / 2.0);
+                    let marks = std::env::temp_dir().join("dbm-credits-test.ffmeta");
+                    let text = format!(
+                        ";FFMETADATA1\n\
+                         [CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND={c}\ntitle=Episode\n\
+                         [CHAPTER]\nTIMEBASE=1/1000\nSTART={c}\nEND={d}\ntitle=End Credits\n",
+                        c = (credits_at * 1000.0) as u64,
+                        d = (duration * 1000.0) as u64,
+                    );
+                    if let Err(e) = std::fs::write(&marks, text) {
+                        eprintln!("dbm: credits: cannot write chapters: {e}");
+                        return;
+                    }
+                    if let Err(e) =
+                        mpv.set_property("chapters-file", &marks.to_string_lossy())
+                    {
+                        eprintln!("dbm: credits: mpv refused chapters-file: {e}");
+                    }
+                    eprintln!("dbm: credits from {credits_at:.0}s of {duration:.0}s");
+                    ui.invoke_open_path(ui.get_current_path());
+                }
+                6 => {
+                    let duration = f64::from(ui.get_duration()).max(1.0);
+                    ui.invoke_seek_fraction(((credits_at + 5.0) / duration) as f32);
+                }
+                7 => report_credits(&ui, "arrived"),
+                // Past `HIDE_AFTER`, with nothing touched since.
+                12 => report_credits(&ui, "left alone"),
+                13 => eprintln!("dbm: --- credits test: holding ---"),
+                _ => {}
+            }
+            step += 1;
+        },
+    );
+    timer
+}
+
+fn report_credits(ui: &MainWindow, label: &str) {
+    let rects: Vec<String> = ui
+        .get_glass_rects()
+        .iter()
+        .filter(|r| r.width > 0.0 && r.height > 0.0)
+        .map(|r| format!("{}x{}@{},{}", r.width, r.height, r.x, r.y))
+        .collect();
+    eprintln!(
+        "dbm: credits {label:<10} rolling={} chapter={:?} at-last={} idle={} t={} | {} rect(s) {}",
+        ui.get_credits_rolling(),
+        ui.get_chapter_label(),
+        ui.get_at_last(),
+        ui.global::<crate::Chrome>().get_idle(),
+        ui.get_elapsed(),
         rects.len(),
         rects.join(" "),
     );

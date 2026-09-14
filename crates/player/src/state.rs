@@ -254,6 +254,54 @@ impl PlayerState {
         })
     }
 
+    /// Whether an episode's closing credits are playing: the chapter playing
+    /// is the one they start at — see [`credits_chapter`](Self::credits_chapter)
+    /// — or one after it.
+    pub fn credits_rolling(&self) -> bool {
+        let Ok(current) = usize::try_from(self.chapter) else {
+            return false;
+        };
+        let Some(start) = self.credits_chapter() else {
+            return false;
+        };
+        // Last, being the one that parses a name.
+        current >= start
+            && self.path.as_deref().is_some_and(|path| {
+                matches!(crate::naming::parse(path), crate::naming::Media::Episode { .. })
+            })
+    }
+
+    /// The chapter the closing credits start at, where the chapters say.
+    ///
+    /// By name first: the first chapter in the file's second half called
+    /// something like `End Credits`. The half keeps a cold open's `Credits`
+    /// from counting.
+    ///
+    /// Plenty of releases name nothing — every chapter titled with its own
+    /// start time, or not at all — and a broadcast episode is split at its
+    /// act breaks, the last of which is the credits. So where no chapter has
+    /// a real name, the last one is the credits if it is short: a final act
+    /// runs minutes, and a closing sequence well under `CREDITS_TAIL`.
+    fn credits_chapter(&self) -> Option<usize> {
+        if self.duration <= 0.0 {
+            return None;
+        }
+        let named = self.chapters.iter().position(|c| {
+            c.time >= self.duration / 2.0
+                && c.title.as_deref().is_some_and(crate::naming::is_credits)
+        });
+        if named.is_some() {
+            return named;
+        }
+        let unnamed = self
+            .chapters
+            .iter()
+            .all(|c| c.title.as_deref().map_or(true, crate::naming::is_unnamed_chapter));
+        let last = self.chapters.len().checked_sub(1)?;
+        let tail = self.duration - self.chapters[last].time;
+        (unnamed && last > 0 && tail > 0.0 && tail <= CREDITS_TAIL).then_some(last)
+    }
+
     /// Where the video sits inside a window of this size, normalised
     /// (x0, y0, x1, y1).
     ///
@@ -407,6 +455,10 @@ impl PlayerState {
     }
 }
 
+/// The longest last chapter that is taken for credits when no chapter is
+/// named, in seconds.
+const CREDITS_TAIL: f64 = 180.0;
+
 /// Assign and report whether the value actually moved.
 fn set<T: PartialEq>(slot: &mut T, value: T) -> bool {
     if *slot == value {
@@ -451,5 +503,88 @@ pub fn format_time(seconds: f64) -> String {
         format!("{h}:{m:02}:{s:02}")
     } else {
         format!("{m}:{s:02}")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tracks::Chapter;
+
+    fn playing(path: &str, chapter: i64, marks: &[(f64, &str)]) -> PlayerState {
+        PlayerState {
+            path: Some(path.into()),
+            duration: 3600.0,
+            chapter,
+            chapters: marks
+                .iter()
+                .map(|(time, title)| Chapter {
+                    time: *time,
+                    title: Some(title.to_string()),
+                })
+                .collect(),
+            ..Default::default()
+        }
+    }
+
+    const EPISODE: &str = "Show.Name.S01E02.1080p.mkv";
+    const MARKS: &[(f64, &str)] = &[(0.0, "Episode"), (3400.0, "End Credits"), (3550.0, "Preview")];
+
+    #[test]
+    fn the_credits_roll_from_their_chapter_to_the_end() {
+        assert!(!playing(EPISODE, 0, MARKS).credits_rolling());
+        assert!(playing(EPISODE, 1, MARKS).credits_rolling());
+        // A preview of the next episode after the credits is still past them.
+        assert!(playing(EPISODE, 2, MARKS).credits_rolling());
+    }
+
+    #[test]
+    fn a_film_has_no_next_episode_to_offer() {
+        assert!(!playing("Some Film (2019).mkv", 1, MARKS).credits_rolling());
+    }
+
+    #[test]
+    fn credits_at_the_start_are_an_opening() {
+        let marks = &[(0.0, "Credits"), (90.0, "Episode")];
+        assert!(!playing(EPISODE, 0, marks).credits_rolling());
+        assert!(!playing(EPISODE, 1, marks).credits_rolling());
+    }
+
+    /// The Walking Dead as released: seven act breaks, each titled with its
+    /// start time, and the last half-minute the credits.
+    const ACTS: &[(f64, &str)] = &[
+        (0.0, "00:00:00.000"),
+        (141.3, "00:02:21.141"),
+        (871.1, "00:14:26.407"),
+        (1296.1, "00:21:32.583"),
+        (1606.5, "00:26:44.186"),
+        (2059.8, "00:34:16.346"),
+        (3566.9, "00:59:26.900"),
+    ];
+
+    #[test]
+    fn unnamed_chapters_end_in_short_credits() {
+        assert!(!playing(EPISODE, 5, ACTS).credits_rolling());
+        assert!(playing(EPISODE, 6, ACTS).credits_rolling());
+    }
+
+    #[test]
+    fn a_long_last_act_is_not_credits() {
+        let acts = &[(0.0, "Chapter 01"), (1800.0, "Chapter 02"), (3000.0, "Chapter 03")];
+        assert!(!playing(EPISODE, 2, acts).credits_rolling());
+    }
+
+    #[test]
+    fn named_chapters_are_taken_at_their_word() {
+        // Short, last, and called something else: not a guess worth making.
+        let marks = &[(0.0, "Episode"), (3500.0, "Preview")];
+        assert!(!playing(EPISODE, 1, marks).credits_rolling());
+    }
+
+    #[test]
+    fn nothing_rolls_before_the_length_is_known() {
+        let mut state = playing(EPISODE, 1, MARKS);
+        state.duration = 0.0;
+        assert!(!state.credits_rolling());
     }
 }

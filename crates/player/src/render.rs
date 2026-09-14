@@ -454,9 +454,10 @@ impl Driver {
         }
 
         // The end of the last file is the moment to look for the next season,
-        // once per file. The offer belongs to the file that asked for it, so a
-        // new one takes it back down.
-        let ending = self.player.eof_reached
+        // once per file — or its closing credits, where the credits pill makes
+        // the same offer before the file is over. The offer belongs to the
+        // file that asked for it, so a new one takes it back down.
+        let ending = (self.player.eof_reached || self.player.credits_rolling())
             && self.player.playlist_pos + 1 >= self.player.playlist_count;
         if self.player.path != self.season_asked {
             if self.season_asked.take().is_some() {
