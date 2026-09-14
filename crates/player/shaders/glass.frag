@@ -259,7 +259,7 @@ void main() {
         vec3 gray = vec3(max(max(refracted.r, refracted.g), refracted.b));
 
         // Saturate darkened areas        
-        refracted = mix(gray, refracted, 1.0 / (1.0 - 2.0 * absorbed * absorbed));
+        refracted = mix(gray, refracted, 1.0 / (1.0 - 3.0 * absorbed * absorbed));
 
         // Exact unpolarised Fresnel reflectance, averaging s and p. Written
         // in D so it needs no further trigonometry:
