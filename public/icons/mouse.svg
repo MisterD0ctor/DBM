@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 6.3499999 6.35"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg">
+  <g id="layer1">
+    <rect
+       style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:100;stroke-dasharray:none"
+       x="1.7197917"
+       y="0.79375"
+       width="2.9104166"
+       height="4.7625"
+       rx="1.4552083"
+       ry="1.4552083"
+       id="body" />
+    <path
+       style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:100;stroke-dasharray:none"
+       d="M 3.175,1.7197917 V 2.5135417"
+       id="wheel" />
+  </g>
+</svg>

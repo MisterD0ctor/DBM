@@ -37,6 +37,9 @@ pub const OBSERVED: &[(&str, c_int)] = &[
     ("sub-scale", FORMAT_DOUBLE),
     ("sub-pos", FORMAT_DOUBLE),
     ("panscan", FORMAT_DOUBLE),
+    ("speed", FORMAT_DOUBLE),
+    ("chapter", FORMAT_DOUBLE),
+    ("chapter-list/count", FORMAT_DOUBLE),
     ("track-list/count", FORMAT_DOUBLE),
     // Selecting a different track does not change the list's length, so
     // these are what keep the `selected` flags from going stale.
@@ -81,6 +84,16 @@ pub struct PlayerState {
     pub sub_pos: f64,
     /// 0 letterboxes to fit, 1 crops to fill.
     pub panscan: f64,
+    /// Playback speed. Zero until mpv first reports it, which reads as 1.
+    pub speed: f64,
+    /// The chapter playing, from 0, or -1 before the first mark.
+    pub chapter: i64,
+    pub chapter_count: i64,
+    /// Read on the worker with the tracks — see `worker`.
+    pub chapters: Vec<crate::tracks::Chapter>,
+    /// Files that would not play this run, by path, so their playlist rows
+    /// can say so after the notice has gone.
+    pub failed: std::collections::HashSet<String>,
     pub track_count: i64,
     pub sid: Option<String>,
     pub aid: Option<String>,
@@ -167,6 +180,15 @@ impl PlayerState {
             "sub-scale" => set(&mut self.sub_scale, num.unwrap_or(1.0)),
             "sub-pos" => set(&mut self.sub_pos, num.unwrap_or(100.0)),
             "panscan" => set(&mut self.panscan, num.unwrap_or(0.0)),
+            "speed" => set(&mut self.speed, num.unwrap_or(1.0)),
+            "chapter" => set(&mut self.chapter, num.map_or(-1, |n| n as i64)),
+            "chapter-list/count" => {
+                if set(&mut self.chapter_count, num.unwrap_or(0.0) as i64) {
+                    self.tracks_generation = self.tracks_generation.wrapping_add(1);
+                    return true;
+                }
+                false
+            }
             "sid" => {
                 if set(&mut self.sid, text) {
                     self.tracks_generation = self.tracks_generation.wrapping_add(1);
@@ -213,7 +235,23 @@ impl PlayerState {
         let mut changed = set(&mut self.tracks, lists.tracks);
         changed |= set(&mut self.playlist, lists.playlist);
         changed |= set(&mut self.progress, lists.progress);
+        changed |= set(&mut self.chapters, lists.chapters);
         changed
+    }
+
+    /// What the chapter playing is called: its own title where the file has
+    /// one, and its number out of how many where it does not. Empty with no
+    /// chapters.
+    pub fn chapter_label(&self) -> String {
+        let Ok(index) = usize::try_from(self.chapter) else {
+            return String::new();
+        };
+        let Some(chapter) = self.chapters.get(index) else {
+            return String::new();
+        };
+        chapter.title.clone().unwrap_or_else(|| {
+            format!("Chapter {} of {}", index + 1, self.chapters.len())
+        })
     }
 
     /// Where the video sits inside a window of this size, normalised
@@ -376,6 +414,29 @@ fn set<T: PartialEq>(slot: &mut T, value: T) -> bool {
     }
     *slot = value;
     true
+}
+
+/// How much of a film is left, the way a person says it: "43 min left",
+/// "1 h 12 min left". Minutes are rounded up, so a row never claims nothing
+/// is left of something that has not ended.
+pub fn format_left(seconds: f64) -> String {
+    if !seconds.is_finite() || seconds < 60.0 {
+        return "under a minute left".into();
+    }
+    let minutes = (seconds / 60.0).ceil() as u64;
+    match (minutes / 60, minutes % 60) {
+        (0, m) => format!("{m} min left"),
+        (h, 0) => format!("{h} h left"),
+        (h, m) => format!("{h} h {m} min left"),
+    }
+}
+
+/// A speed as a person writes it: `1×`, `1.5×`, `1.25×`.
+pub fn format_speed(speed: f64) -> String {
+    let speed = if speed > 0.0 { speed } else { 1.0 };
+    let text = format!("{speed:.2}");
+    let text = text.trim_end_matches('0').trim_end_matches('.');
+    format!("{text}×")
 }
 
 /// `H:MM:SS`, dropping the hours field when it would be zero — matching how

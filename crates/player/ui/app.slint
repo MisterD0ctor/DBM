@@ -1,9 +1,11 @@
-// The interface's typeface, compiled into the binary rather than asked of the
-// system: Geist, in the three weights the type scale uses — 400, 600 and 700.
-// See THIRD-PARTY.md for its licence.
-import "../fonts/Geist-Regular.ttf";
-import "../fonts/Geist-SemiBold.ttf";
-import "../fonts/Geist-Bold.ttf";
+// The interface's typefaces, compiled into the binary rather than asked of the
+// system: IBM Plex Sans in the three weights the type scale uses — Medium
+// (500), 600 and 700 — and IBM Plex Mono Medium for the times that tick. See
+// THIRD-PARTY.md for their licence.
+import "../fonts/IBMPlexSans-Medium.ttf";
+import "../fonts/IBMPlexSans-SemiBold.ttf";
+import "../fonts/IBMPlexSans-Bold.ttf";
+import "../fonts/IBMPlexMono-Medium.ttf";
 
 // Division of labour: this file owns layout and content, the render pipeline
 // owns material. A glass panel declares its geometry here and publishes it
@@ -38,6 +40,9 @@ export global Chrome {
     /// chrome hidden for a visible moment after the mouse moved - the
     /// pointer would blink out just as the interface came back.
     in-out property <bool> idle: false;
+    /// Bumped by every key and pointer event — input, as distinct from the
+    /// activity a film ending also raises. A notice waits for the next one.
+    in-out property <int> input-seq: 0;
 
     /// Call on any activity. Wakes the interface immediately and resets the
     /// clock behind it.
@@ -61,6 +66,7 @@ export global Chrome {
     /// over, and two cursors on one panel is one too many.
     public function pointed(down: bool) {
         Chrome.bump();
+        Chrome.input-seq += 1;
         if (down) {
             Chrome.focus-visible = false;
         }
@@ -119,9 +125,21 @@ export global Flash {
     /// the same action repeats — which is the common case, since these are
     /// keys people hold.
     in-out property <int> seq: 0;
+    /// A figure to show on its own, with no ring: 1 the speed, 2 the chapter,
+    /// 3 the subtitle track, 4 the audio track. The icon set has no glyph for
+    /// any of them, and the figure is the whole answer anyway. 0 for none.
+    in-out property <int> figure: 0;
+
+    public function show-figure(kind: int) {
+        Flash.figure = kind;
+        Flash.message = "";
+        Flash.at = 0.5;
+        Flash.seq += 1;
+    }
 
     public function show(icon: int, at: float) {
         Flash.icon = icon;
+        Flash.figure = 0;
         Flash.message = "";
         Flash.at = at;
         Flash.seq += 1;
@@ -132,6 +150,7 @@ export global Flash {
     /// with nothing in it, sound coming back after a device disappeared.
     public function notice(text: string) {
         Flash.message = text;
+        Flash.figure = 0;
         Flash.at = 0.5;
         Flash.seq += 1;
     }
@@ -278,26 +297,32 @@ global Paint {
 /// is that one is a figure and the other is prose. Two names on one value cost
 /// nothing and keep the next change from having to be everywhere at once.
 global Type {
+    /// The interface's family, in the three weights below.
+    out property <string> face: "IBM Plex Sans";
+    /// Times that tick: the two ends of the timeline and the time over the
+    /// seek preview. Monospaced so a counting figure keeps its width instead
+    /// of shuffling sideways every second.
+    out property <string> numerals: "IBM Plex Mono";
     /// 600. The media title, the flash, a fatal headline. (The row that is
     /// playing is body size at 700 — see `MenuRow`.)
     out property <length> title: 14px;
-    /// 400. Row labels, menu items, switch labels — anything that is the name
+    /// 500. Row labels, menu items, switch labels — anything that is the name
     /// of something you can press.
     out property <length> body: 14px;
-    /// 400. A playlist heading carrying a show's name rather than a section
+    /// 500. A playlist heading carrying a show's name rather than a section
     /// name: a section label's weight and alpha, in its own case and size and
     /// with no tracking, because it is the user's word and not the
     /// interface's.
     out property <length> named: 13px;
-    /// 400. Figures: timestamps, slider and stepper values, a row's running
+    /// 500. Figures: timestamps, slider and stepper values, a row's running
     /// time, a shortcut's keys — and the labels of the dense rows those sit
     /// in, which read as part of the same line rather than as menu entries.
     out property <length> readout: 13px;
-    /// 400. Prose the interface adds underneath something else: the drop hint,
+    /// 500. Prose the interface adds underneath something else: the drop hint,
     /// the line saying a driver update is the usual fix. A readout's size and
     /// its own name, because prose is what would want a different one first.
     out property <length> hint: 13px;
-    /// 400, capitals, tracked. Section headings, and the way back out of
+    /// 500, capitals, tracked. Section headings, and the way back out of
     /// a page.
     out property <length> label: 12px;
     /// Tracking for that role, and only that role.
@@ -315,7 +340,7 @@ global Type {
     /// ships Semibold as its own family rather than as a weight of Segoe UI,
     /// so 600 and 700 rasterised identically, to the pixel. Tracked capitals
     /// at the body's own weight is the treatment that was wanted anyway, and
-    /// it stayed when Geist — which has both weights — replaced it.
+    /// it stayed when faces with both weights replaced it.
     out property <length> label-track: 1px;
     /// A character standing in for an icon — the stepper's minus and plus.
     /// Sized against the 26px disc it sits in, not against the text.
@@ -323,6 +348,15 @@ global Type {
     /// The one thing the interface says louder than the rest: the word on the
     /// end-of-file pill, sized against the 24px arrow beside it.
     out property <length> prompt: 16px;
+
+    /// The three weights, the only three the bundled files carry.
+    /// Plain is Medium, 500: at 400 the 13–14px lines over glass read thin,
+    /// and Plex's in-between Text weight (450) was not quite enough.
+    out property <int> weight-plain: 500;
+    /// Title and Prompt.
+    out property <int> weight-title: 600;
+    /// The current row in a list.
+    out property <int> weight-current: 700;
 }
 
 /// Metrics for the wash behind a hovered row.
@@ -466,6 +500,8 @@ export struct PlaylistItem {
     /// How far through it the resume point sits, 0..1. Zero for a file that
     /// was never started — and for one that was finished and reset.
     progress: float,
+    /// It would not play, this run.
+    failed: bool,
 }
 
 component IconButton inherits Rectangle {
@@ -526,7 +562,12 @@ component IconButton inherits Rectangle {
         image-fit: contain;
         // Dim, the floor of the ladder, rather than a faded copy of Body: a
         // disabled glyph takes an existing step like every other role.
-        colorize: !root.enabled ? Paint.dim : root.active ? Paint.lit : Paint.body;
+        // Lit under the pointer and under the ring as well as when on: the
+        // ring's wash is the same one an open panel holds, so the glyph is
+        // what says the keyboard is here.
+        colorize: !root.enabled ? Paint.dim
+            : root.active || root.ring || touch.has-hover ? Paint.lit
+            : Paint.body;
     }
 
     // The keyboard gets the label the pointer gets. It was only ever raised by
@@ -595,6 +636,8 @@ component MenuRow inherits Rectangle {
     height: 34px;
 
     accessible-role: button;
+    accessible-checkable: true;
+    accessible-checked: root.active;
     accessible-label: root.label;
     accessible-action-default => {
         root.picked();
@@ -614,9 +657,9 @@ component MenuRow inherits Rectangle {
         width: parent.width - Rows.label-x - Rows.trail-x;
         height: 100%;
         text: root.label;
-        color: root.active ? Paint.lit : Paint.body;
+        color: root.active || root.ring ? Paint.lit : Paint.body;
         font-size: Type.body;
-        font-weight: root.active ? 700 : 400;
+        font-weight: root.active ? Type.weight-current : Type.weight-plain;
         vertical-alignment: center;
         overflow: elide;
     }
@@ -649,6 +692,9 @@ component PlaylistRow inherits Rectangle {
     in property <string> length;
     in property <float> progress;
     in property <bool> active;
+    /// It would not play. The row says so where the running time goes, and
+    /// goes on saying it after the notice has gone.
+    in property <bool> failed;
     /// Length of the resume measure. Fixed rather than a share of the row,
     /// so it reads the same however wide the panel is and can never grow
     /// into the width that would make it a rule. Shorter than the shortest
@@ -660,7 +706,9 @@ component PlaylistRow inherits Rectangle {
     height: 34px;
 
     accessible-role: button;
-    accessible-label: root.label;
+    accessible-checkable: true;
+    accessible-checked: root.active;
+    accessible-label: root.failed ? root.label + ", could not play" : root.label;
     accessible-action-default => {
         root.picked();
     }
@@ -679,13 +727,13 @@ component PlaylistRow inherits Rectangle {
         // Clear of the time on the trailing edge, so a long title elides
         // rather than running underneath it.
         width: parent.width - Rows.label-x - Rows.trail-x - time.width
-            - Rows.group-gap - (root.progress > 0.001
+            - Rows.group-gap - (root.progress > 0.001 && !root.failed
                 ? root.measure-w + Rows.group-gap : 0);
         height: 100%;
         text: root.label;
-        color: root.active ? Paint.lit : Paint.body;
+        color: root.active || root.ring ? Paint.lit : Paint.body;
         font-size: Type.body;
-        font-weight: root.active ? 700 : 400;
+        font-weight: root.active ? Type.weight-current : Type.weight-plain;
         vertical-alignment: center;
         overflow: elide;
     }
@@ -694,7 +742,7 @@ component PlaylistRow inherits Rectangle {
     time := Text {
         x: parent.width - Rows.trail-x - self.width;
         height: 100%;
-        text: root.length;
+        text: root.failed ? "Could not play" : root.length;
         color: Paint.quiet;
         font-size: Type.readout;
         vertical-alignment: center;
@@ -720,7 +768,7 @@ component PlaylistRow inherits Rectangle {
         y: (parent.height - self.height) / 2;
         width: root.measure-w;
         height: 4px;
-        visible: root.progress > 0.001;
+        visible: root.progress > 0.001 && !root.failed;
         background: Paint.rail;
         border-radius: self.height / 2;
 
@@ -761,6 +809,8 @@ component ResumeRow inherits Rectangle {
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
     in property <float> progress;
+    /// How much is left, already worded: "43 min left".
+    in property <string> left;
     private property <length> measure-w: 44px;
     private property <length> icon-size: 18px;
     callback picked();
@@ -790,18 +840,30 @@ component ResumeRow inherits Rectangle {
 
     Text {
         x: Rows.label-x + root.icon-size + 10px;
-        width: parent.width - self.x - Rows.trail-x - root.measure-w - Rows.group-gap;
+        width: left-text.x - Rows.group-gap - root.measure-w - Rows.group-gap - self.x;
         height: 100%;
         text: root.label;
-        color: Paint.strong;
+        color: root.ring ? Paint.lit : Paint.strong;
         font-size: Type.body;
         vertical-alignment: center;
         overflow: elide;
     }
 
+    // What is left, where a playlist row keeps its running time: the question
+    // on an empty window is not how long a film is but how long finishing it
+    // takes.
+    left-text := Text {
+        x: parent.width - Rows.trail-x - self.width;
+        height: 100%;
+        text: root.left;
+        color: Paint.quiet;
+        font-size: Type.readout;
+        vertical-alignment: center;
+    }
+
     // The resume measure, exactly as a playlist row wears it.
     Rectangle {
-        x: parent.width - Rows.trail-x - root.measure-w;
+        x: left-text.x - Rows.group-gap - root.measure-w;
         y: (parent.height - self.height) / 2;
         width: root.measure-w;
         height: 4px;
@@ -950,11 +1012,11 @@ component ShortcutRow inherits Rectangle {
 
         Text {
             text: root.label;
-            color: Paint.body;
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
             overflow: elide;
+            color: root.ring && !root.inert ? Paint.lit : Paint.body;
         }
 
         Text {
@@ -996,6 +1058,12 @@ component ParamSlider inherits Rectangle {
     accessible-role: slider;
     accessible-label: root.label;
     accessible-value: root.readout;
+    accessible-action-increment => {
+        root.moved(clamp(root.fraction + 0.05, 0.0, 1.0));
+    }
+    accessible-action-decrement => {
+        root.moved(clamp(root.fraction - 0.05, 0.0, 1.0));
+    }
 
     // The sliders never had a hover wash: the track grows instead, which says
     // enough for a pointer already on it. The keyboard has no such thing to
@@ -1013,7 +1081,7 @@ component ParamSlider inherits Rectangle {
         Text {
             width: 78px;
             text: root.label;
-            color: Paint.body;
+            color: root.ring ? Paint.lit : Paint.body;
             font-size: Type.readout;
             vertical-alignment: center;
         }
@@ -1144,7 +1212,7 @@ component ToggleRow inherits Rectangle {
         // the episodes it governs.
         Text {
             text: root.label;
-            color: Paint.body;
+            color: root.ring ? Paint.lit : Paint.body;
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -1212,7 +1280,7 @@ component DrillRow inherits Rectangle {
 
         Text {
             text: root.label;
-            color: Paint.body;
+            color: root.ring ? Paint.lit : Paint.body;
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -1250,6 +1318,12 @@ component DrillRow inherits Rectangle {
 component StepButton inherits Rectangle {
     in property <string> glyph;
     callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.glyph == "+" ? "Increase" : "Decrease";
+    accessible-action-default => {
+        root.clicked();
+    }
 
     width: 26px;
     height: 26px;
@@ -1289,10 +1363,16 @@ component EndChoice inherits Rectangle {
     /// Where the words start, from this capsule's own edge.
     in property <length> pad;
     in property <length> gap;
+    /// Whether the keyboard is on this choice: it is part of the bar's Tab
+    /// walk while the pill is up.
+    in property <bool> focused;
+    private property <bool> ring: root.focused && Chrome.focus-visible;
     callback picked();
 
     border-radius: self.height / 2;
-    background: touch.has-hover ? Paint.wash-button : transparent;
+    background: root.ring ? Paint.wash-strong
+        : touch.has-hover ? Paint.wash-button
+        : transparent;
     animate background { duration: Motion.highlight; }
 
     accessible-role: button;
@@ -1319,7 +1399,7 @@ component EndChoice inherits Rectangle {
             text: root.label;
             color: Paint.lit;
             font-size: Type.prompt;
-            font-weight: 600;
+            font-weight: Type.weight-title;
             vertical-alignment: center;
         }
     }
@@ -1358,6 +1438,12 @@ component StepperRow inherits Rectangle {
     accessible-role: spinbox;
     accessible-label: root.label;
     accessible-value: root.value;
+    accessible-action-increment => {
+        root.stepped(1);
+    }
+    accessible-action-decrement => {
+        root.stepped(-1);
+    }
 
     // Same as the sliders: its two buttons light on hover, and neither of
     // them is where the keyboard is — the row is.
@@ -1387,7 +1473,7 @@ component StepperRow inherits Rectangle {
 
         Text {
             text: root.label;
-            color: Paint.body;
+            color: root.ring ? Paint.lit : Paint.body;
             font-size: Type.readout;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -1472,15 +1558,15 @@ component BackRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: touch.has-hover ? Paint.lit : Paint.body;
+                colorize: touch.has-hover || root.ring ? Paint.lit : Paint.body;
             }
         }
 
         Text {
             text: root.label;
-            color: touch.has-hover ? Paint.lit : Paint.body;
+            color: touch.has-hover || root.ring ? Paint.lit : Paint.body;
             font-size: Type.label;
-            font-weight: 400;
+            font-weight: Type.weight-plain;
             letter-spacing: Type.label-track;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -1546,10 +1632,11 @@ component MenuHeading inherits Rectangle {
     /// only be saying it twice.
     in property <image> icon;
     private property <bool> iconic: root.icon.width > 0;
-    /// Smaller than a row's 18px, because the words beside it are smaller
-    /// than a row's: 12px capitals, not 14px lowercase. At a row's size the
-    /// mark outweighed the label it introduced.
-    private property <length> icon-size: 16px;
+    /// A row's 18px. It was 16px, smaller because the words beside it are
+    /// 12px capitals rather than 14px lowercase, but icons are shown at 24px
+    /// or 18px only: those are the sizes the 24×24 drawings are checked at,
+    /// and at 16px their 2px lines fell to 1.33px, a width no pixel can hold.
+    private property <length> icon-size: 18px;
     private property <length> icon-gap: 8px;
 
     height: 28px + (root.after-content ? Rows.group-gap : 0px);
@@ -1557,7 +1644,7 @@ component MenuHeading inherits Rectangle {
     // Starts where the row labels start, and the words move over for it.
     // It cannot hang in the margin the way the back row's arrow does: that
     // margin is 14px to the edge of the wash, which a 14px chevron fits and
-    // a 16px mark with space after it does not.
+    // an 18px mark with space after it does not.
     if root.iconic: Image {
         source: root.icon;
         x: Rows.label-x;
@@ -1591,7 +1678,7 @@ component MenuHeading inherits Rectangle {
         // than a heading. A name is still not a label — it keeps its own
         // case and its own size — but both are headings,
         // and a panel should not look like it was designed twice.
-        font-weight: 400;
+        font-weight: Type.weight-plain;
         letter-spacing: root.titular ? 0 : Type.label-track;
         vertical-alignment: center;
         overflow: elide;
@@ -1647,6 +1734,22 @@ export component MainWindow inherits Window {
     in property <string> resume-title;
     in property <float> resume-progress;
     property <bool> has-resume: root.resume-path != "";
+    in property <string> resume-left;
+    /// The folder of the next season, found beside this one at the end of
+    /// the last file; empty until then, and when there is none.
+    in property <string> next-season-path;
+    in property <string> next-season-label;
+    /// The playing file, for the dialogs to open near.
+    in property <string> current-path;
+    in property <float> duration;
+    /// Playback speed, and the same as a person writes it: "1.5×".
+    in property <float> speed: 1;
+    in property <string> speed-text: "1×";
+    property <bool> speed-shown: root.has-file && (root.speed < 0.999 || root.speed > 1.001);
+    /// Chapter starts, in seconds. Empty for most files.
+    in property <[float]> chapter-marks;
+    /// What the chapter playing is called.
+    in property <string> chapter-label;
     /// Whether subtitles are actually on screen — mpv's `sub-visibility`
     /// *and* a track selected to be visible. Either half alone is a state
     /// the interface would report wrongly: visibility on with no track
@@ -1746,6 +1849,7 @@ export component MainWindow inherits Window {
         : root.files-open ? 2
         : root.settings-open ? root.settings-focus-count
         : (!root.has-file && root.fatal == "") ? 3 + root.invite-first
+        : (!root.has-file && root.fatal != "") ? 2
         : 0;
     /// The way in's rows start one further down when the first is Continue.
     property <int> invite-first: root.has-resume ? 1 : 0;
@@ -1778,6 +1882,14 @@ export component MainWindow inherits Window {
     /// Take back the last reset: the page it was on, as the settings panel
     /// numbers them, and the subtitle delay that stood before it.
     callback undo-reset(int, float);
+    /// One rung of the speed ladder from the speed shown, -1 or +1.
+    callback step-speed(float, int);
+    callback reset-speed();
+    callback frame-step(int);
+    callback chapter-step(int);
+    /// Subtitles or audio, and which way.
+    callback cycle-track(bool, int);
+    callback quit();
     callback set-ambience(bool);
     callback set-autoplay(bool);
 
@@ -1844,6 +1956,7 @@ export component MainWindow inherits Window {
     in property <float> sub-scale-step: 0.05;
     in property <float> sub-pos-step: 2;
     in property <float> scroll-seek-step: 1;
+    in property <float> fine-seek-step: 1;
     /// Matches mpv's own ceiling, so 100% sits where mpv puts it.
     in property <float> volume-max: 200;
 
@@ -1990,8 +2103,8 @@ export component MainWindow inherits Window {
     /// How far a surface sits below its place before it arrives.
     property <length> lift: 6px;
 
-    // The bar describes a film. With none loaded, ten of its fifteen
-    // controls cannot do anything if they are pressed — there is nothing to
+    // The bar describes a film. With none loaded, most of its thirteen
+    // buttons cannot do anything if they are pressed — there is nothing to
     // pause, nothing to seek, no track to pick, no picture to fit to the
     // window — and the five that work are a volume for silence. Showing them
     // is the interface claiming something it cannot keep.
@@ -2047,11 +2160,11 @@ export component MainWindow inherits Window {
     //
     // And wider with something to continue: that row carries a film's name
     // beside a measure, and at 320px an episode lost its number first.
-    property <length> invite-w: root.fatal != "" ? 420px
-        : root.has-resume ? 380px : 320px;
+    property <length> invite-w: root.fatal != "" || root.has-resume ? 420px : 320px;
     property <length> invite-h: root.fatal != ""
         ? root.panel-pad + root.invite-line-h + Rows.group-gap
             + root.invite-detail-h + Rows.group-gap + root.invite-note-h
+            + Rows.group-gap + 2 * 34px
         : root.panel-pad + root.invite-first * (34px + Rows.group-gap)
             + 3 * 34px + Rows.group-gap + root.invite-note-h;
     property <length> invite-note-h: 22px;
@@ -2110,7 +2223,8 @@ export component MainWindow inherits Window {
     /// Everything in the title pill that is not the title: the text inset,
     /// the two buttons with their gaps, and the padding after them.
     property <length> left-fixed:
-        root.pill-text-pad + 2 * root.btn + 2 * root.btn-gap + root.pill-pad;
+        root.pill-text-pad + 2 * root.btn + 2 * root.btn-gap + root.pill-pad
+        + (root.speed-shown ? speed-measure.preferred-width + root.btn-gap : 0px);
     /// The title pill hugs its title, up to what the centred transport
     /// leaves room for. Past that the title elides and the pill stops
     /// growing.
@@ -2152,6 +2266,10 @@ export component MainWindow inherits Window {
     /// ...so its words move in by less, and still start 18px from the pill's
     /// edge.
     property <length> end-choice-pad: root.end-pad - root.end-inset;
+    /// What the first of two choices offers: the next season by name when one
+    /// was found beside this one, and the folder dialog when not.
+    property <string> end-onward-label: root.next-season-path != ""
+        ? root.next-season-label : "Open folder…";
     property <length> end-first-w:
         2 * root.end-choice-pad + 24px + root.end-gap + end-measure.preferred-width;
     property <length> end-second-w:
@@ -2165,7 +2283,6 @@ export component MainWindow inherits Window {
     /// which only happens with autoplay off, since otherwise mpv has already
     /// moved on by the time anyone could read it.
     property <string> end-label: root.at-last ? "Restart" : "Next";
-    property <string> end-folder-label: "Open folder…";
 
     // --- the action flash ---
     //
@@ -2189,12 +2306,36 @@ export component MainWindow inherits Window {
     property <length> flash-ring: root.flash-glyph + 2 * 16px;
     /// Whether this is the player speaking rather than acknowledging a key.
     property <bool> flash-is-notice: Flash.message != "";
+    /// Whether the glyph ring is drawn: an acknowledgement has one, a notice
+    /// and a figure are their words alone.
+    property <bool> flash-has-ring: !root.flash-is-notice && Flash.figure == 0;
+    /// The track a J or # landed on, read live: the list is re-read a moment
+    /// after the cycle, and the caption catches up inside its dwell.
+    property <string> flash-sub-label: root.subs-visible && root.sub-current >= 0
+        && root.sub-current < root.sub-tracks.length
+        ? root.sub-tracks[root.sub-current].label : "Subtitles off";
+    property <string> flash-audio-label: root.audio-current >= 0
+        && root.audio-current < root.audio-tracks.length
+        ? root.audio-tracks[root.audio-current].label : "No audio";
+    /// Set once a notice has had its dwell: it then stays until the next key
+    /// or pointer event, so a failure glanced away from is still there.
+    property <bool> flash-waiting: false;
+    property <int> input-seq: Chrome.input-seq;
+    changed input-seq => {
+        if (root.flash-waiting) {
+            root.flash-waiting = false;
+            root.flash-shown = 0.0;
+        }
+    }
     /// The delay's flash shows the figure it lands on, not the one it left.
     /// mpv reports the new value a beat after the key; this binding is live,
     /// so the number catches up well inside the dwell. Every other action is
     /// its glyph alone.
-    property <string> flash-text: root.flash-is-notice
-        ? Flash.message
+    property <string> flash-text: root.flash-is-notice ? Flash.message
+        : Flash.figure == 1 ? root.speed-text
+        : Flash.figure == 2 ? root.chapter-label
+        : Flash.figure == 3 ? root.flash-sub-label
+        : Flash.figure == 4 ? root.flash-audio-label
         : Flash.icon == Flash.delay ? root.sub-delay-text : "";
     property <length> flash-text-h: 28px;
     property <length> flash-text-pad: 14px;
@@ -2216,7 +2357,7 @@ export component MainWindow inherits Window {
     /// otherwise drew straight through the rows it was answering, at the one
     /// moment it most needs to be read: "There is nothing at that path" sits
     /// under the row that went looking for it.
-    property <length> flash-text-y: root.flash-is-notice
+    property <length> flash-text-y: !root.flash-has-ring
         ? (root.has-file
             ? (root.height - root.flash-text-h) / 2
             : root.invite-y + root.invite-h + 12px)
@@ -2224,7 +2365,10 @@ export component MainWindow inherits Window {
     /// Long enough to read a two-character number, short enough that a held
     /// key is a flicker rather than a strobe — and long enough to read a
     /// sentence when there is one.
-    property <duration> flash-dwell: root.flash-is-notice ? 3200ms : 700ms;
+    /// A figure gets longer than a glyph: it is a name to read, not a shape
+    /// to recognise.
+    property <duration> flash-dwell: root.flash-is-notice ? 3200ms
+        : Flash.figure != 0 ? 1200ms : 700ms;
     property <float> flash-shown: 0;
     animate flash-shown {
         duration: root.fade;
@@ -2238,6 +2382,7 @@ export component MainWindow inherits Window {
     property <int> flash-seq: Flash.seq;
     changed flash-seq => {
         root.flash-shown = 1.0;
+        root.flash-waiting = false;
         flash-timer.stop();
         flash-timer.start();
     }
@@ -2246,8 +2391,12 @@ export component MainWindow inherits Window {
         interval: root.flash-dwell;
         running: false;
         triggered => {
-            root.flash-shown = 0.0;
             flash-timer.stop();
+            if (root.flash-is-notice) {
+                root.flash-waiting = true;
+            } else {
+                root.flash-shown = 0.0;
+            }
         }
     }
 
@@ -2296,7 +2445,7 @@ export component MainWindow inherits Window {
     property <float> tip-on: root.panel-open
         ? 0.0
         : root.tip-shown * root.bar-shown;
-    property <length> tip-rise: (1.0 - root.tip-shown) * 6px;
+    property <length> tip-rise: (1.0 - root.tip-shown) * root.lift;
 
     // Watching the global through a local property, for the reason the flash
     // does: a `changed` handler belongs to the element that declares it.
@@ -2422,17 +2571,26 @@ export component MainWindow inherits Window {
     property <[{label: string, keys: string, heading: string, icon: image}]> shortcuts: [
         { heading: "PLAYBACK", icon: @image-url("../../../public/icons/play-pause.svg"),
           label: "Play / pause", keys: "Space" },
-        { label: "Back / forward 10 seconds", keys: "← →" },
+        { label: "Back / forward " + root.seek-step + " seconds", keys: "← →" },
+        { label: "Back / forward " + root.fine-seek-step + " second", keys: "Shift+← →" },
         { label: "Start again", keys: "Home" },
         { label: "Previous / next file", keys: "Ctrl+← →" },
+        { label: "Previous / next chapter", keys: "PgUp PgDn" },
+        // Named rather than drawn: a comma and a full stop at readout size
+        // are two specks nobody can read as keys.
+        { label: "Frame back / forward", keys: "Comma / Period" },
+        { label: "Slower / faster", keys: "[ ]" },
+        { label: "Normal speed", keys: "Backspace" },
 
         { heading: "SOUND", icon: @image-url("../../../public/icons/volume.svg"),
           label: "Volume", keys: "↑ ↓" },
         { label: "Mute", keys: "M" },
+        { label: "Next audio track", keys: "#" },
 
         { heading: "SUBTITLES", icon: @image-url("../../../public/icons/subtitles.svg"),
           label: "Subtitles on / off", keys: "C" },
         { label: "Subtitles earlier / later", keys: "Z / Shift+Z" },
+        { label: "Next / previous subtitle track", keys: "J / Shift+J" },
 
         { heading: "PICTURE", icon: @image-url("../../../public/icons/monitor.svg"),
           label: "Fill or fit the window", keys: "T" },
@@ -2453,6 +2611,15 @@ export component MainWindow inherits Window {
         { heading: "FILES", icon: @image-url("../../../public/icons/folder-open.svg"),
           label: "Open file", keys: "Ctrl+O" },
         { label: "Open folder", keys: "Ctrl+Shift+O" },
+
+        // Not keys, but written nowhere else: the one reference the player
+        // has should not leave out half of what a hand does.
+        { heading: "POINTER", icon: @image-url("../../../public/icons/mouse.svg"),
+          label: "Play / pause", keys: "Click the picture" },
+        { label: "Fullscreen", keys: "Double-click" },
+        { label: "Volume", keys: "Wheel over the picture" },
+        { label: "Seek a second", keys: "Wheel over the timeline" },
+        { label: "Open", keys: "Drop a file or folder" },
     ];
     /// How many of the rows above open a section.
     ///
@@ -2461,7 +2628,7 @@ export component MainWindow inherits Window {
     /// `MainWindow`. Miscount it and the panel stands taller or shorter than
     /// what is in it, which is the failure the settings pages already found
     /// once the hard way.
-    property <int> shortcut-sections: 7;
+    property <int> shortcut-sections: 8;
     property <length> shortcuts-natural: root.shortcuts.length * root.row-h
         + root.shortcut-sections * root.heading-h
         // The space above every heading but the first.
@@ -2588,9 +2755,9 @@ export component MainWindow inherits Window {
         {
             x: root.flash-x(root.flash-ring),
             y: root.flash-y + root.flash-rise,
-            width: root.flash-shown > root.shown-epsilon && !root.flash-is-notice
+            width: root.flash-shown > root.shown-epsilon && root.flash-has-ring
                 ? root.flash-ring : 0,
-            height: root.flash-shown > root.shown-epsilon && !root.flash-is-notice
+            height: root.flash-shown > root.shown-epsilon && root.flash-has-ring
                 ? root.flash-ring : 0,
             opacity: root.flash-shown,
             // Half the size, so the rounded box the shader draws is a circle.
@@ -2696,7 +2863,7 @@ export component MainWindow inherits Window {
     min-width: 900px;
     min-height: 480px;
     background: Paint.ground;
-    default-font-family: "Geist";
+    default-font-family: Type.face;
     forward-focus: keys;
 
     // Key dispatch is split across several small functions rather than one
@@ -2768,6 +2935,14 @@ export component MainWindow inherits Window {
         }
         if (root.settings-open) {
             return root.focus-activate-settings();
+        }
+        if (!root.has-file && root.fatal != "") {
+            if (root.focus-row == 0) {
+                root.copy-details();
+            } else {
+                root.quit();
+            }
+            return true;
         }
         if (!root.has-file && root.fatal == "") {
             if (root.focus-row < root.invite-first) {
@@ -3002,7 +3177,7 @@ export component MainWindow inherits Window {
         return false;
     }
 
-    function on-seek(text: string, ctrl: bool) -> bool {
+    function on-seek(text: string, ctrl: bool, shift: bool) -> bool {
         if (text == Key.LeftArrow) {
             if (ctrl) {
                 // At either end mpv does nothing, and a flash saying it moved
@@ -3012,6 +3187,10 @@ export component MainWindow inherits Window {
                     root.playlist-step(-1);
                     Flash.show(Flash.previous, 0.5);
                 }
+            } else if (shift) {
+                // The small seek, for a line missed. No flash: its glyph
+                // says ten seconds, and the timeline already shows a second.
+                root.seek-relative(-root.fine-seek-step);
             } else {
                 root.seek-relative(-root.seek-step);
                 Flash.show(Flash.seek-back, 0.2);
@@ -3032,6 +3211,8 @@ export component MainWindow inherits Window {
                 } else {
                     root.play-next();
                 }
+            } else if (shift) {
+                root.seek-relative(root.fine-seek-step);
             } else {
                 root.seek-relative(root.seek-step);
                 Flash.show(Flash.seek-forward, 0.8);
@@ -3054,6 +3235,12 @@ export component MainWindow inherits Window {
             root.toggle-mute();
             return true;
         }
+        // mpv's own key for it.
+        if (text == "#") {
+            root.cycle-track(false, 1);
+            Flash.show-figure(4);
+            return true;
+        }
         return false;
     }
 
@@ -3062,6 +3249,13 @@ export component MainWindow inherits Window {
     function on-subtitles(text: string) -> bool {
         if (text == "c" || text == "C") {
             root.toggle-subtitles();
+            return true;
+        }
+        // mpv's j and J: through the subtitle tracks, including none, saying
+        // which one it landed on — the bar's glyph can only say on or off.
+        if (text == "j" || text == "J") {
+            root.cycle-track(true, text == "j" ? 1 : -1);
+            Flash.show-figure(3);
             return true;
         }
         if (text == "z") {
@@ -3104,6 +3298,105 @@ export component MainWindow inherits Window {
         }
     }
 
+    // --- pace -----------------------------------------------------------------
+    //
+    // What an mpv hand reaches for and the bar has no control for: speed,
+    // single frames, chapters. mpv's own keys throughout, so the habit
+    // carries over; the bindings this player already had are left as they
+    // were. Speed and chapters answer with their figure alone — the icon set
+    // has no glyph for either and the figure is the answer — and frames
+    // answer with the picture itself.
+    function on-pace(text: string) -> bool {
+        if (text == "[" || text == "]") {
+            root.step-speed(root.speed, text == "]" ? 1 : -1);
+            Flash.show-figure(1);
+            return true;
+        }
+        if (text == Key.Backspace) {
+            root.reset-speed();
+            Flash.show-figure(1);
+            return true;
+        }
+        if (text == "," || text == ".") {
+            root.frame-step(text == "." ? 1 : -1);
+            return true;
+        }
+        if (text == Key.PageUp || text == Key.PageDown) {
+            // A file with no chapters has nothing to go to, and a caption
+            // saying nothing would be a flash for its own sake.
+            if (root.chapter-marks.length > 0) {
+                root.chapter-step(text == Key.PageDown ? 1 : -1);
+                Flash.show-figure(2);
+            }
+            return true;
+        }
+        return false;
+    }
+
+    // --- the failure pane's two rows --------------------------------------------
+
+    /// Whether the details were just copied, so the row can say so.
+    property <bool> copied: false;
+
+    /// Put the headline and the driver's words on the clipboard. The one copy
+    /// of that text is on this pane, and a pane is not something anyone can
+    /// paste into a bug report.
+    public function copy-details() {
+        fatal-copy.select-all();
+        fatal-copy.copy();
+        fatal-copy.clear-selection();
+        root.copied = true;
+        copied-timer.stop();
+        copied-timer.start();
+    }
+
+    copied-timer := Timer {
+        interval: 2000ms;
+        running: false;
+        triggered => {
+            root.copied = false;
+            copied-timer.stop();
+        }
+    }
+
+    /// The text to copy, held where only its selection functions can reach
+    /// it. One pixel and invisible, never focused, never drawn over anything.
+    fatal-copy := TextInput {
+        x: 0;
+        y: 0;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        read-only: true;
+        text: root.fatal + "\n\n" + root.fatal-detail;
+    }
+
+    /// The end pill's choices, from the keyboard. With two, the first is the
+    /// way on and the second is Restart.
+    function end-activate(choice: int) {
+        if (!root.end-two) {
+            if (root.at-last) {
+                root.replay();
+            } else {
+                root.play-next();
+            }
+        } else if (choice == 0) {
+            root.end-onward();
+        } else {
+            root.replay();
+        }
+    }
+
+    function end-onward() {
+        if (root.next-season-path != "") {
+            if (!root.opening) {
+                root.open-path(root.next-season-path);
+            }
+        } else {
+            root.request-open(true);
+        }
+    }
+
     // --- the bar, from the keyboard -------------------------------------------
     //
     // Thirteen buttons that only a pointer could reach, named only to a
@@ -3117,7 +3410,9 @@ export component MainWindow inherits Window {
     // opens. Kept, it is also where the ring comes back to when that panel
     // closes — on the button that opened it.
     out property <int> bar-focus: 0;
-    property <int> bar-count: 13;
+    /// Thirteen buttons, and the end pill's choices after them while it is up.
+    property <int> bar-count: 13
+        + (root.at-end && root.has-file ? (root.end-two ? 2 : 1) : 0);
     property <bool> bar-reach: root.has-file && !root.panel-open && root.fatal == "";
 
     function on-bar(text: string, shift: bool) -> bool {
@@ -3141,20 +3436,32 @@ export component MainWindow inherits Window {
             return true;
         }
         if (text == Key.Escape) {
+            // Puts the ring away, and then does what Escape does anyway —
+            // leaves fullscreen — rather than spending the press on the ring.
             Chrome.focus-visible = false;
-            return true;
+            return false;
         }
         return false;
     }
 
+    /// Along the bar, over any button with nowhere to go. A disabled Previous
+    /// that takes the ring is a stop where Enter does nothing.
     function bar-step(delta: int) {
-        root.bar-focus = root.bar-focus + delta;
-        if (root.bar-focus < 0) {
-            root.bar-focus = root.bar-count - 1;
+        root.bar-focus = root.bar-wrap(root.bar-focus + delta);
+        if (!root.bar-enabled(root.bar-focus)) {
+            root.bar-focus = root.bar-wrap(root.bar-focus + delta);
         }
-        if (root.bar-focus >= root.bar-count) {
-            root.bar-focus = 0;
+        if (!root.bar-enabled(root.bar-focus)) {
+            root.bar-focus = root.bar-wrap(root.bar-focus + delta);
         }
+    }
+
+    pure function bar-wrap(index: int) -> int {
+        return index < 0 ? root.bar-count - 1 : index >= root.bar-count ? 0 : index;
+    }
+
+    pure function bar-enabled(index: int) -> bool {
+        return !(index == 2 && root.at-first) && !(index == 6 && root.at-last);
     }
 
     /// Left to right: playlist, open; previous, back, play, forward, next;
@@ -3162,7 +3469,9 @@ export component MainWindow inherits Window {
     /// is not a stop — Up and Down already are the volume. Split in two for
     /// the compiler, as the key handlers are.
     function bar-activate(index: int) {
-        if (index < 7) {
+        if (index >= 13) {
+            root.end-activate(index - 13);
+        } else if (index < 7) {
             root.bar-activate-left(index);
         } else {
             root.bar-activate-right(index);
@@ -3359,6 +3668,7 @@ export component MainWindow inherits Window {
     keys := FocusScope {
         key-pressed(event) => {
             Chrome.bump();
+            Chrome.input-seq += 1;
             // The film's own keys only with a film. With the window empty
             // they raised the seek ring and the flash over the way in and
             // changed a volume nothing on screen could show.
@@ -3367,7 +3677,8 @@ export component MainWindow inherits Window {
                 || root.on-open(event.text, event.modifiers.control, event.modifiers.shift)
                 || (root.has-file
                     && (root.on-playback(event.text)
-                        || root.on-seek(event.text, event.modifiers.control)
+                        || root.on-seek(event.text, event.modifiers.control, event.modifiers.shift)
+                        || root.on-pace(event.text)
                         || root.on-volume(event.text)
                         || root.on-subtitles(event.text)))
                 || root.on-window(event.text)) {
@@ -3859,6 +4170,7 @@ export component MainWindow inherits Window {
                     label: entry.label;
                     length: entry.length;
                     progress: entry.progress;
+                    failed: entry.failed;
                     active: entry.current;
                     focused: root.playlist-open && root.focus-row == idx;
                     picked => {
@@ -3928,6 +4240,7 @@ export component MainWindow inherits Window {
             width: root.time-w;
             height: 100%;
             text: root.elapsed;
+            font-family: Type.numerals;
             color: Paint.strong;
             font-size: Type.readout;
             horizontal-alignment: center;
@@ -3946,6 +4259,16 @@ export component MainWindow inherits Window {
         visible: root.bar-shown > root.shown-epsilon;
         opacity: root.bar-shown;
 
+        accessible-role: slider;
+        accessible-label: "Position";
+        accessible-value: root.elapsed + " of " + root.total;
+        accessible-action-increment => {
+            root.seek-relative(root.seek-step);
+        }
+        accessible-action-decrement => {
+            root.seek-relative(-root.seek-step);
+        }
+
         Rectangle {
             y: (parent.height - self.height) / 2;
             width: 100%;
@@ -3962,6 +4285,21 @@ export component MainWindow inherits Window {
                 height: parent.height;
                 border-radius: parent.border-radius;
                 background: Paint.played;
+            }
+
+            // Chapter starts, as dots — the unity dot's shape and its rule:
+            // Knob where the played length covers one, Quiet where it has not
+            // reached it. A mark at the very start is the start, not a
+            // boundary, and is left out.
+            for mark in root.chapter-marks: Rectangle {
+                visible: root.duration > 0 && mark > 0.5;
+                x: parent.width * clamp(mark / max(root.duration, 1), 0, 1) - self.width / 2;
+                y: (parent.height - self.height) / 2;
+                width: self.height;
+                height: parent.height - 2px;
+                border-radius: self.height / 2;
+                background: mark / max(root.duration, 1) <= root.progress
+                    ? Paint.knob : Paint.quiet;
             }
         }
 
@@ -4012,6 +4350,7 @@ export component MainWindow inherits Window {
             width: root.time-w;
             height: 100%;
             text: root.total;
+            font-family: Type.numerals;
             color: Paint.strong;
             font-size: Type.readout;
             horizontal-alignment: center;
@@ -4079,7 +4418,7 @@ export component MainWindow inherits Window {
                             text: root.fatal;
                             color: Paint.strong;
                             font-size: Type.title;
-                            font-weight: 600;
+                            font-weight: Type.weight-title;
                             vertical-alignment: center;
                         }
                     }
@@ -4128,6 +4467,27 @@ export component MainWindow inherits Window {
                         }
                     }
                 }
+
+                // Something to do with it after all: take the words away to
+                // where they can be pasted, or leave. The pane used to be the
+                // one surface in the player with no way out but the window's.
+                Rectangle {
+                    height: Rows.group-gap;
+                }
+                MenuRow {
+                    label: root.copied ? "Copied" : "Copy details";
+                    focused: !root.has-file && root.focus-row == 0;
+                    picked => {
+                        root.copy-details();
+                    }
+                }
+                MenuRow {
+                    label: "Close the player";
+                    focused: !root.has-file && root.focus-row == 1;
+                    picked => {
+                        root.quit();
+                    }
+                }
             }
 
             // The same two rows, the same words and the same keys as the panel
@@ -4153,6 +4513,7 @@ export component MainWindow inherits Window {
             if root.fatal == "" && root.has-resume: ResumeRow {
                 label: root.resume-title;
                 progress: root.resume-progress;
+                left: root.resume-left;
                 focused: !root.has-file && root.focus-row == 0;
                 opacity: root.opening ? 0.5 : 1.0;
                 animate opacity { duration: 120ms; easing: ease-out; }
@@ -4221,7 +4582,7 @@ export component MainWindow inherits Window {
                     Text {
                         text: root.opening
                             ? "Opening " + root.opening-name + "…"
-                            : "or drop a file anywhere here";
+                            : "or drop a file or folder anywhere here";
                         // Quiet, the step a shortcut's keys sit on: prose
                         // under the rows, not one of them. It was a hair
                         // above the keys once, which no one could see over
@@ -4247,7 +4608,7 @@ export component MainWindow inherits Window {
         y: root.flash-y + root.flash-rise;
         width: root.flash-ring;
         height: root.flash-ring;
-        visible: root.flash-shown > root.shown-epsilon && !root.flash-is-notice;
+        visible: root.flash-shown > root.shown-epsilon && root.flash-has-ring;
         opacity: root.flash-shown;
 
         Image {
@@ -4276,7 +4637,7 @@ export component MainWindow inherits Window {
             text: root.flash-text;
             color: Paint.lit;
             font-size: Type.title;
-            font-weight: 600;
+            font-weight: Type.weight-title;
             horizontal-alignment: center;
             vertical-alignment: center;
             overflow: elide;
@@ -4289,7 +4650,7 @@ export component MainWindow inherits Window {
     flash-measure := Text {
         text: root.flash-text;
         font-size: Type.title;
-        font-weight: 600;
+        font-weight: Type.weight-title;
         visible: false;
         width: 0px;
         height: 0px;
@@ -4313,6 +4674,9 @@ export component MainWindow inherits Window {
         visible: root.end-shown > root.shown-epsilon;
         opacity: root.end-shown;
 
+        // The way on comes first and Restart second: at the end of a season
+        // the next one is the likely wish, and watching the last episode
+        // again the least.
         EndChoice {
             x: root.end-inset;
             y: root.end-inset;
@@ -4320,16 +4684,17 @@ export component MainWindow inherits Window {
             height: parent.height - 2 * root.end-inset;
             pad: root.end-choice-pad;
             gap: root.end-gap;
-            icon: root.at-last
-                ? @image-url("../../../public/icons/rewind.svg")
-                : @image-url("../../../public/icons/step-forward.svg");
-            label: root.end-label;
+            focused: root.bar-reach && root.bar-focus == 13;
+            icon: !root.end-two
+                ? (root.at-last
+                    ? @image-url("../../../public/icons/rewind.svg")
+                    : @image-url("../../../public/icons/step-forward.svg"))
+                : root.next-season-path != ""
+                    ? @image-url("../../../public/icons/step-forward.svg")
+                    : @image-url("../../../public/icons/folder-open.svg");
+            label: root.end-two ? root.end-onward-label : root.end-label;
             picked => {
-                if (root.at-last) {
-                    root.replay();
-                } else {
-                    root.play-next();
-                }
+                root.end-activate(0);
             }
         }
 
@@ -4340,10 +4705,11 @@ export component MainWindow inherits Window {
             height: parent.height - 2 * root.end-inset;
             pad: root.end-choice-pad;
             gap: root.end-gap;
-            icon: @image-url("../../../public/icons/folder-open.svg");
-            label: root.end-folder-label;
+            focused: root.bar-reach && root.bar-focus == 14;
+            icon: @image-url("../../../public/icons/rewind.svg");
+            label: root.end-label;
             picked => {
-                root.request-open(true);
+                root.end-activate(1);
             }
         }
     }
@@ -4352,18 +4718,18 @@ export component MainWindow inherits Window {
     /// and only the font knows how wide they are. Same contract as
     /// `title-measure`: these settings must match the visible text exactly.
     end-measure := Text {
-        text: root.end-label;
+        text: root.end-two ? root.end-onward-label : root.end-label;
         font-size: Type.prompt;
-        font-weight: 600;
+        font-weight: Type.weight-title;
         visible: false;
         width: 0px;
         height: 0px;
     }
 
     end-folder-measure := Text {
-        text: root.end-folder-label;
+        text: root.end-label;
         font-size: Type.prompt;
-        font-weight: 600;
+        font-weight: Type.weight-title;
         visible: false;
         width: 0px;
         height: 0px;
@@ -4431,12 +4797,21 @@ export component MainWindow inherits Window {
     //
     // Font settings must match the visible title exactly; that is the whole
     // contract of this element.
+    /// The speed readout beside the title, measured for the same reason.
+    speed-measure := Text {
+        text: root.speed-text;
+        font-size: Type.readout;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
     title-measure := Text {
         text: root.opening
             ? "Opening " + root.opening-name + "…"
             : root.media-title;
         font-size: Type.title;
-        font-weight: 600;
+        font-weight: Type.weight-title;
         visible: false;
         width: 0px;
         height: 0px;
@@ -4488,6 +4863,7 @@ export component MainWindow inherits Window {
             width: 100%;
             height: root.preview-has-tile ? root.preview-caption : root.preview-h;
             text: root.preview-time;
+            font-family: Type.numerals;
             color: Paint.strong;
             font-size: Type.readout;
             horizontal-alignment: center;
@@ -4529,13 +4905,23 @@ export component MainWindow inherits Window {
                     : root.media-title;
                 color: Paint.strong;
                 font-size: Type.title;
-                font-weight: 600;
+                font-weight: Type.weight-title;
                 // The pill is a fixed width, so a long title elides rather
                 // than pushing the playlist button out of the pill.
                 overflow: elide;
                 vertical-alignment: center;
                 horizontal-stretch: 1;
                 horizontal-alignment: left;
+            }
+
+            // A speed other than normal stays on screen, beside what is
+            // playing at that speed. A caption that came and went was the only
+            // sign a film was running at one and a half.
+            if root.speed-shown: Text {
+                text: root.speed-text;
+                color: Paint.quiet;
+                font-size: Type.readout;
+                vertical-alignment: center;
             }
 
             IconButton {
@@ -4585,7 +4971,7 @@ export component MainWindow inherits Window {
             IconButton {
                 icon: @image-url("../../../public/icons/step-backward.svg");
                 tip: root.at-first ? "No earlier file" : "Previous file";
-                keys: "Ctrl+←";
+                keys: root.at-first ? "" : "Ctrl+←";
                 enabled: !root.at-first;
                 focused: root.bar-reach && root.bar-focus == 2;
                 clicked => {
@@ -4594,7 +4980,7 @@ export component MainWindow inherits Window {
             }
             IconButton {
                 icon: @image-url("../../../public/icons/seek-backward.svg");
-                tip: "Back 10 seconds";
+                tip: "Back " + root.seek-step + " seconds";
                 keys: "←";
                 focused: root.bar-reach && root.bar-focus == 3;
                 clicked => {
@@ -4629,7 +5015,7 @@ export component MainWindow inherits Window {
             }
             IconButton {
                 icon: @image-url("../../../public/icons/seek-forward.svg");
-                tip: "Forward 10 seconds";
+                tip: "Forward " + root.seek-step + " seconds";
                 keys: "→";
                 focused: root.bar-reach && root.bar-focus == 5;
                 clicked => {
@@ -4639,7 +5025,7 @@ export component MainWindow inherits Window {
             IconButton {
                 icon: @image-url("../../../public/icons/step-forward.svg");
                 tip: root.at-last ? "No later file" : "Next file";
-                keys: "Ctrl+→";
+                keys: root.at-last ? "" : "Ctrl+→";
                 enabled: !root.at-last;
                 focused: root.bar-reach && root.bar-focus == 6;
                 clicked => {
@@ -4687,6 +5073,16 @@ export component MainWindow inherits Window {
             // Volume, spanning mpv's full 0..200 range.
             Rectangle {
                 width: root.vol-w;
+
+                accessible-role: slider;
+                accessible-label: "Volume";
+                accessible-value: root.muted ? "Muted" : Math.round(root.volume) + "%";
+                accessible-action-increment => {
+                    root.nudge-volume(root.volume-step);
+                }
+                accessible-action-decrement => {
+                    root.nudge-volume(-root.volume-step);
+                }
 
                 Rectangle {
                     y: (parent.height - self.height) / 2;

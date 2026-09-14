@@ -175,10 +175,11 @@ impl Default for GlassParams {
             // glass is as thick as that rim is wide.
             bevel: 1.0,
             refract: 1.0,
-            // Diamond. Physically absurd for a window pane, but the whole
-            // point here is a rim that bends and mirrors hard enough to read
-            // at UI scale.
-            ior: 3.0,
+            // Flint glass: well past a window pane, so the rim still bends and
+            // mirrors hard enough to read at UI scale, but off the slider's
+            // 3.0 ceiling. At diamond the lensing pulled a dark patch of the
+            // backdrop into a black oval across the top of the way in.
+            ior: 1.7,
             aberration: 0.1,
             specular: 1.0,
             sky: 0.0,

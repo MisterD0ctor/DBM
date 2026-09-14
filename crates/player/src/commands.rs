@@ -22,6 +22,61 @@ pub const DELAY_STEP: f64 = 0.1;
 pub const VOLUME_MAX: f64 = 200.0;
 /// One wheel notch over the timeline.
 pub const SCROLL_SEEK_STEP: f64 = 1.0;
+/// Shift with an arrow: the small seek, for a line of dialogue missed.
+pub const FINE_SEEK_STEP: f64 = 1.0;
+
+/// The speeds `[` and `]` step through.
+///
+/// A ladder rather than mpv's own multiply-by-1.1, which lands on 1.21 and
+/// 1.331 — numbers nobody asked for and nobody can get back from exactly.
+/// Stepping from wherever the speed stands, so a speed set some other way
+/// joins the ladder at the next rung rather than being snapped to one.
+const SPEEDS: &[f64] = &[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0];
+
+/// One rung up or down from `current`. At either end there is no rung, and
+/// nothing is sent.
+pub fn step_speed(mpv: &Mpv, current: f64, direction: i32) {
+    let next = if direction > 0 {
+        SPEEDS.iter().copied().find(|s| *s > current + 1e-3)
+    } else {
+        SPEEDS.iter().rev().copied().find(|s| *s < current - 1e-3)
+    };
+    if let Some(speed) = next {
+        set_prop(mpv, "speed", &fmt(speed));
+    }
+}
+
+pub fn reset_speed(mpv: &Mpv) {
+    set_prop(mpv, "speed", "1");
+}
+
+/// One frame. Forward pauses on arrival, as mpv's own does; back always
+/// seeks, so it is slower on a long GOP and there is nothing to be done
+/// about that from here.
+pub fn frame_step(mpv: &Mpv, direction: i32) {
+    run(mpv, &[if direction >= 0 { "frame-step" } else { "frame-back-step" }]);
+}
+
+/// The previous or next chapter. mpv's own semantics: back from a little way
+/// into a chapter returns to its start before it goes to the one before.
+pub fn chapter_step(mpv: &Mpv, direction: i32) {
+    run(mpv, &["add", "chapter", if direction >= 0 { "1" } else { "-1" }]);
+}
+
+/// The next subtitle or audio track, wrapping through "none".
+///
+/// Subtitles are made visible with it: cycling onto a track that then stays
+/// hidden because they were switched off earlier would be a key that
+/// appeared to do nothing.
+pub fn cycle_track(mpv: &Mpv, subtitles: bool, direction: i32) {
+    let way = if direction >= 0 { "up" } else { "down" };
+    if subtitles {
+        run(mpv, &["cycle", "sub", way]);
+        set_prop(mpv, "sub-visibility", "yes");
+    } else {
+        run(mpv, &["cycle", "audio", way]);
+    }
+}
 
 /// Reply ids for async commands. Only the scrubber cares which of its own
 /// requests came back; everything else fires and forgets.

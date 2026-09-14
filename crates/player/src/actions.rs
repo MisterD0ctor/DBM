@@ -254,16 +254,43 @@ pub fn wire(
         let (seen, weak) = (activity.clone(), ui.as_weak());
         ui.on_open_file(move || {
             seen.bump();
-            crate::dialog::pick(crate::dialog::Want::File, weak.clone());
+            let start = weak.upgrade().and_then(|ui| near(&ui)).and_then(|p| {
+                p.parent().map(std::path::Path::to_path_buf)
+            });
+            crate::dialog::pick(crate::dialog::Want::File, start, weak.clone());
         });
     }
     {
         let (seen, weak) = (activity.clone(), ui.as_weak());
         ui.on_open_folder(move || {
             seen.bump();
-            crate::dialog::pick(crate::dialog::Want::Folder, weak.clone());
+            // The shelf above this file's folder: at the end of a season,
+            // that is where the next one is.
+            let start = weak
+                .upgrade()
+                .and_then(|ui| near(&ui))
+                .and_then(|p| p.parent()?.parent().map(std::path::Path::to_path_buf));
+            crate::dialog::pick(crate::dialog::Want::Folder, start, weak.clone());
         });
     }
+    ui.on_quit(|| {
+        let _ = slint::quit_event_loop();
+    });
+
+    // Playback beyond the bar: speed, frames, chapters, tracks. Speed steps
+    // from the value the interface is showing, so the ladder is decided
+    // here and mpv is only told where to land.
+    on!(on_step_speed, |m, current, direction| commands::step_speed(
+        m,
+        current as f64,
+        direction
+    ));
+    on!(on_reset_speed, |m| commands::reset_speed(m));
+    on!(on_frame_step, |m, direction| commands::frame_step(m, direction));
+    on!(on_chapter_step, |m, direction| commands::chapter_step(m, direction));
+    on!(on_cycle_track, |m, subtitles, direction| commands::cycle_track(
+        m, subtitles, direction
+    ));
     {
         let (worker, seen) = (worker.clone(), activity.clone());
         let weak = ui.as_weak();
@@ -342,6 +369,7 @@ fn push_constants(ui: &MainWindow) {
     ui.set_volume_step(commands::VOLUME_STEP as f32);
     ui.set_delay_step(commands::DELAY_STEP as f32);
     ui.set_scroll_seek_step(commands::SCROLL_SEEK_STEP as f32);
+    ui.set_fine_seek_step(commands::FINE_SEEK_STEP as f32);
     ui.set_sub_scale_step(commands::SUB_SCALE_STEP as f32);
     ui.set_sub_pos_step(commands::SUB_POS_STEP as f32);
 }
@@ -408,6 +436,15 @@ fn wire_fullscreen(ui: &MainWindow) {
 fn set_fullscreen(ui: &MainWindow, on: bool) {
     ui.window().set_fullscreen(on);
     ui.set_fullscreen(on);
+}
+
+/// The file the dialogs should open near: the one playing, or failing that
+/// the one the way in offers to continue.
+fn near(ui: &MainWindow) -> Option<std::path::PathBuf> {
+    [ui.get_current_path(), ui.get_resume_path()]
+        .into_iter()
+        .find(|p| !p.is_empty())
+        .map(|p| std::path::PathBuf::from(p.as_str()))
 }
 
 /// What to call the thing being opened while it is being opened.

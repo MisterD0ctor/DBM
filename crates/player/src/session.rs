@@ -54,6 +54,8 @@ pub struct Resume {
     pub title: String,
     /// How far in the resume point sits, 0..1.
     pub fraction: f32,
+    /// How much of it is left, in seconds.
+    pub seconds_left: f64,
     /// A frame from about there, when a seek-preview atlas was ever built.
     pub still: Option<crate::preview::Still>,
 }
@@ -94,6 +96,7 @@ pub fn last_watched() -> Option<Resume> {
         }
         let fraction = (start / seconds).clamp(0.0, 1.0) as f32;
         Some(Resume {
+            seconds_left: (seconds - start).max(0.0),
             title: crate::naming::titled(&path, None),
             still: crate::preview::still(std::path::Path::new(&path), fraction),
             path,

@@ -515,6 +515,17 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 // account of the failure that ever reaches anyone, since the
                 // console it used to print to does not exist in a packaged
                 // build.
+                // The same pane, having been asked to copy itself, so the
+                // clipboard can be read back from outside.
+                "fatal-copy" => {
+                    ui.set_fatal("The player cannot show video on this computer.".into());
+                    ui.set_fatal_detail("The graphics driver would not build the player's shaders.".into());
+                    ui.invoke_copy_details();
+                }
+                // A caption-only flash — the speed, as `]` raises it.
+                "figure" => {
+                    ui.global::<crate::Flash>().invoke_show_figure(1);
+                }
                 "fatal" => {
                     ui.set_fatal("The player cannot show video on this computer.".into());
                     ui.set_fatal_detail(

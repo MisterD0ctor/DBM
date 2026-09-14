@@ -251,7 +251,12 @@ void main() {
         // does not pull the whole surface down — only a genuinely bright area
         // does, and it does so smoothly across the panel rather than in
         // patches. Opted in per panel by the same flag as the tint.
-        float backdrop = dot(refracted, LUMA);
+        // Floored, because the curve below divides by it: over a frame that is
+        // exactly black with the tint at zero it was 0/0, every pixel of every
+        // panel came out NaN, and the glass drew as nothing at all — the
+        // empty window and every credits roll. The floor is far below any
+        // real backdrop, and the curve's own limit at zero is where it lands.
+        float backdrop = max(dot(refracted, LUMA), 1e-4);
         float absorbed = (1.0 - 0.75 * (1.0 - exp(-1.5 * backdrop)) / backdrop) 
                         * u_panel_style[i].y;
 

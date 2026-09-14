@@ -112,6 +112,8 @@ pub struct Driver {
     scan: crate::probe::Scan,
     /// Last seen state of the playlist panel, so its opening can be noticed.
     playlist_open: bool,
+    /// The file the next season was last looked for on behalf of.
+    season_asked: Option<String>,
     /// Reply ids seen this frame, routed below. Reused to avoid allocating
     /// on the frame path.
     replies: Vec<u64>,
@@ -159,6 +161,7 @@ impl Driver {
             durations: crate::durations::Recorder::default(),
             scan: crate::probe::Scan::default(),
             playlist_open: false,
+            season_asked: None,
             replies: Vec::new(),
             notices: Vec::new(),
             pending_start: None,
@@ -339,6 +342,11 @@ impl Driver {
             &mut self.notices,
             &self.audio,
         );
+        // A failure marks its playlist row, which the list otherwise only
+        // hears about on the next read.
+        if !self.notices.is_empty() {
+            sync::push_playlist(&ui, &self.player);
+        }
         for notice in std::mem::take(&mut self.notices) {
             // A notice means something concluded, which is the backstop for
             // an open that never produces a file: a container mpv cannot
@@ -425,15 +433,45 @@ impl Driver {
                     ui.set_resume_path(resume.path.into());
                     ui.set_resume_title(resume.title.into());
                     ui.set_resume_progress(resume.fraction);
+                    ui.set_resume_left(crate::state::format_left(resume.seconds_left).into());
                     if let Some(still) = &resume.still {
                         gpu.pipeline.set_backdrop(&gpu.gl, still);
                     }
                 }
                 Completion::Resume(None) => {}
+                Completion::NextSeason { from, found } => {
+                    if self.player.path.as_deref() == Some(from.as_str()) {
+                        if let Some((folder, season)) = found {
+                            ui.set_next_season_path(folder.to_string_lossy().as_ref().into());
+                            ui.set_next_season_label(format!("Season {season}").into());
+                        }
+                    }
+                }
             }
         }
         if probed {
             sync::push_playlist(&ui, &self.player);
+        }
+
+        // The end of the last file is the moment to look for the next season,
+        // once per file. The offer belongs to the file that asked for it, so a
+        // new one takes it back down.
+        let ending = self.player.eof_reached
+            && self.player.playlist_pos + 1 >= self.player.playlist_count;
+        if self.player.path != self.season_asked {
+            if self.season_asked.take().is_some() {
+                ui.set_next_season_path("".into());
+                ui.set_next_season_label("".into());
+            }
+        }
+        if ending && self.season_asked.is_none() {
+            if let Some(path) = self.player.path.clone() {
+                self.season_asked = Some(path.clone());
+                self.worker.submit(move |_mpv| {
+                    let found = playlist::next_season(std::path::Path::new(&path));
+                    Some(Completion::NextSeason { from: path, found })
+                });
+            }
         }
         let t = self.diag.mark_lists(t);
 

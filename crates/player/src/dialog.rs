@@ -30,7 +30,12 @@ pub enum Want {
 ///
 /// Returns immediately. A cancelled dialog is silent: it is not an error, and
 /// there is nothing to report.
-pub fn pick(want: Want, ui: slint::Weak<MainWindow>) {
+///
+/// `start` is where the dialog opens, when there is somewhere better than
+/// wherever the system last left it: beside the file playing, for a file, and
+/// the folder above its season, for a folder — which at the end of a season
+/// is the shelf the next one is on.
+pub fn pick(want: Want, start: Option<std::path::PathBuf>, ui: slint::Weak<MainWindow>) {
     // A fresh thread per invocation rather than a kept one: dialogs are rare,
     // and a thread that exists only while one is open cannot be a place where
     // state accumulates.
@@ -42,7 +47,7 @@ pub fn pick(want: Want, ui: slint::Weak<MainWindow>) {
         }
     );
     std::thread::spawn(move || {
-        let Some(path) = choose(want) else {
+        let Some(path) = choose(want, start) else {
             eprintln!("dbm: file dialog cancelled");
             return;
         };
@@ -56,8 +61,11 @@ pub fn pick(want: Want, ui: slint::Weak<MainWindow>) {
     });
 }
 
-fn choose(want: Want) -> Option<std::path::PathBuf> {
-    let dialog = rfd::FileDialog::new();
+fn choose(want: Want, start: Option<std::path::PathBuf>) -> Option<std::path::PathBuf> {
+    let mut dialog = rfd::FileDialog::new();
+    if let Some(dir) = start.filter(|d| d.is_dir()) {
+        dialog = dialog.set_directory(dir);
+    }
     match want {
         Want::File => dialog
             .set_title("Open video")

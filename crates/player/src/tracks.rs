@@ -39,6 +39,17 @@ pub struct Track {
     pub lang: Option<String>,
     pub selected: bool,
     pub external: bool,
+    /// What it is encoded as, in mpv's words: `aac`, `ass`, `subrip`.
+    pub codec: Option<String>,
+    /// How many channels an audio track carries, where the container says.
+    pub channels: Option<i64>,
+}
+
+/// A chapter mark: where it starts, and what it is called if anything.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Chapter {
+    pub time: f64,
+    pub title: Option<String>,
 }
 
 /// The tracks of one kind, with what to call each of them.
@@ -55,6 +66,8 @@ pub fn labelled(tracks: &[Track], kind: TrackKind) -> Vec<(&Track, String)> {
             title: t.title.as_deref(),
             language: t.lang.as_deref(),
             external: t.external,
+            codec: t.codec.as_deref(),
+            channels: t.channels,
         })
         .collect();
     of_kind
@@ -104,6 +117,24 @@ pub fn read_tracks(mpv: &Mpv) -> Vec<Track> {
                 lang: non_empty(mpv.get_property(&format!("track-list/{i}/lang"))),
                 selected: mpv.get_bool(&format!("track-list/{i}/selected")),
                 external: mpv.get_bool(&format!("track-list/{i}/external")),
+                codec: non_empty(mpv.get_property(&format!("track-list/{i}/codec"))),
+                channels: mpv
+                    .get_f64(&format!("track-list/{i}/demux-channel-count"))
+                    .map(|n| n as i64)
+                    .filter(|n| *n > 0),
+            })
+        })
+        .collect()
+}
+
+/// Read the chapter list. Empty for a file without chapters, which is most.
+pub fn read_chapters(mpv: &Mpv) -> Vec<Chapter> {
+    let count = mpv.get_f64("chapter-list/count").unwrap_or(0.0) as i64;
+    (0..count.max(0))
+        .filter_map(|i| {
+            Some(Chapter {
+                time: mpv.get_f64(&format!("chapter-list/{i}/time"))?,
+                title: non_empty(mpv.get_property(&format!("chapter-list/{i}/title"))),
             })
         })
         .collect()

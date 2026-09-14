@@ -10,6 +10,7 @@
 //! and never on the frame path. Nothing here touches mpv or the UI; it
 //! produces a plain list, and the caller decides what to do with it.
 
+use std::cmp::Ordering;
 use std::fs;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -87,7 +88,7 @@ pub fn resolve(path: &Path) -> Result<Selection, String> {
 /// Videos directly in `dir`, sorted. No recursion: the siblings of an
 /// episode are its season, not the whole library.
 fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, String> {
-    let mut videos: Vec<PathBuf> = fs::read_dir(dir)
+    let videos: Vec<PathBuf> = fs::read_dir(dir)
         .map_err(|e| format!("Could not read {} — {e}", folder_name(dir)))?
         .filter_map(Result::ok)
         .map(|e| e.path())
@@ -96,8 +97,158 @@ fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, String> {
     if videos.is_empty() {
         return Err(format!("No video files in {}", folder_name(dir)));
     }
-    videos.sort();
-    Ok(videos)
+    Ok(watching_order(videos))
+}
+
+/// Put videos in the order a person watches them.
+///
+/// Not the order their bytes sort in. `Show - 100` sorted before `Show - 11`,
+/// a recursive scan put `Season 10` between `Season 1` and `Season 2`, and an
+/// upper-case release group jumped the queue — and autoplay, Next, the dimmed
+/// ends of the bar and the end-of-season pill all trust this order.
+///
+/// When every file names the same show, the numbering the names already carry
+/// decides: season, then episode. Otherwise names are compared the way
+/// Explorer compares them, digit runs as numbers and case ignored.
+pub fn watching_order(mut videos: Vec<PathBuf>) -> Vec<PathBuf> {
+    let keys: Option<Vec<(String, u32, u32)>> = videos
+        .iter()
+        .map(|p| match crate::naming::parse(&p.to_string_lossy()) {
+            crate::naming::Media::Episode {
+                show,
+                season,
+                episode,
+                ..
+            } => Some((show.to_lowercase(), season.unwrap_or(0), episode)),
+            crate::naming::Media::Movie { .. } => None,
+        })
+        .collect();
+    match keys {
+        Some(keys) if keys.iter().all(|k| k.0 == keys[0].0) => {
+            let mut keyed: Vec<((u32, u32), PathBuf)> = keys
+                .into_iter()
+                .map(|(_, season, episode)| (season, episode))
+                .zip(videos)
+                .collect();
+            keyed.sort_by(|(ka, a), (kb, b)| ka.cmp(kb).then_with(|| natural_path(a, b)));
+            keyed.into_iter().map(|(_, p)| p).collect()
+        }
+        _ => {
+            videos.sort_by(|a, b| natural_path(a, b));
+            videos
+        }
+    }
+}
+
+/// Two paths, component by component, each compared as a person reads it.
+fn natural_path(a: &Path, b: &Path) -> Ordering {
+    let (mut ac, mut bc) = (a.components(), b.components());
+    loop {
+        match (ac.next(), bc.next()) {
+            (None, None) => return a.cmp(b),
+            (None, Some(_)) => return Ordering::Less,
+            (Some(_), None) => return Ordering::Greater,
+            (Some(x), Some(y)) => {
+                let order = natural(
+                    &x.as_os_str().to_string_lossy(),
+                    &y.as_os_str().to_string_lossy(),
+                );
+                if order != Ordering::Equal {
+                    return order;
+                }
+            }
+        }
+    }
+}
+
+/// Digit runs as numbers, everything else without regard to case.
+fn natural(a: &str, b: &str) -> Ordering {
+    let (mut a, mut b) = (a.chars().peekable(), b.chars().peekable());
+    loop {
+        match (a.peek().copied(), b.peek().copied()) {
+            (None, None) => return Ordering::Equal,
+            (None, Some(_)) => return Ordering::Less,
+            (Some(_), None) => return Ordering::Greater,
+            (Some(x), Some(y)) if x.is_ascii_digit() && y.is_ascii_digit() => {
+                let (na, nb) = (digits(&mut a), digits(&mut b));
+                let (ta, tb) = (na.trim_start_matches('0'), nb.trim_start_matches('0'));
+                let order = ta.len().cmp(&tb.len()).then_with(|| ta.cmp(tb));
+                if order != Ordering::Equal {
+                    return order;
+                }
+            }
+            (Some(x), Some(y)) => {
+                let order = x.to_lowercase().cmp(y.to_lowercase());
+                if order != Ordering::Equal {
+                    return order;
+                }
+                a.next();
+                b.next();
+            }
+        }
+    }
+}
+
+fn digits(chars: &mut std::iter::Peekable<std::str::Chars>) -> String {
+    let mut run = String::new();
+    while let Some(c) = chars.peek().copied().filter(|c| c.is_ascii_digit()) {
+        run.push(c);
+        chars.next();
+    }
+    run
+}
+
+/// The folder holding the next season of the show this file belongs to, when
+/// one sits beside this file's own folder — and which season it is.
+///
+/// **Blocking.** Worker thread only: it lists the folder above this one and
+/// looks inside each sibling.
+///
+/// Asked at the end of a season, where the useful offer is the next one. A
+/// folder is judged by the first video in it, read the way every other name
+/// in the player is read; the nearest later season of the same show wins, so
+/// a shelf holding seasons 8 and 9 offers 8.
+pub fn next_season(current: &Path) -> Option<(PathBuf, u32)> {
+    let crate::naming::Media::Episode {
+        show,
+        season: Some(season),
+        ..
+    } = crate::naming::parse(&current.to_string_lossy())
+    else {
+        return None;
+    };
+    let folder = current.parent()?;
+    let shelf = folder.parent()?;
+    let mut best: Option<(PathBuf, u32)> = None;
+    for dir in fs::read_dir(shelf).ok()?.filter_map(Result::ok).map(|e| e.path()) {
+        if !dir.is_dir() || dir == folder {
+            continue;
+        }
+        let Ok(entries) = fs::read_dir(&dir) else {
+            continue;
+        };
+        let first = entries
+            .filter_map(Result::ok)
+            .map(|e| e.path())
+            .find(|p| p.is_file() && is_video_file(p));
+        let Some(first) = first else {
+            continue;
+        };
+        if let crate::naming::Media::Episode {
+            show: other,
+            season: Some(n),
+            ..
+        } = crate::naming::parse(&first.to_string_lossy())
+        {
+            if n > season
+                && other.eq_ignore_ascii_case(&show)
+                && best.as_ref().map_or(true, |(_, b)| n < *b)
+            {
+                best = Some((dir, n));
+            }
+        }
+    }
+    best
 }
 
 /// Videos in `dir` and everything beneath it, sorted.
@@ -128,8 +279,7 @@ fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, String> {
     if videos.is_empty() {
         return Err(format!("No video files under {}", folder_name(dir)));
     }
-    videos.sort();
-    Ok(videos)
+    Ok(watching_order(videos))
 }
 
 /// Write the list as an M3U for mpv to `loadlist`.
@@ -170,5 +320,58 @@ mod tests {
             .filter_map(|rest| rest.split('"').next())
             .collect();
         assert_eq!(registered, VIDEO_EXTENSIONS);
+    }
+
+    fn names(paths: &[PathBuf]) -> Vec<String> {
+        paths
+            .iter()
+            .map(|p| p.to_string_lossy().replace('\\', "/"))
+            .collect()
+    }
+
+    #[test]
+    fn numbers_sort_as_numbers_not_as_text() {
+        let sorted = watching_order(vec![
+            PathBuf::from("[Group] Show - 100.mkv"),
+            PathBuf::from("[Group] Show - 11.mkv"),
+            PathBuf::from("[Group] Show - 9.mkv"),
+        ]);
+        assert_eq!(
+            names(&sorted),
+            ["[Group] Show - 9.mkv", "[Group] Show - 11.mkv", "[Group] Show - 100.mkv"]
+        );
+    }
+
+    #[test]
+    fn a_season_folder_sorts_by_its_season_and_episode() {
+        let sorted = watching_order(vec![
+            PathBuf::from("Show/Season 10/Show S10E01.mkv"),
+            PathBuf::from("Show/Season 2/Show S02E02.mkv"),
+            PathBuf::from("Show/Season 2/show s02e01.mkv"),
+            PathBuf::from("Show/Season 1/Show S01E01.mkv"),
+        ]);
+        assert_eq!(
+            names(&sorted),
+            [
+                "Show/Season 1/Show S01E01.mkv",
+                "Show/Season 2/show s02e01.mkv",
+                "Show/Season 2/Show S02E02.mkv",
+                "Show/Season 10/Show S10E01.mkv",
+            ]
+        );
+    }
+
+    #[test]
+    fn unrelated_films_fall_back_to_natural_names() {
+        let sorted = watching_order(vec![
+            PathBuf::from("b/Zodiac (2007).mkv"),
+            PathBuf::from("B/alien (1979).mkv"),
+            PathBuf::from("a/Film 10.mkv"),
+            PathBuf::from("a/Film 2.mkv"),
+        ]);
+        assert_eq!(
+            names(&sorted),
+            ["a/Film 2.mkv", "a/Film 10.mkv", "B/alien (1979).mkv", "b/Zodiac (2007).mkv"]
+        );
     }
 }

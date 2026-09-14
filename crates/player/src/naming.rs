@@ -897,6 +897,10 @@ pub struct TrackInfo<'a> {
     pub title: Option<&'a str>,
     pub language: Option<&'a str>,
     pub external: bool,
+    /// mpv's codec name, for a track that says nothing else about itself.
+    pub codec: Option<&'a str>,
+    /// How many channels, for the same.
+    pub channels: Option<i64>,
 }
 
 /// What to call each track, given all the others it sits with.
@@ -944,7 +948,10 @@ pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
                 }
             }
             (None, Some(text)) => text.clone(),
-            (None, None) => format!("Track {}", t.id),
+            // No language and no title: named by what it technically is.
+            // "AAC 5.1" is true and tells two tracks apart; "Track 1" said
+            // only that a track existed, and read the same in both lists.
+            (None, None) => by_format(t).unwrap_or_else(|| format!("Track {}", t.id)),
         };
 
         for flag in &parsed.flags {
@@ -957,6 +964,44 @@ pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
         out.push(label);
     }
     out
+}
+
+/// A track's format as a person would name it: "AAC 5.1", "E-AC-3 stereo",
+/// "ASS". `None` when mpv did not say what the codec is.
+fn by_format(t: &TrackInfo) -> Option<String> {
+    let codec = codec_name(t.codec?);
+    Some(match t.channels.and_then(channel_layout) {
+        Some(layout) => format!("{codec} {layout}"),
+        None => codec,
+    })
+}
+
+/// mpv reports FFmpeg's internal codec names, some of which are not what
+/// anyone calls the format.
+fn codec_name(codec: &str) -> String {
+    match codec.to_ascii_lowercase().as_str() {
+        "subrip" => "SRT".into(),
+        "hdmv_pgs_subtitle" => "PGS".into(),
+        "dvd_subtitle" => "VobSub".into(),
+        "mov_text" => "Timed text".into(),
+        "webvtt" => "WebVTT".into(),
+        "eac3" => "E-AC-3".into(),
+        "ac3" => "AC-3".into(),
+        "truehd" => "TrueHD".into(),
+        "opus" => "Opus".into(),
+        "vorbis" => "Vorbis".into(),
+        other => other.to_ascii_uppercase(),
+    }
+}
+
+fn channel_layout(channels: i64) -> Option<&'static str> {
+    match channels {
+        1 => Some("mono"),
+        2 => Some("stereo"),
+        6 => Some("5.1"),
+        8 => Some("7.1"),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -1381,7 +1426,24 @@ mod tests {
             title,
             language: lang,
             external: false,
+            codec: None,
+            channels: None,
         }
+    }
+
+    #[test]
+    fn a_track_that_says_nothing_is_named_by_its_format() {
+        let bare = |codec, channels| TrackInfo {
+            id: 1,
+            title: None,
+            language: None,
+            external: false,
+            codec: Some(codec),
+            channels,
+        };
+        assert_eq!(track_labels(&[bare("aac", Some(6))]), ["AAC 5.1"]);
+        assert_eq!(track_labels(&[bare("subrip", None)]), ["SRT"]);
+        assert_eq!(track_labels(&[bare("eac3", Some(2))]), ["E-AC-3 stereo"]);
     }
 
     #[test]
@@ -1417,6 +1479,8 @@ mod tests {
             title: Some("forced"),
             language: Some("eng"),
             external: true,
+            codec: None,
+            channels: None,
         }]);
         assert_eq!(labels, ["English · Forced · external"]);
     }

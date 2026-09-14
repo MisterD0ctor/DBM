@@ -34,6 +34,8 @@ pub struct Lists {
     /// own because it is answered *from* the playlist — the paths have to be
     /// known before the lookup can start, and they are known right here.
     pub progress: Vec<crate::durations::Progress>,
+    /// The file's chapter marks. Invalidated with the tracks, by a new file.
+    pub chapters: Vec<crate::tracks::Chapter>,
     /// The generation this was read for, so a stale result can be discarded
     /// if the lists moved again while the job was running.
     pub generation: u64,
@@ -63,6 +65,13 @@ pub enum Completion {
     /// What the empty window can offer to pick back up, looked for once at
     /// startup when nothing was named on the command line.
     Resume(Option<crate::session::Resume>),
+    /// The folder of the season after the one that just ended, if one sits
+    /// beside it, and which season it is. `from` is the file that asked, so
+    /// an answer that arrives after something else started is dropped.
+    NextSeason {
+        from: String,
+        found: Option<(std::path::PathBuf, u32)>,
+    },
 }
 
 type Job = Box<dyn FnOnce(&Mpv) -> Option<Completion> + Send + 'static>;

@@ -17,36 +17,40 @@ colors:
   wash-soft: "#ffffff14"
 typography:
   title:
-    fontFamily: "Geist"
+    fontFamily: "IBM Plex Sans"
     fontSize: "14px"
     fontWeight: 600
   body:
-    fontFamily: "Geist"
+    fontFamily: "IBM Plex Sans"
     fontSize: "14px"
-    fontWeight: 400
+    fontWeight: 500
   named:
-    fontFamily: "Geist"
+    fontFamily: "IBM Plex Sans"
     fontSize: "13px"
-    fontWeight: 400
+    fontWeight: 500
   readout:
-    fontFamily: "Geist"
+    fontFamily: "IBM Plex Sans"
     fontSize: "13px"
-    fontWeight: 400
+    fontWeight: 500
   hint:
-    fontFamily: "Geist"
+    fontFamily: "IBM Plex Sans"
     fontSize: "13px"
-    fontWeight: 400
+    fontWeight: 500
+  timecode:
+    fontFamily: "IBM Plex Mono"
+    fontSize: "13px"
+    fontWeight: 500
   label:
-    fontFamily: "Geist"
+    fontFamily: "IBM Plex Sans"
     fontSize: "12px"
-    fontWeight: 400
+    fontWeight: 500
     letterSpacing: "1px"
   glyph:
-    fontFamily: "Geist"
+    fontFamily: "IBM Plex Sans"
     fontSize: "16px"
-    fontWeight: 400
+    fontWeight: 500
   prompt:
-    fontFamily: "Geist"
+    fontFamily: "IBM Plex Sans"
     fontSize: "16px"
     fontWeight: 600
 rounded:
@@ -60,7 +64,7 @@ rounded:
 spacing:
   hair: "4px"
   tight: "6px"
-  group: "10px"
+  group: "16px"
   offset: "12px"
   gap: "16px"
   margin: "24px"
@@ -217,9 +221,10 @@ below is named once, in the `Paint` global at the top of `app.slint`, and
 nowhere else in the interface is a colour written out.
 
 ### Primary
-- **Lit** (`#ffffff`): the active state and nothing else. A selected track, the
-  playing episode, a hovered chevron, the glyph of a control that is currently
-  on, the flash and the end-of-file prompt. Full white is the system's only
+- **Lit** (`#ffffff`): the active state, and where the hand or the keyboard
+  is. A selected track, the playing episode, a hovered chevron or glyph, the
+  glyph of a control that is currently on, the words of the row the keyboard
+  is on, the flash and the end-of-file prompt. Full white is the system's only
   emphasis and it is spent sparingly.
 
 ### Neutral
@@ -303,56 +308,80 @@ the floor, never the floor.
 
 ## Typography
 
-**All roles:** Geist, compiled into the executable in the three weights the
-scale uses — 400, 600 and 700 — rather than asked of the system. There is no
-display type anywhere in the product, and no second family.
+**Every role but one:** IBM Plex Sans, compiled into the executable in the
+three weights the scale uses — Medium (500), 600 and 700 — rather than asked
+of the system. **Timecode:** IBM Plex Mono Medium (500). There is no display
+type anywhere in the product.
 
-**Character:** quiet, not anonymous. The interface never speaks above the
-film, so the type is sized, weighted and spaced for legibility over arbitrary
-moving content before anything else. Geist replaced the platform font for what
-it does at that job: even, open shapes at 12–14px over a moving picture, and
-capitals that take tracking well — the section labels read more like labels
-in it than they did in Segoe UI. Bundled, it is also the same face on every
-platform the player runs on, where the system font was a different interface
-on each.
+**Plain is 500, not 400.** At 400 the 13–14px lines that carry most of the
+interface read thin over glass, where the picture behind eats into every
+stroke. Plex's Text weight, 450, was tried first and was not quite enough;
+Medium gives the rows body without looking bold. It does bring plain within a
+step of the Title's 600, so Title and the playing row at 700 now lean on their
+Lit alpha and their place as well as on weight.
+
+**Character:** quiet, not anonymous; an instrument's lettering rather than a
+brand's. The interface never speaks above the film, so the type is sized,
+weighted and spaced for legibility over arbitrary moving content before
+anything else. Plex was chosen over Geist and Atkinson Hyperlegible Next with
+all three captured side by side on the shortcuts page, the playlist and the
+bar. The episode code decided it. Geist draws a capital O and a zero alike, so
+"S07E06" read "SO7EO6" in every title; Atkinson slashes every zero, which
+settles the question at the cost of a list full of Ø. Plex tells its narrow
+zero from its round O without a mark. It also sets a little narrower, so a
+long title keeps a few more characters, and its tracked capitals look like
+panel lettering, which is what the controls are. Bundled, it is the same face
+on every platform the player runs on.
+
+**The times are monospaced because they move.** In a proportional face the
+elapsed time changes width as it counts, and a figure that shuffles sideways
+once a second reads as motion in the one place the eye goes to check where
+the film is. Plex Mono holds every digit to one width, and being Plex it is
+the same family drawn differently rather than a second voice. It is only for
+figures that tick — the two ends of the timeline and the time over the seek
+preview. A playlist's running times, a slider's value and a shortcut's keys
+stay in Plex Sans, where they sit still.
 
 A weight the scale does not already use is a fourth file in the binary, not a
-number to type; reach for 400 first.
+number to type; reach for 500 first.
 
 ### Hierarchy
 - **Title** (600, 14px): the media title in the bar, the flash, and a fatal
   headline.
-- **Body** (400, 14px): row labels, menu items, switch labels — the name of
+- **Body** (500, 14px): row labels, menu items, switch labels — the name of
   anything you can press. The current row in a list takes Lit at 700 instead.
-- **Named** (400, 13px): a playlist heading that is a show's name rather than a
+- **Named** (500, 13px): a playlist heading that is a show's name rather than a
   section label. The Label role's weight and alpha and neither of its other
   habits: its own case, its own size, no tracking. Both fill the same slot at
   the top of a panel, so what separates them is what they *are* — the user's
   word or the interface's — and nothing else has to say it.
-- **Readout** (400, 13px): figures — timestamps, slider and stepper values, a
+- **Readout** (500, 13px): figures — timestamps, slider and stepper values, a
   row's running time, a shortcut's keys — and the labels of the dense rows
   those sit in, which read as part of the same line rather than as menu entries.
-- **Hint** (400, 13px): prose added underneath something else — the drop hint,
+- **Timecode** (500, 13px, Plex Mono): a readout that ticks — the elapsed and
+  total times at either end of the timeline, and the time over the seek
+  preview.
+- **Hint** (500, 13px): prose added underneath something else — the drop hint,
   the line saying a driver update is the usual fix, a driver's own error text.
   A readout's size under its own name, because prose is what would want a
   different one first.
-- **Label** (400, 12px, tracked 1px): section headings and back rows, written in
+- **Label** (500, 12px, tracked 1px): section headings and back rows, written in
   capitals.
-- **Glyph** (400, 16px): a character standing in for an icon — the stepper's
+- **Glyph** (500, 16px): a character standing in for an icon — the stepper's
   minus and plus, sized against the 26px disc rather than against the text.
 - **Prompt** (600, 16px): the one thing the interface says louder than the
   rest, the words on the end-of-file pill, sized against the 24px glyph beside
   them.
 
 The scale lives in the `Type` global in `app.slint`, not at its use sites.
-Four sizes, eight roles, and several roles deliberately share a size: what
+Four sizes, nine roles, and several roles deliberately share a size: what
 separates a title from a body line is weight, and what separates a readout from
 a hint is that one is a figure and the other is prose.
 
 ### Named Rules
 
-**One Weight For Headings.** Every heading in the system is 400, whatever it
-holds. A show's name at 600 beside a kicker at 400 read as two different
+**One Weight For Headings.** Every heading in the system is plain (500),
+whatever it holds. A show's name at 600 beside a kicker at 400 read as two different
 designs in two panels — and it had also become a small copy of the playing row
 rather than a heading of its own. A panel's top line is one slot; only the
 thing in it should differ.
@@ -368,12 +397,12 @@ being the boldest thing on the page.
 
 Two things follow, both learned the hard way. **Tracking is the cue**: capitals
 set solid read as a word, capitals with air between them read as a label. And
-**lighter means 400**. Under Segoe UI, 600 was not a weight at all — it ships
+**lighter means plain**. Under Segoe UI, 600 was not a weight at all — it ships
 Semibold as a family of its own, so 600 and 700 rasterised identically, to the
-pixel — and that is why the scale steps from 400 straight to its two bolds.
-Geist carries both, so the Title at 600 and the playing row at 700 now sit
-visibly apart; but a heading that needs to be quieter still goes to 400, not to
-the step between.
+pixel — and that is why the scale steps from plain straight to its two bolds.
+Plex carries both, so the Title at 600 and the playing row at 700 now sit
+visibly apart; but a heading that needs to be quieter still goes to plain, not
+to the step between.
 
 **The Twelve Pixel Floor.** Nothing is smaller than 12px, and 12px is only for
 capitals, which are read by their shape. Below that, white text over arbitrary
@@ -384,7 +413,7 @@ interface was found sitting below even the size this document claimed for it;
 naming the roles in one place is what keeps that from happening quietly again.
 
 **The Capitals Rule.** The interface shouts its own words and never the user's.
-SUBTITLES, AUDIO and EFFECTS are tracked capitals at 12/400 because they name
+SUBTITLES, AUDIO and EFFECTS are tracked capitals at 12/500 because they name
 parts of the application. A show's name, a track's name, a filename — anything
 that came from the user's library — keeps its own case and gets the Named role
 instead. Capitalising someone's content is how a tool starts sounding like a
@@ -443,8 +472,10 @@ the renderer where to draw, and a binding that depends on a layout forces a full
 layout pass on every one of those reads.
 
 **Density:** rows are 34px, headings 28px, switch rows 40px, stepper rows 38px,
-slider rows 30px. A heading that follows a group is 38px — the same 28px with
-the 10px group gap carried above it. The window opens at 1280×720 and floors at
+slider rows 30px. A heading that follows a group is 44px — the same 28px with
+the 16px group gap carried above it. The group gap is the row gap: the same
+16px that insets every wash and pads every panel, so the space that separates
+two ideas is the space the rows already stand in. The window opens at 1280×720 and floors at
 900×480, below which the three pills would meet; it never reflows.
 
 ### Named Rules
@@ -461,7 +492,7 @@ lands on top of it either.
 film plays, and not while it is paused. Pausing is stopping to look at where you
 are, which is the moment the bar is for.
 
-**The Gap Goes Above Rule.** The 10px group gap always sits above the thing that
+**The Gap Goes Above Rule.** The 16px group gap always sits above the thing that
 starts something new, never below the thing that ended — above a section
 heading, above a trailing reset. Split evenly, or left out, a heading sits the
 same distance from the group it names as from the group it follows: measured at
@@ -570,21 +601,27 @@ the axes, which is exactly the part the eye catches.
   separate channel from the lit glyph, because a button can mean both at once.
   The subtitles button reports whether subtitles are on *and* whether its menu
   is open, and one highlight cannot say both.
-- **Focus:** the Strong wash, while the keyboard is on it. Tab walks the bar
-  left to right while a film is loaded and nothing is open, and Enter presses;
-  the arrows, Space and every other key keep their meaning wherever the ring
-  stands. The hover label comes up for the focused button as it does for the
-  pointer. A panel opened from the bar takes the ring, and hands it back to the
-  button when it closes.
+- **Focus:** the Strong wash and the glyph at Lit, while the keyboard is on it.
+  The wash alone is the one an open panel holds; the lit glyph is what says the
+  keyboard is here. Tab walks the bar left to right while a film is loaded and
+  nothing is open — then on to the end-of-file choices while that pill is up —
+  and Enter presses; the arrows, Space and every other key keep their meaning
+  wherever the ring stands, and Escape puts the ring away and leaves
+  fullscreen in one press. The hover label comes up for the focused button as
+  it does for the pointer. A panel opened from the bar takes the ring, and
+  hands it back to the button when it closes.
 - **Nowhere to go:** glyph at Dim, no wash, no pointer, and a label that says
-  so — *No earlier file*. Its key does nothing either, and raises no flash.
+  so — *No earlier file*, with no key beside it. Its key does nothing either,
+  raises no flash, and Tab walks past it.
 
 ### Control pills
 - **Shape:** capsule, height 48px (a 40px button with 4px of padding), radius 24px
 - **Background:** none. The pill is a glass rect published to the renderer; a
   fill here would paint over the material.
 - **Contents:** 40px buttons at 6px apart; the title pill's text is the Title
-  role at Strong, inset 18px, eliding.
+  role at Strong, inset 18px, eliding. At any speed but normal the speed rides
+  beside the title at Quiet in Readout size — *1.5×* — for as long as it holds:
+  a caption that came and went was the only sign a film was running fast.
 
 ### Timeline row
 - **Shape:** one 28px capsule of glass across the bar's full width
@@ -594,6 +631,10 @@ the axes, which is exactly the part the eye catches.
   ease-out); played length at Played, width-driven so it stays crisp
 - **Hit area:** the full row height, not the track it draws — a 5px target is
   miserable to grab. The wheel over it seeks.
+- **Chapters:** a dot at each chapter start, the unity dot's shape and its
+  rule — Knob where the played length covers it, Quiet ahead of it. None at
+  the very start, which is the start rather than a boundary, and none at all
+  for the many files without chapters.
 
 ### Volume
 - **Track:** 96px, 5px at Rail growing to 7px (100ms ease-out), filled at Fill
@@ -618,13 +659,18 @@ the axes, which is exactly the part the eye catches.
 ### Playlist rows
 - **Shape:** a menu row with two more facts on it
 - **Running time:** Quiet in Readout size, right-aligned so a column of them
-  reads as a column; empty for a file never opened and not yet described
+  reads as a column; empty for a file never opened and not yet described.
+  A file that would not play says *Could not play* there instead, without the
+  measure, for the rest of the run
+- **Order:** the order a person watches in. When every file names the same
+  show, by season and episode; otherwise by name with digit runs read as
+  numbers and case ignored. Autoplay, Next and the end of a season all trust it
 - **Title:** elides clear of the time and the measure, never under them
 
 ### The resume measure
 
 A 44×4 capsule on a playlist row, at Rail with a fill at Strong, sitting on
-the row's own line 10px before the running time. It says how far into
+the row's own line a group gap (16px) before the running time. It says how far into
 that file you got, and appears only when there is a resume point to show.
 
 - **Fixed length, never a share of the row.** It has to read the same however
@@ -701,18 +747,18 @@ row already has, beside the fact that is already there.
 - **Entry:** fade and 6px rise over 120ms ease-out, glass fading with the surface
 - **Headings:** tracked capitals at Body, except a playlist heading carrying a
   show name, which takes the Named role — natural case, no tracking, and the
-  same alpha and weight. A heading with a group above it carries the 10px gap
+  same alpha and weight. A heading with a group above it carries the 16px gap
   itself rather than being pushed down by the row above, because the last row
   of a group does not know that it is last
 - **Heading icons:** a heading over rows without icons of their own carries
   one — the playlist, SUBTITLES and AUDIO in the tracks panel, every group on
-  the shortcuts page. 16px, not a row's 18px, because the words beside it are
-  12px capitals rather than 14px text; at the heading's own alpha, so mark and
-  words are one thing; starting on the row-label line with the words 8px after
+  the shortcuts page. 18px, a row's size: icons are shown at 24px or 18px and
+  nothing between (see Don'ts); at the heading's own alpha, so mark
+  and words are one thing; starting on the row-label line with the words 8px after
   it. It cannot hang in the margin as the back row's chevron does: that margin
   is 14px to the edge of the wash. The settings page's headings have none,
   because every row under them already wears one
-- **Trailing rows:** a reset or a setting *about* the list gets a 10px gap above
+- **Trailing rows:** a reset or a setting *about* the list gets a 16px gap above
   it. Without it the eye reads one more entry and only the wording says otherwise.
 - **Resets:** two presses, then a way back. The first changes the row to *Press
   again to reset* for 2.5 seconds; the second resets, and the row becomes *Undo
@@ -723,6 +769,14 @@ row already has, beside the fact that is already there.
 - **Shortcut rows:** Body label, keys at Quiet in Readout size, 12px apart. On
   the reference page they are inert — no wash and no pointer, because a wash
   under a row that does nothing when clicked is an offer the row cannot keep.
+  The page lists what the pointer does as well, under POINTER — click, double
+  click, the two wheels and a drop — because it is the one reference the player
+  has
+- **The keys beyond the bar** are mpv's own, so the habit carries over:
+  Shift with an arrow for a one-second seek, `[` `]` and Backspace for speed
+  on a fixed ladder (0.25× to 4×), `,` `.` for a frame, PgUp PgDn for chapters,
+  J and Shift+J through the subtitle tracks, # through the audio. The bindings
+  the player already had — the arrows' volume, S, T, A — stay where they were
 
 ### The hover label
 
@@ -772,9 +826,20 @@ the centre of the picture, and 12px under it, when there is one, a 28px capsule
 carrying the one number that has nowhere else to appear — Title at 600 in Lit,
 14px of padding, never wider than the bar. It lives 700ms, long enough to read a
 two-character figure and short enough that a held key flickers rather than
-strobes. A notice from the player replaces the ring with its sentence alone,
-centred, for 3200ms. No part of it takes the pointer: it sits where a click
-means play or pause.
+strobes.
+
+A **figure** replaces the ring with its words alone, for 1200ms: the speed
+after `[`, `]` or Backspace, the chapter after PgUp or PgDn, the track after J
+or #. The icon set has no glyph for any of them and the figure is the whole
+answer. A frame step and the one-second seek raise nothing — the picture and
+the timeline already answer.
+
+A **notice** from the player is a sentence alone, centred, reason first —
+*Unrecognized file format — could not play Game of Thrones · S07E06* — because
+the capsule elides at the bar's width and the reason is the part worth
+keeping. It holds for 3200ms and then until the next key or pointer event, so
+a failure glanced away from is still there. No part of any of it takes the
+pointer: it sits where a click means play or pause.
 
 ### The end-of-file pill
 The bar's own 48px capsule, in the middle of the picture where the film
@@ -784,32 +849,36 @@ one surface not tied to the idle clock: the bar hides after a few still seconds,
 and this is what should still be there when it does.
 
 At the end of the last file of several — the end of a season — it offers two
-things: *Restart*, and *Open folder…* with the folder glyph. Restart alone was
-the least likely thing anyone wanted there, and the player cannot know what the
-next season is called, but it can put the dialog one press away. With two, each
-choice is a 40px capsule of its own, set 4px inside the pill (24 − 4 = 20,
+things, the way on first and *Restart* second. The way on is the next season by
+name — *Season 8* — when a folder beside this one holds the same show at a later
+season, and *Open folder…* when not, opening on the shelf above this season's
+folder. Restart alone was the least likely thing anyone wanted there. With two,
+each choice is a 40px capsule of its own, set 4px inside the pill (24 − 4 = 20,
 concentric) with its words still 18px from the pill's edge, 6px apart, each
-taking the Button wash on its own.
+taking the Button wash on its own and the Strong wash under the keyboard.
 
 ### The way in
 With no film loaded, a panel of glass centred in the window, over the backdrop:
 
 - **Continue**, first, when there is a film to continue: a play glyph at Body,
   the film's name at Strong in Body size — the one line on the window about a
-  film rather than the player — and the resume measure at the end of the row.
-  It is the newest file mpv still holds a position for that is still on disk;
-  the same thing the backdrop is a frame of. A 10px gap follows it, because it
-  is a film and the rows below it are dialogs, and the panel widens from 320px
-  to 380px so an episode keeps its number.
+  film rather than the player — then the resume measure and, where a playlist
+  row keeps its running time, what is left at Quiet: *43 min left*. It is the
+  newest file mpv still holds a position for that is still on disk; the same
+  thing the backdrop is a frame of. A group gap follows it, because it is a
+  film and the rows below it are dialogs, and the panel widens from 320px to
+  420px so an episode keeps its number beside the time.
 - **Open file, Open folder and Settings** as shortcut rows with their keys, then
   a line at Quiet saying a file can be dropped anywhere.
 
 While an open is in flight Continue and the two open rows fade to half and stop
 answering — to the pointer and to every key — and the line names what is
 arriving; Settings stays at full strength, because it still works. Carrying a
-failure it widens to 420px and offers nothing: a Title headline at Strong, the
-driver's own error text at Body in Hint size wrapping to three lines, and a line
-at Quiet saying a driver update is the usual fix.
+failure it widens to 420px and offers nothing to open: a Title headline at
+Strong, the driver's own error text at Body in Hint size wrapping to three
+lines, a line at Quiet saying a driver update is the usual fix, and after a
+group gap two rows — *Copy details*, which puts the headline and the driver's
+words on the clipboard and says *Copied*, and *Close the player*.
 
 ## Do's and Don'ts
 
@@ -832,7 +901,9 @@ at Quiet saying a driver update is the usual fix.
 - **Do** open a list on its current row, and make a destructive row take two
   presses and offer itself back.
 - **Do** give every control an accessible role and label: an icon button's is
-  its tip, a row's is its words.
+  its tip, a row's is its words. A current row is checked; the timeline, the
+  volume, the sliders and the steppers are sliders with increment actions.
+- **Do** take font weights from `Type` — plain, title, current — not literals.
 
 ### Don't:
 - **Don't** add a hue. Not an accent, not a semantic red, not a brand colour.
@@ -852,7 +923,15 @@ at Quiet saying a driver update is the usual fix.
 - **Don't** open two panels at once.
 - **Don't** animate for its own sake. Motion here is a response: 45ms for a
   wash, 100ms for a track, 120ms for a surface or a switch, ease-out, no bounce,
-  no overshoot. The backdrop's 400ms is the one slower arrival, and the one that
-  is not a response to anything.
-- **Don't** substitute an icon library. The set is 59 SVGs drawn at 24×24 as
+  no overshoot. Two things are slower on purpose: the title pill resizing to a
+  new title over 160ms ease-in-out, so a file change is a movement rather than
+  a flicker, and the backdrop's 400ms arrival, the one motion that is not a
+  response to anything.
+- **Don't** substitute an icon library. The set is 60 SVGs drawn at 24×24 as
   one family; extend it rather than replacing it.
+- **Don't** show an icon at a size other than 24px or 18px. Scaled from the
+  24×24 drawings, those give a 2px and a 1.5px line and both stay legible; at
+  16px the line falls to 1.33px, and at 12px every line lands on a pixel
+  boundary and turns to two grey rows, so detailed icons blur into blobs. A
+  smaller size needs its own drawing. The back row's 14px chevron is the one
+  exception, simple enough to survive it.

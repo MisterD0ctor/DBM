@@ -53,20 +53,28 @@ pub fn drain_events(
         // Named by the file's own name, not its path. A path fills the
         // capsule with the drive and folders, and elision takes the end —
         // exactly the part that says which file in a season it was.
+        //
+        // Reason first. The capsule elides at the width of the bar, and with
+        // a scene release's name in front it was the reason — the one part
+        // worth reading — that fell off the end. The name is the one the
+        // playlist shows, not the file's, and the path is remembered so the
+        // row can go on saying so after the notice has gone.
         if let Event::EndFile {
             failure: Some(reason),
         } = &event
         {
-            let name = player
-                .path
-                .as_deref()
-                .or(player.filename.as_deref())
-                .map(crate::naming::strip_path)
-                .filter(|name| !name.is_empty());
-            notices.push(match name {
-                Some(name) => format!("Could not play {name} — {reason}"),
-                None => format!("Could not play that file — {reason}"),
+            let path = player.path.clone().or_else(|| player.filename.clone());
+            let reason = capitalised(reason);
+            notices.push(match &path {
+                Some(path) => format!(
+                    "{reason} — could not play {}",
+                    crate::naming::titled(path, None)
+                ),
+                None => format!("{reason} — could not play that file"),
             });
+            if let Some(path) = path {
+                player.failed.insert(path);
+            }
         }
         // Not everything mpv reports is state the interface shows. The
         // watchdog reads the same stream for the device list and the audio
@@ -75,6 +83,16 @@ pub fn drain_events(
         dirty |= player.apply(&event);
     }
     dirty
+}
+
+/// mpv's reasons are lower-case fragments — "unrecognized file format" —
+/// and here one starts a sentence.
+fn capitalised(text: &str) -> String {
+    let mut chars = text.chars();
+    match chars.next() {
+        Some(first) => first.to_uppercase().chain(chars).collect(),
+        None => String::new(),
+    }
 }
 
 /// Push the scalar values the UI binds to.
@@ -125,6 +143,13 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     // Raw, beside the formatted text: undoing a reset has to put back the
     // number, and parsing it out of "+0.30 s" would be reading our own label.
     ui.set_sub_delay(player.sub_delay as f32);
+    ui.set_speed(if player.speed > 0.0 { player.speed as f32 } else { 1.0 });
+    ui.set_speed_text(state::format_speed(player.speed).into());
+    ui.set_duration(player.duration as f32);
+    ui.set_chapter_label(player.chapter_label().into());
+    // Where the dialogs open: beside this file, or on the shelf above its
+    // folder.
+    ui.set_current_path(player.path.clone().unwrap_or_default().into());
 }
 
 /// Requests list reads and applies the results.
@@ -166,6 +191,7 @@ impl ListSync {
             let paths: Vec<String> = playlist.iter().map(|e| e.filename.clone()).collect();
             Some(Completion::Lists(Lists {
                 tracks: tracks::read_tracks(mpv),
+                chapters: tracks::read_chapters(mpv),
                 progress: crate::durations::of(&paths),
                 playlist,
                 generation,
@@ -193,6 +219,10 @@ fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_audio_tracks(track_model(player, TrackKind::Audio));
     ui.set_sub_current(selected_row(player, TrackKind::Sub));
     ui.set_audio_current(selected_row(player, TrackKind::Audio));
+    ui.set_chapter_marks(ModelRc::new(VecModel::from(
+        player.chapters.iter().map(|c| c.time as f32).collect::<Vec<_>>(),
+    )));
+    ui.set_chapter_label(player.chapter_label().into());
     push_playlist(ui, player);
 }
 
@@ -258,6 +288,7 @@ pub fn push_playlist(ui: &MainWindow, player: &PlayerState) {
                         Default::default()
                     },
                     progress: progress.fraction,
+                    failed: player.failed.contains(&e.filename),
                 }
             })
             .collect::<Vec<_>>(),

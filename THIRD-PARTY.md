@@ -69,22 +69,24 @@ cargo install cargo-about && cargo about generate about.hbs
 
 ## Typeface
 
-### Geist
+### IBM Plex Sans and IBM Plex Mono
 
 | | |
 |---|---|
-| Version | `v1.7.2`, from [vercel/geist-font](https://github.com/vercel/geist-font/releases/tag/v1.7.2) |
-| Files | `crates/player/fonts/Geist-Regular.ttf`, `Geist-SemiBold.ttf`, `Geist-Bold.ttf`, unmodified |
-| Terms | SIL Open Font License 1.1 — the full text is in [`crates/player/fonts/OFL.txt`](crates/player/fonts/OFL.txt). Copyright 2024 The Geist Project Authors. |
+| Version | IBM Plex Sans `3.005` from [`@ibm/plex-sans` 1.1.0](https://www.npmjs.com/package/@ibm/plex-sans) and IBM Plex Mono `2.005` from [`@ibm/plex-mono` 2.5.0](https://www.npmjs.com/package/@ibm/plex-mono), IBM's own packages of [IBM/plex](https://github.com/IBM/plex) |
+| Files | `crates/player/fonts/IBMPlexSans-Medium.ttf`, `IBMPlexSans-SemiBold.ttf`, `IBMPlexSans-Bold.ttf` and `IBMPlexMono-Medium.ttf`, unpacked from the packages' WOFF 1.0 files — WOFF is the same sfnt tables zlib-compressed, so unpacking restores them byte for byte and changes nothing in the font |
+| Terms | SIL Open Font License 1.1 — the full text is in [`crates/player/fonts/OFL.txt`](crates/player/fonts/OFL.txt). Copyright © 2017 IBM Corp., with Reserved Font Name "Plex". |
 
 Compiled into the executable by Slint rather than installed on the system.
 The OFL permits bundling a font with software under any licence, GPL
 included; it asks only that the font is not sold on its own and that its
-licence and copyright notice travel with it, which the file above does.
+licence and copyright notice travel with it, which the file above does. The
+Reserved Font Name only binds modified versions, which may not be called
+Plex; these files are unmodified, so the name stands.
 
 ## Icons
 
-The 59 SVGs in `public/icons/` are the author's own work, drawn at 24×24 and
+The 60 SVGs in `public/icons/` are the author's own work, drawn at 24×24 and
 covered by this project's licence like everything else in the repository. Some
 never had an outside source at all — no icon pack contains a control for a
 refraction bevel, so `angle`, `curve`, `edge-blur`, `glass`, `panscan-*` and
