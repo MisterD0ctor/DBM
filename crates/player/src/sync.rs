@@ -49,11 +49,24 @@ pub fn drain_events(
         // A file that stopped because it could not be played. mpv knows why
         // and says so in its own words, which are better than any wording
         // invented here — "Unrecognized file format" beats "playback error".
+        //
+        // Named by the file's own name, not its path. A path fills the
+        // capsule with the drive and folders, and elision takes the end —
+        // exactly the part that says which file in a season it was.
         if let Event::EndFile {
             failure: Some(reason),
         } = &event
         {
-            notices.push(format!("Could not play that file — {reason}"));
+            let name = player
+                .path
+                .as_deref()
+                .or(player.filename.as_deref())
+                .map(crate::naming::strip_path)
+                .filter(|name| !name.is_empty());
+            notices.push(match name {
+                Some(name) => format!("Could not play {name} — {reason}"),
+                None => format!("Could not play that file — {reason}"),
+            });
         }
         // Not everything mpv reports is state the interface shows. The
         // watchdog reads the same stream for the device list and the audio
@@ -106,6 +119,12 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     // exactly when the interface has something to offer.
     ui.set_at_end(player.eof_reached && player.path.is_some());
     ui.set_at_last(player.playlist_pos + 1 >= player.playlist_count);
+    // The other end, so previous can say there is nothing before this.
+    ui.set_at_first(player.playlist_pos <= 0);
+    ui.set_playlist_count(player.playlist_count as i32);
+    // Raw, beside the formatted text: undoing a reset has to put back the
+    // number, and parsing it out of "+0.30 s" would be reading our own label.
+    ui.set_sub_delay(player.sub_delay as f32);
 }
 
 /// Requests list reads and applies the results.
@@ -172,7 +191,21 @@ impl ListSync {
 fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_sub_tracks(track_model(player, TrackKind::Sub));
     ui.set_audio_tracks(track_model(player, TrackKind::Audio));
+    ui.set_sub_current(selected_row(player, TrackKind::Sub));
+    ui.set_audio_current(selected_row(player, TrackKind::Audio));
     push_playlist(ui, player);
+}
+
+/// Which row of a track list is the selected one, or -1.
+///
+/// Worked out here because the interface cannot search a model, and it needs
+/// the answer to open the tracks panel on the track in use rather than at the
+/// top of a list of fifteen.
+fn selected_row(player: &PlayerState, kind: TrackKind) -> i32 {
+    tracks::labelled(&player.tracks, kind)
+        .iter()
+        .position(|(t, _)| t.selected)
+        .map_or(-1, |row| row as i32)
 }
 
 /// Hand the playlist alone to the UI.
@@ -191,6 +224,15 @@ pub fn push_playlist(ui: &MainWindow, player: &PlayerState) {
             .map(|(row, e)| (e.filename.as_str(), player.known_title(row))),
     );
     ui.set_playlist_named(listing.heading.is_some());
+    // The row the playlist opens on. Coming back to a season is the reason
+    // to open it, and the top of the list is the one episode already seen.
+    ui.set_playlist_current(
+        player
+            .playlist
+            .iter()
+            .position(|e| e.current)
+            .map_or(-1, |row| row as i32),
+    );
     ui.set_playlist_heading(match &listing.heading {
         Some(show) => show.as_str().into(),
         None => slint::SharedString::from("PLAYLIST"),

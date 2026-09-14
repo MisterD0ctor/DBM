@@ -68,7 +68,7 @@ pub fn resolve(path: &Path) -> Result<Selection, String> {
         return Ok(Selection { videos, start: 0 });
     }
     if !path.is_file() {
-        return Err(format!("There is nothing at {}", path.display()));
+        return Err(format!("There is nothing at {}", folder_name(path)));
     }
 
     let dir = path.parent().ok_or("file has no parent directory")?;
@@ -88,7 +88,7 @@ pub fn resolve(path: &Path) -> Result<Selection, String> {
 /// episode are its season, not the whole library.
 fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, String> {
     let mut videos: Vec<PathBuf> = fs::read_dir(dir)
-        .map_err(|e| format!("read {}: {e}", dir.display()))?
+        .map_err(|e| format!("Could not read {} — {e}", folder_name(dir)))?
         .filter_map(Result::ok)
         .map(|e| e.path())
         .filter(|p| p.is_file() && is_video_file(p))

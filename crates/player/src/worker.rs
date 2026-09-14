@@ -60,6 +60,9 @@ pub enum Completion {
     /// Playlist entries described by `probe` without being played: their
     /// lengths and titles. Several at once when they came from the cache.
     Probed(Vec<crate::probe::Found>),
+    /// What the empty window can offer to pick back up, looked for once at
+    /// startup when nothing was named on the command line.
+    Resume(Option<crate::session::Resume>),
 }
 
 type Job = Box<dyn FnOnce(&Mpv) -> Option<Completion> + Send + 'static>;

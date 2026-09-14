@@ -7,8 +7,6 @@
 // So panels deliberately have no background of their own. Give one a fill
 // here and you are painting over the glass, not on it.
 
-/// A panel the pipeline should render glass beneath. Lengths are logical
-/// pixels; the Rust side scales them by the window's scale factor.
 /// Chrome visibility. Every interactive element reports activity here; the
 /// Rust side owns the idle clock and pushes `idle` back.
 ///
@@ -57,6 +55,20 @@ export global Chrome {
     public function pointed(down: bool) {
         Chrome.bump();
         if (down) {
+            Chrome.focus-visible = false;
+        }
+    }
+
+    /// The same, from a row the keyboard can also stand on.
+    ///
+    /// A pointer moving over a row the ring is not on stands the ring down.
+    /// Otherwise a hand resting in a panel lights one row while the keys light
+    /// another, and the two washes say nothing about which one Enter presses.
+    /// Only movement counts: a pointer that is merely still there raises no
+    /// events, so arrowing past it keeps the ring.
+    public function pointed-at(down: bool, moved: bool, focused: bool) {
+        Chrome.pointed(down);
+        if (moved && !focused) {
             Chrome.focus-visible = false;
         }
     }
@@ -172,25 +184,6 @@ export global Tip {
     }
 }
 
-/// The type scale. Eight roles over four sizes.
-///
-/// Named here rather than written at each of the twenty-eight places text
-/// appears, because a scale spread across twenty-eight literals cannot be
-/// judged — only audited, and it had already drifted: every readout in the
-/// interface was sitting a step below the size the design system claims for
-/// it. That is how a timestamp ended up at 11px over moving video, where a
-/// figure has to be read at a glance and got smaller than the glyphs around
-/// it.
-///
-/// The floor is 12px and it is only for capitals, which are read by their
-/// shape. Below that, white text over arbitrary moving content stops being
-/// read and starts being recognised — fine for a heading whose wording you
-/// already know, no use at all for a number that changes.
-///
-/// Roles rather than sizes, and several roles share a size: what separates a
-/// title from a body line is weight, and what separates a readout from a hint
-/// is that one is a figure and the other is prose. Two names on one value cost
-/// nothing and keep the next change from having to be everywhere at once.
 /// Every colour in the interface, named by what it is for.
 ///
 /// One hue, white, at a few alphas, and one dark knob. Written here rather
@@ -239,31 +232,55 @@ global Paint {
     out property <color> ground: #000000;
 
     // --- washes -----------------------------------------------------------------
+    //
+    // Three, and the two a row can wear are 0x20 apart — the Two-Step Rule the
+    // text keeps, for the same reason. The focus wash was once 0x0f above the
+    // hover: over moving video, with a hand resting in a panel and the keys
+    // walking it, the two were one colour and nothing said which row Enter
+    // would press.
 
-    /// Where the keyboard is, and a button whose panel is open. A wash one step
-    /// above the hover rather than a ring drawn around the row: there is no
-    /// border anywhere in this interface, and introducing one for this would
-    /// make the keyboard the only thing that draws an outline. A pointer and a
-    /// keyboard are rarely both in play, and when they are, the stronger wash
-    /// is the one the keys will answer to.
-    out property <color> wash-strong: #ffffff2e;
-    /// A hovered icon button, or the end-of-file pill.
+    /// Where the keyboard is, a button whose panel is open, a hovered stepper
+    /// disc. A wash rather than a ring: there is no border anywhere in this
+    /// interface, and introducing one for this would make the keyboard the
+    /// only thing that draws an outline.
+    out property <color> wash-strong: #ffffff34;
+    /// A hovered icon button, or a choice on the end-of-file pill. Never on a
+    /// row, so it never has to be told apart from the two either side of it.
     out property <color> wash-button: #ffffff24;
-    /// A hovered row.
-    out property <color> wash-hover: #ffffff1f;
-    /// A hovered row that is only a heading or a switch; a stepper disc at rest.
+    /// A hovered row of any kind; a stepper disc at rest; a scroll hint's rail.
     out property <color> wash-soft: #ffffff14;
 }
 
+/// The type scale. Eight roles over four sizes.
+///
+/// Named here rather than written at each of the twenty-eight places text
+/// appears, because a scale spread across twenty-eight literals cannot be
+/// judged — only audited, and it had already drifted: every readout in the
+/// interface was sitting a step below the size the design system claims for
+/// it. That is how a timestamp ended up at 11px over moving video, where a
+/// figure has to be read at a glance and got smaller than the glyphs around
+/// it.
+///
+/// The floor is 12px and it is only for capitals, which are read by their
+/// shape. Below that, white text over arbitrary moving content stops being
+/// read and starts being recognised — fine for a heading whose wording you
+/// already know, no use at all for a number that changes.
+///
+/// Roles rather than sizes, and several roles share a size: what separates a
+/// title from a body line is weight, and what separates a readout from a hint
+/// is that one is a figure and the other is prose. Two names on one value cost
+/// nothing and keep the next change from having to be everywhere at once.
 global Type {
-    /// 600. The media title, the flash, a fatal headline, the playlist entry
-    /// that is playing.
+    /// 600. The media title, the flash, a fatal headline. (The row that is
+    /// playing is body size at 700 — see `MenuRow`.)
     out property <length> title: 14px;
     /// 400. Row labels, menu items, switch labels — anything that is the name
     /// of something you can press.
     out property <length> body: 14px;
-    /// 600. A playlist heading carrying a show's name rather than a section
-    /// name. One step down from a title so it groups without announcing.
+    /// 400. A playlist heading carrying a show's name rather than a section
+    /// name: a section label's weight and alpha, in its own case and size and
+    /// with no tracking, because it is the user's word and not the
+    /// interface's.
     out property <length> named: 13px;
     /// 400. Figures: timestamps, slider and stepper values, a row's running
     /// time, a shortcut's keys — and the labels of the dense rows those sit
@@ -308,8 +325,8 @@ global Type {
 /// every list. Insetting the wash and rounding it keeps it on the glass, and
 /// reads as deliberate besides: it is what a native menu does.
 ///
-/// 6px clears the worst of it. A 32px corner has curved 5.5px inward by the
-/// time it reaches the 14px panel padding where the first row starts.
+/// The inset is the row gap, which is also the panel's padding — see below
+/// for why that one number settles every corner at once.
 global Rows {
     // Every row wears the same corner, and the panel is built around it.
     //
@@ -339,7 +356,7 @@ global Rows {
     /// Space before a row that is not one of the list above it — a reset, a
     /// setting about the list. Without it the eye reads one more entry and
     /// only the wording says otherwise.
-    out property <length> group-gap: 10px;
+    out property <length> group-gap: 16px;
 
 }
 
@@ -378,7 +395,7 @@ component ActiveMark inherits Rectangle {
 /// itself; the row says only whether it is lit.
 component RowHighlight inherits Rectangle {
     in property <bool> lit;
-    in property <color> shade: Paint.wash-hover;
+    in property <color> shade: Paint.wash-soft;
 
     width: 100%;
     height: 100%;
@@ -397,6 +414,8 @@ component RowHighlight inherits Rectangle {
     }
 }
 
+/// A panel the pipeline should render glass beneath. Lengths are logical
+/// pixels; the Rust side scales them by the window's scale factor.
 export struct GlassRect {
     x: length,
     y: length,
@@ -463,13 +482,32 @@ component IconButton inherits Rectangle {
     /// A button with no `tip` stays silent rather than showing an empty one.
     in property <string> tip;
     in property <string> keys;
+    /// Whether the keyboard is on this button. The bar's own ring, reached
+    /// with Tab while nothing is open.
+    in property <bool> focused;
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    /// Whether pressing it would do anything. Previous on the first file of a
+    /// playlist is a button with nowhere to go, and one that looks the same as
+    /// when it has somewhere is a promise it cannot keep.
+    in property <bool> enabled: true;
     callback clicked();
 
     width: 40px;
     height: 40px;
     border-radius: self.height / 2;
-    background: root.open ? Paint.wash-strong : touch.has-hover ? Paint.wash-button : transparent;
+    background: root.open || root.ring ? Paint.wash-strong
+        : touch.has-hover && root.enabled ? Paint.wash-button
+        : transparent;
     animate background { duration: Motion.highlight; }
+
+    accessible-role: button;
+    accessible-label: root.tip;
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if (root.enabled) {
+            root.clicked();
+        }
+    }
 
     Image {
         source: root.icon;
@@ -478,18 +516,35 @@ component IconButton inherits Rectangle {
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
         image-fit: contain;
-        colorize: root.active ? Paint.lit : Paint.body;
+        // Dim, the floor of the ladder, rather than a faded copy of Body: a
+        // disabled glyph takes an existing step like every other role.
+        colorize: !root.enabled ? Paint.dim : root.active ? Paint.lit : Paint.body;
+    }
+
+    // The keyboard gets the label the pointer gets. It was only ever raised by
+    // hovering, so a bar walked with Tab was thirteen unnamed marks.
+    changed ring => {
+        if (root.tip == "") {
+            return;
+        }
+        if (root.ring) {
+            Tip.point(root.tip, root.keys, root.tip-cx);
+        } else if (Tip.cx == root.tip-cx) {
+            Tip.clear();
+        }
     }
 
     touch := TouchArea {
-        mouse-cursor: pointer;
+        mouse-cursor: root.enabled ? pointer : default;
         // `moved` only fires while a button is held, so plain hovering has
         // to come through `pointer-event`.
         pointer-event(event) => {
             Chrome.pointed(event.kind == PointerEventKind.down);
         }
         clicked => {
-            root.clicked();
+            if (root.enabled) {
+                root.clicked();
+            }
         }
 
         // Asked for once, on arrival and departure, rather than bound - so
@@ -531,9 +586,15 @@ component MenuRow inherits Rectangle {
 
     height: 34px;
 
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => {
+        root.picked();
+    }
+
     RowHighlight {
         lit: touch.has-hover || root.ring;
-        shade: root.ring ? Paint.wash-strong : Paint.wash-hover;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
     }
 
     ActiveMark {
@@ -555,7 +616,8 @@ component MenuRow inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: pointer;
         pointer-event(event) => {
-            Chrome.pointed(event.kind == PointerEventKind.down);
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
         }
         clicked => {
             root.picked();
@@ -589,9 +651,15 @@ component PlaylistRow inherits Rectangle {
 
     height: 34px;
 
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => {
+        root.picked();
+    }
+
     RowHighlight {
         lit: touch.has-hover || root.ring;
-        shade: root.ring ? Paint.wash-strong : Paint.wash-hover;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
     }
 
     ActiveMark {
@@ -662,7 +730,90 @@ component PlaylistRow inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: pointer;
         pointer-event(event) => {
-            Chrome.pointed(event.kind == PointerEventKind.down);
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
+        }
+        clicked => {
+            root.picked();
+        }
+    }
+}
+
+/// The way in's offer to pick up where you stopped: the last film left
+/// unfinished, and how far into it you got.
+///
+/// A playlist row without the running time and with a play mark in front.
+/// The time is the part that stops mattering here — the question on an empty
+/// window is which thing and how far, not how long — and the mark is what
+/// says this row starts something, where every other row in the panel names
+/// a dialog. The title leads, at Strong: it is the one line on the window
+/// that is about a film rather than about the player.
+component ResumeRow inherits Rectangle {
+    in property <bool> focused;
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    in property <string> label;
+    in property <float> progress;
+    private property <length> measure-w: 44px;
+    private property <length> icon-size: 18px;
+    callback picked();
+
+    height: 34px;
+
+    accessible-role: button;
+    accessible-label: "Continue " + root.label;
+    accessible-action-default => {
+        root.picked();
+    }
+
+    RowHighlight {
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+    }
+
+    Image {
+        source: @image-url("../../../public/icons/play.svg");
+        x: Rows.label-x;
+        y: (parent.height - self.height) / 2;
+        width: root.icon-size;
+        height: root.icon-size;
+        image-fit: contain;
+        colorize: touch.has-hover || root.ring ? Paint.lit : Paint.body;
+    }
+
+    Text {
+        x: Rows.label-x + root.icon-size + 10px;
+        width: parent.width - self.x - Rows.trail-x - root.measure-w - Rows.group-gap;
+        height: 100%;
+        text: root.label;
+        color: Paint.strong;
+        font-size: Type.body;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // The resume measure, exactly as a playlist row wears it.
+    Rectangle {
+        x: parent.width - Rows.trail-x - root.measure-w;
+        y: (parent.height - self.height) / 2;
+        width: root.measure-w;
+        height: 4px;
+        background: Paint.rail;
+        border-radius: self.height / 2;
+
+        Rectangle {
+            x: 0;
+            width: max(self.height, parent.width * root.progress);
+            height: 100%;
+            background: Paint.strong;
+            border-radius: parent.border-radius;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
         }
         clicked => {
             root.picked();
@@ -699,6 +850,17 @@ component ScrollList inherits Rectangle {
         } else if (top + h > -flick.viewport-y + root.height) {
             flick.viewport-y = root.height - top - h;
         }
+    }
+
+    /// Put one row in the middle, as far as the ends of the list allow.
+    ///
+    /// For a panel opening, rather than a ring moving. The least scroll that
+    /// shows a row lands it on the bottom edge, which is right for a walk and
+    /// wrong for an arrival: the episode you are on belongs with the ones
+    /// either side of it in view.
+    public function centre(top: length, h: length) {
+        flick.viewport-y = min(0px,
+            max(root.height - root.content-height, (root.height - h) / 2 - top));
     }
 
     flick := Flickable {
@@ -757,9 +919,20 @@ component ShortcutRow inherits Rectangle {
 
     height: 34px;
 
+    // A constant role, as Slint requires; a reference row says it is not a
+    // button by being one that is not enabled.
+    accessible-role: button;
+    accessible-enabled: !root.inert;
+    accessible-label: root.shortcut == "" ? root.label : root.label + ", " + root.shortcut;
+    accessible-action-default => {
+        if (!root.inert) {
+            root.picked();
+        }
+    }
+
     RowHighlight {
         lit: !root.inert && (touch.has-hover || root.ring);
-        shade: root.ring ? Paint.wash-strong : Paint.wash-hover;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
     }
 
     HorizontalLayout {
@@ -773,6 +946,7 @@ component ShortcutRow inherits Rectangle {
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
+            overflow: elide;
         }
 
         Text {
@@ -786,7 +960,8 @@ component ShortcutRow inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: root.inert ? default : pointer;
         pointer-event(event) => {
-            Chrome.pointed(event.kind == PointerEventKind.down);
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
         }
         clicked => {
             if (!root.inert) {
@@ -809,6 +984,10 @@ component ParamSlider inherits Rectangle {
     callback moved(float);
 
     height: 30px;
+
+    accessible-role: slider;
+    accessible-label: root.label;
+    accessible-value: root.readout;
 
     // The sliders never had a hover wash: the track grows instead, which says
     // enough for a pointer already on it. The keyboard has no such thing to
@@ -858,7 +1037,8 @@ component ParamSlider inherits Rectangle {
             drag := TouchArea {
                 mouse-cursor: pointer;
                 pointer-event(event) => {
-                    Chrome.pointed(event.kind == PointerEventKind.down);
+                    Chrome.pointed-at(event.kind == PointerEventKind.down,
+                        event.kind == PointerEventKind.move, root.focused);
                 }
                 moved => {
                     if (self.pressed) {
@@ -909,6 +1089,13 @@ component ToggleRow inherits Rectangle {
 
     height: 40px;
 
+    accessible-role: switch;
+    accessible-label: root.label;
+    accessible-checked: root.checked;
+    accessible-action-default => {
+        root.toggled(!root.checked);
+    }
+
     RowHighlight {
         lit: switch-touch.has-hover || root.ring;
         shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
@@ -944,9 +1131,12 @@ component ToggleRow inherits Rectangle {
             }
         }
 
+        // Body, the rows' own step. A setting about a list is furniture
+        // beside it, and at Strong the one switch under the playlist out-inked
+        // the episodes it governs.
         Text {
             text: root.label;
-            color: Paint.strong;
+            color: Paint.body;
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -957,7 +1147,8 @@ component ToggleRow inherits Rectangle {
     switch-touch := TouchArea {
         mouse-cursor: pointer;
         pointer-event(event) => {
-            Chrome.pointed(event.kind == PointerEventKind.down);
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
         }
         clicked => {
             root.toggled(!root.checked);
@@ -981,9 +1172,15 @@ component DrillRow inherits Rectangle {
 
     height: 34px;
 
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => {
+        root.opened();
+    }
+
     RowHighlight {
         lit: touch.has-hover || root.ring;
-        shade: root.ring ? Paint.wash-strong : Paint.wash-hover;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
     }
 
     HorizontalLayout {
@@ -1031,7 +1228,8 @@ component DrillRow inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: pointer;
         pointer-event(event) => {
-            Chrome.pointed(event.kind == PointerEventKind.down);
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
         }
         clicked => {
             root.opened();
@@ -1072,6 +1270,64 @@ component StepButton inherits Rectangle {
     }
 }
 
+/// One thing the end-of-file pill offers.
+///
+/// A capsule of its own inside the pill, so that when there are two, each
+/// lights on its own under the pointer rather than the whole pill lighting
+/// for either.
+component EndChoice inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    /// Where the words start, from this capsule's own edge.
+    in property <length> pad;
+    in property <length> gap;
+    callback picked();
+
+    border-radius: self.height / 2;
+    background: touch.has-hover ? Paint.wash-button : transparent;
+    animate background { duration: Motion.highlight; }
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => {
+        root.picked();
+    }
+
+    HorizontalLayout {
+        padding-left: root.pad;
+        padding-right: root.pad;
+        spacing: root.gap;
+        alignment: center;
+
+        Image {
+            source: root.icon;
+            width: 24px;
+            height: 24px;
+            y: (parent.height - self.height) / 2;
+            image-fit: contain;
+            colorize: Paint.lit;
+        }
+        Text {
+            text: root.label;
+            color: Paint.lit;
+            font-size: Type.prompt;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed(event.kind == PointerEventKind.down);
+        }
+        clicked => {
+            Chrome.bump();
+            root.picked();
+        }
+    }
+}
+
 /// An adjustment with no meaningful range to drag across.
 ///
 /// A stepper rather than a slider because these are read as numbers, not as
@@ -1090,6 +1346,10 @@ component StepperRow inherits Rectangle {
     callback stepped(float);
 
     height: 38px;
+
+    accessible-role: spinbox;
+    accessible-label: root.label;
+    accessible-value: root.value;
 
     // Same as the sliders: its two buttons light on hover, and neither of
     // them is where the keyboard is — the row is.
@@ -1174,6 +1434,12 @@ component BackRow inherits Rectangle {
 
     height: 34px;
 
+    accessible-role: button;
+    accessible-label: "Back from " + root.label;
+    accessible-action-default => {
+        root.back();
+    }
+
     RowHighlight {
         lit: touch.has-hover || root.ring;
         shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
@@ -1216,7 +1482,8 @@ component BackRow inherits Rectangle {
     touch := TouchArea {
         mouse-cursor: pointer;
         pointer-event(event) => {
-            Chrome.pointed(event.kind == PointerEventKind.down);
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
         }
         clicked => {
             root.back();
@@ -1355,6 +1622,23 @@ export component MainWindow inherits Window {
     /// ...and there is nothing after it in the playlist, so the only thing
     /// left to offer is this file again.
     in property <bool> at-last;
+    /// ...and the other end: there is nothing before this one.
+    in property <bool> at-first;
+    in property <int> playlist-count;
+    /// The subtitle delay as a number, beside `sub-delay-text`, so undoing a
+    /// reset can put back what was there.
+    in property <float> sub-delay;
+    /// Which row of each list is the current one, or -1. Worked out on the
+    /// Rust side, since a model cannot be searched from here.
+    in property <int> playlist-current: -1;
+    in property <int> sub-current: -1;
+    in property <int> audio-current: -1;
+    /// The last film left unfinished, offered by the way in. Empty when there
+    /// is none — found once, off the frame path, a moment after startup.
+    in property <string> resume-path;
+    in property <string> resume-title;
+    in property <float> resume-progress;
+    property <bool> has-resume: root.resume-path != "";
     /// Whether subtitles are actually on screen — mpv's `sub-visibility`
     /// *and* a track selected to be visible. Either half alone is a state
     /// the interface would report wrongly: visibility on with no track
@@ -1453,8 +1737,15 @@ export component MainWindow inherits Window {
         : root.playlist-open ? root.playlist.length + 1
         : root.files-open ? 2
         : root.settings-open ? root.settings-focus-count
-        : (!root.has-file && root.fatal == "") ? 3
+        : (!root.has-file && root.fatal == "") ? 3 + root.invite-first
         : 0;
+    /// The way in's rows start one further down when the first is Continue.
+    property <int> invite-first: root.has-resume ? 1 : 0;
+    /// A settings page whose last row is its reset. The ring stops at the ends
+    /// of these rather than wrapping, so Up from the top can never land on
+    /// the one row that throws a page of tuning away.
+    property <bool> focus-has-reset: root.settings-open
+        && root.settings-page >= 1 && root.settings-page <= 3;
     /// Per page: the rows, plus the way back, plus the reset that follows
     /// them. The shortcuts page offers only the way back — every row on it is
     /// a statement rather than a control.
@@ -1476,6 +1767,9 @@ export component MainWindow inherits Window {
     /// Restore one section to its defaults. 0 glass, 1 ambient border -
     /// matching `settings::Section`.
     callback reset-section(int);
+    /// Take back the last reset: the page it was on, as the settings panel
+    /// numbers them, and the subtitle delay that stood before it.
+    callback undo-reset(int, float);
     callback set-ambience(bool);
     callback set-autoplay(bool);
 
@@ -1588,9 +1882,13 @@ export component MainWindow inherits Window {
     in-out property <bool> fullscreen: false;
     // Rust owns the idle clock; the policy for what that means lives here.
     // An open menu counts as interaction even with the pointer still.
+    //
+    // So does a paused film. Pausing is stopping to look at where you are —
+    // how far in, how long is left, which episode — and the bar used to leave
+    // three seconds into exactly that.
     property <bool> controls-visible: !Chrome.idle
         || root.menu-open || root.playlist-open || root.settings-open
-        || root.files-open;
+        || root.files-open || (root.paused && root.has-file);
 
     /// Whether the pointer should be off screen.
     ///
@@ -1640,6 +1938,23 @@ export component MainWindow inherits Window {
         Chrome.focus-visible = true;
         root.focus-row = row;
         root.focus-scroll();
+    }
+
+    /// The row a panel opens on.
+    ///
+    /// The playlist on the episode playing: coming back to a season is the
+    /// reason to open it, and its top is the one episode certainly already
+    /// seen — which P and then Enter used to play. The tracks on the subtitle
+    /// in use, or on Off when none is showing.
+    property <int> playlist-open-row: max(0, root.playlist-current);
+    property <int> tracks-open-row: root.has-subs
+        ? (root.subs-visible && root.sub-current >= 0 ? root.sub-current + 1 : 0)
+        : max(0, root.audio-current);
+
+    // A ring left up by the way in would otherwise land on the bar the moment
+    // a film arrives, on a button nobody chose.
+    changed has-file => {
+        Chrome.focus-visible = false;
     }
 
     // A film ending is something happening, even though nobody touched
@@ -1721,15 +2036,22 @@ export component MainWindow inherits Window {
     // sentence naming what is wrong is one a person reads once and acts on,
     // so it is not allowed to elide; and what follows it is a driver's own
     // error text, which is the only copy of that text anyone will ever see.
-    property <length> invite-w: root.fatal != "" ? 420px : 320px;
+    //
+    // And wider with something to continue: that row carries a film's name
+    // beside a measure, and at 320px an episode lost its number first.
+    property <length> invite-w: root.fatal != "" ? 420px
+        : root.has-resume ? 380px : 320px;
     property <length> invite-h: root.fatal != ""
         ? root.panel-pad + root.invite-line-h + Rows.group-gap
             + root.invite-detail-h + Rows.group-gap + root.invite-note-h
-        : root.panel-pad + 3 * 34px + Rows.group-gap + root.invite-note-h;
+        : root.panel-pad + root.invite-first * (34px + Rows.group-gap)
+            + 3 * 34px + Rows.group-gap + root.invite-note-h;
     property <length> invite-note-h: 22px;
-    /// One line of 13px, for the sentence that names the failure.
+    /// One line of the Title role, 14px, for the sentence that names the
+    /// failure.
     property <length> invite-line-h: 22px;
-    /// Three lines of 12px, for the driver's account of it. Three because it
+    /// Three lines of the Hint role, 13px, for the driver's account of it.
+    /// Three because it
     /// is what fits beside the rest without the pane growing taller than the
     /// one it replaces, and because a fourth line of a shader log says no
     /// more to the person reading it than the third did.
@@ -1755,8 +2077,9 @@ export component MainWindow inherits Window {
     /// Inset for text sitting directly on a pill, rather than on a button
     /// within one. `pill-pad` is the gap around a 40px glyph button, which is
     /// already round and already clear of the capsule's corner; a line of
-    /// text at the same inset runs straight into the curve. Matches the 18px
-    /// the menu rows use, so a label starts at the same place everywhere.
+    /// text at the same inset runs straight into the curve. The end-of-file
+    /// pill uses the same 18px, so words on any 48px capsule start in the
+    /// same place.
     property <length> pill-text-pad: 18px;
     property <length> pill-h: root.btn + 2 * root.pill-pad;
     property <length> pill-radius: root.pill-h / 2;
@@ -1811,20 +2134,36 @@ export component MainWindow inherits Window {
     /// Text inset, matching the title pill's.
     property <length> end-pad: root.pill-text-pad;
     property <length> end-gap: 12px;
-    property <length> end-w:
-        2 * root.end-pad + 24px + root.end-gap + end-measure.preferred-width;
+    /// Whether there is a second thing to offer: at the end of the last file
+    /// of several, which is the end of a season.
+    property <bool> end-two: root.at-last && root.playlist-count > 1;
+    /// With two choices each is a capsule of its own, set in by the padding a
+    /// bar button gets and concentric with the pill for the same reason: 24px
+    /// outside, a 4px gap, 20px inside.
+    property <length> end-inset: root.end-two ? root.pill-pad : 0px;
+    /// ...so its words move in by less, and still start 18px from the pill's
+    /// edge.
+    property <length> end-choice-pad: root.end-pad - root.end-inset;
+    property <length> end-first-w:
+        2 * root.end-choice-pad + 24px + root.end-gap + end-measure.preferred-width;
+    property <length> end-second-w:
+        2 * root.end-choice-pad + 24px + root.end-gap + end-folder-measure.preferred-width;
+    property <length> end-w: root.end-two
+        ? 2 * root.end-inset + root.end-first-w + root.btn-gap + root.end-second-w
+        : root.end-first-w;
     property <length> end-x: (root.width - root.end-w) / 2;
     property <length> end-y: (root.height - root.end-h) / 2;
     /// Restart at the end of the last file, next at the end of any other —
     /// which only happens with autoplay off, since otherwise mpv has already
     /// moved on by the time anyone could read it.
     property <string> end-label: root.at-last ? "Restart" : "Next";
+    property <string> end-folder-label: "Open folder…";
 
     // --- the action flash ---
     //
     // A glyph in a ring at the centre of the picture, and under it the one
-    // number that has nowhere else to appear. It lives about a second and
-    // takes no pointer events — it is an answer, not a control.
+    // number that has nowhere else to appear. It lives 700ms — a notice,
+    // 3200ms — and takes no pointer events: it is an answer, not a control.
     property <[image]> flash-icons: [
         @image-url("../../../public/icons/seek-backward.svg"),
         @image-url("../../../public/icons/seek-forward.svg"),
@@ -1976,7 +2315,7 @@ export component MainWindow inherits Window {
     property <length> center-x: root.bar-x + (root.bar-w - root.center-w) / 2;
     property <length> right-x: root.bar-x + root.bar-w - root.right-w;
 
-    /// The track runs between the two time pills, clear of both.
+    /// The track runs between the two times, clear of both.
     property <length> total-x: root.bar-x + root.bar-w - root.time-w;
     out property <length> scrub-x: root.bar-x + root.time-w + root.pill-gap;
     out property <length> scrub-w: root.bar-w - 2 * (root.time-w + root.pill-gap);
@@ -2075,9 +2414,9 @@ export component MainWindow inherits Window {
     property <[{label: string, keys: string, heading: string, icon: image}]> shortcuts: [
         { heading: "PLAYBACK", icon: @image-url("../../../public/icons/play-pause.svg"),
           label: "Play / pause", keys: "Space" },
-        { label: "Back / forward 10s", keys: "← →" },
+        { label: "Back / forward 10 seconds", keys: "← →" },
         { label: "Start again", keys: "Home" },
-        { label: "Previous / next file", keys: "Ctrl + ← →" },
+        { label: "Previous / next file", keys: "Ctrl+← →" },
 
         { heading: "SOUND", icon: @image-url("../../../public/icons/volume.svg"),
           label: "Volume", keys: "↑ ↓" },
@@ -2085,7 +2424,7 @@ export component MainWindow inherits Window {
 
         { heading: "SUBTITLES", icon: @image-url("../../../public/icons/subtitles.svg"),
           label: "Subtitles on / off", keys: "C" },
-        { label: "Subtitles earlier / later", keys: "Z / Shift + Z" },
+        { label: "Subtitles earlier / later", keys: "Z / Shift+Z" },
 
         { heading: "PICTURE", icon: @image-url("../../../public/icons/monitor.svg"),
           label: "Fill or fit the window", keys: "T" },
@@ -2099,12 +2438,13 @@ export component MainWindow inherits Window {
 
         { heading: "KEYBOARD", icon: @image-url("../../../public/icons/keyboard.svg"),
           label: "Move in a panel", keys: "↑ ↓" },
+        { label: "Move along the bar", keys: "Tab" },
         { label: "Choose, or adjust", keys: "Enter, ← →" },
         { label: "Close, or leave fullscreen", keys: "Esc" },
 
         { heading: "FILES", icon: @image-url("../../../public/icons/folder-open.svg"),
-          label: "Open file", keys: "Ctrl + O" },
-        { label: "Open folder", keys: "Ctrl + Shift + O" },
+          label: "Open file", keys: "Ctrl+O" },
+        { label: "Open folder", keys: "Ctrl+Shift+O" },
     ];
     /// How many of the rows above open a section.
     ///
@@ -2119,7 +2459,7 @@ export component MainWindow inherits Window {
         // The space above every heading but the first.
         + (root.shortcut-sections - 1) * Rows.group-gap;
     /// What is left of the panel once the back row has had its share. The
-    /// list scrolls into it, because fifteen rows do not fit above the bar on
+    /// list scrolls into it, because twenty rows do not fit above the bar on
     /// a small window and a reference that is cut off is not one.
     property <length> shortcuts-list-h:
         max(0px, settings.height - root.panel-pad - 34px);
@@ -2361,10 +2701,16 @@ export component MainWindow inherits Window {
     // mapping leaves Rust with named intentions instead of keycodes.
     /// Move the ring, wrapping at both ends. Wrapping rather than stopping
     /// because these lists are short and the ends are where the useful rows
-    /// are: `Off` at the top of the subtitles, the reset at the bottom of a
-    /// settings page.
+    /// are: `Off` at the top of the subtitles, the last episode at the bottom.
+    ///
+    /// Except on a page that ends in its reset. There Up from the way back
+    /// wrapped straight onto it, one Enter from losing the page.
     function focus-move(delta: int) {
         if (root.focus-count <= 0) {
+            return;
+        }
+        if (root.focus-has-reset) {
+            root.focus-row = clamp(root.focus-row + delta, 0, root.focus-count - 1);
             return;
         }
         root.focus-row = root.focus-row + delta;
@@ -2408,21 +2754,19 @@ export component MainWindow inherits Window {
         }
         if (root.files-open) {
             root.files-open = false;
-            if (root.focus-row == 0) {
-                root.open-file();
-            } else {
-                root.open-folder();
-            }
+            root.request-open(root.focus-row != 0);
             return true;
         }
         if (root.settings-open) {
             return root.focus-activate-settings();
         }
         if (!root.has-file && root.fatal == "") {
-            if (root.focus-row == 0) {
-                root.open-file();
-            } else if (root.focus-row == 1) {
-                root.open-folder();
+            if (root.focus-row < root.invite-first) {
+                if (!root.opening) {
+                    root.open-path(root.resume-path);
+                }
+            } else if (root.focus-row < root.invite-first + 2) {
+                root.request-open(root.focus-row == root.invite-first + 1);
             } else {
                 root.open-settings(true);
             }
@@ -2449,16 +2793,79 @@ export component MainWindow inherits Window {
             return true;
         }
         if (root.focus-row == root.settings-focus-count - 1) {
-            if (root.settings-page == 1) {
-                root.reset-section(0);
-            } else if (root.settings-page == 2) {
-                root.reset-section(1);
-            } else if (root.settings-page == 3) {
-                root.reset-subtitles();
+            if (root.focus-has-reset) {
+                root.reset-row(root.settings-page);
             }
             return true;
         }
         return false;
+    }
+
+    // --- resetting a page -----------------------------------------------------
+    //
+    // Two presses, and then a way back. Settings always save, so a reset is
+    // on disk within a second, and what it throws away is a look tuned by eye
+    // over an evening that nobody can type back in. The first press says what
+    // the second will do; after the second, the same row offers to undo it
+    // until the page is left.
+    //
+    // Pages as the settings panel numbers them: 1 glass, 2 ambient border,
+    // 3 subtitles. Zero is none.
+    property <int> reset-armed: 0;
+    property <int> reset-undoable: 0;
+    /// The subtitle delay that stood when the reset went through.
+    property <float> reset-delay: 0;
+
+    function reset-row(page: int) {
+        if (root.reset-undoable == page) {
+            root.undo-reset(page, root.reset-delay);
+            root.reset-undoable = 0;
+            return;
+        }
+        if (root.reset-armed != page) {
+            root.reset-armed = page;
+            reset-timer.stop();
+            reset-timer.start();
+            return;
+        }
+        reset-timer.stop();
+        root.reset-armed = 0;
+        root.reset-delay = root.sub-delay;
+        if (page == 1) {
+            root.reset-section(0);
+        } else if (page == 2) {
+            root.reset-section(1);
+        } else {
+            root.reset-subtitles();
+        }
+        root.reset-undoable = page;
+    }
+
+    pure function reset-label(page: int) -> string {
+        return root.reset-undoable == page ? "Undo reset"
+            : root.reset-armed == page ? "Press again to reset"
+            : "Reset to defaults";
+    }
+
+    /// Long enough to read the new wording and press again; short enough that
+    /// an armed row does not wait to catch a press meant for something else.
+    reset-timer := Timer {
+        interval: 2500ms;
+        running: false;
+        triggered => {
+            root.reset-armed = 0;
+            reset-timer.stop();
+        }
+    }
+
+    changed settings-page => {
+        root.reset-armed = 0;
+        root.reset-undoable = 0;
+    }
+
+    changed settings-open => {
+        root.reset-armed = 0;
+        root.reset-undoable = 0;
     }
 
     /// Left and right, but only where the row under the ring is something
@@ -2528,7 +2935,10 @@ export component MainWindow inherits Window {
         }
         if (text == Key.UpArrow) {
             if (!Chrome.focus-visible) {
-                root.focus-show(root.focus-count - 1);
+                // The bottom, but not a reset: one more Enter would be the
+                // first of its two presses from a row nobody looked at.
+                root.focus-show(root.focus-has-reset
+                    ? root.focus-count - 2 : root.focus-count - 1);
                 return true;
             }
             root.focus-move(-1);
@@ -2586,8 +2996,13 @@ export component MainWindow inherits Window {
     function on-seek(text: string, ctrl: bool) -> bool {
         if (text == Key.LeftArrow) {
             if (ctrl) {
-                root.playlist-step(-1);
-                Flash.show(Flash.previous, 0.5);
+                // At either end mpv does nothing, and a flash saying it moved
+                // would be the interface claiming something that did not
+                // happen. The dimmed button already says there is nowhere.
+                if (!root.at-first) {
+                    root.playlist-step(-1);
+                    Flash.show(Flash.previous, 0.5);
+                }
             } else {
                 root.seek-relative(-root.seek-step);
                 Flash.show(Flash.seek-back, 0.2);
@@ -2596,8 +3011,10 @@ export component MainWindow inherits Window {
         }
         if (text == Key.RightArrow) {
             if (ctrl) {
-                root.playlist-step(1);
-                Flash.show(Flash.next, 0.5);
+                if (!root.at-last) {
+                    root.playlist-step(1);
+                    Flash.show(Flash.next, 0.5);
+                }
             } else if (root.at-end) {
                 // Seeking forward from the end has nowhere to go. Forward
                 // means the next file, or this one again if there is none.
@@ -2657,14 +3074,135 @@ export component MainWindow inherits Window {
         // control character on others; U+000F is Ctrl+O. Accepting both costs
         // one comparison and removes a whole class of "works on my machine".
         if (ctrl && (text == "o" || text == "O" || text == "\u{000F}")) {
-            if (shift) {
-                root.open-folder();
-            } else {
-                root.open-file();
-            }
+            root.request-open(shift);
             return true;
         }
         return false;
+    }
+
+    /// Every way the interface asks for a file or a folder comes through here,
+    /// so an open already in flight is refused in one place. The way in's rows
+    /// used to fade and stop answering the pointer while Ctrl+O and Enter went
+    /// on queueing a second scan behind the first.
+    function request-open(folder: bool) {
+        if (root.opening) {
+            return;
+        }
+        if (folder) {
+            root.open-folder();
+        } else {
+            root.open-file();
+        }
+    }
+
+    // --- the bar, from the keyboard -------------------------------------------
+    //
+    // Thirteen buttons that only a pointer could reach, named only to a
+    // pointer. Tab walks them while nothing is open and a film is loaded, and
+    // Enter presses the one the ring is on. Nothing else is claimed: the
+    // arrows go on seeking and setting the volume and Space goes on pausing,
+    // whichever button the ring stands on, so a walk along the bar costs no
+    // key its meaning.
+    //
+    // Its own index rather than `focus-row`, which a panel resets as it
+    // opens. Kept, it is also where the ring comes back to when that panel
+    // closes — on the button that opened it.
+    out property <int> bar-focus: 0;
+    property <int> bar-count: 13;
+    property <bool> bar-reach: root.has-file && !root.panel-open && root.fatal == "";
+
+    function on-bar(text: string, shift: bool) -> bool {
+        if (!root.bar-reach) {
+            return false;
+        }
+        if (text == Key.Tab || text == Key.Backtab) {
+            if (!Chrome.focus-visible) {
+                root.bar-focus = shift || text == Key.Backtab ? root.bar-count - 1 : 0;
+                Chrome.focus-visible = true;
+                return true;
+            }
+            root.bar-step(shift || text == Key.Backtab ? -1 : 1);
+            return true;
+        }
+        if (!Chrome.focus-visible) {
+            return false;
+        }
+        if (text == Key.Return) {
+            root.bar-activate(root.bar-focus);
+            return true;
+        }
+        if (text == Key.Escape) {
+            Chrome.focus-visible = false;
+            return true;
+        }
+        return false;
+    }
+
+    function bar-step(delta: int) {
+        root.bar-focus = root.bar-focus + delta;
+        if (root.bar-focus < 0) {
+            root.bar-focus = root.bar-count - 1;
+        }
+        if (root.bar-focus >= root.bar-count) {
+            root.bar-focus = 0;
+        }
+    }
+
+    /// Left to right: playlist, open; previous, back, play, forward, next;
+    /// mute, ambience, tracks, settings, panscan, fullscreen. The volume track
+    /// is not a stop — Up and Down already are the volume. Split in two for
+    /// the compiler, as the key handlers are.
+    function bar-activate(index: int) {
+        if (index < 7) {
+            root.bar-activate-left(index);
+        } else {
+            root.bar-activate-right(index);
+        }
+    }
+
+    function bar-activate-left(index: int) {
+        if (index == 0) {
+            root.open-playlist(true);
+            root.focus-show(root.focus-row);
+        } else if (index == 1) {
+            root.open-files(true);
+            root.focus-show(0);
+        } else if (index == 2) {
+            if (!root.at-first) {
+                root.playlist-step(-1);
+            }
+        } else if (index == 3) {
+            root.seek-relative(-root.seek-step);
+        } else if (index == 4) {
+            if (root.at-end) {
+                root.replay();
+            } else {
+                root.toggle-pause();
+            }
+        } else if (index == 5) {
+            root.seek-relative(root.seek-step);
+        } else if (!root.at-last) {
+            root.playlist-step(1);
+        }
+    }
+
+    function bar-activate-right(index: int) {
+        if (index == 7) {
+            root.toggle-mute();
+        } else if (index == 8) {
+            root.ambience-on = !root.ambience-on;
+            root.set-ambience(root.ambience-on);
+        } else if (index == 9) {
+            root.open-menu(true);
+            root.focus-show(root.focus-row);
+        } else if (index == 10) {
+            root.open-settings(true);
+            root.focus-show(0);
+        } else if (index == 11) {
+            root.toggle-panscan();
+        } else {
+            root.toggle-fullscreen();
+        }
     }
 
     function on-window(text: string) -> bool {
@@ -2672,26 +3210,38 @@ export component MainWindow inherits Window {
             root.toggle-fullscreen();
             return true;
         }
-        if (text == "t" || text == "T") {
+        if (root.has-file && (text == "t" || text == "T")) {
             root.toggle-panscan();
             return true;
         }
+        // The ring comes up only with a panel. Pressed to close one, it used
+        // to light whatever row was underneath.
         if (text == "s" || text == "S") {
             root.open-settings(!root.settings-open);
-            root.focus-show(0);
+            if (root.settings-open) {
+                root.focus-show(0);
+            }
             return true;
         }
         // The two panels opened most, and the two that had no key. A for the
         // tracks, which is where an audio track is picked as often as a
         // subtitle; P for the playlist.
-        if (text == "a" || text == "A") {
+        //
+        // Neither with no film. Both panels describe one, and opened over the
+        // way in they stacked a second sheet of glass on the first, hanging
+        // from a bar that was not there.
+        if (root.has-file && (text == "a" || text == "A")) {
             root.open-menu(!root.menu-open);
-            root.focus-show(0);
+            if (root.menu-open) {
+                root.focus-show(root.focus-row);
+            }
             return true;
         }
-        if (text == "p" || text == "P") {
+        if (root.has-file && (text == "p" || text == "P")) {
             root.open-playlist(!root.playlist-open);
-            root.focus-show(0);
+            if (root.playlist-open) {
+                root.focus-show(root.focus-row);
+            }
             return true;
         }
         if (text == "b" || text == "B") {
@@ -2723,18 +3273,27 @@ export component MainWindow inherits Window {
         return false;
     }
 
-    // All three panels occupy the same corner above the bar, so opening one
+    // All four panels occupy the same corner above the bar, so opening one
     // puts the others away. Funnelled through functions rather than repeated
     // at each button and key, which is how they would drift out of agreement.
     //
     // Each also resets its own page on the way out. A fresh open starting
     // halfway down a stack of pages shows controls with no hint of what they
     // belong to.
+    //
+    // The two lists open on their current row, centred, however they were
+    // opened — a click on the button as much as a key.
     public function open-menu(open: bool) {
         root.menu-open = open;
         if (open) {
             root.close-others();
             root.menu-open = true;
+            root.focus-row = root.tracks-open-row;
+            if (root.has-subs) {
+                subs-list.centre(root.focus-row * root.row-h, root.row-h);
+            } else {
+                audio-list.centre(root.focus-row * root.row-h, root.row-h);
+            }
         }
     }
 
@@ -2743,6 +3302,8 @@ export component MainWindow inherits Window {
         if (open) {
             root.close-others();
             root.playlist-open = true;
+            root.focus-row = root.playlist-open-row;
+            playlist-list.centre(root.focus-row * root.row-h, root.row-h);
         }
     }
 
@@ -2789,12 +3350,17 @@ export component MainWindow inherits Window {
     keys := FocusScope {
         key-pressed(event) => {
             Chrome.bump();
-            if (root.on-focus(event.text, event.modifiers.shift)
+            // The film's own keys only with a film. With the window empty
+            // they raised the seek ring and the flash over the way in and
+            // changed a volume nothing on screen could show.
+            if (root.on-bar(event.text, event.modifiers.shift)
+                || root.on-focus(event.text, event.modifiers.shift)
                 || root.on-open(event.text, event.modifiers.control, event.modifiers.shift)
-                || root.on-playback(event.text)
-                || root.on-seek(event.text, event.modifiers.control)
-                || root.on-volume(event.text)
-                || root.on-subtitles(event.text)
+                || (root.has-file
+                    && (root.on-playback(event.text)
+                        || root.on-seek(event.text, event.modifiers.control)
+                        || root.on-volume(event.text)
+                        || root.on-subtitles(event.text)))
                 || root.on-window(event.text)) {
                 return EventResult.accept;
             }
@@ -2992,10 +3558,10 @@ export component MainWindow inherits Window {
                     height: Rows.group-gap;
                 }
                 MenuRow {
-                    label: "Reset to defaults";
+                    label: root.reset-label(1);
                     focused: root.focus-row == root.settings-focus-count - 1;
                     picked => {
-                        root.reset-section(0);
+                        root.reset-row(1);
                     }
                 }
             }
@@ -3021,10 +3587,10 @@ export component MainWindow inherits Window {
                     height: Rows.group-gap;
                 }
                 MenuRow {
-                    label: "Reset to defaults";
+                    label: root.reset-label(2);
                     focused: root.focus-row == root.settings-focus-count - 1;
                     picked => {
-                        root.reset-section(1);
+                        root.reset-row(2);
                     }
                 }
             }
@@ -3072,10 +3638,10 @@ export component MainWindow inherits Window {
                     height: Rows.group-gap;
                 }
                 MenuRow {
-                    label: "Reset to defaults";
+                    label: root.reset-label(3);
                     focused: root.focus-row == root.settings-focus-count - 1;
                     picked => {
-                        root.reset-subtitles();
+                        root.reset-row(3);
                     }
                 }
             }
@@ -3232,7 +3798,7 @@ export component MainWindow inherits Window {
                 focused: root.files-open && root.focus-row == 0;
                 picked => {
                     root.files-open = false;
-                    root.open-file();
+                    root.request-open(false);
                 }
             }
             ShortcutRow {
@@ -3241,7 +3807,7 @@ export component MainWindow inherits Window {
                 focused: root.files-open && root.focus-row == 1;
                 picked => {
                     root.files-open = false;
-                    root.open-folder();
+                    root.request-open(true);
                 }
             }
         }
@@ -3571,26 +4137,46 @@ export component MainWindow inherits Window {
             //
             // Settings is deliberately left alone. It still works, and a row
             // at full strength beside two faded ones says which is which.
+            // What you were watching, first, because it is what an empty
+            // window is most often opened to get back to. Only when mpv still
+            // holds a position for it and the file is still there; a gap
+            // after it, because it is a film and the rows below are dialogs.
+            if root.fatal == "" && root.has-resume: ResumeRow {
+                label: root.resume-title;
+                progress: root.resume-progress;
+                focused: !root.has-file && root.focus-row == 0;
+                opacity: root.opening ? 0.5 : 1.0;
+                animate opacity { duration: 120ms; easing: ease-out; }
+                picked => {
+                    if (!root.opening) {
+                        root.open-path(root.resume-path);
+                    }
+                }
+            }
+            if root.fatal == "" && root.has-resume: Rectangle {
+                height: Rows.group-gap;
+            }
+
             if root.fatal == "": ShortcutRow {
                 label: "Open file…";
                 shortcut: "Ctrl+O";
-                focused: !root.has-file && root.focus-row == 0;
+                focused: !root.has-file && root.focus-row == root.invite-first;
                 inert: root.opening;
                 opacity: root.opening ? 0.5 : 1.0;
                 animate opacity { duration: 120ms; easing: ease-out; }
                 picked => {
-                    root.open-file();
+                    root.request-open(false);
                 }
             }
             if root.fatal == "": ShortcutRow {
                 label: "Open folder…";
                 shortcut: "Ctrl+Shift+O";
-                focused: !root.has-file && root.focus-row == 1;
+                focused: !root.has-file && root.focus-row == root.invite-first + 1;
                 inert: root.opening;
                 opacity: root.opening ? 0.5 : 1.0;
                 animate opacity { duration: 120ms; easing: ease-out; }
                 picked => {
-                    root.open-folder();
+                    root.request-open(true);
                 }
             }
             // The bar carried the only way to the settings, and the bar is
@@ -3599,7 +4185,7 @@ export component MainWindow inherits Window {
             if root.fatal == "": ShortcutRow {
                 label: "Settings";
                 shortcut: "S";
-                focused: !root.has-file && root.focus-row == 2;
+                focused: !root.has-file && root.focus-row == root.invite-first + 2;
                 picked => {
                     root.open-settings(true);
                 }
@@ -3705,6 +4291,11 @@ export component MainWindow inherits Window {
     // Deliberately not tied to `controls-visible`: the bar hides itself after
     // a few still seconds, and this is the one thing that should still be
     // there when it does. Nothing has happened, but something is waiting.
+    //
+    // At the end of the last file of several it offers a second thing. The
+    // end of a season is where Restart alone was the least likely thing
+    // anyone wanted, and the player cannot know what the next season is
+    // called — but it can put the folder dialog one press away.
     Rectangle {
         x: root.end-x;
         y: root.end-y + root.end-rise;
@@ -3712,44 +4303,19 @@ export component MainWindow inherits Window {
         height: root.end-h;
         visible: root.end-shown > root.shown-epsilon;
         opacity: root.end-shown;
-        border-radius: self.height / 2;
-        background: end-touch.has-hover ? Paint.wash-button : transparent;
-        animate background {
-            duration: Motion.highlight;
-        }
 
-        HorizontalLayout {
-            padding-left: root.end-pad;
-            padding-right: root.end-pad;
-            spacing: root.end-gap;
-            alignment: center;
-
-            Image {
-                source: root.at-last
-                    ? @image-url("../../../public/icons/rewind.svg")
-                    : @image-url("../../../public/icons/step-forward.svg");
-                width: 24px;
-                height: 24px;
-                y: (parent.height - self.height) / 2;
-                image-fit: contain;
-                colorize: Paint.lit;
-            }
-            Text {
-                text: root.end-label;
-                color: Paint.lit;
-                font-size: Type.prompt;
-                font-weight: 600;
-                vertical-alignment: center;
-            }
-        }
-
-        end-touch := TouchArea {
-            mouse-cursor: pointer;
-            pointer-event(event) => {
-                Chrome.pointed(event.kind == PointerEventKind.down);
-            }
-            clicked => {
-                Chrome.bump();
+        EndChoice {
+            x: root.end-inset;
+            y: root.end-inset;
+            width: root.end-first-w;
+            height: parent.height - 2 * root.end-inset;
+            pad: root.end-choice-pad;
+            gap: root.end-gap;
+            icon: root.at-last
+                ? @image-url("../../../public/icons/rewind.svg")
+                : @image-url("../../../public/icons/step-forward.svg");
+            label: root.end-label;
+            picked => {
                 if (root.at-last) {
                     root.replay();
                 } else {
@@ -3757,13 +4323,36 @@ export component MainWindow inherits Window {
                 }
             }
         }
+
+        if root.end-two: EndChoice {
+            x: root.end-inset + root.end-first-w + root.btn-gap;
+            y: root.end-inset;
+            width: root.end-second-w;
+            height: parent.height - 2 * root.end-inset;
+            pad: root.end-choice-pad;
+            gap: root.end-gap;
+            icon: @image-url("../../../public/icons/folder-open.svg");
+            label: root.end-folder-label;
+            picked => {
+                root.request-open(true);
+            }
+        }
     }
 
-    /// Measured, never drawn — the pill is sized around the word it holds, and
-    /// only the font knows how wide that is. Same contract as
+    /// Measured, never drawn — the pill is sized around the words it holds,
+    /// and only the font knows how wide they are. Same contract as
     /// `title-measure`: these settings must match the visible text exactly.
     end-measure := Text {
         text: root.end-label;
+        font-size: Type.prompt;
+        font-weight: 600;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    end-folder-measure := Text {
+        text: root.end-folder-label;
         font-size: Type.prompt;
         font-weight: 600;
         visible: false;
@@ -3836,7 +4425,7 @@ export component MainWindow inherits Window {
     title-measure := Text {
         text: root.opening
             ? "Opening " + root.opening-name + "…"
-            : root.has-file ? root.media-title : "No file open";
+            : root.media-title;
         font-size: Type.title;
         font-weight: 600;
         visible: false;
@@ -3928,7 +4517,7 @@ export component MainWindow inherits Window {
                 // elide a name that does not fit.
                 text: root.opening
                     ? "Opening " + root.opening-name + "…"
-                    : root.has-file ? root.media-title : "No file open";
+                    : root.media-title;
                 color: Paint.strong;
                 font-size: Type.title;
                 font-weight: 600;
@@ -3944,6 +4533,7 @@ export component MainWindow inherits Window {
                 icon: @image-url("../../../public/icons/playlist.svg");
                 tip: "Playlist";
                 keys: "P";
+                focused: root.bar-reach && root.bar-focus == 0;
                 open: root.playlist-open;
                 clicked => {
                     root.open-playlist(!root.playlist-open);
@@ -3951,8 +4541,11 @@ export component MainWindow inherits Window {
             }
             IconButton {
                 icon: @image-url("../../../public/icons/folder-open.svg");
-                tip: "Open folder";
-                keys: "Ctrl + Shift + O";
+                // What pressing it does, which is offer both. The menu it
+                // opens carries the two keys on its own rows.
+                tip: "Open a file or folder";
+                keys: "";
+                focused: root.bar-reach && root.bar-focus == 1;
                 open: root.files-open;
                 clicked => {
                     root.open-files(!root.files-open);
@@ -3982,8 +4575,10 @@ export component MainWindow inherits Window {
 
             IconButton {
                 icon: @image-url("../../../public/icons/step-backward.svg");
-                tip: "Previous file";
-                keys: "Ctrl + ←";
+                tip: root.at-first ? "No earlier file" : "Previous file";
+                keys: "Ctrl+←";
+                enabled: !root.at-first;
+                focused: root.bar-reach && root.bar-focus == 2;
                 clicked => {
                     root.playlist-step(-1);
                 }
@@ -3992,6 +4587,7 @@ export component MainWindow inherits Window {
                 icon: @image-url("../../../public/icons/seek-backward.svg");
                 tip: "Back 10 seconds";
                 keys: "←";
+                focused: root.bar-reach && root.bar-focus == 3;
                 clicked => {
                     root.seek-relative(-root.seek-step);
                 }
@@ -4013,6 +4609,7 @@ export component MainWindow inherits Window {
                 tip: root.at-end ? "Start again"
                     : root.paused || !root.has-file ? "Play" : "Pause";
                 keys: root.at-end ? "Home" : "Space";
+                focused: root.bar-reach && root.bar-focus == 4;
                 clicked => {
                     if (root.at-end) {
                         root.replay();
@@ -4025,14 +4622,17 @@ export component MainWindow inherits Window {
                 icon: @image-url("../../../public/icons/seek-forward.svg");
                 tip: "Forward 10 seconds";
                 keys: "→";
+                focused: root.bar-reach && root.bar-focus == 5;
                 clicked => {
                     root.seek-relative(root.seek-step);
                 }
             }
             IconButton {
                 icon: @image-url("../../../public/icons/step-forward.svg");
-                tip: "Next file";
-                keys: "Ctrl + →";
+                tip: root.at-last ? "No later file" : "Next file";
+                keys: "Ctrl+→";
+                enabled: !root.at-last;
+                focused: root.bar-reach && root.bar-focus == 6;
                 clicked => {
                     root.playlist-step(1);
                 }
@@ -4068,6 +4668,7 @@ export component MainWindow inherits Window {
                 // the only place that can say what happens next.
                 tip: root.muted ? "Unmute" : "Mute";
                 keys: "M";
+                focused: root.bar-reach && root.bar-focus == 7;
                 active: root.muted;
                 clicked => {
                     root.toggle-mute();
@@ -4124,7 +4725,11 @@ export component MainWindow inherits Window {
                         width: self.height;
                         height: parent.height - 2px;
                         border-radius: self.height / 2;
-                        background: root.volume >= 100 ? Paint.knob : Paint.quiet;
+                        // Keyed on the fill as drawn, not on the level: muted,
+                        // the fill is gone, and a dark dot on a bare rail was
+                        // a dot nobody could see.
+                        background: !root.muted && root.volume >= 100
+                            ? Paint.knob : Paint.quiet;
                     }
                 }
 
@@ -4160,6 +4765,7 @@ export component MainWindow inherits Window {
                     ? "Turn off the ambient border"
                     : "Turn on the ambient border";
                 keys: "B";
+                focused: root.bar-reach && root.bar-focus == 8;
                 active: root.ambience-on;
                 clicked => {
                     root.ambience-on = !root.ambience-on;
@@ -4178,6 +4784,7 @@ export component MainWindow inherits Window {
                 // subtitle mark because that is the track people come for.
                 tip: "Tracks";
                 keys: "A";
+                focused: root.bar-reach && root.bar-focus == 9;
                 active: root.subs-visible;
                 open: root.menu-open;
                 clicked => {
@@ -4188,6 +4795,7 @@ export component MainWindow inherits Window {
                 icon: @image-url("../../../public/icons/settings.svg");
                 tip: "Settings";
                 keys: "S";
+                focused: root.bar-reach && root.bar-focus == 10;
                 open: root.settings-open;
                 clicked => {
                     root.open-settings(!root.settings-open);
@@ -4201,6 +4809,7 @@ export component MainWindow inherits Window {
                 // row. A live control knows which way it is about to go.
                 tip: root.panscan ? "Fit the window" : "Fill the window";
                 keys: "T";
+                focused: root.bar-reach && root.bar-focus == 11;
                 active: root.panscan;
                 clicked => {
                     root.toggle-panscan();
@@ -4212,6 +4821,7 @@ export component MainWindow inherits Window {
                     : @image-url("../../../public/icons/fullscreen-on.svg");
                 tip: root.fullscreen ? "Leave fullscreen" : "Fullscreen";
                 keys: "F";
+                focused: root.bar-reach && root.bar-focus == 12;
                 clicked => {
                     root.toggle-fullscreen();
                 }

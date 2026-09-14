@@ -121,7 +121,7 @@ pub fn of(paths: &[String]) -> Vec<Progress> {
 /// opened with, and writes `start=<seconds>` inside. Both halves are mpv's
 /// convention rather than ours, which is the point — this reads what mpv will
 /// read.
-fn resume_point(dir: &std::path::Path, path: &str) -> Option<f64> {
+pub fn resume_point(dir: &std::path::Path, path: &str) -> Option<f64> {
     let digest = md5::Md5::digest(path.as_bytes());
     let name: String = digest.iter().map(|b| format!("{b:02X}")).collect();
     let contents = std::fs::read_to_string(dir.join(name)).ok()?;

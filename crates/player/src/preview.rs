@@ -425,6 +425,54 @@ fn cached(video: &Path) -> Option<Sprite> {
     })
 }
 
+/// One frame of a film, as plain pixels.
+pub struct Still {
+    /// RGBA, top row first.
+    pub rgba: Vec<u8>,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// The tile of an already-built atlas nearest `fraction` of the way in.
+///
+/// **Blocking.** Worker thread only: it runs ffmpeg once, to cut the tile out
+/// of the JPEG and hand it back undecorated on stdout.
+///
+/// Only from the cache, never by building. This answers the empty window with
+/// a frame of what you were watching, and a film that never had an atlas has
+/// nothing worth spending 64 ffmpeg spawns on at startup.
+pub fn still(video: &Path, fraction: f32) -> Option<Still> {
+    let sprite = cached(video)?;
+    let ffmpeg = ffmpeg_path()?;
+    let (x, y) = sprite.tile_at(fraction);
+    let (width, height) = (sprite.tile_w, sprite.tile_h);
+    let mut cmd = command(&ffmpeg);
+    let out = cmd
+        .stdout(Stdio::piped())
+        .arg("-nostdin")
+        .arg("-loglevel")
+        .arg("error")
+        .arg("-i")
+        .arg(&sprite.path)
+        .arg("-vf")
+        .arg(format!("crop={width}:{height}:{x}:{y}"))
+        .arg("-frames:v")
+        .arg("1")
+        .arg("-f")
+        .arg("rawvideo")
+        .arg("-pix_fmt")
+        .arg("rgba")
+        .arg("-")
+        .output()
+        .ok()?;
+    let expected = (width * height * 4) as usize;
+    (out.status.success() && out.stdout.len() == expected).then(|| Still {
+        rgba: out.stdout,
+        width,
+        height,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

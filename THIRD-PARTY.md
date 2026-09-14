@@ -69,7 +69,7 @@ cargo install cargo-about && cargo about generate about.hbs
 
 ## Icons
 
-The 54 SVGs in `public/icons/` are the author's own work, drawn at 24×24 and
+The 59 SVGs in `public/icons/` are the author's own work, drawn at 24×24 and
 covered by this project's licence like everything else in the repository. Some
 never had an outside source at all — no icon pack contains a control for a
 refraction bevel, so `angle`, `curve`, `edge-blur`, `glass`, `panscan-*` and

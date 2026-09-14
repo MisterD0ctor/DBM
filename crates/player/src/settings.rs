@@ -100,6 +100,19 @@ pub const REGISTRY: &[Param] = &[
     Param { key: Key::Grain, name: "border.grain", section: Section::Border, label: "Grain", min: 0.0, max: 1024.0 },
 ];
 
+/// What a settings page held just before it was reset.
+///
+/// Kept because settings always save: a reset lands on disk within a second,
+/// and the thing it throws away is a look tuned by eye over an evening, which
+/// no one can type back in.
+#[derive(Clone, Copy)]
+pub struct Before {
+    glass: GlassParams,
+    border: BorderParams,
+    pub sub_scale: f32,
+    pub sub_pos: f32,
+}
+
 /// Shared between the slider callbacks and the render driver.
 pub struct Store {
     glass: Cell<GlassParams>,
@@ -266,6 +279,26 @@ impl Store {
         match section {
             Section::Glass => self.glass.set(glass),
             Section::Border => self.border.set(border),
+        }
+        self.touch();
+    }
+
+    /// Everything a reset can change, as it stands now.
+    pub fn before(&self) -> Before {
+        Before {
+            glass: self.glass.get(),
+            border: self.border.get(),
+            sub_scale: self.sub_scale.get(),
+            sub_pos: self.sub_pos.get(),
+        }
+    }
+
+    /// Put one section back the way a snapshot had it. The subtitle values
+    /// are applied by the caller, which is the one that can tell mpv.
+    pub fn restore(&self, section: Section, before: &Before) {
+        match section {
+            Section::Glass => self.glass.set(before.glass),
+            Section::Border => self.border.set(before.border),
         }
         self.touch();
     }

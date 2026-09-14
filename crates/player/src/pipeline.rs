@@ -248,6 +248,29 @@ pub struct Pipeline {
     /// the pass already short-circuits on an empty list, so it costs one
     /// full-screen copy and no special case.
     pub glass_enabled: bool,
+
+    prog_backdrop: Program,
+    /// A frame of the last film left unfinished — see [`Pipeline::set_backdrop`].
+    backdrop: Option<Backdrop>,
+    /// Whether that frame stands in for mpv's picture. The driver sets it
+    /// from whether a file is loaded; the moment one is, mpv's own frames
+    /// take the target back.
+    pub show_backdrop: bool,
+}
+
+/// How long the backdrop takes to come up. Longer than a surface's 120ms,
+/// because this is the window's light changing rather than a control
+/// answering, and a whole picture arriving in a tenth of a second is a flash.
+const BACKDROP_ARRIVAL: std::time::Duration = std::time::Duration::from_millis(400);
+
+struct Backdrop {
+    tex: glow::Texture,
+    width: u32,
+    height: u32,
+    arrived: std::time::Instant,
+    /// Whether the last draw was the finished one, so an unchanging picture
+    /// is not redrawn every frame for nothing.
+    settled: bool,
 }
 
 impl Pipeline {
@@ -284,7 +307,81 @@ impl Pipeline {
             rect: [0.0, 0.0, 1.0, 1.0],
             border_enabled: true,
             glass_enabled: true,
+            prog_backdrop: Program::new(gl, vert, include_str!("../shaders/backdrop.frag"))
+                .map_err(|e| format!("backdrop: {e}"))?,
+            backdrop: None,
+            show_backdrop: false,
         })
+    }
+
+    /// Take delivery of the frame the empty window stands in front of.
+    ///
+    /// Uploaded once and kept: it is a few hundred kilobytes, and the window
+    /// only needs it until a film arrives.
+    pub fn set_backdrop(&mut self, gl: &glow::Context, still: &crate::preview::Still) {
+        let tex = unsafe {
+            let Ok(tex) = gl.create_texture() else {
+                return;
+            };
+            gl.bind_texture(glow::TEXTURE_2D, Some(tex));
+            gl.tex_image_2d(
+                glow::TEXTURE_2D,
+                0,
+                glow::RGBA8 as i32,
+                still.width as i32,
+                still.height as i32,
+                0,
+                glow::RGBA,
+                glow::UNSIGNED_BYTE,
+                glow::PixelUnpackData::Slice(Some(&still.rgba)),
+            );
+            for (k, v) in [
+                (glow::TEXTURE_MIN_FILTER, glow::LINEAR),
+                (glow::TEXTURE_MAG_FILTER, glow::LINEAR),
+                (glow::TEXTURE_WRAP_S, glow::CLAMP_TO_EDGE),
+                (glow::TEXTURE_WRAP_T, glow::CLAMP_TO_EDGE),
+            ] {
+                gl.tex_parameter_i32(glow::TEXTURE_2D, k, v as i32);
+            }
+            gl.bind_texture(glow::TEXTURE_2D, None);
+            if let Some(old) = self.backdrop.take() {
+                gl.delete_texture(old.tex);
+            }
+            tex
+        };
+        self.backdrop = Some(Backdrop {
+            tex,
+            width: still.width,
+            height: still.height,
+            arrived: std::time::Instant::now(),
+            settled: false,
+        });
+    }
+
+    /// Whether the backdrop still has frames of its arrival to draw, and so
+    /// whether the driver should keep asking for them: nothing else is, with
+    /// no film playing and nobody touching anything.
+    pub fn backdrop_arriving(&self) -> bool {
+        self.show_backdrop && self.backdrop.as_ref().is_some_and(|b| !b.settled)
+    }
+
+    fn draw_backdrop(&mut self, gl: &glow::Context, w: u32, h: u32) {
+        let Some(b) = self.backdrop.as_mut() else {
+            return;
+        };
+        let t = (b.arrived.elapsed().as_secs_f32() / BACKDROP_ARRIVAL.as_secs_f32()).min(1.0);
+        // Ease out, like every other arrival here.
+        let level = 1.0 - (1.0 - t).powi(3);
+        b.settled = t >= 1.0;
+        let (tex, iw, ih) = (b.tex, b.width, b.height);
+
+        self.prog_backdrop.bind(gl);
+        self.prog_backdrop.set_vec2(gl, "u_size", w as f32, h as f32);
+        self.prog_backdrop
+            .set_vec2(gl, "u_image_size", iw as f32, ih as f32);
+        self.prog_backdrop.set_f32(gl, "u_level", level);
+        bind_texture(gl, &self.prog_backdrop, "u_image", 0, Some(tex));
+        self.quad.draw_to(gl, &self.video);
     }
 
     /// The image Slint draws: video, ambient border and glass panels, all
@@ -433,7 +530,18 @@ impl Pipeline {
         // black after a resize — and worse, the border pass samples that
         // black and grows an ambient glow out of nothing. mpv is happy to
         // re-render the frame it is already holding.
-        if new_frame || resized {
+        //
+        // With nothing loaded and a backdrop on hand, that stands in for the
+        // frame instead: drawn when it arrives, while it fades up, and after
+        // a resize cleared it. mpv's `new_frame` is ignored meanwhile — with
+        // no file it has nothing to render but black over the top of it.
+        let mut drew_backdrop = false;
+        if self.show_backdrop && self.backdrop.is_some() {
+            if resized || self.backdrop_arriving() {
+                self.draw_backdrop(gl, w, h);
+                drew_backdrop = true;
+            }
+        } else if new_frame || resized {
             let Some(fbo) = self.video.fbo() else {
                 return Ok(false);
             };
@@ -464,7 +572,7 @@ impl Pipeline {
         // and nobody sees it; paused, there is no next frame, and the border
         // keeps the previous window's geometry until playback resumes.
         let rect_changed = self.rect != rect;
-        let full = new_frame || resized || params_dirty || rect_changed;
+        let full = new_frame || resized || params_dirty || rect_changed || drew_backdrop;
         if !full && !panels_changed {
             return Ok(true);
         }
@@ -692,6 +800,9 @@ impl Pipeline {
         }
         self.blur_out.release(gl);
         self.quad.release(gl);
+        if let Some(b) = self.backdrop.take() {
+            unsafe { gl.delete_texture(b.tex) };
+        }
         for p in [
             &self.prog_extend,
             &self.prog_spread,
@@ -699,6 +810,7 @@ impl Pipeline {
             &self.prog_up,
             &self.prog_glass,
             &self.prog_gauss,
+            &self.prog_backdrop,
         ] {
             p.release(gl);
         }

@@ -185,6 +185,11 @@ impl Driver {
                     if let Some(ui) = self.ui.upgrade() {
                         let size = ui.window().size();
                         self.capture.maybe(&gpu.gl, size.width, size.height);
+                        // Its fade is drawn here rather than by Slint, so
+                        // nothing else knows to ask for the frames.
+                        if gpu.pipeline.backdrop_arriving() {
+                            ui.window().request_redraw();
+                        }
                     }
                 }
                 self.keep_the_interface_moving();
@@ -267,6 +272,13 @@ impl Driver {
                     let path = std::path::PathBuf::from(f);
                     self.worker.submit(move |_mpv| {
                         Some(Completion::Opened(playlist::prepare(&path)))
+                    });
+                } else {
+                    // Nothing named, so the empty window is what is coming:
+                    // find what it can offer to pick back up. A stat per
+                    // played file and one ffmpeg run, so on the worker.
+                    self.worker.submit(|_mpv| {
+                        Some(Completion::Resume(crate::session::last_watched()))
                     });
                 }
                 self.gpu = Some(Gpu {
@@ -403,6 +415,21 @@ impl Driver {
                 }
                 Completion::Notice(text) => say(&ui, text),
                 Completion::Probed(found) => probed |= self.player.apply_probed(found),
+                Completion::Resume(Some(resume)) => {
+                    eprintln!(
+                        "dbm: last unfinished {} at {:.0}%{}",
+                        resume.path,
+                        resume.fraction * 100.0,
+                        if resume.still.is_some() { ", with a frame" } else { "" }
+                    );
+                    ui.set_resume_path(resume.path.into());
+                    ui.set_resume_title(resume.title.into());
+                    ui.set_resume_progress(resume.fraction);
+                    if let Some(still) = &resume.still {
+                        gpu.pipeline.set_backdrop(&gpu.gl, still);
+                    }
+                }
+                Completion::Resume(None) => {}
             }
         }
         if probed {
@@ -424,6 +451,9 @@ impl Driver {
             gpu.pipeline.glass_enabled = self.params.glass_on();
             params_dirty = true;
         }
+
+        // The backdrop stands in only while nothing is loaded.
+        gpu.pipeline.show_backdrop = self.player.path.is_none();
 
         let size = ui.window().size();
         // For the size being rendered at, not the one mpv last reported on.

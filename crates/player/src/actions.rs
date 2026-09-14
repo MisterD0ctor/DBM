@@ -156,6 +156,11 @@ pub fn wire(
         });
     }
 
+    // What the last reset replaced, so its page can offer it back. One slot:
+    // a page shows its undo only until it is left, and only one page is ever
+    // open.
+    let before: Rc<Cell<Option<crate::settings::Before>>> = Rc::new(Cell::new(None));
+
     // Sliders report a normalised position; the registry owns the range.
     // The model is rebuilt here so the readout follows the drag.
     {
@@ -176,15 +181,49 @@ pub fn wire(
             });
         }
         {
-            let (params, seen, models) = (params.clone(), activity.clone(), models.clone());
+            let (params, seen, models, before) =
+                (params.clone(), activity.clone(), models.clone(), before.clone());
             ui.on_reset_section(move |section| {
                 seen.bump();
                 if let Some(section) = crate::settings::Section::from_index(section) {
+                    before.set(Some(params.before()));
                     params.reset(section);
                     // Every row moved and no drag can be in progress, so a
                     // full refresh is both safe and simplest.
                     models.refresh_all(&params);
                 }
+            });
+        }
+        // Page numbers as the settings panel counts them: 1 glass, 2 ambient
+        // border, 3 subtitles. The delay travels with the request because it
+        // is per-file state mpv owns, and the interface already had the
+        // number on screen when the reset was pressed.
+        {
+            let (params, seen, models, before, mpv) = (
+                params.clone(),
+                activity.clone(),
+                models.clone(),
+                before.clone(),
+                mpv.clone(),
+            );
+            ui.on_undo_reset(move |page, delay| {
+                seen.bump();
+                let Some(was) = before.take() else {
+                    return;
+                };
+                match page {
+                    1 => params.restore(crate::settings::Section::Glass, &was),
+                    2 => params.restore(crate::settings::Section::Border, &was),
+                    3 => {
+                        commands::set_sub_delay(&mpv, delay as f64);
+                        params.set_sub_scale(
+                            commands::set_sub_scale(&mpv, was.sub_scale as f64) as f32,
+                        );
+                        params.set_sub_pos(commands::set_sub_pos(&mpv, was.sub_pos as f64) as f32);
+                    }
+                    _ => {}
+                }
+                models.refresh_all(&params);
             });
         }
     }
@@ -272,9 +311,11 @@ pub fn wire(
         });
     }
     {
-        let (params, seen, mpv) = (params.clone(), activity.clone(), mpv.clone());
+        let (params, seen, mpv, before) =
+            (params.clone(), activity.clone(), mpv.clone(), before.clone());
         ui.on_reset_subtitles(move || {
             seen.bump();
+            before.set(Some(params.before()));
             // One row rather than three, matching the settings pages. The
             // delay goes back to zero too even though it is not saved here -
             // "reset" on a page means the whole page.

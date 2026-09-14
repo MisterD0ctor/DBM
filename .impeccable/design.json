@@ -157,7 +157,7 @@
       "wash-strong": {
         "role": "neutral",
         "displayName": "Strong wash",
-        "canonical": "#ffffff2e",
+        "canonical": "#ffffff34",
         "tonalRamp": [
           "#ffffff0a",
           "#ffffff14",
@@ -173,21 +173,6 @@
         "role": "neutral",
         "displayName": "Button wash",
         "canonical": "#ffffff24",
-        "tonalRamp": [
-          "#ffffff0a",
-          "#ffffff14",
-          "#ffffff1f",
-          "#ffffff24",
-          "#ffffff2e",
-          "#ffffff40",
-          "#ffffff60",
-          "#ffffff80"
-        ]
-      },
-      "wash-hover": {
-        "role": "neutral",
-        "displayName": "Hover wash",
-        "canonical": "#ffffff1f",
         "tonalRamp": [
           "#ffffff0a",
           "#ffffff14",

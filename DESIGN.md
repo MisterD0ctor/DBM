@@ -12,9 +12,8 @@ colors:
   rail: "#ffffff2e"
   knob: "#101010e6"
   ground: "#000000"
-  wash-strong: "#ffffff2e"
+  wash-strong: "#ffffff34"
   wash-button: "#ffffff24"
-  wash-hover: "#ffffff1f"
   wash-soft: "#ffffff14"
 typography:
   title:
@@ -78,6 +77,10 @@ components:
     textColor: "{colors.lit}"
   icon-button-open:
     backgroundColor: "{colors.wash-strong}"
+  icon-button-focus:
+    backgroundColor: "{colors.wash-strong}"
+  icon-button-disabled:
+    textColor: "{colors.dim}"
   control-pill:
     height: "48px"
     rounded: "{rounded.pill}"
@@ -100,7 +103,7 @@ components:
     typography: "{typography.body}"
     backgroundColor: "transparent"
   menu-row-hover:
-    backgroundColor: "{colors.wash-hover}"
+    backgroundColor: "{colors.wash-soft}"
     rounded: "{rounded.row}"
   menu-row-focus:
     backgroundColor: "{colors.wash-strong}"
@@ -153,6 +156,17 @@ components:
     typography: "{typography.prompt}"
   end-pill-hover:
     backgroundColor: "{colors.wash-button}"
+  end-choice:
+    height: "40px"
+    rounded: "{rounded.button}"
+    padding: "0 14px"
+    textColor: "{colors.lit}"
+    typography: "{typography.prompt}"
+  resume-row:
+    height: "34px"
+    padding: "0 26px 0 30px"
+    textColor: "{colors.strong}"
+    typography: "{typography.body}"
   seek-preview:
     rounded: "{rounded.preview}"
     padding: "9px"
@@ -174,8 +188,9 @@ unpolarised Fresnel term. Thickness, bevel and index of refraction are real
 parameters, and the rim behaves like a rim because it is one.
 
 The consequence is that this system has almost no palette. Colour comes from
-whatever is playing. The interface is white at ten alphas and full white, a
-single near-black switch knob, and the void behind an unloaded window. Even the
+whatever is playing. The interface is white at a handful of alphas and full
+white, a single near-black switch knob, and — before anything is loaded — the
+dimmed light of the last film left unfinished. Even the
 letterbox is not neutral: the ambient border extends the frame's own edge
 colours outward, so a red scene bleeds red into the bars. Nothing here is tinted
 by a brand.
@@ -224,7 +239,9 @@ nowhere else in the interface is a colour written out.
   rest, a stepper row's icon, a scroll thumb, the unity dot where it sits off
   the volume fill, and text stating an absence.
 - **Dim** (`#ffffff80`): a slider's own value, which sits beside the name of the
-  thing it sets and must not compete with it. **The floor**: see below.
+  thing it sets and must not compete with it; and the glyph of a bar button
+  with nowhere to go — Previous on the first file, Next on the last. **The
+  floor**: see below.
 
 **Marks:**
 
@@ -239,16 +256,23 @@ nowhere else in the interface is a colour written out.
   where it sits on the fill.
 - **Ground** (`#000000`): the window before a frame exists.
 
-**Washes:**
+**Washes** — three, and the two a row can wear sit 0x20 apart:
 
-- **Strong wash** (`#ffffff2e`): where the keyboard is on a row; the held
-  background of a button whose panel is open; a hovered stepper disc.
-- **Button wash** (`#ffffff24`): a hovered icon button, and the hovered
-  end-of-file pill.
-- **Hover wash** (`#ffffff1f`): the inset highlight behind a hovered row.
-- **Soft wash** (`#ffffff14`): a hovered row that is a heading or a switch; a
-  stepper disc at rest; a scroll hint's rail; and the one panel fill in the
-  system, on the fatal-error pane — see Elevation & Depth.
+- **Strong wash** (`#ffffff34`): where the keyboard is, on a row or on a bar
+  button; the held background of a button whose panel is open; a hovered
+  stepper disc.
+- **Button wash** (`#ffffff24`): a hovered icon button, and a hovered choice on
+  the end-of-file pill. Never on a row, so it never has to be told apart from
+  the washes either side of it.
+- **Soft wash** (`#ffffff14`): the inset highlight behind a hovered row of any
+  kind; a stepper disc at rest; a scroll hint's rail; and the one panel fill in
+  the system, on the fatal-error pane — see Elevation & Depth.
+
+**The Rail** and the Strong wash were once the same `#ffffff2e` under two
+names, and the row washes stepped 0x0f apart — so a hand resting in a panel and
+the keyboard walking it lit two rows in one colour, and nothing said which one
+Enter would press. The washes now keep the Two-Step Rule the text keeps, and
+the rail is a mark with a value of its own.
 
 ### Named Rules
 
@@ -308,7 +332,8 @@ legibility over arbitrary moving content and nothing else.
 - **Glyph** (400, 16px): a character standing in for an icon — the stepper's
   minus and plus, sized against the 26px disc rather than against the text.
 - **Prompt** (600, 16px): the one thing the interface says louder than the
-  rest, the word on the end-of-file pill, sized against the 24px arrow beside it.
+  rest, the words on the end-of-file pill, sized against the 24px glyph beside
+  them.
 
 The scale lives in the `Type` global in `app.slint`, not at its use sites.
 Four sizes, eight roles, and several roles deliberately share a size: what
@@ -391,8 +416,10 @@ playlist at 380px, settings at 340px, the open menu at 260px. Only one is ever
 open. Each is capped at the space between the top margin and the bar, and any
 list inside it scrolls within that cap; where two lists share a panel they take
 a fair share each, except that a list which fits keeps its full height and hands
-the remainder to the other. The hover label opens on that same line, 12px above
-the timeline; the seek preview floats 10px above it.
+the remainder to the other. A list opens on its current row, centred as far as
+its ends allow — the playlist on the episode playing, the tracks on the
+subtitle in use — however it was opened. The hover label opens on that same
+line, 12px above the timeline; the seek preview floats 10px above it.
 
 **The middle of the picture** belongs to things that are about the film rather
 than controls for it: the action flash, the end-of-file pill, and — with no film
@@ -413,7 +440,14 @@ the 10px group gap carried above it. The window opens at 1280×720 and floors at
 **The One Panel Rule.** Opening any panel closes the others. Two sheets of glass
 over the same film is noise, and it doubles the refraction cost on the one
 surface the design exists for. The hover label stands down while any panel is
-open, for the same reason.
+open, for the same reason. With no film loaded the way in is the panel: the
+tracks and the playlist describe a film and do not open, and the keys that act
+on one — seeking, Home, the subtitle delay, the volume — do nothing, so no flash
+lands on top of it either.
+
+**The Bar Stays For A Pause.** The bar hides after three still seconds while a
+film plays, and not while it is paused. Pausing is stopping to look at where you
+are, which is the moment the bar is for.
 
 **The Gap Goes Above Rule.** The 10px group gap always sits above the thing that
 starts something new, never below the thing that ended — above a section
@@ -443,10 +477,19 @@ coverage, so a panel arriving at a third of its opacity refracts a third as
 hard. Glass at full strength beneath a half-faded surface reads as a hole in the
 picture.
 
-The glass runs whether or not a film is loaded — at rest it composites over a
-black frame, where the tint and the rim still resolve into a faint lift with an
-edge on it. So the empty window's panel is glass like every other surface. The
-**single exception** is the fatal-error pane, which carries a Soft wash fill
+The glass runs whether or not a film is loaded, and needs something to be
+glass over. Over a black frame refraction has nothing to bend and the rim
+nothing to mirror, and with the tint at zero the way in's panel was not
+faint — it was absent, three lines of text on black. So before a film is
+loaded the pipeline draws **the backdrop** into the frame instead: one
+seek-preview tile of the last film left unfinished, taken at the point you
+stopped, covered across the window, softened past the point where its pixels
+read, dimmed to 42% and falling away toward the corners. It arrives over 400ms,
+the one arrival slower than a surface, because it is the window's light
+changing rather than a control answering. Everything downstream treats it as
+the frame, so the way in refracts it like any panel refracts a film. With no
+unfinished film, or no atlas for it, the window stays black. The **single
+exception** to glass is the fatal-error pane, which carries a Soft wash fill
 (`#ffffff14`) at the panel radius: every failure that raises it leaves the
 player with no render context, so the glass it publishes is drawn by nobody.
 
@@ -515,6 +558,14 @@ the axes, which is exactly the part the eye catches.
   separate channel from the lit glyph, because a button can mean both at once.
   The subtitles button reports whether subtitles are on *and* whether its menu
   is open, and one highlight cannot say both.
+- **Focus:** the Strong wash, while the keyboard is on it. Tab walks the bar
+  left to right while a film is loaded and nothing is open, and Enter presses;
+  the arrows, Space and every other key keep their meaning wherever the ring
+  stands. The hover label comes up for the focused button as it does for the
+  pointer. A panel opened from the bar takes the ring, and hands it back to the
+  button when it closes.
+- **Nowhere to go:** glyph at Dim, no wash, no pointer, and a label that says
+  so — *No earlier file*. Its key does nothing either, and raises no flash.
 
 ### Control pills
 - **Shape:** capsule, height 48px (a 40px button with 4px of padding), radius 24px
@@ -543,8 +594,10 @@ the axes, which is exactly the part the eye catches.
 - **Shape:** 34px tall; the wash is inset 16px on both sides at a 16px radius,
   full row height so adjacent washes meet
 - **Text:** Body, starting 30px from the panel edge, eliding 26px from the right
-- **Hover:** Hover wash, 45ms
-- **Focus:** Strong wash, shown only while the keyboard is in use — never a ring
+- **Hover:** Soft wash, 45ms
+- **Focus:** Strong wash, shown only while the keyboard is in use — never a ring.
+  A pointer moving over a different row stands it down, so a panel never shows
+  two lit rows
 - **Active:** Lit at 700, and the active mark: a 3×14 capsule in Lit, 20px from
   the panel edge, inside the wash so a row that is both current and focused
   wears both marks without them touching. A shape, because weight and alpha
@@ -607,7 +660,9 @@ row already has, beside the fact that is already there.
   parameters, where the eye judges the result and the number is incidental.
 
 ### Switches
-- **Row:** 40px; switch first, label after it at Strong in Body size, 12px apart
+- **Row:** 40px; switch first, label after it at Body, 12px apart — the rows'
+  own step, because a switch sits under a list as a setting *about* it, and at
+  Strong the autoplay row out-inked the episodes it governs
 - **Shape:** 34×18 capsule, 14px knob inset 2px
 - **On:** track at Fill, knob at Knob; **off:** track at Rail, knob at Fill —
   dark on the lit track, light on the dark one, so the knob reads as a hole
@@ -647,6 +702,12 @@ row already has, beside the fact that is already there.
   because every row under them already wears one
 - **Trailing rows:** a reset or a setting *about* the list gets a 10px gap above
   it. Without it the eye reads one more entry and only the wording says otherwise.
+- **Resets:** two presses, then a way back. The first changes the row to *Press
+  again to reset* for 2.5 seconds; the second resets, and the row becomes *Undo
+  reset* until the page is left. Settings always save, so a reset is on disk
+  within a second, and a look tuned by eye cannot be typed back in. The ring
+  stops at the ends of a page that has one rather than wrapping, and Up from a
+  hidden ring lands on the last control, never on the reset.
 - **Shortcut rows:** Body label, keys at Quiet in Readout size, 12px apart. On
   the reference page they are inert — no wash and no pointer, because a wash
   under a row that does nothing when clicked is an offer the row cannot keep.
@@ -710,15 +771,33 @@ file — in Prompt at Lit, 12px apart, inset 18px. Button wash on hover. It is t
 one surface not tied to the idle clock: the bar hides after a few still seconds,
 and this is what should still be there when it does.
 
+At the end of the last file of several — the end of a season — it offers two
+things: *Restart*, and *Open folder…* with the folder glyph. Restart alone was
+the least likely thing anyone wanted there, and the player cannot know what the
+next season is called, but it can put the dialog one press away. With two, each
+choice is a 40px capsule of its own, set 4px inside the pill (24 − 4 = 20,
+concentric) with its words still 18px from the pill's edge, 6px apart, each
+taking the Button wash on its own.
+
 ### The way in
-With no film loaded, a 320px panel of glass centred in the window: Open file,
-Open folder and Settings as shortcut rows with their keys, then a line at Quiet
-saying a file can be dropped anywhere. While an open is in flight the two open
-rows fade to half and stop answering, and the line names what is arriving —
-Settings stays at full strength, because it still works. Carrying a failure it
-widens to 420px and offers nothing: a Title headline at Strong, the driver's own
-error text at Body in Hint size wrapping to three lines, and a line at Quiet
-saying a driver update is the usual fix.
+With no film loaded, a panel of glass centred in the window, over the backdrop:
+
+- **Continue**, first, when there is a film to continue: a play glyph at Body,
+  the film's name at Strong in Body size — the one line on the window about a
+  film rather than the player — and the resume measure at the end of the row.
+  It is the newest file mpv still holds a position for that is still on disk;
+  the same thing the backdrop is a frame of. A 10px gap follows it, because it
+  is a film and the rows below it are dialogs, and the panel widens from 320px
+  to 380px so an episode keeps its number.
+- **Open file, Open folder and Settings** as shortcut rows with their keys, then
+  a line at Quiet saying a file can be dropped anywhere.
+
+While an open is in flight Continue and the two open rows fade to half and stop
+answering — to the pointer and to every key — and the line names what is
+arriving; Settings stays at full strength, because it still works. Carrying a
+failure it widens to 420px and offers nothing: a Title headline at Strong, the
+driver's own error text at Body in Hint size wrapping to three lines, and a line
+at Quiet saying a driver update is the usual fix.
 
 ## Do's and Don'ts
 
@@ -738,6 +817,10 @@ saying a driver update is the usual fix.
 - **Do** fade glass with the surface above it.
 - **Do** show where the keyboard is with the Strong wash, and only while the
   keyboard is being used.
+- **Do** open a list on its current row, and make a destructive row take two
+  presses and offer itself back.
+- **Do** give every control an accessible role and label: an icon button's is
+  its tip, a row's is its words.
 
 ### Don't:
 - **Don't** add a hue. Not an accent, not a semantic red, not a brand colour.
@@ -757,6 +840,7 @@ saying a driver update is the usual fix.
 - **Don't** open two panels at once.
 - **Don't** animate for its own sake. Motion here is a response: 45ms for a
   wash, 100ms for a track, 120ms for a surface or a switch, ease-out, no bounce,
-  no overshoot.
+  no overshoot. The backdrop's 400ms is the one slower arrival, and the one that
+  is not a response to anything.
 - **Don't** substitute an icon library. The set is 59 SVGs drawn at 24×24 as
   one family; extend it rather than replacing it.
