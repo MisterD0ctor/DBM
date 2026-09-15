@@ -2953,7 +2953,7 @@ export component MainWindow inherits Window {
         { label: "Playlist", keys: "P" },
         { label: "Settings", keys: "S" },
 
-        { heading: "KEYBOARD", icon: @image-url("../../../public/icons/keyboard.svg"),
+        { heading: "NAVIGATION", icon: @image-url("../../../public/icons/navigation.svg"),
           label: "Move in a panel", keys: "↑ ↓" },
         { label: "Move along the bar", keys: "Tab" },
         { label: "Choose, or adjust", keys: "Enter, ← →" },
@@ -4283,7 +4283,7 @@ export component MainWindow inherits Window {
                     after-content: true;
                 }
                 DrillRow {
-                    icon: @image-url("../../../public/icons/shortcuts.svg");
+                    icon: @image-url("../../../public/icons/keyboard.svg");
                     label: "Shortcuts";
                     focused: root.settings-open && root.focus-row == 3;
                     opened => {
