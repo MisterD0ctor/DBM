@@ -94,13 +94,17 @@
 //! * `DBM_END_TEST=1`   — turns autoplay off and seeks to the last moment of
 //!                         the file, so the end-of-playback button appears
 //!                         for real, then holds it there to be photographed.
+//!                         `DBM_END_TEST=enter` presses Enter instead, which
+//!                         the ring the pill took must answer.
 //!                         Point `APPDATA` at a scratch directory: autoplay
 //!                         is a saved preference.
 //! * `DBM_CREDITS_TEST=1` — gives the file a credits chapter over its last
 //!                         two minutes and plays into it, so the credits pill
 //!                         comes up for real. It reports as the bar arrives
 //!                         and again after it has gone, which the pill must
-//!                         not. Needs an episode, and a later file beside it.
+//!                         not, then presses Enter - which the pill's ring
+//!                         must answer - and reports the file that follows.
+//!                         Needs an episode, and a later file beside it.
 //!                         `DBM_CREDITS_TEST=own` keeps the file's own
 //!                         chapters and plays into the last of them.
 //! * `DBM_SMTC_TEST=1`  — presses the real media keys and reads the OS media
@@ -518,6 +522,11 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     ui.invoke_select_subtitle(-1);
                 }
                 "playlist" => ui.invoke_open_playlist(true),
+                // The list of parts rather than the page the panel opens on.
+                "seasons" => {
+                    ui.invoke_open_playlist(true);
+                    ui.set_playlist_page(-1);
+                }
                 "files" => ui.invoke_open_files(true),
                 // The three graphics failures all need a driver that does
                 // not work, which is not something a test can arrange. The
@@ -530,6 +539,7 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 "fatal-copy" => {
                     ui.set_fatal("The player cannot show video on this computer.".into());
                     ui.set_fatal_detail("The graphics driver would not build the player's shaders.".into());
+                    ui.set_fatal_note("If the driver is current, this is a bug in the player.".into());
                     ui.invoke_copy_details();
                 }
                 // A caption-only flash — the speed, as `]` raises it.
@@ -544,6 +554,7 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                          variable \"backdrop\""
                             .into(),
                     );
+                    ui.set_fatal_note("If the driver is current, this is a bug in the player.".into());
                 }
                 // Held rather than provoked. A real open clears this the
                 // moment mpv reports a file, which on a local disk is too few
@@ -1111,8 +1122,7 @@ fn open_test(ui: &MainWindow, path: String) -> slint::Timer {
 }
 
 fn report_open(ui: &MainWindow, label: &str) {
-    let entries: Vec<String> = ui
-        .get_playlist()
+    let entries: Vec<String> = playlist_rows(ui)
         .iter()
         .map(|e| {
             let mark = if e.current { "*" } else { " " };
@@ -1647,6 +1657,9 @@ fn end_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
     let mut step = 0usize;
+    // `DBM_END_TEST=enter` goes on past the pill with the one key the ring
+    // put on it; anything else holds the pill up to be photographed.
+    let enter = std::env::var("DBM_END_TEST").is_ok_and(|v| v == "enter");
     timer.start(
         slint::TimerMode::Repeated,
         Duration::from_millis(1000),
@@ -1663,6 +1676,12 @@ fn end_test(ui: &MainWindow) -> slint::Timer {
                 2 => ui.invoke_seek_fraction(0.999),
                 3 | 4 => report_end(&ui, "seeking"),
                 5 => report_end(&ui, "at the end"),
+                6 if enter => {
+                    let key = slint::SharedString::from(slint::platform::Key::Return);
+                    chord(&ui, &[], &key);
+                }
+                7 | 8 if enter => report_end(&ui, "after enter"),
+                9 if enter => eprintln!("dbm: --- end-of-playback test done ---"),
                 6 => eprintln!("dbm: --- end-of-playback test: holding ---"),
                 _ => {}
             }
@@ -1682,12 +1701,15 @@ fn report_end(ui: &MainWindow, label: &str) {
         .map(|r| format!("{}x{}@{},{}", r.width, r.height, r.x, r.y))
         .collect();
     eprintln!(
-        "dbm: end {label:<12} at-end={} at-last={} paused={} t={}/{} | {} rect(s) {}",
+        "dbm: end {label:<12} at-end={} at-last={} paused={} ring={}@{} t={}/{} {:?} | {} rect(s) {}",
         ui.get_at_end(),
         ui.get_at_last(),
         ui.get_paused(),
+        ui.global::<crate::Chrome>().get_focus_visible(),
+        ui.get_bar_focus(),
         ui.get_elapsed(),
         ui.get_total(),
+        ui.get_current_path().rsplit(['\\', '/']).next().unwrap_or_default().to_string(),
         rects.len(),
         rects.join(" "),
     );
@@ -1753,7 +1775,15 @@ fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
                 7 => report_credits(&ui, "arrived"),
                 // Past `HIDE_AFTER`, with nothing touched since.
                 12 => report_credits(&ui, "left alone"),
-                13 => eprintln!("dbm: --- credits test: holding ---"),
+                // The ring came to the pill on its own, so Enter alone goes on.
+                13 => {
+                    let enter = slint::SharedString::from(slint::platform::Key::Return);
+                    chord(&ui, &[], &enter);
+                }
+                // The next file, and the ring gone with the pill rather than
+                // waiting on a stop that no longer exists.
+                15 => report_credits(&ui, "after enter"),
+                16 => eprintln!("dbm: --- credits test: holding ---"),
                 _ => {}
             }
             step += 1;
@@ -1770,12 +1800,15 @@ fn report_credits(ui: &MainWindow, label: &str) {
         .map(|r| format!("{}x{}@{},{}", r.width, r.height, r.x, r.y))
         .collect();
     eprintln!(
-        "dbm: credits {label:<10} rolling={} chapter={:?} at-last={} idle={} t={} | {} rect(s) {}",
+        "dbm: credits {label:<11} rolling={} chapter={:?} at-last={} idle={} ring={}@{} t={} {:?} | {} rect(s) {}",
         ui.get_credits_rolling(),
         ui.get_chapter_label(),
         ui.get_at_last(),
         ui.global::<crate::Chrome>().get_idle(),
+        ui.global::<crate::Chrome>().get_focus_visible(),
+        ui.get_bar_focus(),
         ui.get_elapsed(),
+        ui.get_current_path().rsplit(['\\', '/']).next().unwrap_or_default().to_string(),
         rects.len(),
         rects.join(" "),
     );
@@ -1820,7 +1853,7 @@ fn report_drop(ui: &MainWindow, label: &str) {
     eprintln!(
         "dbm: drop {label:<16} title={:?} playlist={} entries",
         ui.get_media_title(),
-        ui.get_playlist().row_count(),
+        playlist_rows(ui).len(),
     );
 }
 
@@ -1850,15 +1883,26 @@ fn scan_test(ui: &MainWindow) -> slint::Timer {
 }
 
 fn report_rows(ui: &MainWindow, ms: usize) {
-    let rows = ui.get_playlist();
+    let rows = playlist_rows(ui);
     let timed = rows.iter().filter(|r| !r.length.is_empty()).count();
     eprintln!(
         "dbm: scan  at {ms:>4}ms  {timed} of {} rows have a length",
-        rows.row_count()
+        rows.len()
     );
     for row in rows.iter() {
         eprintln!("dbm: scan      {:<44} {}", row.label.as_str(), row.length.as_str());
     }
+}
+
+/// Every file of the list mpv is playing, flattened back out of the parts the
+/// panel shows it in. Files in seasons beside the list are left out: they are
+/// shown, not queued.
+fn playlist_rows(ui: &MainWindow) -> Vec<crate::PlaylistItem> {
+    ui.get_playlist_groups()
+        .iter()
+        .flat_map(|group| group.entries.iter().collect::<Vec<_>>())
+        .filter(|entry| entry.index >= 0)
+        .collect()
 }
 
 /// Check that a playlist row's length and progress are real.
@@ -1899,8 +1943,7 @@ fn progress_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
 }
 
 fn report_progress(ui: &MainWindow, mpv: &Mpv, label: &str) {
-    let rows: Vec<String> = ui
-        .get_playlist()
+    let rows: Vec<String> = playlist_rows(ui)
         .iter()
         .map(|e| {
             format!(

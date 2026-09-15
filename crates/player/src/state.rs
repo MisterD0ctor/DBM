@@ -120,6 +120,9 @@ pub struct PlayerState {
     /// read, and a read that left the worker before a probe landed would
     /// otherwise put the row back the way it was.
     pub probed: std::collections::HashMap<String, crate::probe::Found>,
+    /// Seasons of the show found beside a playlist that is one season of it —
+    /// see [`crate::shelf`]. Not queued: shown, and opened when picked.
+    pub beside: Vec<crate::shelf::Beside>,
 }
 
 impl PlayerState {

@@ -50,7 +50,11 @@ pub fn configure(mpv: &Mpv) {
 /// The file you stopped part-way through most recently.
 pub struct Resume {
     pub path: String,
-    /// Named the way the bar would name it.
+    /// The show it is an episode of, if it is one. Kept apart from the title
+    /// so the way in can give it a line of its own: sharing one with the
+    /// episode, a show's name took the room and the episode lost its number.
+    pub show: Option<String>,
+    /// Named the way the bar would name it, less the show.
     pub title: String,
     /// How far in the resume point sits, 0..1.
     pub fraction: f32,
@@ -88,16 +92,23 @@ pub fn last_watched() -> Option<Resume> {
 
     // Newest first, and the first that still stands up: a watch-later file
     // can outlive the video it describes, and mpv also writes entries that
-    // carry no position at all.
+    // carry no position at all. Nor one watched into its credits and left
+    // there: mpv still holds a position for it, but it is not unfinished.
+    let finished = crate::durations::load_finished();
     candidates.into_iter().find_map(|(_, path, seconds)| {
         let start = crate::durations::resume_point(&dir, &path)?;
-        if start <= 0.0 || !std::path::Path::new(&path).is_file() {
+        if start <= 0.0
+            || crate::durations::is_finished(&finished, &path, start)
+            || !std::path::Path::new(&path).is_file()
+        {
             return None;
         }
         let fraction = (start / seconds).clamp(0.0, 1.0) as f32;
+        let (show, title) = crate::naming::described(&path, None);
         Some(Resume {
             seconds_left: (seconds - start).max(0.0),
-            title: crate::naming::titled(&path, None),
+            show,
+            title,
             still: crate::preview::still(std::path::Path::new(&path), fraction),
             path,
             fraction,

@@ -36,6 +36,7 @@
 //! | `diagnostics` | opt-in instrumentation                                |
 //! | `naming`      | filenames and track titles into something readable    |
 //! | `playlist`    | turning a path into a list of videos to play          |
+//! | `shelf`       | the shape a playlist is shown in: seasons and shows   |
 //! | `durations`   | how long each file is, and how far in you got         |
 //! | `probe`       | what a file says about itself before it is played     |
 //! | `preview`     | thumbnail atlases for the seek preview                |
@@ -44,6 +45,7 @@
 //! | `session`     | remembering the position and tracks of each file      |
 //! | `settings`    | the registry of tunable material parameters           |
 //! | `smtc`        | the OS media overlay and the buttons on a headset     |
+//! | `awake`       | keeping the display on while something plays          |
 //! | `paths`       | where the app keeps its own files                     |
 //! | `worker`      | a thread for anything that would block the frame path |
 //! | `harness`     | opt-in automated exercises                            |
@@ -52,6 +54,7 @@
 
 mod actions;
 mod audio;
+mod awake;
 mod chrome;
 mod commands;
 mod cursor;
@@ -73,6 +76,7 @@ mod render;
 mod scrub;
 mod session;
 mod settings;
+mod shelf;
 mod smtc;
 mod state;
 mod sync;

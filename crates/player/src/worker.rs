@@ -72,6 +72,13 @@ pub enum Completion {
         from: String,
         found: Option<(std::path::PathBuf, u32)>,
     },
+    /// Seasons of the playing show found in folders beside its own, for the
+    /// playlist panel. `paths` is the list they were looked for beside, so an
+    /// answer for a list since replaced is dropped.
+    Beside {
+        paths: Vec<String>,
+        seasons: Vec<crate::shelf::Beside>,
+    },
 }
 
 type Job = Box<dyn FnOnce(&Mpv) -> Option<Completion> + Send + 'static>;

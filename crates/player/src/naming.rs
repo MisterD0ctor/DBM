@@ -300,7 +300,7 @@ pub fn titled(path: &str, embedded: Option<&str>) -> String {
 /// that show's name on every row, and a panel 380px wide has better uses for
 /// the space. Whoever is building the list decides whether the show is worth
 /// repeating; see [`listing`].
-fn described(path: &str, embedded: Option<&str>) -> (Option<String>, String) {
+pub fn described(path: &str, embedded: Option<&str>) -> (Option<String>, String) {
     let embedded = embedded
         .map(str::trim)
         .filter(|t| !t.is_empty())
@@ -453,6 +453,17 @@ fn episode_line(
     match title {
         Some(t) => format!("{number} · {t}"),
         None => number,
+    }
+}
+
+/// An episode's line with its season taken off the front, for a list that
+/// already says which season it is: `S08E03 · The Long Night` under SEASON 8
+/// is `E03 · The Long Night`. Only this season's own marker, written as
+/// [`episode_line`] writes it; any other line comes back as it was.
+pub fn without_season(line: &str, season: u32) -> String {
+    match line.strip_prefix(&format!("S{season:02}")) {
+        Some(rest) if rest.starts_with('E') => rest.to_string(),
+        _ => line.to_string(),
     }
 }
 

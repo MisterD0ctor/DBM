@@ -362,7 +362,8 @@ number to type; reach for 500 first.
   total times at either end of the timeline, and the time over the seek
   preview.
 - **Hint** (500, 13px): prose added underneath something else — the drop hint,
-  the line saying a driver update is the usual fix, a driver's own error text.
+  the line under a failure saying what usually fixes it, a driver's own error
+  text.
   A readout's size under its own name, because prose is what would want a
   different one first.
 - **Label** (500, 12px, tracked 1px): section headings and back rows, written in
@@ -598,9 +599,12 @@ the axes, which is exactly the part the eye catches.
   well — muted for unmuted, slashed for unslashed. A wash behind an engaged
   button was tried and taken back out: it made the state read as chrome.
 - **Open:** a held Strong wash for as long as the panel it opened is showing — a
-  separate channel from the lit glyph, because a button can mean both at once.
-  The subtitles button reports whether subtitles are on *and* whether its menu
-  is open, and one highlight cannot say both.
+  separate channel from the lit glyph, so the two never share one highlight.
+  A button that opens something does not also light for a state. The
+  subtitles and audio button once did, and a glyph that lights like a switch
+  is clicked like one — to turn subtitles off, and answered with a menu. It
+  wears the plain subtitles mark and says *Subtitles & audio*; the menu's
+  *Off* row is where subtitles go off.
 - **Focus:** the Strong wash and the glyph at Lit, while the keyboard is on it.
   The wash alone is the one an open panel holds; the lit glyph is what says the
   keyboard is here. Tab walks the bar left to right while a film is loaded and
@@ -610,7 +614,9 @@ the axes, which is exactly the part the eye catches.
   wherever the ring stands, and Escape puts the ring away and leaves
   fullscreen in one press. The hover label comes up for the focused button as
   it does for the pointer. A panel opened from the bar takes the ring, and
-  hands it back to the button when it closes.
+  hands it back to the button when it closes. The ring goes with the bar when
+  the bar hides, unless it stands on a pill: left live under a bar nobody
+  could see, Enter pressed whatever it was last on.
 - **Nowhere to go:** glyph at Dim, no wash, no pointer, and a label that says
   so — *No earlier file*, with no key beside it. Its key does nothing either,
   raises no flash, and Tab walks past it.
@@ -663,16 +669,58 @@ the axes, which is exactly the part the eye catches.
   reads as a column; empty for a file never opened and not yet described.
   A file that would not play says *Could not play* there instead, without the
   measure, for the rest of the run
-- **Order:** the order a person watches in. When every file names the same
-  show, by season and episode; otherwise by name with digit runs read as
-  numbers and case ignored. Autoplay, Next and the end of a season all trust it
+- **Order:** the order a person watches in. A show's files by season and
+  episode, kept together where the first of them falls by name; everything
+  else by name with digit runs read as numbers and case ignored. Two release
+  groups' names used to split one show around another. Autoplay, Next and the
+  end of a season all trust it
 - **Title:** elides clear of the time and the measure, never under them
+
+### The playlist's parts
+
+A season of one show is shown as it always was, one list, with the show and the
+season as its heading: *Game of Thrones · Season 7*. A list holding more than that is shown in
+parts, on two levels, the way the settings are.
+
+- **The list of parts** comes first. A list spanning seasons is its seasons —
+  *Specials*, *Season 1*, *Season 2* — and a folder of several shows is each
+  show's seasons, named with the show: *Frieren · Season 2*. Anything that is
+  one file on its own, a film or a stray episode, stands among them as a
+  playlist row and plays from there.
+- **A part's row** is a drill row with a count: its name, *10 episodes* at
+  Quiet in the running times' column, then the chevron. No measure: a season's
+  share watched, summed from its episodes, said nothing its own page does not
+  say better. The part holding the file playing wears the active mark. File
+  rows on a page with parts leave the chevron's column empty, so the columns
+  line up.
+- **The season is said once.** Under a heading or a way back that names it, an
+  episode is *E03 · The Long Night*, not *S08E03 · The Long Night* on every
+  row. A file standing among other things keeps its whole name.
+- **A part's page** is headed by its way back: a back row reading *SEASON 7*,
+  or a show's name in its own case, in the Named role, where the part carries
+  one.
+- **The seasons beside.** When the list is one season in one folder, the
+  seasons of the same show in folders beside it are parts too, in order among
+  it. They are not queued — opening an episode means its season, and autoplay
+  stays in it — but they can be read and started from: an episode picked there
+  opens its season at that episode.
+- **Where it opens:** on the page of the part holding the file playing, at its
+  row. A page opened from the list lands where watching would carry on — the
+  file playing, or else the first not finished. Escape goes back a page before
+  it closes the panel.
 
 ### The resume measure
 
 A 44×4 capsule on a playlist row, at Rail with a fill at Strong, sitting on
-the row's own line a group gap (16px) before the running time. It says how far into
-that file you got, and appears only when there is a resume point to show.
+the row's own line a group gap (16px) before the running time's column — 48px,
+an hour-long time's width, so a season's measures stand in one column however
+the digits beside them run. It says how far into
+that file you got, and appears only when there is something to say: a resume
+point, or a file **finished** — watched to its end or into its credits — which
+wears the measure full. mpv deletes a position once a file is watched through,
+and a scan gives every file a length, so without a record of its own the player
+drew a finished episode exactly like one never started. Started again, the row
+goes back to saying how far.
 
 - **Fixed length, never a share of the row.** It has to read the same however
   wide the panel is, and it must never reach a width that would make it a rule.
@@ -790,6 +838,15 @@ question was asked.
 - **500ms before it opens**, then a fade and a 6px rise like any other surface.
   Long enough that crossing the bar raises nothing; short enough that stopping
   on a glyph feels answered rather than eventually attended to.
+- **Then the bar is being read, and waits no more.** While one is up, or for
+  300ms after it goes, the next control's name replaces it in place with no
+  delay and no fade — a label, a label, not a label, nothing, a label.
+- **A fade is of what was there.** The name, key and position a tip rose with
+  stay put while it goes, rather than turning into the next button's or into an
+  empty pill around a key.
+- **Pressing puts it away**, and it comes back on the next arrival; a name
+  hanging over the result is in the way of seeing it. A resize takes it at
+  once, because every control has moved out from under it.
 - **Above the timeline row, on the line panels open from**, centred on its
   control and clamped inside the bar's margins. There is nowhere closer: the
   row between is one unbroken pane, and a tip laid over it would be glass on
@@ -849,6 +906,12 @@ file — in Prompt at Lit, 12px apart, inset 18px. Button wash on hover. It is t
 one surface not tied to the idle clock: the bar hides after a few still seconds,
 and this is what should still be there when it does.
 
+It takes the keyboard's ring when it appears, as the credits pill does, so
+Enter at the end of anything is the way on, and the ring goes when the pill
+does. → goes on too — the next file, or the next season when one was found —
+but never to the dialog *Open folder…* raises: an arrow held a moment too long
+is not a press deliberate enough to put one up.
+
 At the end of the last file of several — the end of a season — it offers two
 things, the way on first and *Restart* second. The way on is the next season by
 name — *Season 8* — when a folder beside this one holds the same show at a later
@@ -873,7 +936,10 @@ It keeps out of the middle, where the names roll, and sits at the bottom right
 on the bar's lines: at the 24px margin while the bar is away, lifted 12px above
 the timeline row while it is up, riding the bar's own fade between the two.
 Its arrival wakes the bar once and holds nothing up — the clock runs out, the
-bar leaves, the pill stays, and doing nothing is watching the credits. Like the
+bar leaves, the pill stays, and doing nothing is watching the credits. It also
+takes the keyboard's ring, so Enter is the whole of going on; the ring stays
+with it after the bar leaves and goes when it does, so Enter never presses a
+pill that has gone. Like the
 end pill it is not tied to the idle clock. It stands aside for an open panel
 and for the seek preview when the preview reaches its column; a hover label
 that would land on it goes up a row instead. Glass never lies on glass.
@@ -888,7 +954,10 @@ With no film loaded, a panel of glass centred in the window, over the backdrop:
   newest file mpv still holds a position for that is still on disk; the same
   thing the backdrop is a frame of. A group gap follows it, because it is a
   film and the rows below it are dialogs, and the panel widens from 320px to
-  420px so an episode keeps its number beside the time.
+  420px so an episode keeps its number beside the time. An episode's show goes
+  on a heading line of its own above it, in the Named role, where a playlist
+  puts it: sharing the row, the show's name took the room and the episode
+  number was what elided. A film watched into its credits is not offered.
 - **Open file, Open folder and Settings** as shortcut rows with their keys, then
   a line at Quiet saying a file can be dropped anywhere.
 
@@ -897,7 +966,9 @@ answering — to the pointer and to every key — and the line names what is
 arriving; Settings stays at full strength, because it still works. Carrying a
 failure it widens to 420px and offers nothing to open: a Title headline at
 Strong, the driver's own error text at Body in Hint size wrapping to three
-lines, a line at Quiet saying a driver update is the usual fix, and after a
+lines, a line at Quiet saying what usually puts it right — a driver update,
+except for shaders the driver would not build, where a current driver means
+the bug is the player's — and after a
 group gap two rows — *Copy details*, which puts the headline and the driver's
 words on the clipboard and says *Copied*, and *Close the player*.
 

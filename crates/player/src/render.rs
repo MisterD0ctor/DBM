@@ -110,6 +110,8 @@ pub struct Driver {
     durations: crate::durations::Recorder,
     /// Describes the playlist's other files without playing them.
     scan: crate::probe::Scan,
+    /// Looks for the seasons beside a playlist that is one season of a show.
+    neighbours: crate::shelf::Neighbours,
     /// Last seen state of the playlist panel, so its opening can be noticed.
     playlist_open: bool,
     /// The file the next season was last looked for on behalf of.
@@ -128,6 +130,8 @@ pub struct Driver {
     audio: Rc<crate::audio::Watchdog>,
     /// The OS media overlay, told what is playing when it changes.
     smtc: crate::smtc::Controls,
+    /// Holds the display on while something plays.
+    awake: crate::awake::Awake,
     diag: diagnostics::Probe,
     /// A picture of a finished frame, when one is asked for.
     capture: diagnostics::Capture,
@@ -160,6 +164,7 @@ impl Driver {
             lists: sync::ListSync::default(),
             durations: crate::durations::Recorder::default(),
             scan: crate::probe::Scan::default(),
+            neighbours: crate::shelf::Neighbours::default(),
             playlist_open: false,
             season_asked: None,
             replies: Vec::new(),
@@ -168,6 +173,7 @@ impl Driver {
             params,
             audio,
             smtc,
+            awake: crate::awake::Awake::default(),
             diag: diagnostics::Probe::new(),
             capture: diagnostics::Capture::new(),
         }
@@ -219,11 +225,18 @@ impl Driver {
     /// The way in says it, because the way in is what is on screen when no
     /// file is loaded and no file can now be loaded. It drops its rows: they
     /// offer to open something that could only play invisibly.
-    fn fatal(&self, reason: &str, detail: String) {
+    ///
+    /// `note` is what usually puts it right, and it is not the same for all
+    /// three. A context the driver would not give, or mpv could not use, is
+    /// the driver's; shaders it refused may be an old driver or a fault in the
+    /// player's own GLSL, and telling everyone to update a driver sends the
+    /// second kind looking in the wrong place.
+    fn fatal(&self, reason: &str, detail: String, note: &str) {
         eprintln!("dbm: {reason} — {detail}");
         if let Some(ui) = self.ui.upgrade() {
             ui.set_fatal(reason.into());
             ui.set_fatal_detail(detail.into());
+            ui.set_fatal_note(note.into());
         }
     }
 
@@ -235,6 +248,7 @@ impl Driver {
                  and the glass are both drawn through OpenGL, so neither can be \
                  drawn without it."
                     .into(),
+                "Updating the graphics driver is the usual fix.",
             );
             return;
         };
@@ -247,6 +261,7 @@ impl Driver {
                 self.fatal(
                     "The player cannot show video on this computer.",
                     format!("The graphics driver would not build the player's shaders. {e}"),
+                    "If the driver is current, this is a bug in the player.",
                 );
                 return;
             }
@@ -295,6 +310,7 @@ impl Driver {
             Err(e) => self.fatal(
                 "The player cannot show video on this computer.",
                 format!("mpv could not attach to the player's graphics context. {e}"),
+                "Updating the graphics driver is the usual fix.",
             ),
         }
     }
@@ -363,6 +379,7 @@ impl Driver {
         // window handle that does not exist yet on the first of them, and the
         // update itself is skipped unless something changed.
         self.smtc.publish(ui.window(), &self.player, moved);
+        self.awake.follow(&self.player);
         for id in std::mem::take(&mut self.replies) {
             match id {
                 commands::REPLY_SCRUB => self.scrubber.on_reply(&self.mpv),
@@ -387,14 +404,15 @@ impl Driver {
         let open = ui.get_playlist_open();
         if open && !self.playlist_open {
             self.lists.refresh();
+            self.neighbours.refresh();
         }
         self.playlist_open = open;
 
         self.lists.poll(&self.worker, &self.player);
         self.durations.poll(&self.worker, &self.player);
         poll_preview(&self.preview, &self.player, &self.ui, &ui);
-        // Several probe results can land in one drain; the playlist is
-        // rebuilt once for all of them.
+        // Several probe results can land in one drain, and seasons found
+        // beside the list with them; the playlist is rebuilt once for all.
         let mut probed = false;
         for completion in self.worker.drain() {
             match completion {
@@ -406,6 +424,12 @@ impl Driver {
                     let paths: Vec<String> =
                         self.player.playlist.iter().map(|e| e.filename.clone()).collect();
                     self.scan.request(&paths, &self.worker);
+                    if self.neighbours.request(&paths, &self.worker)
+                        && !self.player.beside.is_empty()
+                    {
+                        self.player.beside.clear();
+                        probed = true;
+                    }
                 }
                 Completion::Opened(Ok(list)) => {
                     eprintln!(
@@ -423,6 +447,15 @@ impl Driver {
                 }
                 Completion::Notice(text) => say(&ui, text),
                 Completion::Probed(found) => probed |= self.player.apply_probed(found),
+                Completion::Beside { paths, seasons } => {
+                    let playing = self.player.playlist.iter().map(|e| e.filename.as_str());
+                    if playing.eq(paths.iter().map(String::as_str))
+                        && self.player.beside != seasons
+                    {
+                        self.player.beside = seasons;
+                        probed = true;
+                    }
+                }
                 Completion::Resume(Some(resume)) => {
                     eprintln!(
                         "dbm: last unfinished {} at {:.0}%{}",
@@ -431,6 +464,7 @@ impl Driver {
                         if resume.still.is_some() { ", with a frame" } else { "" }
                     );
                     ui.set_resume_path(resume.path.into());
+                    ui.set_resume_show(resume.show.unwrap_or_default().into());
                     ui.set_resume_title(resume.title.into());
                     ui.set_resume_progress(resume.fraction);
                     ui.set_resume_left(crate::state::format_left(resume.seconds_left).into());

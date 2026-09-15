@@ -171,6 +171,12 @@ global Motion {
     /// nothing, short enough that stopping on a glyph you do not recognise
     /// feels like it answered rather than like it eventually got round to it.
     out property <duration> tip-delay: 500ms;
+    /// How long after a tip goes down the next one comes up without waiting.
+    ///
+    /// Once one name has been asked for, the pointer moving along the bar is
+    /// reading it, and making each neighbour wait out the delay again turns
+    /// that into a stutter: a label, nothing, a label.
+    out property <duration> tip-grace: 300ms;
 }
 
 /// What a control is called, and which key does the same thing.
@@ -194,14 +200,30 @@ export global Tip {
     /// Centre of the control it belongs to, in window coordinates.
     in-out property <length> cx;
     /// Bumped on every arrival and departure, so the window can watch one
-    /// property rather than three.
+    /// property rather than three - and so a control can tell whether the
+    /// tip is still the one it put up.
     in-out property <int> seq;
 
-    public function point(label: string, keys: string, cx: length) {
+    /// Puts a tip up and returns the claim on it, for `release`.
+    public function point(label: string, keys: string, cx: length) -> int {
         Tip.label = label;
         Tip.keys = keys;
         Tip.cx = cx;
         Tip.seq += 1;
+        return Tip.seq;
+    }
+
+    /// Takes the tip down, but only if `claim` is still the one up.
+    ///
+    /// Ownership was once decided by position: a control cleared the tip if
+    /// it was centred where that control is. Anything that moves a control
+    /// while its tip is up broke that - fullscreen above all, which moves the
+    /// very button that was pressed - and the tip then stayed up for good,
+    /// since nothing else would ever claim it.
+    public function release(claim: int) {
+        if (Tip.seq == claim) {
+            Tip.clear();
+        }
     }
 
     public function clear() {
@@ -277,7 +299,8 @@ global Paint {
     out property <color> wash-soft: #ffffff14;
 }
 
-/// The type scale. Eight roles over four sizes.
+/// The type scale. Nine roles over four sizes: the eight sizes below, and the
+/// timecode, which is a readout's size set in `numerals`.
 ///
 /// Named here rather than written at each of the twenty-eight places text
 /// appears, because a scale spread across twenty-eight literals cannot be
@@ -319,7 +342,7 @@ global Type {
     /// in, which read as part of the same line rather than as menu entries.
     out property <length> readout: 13px;
     /// 500. Prose the interface adds underneath something else: the drop hint,
-    /// the line saying a driver update is the usual fix. A readout's size and
+    /// the line under a failure saying what usually fixes it. A readout's size and
     /// its own name, because prose is what would want a different one first.
     out property <length> hint: 13px;
     /// 500, capitals, tracked. Section headings, and the way back out of
@@ -491,17 +514,44 @@ export struct TrackItem {
 }
 
 export struct PlaylistItem {
+    /// Its place in mpv's playlist, or -1 for a file in a season beside the
+    /// list rather than in it.
     index: int,
+    /// Where it is, for opening a file that is not in the list.
+    path: string,
     label: string,
     current: bool,
     /// How long this file is, already formatted. Empty when the player has
     /// never opened it and so has no idea.
     length: string,
     /// How far through it the resume point sits, 0..1. Zero for a file that
-    /// was never started — and for one that was finished and reset.
+    /// was never started, and for one that was finished.
     progress: float,
+    /// Watched to its end or into its credits, and not started again since:
+    /// what tells a finished episode from one never started, which the
+    /// progress alone cannot.
+    finished: bool,
     /// It would not play, this run.
     failed: bool,
+}
+
+/// One part of a playlist, as the panel shows it — see `playlist-groups`.
+export struct PlaylistGroup {
+    /// How its row names it: Season 7, Specials, a show's name and season.
+    label: string,
+    /// How its page's way back names it: SEASON 7, or a show's name in its
+    /// own case, which `titular` says.
+    heading: string,
+    titular: bool,
+    /// How many files, already worded: "10 episodes".
+    detail: string,
+    /// It holds the file playing.
+    current: bool,
+    /// One file, which stands in the list of parts as itself.
+    leaf: bool,
+    /// The row its page opens on: the file playing, or the first unfinished.
+    open-row: int,
+    entries: [PlaylistItem],
 }
 
 component IconButton inherits Rectangle {
@@ -516,9 +566,9 @@ component IconButton inherits Rectangle {
     /// is rather than merely that there is one.
     in property <bool> active;
     /// Held background: the panel this button opens is showing. A separate
-    /// channel from `active` because a button can mean both at once - the
-    /// subtitles button shows whether subtitles are on *and* whether its
-    /// menu is open, and one highlight cannot say both.
+    /// channel from `active`, so the two never share one highlight - though
+    /// no button wears both now: one that opened a menu and also lit for a
+    /// state was read as a switch, and clicked as one.
     in property <bool> open;
     // The icon set is drawn for 24x24; anything else resamples it.
     in property <length> glyph: 24px;
@@ -577,9 +627,17 @@ component IconButton inherits Rectangle {
             return;
         }
         if (root.ring) {
-            Tip.point(root.tip, root.keys, root.tip-cx);
-        } else if (Tip.cx == root.tip-cx) {
-            Tip.clear();
+            root.tip-claim = Tip.point(root.tip, root.keys, root.tip-cx);
+        } else {
+            Tip.release(root.tip-claim);
+        }
+    }
+
+    // A name that changes while it is up - Fullscreen becoming Leave
+    // fullscreen from the F key - is said again rather than left stale.
+    changed tip => {
+        if (Tip.seq == root.tip-claim) {
+            root.tip-claim = Tip.point(root.tip, root.keys, root.tip-cx);
         }
     }
 
@@ -591,6 +649,10 @@ component IconButton inherits Rectangle {
             Chrome.pointed(event.kind == PointerEventKind.down);
         }
         clicked => {
+            // The question was answered by pressing: a name hanging over the
+            // result is in the way of seeing it. It comes back on the next
+            // arrival, as a native tooltip does.
+            Tip.release(root.tip-claim);
             if (root.enabled) {
                 root.clicked();
             }
@@ -609,15 +671,18 @@ component IconButton inherits Rectangle {
                 return;
             }
             if (self.has-hover) {
-                Tip.point(root.tip, root.keys, root.tip-cx);
-            } else if (Tip.cx == root.tip-cx) {
-                Tip.clear();
+                root.tip-claim = Tip.point(root.tip, root.keys, root.tip-cx);
+            } else {
+                Tip.release(root.tip-claim);
             }
         }
     }
 
     private property <length> tip-cx:
         root.absolute-position.x + root.width / 2;
+    /// This button's claim on the tip, from `Tip.point`. Never a real one
+    /// until it has pointed.
+    private property <int> tip-claim: -1;
 }
 
 /// One selectable line in the menu. Note it has no opaque background: the
@@ -695,12 +760,24 @@ component PlaylistRow inherits Rectangle {
     /// It would not play. The row says so where the running time goes, and
     /// goes on saying it after the notice has gone.
     in property <bool> failed;
+    in property <bool> finished;
+    /// Whether the measure is drawn: something started, or something done.
+    private property <bool> measured: (root.progress > 0.001 || root.finished) && !root.failed;
     /// Length of the resume measure. Fixed rather than a share of the row,
     /// so it reads the same however wide the panel is and can never grow
     /// into the width that would make it a rule. Shorter than the shortest
     /// title the list is likely to hold, which is what keeps it from reading
     /// as anything belonging to the words.
     private property <length> measure-w: 44px;
+    /// The running time's column, as wide as an hour-long time. Measured
+    /// from each row's own time, the measures stepped in and out with the
+    /// digits — invisible while one row in a season wore one, and a zigzag
+    /// once finished episodes gave most of them one.
+    private property <length> time-col: max(48px, time.width);
+    /// Where the row's trailing column ends. Further in on a page where
+    /// other rows carry a chevron, so this row's time and measure stand in
+    /// the same columns as theirs.
+    in property <length> trail: Rows.trail-x;
     callback picked();
 
     height: 34px;
@@ -708,7 +785,8 @@ component PlaylistRow inherits Rectangle {
     accessible-role: button;
     accessible-checkable: true;
     accessible-checked: root.active;
-    accessible-label: root.failed ? root.label + ", could not play" : root.label;
+    accessible-label: root.failed ? root.label + ", could not play"
+        : root.finished ? root.label + ", watched" : root.label;
     accessible-action-default => {
         root.picked();
     }
@@ -726,9 +804,8 @@ component PlaylistRow inherits Rectangle {
         x: Rows.label-x;
         // Clear of the time on the trailing edge, so a long title elides
         // rather than running underneath it.
-        width: parent.width - Rows.label-x - Rows.trail-x - time.width
-            - Rows.group-gap - (root.progress > 0.001 && !root.failed
-                ? root.measure-w + Rows.group-gap : 0);
+        width: parent.width - Rows.label-x - root.trail - root.time-col
+            - Rows.group-gap - (root.measured ? root.measure-w + Rows.group-gap : 0);
         height: 100%;
         text: root.label;
         color: root.active || root.ring ? Paint.lit : Paint.body;
@@ -740,7 +817,7 @@ component PlaylistRow inherits Rectangle {
 
     // Right-aligned, so a column of them reads as a column.
     time := Text {
-        x: parent.width - Rows.trail-x - self.width;
+        x: parent.width - root.trail - self.width;
         height: 100%;
         text: root.failed ? "Could not play" : root.length;
         color: Paint.quiet;
@@ -764,19 +841,23 @@ component PlaylistRow inherits Rectangle {
     // anything - it sits where the row's other fact sits, and the row reads
     // as one line: this episode, this far in, this long.
     Rectangle {
-        x: time.x - Rows.group-gap - root.measure-w;
+        x: parent.width - root.trail - root.time-col - Rows.group-gap - root.measure-w;
         y: (parent.height - self.height) / 2;
         width: root.measure-w;
         height: 4px;
-        visible: root.progress > 0.001 && !root.failed;
+        visible: root.measured;
         background: Paint.rail;
         border-radius: self.height / 2;
 
         Rectangle {
             x: 0;
             // Never a sliver: a file barely started still has to show that
-            // it was started at all, and one pixel of white does not.
-            width: max(self.height, parent.width * root.progress);
+            // it was started at all, and one pixel of white does not. Full
+            // for one finished: seen through is the whole measure, and a
+            // position left somewhere in the credits is no reason to draw
+            // it short.
+            width: root.finished ? parent.width
+                : max(self.height, parent.width * root.progress);
             height: 100%;
             background: Paint.strong;
             border-radius: parent.border-radius;
@@ -791,6 +872,89 @@ component PlaylistRow inherits Rectangle {
         }
         clicked => {
             root.picked();
+        }
+    }
+}
+
+/// One part of a playlist made of several: a season, or a show's worth of a
+/// folder that holds more than one.
+///
+/// A drill row with a count on it: how many files. The figure stands in the
+/// running times' column and the chevron in a column of its own, which the
+/// file rows on the same page leave empty so the columns still line up. It
+/// once wore a measure of how much of the part had been watched, summed from
+/// its files; that said nothing the page it opens onto does not say better.
+component GroupRow inherits Rectangle {
+    in property <bool> focused;
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    in property <string> label;
+    /// "10 episodes".
+    in property <string> detail;
+    /// It holds the file playing.
+    in property <bool> active;
+    private property <length> chevron: 18px;
+    /// Where the figure's column ends: clear of the chevron by a drill row's
+    /// own spacing. A file row beside this one is given the same end.
+    private property <length> column-end: root.width - Rows.trail-x - root.chevron - 10px;
+    private property <length> time-col: max(48px, detail-text.width);
+    callback opened();
+
+    height: 34px;
+
+    accessible-role: button;
+    accessible-label: root.label + ", " + root.detail;
+    accessible-action-default => {
+        root.opened();
+    }
+
+    RowHighlight {
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+    }
+
+    ActiveMark {
+        on: root.active;
+    }
+
+    Text {
+        x: Rows.label-x;
+        width: root.column-end - root.time-col - Rows.group-gap - self.x;
+        height: 100%;
+        text: root.label;
+        color: root.active || root.ring ? Paint.lit : Paint.body;
+        font-size: Type.body;
+        font-weight: root.active ? Type.weight-current : Type.weight-plain;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    detail-text := Text {
+        x: root.column-end - self.width;
+        height: 100%;
+        text: root.detail;
+        color: Paint.quiet;
+        font-size: Type.readout;
+        vertical-alignment: center;
+    }
+
+    Image {
+        source: @image-url("../../../public/icons/angle-small-right.svg");
+        x: parent.width - Rows.trail-x - root.chevron;
+        y: (parent.height - self.height) / 2;
+        width: root.chevron;
+        height: root.chevron;
+        image-fit: contain;
+        colorize: touch.has-hover || root.ring ? Paint.lit : Paint.quiet;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
+        }
+        clicked => {
+            root.opened();
         }
     }
 }
@@ -1524,6 +1688,9 @@ component BackRow inherits Rectangle {
     /// a keyboard nobody is using.
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
+    /// A name rather than a label: a show's, heading a page of its episodes.
+    /// Its own case and size and no tracking, as a panel heading holding one.
+    in property <bool> titular;
     callback back();
 
     height: 34px;
@@ -1565,9 +1732,10 @@ component BackRow inherits Rectangle {
         Text {
             text: root.label;
             color: touch.has-hover || root.ring ? Paint.lit : Paint.body;
-            font-size: Type.label;
+            font-size: root.titular ? Type.named : Type.label;
             font-weight: Type.weight-plain;
-            letter-spacing: Type.label-track;
+            letter-spacing: root.titular ? 0 : Type.label-track;
+            overflow: elide;
             vertical-alignment: center;
             horizontal-stretch: 1;
         }
@@ -1732,6 +1900,9 @@ export component MainWindow inherits Window {
     /// is none — found once, off the frame path, a moment after startup.
     in property <string> resume-path;
     in property <string> resume-title;
+    /// The show it is an episode of, or empty for a film. On a line of its
+    /// own above Continue, where a playlist puts a show's name.
+    in property <string> resume-show;
     in property <float> resume-progress;
     property <bool> has-resume: root.resume-path != "";
     in property <string> resume-left;
@@ -1778,7 +1949,31 @@ export component MainWindow inherits Window {
     in property <string> sub-pos-text: "100%";
     in property <[TrackItem]> sub-tracks;
     in property <[TrackItem]> audio-tracks;
-    in property <[PlaylistItem]> playlist;
+    /// The playlist, in the parts the panel shows it in: its seasons, or the
+    /// shows and films of a folder holding several — worked out by `shelf` on
+    /// the Rust side. One part is the list shown as it always was; several
+    /// get a page listing them, and a page each.
+    in property <[PlaylistGroup]> playlist-groups;
+    /// Which part holds the file playing, or -1.
+    in property <int> playlist-current-group: -1;
+    /// Whether any part is more than one file, and so opens rather than
+    /// plays. File rows on a page with such a part leave the chevron's column
+    /// empty, so the columns still line up.
+    in property <bool> playlist-drills;
+    /// The page the panel is on: -1 for the list of parts, otherwise that
+    /// part's files. `in-out` because the Rust side keeps it on the same part
+    /// when the parts around it change.
+    in-out property <int> playlist-page: 0;
+    property <bool> playlist-tiered: root.playlist-groups.length > 1;
+    property <bool> playlist-top: root.playlist-tiered && root.playlist-page < 0;
+    /// The files on the page showing.
+    property <[PlaylistItem]> playlist-entries:
+        root.playlist-groups[root.playlist-tiered ? max(0, root.playlist-page) : 0].entries;
+    /// The rows the list scrolls through, and whether a way back leads them
+    /// as the focus's row 0.
+    property <int> playlist-rows: root.playlist-top
+        ? root.playlist-groups.length : root.playlist-entries.length;
+    property <int> playlist-lead: root.playlist-tiered && !root.playlist-top ? 1 : 0;
     /// What to call the playlist. The show's name when every entry is from
     /// one, and "PLAYLIST" otherwise — decided on the Rust side, where the
     /// names are parsed.
@@ -1803,6 +1998,11 @@ export component MainWindow inherits Window {
     /// and because in a packaged build there is no console for this to go to
     /// instead — which is the whole reason it is on screen.
     in property <string> fatal-detail: "";
+    /// What usually puts it right, worded on the Rust side for the failure
+    /// it is. Not always the driver: shaders a driver refused can be the
+    /// player's own fault, and saying otherwise sends someone to update a
+    /// driver that was never the problem.
+    in property <string> fatal-note: "";
     /// Whether an open is in flight: the dialog has closed, and somewhere
     /// between a directory scan and mpv's first frame there is nothing to
     /// show yet.
@@ -1849,7 +2049,7 @@ export component MainWindow inherits Window {
     /// film is playing and nothing is open.
     property <int> focus-count:
         root.menu-open ? root.subs-focus-count + root.audio-tracks.length
-        : root.playlist-open ? root.playlist.length + 1
+        : root.playlist-open ? root.playlist-lead + root.playlist-rows + 1
         : root.files-open ? 2
         : root.settings-open ? root.settings-focus-count
         : (!root.has-file && root.fatal == "") ? 3 + root.invite-first
@@ -2033,6 +2233,18 @@ export component MainWindow inherits Window {
         Chrome.hide-pointer(root.pointer-hidden);
     }
 
+    // A ring on the bar goes with the bar. Left up, it stayed live under a
+    // bar nobody could see, and Enter twenty minutes later pressed whatever
+    // it was last on — Next, as often as not. A ring on a pill stays: the
+    // pills outlast the bar on purpose, and Enter is what they are there for.
+    // No panel is open here, since an open one holds the bar up, and with no
+    // film the ring belongs to the way in.
+    changed controls-visible => {
+        if (!root.controls-visible && root.has-file && root.bar-focus < 13) {
+            Chrome.focus-visible = false;
+        }
+    }
+
     // A ring that has walked off the bottom of a list is no better than no
     // ring. Only the two lists that scroll need this; the settings pages are
     // sized to their contents.
@@ -2045,8 +2257,9 @@ export component MainWindow inherits Window {
                     (root.focus-row - root.subs-focus-count) * root.row-h,
                     root.row-h);
             }
-        } else if (root.playlist-open && root.focus-row < root.playlist.length) {
-            playlist-list.reveal(root.focus-row * root.row-h, root.row-h);
+        } else if (root.playlist-open && root.focus-row >= root.playlist-lead
+                && root.focus-row < root.playlist-lead + root.playlist-rows) {
+            playlist-list.reveal((root.focus-row - root.playlist-lead) * root.row-h, root.row-h);
         }
     }
 
@@ -2071,7 +2284,6 @@ export component MainWindow inherits Window {
     /// reason to open it, and its top is the one episode certainly already
     /// seen — which P and then Enter used to play. The tracks on the subtitle
     /// in use, or on Off when none is showing.
-    property <int> playlist-open-row: max(0, root.playlist-current);
     property <int> tracks-open-row: root.has-subs
         ? (root.subs-visible && root.sub-current >= 0 ? root.sub-current + 1 : 0)
         : max(0, root.audio-current);
@@ -2087,18 +2299,42 @@ export component MainWindow inherits Window {
     // screen. Waking the clock brings the bar back with the button and gives
     // the fade the frames it needs — nothing else is asking for any, since
     // mpv has stopped producing them.
+    //
+    // And the ring goes to the pill, as it does for the credits, so Enter at
+    // the end of anything is the way on. It only ever arrived here from a
+    // credits pill before, and a film has none, so the end of a film was the
+    // one ending where Enter did nothing.
     changed at-end => {
         if (root.at-end) {
             Chrome.bump();
+            if (root.bar-reach) {
+                root.bar-focus = 13;
+                Chrome.focus-visible = true;
+            }
+        } else if (root.bar-focus >= 13 && !root.credits-offered) {
+            Chrome.focus-visible = false;
+            root.bar-focus = 0;
         }
     }
 
     // The credits starting wakes the bar once, for the same reason, and asks
     // for nothing more: the clock runs out as it always does and the bar
     // leaves, so doing nothing is watching the credits.
+    //
+    // And the ring goes to the pill, so the one key between an episode and
+    // the next is Enter. It stays while the pill does, bar or no bar, and
+    // goes with it: a ring left on a stop that has gone would have Enter
+    // skip the episode that just started.
     changed credits-offered => {
         if (root.credits-offered) {
             Chrome.bump();
+            root.bar-focus = 13;
+            Chrome.focus-visible = true;
+        } else if (root.bar-focus >= 13 && !root.at-end) {
+            // At the end the end pill takes the same stop, and its first
+            // choice is the same way on, so the ring stays for it.
+            Chrome.focus-visible = false;
+            root.bar-focus = 0;
         }
     }
     property <length> panel-radius: Rows.panel-radius;
@@ -2185,8 +2421,11 @@ export component MainWindow inherits Window {
             + root.invite-detail-h + Rows.group-gap + root.invite-note-h
             + Rows.group-gap + 2 * 34px
         : root.panel-pad + root.invite-first * (34px + Rows.group-gap)
+            + (root.invite-show ? 28px : 0px)
             + 3 * 34px + Rows.group-gap + root.invite-note-h;
     property <length> invite-note-h: 22px;
+    /// Continue carries its show's name on a heading line above it.
+    property <bool> invite-show: root.has-resume && root.resume-show != "";
     /// One line of the Title role, 14px, for the sentence that names the
     /// failure.
     property <length> invite-line-h: 22px;
@@ -2463,12 +2702,12 @@ export component MainWindow inherits Window {
     property <length> tip-gap: 12px;
     property <length> tip-w: min(
         tip-label-measure.preferred-width
-            + (Tip.keys != "" ? root.tip-gap + tip-keys-measure.preferred-width : 0px)
+            + (root.tip-key != "" ? root.tip-gap + tip-keys-measure.preferred-width : 0px)
             + 2 * root.tip-pad,
         root.bar-w);
     /// Centred on its button, then pushed back inside the bar's own margins
     /// so a tip on the last button does not hang off the window.
-    property <length> tip-x: clamp(Tip.cx - root.tip-w / 2,
+    property <length> tip-x: clamp(root.tip-at - root.tip-w / 2,
         root.bar-x, root.bar-x + root.bar-w - root.tip-w);
     /// Above the timeline row, on the line panels open from, rather than
     /// tucked against the button it names. There is nowhere closer: the row
@@ -2494,28 +2733,88 @@ export component MainWindow inherits Window {
     /// So it is an expression rather than a decision: scaled by the bar it
     /// cannot outlive what it points at, and cleared by any open panel it
     /// cannot be the second sheet of glass in the same place.
-    property <float> tip-on: root.panel-open
+    property <float> tip-on: root.panel-open || root.tip-cut
         ? 0.0
         : root.tip-shown * root.bar-shown;
     property <length> tip-rise: (1.0 - root.tip-shown) * root.lift;
+
+    /// What the tip is showing, which is not the same as what `Tip` says is
+    /// pointed at. Copied across only when a tip goes up.
+    ///
+    /// The surface read `Tip` directly once, and every change to it landed
+    /// in the middle of a fade: moving to a neighbour moved the old tip onto
+    /// the new button with the new name and faded *that* out, and leaving
+    /// emptied the name at once, so what faded was a pill shrinking around
+    /// a key with no label. A fade has to be of what was there.
+    property <string> tip-text;
+    property <string> tip-key;
+    property <length> tip-at;
+    /// Up, or on its way.
+    property <bool> tip-up;
+    /// Came down within `tip-grace`, so the next one need not wait.
+    property <bool> tip-warm;
+    /// Taken away without a fade, by a resize; cleared by the next tip.
+    property <bool> tip-cut;
+
+    function raise-tip() {
+        root.tip-text = Tip.label;
+        root.tip-key = Tip.keys;
+        root.tip-at = Tip.cx;
+        root.tip-up = true;
+        root.tip-warm = false;
+        root.tip-cut = false;
+        tip-cool.stop();
+        root.tip-shown = 1.0;
+    }
 
     // Watching the global through a local property, for the reason the flash
     // does: a `changed` handler belongs to the element that declares it.
     property <int> tip-seq: Tip.seq;
     changed tip-seq => {
         tip-timer.stop();
-        root.tip-shown = 0.0;
-        if (Tip.label != "") {
+        if (Tip.label == "") {
+            if (root.tip-up && !root.tip-cut) {
+                root.tip-warm = true;
+                tip-cool.restart();
+            }
+            root.tip-up = false;
+            root.tip-shown = 0.0;
+        } else if (root.tip-up || root.tip-warm) {
+            // One is already up, or only just went: say the new name in its
+            // place rather than taking the surface down and bringing it back.
+            root.raise-tip();
+        } else {
             tip-timer.start();
         }
+    }
+
+    // A resize moves every control out from under whatever tip is up, and
+    // its position was fixed when it rose. It goes at once rather than
+    // fading where nothing is any more; the claim it held is spent with it.
+    changed width => {
+        root.tip-cut = true;
+        Tip.clear();
+    }
+    changed height => {
+        root.tip-cut = true;
+        Tip.clear();
     }
 
     tip-timer := Timer {
         interval: Motion.tip-delay;
         running: false;
         triggered => {
-            root.tip-shown = 1.0;
+            root.raise-tip();
             tip-timer.stop();
+        }
+    }
+
+    tip-cool := Timer {
+        interval: Motion.tip-grace;
+        running: false;
+        triggered => {
+            root.tip-warm = false;
+            tip-cool.stop();
         }
     }
 
@@ -2650,7 +2949,7 @@ export component MainWindow inherits Window {
         { label: "Ambient border", keys: "B" },
 
         { heading: "PANELS", icon: @image-url("../../../public/icons/panel.svg"),
-          label: "Tracks", keys: "A" },
+          label: "Subtitles & audio", keys: "A" },
         { label: "Playlist", keys: "P" },
         { label: "Settings", keys: "S" },
 
@@ -2719,13 +3018,16 @@ export component MainWindow inherits Window {
         max(root.tracks-avail / 2, root.tracks-avail - root.audio-natural));
     out property <length> audio-list-h: root.tracks-avail - root.subs-list-h;
 
-    out property <length> playlist-natural: root.playlist.length * root.row-h;
+    /// A part's page is headed by its way back, which is a row; the list of
+    /// parts, and a list of one part, by a heading.
+    property <length> playlist-head-h: root.playlist-lead > 0 ? root.row-h : root.heading-h;
+    out property <length> playlist-natural: root.playlist-rows * root.row-h;
     out property <length> playlist-h: min(
-        root.panel-pad + root.heading-h + root.playlist-natural
+        root.panel-pad + root.playlist-head-h + root.playlist-natural
             + Rows.group-gap + root.toggle-h,
         root.panel-max-h);
     out property <length> playlist-list-h: max(0px,
-        root.playlist-h - root.panel-pad - root.heading-h
+        root.playlist-h - root.panel-pad - root.playlist-head-h
             - Rows.group-gap - root.toggle-h);
 
     /// Scroll offsets, for the test that checks a wheel over a list moves it.
@@ -2981,8 +3283,10 @@ export component MainWindow inherits Window {
             return true;
         }
         if (root.playlist-open) {
-            if (root.focus-row < root.playlist.length) {
-                root.play-index(root.playlist[root.focus-row].index);
+            if (root.focus-row < root.playlist-lead) {
+                root.playlist-back();
+            } else if (root.focus-row < root.playlist-lead + root.playlist-rows) {
+                root.playlist-pick(root.focus-row - root.playlist-lead);
             } else {
                 root.autoplay = !root.autoplay;
                 root.set-autoplay(root.autoplay);
@@ -3266,11 +3570,17 @@ export component MainWindow inherits Window {
                 }
             } else if (root.at-end) {
                 // Seeking forward from the end has nowhere to go. Forward
-                // means the next file, or this one again if there is none.
-                if (root.at-last) {
-                    root.replay();
-                } else {
+                // means what the end pill offers first: the next file, or at
+                // the end of a season the next one, and this file again only
+                // when it is all there is. Never the folder dialog, though -
+                // an arrow held a moment too long is not a press deliberate
+                // enough to put one up, and Enter is already on that choice.
+                if (!root.at-last) {
                     root.play-next();
+                } else if (root.next-season-path != "") {
+                    root.end-onward();
+                } else if (!root.end-two) {
+                    root.replay();
                 }
             } else if (shift) {
                 root.seek-relative(root.fine-seek-step);
@@ -3646,14 +3956,16 @@ export component MainWindow inherits Window {
             root.set-ambience(root.ambience-on);
             return true;
         }
-        // One Escape dismisses one thing, innermost first: a settings
-        // page, then a panel, then fullscreen.
+        // One Escape dismisses one thing, innermost first: a settings or
+        // playlist page, then a panel, then fullscreen.
         if (text == Key.Escape) {
             if (root.settings-open && root.settings-page != 0) {
                 root.settings-page = 0;
                 root.focus-row = 0;
             } else if (root.settings-open) {
                 root.settings-open = false;
+            } else if (root.playlist-open && root.playlist-lead > 0) {
+                root.playlist-back();
             } else if (root.playlist-open) {
                 root.playlist-open = false;
             } else if (root.files-open) {
@@ -3697,8 +4009,54 @@ export component MainWindow inherits Window {
         if (open) {
             root.close-others();
             root.playlist-open = true;
-            root.focus-row = root.playlist-open-row;
-            playlist-list.centre(root.focus-row * root.row-h, root.row-h);
+            // On the part holding the file playing, at its row — or on the
+            // list of parts, when that file is a part of its own.
+            if (root.playlist-tiered && root.playlist-current-group >= 0
+                    && !root.playlist-groups[root.playlist-current-group].leaf) {
+                root.playlist-enter(root.playlist-current-group);
+            } else {
+                root.playlist-page = root.playlist-tiered ? -1 : 0;
+                root.focus-row = max(0, root.playlist-tiered
+                    ? root.playlist-current-group
+                    : root.playlist-groups[0].open-row);
+                playlist-list.centre(root.focus-row * root.row-h, root.row-h);
+            }
+        }
+    }
+
+    /// Open one part's page, on the row watching it would carry on from: the
+    /// file playing, or else the first not yet finished.
+    function playlist-enter(group: int) {
+        root.playlist-page = group;
+        root.focus-row = 1 + root.playlist-groups[group].open-row;
+        playlist-list.centre(root.playlist-groups[group].open-row * root.row-h, root.row-h);
+    }
+
+    /// Back to the list of parts, on the part just left.
+    public function playlist-back() {
+        root.focus-row = max(0, root.playlist-page);
+        root.playlist-page = -1;
+        playlist-list.centre(root.focus-row * root.row-h, root.row-h);
+    }
+
+    /// A row of the list showing, pressed.
+    function playlist-pick(row: int) {
+        if (!root.playlist-top) {
+            root.playlist-play(root.playlist-entries[row]);
+        } else if (root.playlist-groups[row].leaf) {
+            root.playlist-play(root.playlist-groups[row].entries[0]);
+        } else {
+            root.playlist-enter(row);
+        }
+    }
+
+    /// Play a file of the list — or, for one in a season beside the list
+    /// rather than in it, open that season at that file.
+    function playlist-play(entry: PlaylistItem) {
+        if (entry.index >= 0) {
+            root.play-index(entry.index);
+        } else if (!root.opening) {
+            root.open-path(entry.path);
         }
     }
 
@@ -4232,26 +4590,78 @@ export component MainWindow inherits Window {
             padding-top: Rows.panel-pad;
             padding-bottom: Rows.panel-pad;
 
-            MenuHeading {
+            if root.playlist-lead == 0: MenuHeading {
                 text: root.playlist-heading;
                 titular: root.playlist-named;
                 // The same mark as the button that opened the panel, whether
                 // the words beside it are PLAYLIST or a show's name.
                 icon: @image-url("../../../public/icons/playlist.svg");
             }
+            // A part's page is headed by the way back to the list of parts,
+            // as a settings page is: SEASON 7, or a show's name in its own
+            // case where the part is named for one.
+            if root.playlist-lead > 0: BackRow {
+                label: root.playlist-groups[root.playlist-page].heading;
+                titular: root.playlist-groups[root.playlist-page].titular;
+                focused: root.playlist-open && root.focus-row == 0;
+                back => {
+                    root.playlist-back();
+                }
+            }
             playlist-list := ScrollList {
                 height: root.playlist-list-h;
                 content-height: root.playlist-natural;
 
-                for entry[idx] in root.playlist: PlaylistRow {
-                    label: entry.label;
-                    length: entry.length;
-                    progress: entry.progress;
-                    failed: entry.failed;
-                    active: entry.current;
-                    focused: root.playlist-open && root.focus-row == idx;
-                    picked => {
-                        root.play-index(entry.index);
+                // The list of parts: a season to open, or a file standing in
+                // the list as itself.
+                if root.playlist-top: VerticalLayout {
+                    alignment: start;
+
+                    for group[idx] in root.playlist-groups: Rectangle {
+                        height: root.row-h;
+
+                        if group.leaf: PlaylistRow {
+                            label: group.entries[0].label;
+                            length: group.entries[0].length;
+                            progress: group.entries[0].progress;
+                            finished: group.entries[0].finished;
+                            failed: group.entries[0].failed;
+                            active: group.current;
+                            // The chevron's column and its spacing, left
+                            // empty so this row's figures line up with the
+                            // parts' around it.
+                            trail: root.playlist-drills ? Rows.trail-x + 28px : Rows.trail-x;
+                            focused: root.playlist-open && root.focus-row == idx;
+                            picked => {
+                                root.playlist-pick(idx);
+                            }
+                        }
+                        if !group.leaf: GroupRow {
+                            label: group.label;
+                            detail: group.detail;
+                            active: group.current;
+                            focused: root.playlist-open && root.focus-row == idx;
+                            opened => {
+                                root.playlist-pick(idx);
+                            }
+                        }
+                    }
+                }
+                if !root.playlist-top: VerticalLayout {
+                    alignment: start;
+
+                    for entry[idx] in root.playlist-entries: PlaylistRow {
+                        label: entry.label;
+                        length: entry.length;
+                        progress: entry.progress;
+                        finished: entry.finished;
+                        failed: entry.failed;
+                        active: entry.current;
+                        focused: root.playlist-open
+                            && root.focus-row == idx + root.playlist-lead;
+                        picked => {
+                            root.playlist-pick(idx);
+                        }
                     }
                 }
             }
@@ -4264,7 +4674,7 @@ export component MainWindow inherits Window {
                 label: "Autoplay next";
                 checked: root.autoplay;
                 focused: root.playlist-open
-                    && root.focus-row == root.playlist.length;
+                    && root.focus-row == root.playlist-lead + root.playlist-rows;
                 toggled(on) => {
                     root.autoplay = on;
                     root.set-autoplay(on);
@@ -4537,10 +4947,11 @@ export component MainWindow inherits Window {
                         padding-right: Rows.trail-x;
 
                         Text {
-                            text: "Updating the graphics driver is the usual fix.";
+                            text: root.fatal-note;
                             color: Paint.quiet;
                             font-size: Type.hint;
                             vertical-alignment: center;
+                            overflow: elide;
                         }
                     }
                 }
@@ -4587,6 +4998,13 @@ export component MainWindow inherits Window {
             // window is most often opened to get back to. Only when mpv still
             // holds a position for it and the file is still there; a gap
             // after it, because it is a film and the rows below are dialogs.
+            // The show on a line of its own, where a playlist puts it. Sharing
+            // one with the episode, the name took the room and the episode
+            // lost its number, which is the part that says which.
+            if root.fatal == "" && root.invite-show: MenuHeading {
+                text: root.resume-show;
+                titular: true;
+            }
             if root.fatal == "" && root.has-resume: ResumeRow {
                 label: root.resume-title;
                 progress: root.resume-progress;
@@ -4659,7 +5077,7 @@ export component MainWindow inherits Window {
                     Text {
                         text: root.opening
                             ? "Opening " + root.opening-name + "…"
-                            : "or drop a file or folder anywhere here";
+                            : "Or drop a file or folder onto the window";
                         // Quiet, the step a shortcut's keys sit on: prose
                         // under the rows, not one of them. It was a hair
                         // above the keys once, which no one could see over
@@ -4855,7 +5273,7 @@ export component MainWindow inherits Window {
     // narrower window.
 
     tip-label-measure := Text {
-        text: Tip.label;
+        text: root.tip-text;
         font-size: Type.body;
         visible: false;
         width: 0px;
@@ -4863,7 +5281,7 @@ export component MainWindow inherits Window {
     }
 
     tip-keys-measure := Text {
-        text: Tip.keys;
+        text: root.tip-key;
         font-size: Type.readout;
         visible: false;
         width: 0px;
@@ -4888,14 +5306,14 @@ export component MainWindow inherits Window {
                 // The two roles of a shortcuts row, unchanged. The name is
                 // what you asked for and the key is what you get for having
                 // asked twice.
-                text: Tip.label;
+                text: root.tip-text;
                 color: Paint.body;
                 font-size: Type.body;
                 vertical-alignment: center;
             }
 
-            if Tip.keys != "": Text {
-                text: Tip.keys;
+            if root.tip-key != "": Text {
+                text: root.tip-key;
                 color: Paint.quiet;
                 font-size: Type.readout;
                 vertical-alignment: center;
@@ -5290,19 +5708,20 @@ export component MainWindow inherits Window {
                 }
             }
             // Opens the tracks menu, whose first row turns subtitles off.
-            // The glyph still reports whether they are on, so the button
-            // says something even when the menu is shut.
+            //
+            // It used to light, and swap to a solid or a slashed mark, with
+            // whether subtitles were on - and a glyph that reports a state
+            // the way a switch does is clicked like one, to turn subtitles
+            // off, and answered with a menu. So it reports nothing: the plain
+            // mark, and a name for what opens. The menu's Off row is the
+            // switch, and C its key.
             IconButton {
-                icon: root.subs-visible
-                    ? @image-url("../../../public/icons/subtitles-solid.svg")
-                    : @image-url("../../../public/icons/subtitles-slash.svg");
-                // "Tracks", because that is what the panel is called
-                // everywhere else and it holds audio as well. The glyph is a
-                // subtitle mark because that is the track people come for.
-                tip: "Tracks";
+                icon: @image-url("../../../public/icons/subtitles.svg");
+                // Both halves: the panel holds audio as well, and a subtitle
+                // mark alone does not say so.
+                tip: "Subtitles & audio";
                 keys: "A";
                 focused: root.bar-reach && root.bar-focus == 9;
-                active: root.subs-visible;
                 open: root.menu-open;
                 clicked => {
                     root.open-menu(!root.menu-open);

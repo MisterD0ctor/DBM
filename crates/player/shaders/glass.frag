@@ -142,9 +142,8 @@ const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 // shading, is supersampled there. Across the flat middle it changes slowly and
 // one sample is exact enough.
 
-/// MSAA 8x offsets, in pixels. Four samples resolving both horizontal
-/// and vertical edges at four distinct positions each, where an axis-aligned
-/// grid would give two.
+/// MSAA 8x offsets, in pixels. Eight samples resolving both horizontal
+/// and vertical edges at eight distinct positions each.
 const vec2 RIM_SAMPLES[8] = vec2[8](
     vec2( 1.0, -3.0) * 0.0625,
     vec2(-1.0,  3.0) * 0.0625,

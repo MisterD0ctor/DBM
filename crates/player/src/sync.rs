@@ -21,7 +21,7 @@ use crate::pipeline::{GlassPanel, MAX_PANELS};
 use crate::state::{self, PlayerState};
 use crate::tracks::{self, TrackKind};
 use crate::settings::{self, Section, Store};
-use crate::{MainWindow, ParamItem, PlaylistItem, TrackItem};
+use crate::{MainWindow, ParamItem, PlaylistGroup, PlaylistItem, TrackItem};
 
 /// Drain mpv's event queue into the mirrored state.
 ///
@@ -247,55 +247,103 @@ fn selected_row(player: &PlayerState, kind: TrackKind) -> i32 {
 /// not rebuild the subtitle and audio menus as well — and so a row the
 /// pointer is resting on is recreated no more often than it has to be.
 pub fn push_playlist(ui: &MainWindow, player: &PlayerState) {
-    // Labelled as a list rather than one at a time: a season of one show
-    // puts its name in the heading and leaves the rows to say what differs.
-    let listing = crate::naming::listing(
-        player
-            .playlist
-            .iter()
-            .enumerate()
-            .map(|(row, e)| (e.filename.as_str(), player.known_title(row))),
-    );
-    ui.set_playlist_named(listing.heading.is_some());
-    // The row the playlist opens on. Coming back to a season is the reason
-    // to open it, and the top of the list is the one episode already seen.
-    ui.set_playlist_current(
-        player
-            .playlist
-            .iter()
-            .position(|e| e.current)
-            .map_or(-1, |row| row as i32),
-    );
-    ui.set_playlist_heading(match &listing.heading {
-        Some(show) => show.as_str().into(),
+    use slint::Model as _;
+
+    let items: Vec<crate::shelf::Item> = player
+        .playlist
+        .iter()
+        .enumerate()
+        .map(|(row, e)| crate::shelf::Item {
+            path: &e.filename,
+            title: player.known_title(row),
+            index: e.index,
+            current: e.current,
+            progress: player.known_progress(row),
+            failed: player.failed.contains(&e.filename),
+        })
+        .collect();
+    let shelf = crate::shelf::arrange(&items, &player.beside);
+
+    ui.set_playlist_named(shelf.heading.is_some());
+    ui.set_playlist_heading(match shelf.title() {
+        Some(title) => title.into(),
         None => slint::SharedString::from("PLAYLIST"),
     });
-    ui.set_playlist(ModelRc::new(VecModel::from(
-        player
-            .playlist
-            .iter()
-            .zip(listing.rows)
-            .enumerate()
-            .map(|(row, (e, label))| {
-                // A file never played here has no length to show and no
-                // progress to draw; an empty string and a zero say so, and
-                // the row leaves both out rather than printing "0:00".
-                let progress = player.known_progress(row);
-                PlaylistItem {
-                    index: e.index as i32,
-                    label: label.into(),
-                    current: e.current,
-                    length: if progress.seconds > 0.0 {
-                        state::format_time(progress.seconds).into()
-                    } else {
-                        Default::default()
-                    },
-                    progress: progress.fraction,
-                    failed: player.failed.contains(&e.filename),
-                }
-            })
-            .collect::<Vec<_>>(),
-    )));
+    // Where the panel opens: the part holding the file playing, on its row.
+    let current = shelf.groups.iter().position(|g| g.current().is_some());
+    ui.set_playlist_current_group(current.map_or(-1, |g| g as i32));
+    ui.set_playlist_current(
+        current
+            .and_then(|g| shelf.groups[g].current())
+            .map_or(-1, |row| row as i32),
+    );
+    ui.set_playlist_drills(shelf.groups.iter().any(|g| !g.leaf));
+
+    // The page on show is kept by its name, not its place. Seasons found
+    // beside this one arrive a moment after it and go in around it, and a
+    // page held by number would turn into another season under the reader.
+    let shown = usize::try_from(ui.get_playlist_page())
+        .ok()
+        .and_then(|page| ui.get_playlist_groups().row_data(page))
+        .map(|group| group.label);
+    let groups: Vec<PlaylistGroup> = shelf.groups.iter().map(group_item).collect();
+    if let Some(label) = shown {
+        ui.set_playlist_page(
+            groups
+                .iter()
+                .position(|g| g.label == label)
+                .map_or(-1, |page| page as i32),
+        );
+    }
+    ui.set_playlist_groups(ModelRc::new(VecModel::from(groups)));
+}
+
+/// One part of the list, as the panel draws it.
+fn group_item(group: &crate::shelf::Group) -> PlaylistGroup {
+    let count = group.entries.len();
+    PlaylistGroup {
+        label: group.label.as_str().into(),
+        // A heading shouts the interface's own words and never the user's:
+        // SEASON 7, but a show's name in its own case.
+        heading: (if group.named {
+            group.label.clone()
+        } else {
+            group.label.to_uppercase()
+        })
+        .into(),
+        titular: group.named,
+        detail: if count == 1 {
+            "1 episode".into()
+        } else {
+            format!("{count} episodes").into()
+        },
+        current: group.current().is_some(),
+        leaf: group.leaf,
+        open_row: group.open_row() as i32,
+        entries: ModelRc::new(VecModel::from(
+            group.entries.iter().map(entry_item).collect::<Vec<_>>(),
+        )),
+    }
+}
+
+fn entry_item(entry: &crate::shelf::Entry) -> PlaylistItem {
+    PlaylistItem {
+        index: entry.index.map_or(-1, |i| i as i32),
+        path: entry.path.as_str().into(),
+        label: entry.label.as_str().into(),
+        current: entry.current,
+        // A file never played here has no length to show and no progress to
+        // draw; an empty string and a zero say so, and the row leaves both
+        // out rather than printing "0:00".
+        length: if entry.progress.seconds > 0.0 {
+            state::format_time(entry.progress.seconds).into()
+        } else {
+            Default::default()
+        },
+        progress: entry.progress.fraction,
+        finished: entry.progress.finished,
+        failed: entry.failed,
+    }
 }
 
 fn track_model(player: &PlayerState, kind: TrackKind) -> ModelRc<TrackItem> {

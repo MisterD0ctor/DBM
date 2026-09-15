@@ -85,6 +85,14 @@ pub struct Progress {
     /// that has a resume point but was never played long enough here for mpv
     /// to report how long it is.
     pub start: f64,
+    /// Watched to its end, or into its closing credits, and not started
+    /// again since.
+    ///
+    /// A record of the player's own, because nothing mpv keeps can say it:
+    /// mpv deletes a position once a file is watched through, and a scan
+    /// gives every file a length, so a finished episode and one never started
+    /// look exactly alike on disk.
+    pub finished: bool,
 }
 
 /// Look up every entry in a playlist at once.
@@ -96,6 +104,7 @@ pub struct Progress {
 /// for the same answer.
 pub fn of(paths: &[String]) -> Vec<Progress> {
     let cache = load();
+    let finished = load_finished();
     let watch_later = crate::paths::watch_later_dir();
     paths
         .iter()
@@ -110,6 +119,7 @@ pub fn of(paths: &[String]) -> Vec<Progress> {
                 } else {
                     0.0
                 },
+                finished: is_finished(&finished, path, start),
             }
         })
         .collect()
@@ -141,6 +151,69 @@ pub fn watch_later_name(path: &str) -> String {
         .iter()
         .map(|b| format!("{b:02X}"))
         .collect()
+}
+
+// ---------------------------------------------------------------------------
+// Watched to the end
+// ---------------------------------------------------------------------------
+
+/// Where each finished file's ending began, in seconds: the start of its
+/// credits, or its length when it simply ran out.
+pub type Finished = HashMap<String, f64>;
+
+static FINISHED_WRITE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// mpv checkpoints the position every ten seconds, so a file left in its
+/// credits can hold a resume point a little before the moment they were
+/// noticed. This much short of the ending is still the same viewing.
+const CHECKPOINT_SLACK: f64 = 15.0;
+
+fn finished_file() -> PathBuf {
+    crate::paths::app_data_dir().join("finished.json")
+}
+
+/// **Blocking.** Worker thread only.
+///
+/// Missing or unreadable is empty, for the same reason as the durations:
+/// nothing has been finished here yet.
+pub fn load_finished() -> Finished {
+    std::fs::read_to_string(finished_file())
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default()
+}
+
+/// Remember that a file reached its ending, and where that ending began.
+///
+/// **Blocking.** Worker thread only. Re-read before writing, as `record` is.
+pub fn record_finished(path: &str, at: f64) {
+    if path.is_empty() {
+        return;
+    }
+    let _guard = FINISHED_WRITE.lock().unwrap_or_else(|e| e.into_inner());
+    let mut finished = load_finished();
+    if finished.get(path).copied() == Some(at) {
+        return;
+    }
+    finished.insert(path.to_string(), at);
+    let file = finished_file();
+    let Ok(json) = serde_json::to_string(&finished) else {
+        return;
+    };
+    if let Err(e) = std::fs::write(&file, json) {
+        eprintln!("dbm: could not write {}: {e}", file.display());
+    }
+}
+
+/// Whether a file counts as finished, given where mpv would resume it now.
+///
+/// A resume point short of the ending is a viewing started again since, and
+/// the row should say how far into that one you are rather than that it was
+/// once seen through.
+pub fn is_finished(finished: &Finished, path: &str, start: f64) -> bool {
+    finished
+        .get(path)
+        .is_some_and(|&at| start <= 0.0 || start >= at - CHECKPOINT_SLACK)
 }
 
 #[cfg(test)]
@@ -197,6 +270,19 @@ mod tests {
 
         std::fs::remove_dir_all(&dir).ok();
     }
+
+    #[test]
+    fn a_viewing_started_again_is_not_finished() {
+        let finished = Finished::from([("C:/films/seen.mkv".to_string(), 1200.0)]);
+        // mpv deleted the position at the end.
+        assert!(is_finished(&finished, "C:/films/seen.mkv", 0.0));
+        // Left in the credits, checkpointed a few seconds before they were
+        // noticed.
+        assert!(is_finished(&finished, "C:/films/seen.mkv", 1190.0));
+        // Watching it again, a quarter of the way in.
+        assert!(!is_finished(&finished, "C:/films/seen.mkv", 300.0));
+        assert!(!is_finished(&finished, "C:/films/fresh.mkv", 0.0));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -213,10 +299,21 @@ pub struct Recorder {
     /// twice — which for a file playing at 60 frames a second would be a
     /// rewrite per frame.
     last: Option<(String, f64)>,
+    /// The file playing, its length, and whether it was within a moment of
+    /// its end. Autoplay moves straight past the end of a file and mpv never
+    /// reports reaching it, so this is how that file is still counted.
+    playing: Option<(String, f64, bool)>,
+    /// The last file written down as finished, so it is written once.
+    finished: Option<String>,
 }
+
+/// How near the end a file autoplay moved on from must have been: a frame or
+/// two short of the last one, not a film abandoned in its final minute.
+const NEAR_END: f64 = 2.0;
 
 impl Recorder {
     pub fn poll(&mut self, worker: &crate::worker::Worker, player: &crate::state::PlayerState) {
+        self.watch_ending(worker, player);
         let Some(path) = player.path.as_deref() else {
             return;
         };
@@ -236,5 +333,40 @@ impl Recorder {
         self.last = Some((path.to_string(), seconds));
         let path = path.to_string();
         worker.run(move |_mpv| record(&path, seconds));
+    }
+
+    /// Notices a file reaching its ending: its credits, its last frame, or
+    /// its last moments before autoplay took the next one.
+    fn watch_ending(&mut self, worker: &crate::worker::Worker, player: &crate::state::PlayerState) {
+        if self.playing.as_ref().map(|p| p.0.as_str()) != player.path.as_deref() {
+            if let Some((path, duration, true)) = self.playing.take() {
+                self.finish(worker, path, duration);
+            }
+            self.playing = player.path.clone().map(|p| (p, 0.0, false));
+        }
+        let Some(path) = player.path.as_deref() else {
+            return;
+        };
+        // Both halves of the file's own numbers, and the second half of it:
+        // for a frame after a new file opens, the flags and the position can
+        // still be the last one's.
+        let into_it = player.duration > 0.0 && player.time_pos >= player.duration * 0.5;
+        if let Some(playing) = self.playing.as_mut() {
+            playing.1 = player.duration;
+            playing.2 = into_it && player.time_pos >= player.duration - NEAR_END;
+        }
+        let ended = player.credits_rolling()
+            || (player.eof_reached && player.time_pos >= player.duration - NEAR_END);
+        if into_it && ended && self.finished.as_deref() != Some(path) {
+            self.finish(worker, path.to_string(), player.time_pos);
+        }
+    }
+
+    fn finish(&mut self, worker: &crate::worker::Worker, path: String, at: f64) {
+        if self.finished.as_deref() == Some(path.as_str()) {
+            return;
+        }
+        self.finished = Some(path.clone());
+        worker.run(move |_mpv| record_finished(&path, at));
     }
 }

@@ -87,7 +87,7 @@ pub fn resolve(path: &Path) -> Result<Selection, String> {
 
 /// Videos directly in `dir`, sorted. No recursion: the siblings of an
 /// episode are its season, not the whole library.
-fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, String> {
+pub fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, String> {
     let videos: Vec<PathBuf> = fs::read_dir(dir)
         .map_err(|e| format!("Could not read {} — {e}", folder_name(dir)))?
         .filter_map(Result::ok)
@@ -107,11 +107,14 @@ fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, String> {
 /// upper-case release group jumped the queue — and autoplay, Next, the dimmed
 /// ends of the bar and the end-of-season pill all trust this order.
 ///
-/// When every file names the same show, the numbering the names already carry
-/// decides: season, then episode. Otherwise names are compared the way
-/// Explorer compares them, digit runs as numbers and case ignored.
+/// A show's files are kept together, where the first of them falls in name
+/// order, and go among themselves by the numbering their names carry: season,
+/// then episode. Everything else is compared the way Explorer compares names,
+/// digit runs as numbers and case ignored. Two release groups' names used to
+/// split one show around another, so autoplay played half of each in turn.
 pub fn watching_order(mut videos: Vec<PathBuf>) -> Vec<PathBuf> {
-    let keys: Option<Vec<(String, u32, u32)>> = videos
+    videos.sort_by(|a, b| natural_path(a, b));
+    let keys: Vec<Option<(String, u32, u32)>> = videos
         .iter()
         .map(|p| match crate::naming::parse(&p.to_string_lossy()) {
             crate::naming::Media::Episode {
@@ -123,21 +126,20 @@ pub fn watching_order(mut videos: Vec<PathBuf>) -> Vec<PathBuf> {
             crate::naming::Media::Movie { .. } => None,
         })
         .collect();
-    match keys {
-        Some(keys) if keys.iter().all(|k| k.0 == keys[0].0) => {
-            let mut keyed: Vec<((u32, u32), PathBuf)> = keys
-                .into_iter()
-                .map(|(_, season, episode)| (season, episode))
-                .zip(videos)
-                .collect();
-            keyed.sort_by(|(ka, a), (kb, b)| ka.cmp(kb).then_with(|| natural_path(a, b)));
-            keyed.into_iter().map(|(_, p)| p).collect()
-        }
-        _ => {
-            videos.sort_by(|a, b| natural_path(a, b));
-            videos
+    let mut first: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+    for (i, key) in keys.iter().enumerate() {
+        if let Some((show, ..)) = key {
+            first.entry(show.as_str()).or_insert(i);
         }
     }
+    // Name order breaks every tie, so equal numbers keep a stable order.
+    let mut order: Vec<usize> = (0..videos.len()).collect();
+    order.sort_by_key(|&i| match &keys[i] {
+        Some((show, season, episode)) => (first[show.as_str()], *season, *episode, i),
+        None => (i, 0, 0, i),
+    });
+    let mut slots: Vec<Option<PathBuf>> = videos.into_iter().map(Some).collect();
+    order.into_iter().filter_map(|i| slots[i].take()).collect()
 }
 
 /// Two paths, component by component, each compared as a person reads it.
@@ -198,29 +200,32 @@ fn digits(chars: &mut std::iter::Peekable<std::str::Chars>) -> String {
     run
 }
 
-/// The folder holding the next season of the show this file belongs to, when
-/// one sits beside this file's own folder — and which season it is.
+/// The other seasons of the show this file belongs to, each in a folder beside
+/// this file's own, and which season each is — in season order.
 ///
 /// **Blocking.** Worker thread only: it lists the folder above this one and
 /// looks inside each sibling.
 ///
-/// Asked at the end of a season, where the useful offer is the next one. A
-/// folder is judged by the first video in it, read the way every other name
-/// in the player is read; the nearest later season of the same show wins, so
-/// a shelf holding seasons 8 and 9 offers 8.
-pub fn next_season(current: &Path) -> Option<(PathBuf, u32)> {
+/// A folder is judged by the first video in it, read the way every other name
+/// in the player is read. Where two folders hold the same season, the first
+/// found stands for it.
+pub fn seasons_beside(current: &Path) -> Vec<(PathBuf, u32)> {
     let crate::naming::Media::Episode {
         show,
         season: Some(season),
         ..
     } = crate::naming::parse(&current.to_string_lossy())
     else {
-        return None;
+        return Vec::new();
     };
-    let folder = current.parent()?;
-    let shelf = folder.parent()?;
-    let mut best: Option<(PathBuf, u32)> = None;
-    for dir in fs::read_dir(shelf).ok()?.filter_map(Result::ok).map(|e| e.path()) {
+    let Some(folder) = current.parent() else {
+        return Vec::new();
+    };
+    let Some(Ok(dirs)) = folder.parent().map(fs::read_dir) else {
+        return Vec::new();
+    };
+    let mut found: Vec<(PathBuf, u32)> = Vec::new();
+    for dir in dirs.filter_map(Result::ok).map(|e| e.path()) {
         if !dir.is_dir() || dir == folder {
             continue;
         }
@@ -240,15 +245,36 @@ pub fn next_season(current: &Path) -> Option<(PathBuf, u32)> {
             ..
         } = crate::naming::parse(&first.to_string_lossy())
         {
-            if n > season
+            if n != season
                 && other.eq_ignore_ascii_case(&show)
-                && best.as_ref().map_or(true, |(_, b)| n < *b)
+                && !found.iter().any(|(_, m)| *m == n)
             {
-                best = Some((dir, n));
+                found.push((dir, n));
             }
         }
     }
-    best
+    found.sort_by_key(|(_, n)| *n);
+    found
+}
+
+/// The folder holding the next season of the show this file belongs to, when
+/// one sits beside this file's own folder — and which season it is.
+///
+/// **Blocking.** Worker thread only; see [`seasons_beside`].
+///
+/// Asked at the end of a season, where the useful offer is the next one. The
+/// nearest later season wins, so a shelf holding seasons 8 and 9 offers 8.
+pub fn next_season(current: &Path) -> Option<(PathBuf, u32)> {
+    let crate::naming::Media::Episode {
+        season: Some(season),
+        ..
+    } = crate::naming::parse(&current.to_string_lossy())
+    else {
+        return None;
+    };
+    seasons_beside(current)
+        .into_iter()
+        .find(|(_, n)| *n > season)
 }
 
 /// Videos in `dir` and everything beneath it, sorted.
@@ -372,6 +398,25 @@ mod tests {
         assert_eq!(
             names(&sorted),
             ["a/Film 2.mkv", "a/Film 10.mkv", "B/alien (1979).mkv", "b/Zodiac (2007).mkv"]
+        );
+    }
+
+    #[test]
+    fn a_show_among_other_things_is_kept_together() {
+        // Name order puts Dandadan between the two Frieren episodes, because
+        // their release groups differ.
+        let sorted = watching_order(vec![
+            PathBuf::from("[SubsPlease] Frieren - 01.mkv"),
+            PathBuf::from("[SubsPlease] Dandadan - 01.mkv"),
+            PathBuf::from("[Erai-raws] Frieren - 02.mkv"),
+        ]);
+        assert_eq!(
+            names(&sorted),
+            [
+                "[SubsPlease] Frieren - 01.mkv",
+                "[Erai-raws] Frieren - 02.mkv",
+                "[SubsPlease] Dandadan - 01.mkv",
+            ]
         );
     }
 }
