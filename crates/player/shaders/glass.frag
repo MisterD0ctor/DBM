@@ -298,7 +298,8 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted) 
     // edge catches a dimmer rim of it too.
     float sky = dot(mirror3, normalize(vec3(u_light_dir, 0.0)));
     sky = sky < 0.0 ? -0.7 * sky : sky;
-    sky *= sky * (1.0 - mirror.y) * u_sky;
+    sky *= 1.0 - mirror.y;
+    sky *= sky * u_sky;
 
     // Tipped over and pointing down, it sees the backdrop again — a
     // screen-space reflection, displaced by the same lateral-over-
