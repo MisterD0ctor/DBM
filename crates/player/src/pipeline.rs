@@ -185,7 +185,7 @@ impl Default for GlassParams {
             sky: 0.0,
             // Light from the upper left, the convention every OS uses.
             light_dir: [-0.707, -0.707],
-            tint: [0.3, 0.3, 0.3],
+            tint: [0.0, 0.0, 0.0],
             tint_amount: 0.2,
         }
     }
@@ -377,7 +377,8 @@ impl Pipeline {
         let (tex, iw, ih) = (b.tex, b.width, b.height);
 
         self.prog_backdrop.bind(gl);
-        self.prog_backdrop.set_vec2(gl, "u_size", w as f32, h as f32);
+        self.prog_backdrop
+            .set_vec2(gl, "u_size", w as f32, h as f32);
         self.prog_backdrop
             .set_vec2(gl, "u_image_size", iw as f32, ih as f32);
         self.prog_backdrop.set_f32(gl, "u_level", level);
