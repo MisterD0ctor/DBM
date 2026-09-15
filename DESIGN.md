@@ -429,13 +429,14 @@ above them.
 28px tall running the full width, holding the elapsed time at its left end, the
 total at its right, and the track between them. Below sit three control pills
 48px tall — a title pill on the left, a 232px transport pill centred in the
-window, and a 380px pill on the right holding sound, effects and window
+window — until centring it would bring it within 10px of the right pill, below
+1060px, where it holds that gap and gives way leftwards — and a 380px pill on the right holding sound, effects and window
 controls. They sit 24px from the window edges with 10px between the timeline
 row and the pills. Inside a pill, 40px buttons sit 6px apart with 4px of
 padding; text sitting directly on a pill is inset 18px, clear of the capsule's
 curve.
 
-The title pill hugs its title, up to the room the centred transport leaves, and
+The title pill hugs its title, up to the room the transport leaves, and
 past that the title elides. It moves to a new width over 160ms ease-in-out
 rather than jumping: a pill that resized itself on every file change would be a
 flicker, and the glass follows because it is drawn from the same number.
@@ -477,7 +478,9 @@ slider rows 30px. A heading that follows a group is 44px — the same 28px with
 the 16px group gap carried above it. The group gap is the row gap: the same
 16px that insets every wash and pads every panel, so the space that separates
 two ideas is the space the rows already stand in. The window opens at 1280×720 and floors at
-900×480, below which the three pills would meet; it never reflows.
+900×480, below which the title would have next to no room left; it never
+reflows. The floor was once where the pills met, and it stayed put while the
+right pill grew twice, until at 900px the volume track lay over Play.
 
 ### Named Rules
 
@@ -611,12 +614,14 @@ the axes, which is exactly the part the eye catches.
   nothing is open — then on to the end-of-file choices, or the credits pill,
   while either is up —
   and Enter presses; the arrows, Space and every other key keep their meaning
-  wherever the ring stands, and Escape puts the ring away and leaves
-  fullscreen in one press. The hover label comes up for the focused button as
-  it does for the pointer. A panel opened from the bar takes the ring, and
-  hands it back to the button when it closes. The ring goes with the bar when
-  the bar hides, unless it stands on a pill: left live under a bar nobody
-  could see, Enter pressed whatever it was last on.
+  wherever the ring stands, and Escape puts the ring away and does nothing
+  else — it once left fullscreen in the same press, which threw a hand
+  clearing a highlight out of the film. The hover label comes up for the
+  focused button as it does for the pointer. A panel opened from the bar takes
+  the ring, and hands it back to the button when it closes. The ring goes with
+  the bar when the bar hides, unless it stands on a pill: left live under a bar
+  nobody could see, Enter pressed whatever it was last on. Its place is kept,
+  and the next Tab brings it back there.
 - **Nowhere to go:** glyph at Dim, no wash, no pointer, and a label that says
   so — *No earlier file*, with no key beside it. Its key does nothing either,
   raises no flash, and Tab walks past it.
@@ -707,7 +712,9 @@ parts, on two levels, the way the settings are.
 - **Where it opens:** on the page of the part holding the file playing, at its
   row. A page opened from the list lands where watching would carry on — the
   file playing, or else the first not finished. Escape goes back a page before
-  it closes the panel.
+  it closes the panel. Home and End go to the first and last row and PgUp and
+  PgDn a page at a time, here and in the tracks, stopping at the ends; with a
+  list open they are the list's keys, not the film's.
 
 ### The resume measure
 
@@ -779,7 +786,8 @@ row already has, beside the fact that is already there.
 
 ### Drill rows
 - **Row:** 34px; an 18px icon and the label, both at Body, 10px apart, with a
-  chevron at the end — Quiet at rest, Lit on hover
+  chevron at the end — Quiet at rest, Lit on hover and under the ring. The ring
+  lights the icon with the words, since both name the same subject
 - **Use:** every row of the settings tree. An effect that can be turned off says
   so with its glyph rather than with a switch, because a switch beside a chevron
   is two things to press in one row.
@@ -824,7 +832,8 @@ row already has, beside the fact that is already there.
 - **The keys beyond the bar** are mpv's own, so the habit carries over:
   Shift with an arrow for a one-second seek, `[` `]` and Backspace for speed
   on a fixed ladder (0.25× to 4×), `,` `.` for a frame, PgUp PgDn for chapters,
-  J and Shift+J through the subtitle tracks, # through the audio. The bindings
+  J and Shift+J through the subtitle tracks, # through the audio, and `?`
+  straight to this page, which is also a row on the way in. The bindings
   the player already had — the arrows' volume, S, T, A — stay where they were
 
 ### The hover label
@@ -874,7 +883,7 @@ picked with a source-clip, inside an 18px glass panel with 9px of padding and a
 9px tile radius, with the timestamp beneath it at Strong in a 22px caption. It
 floats 10px above the timeline, centred on the pointer and clamped inside the
 bar's margins, and takes no pointer events of its own. Falls back to the
-timestamp alone — a 74×26 pane — when no atlas exists, which is the state it
+timestamp alone — a 74×26 capsule — when no atlas exists, which is the state it
 sits in for the first seconds of every unseen file and permanently on a machine
 with no ffmpeg.
 
@@ -888,7 +897,8 @@ strobes.
 
 A **figure** replaces the ring with its words alone, for 1200ms: the speed
 after `[`, `]` or Backspace, the chapter after PgUp or PgDn, the track after J
-or #. The icon set has no glyph for any of them and the figure is the whole
+or #, and after C whether subtitles are showing at all, which the subtitles
+button stopped saying when it stopped being a switch. The icon set has no glyph for any of them and the figure is the whole
 answer. A frame step and the one-second seek raise nothing — the picture and
 the timeline already answer.
 
@@ -901,8 +911,7 @@ pointer: it sits where a click means play or pause.
 
 ### The end-of-file pill
 The bar's own 48px capsule, in the middle of the picture where the film
-stopped: a 24px glyph and the word — *Next*, or *Restart* at the end of the last
-file — in Prompt at Lit, 12px apart, inset 18px. Button wash on hover. It is the
+stopped: a 24px glyph and the word — *Next* — in Prompt at Lit, 12px apart, inset 18px. Button wash on hover. It is the
 one surface not tied to the idle clock: the bar hides after a few still seconds,
 and this is what should still be there when it does.
 
@@ -912,11 +921,12 @@ does. → goes on too — the next file, or the next season when one was found �
 but never to the dialog *Open folder…* raises: an arrow held a moment too long
 is not a press deliberate enough to put one up.
 
-At the end of the last file of several — the end of a season — it offers two
-things, the way on first and *Restart* second. The way on is the next season by
-name — *Season 8* — when a folder beside this one holds the same show at a later
-season, and *Open folder…* when not, opening on the shelf above this season's
-folder. Restart alone was the least likely thing anyone wanted there. With two,
+At the end of the last file — the end of a season, or of a film alone in its
+folder — it offers two things, the way on first and *Restart* second. The way
+on is the next season by name — *Season 8* — when a folder beside this one holds
+the same show at a later season, and *Open folder…* when not, opening on the
+shelf above this file's folder, which for a film is where the next one is.
+Restart alone was the least likely thing anyone wanted there. With two,
 each choice is a 40px capsule of its own, set 4px inside the pill (24 − 4 = 20,
 concentric) with its words still 18px from the pill's edge, 6px apart, each
 taking the Button wash on its own and the Strong wash under the keyboard.
@@ -958,7 +968,9 @@ With no film loaded, a panel of glass centred in the window, over the backdrop:
   on a heading line of its own above it, in the Named role, where a playlist
   puts it: sharing the row, the show's name took the room and the episode
   number was what elided. A film watched into its credits is not offered.
-- **Open file, Open folder and Settings** as shortcut rows with their keys, then
+  Enter presses it at once, without first raising the ring: it is the first
+  row, and the one the window is opened to get back to.
+- **Open file, Open folder, Settings and Shortcuts** as shortcut rows with their keys, then
   a line at Quiet saying a file can be dropped anywhere.
 
 While an open is in flight Continue and the two open rows fade to half and stop
@@ -970,7 +982,7 @@ lines, a line at Quiet saying what usually puts it right — a driver update,
 except for shaders the driver would not build, where a current driver means
 the bug is the player's — and after a
 group gap two rows — *Copy details*, which puts the headline and the driver's
-words on the clipboard and says *Copied*, and *Close the player*.
+words on the clipboard and says *Copied* for two seconds, and *Close the player*.
 
 ## Do's and Don'ts
 
@@ -992,9 +1004,11 @@ words on the clipboard and says *Copied*, and *Close the player*.
   keyboard is being used.
 - **Do** open a list on its current row, and make a destructive row take two
   presses and offer itself back.
-- **Do** give every control an accessible role and label: an icon button's is
-  its tip, a row's is its words. A current row is checked; the timeline, the
-  volume, the sliders and the steppers are sliders with increment actions.
+- **Do** keep the accessible roles and labels Slint makes cheap — an icon
+  button's is its tip, a row's is its words — and promise nothing past them.
+  Screen readers are not a goal of this player: the keyboard's ring is a wash,
+  not focus a reader can follow, notices are not announced, and no change is
+  checked with one.
 - **Do** take font weights from `Type` — plain, title, current — not literals.
 
 ### Don't:

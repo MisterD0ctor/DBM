@@ -115,7 +115,7 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     );
     ui.set_panscan(player.panscan > 0.5);
     ui.set_sub_delay_text(format_delay(player.sub_delay).into());
-    ui.set_sub_scale_text(format!("{:.2}x", player.sub_scale).into());
+    ui.set_sub_scale_text(format!("{:.2}×", player.sub_scale).into());
     ui.set_sub_pos_text(format!("{:.0}%", player.sub_pos).into());
     // Whether anything is loaded at all.
     //

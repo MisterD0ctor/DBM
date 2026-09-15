@@ -93,11 +93,12 @@ export global Chrome {
 /// handlers, which are functions rather than elements, and threading a
 /// callback down to each of them would be noise at every call site.
 ///
-/// Only the actions the bar cannot speak for are here. Mute, volume,
-/// subtitles and panscan all move a control that is already on screen — a
-/// key press wakes the chrome — and saying it twice is not saying it better.
-/// What is left is what nothing else shows: which way a seek went, that the
-/// file changed, and what the subtitle delay landed on.
+/// Only the actions the bar cannot speak for are here. Mute, volume and
+/// panscan all move a control that is already on screen — a key press wakes
+/// the chrome — and saying it twice is not saying it better. What is left is
+/// what nothing else shows: which way a seek went, that the file changed,
+/// what the subtitle delay landed on, and whether subtitles are on at all,
+/// which the subtitles button stopped saying when it stopped being a switch.
 export global Flash {
     // Which glyph, as an index into the window's own list: `@image-url`
     // resolves at compile time, so the images cannot live here. Named rather
@@ -452,7 +453,7 @@ component ActiveMark inherits Rectangle {
         border-radius: self.width / 2;
         background: Paint.lit;
         opacity: root.on ? 1.0 : 0.0;
-        animate opacity { duration: Motion.highlight; }
+        animate opacity { duration: Motion.highlight; easing: ease-out; }
     }
 }
 
@@ -475,7 +476,7 @@ component RowHighlight inherits Rectangle {
         height: 100%;
         border-radius: Rows.radius;
         background: root.lit ? root.shade : transparent;
-        animate background { duration: Motion.highlight; }
+        animate background { duration: Motion.highlight; easing: ease-out; }
     }
 }
 
@@ -592,7 +593,7 @@ component IconButton inherits Rectangle {
     background: root.open || root.ring ? Paint.wash-strong
         : touch.has-hover && root.enabled ? Paint.wash-button
         : transparent;
-    animate background { duration: Motion.highlight; }
+    animate background { duration: Motion.highlight; easing: ease-out; }
 
     accessible-role: button;
     accessible-label: root.tip;
@@ -1355,7 +1356,7 @@ component ToggleRow inherits Rectangle {
                 height: 18px;
                 border-radius: self.height / 2;
                 background: root.checked ? Paint.fill : Paint.rail;
-                animate background { duration: 120ms; }
+                animate background { duration: 120ms; easing: ease-out; }
 
                 Rectangle {
                     x: root.checked ? parent.width - self.width - 2px : 2px;
@@ -1380,6 +1381,7 @@ component ToggleRow inherits Rectangle {
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
+            overflow: elide;
         }
 
     }
@@ -1438,7 +1440,9 @@ component DrillRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: Paint.body;
+                // With the words: the icon names the same subject, so the
+                // ring lights the two together.
+                colorize: root.ring ? Paint.lit : Paint.body;
             }
         }
 
@@ -1460,7 +1464,7 @@ component DrillRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: touch.has-hover ? Paint.lit : Paint.quiet;
+                colorize: touch.has-hover || root.ring ? Paint.lit : Paint.quiet;
             }
         }
     }
@@ -1493,7 +1497,7 @@ component StepButton inherits Rectangle {
     height: 26px;
     border-radius: self.height / 2;
     background: touch.has-hover ? Paint.wash-strong : Paint.wash-soft;
-    animate background { duration: Motion.highlight; }
+    animate background { duration: Motion.highlight; easing: ease-out; }
 
     Text {
         text: root.glyph;
@@ -1537,7 +1541,7 @@ component EndChoice inherits Rectangle {
     background: root.ring ? Paint.wash-strong
         : touch.has-hover ? Paint.wash-button
         : transparent;
-    animate background { duration: Motion.highlight; }
+    animate background { duration: Motion.highlight; easing: ease-out; }
 
     accessible-role: button;
     accessible-label: root.label;
@@ -1945,7 +1949,7 @@ export component MainWindow inherits Window {
     in property <int> preview-clip-y;
 
     in property <string> sub-delay-text: "0.00 s";
-    in property <string> sub-scale-text: "1.00x";
+    in property <string> sub-scale-text: "1.00×";
     in property <string> sub-pos-text: "100%";
     in property <[TrackItem]> sub-tracks;
     in property <[TrackItem]> audio-tracks;
@@ -2052,11 +2056,18 @@ export component MainWindow inherits Window {
         : root.playlist-open ? root.playlist-lead + root.playlist-rows + 1
         : root.files-open ? 2
         : root.settings-open ? root.settings-focus-count
-        : (!root.has-file && root.fatal == "") ? 3 + root.invite-first
+        : (!root.has-file && root.fatal == "") ? 4 + root.invite-first
         : (!root.has-file && root.fatal != "") ? 2
         : 0;
     /// The way in's rows start one further down when the first is Continue.
     property <int> invite-first: root.has-resume ? 1 : 0;
+    /// Enter on an empty window with a film to continue, and the ring not yet
+    /// up. Everywhere else the first Enter only shows the ring, because the
+    /// row it would press was chosen by nobody. Here it was: Continue is the
+    /// first row, it is what the window is opened to get back to, and making
+    /// it take two presses was asking a question nobody needed asked.
+    property <bool> continue-sure: !root.has-file && root.fatal == ""
+        && !root.panel-open && root.has-resume && root.focus-row == 0;
     /// A settings page whose last row is its reset. The ring stops at the ends
     /// of these rather than wrapping, so Up from the top can never land on
     /// the one row that throws a page of tuning away.
@@ -2239,8 +2250,13 @@ export component MainWindow inherits Window {
     // pills outlast the bar on purpose, and Enter is what they are there for.
     // No panel is open here, since an open one holds the bar up, and with no
     // film the ring belongs to the way in.
+    //
+    // The place is kept, though. Tab brings the ring back where it stood
+    // rather than at the far left: reading along the bar one label at a time
+    // is exactly slow enough for the idle clock to run out partway.
     changed controls-visible => {
         if (!root.controls-visible && root.has-file && root.bar-focus < 13) {
+            root.bar-resume = Chrome.focus-visible;
             Chrome.focus-visible = false;
         }
     }
@@ -2292,6 +2308,7 @@ export component MainWindow inherits Window {
     // a film arrives, on a button nobody chose.
     changed has-file => {
         Chrome.focus-visible = false;
+        root.bar-resume = false;
     }
 
     // A film ending is something happening, even though nobody touched
@@ -2400,7 +2417,7 @@ export component MainWindow inherits Window {
 
     // --- the way in ---------------------------------------------------------
     //
-    // Three rows and a sentence, centred. All three routes already worked;
+    // Rows and a sentence, centred. All three routes in already worked;
     // only one of them was ever visible, at the right-hand end of a pill with
     // no bounds, behind a folder glyph nobody had been told about.
     //
@@ -2422,7 +2439,7 @@ export component MainWindow inherits Window {
             + Rows.group-gap + 2 * 34px
         : root.panel-pad + root.invite-first * (34px + Rows.group-gap)
             + (root.invite-show ? 28px : 0px)
-            + 3 * 34px + Rows.group-gap + root.invite-note-h;
+            + 4 * 34px + Rows.group-gap + root.invite-note-h;
     property <length> invite-note-h: 22px;
     /// Continue carries its show's name on a heading line above it.
     property <bool> invite-show: root.has-resume && root.resume-show != "";
@@ -2483,13 +2500,12 @@ export component MainWindow inherits Window {
     property <length> left-fixed:
         root.pill-text-pad + 2 * root.btn + 2 * root.btn-gap + root.pill-pad
         + (root.speed-shown ? speed-measure.preferred-width + root.btn-gap : 0px);
-    /// The title pill hugs its title, up to what the centred transport
-    /// leaves room for. Past that the title elides and the pill stops
-    /// growing.
+    /// The title pill hugs its title, up to what the transport leaves room
+    /// for. Past that the title elides and the pill stops growing.
     property <length> left-w: clamp(
         root.title-w + root.left-fixed,
         root.left-fixed,
-        (root.bar-w - root.center-w) / 2 - root.pill-gap);
+        root.center-x - root.bar-x - root.pill-gap);
     /// Width the title wants. Measured off a `Text` that is never drawn -
     /// see `title-measure` at the bottom of the component - because the pill
     /// cannot ask the title it contains how wide to be without the question
@@ -2514,9 +2530,12 @@ export component MainWindow inherits Window {
     /// Text inset, matching the title pill's.
     property <length> end-pad: root.pill-text-pad;
     property <length> end-gap: 12px;
-    /// Whether there is a second thing to offer: at the end of the last file
-    /// of several, which is the end of a season.
-    property <bool> end-two: root.at-last && root.playlist-count > 1;
+    /// Whether there is a second thing to offer: at the end of the last file.
+    /// That is the end of a season — or of a film alone in its folder, where
+    /// Restart on its own was the least wanted offer of all. The dialog opens
+    /// on the shelf above the file's folder, which for a film is where the
+    /// next one is.
+    property <bool> end-two: root.at-last;
     /// With two choices each is a capsule of its own, set in by the padding a
     /// bar button gets and concentric with the pill for the same reason: 24px
     /// outside, a 4px gap, 20px inside.
@@ -2820,7 +2839,14 @@ export component MainWindow inherits Window {
 
     property <length> pills-y: root.height - root.panel-margin - root.pill-h;
     out property <length> timeline-y: root.pills-y - root.pill-gap - root.timeline-h;
-    property <length> center-x: root.bar-x + (root.bar-w - root.center-w) / 2;
+    /// Centred in the window, until centring it would bring it closer to the
+    /// right pill than the gap — below 1060px, where half the transport's
+    /// 232px meets the right pill's 380px. From there it holds the gap and
+    /// gives way leftwards, and the title pill gives up the width. The floor
+    /// was once where the pills met; the right pill grew twice after it was
+    /// set, and at the floor they overlapped by 70px, the volume over Play.
+    property <length> center-x: min(root.bar-x + (root.bar-w - root.center-w) / 2,
+        root.right-x - root.pill-gap - root.center-w);
     property <length> right-x: root.bar-x + root.bar-w - root.right-w;
 
     /// The track runs between the two times, clear of both.
@@ -2919,12 +2945,17 @@ export component MainWindow inherits Window {
     /// one above it when it does not. Kept in the rows rather than in a
     /// structure of its own so that moving a key from one group to another
     /// is moving one line, which is the only edit this list ever gets.
+    ///
+    /// Two keys for the two ends of one action stand side by side, `← →`.
+    /// Where either is a name or carries a modifier a slash goes between
+    /// them, `J / Shift+J`, because a space inside `Shift+J` would read as a
+    /// third key.
     property <[{label: string, keys: string, heading: string, icon: image}]> shortcuts: [
         { heading: "PLAYBACK", icon: @image-url("../../../public/icons/play-pause.svg"),
           label: "Play / pause", keys: "Space" },
         { label: "Back / forward " + root.seek-step + " seconds", keys: "← →" },
         { label: "Back / forward " + root.fine-seek-step + " second", keys: "Shift+← →" },
-        { label: "Start again", keys: "Home" },
+        { label: "Restart", keys: "Home" },
         { label: "Previous / next file", keys: "Ctrl+← →" },
         { label: "Previous / next chapter", keys: "PgUp PgDn" },
         // Named rather than drawn: a comma and a full stop at readout size
@@ -2933,7 +2964,7 @@ export component MainWindow inherits Window {
         { label: "Slower / faster", keys: "[ ]" },
         { label: "Normal speed", keys: "Backspace" },
 
-        { heading: "SOUND", icon: @image-url("../../../public/icons/volume.svg"),
+        { heading: "AUDIO", icon: @image-url("../../../public/icons/volume.svg"),
           label: "Volume", keys: "↑ ↓" },
         { label: "Mute", keys: "M" },
         { label: "Next audio track", keys: "#" },
@@ -2952,11 +2983,14 @@ export component MainWindow inherits Window {
           label: "Subtitles & audio", keys: "A" },
         { label: "Playlist", keys: "P" },
         { label: "Settings", keys: "S" },
+        { label: "Shortcuts", keys: "?" },
 
         { heading: "NAVIGATION", icon: @image-url("../../../public/icons/navigation.svg"),
           label: "Move in a panel", keys: "↑ ↓" },
+        { label: "First / last in a list", keys: "Home End" },
+        { label: "A page up / down a list", keys: "PgUp PgDn" },
         { label: "Move along the bar", keys: "Tab" },
-        { label: "Choose, or adjust", keys: "Enter, ← →" },
+        { label: "Choose, or adjust", keys: "Enter / ← →" },
         { label: "Close, or leave fullscreen", keys: "Esc" },
 
         { heading: "FILES", icon: @image-url("../../../public/icons/folder-open.svg"),
@@ -3173,8 +3207,10 @@ export component MainWindow inherits Window {
             height: root.preview-shown > root.shown-epsilon ? root.preview-h : 0,
             opacity: root.preview-shown,
             // The bevel follows from the radius, so the preview gets a rim in
-            // proportion to its size rather than the panels'.
-            radius: root.preview-radius,
+            // proportion to its size rather than the panels'. With no tile it
+            // is a single line of figures, and a capsule like every other one:
+            // 18px on a 26px pane was a corner larger than half its height.
+            radius: root.preview-has-tile ? root.preview-radius : root.preview-h / 2,
             tint: 1.0,
         },
         {
@@ -3220,13 +3256,19 @@ export component MainWindow inherits Window {
     title: "Death by MPV";
     preferred-width: 1280px;
     preferred-height: 720px;
-    // Narrower than this and the three pills would meet. The old build
-    // reflowed buttons into a second row at this point, driven by measuring
-    // element widths; a floor costs one line and no moving parts.
+    // Narrower than this and the title would have next to nothing left: the
+    // transport gives way to the right pill below 1060px, and the title gives
+    // way to the transport, keeping about a hundred pixels here. The old build
+    // reflowed buttons into a second row, driven by measuring element widths;
+    // a floor costs one line and no moving parts.
     min-width: 900px;
     min-height: 480px;
     background: Paint.ground;
     default-font-family: Type.face;
+    // The plain weight, for all the text that names no weight of its own.
+    // Slint's own default is 400, which no bundled file carries; that text
+    // was landing on Medium only because Medium was the nearest file.
+    default-font-weight: Type.weight-plain;
     forward-focus: keys;
 
     // Key dispatch is split across several small functions rather than one
@@ -3316,8 +3358,10 @@ export component MainWindow inherits Window {
                 }
             } else if (root.focus-row < root.invite-first + 2) {
                 root.request-open(root.focus-row == root.invite-first + 1);
-            } else {
+            } else if (root.focus-row == root.invite-first + 2) {
                 root.open-settings(true);
+            } else {
+                root.open-settings-page(4);
             }
             return true;
         }
@@ -3502,11 +3546,14 @@ export component MainWindow inherits Window {
             return true;
         }
         if (text == Key.Return) {
-            if (!Chrome.focus-visible) {
+            if (!Chrome.focus-visible && !root.continue-sure) {
                 root.focus-show(root.focus-row);
                 return true;
             }
             return root.focus-activate();
+        }
+        if (root.focus-jump(text)) {
+            return true;
         }
         // Left and right are the seek keys until the ring is up and standing
         // on something they can move, so a panel opened with the mouse leaves
@@ -3522,6 +3569,49 @@ export component MainWindow inherits Window {
         }
         return false;
     }
+
+    /// Home and End, Page Up and Page Down, in the two lists that grow.
+    ///
+    /// A season of twenty-four episodes, or a folder of a few hundred files,
+    /// was otherwise a held arrow from one end to the other — and Home fell
+    /// through to starting the film again, PgUp and PgDn to its chapters,
+    /// with the very list being asked about open on screen.
+    ///
+    /// They bring the ring up where they land, as the arrows do, and stop at
+    /// the ends rather than wrapping: a jump that overshoots onto the other
+    /// end of the list is not a jump anybody aimed.
+    function focus-jump(text: string) -> bool {
+        if (!root.menu-open && !root.playlist-open) {
+            return false;
+        }
+        if (text == Key.Home) {
+            root.focus-show(root.list-first);
+            return true;
+        }
+        if (text == Key.End) {
+            root.focus-show(root.list-last);
+            return true;
+        }
+        if (text == Key.PageUp || text == Key.PageDown) {
+            root.focus-show(clamp(
+                root.focus-row + (text == Key.PageDown ? root.list-page : -root.list-page),
+                root.list-first, root.list-last));
+            return true;
+        }
+        return false;
+    }
+
+    /// The list's own rows: not the way back above a part's page, nor the
+    /// autoplay switch under the playlist.
+    property <int> list-first: root.playlist-open ? root.playlist-lead : 0;
+    property <int> list-last: root.playlist-open
+        ? root.playlist-lead + root.playlist-rows - 1
+        : root.focus-count - 1;
+    /// A page is what the list shows, less one row, so the row a jump left
+    /// from is still on screen to be read against.
+    property <int> list-page: max(1, Math.floor((root.playlist-open
+        ? root.playlist-list-h
+        : max(root.subs-list-h, root.audio-list-h)) / root.row-h) - 1);
 
     function on-playback(text: string) -> bool {
         if (text == " ") {
@@ -3571,16 +3661,14 @@ export component MainWindow inherits Window {
             } else if (root.at-end) {
                 // Seeking forward from the end has nowhere to go. Forward
                 // means what the end pill offers first: the next file, or at
-                // the end of a season the next one, and this file again only
-                // when it is all there is. Never the folder dialog, though -
+                // the end of a season the next one. Never the folder dialog,
+                // though -
                 // an arrow held a moment too long is not a press deliberate
                 // enough to put one up, and Enter is already on that choice.
                 if (!root.at-last) {
                     root.play-next();
                 } else if (root.next-season-path != "") {
                     root.end-onward();
-                } else if (!root.end-two) {
-                    root.replay();
                 }
             } else if (shift) {
                 root.seek-relative(root.fine-seek-step);
@@ -3620,10 +3708,15 @@ export component MainWindow inherits Window {
     function on-subtitles(text: string) -> bool {
         if (text == "c" || text == "C") {
             root.toggle-subtitles();
+            // Said, because nothing else says it: the subtitles button shows
+            // no state, and in a scene where nobody is talking neither does
+            // the picture. The caption J gives — the track, or Subtitles off —
+            // read live, so it lands on what mpv did a beat later.
+            Flash.show-figure(3);
             return true;
         }
         // mpv's j and J: through the subtitle tracks, including none, saying
-        // which one it landed on — the bar's glyph can only say on or off.
+        // which one it landed on.
         if (text == "j" || text == "J") {
             root.cycle-track(true, text == "j" ? 1 : -1);
             Flash.show-figure(3);
@@ -3746,11 +3839,7 @@ export component MainWindow inherits Window {
     /// way on and the second is Restart.
     function end-activate(choice: int) {
         if (!root.end-two) {
-            if (root.at-last) {
-                root.replay();
-            } else {
-                root.play-next();
-            }
+            root.play-next();
         } else if (choice == 0) {
             root.end-onward();
         } else {
@@ -3791,6 +3880,9 @@ export component MainWindow inherits Window {
     // opens. Kept, it is also where the ring comes back to when that panel
     // closes — on the button that opened it.
     out property <int> bar-focus: 0;
+    /// The ring was on the bar when the idle clock took the bar away, so the
+    /// next Tab resumes at `bar-focus` rather than starting over.
+    property <bool> bar-resume: false;
     /// Thirteen buttons, and the end pill's choices after them while it is
     /// up, or the credits pill's one. The two are never up together.
     property <int> bar-count: 13
@@ -3804,7 +3896,11 @@ export component MainWindow inherits Window {
         }
         if (text == Key.Tab || text == Key.Backtab) {
             if (!Chrome.focus-visible) {
-                root.bar-focus = shift || text == Key.Backtab ? root.bar-count - 1 : 0;
+                if (!(root.bar-resume && root.bar-focus < root.bar-count
+                        && root.bar-enabled(root.bar-focus))) {
+                    root.bar-focus = shift || text == Key.Backtab ? root.bar-count - 1 : 0;
+                }
+                root.bar-resume = false;
                 Chrome.focus-visible = true;
                 return true;
             }
@@ -3819,10 +3915,12 @@ export component MainWindow inherits Window {
             return true;
         }
         if (text == Key.Escape) {
-            // Puts the ring away, and then does what Escape does anyway —
-            // leaves fullscreen — rather than spending the press on the ring.
+            // Puts the ring away, and does nothing else. It used to go on and
+            // leave fullscreen in the same press, and a hand on the sofa
+            // pressing Escape to clear a highlight was thrown out of the film.
+            // The next press is the one that leaves.
             Chrome.focus-visible = false;
-            return false;
+            return true;
         }
         return false;
     }
@@ -3917,6 +4015,18 @@ export component MainWindow inherits Window {
         }
         if (root.has-file && (text == "t" || text == "T")) {
             root.toggle-panscan();
+            return true;
+        }
+        // Straight to the shortcuts page, the one reference the player has,
+        // which otherwise sat three levels down behind the gear. Pressed
+        // again on that page, it closes it, as S does the panel.
+        if (text == "?") {
+            if (root.settings-open && root.settings-page == 4) {
+                root.open-settings(false);
+            } else {
+                root.open-settings-page(4);
+                root.focus-show(0);
+            }
             return true;
         }
         // The ring comes up only with a panel. Pressed to close one, it used
@@ -4278,8 +4388,10 @@ export component MainWindow inherits Window {
                     }
                 }
 
+                // Not KEYBOARD: the page behind it lists what the pointer
+                // does as well.
                 MenuHeading {
-                    text: "KEYBOARD";
+                    text: "HELP";
                     after-content: true;
                 }
                 DrillRow {
@@ -5055,6 +5167,16 @@ export component MainWindow inherits Window {
                     root.open-settings(true);
                 }
             }
+            // The reference, one key away from the moment someone is most
+            // likely to wonder what the keys are.
+            if root.fatal == "": ShortcutRow {
+                label: "Shortcuts";
+                shortcut: "?";
+                focused: !root.has-file && root.focus-row == root.invite-first + 3;
+                picked => {
+                    root.open-settings-page(4);
+                }
+            }
 
             if root.fatal == "": Rectangle {
                 height: Rows.group-gap;
@@ -5157,10 +5279,10 @@ export component MainWindow inherits Window {
     // a few still seconds, and this is the one thing that should still be
     // there when it does. Nothing has happened, but something is waiting.
     //
-    // At the end of the last file of several it offers a second thing. The
-    // end of a season is where Restart alone was the least likely thing
-    // anyone wanted, and the player cannot know what the next season is
-    // called — but it can put the folder dialog one press away.
+    // At the end of the last file it offers a second thing. The end of a
+    // season, or of a film, is where Restart alone was the least likely thing
+    // anyone wanted, and the player cannot always know what comes next — but
+    // it can put the folder dialog one press away.
     Rectangle {
         x: root.end-x;
         y: root.end-y + root.end-rise;
@@ -5180,13 +5302,9 @@ export component MainWindow inherits Window {
             pad: root.end-choice-pad;
             gap: root.end-gap;
             focused: root.bar-reach && root.bar-focus == 13;
-            icon: !root.end-two
-                ? (root.at-last
-                    ? @image-url("../../../public/icons/rewind.svg")
-                    : @image-url("../../../public/icons/step-forward.svg"))
-                : root.next-season-path != ""
-                    ? @image-url("../../../public/icons/step-forward.svg")
-                    : @image-url("../../../public/icons/folder-open.svg");
+            icon: !root.end-two || root.next-season-path != ""
+                ? @image-url("../../../public/icons/step-forward.svg")
+                : @image-url("../../../public/icons/folder-open.svg");
             label: root.end-two ? root.end-onward-label : root.end-label;
             picked => {
                 root.end-activate(0);
@@ -5531,7 +5649,7 @@ export component MainWindow inherits Window {
                 // The same three states the glyph has. A button offering to
                 // start a finished film again should not say "Play", which
                 // is what it would resume rather than what it will do.
-                tip: root.at-end ? "Start again"
+                tip: root.at-end ? "Restart"
                     : root.paused || !root.has-file ? "Play" : "Pause";
                 keys: root.at-end ? "Home" : "Space";
                 focused: root.bar-reach && root.bar-focus == 4;
