@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Death by MPV
+GenericName=Video Player
+Comment=A video player built on mpv
+Exec=dbm-player %f
+Icon=io.github.MisterD0ctor.DBM
+Terminal=false
+Categories=AudioVideo;Video;Player;
+Keywords=video;movie;film;episode;player;mpv;
+MimeType=video/mp4;video/x-matroska;video/x-msvideo;video/vnd.avi;video/quicktime;video/x-ms-wmv;video/x-flv;video/webm;video/x-m4v;video/mpeg;video/mp2t;
+StartupWMClass=io.github.MisterD0ctor.DBM
+SingleMainWindow=true

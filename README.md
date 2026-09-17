@@ -24,6 +24,17 @@ portable zip if you would rather unpack it somewhere and run it.
 
 It is not code-signed, so Windows SmartScreen will warn the first time.
 
+On Linux it is a Flatpak, distributed only as a file on Releases — the player
+itself is not on Flathub and cannot be found in a software store. Download
+`death-by-mpv.flatpak` and open it, or run
+`flatpak install --user death-by-mpv.flatpak`. It installs for the current
+user and appears in *Open with* for video files without becoming the default.
+
+The file holds only the player. The shared runtime it runs on, which supplies
+hardware decoding and the NVIDIA driver, is downloaded from the Flathub
+remote on install, so that remote has to be set up; most desktops that ship
+Flatpak already have it.
+
 ## Building from source
 
 You need the **Rust stable toolchain** ([rustup](https://rustup.rs/)) and
@@ -41,12 +52,16 @@ only for seek-preview thumbnails — are checked in under
 asked of the machine the player runs on; see that directory's README for how
 they are found and for the licensing that shipping them implies.
 
+On Linux, `cargo build` also needs the development packages for fontconfig,
+freetype, Wayland, xkbcommon and OpenGL, and running the result needs a
+`libmpv.so.2` whose FFmpeg can decode HEVC. Fedora's stock FFmpeg cannot:
+the video plays black with sound. The Flatpak build below avoids both.
+
 ## Platforms
 
-Windows is what ships. Linux is planned and the code is kept honest for it —
-the Windows-only pieces (the modal resize-loop hook, the media keys, the
-drop target) are isolated behind `cfg` — but it is not verified per change.
-macOS is out of scope.
+Windows and Linux both ship. On Linux, the Windows-only pieces (the modal
+resize-loop hook, the media keys, the drop target, keeping the display awake)
+compile away and have no counterpart yet. macOS is out of scope.
 
 ## Packaging
 
@@ -60,6 +75,30 @@ layout the player's own lookup expects — and wraps the lot with NSIS into
 the script also finds the copy Tauri leaves in `%LOCALAPPDATA%` if that is
 what you have. `packaging/death-by-mpv.nsi` is the whole installer and is
 meant to be read.
+
+```sh
+packaging/flatpak/build.sh --bundle
+```
+
+Builds the Flatpak from the working tree, installs it for the current user,
+and writes `target/flatpak/death-by-mpv.flatpak` for Releases. Needs
+`flatpak-builder` (or the `org.flatpak.Builder` Flatpak) and the Flathub
+remote; the SDK and Rust extension are fetched on first run. The manifest,
+`packaging/flatpak/io.github.MisterD0ctor.DBM.yml`, builds libass, libplacebo
+and libmpv, and takes FFmpeg from the runtime.
+
+The build is offline, so every crate is listed in
+`packaging/flatpak/cargo-sources.json`. Regenerate it whenever `Cargo.lock`
+changes, with `flatpak-cargo-generator.py` from
+[flatpak-builder-tools](https://github.com/flatpak/flatpak-builder-tools):
+
+```sh
+python3 flatpak-cargo-generator.py Cargo.lock -o packaging/flatpak/cargo-sources.json
+```
+
+The app is not on Flathub. Submitting it would mean replacing the manifest's
+`type: dir` source with a git tag and commit, and adding screenshots to the
+metainfo.
 
 ## Licence
 
@@ -82,7 +121,7 @@ licence asks of anyone passing the binaries on, including you if you fork this.
 | `crates/player/ui/` | the interface, in Slint |
 | `crates/player/shaders/` | the border, blur and glass passes |
 | `crates/player/vendor/` | libmpv and ffmpeg, shipped |
-| `packaging/` | the Windows installer |
+| `packaging/` | the Windows installer, and the Flatpak under `flatpak/` |
 | `public/icons/` | the icon set, drawn for 24×24 |
 
 Earlier versions of this player were a Tauri 2 + Leptos application, with mpv

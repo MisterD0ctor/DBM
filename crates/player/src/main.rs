@@ -95,6 +95,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let ui = MainWindow::new()?;
 
+    // Wayland pairs a window with its desktop entry by this id; without it the
+    // dock shows a generic icon and no name. It is the Flatpak's id, and the
+    // desktop file is named after it. Here and not earlier: it needs the
+    // platform `MainWindow::new` brings up, and is read when the native window
+    // is created at `show`.
+    #[cfg(target_os = "linux")]
+    slint::set_xdg_app_id("io.github.MisterD0ctor.DBM")?;
+
     // `Arc` for two reasons: the address of the `Mpv` must stay put, because
     // the render context keeps a raw pointer to the symbol table inside it;
     // and the worker thread needs a share of it.

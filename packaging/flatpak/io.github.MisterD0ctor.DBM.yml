@@ -1,0 +1,129 @@
+# Flatpak manifest for Death by MPV.
+#
+# FFmpeg is deliberately not built here. The freedesktop runtime's own
+# libavcodec, overlaid at run time by its codecs-extra extension, decodes
+# HEVC, H.264, AV1 and VP9 with CUDA and VA-API — and it ships the `ffmpeg`
+# executable the seek previews call. The runtime keeps that patched; a copy of
+# our own would be one more thing to chase CVEs for. Stock Fedora's FFmpeg,
+# by contrast, has no HEVC at all, which is the black-picture failure this
+# packaging exists to rule out.
+#
+# The NVIDIA userspace driver arrives the same way, as the runtime's
+# GL.nvidia extension matching the host driver.
+#
+# Built by build.sh beside this file. The source below is the working tree;
+# a Flathub submission swaps it for a `type: git` source pinned to a tag and
+# commit, which is the only change that needs.
+
+id: io.github.MisterD0ctor.DBM
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: dbm-player
+
+finish-args:
+  - --share=ipc
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --device=dri
+  - --socket=pulseaudio
+  # Read-only access to everything, not a portal-scoped file. Opening one
+  # episode makes the rest of its folder the playlist, and the resume point is
+  # keyed by the real path mpv's watch-later files are named after; a
+  # document-portal path would break both. Nothing is written outside the
+  # app's own data directory.
+  - --filesystem=host:ro
+
+cleanup:
+  - /include
+  - /lib/pkgconfig
+  - /share/doc
+  - /share/man
+  - '*.a'
+  - '*.la'
+
+modules:
+  - name: libass
+    config-opts:
+      - --disable-static
+    sources:
+      - type: git
+        url: https://github.com/libass/libass.git
+        tag: 0.17.5
+        commit: 4a05d8127f525943ebf45fdc6497c9e665947f0d
+
+  - name: libplacebo
+    buildsystem: meson
+    config-opts:
+      - -Dvulkan=enabled
+      - -Dshaderc=enabled
+      - -Ddemos=false
+    sources:
+      - type: git
+        url: https://github.com/haasn/libplacebo.git
+        tag: v7.360.1
+        commit: cee9b076f2c63104ccfd497fa79c39a867293ec4
+
+  # libmpv only. Features the player depends on are `enabled`, so a missing
+  # dependency fails the build instead of quietly shipping without hardware
+  # decoding; the ones it never touches are switched off. mpv's own X11
+  # windowing is among those: it draws into the player's GL context, never a
+  # window of its own, and X11 support would drag in libXpresent.
+  - name: mpv
+    buildsystem: meson
+    config-opts:
+      - -Dlibmpv=true
+      - -Dcplayer=false
+      - -Dbuild-date=false
+      - -Dmanpage-build=disabled
+      - -Dhtml-build=disabled
+      - -Dlua=disabled
+      - -Djavascript=disabled
+      - -Dgl=enabled
+      - -Degl=enabled
+      - -Degl-wayland=enabled
+      - -Dplain-gl=enabled
+      - -Dwayland=enabled
+      - -Dx11=disabled
+      - -Dcuda-hwaccel=enabled
+      - -Dcuda-interop=enabled
+      - -Dvaapi=enabled
+      - -Dpipewire=enabled
+      - -Dpulse=enabled
+    sources:
+      - type: git
+        url: https://github.com/mpv-player/mpv.git
+        tag: v0.41.0
+        commit: 41f6a645068483470267271e1d09966ca3b9f413
+
+  - name: dbm-player
+    buildsystem: simple
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+      env:
+        CARGO_HOME: /run/build/dbm-player/cargo
+        CARGO_NET_OFFLINE: 'true'
+    build-commands:
+      - cargo --offline build --release -p dbm-player
+      - install -Dm755 target/release/dbm-player ${FLATPAK_DEST}/bin/dbm-player
+      - install -Dm644 packaging/flatpak/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications/${FLATPAK_ID}.desktop
+      - install -Dm644 packaging/flatpak/${FLATPAK_ID}.metainfo.xml ${FLATPAK_DEST}/share/metainfo/${FLATPAK_ID}.metainfo.xml
+      - install -Dm644 public/death-by-mpv.svg ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg
+      - |
+        for size in 32 64 128; do
+          install -Dm644 crates/player/icons/${size}x${size}.png ${FLATPAK_DEST}/share/icons/hicolor/${size}x${size}/apps/${FLATPAK_ID}.png
+        done
+      - install -Dm644 crates/player/icons/128x128@2x.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/${FLATPAK_ID}.png
+      - install -Dm644 crates/player/icons/icon.png ${FLATPAK_DEST}/share/icons/hicolor/512x512/apps/${FLATPAK_ID}.png
+    sources:
+      - type: dir
+        path: ../..
+        skip:
+          - .git
+          - target
+          - crates/player/vendor
+      # Every crate in Cargo.lock, so the build runs offline. Regenerate
+      # whenever Cargo.lock changes — see Packaging in the top-level README.
+      - cargo-sources.json

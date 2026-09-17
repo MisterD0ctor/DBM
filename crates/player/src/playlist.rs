@@ -348,6 +348,42 @@ mod tests {
         assert_eq!(registered, VIDEO_EXTENSIONS);
     }
 
+    /// The same promise on Linux, where a desktop entry claims MIME types
+    /// rather than extensions. The table is the one place the two meet: every
+    /// extension the player opens must be mapped, and the entry must claim
+    /// exactly the types that mapping produces.
+    #[test]
+    fn the_desktop_entry_claims_exactly_what_the_player_opens() {
+        const TYPES: &[(&str, &[&str])] = &[
+            ("mp4", &["video/mp4"]),
+            ("mkv", &["video/x-matroska"]),
+            ("avi", &["video/x-msvideo", "video/vnd.avi"]),
+            ("mov", &["video/quicktime"]),
+            ("wmv", &["video/x-ms-wmv"]),
+            ("flv", &["video/x-flv"]),
+            ("webm", &["video/webm"]),
+            ("m4v", &["video/x-m4v"]),
+            ("mpg", &["video/mpeg"]),
+            ("mpeg", &["video/mpeg"]),
+            ("ts", &["video/mp2t"]),
+            ("m2ts", &["video/mp2t"]),
+        ];
+        let mapped: Vec<&str> = TYPES.iter().map(|(ext, _)| *ext).collect();
+        assert_eq!(mapped, VIDEO_EXTENSIONS);
+
+        let entry = include_str!("../../../packaging/flatpak/io.github.MisterD0ctor.DBM.desktop");
+        let claimed: std::collections::BTreeSet<&str> = entry
+            .lines()
+            .find_map(|line| line.strip_prefix("MimeType="))
+            .expect("desktop entry has a MimeType line")
+            .split(';')
+            .filter(|t| !t.is_empty())
+            .collect();
+        let expected: std::collections::BTreeSet<&str> =
+            TYPES.iter().flat_map(|(_, types)| types.iter().copied()).collect();
+        assert_eq!(claimed, expected);
+    }
+
     fn names(paths: &[PathBuf]) -> Vec<String> {
         paths
             .iter()

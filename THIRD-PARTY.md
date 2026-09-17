@@ -39,6 +39,25 @@ The player spawns this as a separate process to build seek-preview
 thumbnails; it is aggregated with the player rather than linked into it.
 Shipping it still carries the licence and source obligations above.
 
+## The Flatpak
+
+The Linux build ships nothing prebuilt. The manifest,
+[`packaging/flatpak/io.github.MisterD0ctor.DBM.yml`](packaging/flatpak/io.github.MisterD0ctor.DBM.yml),
+compiles these from source, each pinned to a tag and commit, and is itself the
+build recipe the GPL asks for:
+
+| Component | Version | Terms | Source |
+|---|---|---|---|
+| libmpv | mpv `v0.41.0`, commit `41f6a6450` | GPLv2-or-later (mpv's default GPL build) | [mpv-player/mpv](https://github.com/mpv-player/mpv) |
+| libass | `0.17.5`, commit `4a05d8127` | ISC | [libass/libass](https://github.com/libass/libass) |
+| libplacebo | `v7.360.1`, commit `cee9b076f` | LGPLv2.1-or-later | [haasn/libplacebo](https://github.com/haasn/libplacebo) |
+
+**FFmpeg is not in the Flatpak.** libmpv links the FFmpeg of the
+`org.freedesktop.Platform` runtime, overlaid at run time by its `codecs-extra`
+extension, and the seek previews run the runtime's `ffmpeg`. The runtime is
+installed from Flathub separately and carries its own licence and source
+obligations. This project does not redistribute it.
+
 ## Getting the corresponding source
 
 The links above are the directions the GPL asks for. If any of them has gone
