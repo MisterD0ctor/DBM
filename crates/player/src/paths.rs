@@ -12,13 +12,19 @@ const APP_DIR: &str = "Death by MPV";
 /// Falls back to the temp directory rather than failing: a missing config
 /// directory should cost a saved position, not the ability to play a file.
 pub fn app_data_dir() -> PathBuf {
-    let base = if cfg!(windows) {
-        std::env::var_os("APPDATA").map(PathBuf::from)
-    } else {
-        std::env::var_os("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
-    };
+    // `APPDATA` wins outright on every platform, not just Windows — the
+    // `durations` test redirects it to a scratch directory, and that has to
+    // work the same way wherever the suite runs or the test quietly starts
+    // reading and writing the real one.
+    let base = std::env::var_os("APPDATA").map(PathBuf::from).or_else(|| {
+        if cfg!(windows) {
+            None
+        } else {
+            std::env::var_os("XDG_CONFIG_HOME")
+                .map(PathBuf::from)
+                .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
+        }
+    });
     let dir = base
         .unwrap_or_else(std::env::temp_dir)
         .join(APP_DIR);

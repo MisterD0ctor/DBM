@@ -25,31 +25,6 @@ use std::sync::Arc;
 use crate::mpv::Mpv;
 use crate::state::PlayerState;
 
-/// What the overlay is currently showing, so it is only told about changes.
-///
-/// Each update is a cross-process call into the shell. At sixty a second that
-/// would be absurd; nothing here changes more than a few times a minute.
-#[derive(PartialEq)]
-struct Shown {
-    title: String,
-    paused: bool,
-    has_file: bool,
-    /// Whether the skip buttons should be live, which is whether there is
-    /// anything to skip to.
-    playlist: bool,
-}
-
-impl Shown {
-    fn of(player: &PlayerState) -> Self {
-        Self {
-            title: player.display_title(),
-            paused: player.paused,
-            has_file: player.path.is_some(),
-            playlist: player.playlist_count > 1,
-        }
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Windows
 // ---------------------------------------------------------------------------
@@ -62,6 +37,33 @@ mod windows_impl {
     use super::*;
 
     use std::cell::RefCell;
+
+    /// What the overlay is currently showing, so it is only told about
+    /// changes.
+    ///
+    /// Each update is a cross-process call into the shell. At sixty a second
+    /// that would be absurd; nothing here changes more than a few times a
+    /// minute.
+    #[derive(PartialEq)]
+    struct Shown {
+        title: String,
+        paused: bool,
+        has_file: bool,
+        /// Whether the skip buttons should be live, which is whether there is
+        /// anything to skip to.
+        playlist: bool,
+    }
+
+    impl Shown {
+        fn of(player: &PlayerState) -> Self {
+            Self {
+                title: player.display_title(),
+                paused: player.paused,
+                has_file: player.path.is_some(),
+                playlist: player.playlist_count > 1,
+            }
+        }
+    }
 
     use windows::Foundation::TypedEventHandler;
     use windows::Media::{
