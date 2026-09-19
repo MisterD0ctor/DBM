@@ -205,5 +205,14 @@ void main() {
     // Lay the video over the ambient background it just drew. This is the
     // step mpv's own compositor used to do, and the reason the forked BORDER
     // hook existed at all.
-    frag = vec4(mix(border.rgb, video_texel.rgb, in_video), 1.0);
+    //
+    // Taken two texels inside the rect rather than at `pos`, for the same
+    // reason the extension pass does it. Only the seam reaches this line, and
+    // `pos` there is half outside the picture: out there mpv's surround is
+    // transparent black, and the outermost row it did draw is blended against
+    // that same transparency. Sampling at `pos` mixed both into the join and
+    // drew a dark line round the whole frame, on every file, which is not in
+    // any of them.
+    vec3 edge = vid(clamp(pos, r.xy + 2.0 * u_texel, r.zw - 2.0 * u_texel)).rgb;
+    frag = vec4(mix(border.rgb, edge, in_video), 1.0);
 }
