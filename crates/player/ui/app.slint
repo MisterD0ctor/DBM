@@ -2085,6 +2085,15 @@ export component MainWindow inherits Window {
         : root.settings-page == 2 ? 2 + root.border-params.length
         : root.settings-page == 3 ? 5
         : 1;
+    /// The same count for `leaf-page`, which on the way back out is not the
+    /// page the keyboard is on. The reset row is the last of its page, so
+    /// counting it off the live page would light the wrong row on a page
+    /// that is halfway out of the panel.
+    property <int> leaf-focus-count:
+        root.leaf-page == 1 ? 2 + root.glass-params.length
+        : root.leaf-page == 2 ? 2 + root.border-params.length
+        : root.leaf-page == 3 ? 5
+        : 1;
 
     in property <bool> opening: false;
     /// What is being opened, named the way a person would name it: the file
@@ -3511,6 +3520,11 @@ export component MainWindow inherits Window {
     changed settings-page => {
         root.reset-armed = 0;
         root.reset-undoable = 0;
+        // Only on the way in. Going back leaves this where it is, which is
+        // what keeps the departing page drawn while it slides out.
+        if (root.settings-page != 0) {
+            root.leaf-page = root.settings-page;
+        }
     }
 
     changed settings-open => {
@@ -4337,6 +4351,35 @@ export component MainWindow inherits Window {
         }
     }
 
+    // --- drilling into a settings page ---
+    //
+    // A panel with pages behind its rows can change what it is showing in one
+    // frame, and then the only account of what happened is that everything is
+    // different. So the two pages move: the one being left goes out the side
+    // the new one comes in from, and the panel grows or shrinks to the new
+    // page's height under them both. Back reverses it, which is what makes
+    // the pair read as one place with a door rather than two lists.
+    //
+    /// 0 on the front page, 1 on a page behind it. One number, because the
+    /// tree is two deep: every move is between the front and a leaf, so there
+    /// is never a third position to be in.
+    property <float> drill: root.settings-page == 0 ? 0.0 : 1.0;
+    /// Which page the drilled-in pane draws.
+    ///
+    /// Held rather than read off `settings-page`, which is 0 for the whole of
+    /// the way back: the pane sliding out has to keep drawing the page it is
+    /// carrying until it is gone.
+    property <int> leaf-page: 1;
+
+    // Long enough to be followed, short enough that a page behind a row is
+    // not a place you wait to arrive at. The same curve at both ends: this
+    // is a thing being moved, not a surface fading in, so it eases out of
+    // rest and back into it.
+    animate drill {
+        duration: 220ms;
+        easing: ease-in-out;
+    }
+
     // Settings. The front page is a list of what can be adjusted; the
     // controls behind each entry are a page of their own. Everything tunable
     // lives here - the two effects and the subtitle adjustments - so there is
@@ -4371,7 +4414,17 @@ export component MainWindow inherits Window {
         width: 340px;
         height: min(root.panel-pad + self.body, root.panel-max-h);
         x: root.anchored-x(root.settings-anchor, self.width);
+        // Off its own height, so the panel keeps its bottom edge and grows
+        // upward — and the glass follows, because the Rust side reads this
+        // same rectangle every frame.
         y: root.timeline-y - self.height - 12px + root.settings-rise;
+
+        // With `drill`, and by the same numbers: the box and the pages in it
+        // are one movement.
+        animate height {
+            duration: 220ms;
+            easing: ease-in-out;
+        }
         visible: root.settings-shown > root.shown-epsilon;
         opacity: root.settings-shown;
         clip: true;
@@ -4385,217 +4438,248 @@ export component MainWindow inherits Window {
             }
         }
 
-        VerticalLayout {
-            padding-top: Rows.panel-pad;
-            padding-bottom: Rows.panel-pad;
+        // The page it is on and the page it is going to, side by side.
+        // `drill` is the whole of the movement: the pair take their x from
+        // it, and the panel's own height animates alongside, so the box and
+        // what is in it arrive together rather than the box snapping to the
+        // new size and the content catching up.
+        //
+        // Only the two ends of a move exist. At rest `drill` is exactly 0 or
+        // 1 and one of these conditions is false, so a settled panel builds
+        // the one page it is showing, as it did before there was a move.
+        if root.drill < 1.0: Rectangle {
+            x: -root.drill * parent.width;
+            width: parent.width;
+            height: parent.height;
 
-            if root.settings-page == 0: VerticalLayout {
-                MenuHeading {
-                    text: "EFFECTS";
-                }
-                // No switch. Turning the glass off set the panel count to
-                // zero for every rect on screen — including the panel this row
-                // is printed on, which became a fully transparent rectangle:
-                // six rows of text floating on moving video, with the switch
-                // among them invisible and the only way back. A control that
-                // erases itself is not a setting.
-                //
-                // The material is the product, so it is not optional. What is
-                // here is the tuning, which is the part worth reaching. The
-                // flag still exists in the settings file for anyone who wants
-                // to turn it off by hand while working on the shader.
-                DrillRow {
-                    icon: @image-url("../../../public/icons/glass.svg");
-                    label: "Liquid glass";
-                    focused: root.settings-open && root.focus-row == 0;
-                    opened => {
-                        root.settings-page = 1;
-                    }
-                }
-                // The same glyph pair the bar button wears, for the same
-                // reason: the row no longer carries a switch, so the icon is
-                // what says whether the effect is on. B turns it off, and so
-                // does the button on the bar — both of which are to hand
-                // while a film is playing, which is when it is worth turning
-                // off at all. What is here is the tuning.
-                DrillRow {
-                    icon: root.ambience-on
-                        ? @image-url("../../../public/icons/ambience-on.svg")
-                        : @image-url("../../../public/icons/ambience-slash.svg");
-                    label: "Ambient border";
-                    focused: root.settings-open && root.focus-row == 1;
-                    opened => {
-                        root.settings-page = 2;
-                    }
-                }
+            VerticalLayout {
+                padding-top: Rows.panel-pad;
+                padding-bottom: Rows.panel-pad;
+                // The panel resizes under its content, not around it: with
+                // the height animating, a layout free to stretch would pull
+                // the rows apart for the length of the move.
+                alignment: start;
 
-                // No switch of its own: subtitles are turned on and off from
-                // the bar, and from the Off row in the tracks menu. What is
-                // here is only the tuning, which is what this panel is for.
-                MenuHeading {
-                    text: "SUBTITLES";
-                    after-content: true;
-                }
-                DrillRow {
-                    icon: @image-url("../../../public/icons/subtitle-time.svg");
-                    label: "Timing, size & position";
-                    focused: root.settings-open && root.focus-row == 2;
-                    opened => {
-                        root.settings-page = 3;
+                if root.settings-page == 0: VerticalLayout {
+                    MenuHeading {
+                        text: "EFFECTS";
                     }
-                }
-
-                // Not KEYBOARD: the page behind it lists what the pointer
-                // does as well.
-                MenuHeading {
-                    text: "HELP";
-                    after-content: true;
-                }
-                DrillRow {
-                    icon: @image-url("../../../public/icons/keyboard.svg");
-                    label: "Shortcuts";
-                    focused: root.settings-open && root.focus-row == 3;
-                    opened => {
-                        root.settings-page = 4;
-                    }
-                }
-            }
-
-            if root.settings-page == 1: VerticalLayout {
-                BackRow {
-                    label: "LIQUID GLASS";
-                    focused: root.focus-row == 0;
-                    back => {
-                        root.settings-page = 0;
-                    }
-                }
-                for item[idx] in root.glass-params: ParamSlider {
-                    label: item.label;
-                    fraction: item.fraction;
-                    readout: item.readout;
-                    focused: root.focus-row == idx + 1;
-                    moved(f) => {
-                        root.set-param(item.index, f);
-                    }
-                }
-                Rectangle {
-                    height: Rows.group-gap;
-                }
-                MenuRow {
-                    label: root.reset-label(1);
-                    focused: root.focus-row == root.settings-focus-count - 1;
-                    picked => {
-                        root.reset-row(1);
-                    }
-                }
-            }
-
-            if root.settings-page == 2: VerticalLayout {
-                BackRow {
-                    label: "AMBIENT BORDER";
-                    focused: root.focus-row == 0;
-                    back => {
-                        root.settings-page = 0;
-                    }
-                }
-                for item[idx] in root.border-params: ParamSlider {
-                    label: item.label;
-                    fraction: item.fraction;
-                    readout: item.readout;
-                    focused: root.focus-row == idx + 1;
-                    moved(f) => {
-                        root.set-param(item.index, f);
-                    }
-                }
-                Rectangle {
-                    height: Rows.group-gap;
-                }
-                MenuRow {
-                    label: root.reset-label(2);
-                    focused: root.focus-row == root.settings-focus-count - 1;
-                    picked => {
-                        root.reset-row(2);
-                    }
-                }
-            }
-
-            // Steppers rather than sliders: these are read as numbers, and
-            // the useful move is one step at a time. Sliders are for the
-            // material parameters, where the eye judges the result and the
-            // number is incidental.
-            if root.settings-page == 3: VerticalLayout {
-                BackRow {
-                    label: "SUBTITLES";
-                    focused: root.focus-row == 0;
-                    back => {
-                        root.settings-page = 0;
-                    }
-                }
-                StepperRow {
-                    icon: @image-url("../../../public/icons/clock.svg");
-                    label: "Timing";
-                    focused: root.focus-row == 1;
-                    value: root.sub-delay-text;
-                    stepped(dir) => {
-                        root.nudge-sub-delay(dir * root.delay-step);
-                    }
-                }
-                StepperRow {
-                    icon: @image-url("../../../public/icons/text-size.svg");
-                    label: "Size";
-                    focused: root.focus-row == 2;
-                    value: root.sub-scale-text;
-                    stepped(dir) => {
-                        root.nudge-sub-scale(dir * root.sub-scale-step);
-                    }
-                }
-                StepperRow {
-                    icon: @image-url("../../../public/icons/arrows-up-down.svg");
-                    label: "Position";
-                    focused: root.focus-row == 3;
-                    value: root.sub-pos-text;
-                    stepped(dir) => {
-                        root.nudge-sub-pos(dir * root.sub-pos-step);
-                    }
-                }
-                Rectangle {
-                    height: Rows.group-gap;
-                }
-                MenuRow {
-                    label: root.reset-label(3);
-                    focused: root.focus-row == root.settings-focus-count - 1;
-                    picked => {
-                        root.reset-row(3);
-                    }
-                }
-            }
-
-            if root.settings-page == 4: VerticalLayout {
-                BackRow {
-                    label: "SHORTCUTS";
-                    focused: root.focus-row == 0;
-                    back => {
-                        root.settings-page = 0;
-                    }
-                }
-                ScrollList {
-                    height: root.shortcuts-list-h;
-                    content-height: root.shortcuts-natural;
-
-                    // The heading rides with the first row of its group
-                    // rather than standing between groups as an entry of its
-                    // own, so there is one list here and not two that have to
-                    // be kept in step.
-                    for item[idx] in root.shortcuts: VerticalLayout {
-                        if item.heading != "": MenuHeading {
-                            text: item.heading;
-                            icon: item.icon;
-                            after-content: idx > 0;
+                    // No switch. Turning the glass off set the panel count to
+                    // zero for every rect on screen — including the panel this row
+                    // is printed on, which became a fully transparent rectangle:
+                    // six rows of text floating on moving video, with the switch
+                    // among them invisible and the only way back. A control that
+                    // erases itself is not a setting.
+                    //
+                    // The material is the product, so it is not optional. What is
+                    // here is the tuning, which is the part worth reaching. The
+                    // flag still exists in the settings file for anyone who wants
+                    // to turn it off by hand while working on the shader.
+                    DrillRow {
+                        icon: @image-url("../../../public/icons/glass.svg");
+                        label: "Liquid glass";
+                        focused: root.settings-open && root.focus-row == 0;
+                        opened => {
+                            root.settings-page = 1;
                         }
-                        ShortcutRow {
-                            label: item.label;
-                            shortcut: item.keys;
-                            inert: true;
+                    }
+                    // The same glyph pair the bar button wears, for the same
+                    // reason: the row no longer carries a switch, so the icon is
+                    // what says whether the effect is on. B turns it off, and so
+                    // does the button on the bar — both of which are to hand
+                    // while a film is playing, which is when it is worth turning
+                    // off at all. What is here is the tuning.
+                    DrillRow {
+                        icon: root.ambience-on
+                            ? @image-url("../../../public/icons/ambience-on.svg")
+                            : @image-url("../../../public/icons/ambience-slash.svg");
+                        label: "Ambient border";
+                        focused: root.settings-open && root.focus-row == 1;
+                        opened => {
+                            root.settings-page = 2;
+                        }
+                    }
+
+                    // No switch of its own: subtitles are turned on and off from
+                    // the bar, and from the Off row in the tracks menu. What is
+                    // here is only the tuning, which is what this panel is for.
+                    MenuHeading {
+                        text: "SUBTITLES";
+                        after-content: true;
+                    }
+                    DrillRow {
+                        icon: @image-url("../../../public/icons/subtitle-time.svg");
+                        label: "Timing, size & position";
+                        focused: root.settings-open && root.focus-row == 2;
+                        opened => {
+                            root.settings-page = 3;
+                        }
+                    }
+
+                    // Not KEYBOARD: the page behind it lists what the pointer
+                    // does as well.
+                    MenuHeading {
+                        text: "HELP";
+                        after-content: true;
+                    }
+                    DrillRow {
+                        icon: @image-url("../../../public/icons/shortcuts.svg");
+                        label: "Shortcuts";
+                        focused: root.settings-open && root.focus-row == 3;
+                        opened => {
+                            root.settings-page = 4;
+                        }
+                    }
+                }
+            }
+        }
+
+        if root.drill > 0.0: Rectangle {
+            x: (1.0 - root.drill) * parent.width;
+            width: parent.width;
+            height: parent.height;
+
+            VerticalLayout {
+                padding-top: Rows.panel-pad;
+                padding-bottom: Rows.panel-pad;
+                alignment: start;
+
+                if root.leaf-page == 1: VerticalLayout {
+                    BackRow {
+                        label: "LIQUID GLASS";
+                        focused: root.focus-row == 0;
+                        back => {
+                            root.settings-page = 0;
+                        }
+                    }
+                    for item[idx] in root.glass-params: ParamSlider {
+                        label: item.label;
+                        fraction: item.fraction;
+                        readout: item.readout;
+                        focused: root.focus-row == idx + 1;
+                        moved(f) => {
+                            root.set-param(item.index, f);
+                        }
+                    }
+                    Rectangle {
+                        height: Rows.group-gap;
+                    }
+                    MenuRow {
+                        label: root.reset-label(1);
+                        focused: root.focus-row == root.leaf-focus-count - 1;
+                        picked => {
+                            root.reset-row(1);
+                        }
+                    }
+                }
+
+                if root.leaf-page == 2: VerticalLayout {
+                    BackRow {
+                        label: "AMBIENT BORDER";
+                        focused: root.focus-row == 0;
+                        back => {
+                            root.settings-page = 0;
+                        }
+                    }
+                    for item[idx] in root.border-params: ParamSlider {
+                        label: item.label;
+                        fraction: item.fraction;
+                        readout: item.readout;
+                        focused: root.focus-row == idx + 1;
+                        moved(f) => {
+                            root.set-param(item.index, f);
+                        }
+                    }
+                    Rectangle {
+                        height: Rows.group-gap;
+                    }
+                    MenuRow {
+                        label: root.reset-label(2);
+                        focused: root.focus-row == root.leaf-focus-count - 1;
+                        picked => {
+                            root.reset-row(2);
+                        }
+                    }
+                }
+
+                // Steppers rather than sliders: these are read as numbers, and
+                // the useful move is one step at a time. Sliders are for the
+                // material parameters, where the eye judges the result and the
+                // number is incidental.
+                if root.leaf-page == 3: VerticalLayout {
+                    BackRow {
+                        label: "SUBTITLES";
+                        focused: root.focus-row == 0;
+                        back => {
+                            root.settings-page = 0;
+                        }
+                    }
+                    StepperRow {
+                        icon: @image-url("../../../public/icons/clock.svg");
+                        label: "Timing";
+                        focused: root.focus-row == 1;
+                        value: root.sub-delay-text;
+                        stepped(dir) => {
+                            root.nudge-sub-delay(dir * root.delay-step);
+                        }
+                    }
+                    StepperRow {
+                        icon: @image-url("../../../public/icons/text-size.svg");
+                        label: "Size";
+                        focused: root.focus-row == 2;
+                        value: root.sub-scale-text;
+                        stepped(dir) => {
+                            root.nudge-sub-scale(dir * root.sub-scale-step);
+                        }
+                    }
+                    StepperRow {
+                        icon: @image-url("../../../public/icons/arrows-up-down.svg");
+                        label: "Position";
+                        focused: root.focus-row == 3;
+                        value: root.sub-pos-text;
+                        stepped(dir) => {
+                            root.nudge-sub-pos(dir * root.sub-pos-step);
+                        }
+                    }
+                    Rectangle {
+                        height: Rows.group-gap;
+                    }
+                    MenuRow {
+                        label: root.reset-label(3);
+                        focused: root.focus-row == root.leaf-focus-count - 1;
+                        picked => {
+                            root.reset-row(3);
+                        }
+                    }
+                }
+
+                if root.leaf-page == 4: VerticalLayout {
+                    BackRow {
+                        label: "SHORTCUTS";
+                        focused: root.focus-row == 0;
+                        back => {
+                            root.settings-page = 0;
+                        }
+                    }
+                    ScrollList {
+                        height: root.shortcuts-list-h;
+                        content-height: root.shortcuts-natural;
+
+                        // The heading rides with the first row of its group
+                        // rather than standing between groups as an entry of its
+                        // own, so there is one list here and not two that have to
+                        // be kept in step.
+                        for item[idx] in root.shortcuts: VerticalLayout {
+                            if item.heading != "": MenuHeading {
+                                text: item.heading;
+                                icon: item.icon;
+                                after-content: idx > 0;
+                            }
+                            ShortcutRow {
+                                label: item.label;
+                                shortcut: item.keys;
+                                inert: true;
+                            }
                         }
                     }
                 }
