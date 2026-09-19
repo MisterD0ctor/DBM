@@ -18,6 +18,12 @@
 //! chrome. The interface still owns the decision — it publishes
 //! `pointer-hidden`, which folds in an open panel and whether a film is even
 //! loaded — and this only carries it to the platform.
+//!
+//! The two platforms say it in different places. Windows has one display
+//! count per input queue and no window in the call at all; Wayland and X11
+//! have no such thing, and a pointer is hidden by giving the surface it is
+//! over no cursor — which means reaching the winit window behind Slint's.
+//! Hence the `&slint::Window` in a call Windows then ignores.
 
 /// The pointer's visibility, as this window has last asked for it.
 ///
@@ -45,7 +51,10 @@ impl Pointer {
     }
 
     /// Hide the pointer, or show it. Does nothing if it is already that way.
-    pub fn set_hidden(&mut self, hidden: bool) {
+    ///
+    /// The window is not part of this on Windows: the count below belongs to
+    /// the thread's input queue rather than to any one window.
+    pub fn set_hidden(&mut self, _window: &slint::Window, hidden: bool) {
         if self.hidden == hidden {
             return;
         }
@@ -90,14 +99,28 @@ impl Pointer {
         Self { hidden: false }
     }
 
-    /// Nothing yet. There is no counter to turn here: Wayland and X11 each
-    /// hide a pointer through the surface it is over, which means reaching
-    /// the winit window behind Slint's — an accessor still marked unstable at
-    /// 1.17, and not something to pin this program's cursor to while Linux is
-    /// not yet a target that ships. Recording the request and drawing nothing
-    /// from it would only hide that.
-    pub fn set_hidden(&mut self, hidden: bool) {
+    /// Hide the pointer, or show it. Does nothing if it is already that way.
+    ///
+    /// Through the winit window behind Slint's, which is the only place the
+    /// question can be put: a pointer is hidden per surface here, not per
+    /// process. The accessor is still marked unstable at 1.17 — the reason
+    /// this went unimplemented while Linux was not a target that shipped. It
+    /// is one now, and a film with a cursor parked over it is worse than a
+    /// dependency on an API that may be renamed.
+    ///
+    /// Nothing happens under a backend that is not winit, which is what the
+    /// `None` from the accessor means. Setting a cursor *icon* while this is
+    /// off does not undo it: winit holds the icon and applies it when the
+    /// pointer comes back, so Slint's own `mouse-cursor` and this can both
+    /// be true at once.
+    pub fn set_hidden(&mut self, window: &slint::Window, hidden: bool) {
+        use slint::winit_030::WinitWindowAccessor;
+
+        if self.hidden == hidden {
+            return;
+        }
         self.hidden = hidden;
+        window.with_winit_window(|w| w.set_cursor_visible(!hidden));
     }
 }
 
@@ -109,8 +132,18 @@ pub fn on_screen() -> Option<bool> {
 /// Put the pointer back. A program that exits with the cursor hidden has taken
 /// something that is not its own: the display count is this thread's, and the
 /// thread is about to end with the count still down.
+///
+/// Windows only, and not an oversight. Everywhere else the pointer is hidden
+/// on the window rather than on the process, so it is already given back by
+/// the window going away — and there is no window left to ask by the time
+/// this runs.
+#[cfg(windows)]
 impl Drop for Pointer {
     fn drop(&mut self) {
-        self.set_hidden(false);
+        if !self.hidden {
+            return;
+        }
+        self.hidden = false;
+        unsafe { windows::Win32::UI::WindowsAndMessaging::ShowCursor(true) };
     }
 }

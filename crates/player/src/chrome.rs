@@ -81,8 +81,13 @@ pub fn install(ui: &MainWindow, activity: Activity) -> slint::Timer {
         // to come back the moment the hand moves, and the timer would make
         // that up to a poll late.
         let mut pointer = crate::cursor::Pointer::new();
-        ui.global::<Chrome>()
-            .on_hide_pointer(move |hide| pointer.set_hidden(hide));
+        // Weak, because this callback is owned by the window it asks about.
+        let weak = ui.as_weak();
+        ui.global::<Chrome>().on_hide_pointer(move |hide| {
+            if let Some(ui) = weak.upgrade() {
+                pointer.set_hidden(ui.window(), hide);
+            }
+        });
     }
 
     let timer = slint::Timer::default();
