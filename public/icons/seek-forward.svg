@@ -7,7 +7,7 @@
    viewBox="0 0 6.3499999 6.35"
    version="1.1"
    id="svg1"
-   inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
    sodipodi:docname="seek-forward.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -25,12 +25,12 @@
      inkscape:document-units="px"
      showgrid="false"
      inkscape:zoom="22.627417"
-     inkscape:cx="8.0654367"
-     inkscape:cy="16.241359"
+     inkscape:cx="11.004349"
+     inkscape:cy="14.208427"
      inkscape:window-width="3440"
-     inkscape:window-height="1417"
-     inkscape:window-x="1432"
-     inkscape:window-y="1008"
+     inkscape:window-height="1403"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:current-layer="layer1">
     <inkscape:grid
@@ -57,7 +57,7 @@
        id="path-effect2"
        is_visible="true"
        lpeversion="1"
-       nodesatellites_param="F,0,0,1,0,0,0,1 @ F,0,0,1,0,1.2788355,0,1 @ F,0,0,1,0,0,0,1"
+       nodesatellites_param="F,0,0,1,0,0,0,1 @ F,0,0,1,0,1.0583333,0,1 @ F,0,0,1,0,0,0,1"
        radius="0"
        unit="px"
        method="auto"
@@ -75,12 +75,12 @@
      inkscape:groupmode="layer"
      id="layer1">
     <path
-       style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-miterlimit:100"
-       d="M 0.52916666,2.9104166 V 2.8663355 A 1.2788355,1.2788355 135 0 1 1.8080022,1.5875 l 3.8985929,0"
+       style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:round;stroke-miterlimit:100;stroke-dasharray:none"
+       d="M 0.52916666,2.6458333 A 1.0583333,1.0583333 135 0 1 1.5875,1.5875 h 4.1190951"
        id="path1"
        sodipodi:nodetypes="ccc"
        inkscape:path-effect="#path-effect2"
-       inkscape:original-d="M 0.52916666,2.9104166 V 1.5875 H 5.7065951" />
+       inkscape:original-d="M 0.52916666,2.6458333 V 1.5875 H 5.7065951" />
     <path
        style="fill:none;stroke:#ffffff;stroke-width:0.529;stroke-linecap:round;stroke-miterlimit:100;stroke-dasharray:none"
        d="M 4.7854354,0.66145833 5.711477,1.5875 4.7854354,2.5135416"
