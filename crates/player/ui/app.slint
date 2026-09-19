@@ -2396,9 +2396,21 @@ export component MainWindow inherits Window {
         ? 1.0 : 0.0;
 
     animate bar-shown, menu-shown, playlist-shown, settings-shown,
-            files-shown, preview-shown, end-shown, credits-shown, invite-shown,
+            files-shown, end-shown, credits-shown, invite-shown,
             tip-shown {
         duration: root.fade;
+        easing: ease-out;
+    }
+
+    /// Half that, and the one surface that gets its own number.
+    ///
+    /// Everything else in the list above arrives because something was
+    /// pressed, and a fade is how it announces itself. The preview is not
+    /// announcing anything: it comes and goes under a pointer already moving
+    /// along the track, and at the shared duration it reads as trailing the
+    /// hand rather than belonging to it.
+    animate preview-shown {
+        duration: root.fade / 2;
         easing: ease-out;
     }
 
@@ -2885,8 +2897,15 @@ export component MainWindow inherits Window {
     // Tied to the bar, not just to the pointer: a pointer resting on the
     // track never bumps the idle clock, so without this the chrome could fade
     // out from under a preview and leave it floating on its own.
-    property <bool> preview-open:
-        (scrub.has-hover || scrub.pressed) && root.controls-visible;
+    //
+    // And it stands down where an open panel is, which is what `crowded`
+    // below works out. Not for any open panel, the way the tip does: a tip
+    // is a courtesy and can be dropped on a rule of thumb, while the preview
+    // is the thing the pointer is asking for — which is the same reason the
+    // credits pill gives way to it. It yields only where the two would
+    // actually be in the same place.
+    property <bool> preview-open: (scrub.has-hover || scrub.pressed)
+        && root.controls-visible && !root.preview-crowded;
     property <bool> preview-has-tile: root.preview-tile-w > 0 && root.preview-tile-h > 0;
     /// Wide enough for the glass to be glass.
     ///
@@ -2911,11 +2930,46 @@ export component MainWindow inherits Window {
         : 26px;
     /// Where along the track the pointer is, in the track's own coordinates.
     property <length> preview-cursor: clamp(scrub.mouse-x, 0px, root.scrub-w);
+    /// Centred on the pointer and held inside the bar's own margins.
     property <length> preview-x: clamp(
         root.scrub-x + root.preview-cursor - root.preview-w / 2,
         root.bar-x,
         root.bar-x + root.bar-w - root.preview-w);
     property <length> preview-y: root.timeline-y - 10px - root.preview-h;
+
+    /// The column the one open panel occupies.
+    ///
+    /// One, because `close-others` means one: opening any panel shuts the
+    /// rest, so this is a single span rather than four to test against.
+    property <length> panel-x: root.menu-open ? menu.x
+        : root.playlist-open ? playlist-panel.x
+        : root.files-open ? files-panel.x
+        : settings.x;
+    property <length> panel-w: root.menu-open ? menu.width
+        : root.playlist-open ? playlist-panel.width
+        : root.files-open ? files-panel.width
+        : settings.width;
+
+    /// The air every surface keeps from the next one.
+    property <length> preview-gap: 12px;
+
+    /// The preview landing on that panel, which is the one place it must not
+    /// be: glass on glass, and the panel is the surface that was asked for
+    /// first and stays.
+    ///
+    /// Only the columns are tested, because the rows are never in doubt.
+    /// Every panel's bottom edge sits 12px above the timeline and the
+    /// preview's top edge is higher than that at any size it comes in, so
+    /// two that share a column always overlap. Scrubbing at the far end of
+    /// the bar from an open panel keeps its preview, which is the whole
+    /// point of measuring rather than ruling.
+    ///
+    /// It keeps following the pointer as it goes: the fade is the whole of
+    /// what leaving should be, and a preview held back at the panel's edge
+    /// to dissolve there is a second thing happening to it.
+    property <bool> preview-crowded: root.panel-open
+        && root.preview-x + root.preview-w + root.preview-gap > root.panel-x
+        && root.preview-x < root.panel-x + root.panel-w + root.preview-gap;
 
     /// Room for a panel between the top margin and the bar.
     property <length> panel-max-h: root.timeline-y - 12px - 2 * root.panel-margin;
