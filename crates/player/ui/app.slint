@@ -1710,22 +1710,25 @@ component BackRow inherits Rectangle {
         shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
     }
 
-    // The arrow hangs in the margin so the label lands on `Rows.label-x`,
-    // where every other heading and row label in the panel starts. A back row
-    // is the page's heading; indenting it past its own content — which is
-    // what giving the arrow its own column did — reads as a mistake.
+    // The arrow is laid out as `DrillRow` lays out its icon, at the same
+    // size in the same column with the same air after it — a back row is the
+    // way out of a page of those, and the pair read as one movement only if
+    // they are built the same. Hanging it in the margin at 14px did line the
+    // label up with the headings, but it left the arrow pinched between the
+    // panel edge and the first letter, which is the cost the eye actually
+    // notices.
     HorizontalLayout {
-        padding-left: Rows.gap;
+        padding-left: Rows.label-x;
         padding-right: Rows.trail-x;
-        spacing: 0px;
+        spacing: 10px;
 
         Rectangle {
-            width: Rows.label-x - Rows.gap;
+            width: 18px;
 
             Image {
                 source: @image-url("../../../public/icons/angle-small-left.svg");
-                width: 14px;
-                height: 14px;
+                width: 18px;
+                height: 18px;
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
