@@ -356,7 +356,7 @@ void main() {
             glass = glass_at(px, centre, half_size, radius, tinted);
         }
 
-        col = glass; // mix(col, glass, coverage);
+        col = mix(col, glass, coverage);
     }
 
     frag = vec4(col, 1.0);
