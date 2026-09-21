@@ -2045,9 +2045,34 @@ export component MainWindow inherits Window {
     in-out property <int> playlist-page: 0;
     property <bool> playlist-tiered: root.playlist-groups.length > 1;
     property <bool> playlist-top: root.playlist-tiered && root.playlist-page < 0;
-    /// The files on the page showing.
+    /// 0 on the list of parts, 1 on a part's page — `drill` for the playlist,
+    /// and the same number in the same range for the same reason.
+    ///
+    /// This tree is two deep exactly as the settings tree is, and a panel
+    /// that changes what it is showing in one frame leaves no account of
+    /// what happened. Untiered there is no second level and this is a
+    /// constant 1: the one page is the leaf, and nothing ever moves.
+    property <float> playlist-drill: root.playlist-top ? 0.0 : 1.0;
+    animate playlist-drill {
+        duration: 220ms;
+        easing: ease-in-out;
+    }
+    /// Which part the drilled-in page draws.
+    ///
+    /// Held rather than read off `playlist-page`, which is -1 for the whole
+    /// of the way back: the page sliding out has to keep drawing the part it
+    /// is carrying until it is gone. Followed here rather than assigned at
+    /// the call sites, because the Rust side moves the page too — it keeps
+    /// the panel on the same part when the parts around it change.
+    property <int> playlist-leaf: 0;
+    changed playlist-page => {
+        if (root.playlist-page >= 0) {
+            root.playlist-leaf = root.playlist-page;
+        }
+    }
+    /// The files on the drilled-in page.
     property <[PlaylistItem]> playlist-entries:
-        root.playlist-groups[root.playlist-tiered ? max(0, root.playlist-page) : 0].entries;
+        root.playlist-groups[root.playlist-tiered ? root.playlist-leaf : 0].entries;
     /// The rows the list scrolls through, and whether a way back leads them
     /// as the focus's row 0.
     property <int> playlist-rows: root.playlist-top
@@ -2359,7 +2384,12 @@ export component MainWindow inherits Window {
             }
         } else if (root.playlist-open && root.focus-row >= root.playlist-lead
                 && root.focus-row < root.playlist-lead + root.playlist-rows) {
-            playlist-list.reveal((root.focus-row - root.playlist-lead) * root.row-h, root.row-h);
+            if (root.playlist-top) {
+                playlist-top-list.reveal(root.focus-row * root.row-h, root.row-h);
+            } else {
+                playlist-leaf-list.reveal(
+                    (root.focus-row - root.playlist-lead) * root.row-h, root.row-h);
+            }
         }
     }
 
@@ -3241,13 +3271,33 @@ export component MainWindow inherits Window {
         root.panel-pad + root.playlist-head-h + root.playlist-natural
             + Rows.group-gap + root.toggle-h,
         root.panel-max-h);
-    out property <length> playlist-list-h: max(0px,
-        root.playlist-h - root.panel-pad - root.playlist-head-h
-            - Rows.group-gap - root.toggle-h);
+    /// The room the two pages share: the panel under its own padding, less
+    /// the switch below them, which belongs to neither and does not move
+    /// with them.
+    property <length> playlist-pages-h: max(0px,
+        root.playlist-h - root.panel-pad - Rows.group-gap - root.toggle-h);
+    /// Each page's list, under that page's own head — a heading on the list
+    /// of parts, a way back on a part's page. Both are wanted at once, for
+    /// the 220ms the two spend moving past each other.
+    property <length> playlist-top-list-h:
+        max(0px, root.playlist-pages-h - root.heading-h);
+    /// Its head is the way back where there is one to go back to, and the
+    /// panel's own heading where there is not — a row and a heading are not
+    /// the same height, and untiered this is the only page there is.
+    property <length> playlist-leaf-list-h: max(0px, root.playlist-pages-h
+        - (root.playlist-tiered ? root.row-h : root.heading-h));
+    /// The list showing, for the keys that measure a page by it.
+    out property <length> playlist-list-h: root.playlist-lead > 0
+        ? root.playlist-leaf-list-h : root.playlist-top-list-h;
+    /// What each page's rows add up to. The showing page's is
+    /// `playlist-natural` above, which is what sizes the panel.
+    property <length> playlist-top-natural: root.playlist-groups.length * root.row-h;
+    property <length> playlist-leaf-natural: root.playlist-entries.length * root.row-h;
 
     /// Scroll offsets, for the test that checks a wheel over a list moves it.
     out property <length> subs-scroll: subs-list.offset;
-    out property <length> playlist-scroll: playlist-list.offset;
+    out property <length> playlist-scroll: root.playlist-top
+        ? playlist-top-list.offset : playlist-leaf-list.offset;
 
     /// Centre a panel on the control it belongs to, without letting it walk
     /// off either edge. A panel pinned to a margin still reads as belonging
@@ -3417,7 +3467,12 @@ export component MainWindow inherits Window {
             x: playlist-panel.x,
             y: playlist-panel.y + root.playlist-rise,
             width: root.playlist-shown > root.shown-epsilon ? playlist-panel.width : 0,
-            height: root.playlist-shown > root.shown-epsilon ? root.playlist-h : 0,
+            // The panel's own height, as every other rect here takes it, and
+            // not the `playlist-h` it is animating towards. The two were the
+            // same number until this panel had a move to make, and then the
+            // glass held the size it was going to be while the box it was
+            // meant to be was still on its way there.
+            height: root.playlist-shown > root.shown-epsilon ? playlist-panel.height : 0,
             opacity: root.playlist-shown,
             radius: root.panel-radius,
             tint: 1.0,
@@ -4411,7 +4466,13 @@ export component MainWindow inherits Window {
                 root.focus-row = max(0, root.playlist-tiered
                     ? root.playlist-current-group
                     : root.playlist-groups[0].open-row);
-                playlist-list.centre(root.focus-row * root.row-h, root.row-h);
+                // Tiered, that is the list of parts; untiered there is no
+                // such list and the one page is the drilled-in one.
+                if (root.playlist-tiered) {
+                    playlist-top-list.centre(root.focus-row * root.row-h, root.row-h);
+                } else {
+                    playlist-leaf-list.centre(root.focus-row * root.row-h, root.row-h);
+                }
             }
         }
     }
@@ -4421,14 +4482,15 @@ export component MainWindow inherits Window {
     function playlist-enter(group: int) {
         root.playlist-page = group;
         root.focus-row = 1 + root.playlist-groups[group].open-row;
-        playlist-list.centre(root.playlist-groups[group].open-row * root.row-h, root.row-h);
+        playlist-leaf-list.centre(
+            root.playlist-groups[group].open-row * root.row-h, root.row-h);
     }
 
     /// Back to the list of parts, on the part just left.
     public function playlist-back() {
         root.focus-row = max(0, root.playlist-page);
         root.playlist-page = -1;
-        playlist-list.centre(root.focus-row * root.row-h, root.row-h);
+        playlist-top-list.centre(root.focus-row * root.row-h, root.row-h);
     }
 
     /// A row of the list showing, pressed.
@@ -5050,8 +5112,17 @@ export component MainWindow inherits Window {
         width: 380px;
         height: root.playlist-h;
         clip: true;
+
+        // With `playlist-drill`, and by the same numbers the settings panel
+        // uses: a part's page is not the height of the list of parts, and
+        // the box snapping to the new size while the pages were still
+        // sliding under it would be two movements where there is one.
+        animate height {
+            duration: 220ms;
+            easing: ease-in-out;
+        }
         x: root.anchored-x(root.playlist-anchor, self.width);
-        y: root.timeline-y - self.height - 12px + root.playlist-rise;
+        y: root.timeline-y - self.height - Rows.offset + root.playlist-rise;
         visible: root.playlist-shown > root.shown-epsilon;
         opacity: root.playlist-shown;
 
@@ -5064,84 +5135,149 @@ export component MainWindow inherits Window {
         VerticalLayout {
             padding-top: Rows.panel-pad;
             padding-bottom: Rows.panel-pad;
+            // The panel resizes under its pages rather than around them:
+            // with the height animating, a layout free to stretch would pull
+            // the rows apart for the length of the move.
+            alignment: start;
 
-            if root.playlist-lead == 0: MenuHeading {
-                text: root.playlist-heading;
-                titular: root.playlist-named;
-                // The same mark as the button that opened the panel, whether
-                // the words beside it are PLAYLIST or a show's name.
-                icon: @image-url("../../../public/icons/playlist.svg");
-            }
-            // A part's page is headed by the way back to the list of parts,
-            // as a settings page is: SEASON 7, or a show's name in its own
-            // case where the part is named for one.
-            if root.playlist-lead > 0: BackRow {
-                label: root.playlist-groups[root.playlist-page].heading;
-                titular: root.playlist-groups[root.playlist-page].titular;
-                focused: root.playlist-open && root.focus-row == 0;
-                back => {
-                    root.playlist-back();
-                }
-            }
-            playlist-list := ScrollList {
-                height: root.playlist-list-h;
-                content-height: root.playlist-natural;
+            // The two pages, side by side, in a window of their own.
+            //
+            // `playlist-drill` is the whole of the movement — the pair take
+            // their x from it and the panel's height animates alongside, so
+            // the box and what is in it arrive together. Both are built
+            // whether or not they are showing, unlike the settings pages
+            // that do the same thing: those hold their lists behind a
+            // condition, and a named element inside one cannot be reached
+            // from the key handler at the window. These two are asked to
+            // centre a row by name from four places, and the list of parts
+            // is short by construction — it is the seasons of a show, not
+            // the files in them.
+            Rectangle {
+                height: root.playlist-pages-h;
+                clip: true;
 
-                // The list of parts: a season to open, or a file standing in
-                // the list as itself.
-                if root.playlist-top: VerticalLayout {
-                    alignment: start;
+                Rectangle {
+                    x: -root.playlist-drill * parent.width;
+                    width: parent.width;
+                    height: parent.height;
 
-                    for group[idx] in root.playlist-groups: Rectangle {
-                        height: root.row-h;
+                    VerticalLayout {
+                        alignment: start;
 
-                        if group.leaf: PlaylistRow {
-                            label: group.entries[0].label;
-                            length: group.entries[0].length;
-                            progress: group.entries[0].progress;
-                            finished: group.entries[0].finished;
-                            failed: group.entries[0].failed;
-                            active: group.current;
-                            // The chevron's column and its spacing, left
-                            // empty so this row's figures line up with the
-                            // parts' around it.
-                            trail: root.playlist-drills ? Rows.trail-x + 28px : Rows.trail-x;
-                            focused: root.playlist-open && root.focus-row == idx;
-                            picked => {
-                                root.playlist-pick(idx);
-                            }
+                        MenuHeading {
+                            text: root.playlist-heading;
+                            titular: root.playlist-named;
+                            // The same mark as the button that opened the
+                            // panel, whether the words beside it are
+                            // PLAYLIST or a show's name.
+                            icon: @image-url("../../../public/icons/playlist.svg");
                         }
-                        if !group.leaf: GroupRow {
-                            label: group.label;
-                            detail: group.detail;
-                            active: group.current;
-                            focused: root.playlist-open && root.focus-row == idx;
-                            opened => {
-                                root.playlist-pick(idx);
+                        // The list of parts: a season to open, or a file
+                        // standing in the list as itself.
+                        playlist-top-list := ScrollList {
+                            height: root.playlist-top-list-h;
+                            content-height: root.playlist-top-natural;
+
+                            VerticalLayout {
+                                alignment: start;
+
+                                for group[idx] in root.playlist-groups: Rectangle {
+                                    height: root.row-h;
+
+                                    if group.leaf: PlaylistRow {
+                                        label: group.entries[0].label;
+                                        length: group.entries[0].length;
+                                        progress: group.entries[0].progress;
+                                        finished: group.entries[0].finished;
+                                        failed: group.entries[0].failed;
+                                        active: group.current;
+                                        // The chevron's column and its
+                                        // spacing, left empty so this row's
+                                        // figures line up with the parts'
+                                        // around it.
+                                        trail: root.playlist-drills
+                                            ? Rows.trail-x + 28px : Rows.trail-x;
+                                        focused: root.playlist-open
+                                            && root.playlist-top
+                                            && root.focus-row == idx;
+                                        picked => {
+                                            root.playlist-pick(idx);
+                                        }
+                                    }
+                                    if !group.leaf: GroupRow {
+                                        label: group.label;
+                                        detail: group.detail;
+                                        active: group.current;
+                                        focused: root.playlist-open
+                                            && root.playlist-top
+                                            && root.focus-row == idx;
+                                        opened => {
+                                            root.playlist-pick(idx);
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
                 }
-                if !root.playlist-top: VerticalLayout {
-                    alignment: start;
 
-                    for entry[idx] in root.playlist-entries: PlaylistRow {
-                        label: entry.label;
-                        length: entry.length;
-                        progress: entry.progress;
-                        finished: entry.finished;
-                        failed: entry.failed;
-                        active: entry.current;
-                        focused: root.playlist-open
-                            && root.focus-row == idx + root.playlist-lead;
-                        picked => {
-                            root.playlist-pick(idx);
+                Rectangle {
+                    x: (1.0 - root.playlist-drill) * parent.width;
+                    width: parent.width;
+                    height: parent.height;
+
+                    VerticalLayout {
+                        alignment: start;
+
+                        // A part's page is headed by the way back to the list
+                        // of parts, as a settings page is: SEASON 7, or a
+                        // show's name in its own case where the part is
+                        // named for one. Untiered there is no list of parts
+                        // to go back to, so the page wears the heading
+                        // instead and this whole pane is all there ever is.
+                        if root.playlist-tiered: BackRow {
+                            label: root.playlist-groups[root.playlist-leaf].heading;
+                            titular: root.playlist-groups[root.playlist-leaf].titular;
+                            focused: root.playlist-open && !root.playlist-top
+                                && root.focus-row == 0;
+                            back => {
+                                root.playlist-back();
+                            }
+                        }
+                        if !root.playlist-tiered: MenuHeading {
+                            text: root.playlist-heading;
+                            titular: root.playlist-named;
+                            icon: @image-url("../../../public/icons/playlist.svg");
+                        }
+                        playlist-leaf-list := ScrollList {
+                            height: root.playlist-leaf-list-h;
+                            content-height: root.playlist-leaf-natural;
+
+                            VerticalLayout {
+                                alignment: start;
+
+                                for entry[idx] in root.playlist-entries: PlaylistRow {
+                                    label: entry.label;
+                                    length: entry.length;
+                                    progress: entry.progress;
+                                    finished: entry.finished;
+                                    failed: entry.failed;
+                                    active: entry.current;
+                                    focused: root.playlist-open
+                                        && !root.playlist-top
+                                        && root.focus-row == idx + root.playlist-lead;
+                                    picked => {
+                                        root.playlist-pick(idx);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
             // Stays put at the bottom rather than scrolling away with the
-            // entries: it is a setting about the list, not part of it.
+            // entries — or sliding away with the page. It is a setting about
+            // the list whichever list is showing.
             Rectangle {
                 height: Rows.group-gap;
             }

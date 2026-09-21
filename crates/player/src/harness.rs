@@ -29,6 +29,12 @@
 //! * `DBM_SHOWCASE=tip` and `tip-edge` rest the pointer on a button in the
 //!                         right-hand pill instead of in the corner, which
 //!                         is the only way the hover label is ever on screen.
+//! * `DBM_SHOWCASE=drill` — flips the playlist between its list of parts
+//!                         and a part's page on every tick, so a capture
+//!                         lands inside the 220ms move rather than on
+//!                         whichever end it settled at. The same trick as
+//!                         `flash`: a movement cannot be held still, so it
+//!                         is started again instead.
 //! * `DBM_SHOWCASE=<surface>` — holds one surface open with the chrome
 //!                         awake, so the window can be photographed. The
 //!                         only way to actually look at this interface:
@@ -565,6 +571,20 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 hover(&ui, x, y);
             }
 
+            // A move between two pages is a moment too, and the same answer
+            // works: keep starting it. Flipping every tick against a 220ms
+            // drill leaves the panel in the middle of one for most of the
+            // time, so a capture at any moment lands inside the movement
+            // rather than on whichever end it happened to settle at.
+            if surface == "drill" && tick > 4 {
+                let page = ui.get_playlist_page();
+                ui.set_playlist_page(if page < 0 {
+                    ui.get_playlist_current_group().max(0)
+                } else {
+                    -1
+                });
+            }
+
             // The flash is a moment, not a surface: the only way to hold one
             // still long enough to look at is to keep raising it.
             if surface == "flash" {
@@ -598,7 +618,7 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     }
                     ui.invoke_select_subtitle(-1);
                 }
-                "playlist" => ui.invoke_open_playlist(true),
+                "playlist" | "drill" => ui.invoke_open_playlist(true),
                 // The list of parts rather than the page the panel opens on.
                 "seasons" => {
                     ui.invoke_open_playlist(true);

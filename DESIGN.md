@@ -744,7 +744,18 @@ the axes, which is exactly the part the eye catches.
 
 A season of one show is shown as it always was, one list, with the show and the
 season as its heading: *Game of Thrones · Season 7*. A list holding more than that is shown in
-parts, on two levels, the way the settings are.
+parts, on two levels, the way the settings are — **including the way they
+move.** Opening a part and coming back out is the same 220ms drill: the page
+being left goes out the side the new one comes in from, and the panel grows or
+shrinks to the new page's height under them both, keeping its bottom edge on
+the line every panel sits on. One list becoming another in a single frame said
+only that everything was different.
+
+Both pages are built whether or not they are showing, which the settings pages
+are not: those hold their lists behind a condition, and a named element inside
+one cannot be reached from the key handler at the window. These two are asked
+to put a row in the middle from four places, and the list of parts is short by
+construction — a show's seasons, not the files in them.
 
 - **The list of parts** comes first. A list spanning seasons is its seasons —
   *Specials*, *Season 1*, *Season 2* — and a folder of several shows is each
@@ -1149,11 +1160,16 @@ words on the clipboard and says *Copied* for two seconds, and *Close the player*
     file change is a movement rather than a flicker;
   - the **backdrop's** 400ms arrival, the one motion that is not a response to
     anything — it is the window's light changing, not a control answering;
-  - a **settings drill**, 220ms ease-in-out, moving the page sideways and the
+  - a **drill**, 220ms ease-in-out, moving the page sideways and the
     panel's own height with it. Longer than a surface because it is a journey
     rather than an arrival, and eased at both ends because it starts and stops
     in place rather than coming from nowhere. The panel and the page are one
-    number, so the box and what is in it arrive together;
+    number, so the box and what is in it arrive together. **Both trees move,
+    and by the same number**: the settings pages behind their rows, and the
+    playlist between its list of parts and a part's page. A panel with two
+    levels that changes which one it shows in a single frame leaves no
+    account of what happened, and that is as true of a season as of a page of
+    sliders;
   - the **seek preview's** fade, 60ms — half the shared duration, and the one
     surface with a number of its own. It is not announcing itself; it is
     following a pointer, and at 120ms it read as trailing the hand rather than
