@@ -207,17 +207,17 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted) 
 
     // Dome profile, in units of bevel width:
     //
-    //     height(t) = 1 + 0.5 * sqrt(1 - t^4)
-    //     slope(t)  = d(height)/dt = -t^3 / sqrt(1 - t^4)
+    //     height(t) = 1 + 0.5 * sqrt(1 - t^6)
+    //     slope(t)  = d(height)/dt = -1.5 * t^5 / sqrt(1 - t^6)
     //
-    // The fourth power keeps the centre genuinely flat and pushes the
-    // curvature into the last stretch of the bevel, which is what makes
-    // the lensing hug the rim. `slope` runs to -infinity as the surface
+    // The sixth power keeps the centre flat and pushes the curvature 
+    // into the last stretch of the bevel, which is what makes the 
+    // lensing hug the rim. `slope` runs to -infinity as the surface
     // turns vertical at t = 1, so the root is floored; every term below
     // converges as |slope| grows, so a large finite value behaves.
-    float dome = max(sqrt(max(1.0 - t * t * t * t, 0.0)), 1e-4);
+    float dome = max(sqrt(max(1.0 - t * t * t * t * t * t, 0.0)), 1e-4);
     float height = 1.0 + 0.5 * dome;
-    float slope = -t * t * t / dome;
+    float slope = -1.5 * t * t * t * t * t / dome;
     float slope2 = slope * slope;
 
     // Snell's law for a vertical incident ray. With surface normal
