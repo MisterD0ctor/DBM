@@ -136,25 +136,14 @@ pub struct GlassParams {
     /// structure and banding shows — widen `LEVELS` instead for more than
     /// that, at the cost of two passes and a coarser backdrop.
     pub blur: f32,
-    /// Width of the domed rim, as a fraction of each panel's own corner
-    /// radius - how far in from the edge the lensing and lighting reach.
-    /// Relative rather than absolute so one value suits a 380px panel and a
-    /// 60px pill alike; see `u_bevel` in glass.frag.
-    pub bevel: f32,
     /// Effective glass thickness for transmission, as a fraction of the bevel
     /// width. How far the refracted ray descends before it reaches the
     /// backdrop, so it scales how strongly the rim displaces what is behind
     /// it.
     pub refract: f32,
-    /// Index of refraction: 1.0 bends nothing, 1.33 water, 1.5 window glass,
-    /// 1.8 flint, 2.4 diamond. Drives both the bending and - through the
-    /// Fresnel term - how mirror-like the rim becomes.
-    pub ior: f32,
     /// Fraction by which the red and blue transmission offsets differ from
     /// green: the prismatic fringe.
     pub aberration: f32,
-    /// Overall reflection strength, scaling the Fresnel weight.
-    pub specular: f32,
     /// Brightness of the synthetic sky seen where the reflection escapes
     /// upward off the bevel.
     pub sky: f32,
@@ -166,22 +155,59 @@ pub struct GlassParams {
     pub tint_amount: f32,
 }
 
+// --- the material's fixed properties ----------------------------------------
+//
+// Three numbers that were sliders on the glass page and are settings no
+// longer. They are what the material *is* rather than how much of it you
+// want: the rim is the corner, the glass is flint, and a mirror reflects.
+// Turning any of them makes the panes stop being one material — and unlike
+// blur, fringe, sky or tint, none of them has a range where the answer is a
+// matter of taste rather than of whether the glass still reads as glass.
+//
+// They live here rather than in `GlassParams` because a value nobody can set
+// is not a parameter. Nothing carries them through the store, nothing writes
+// them to disk, and `settings.rs` has three fewer entries in its registry —
+// the panel's glass page follows the registry, so it simply shows five rows.
+// An old settings file naming `glass.bevel_ratio`, `glass.ior` or
+// `glass.specular` is skipped the way any unknown key is.
+
+/// Width of the domed rim, as a fraction of each panel's own corner radius —
+/// how far in from the edge the lensing and lighting reach.
+///
+/// Relative rather than absolute so one value suits a 380px panel and a 60px
+/// pill alike; see `u_bevel` in glass.frag. At 1.0 the rim runs the full
+/// width of the corner, which is what makes a capsule rim the whole way
+/// through and gives a small pane a small rolled edge — the Proportional Rim
+/// Rule, and also how real glass is made.
+pub const BEVEL: f32 = 1.0;
+
+/// Index of refraction: 1.0 bends nothing, 1.33 water, 1.5 window glass,
+/// 1.8 flint, 2.4 diamond. Drives both the bending and — through the Fresnel
+/// term — how mirror-like the rim becomes.
+///
+/// Well past a window pane, so the rim bends and mirrors hard enough to read
+/// at UI scale. It sat at 1.7 while it was a slider and was tuned up from
+/// there by eye; 2.0 is what shipped configs actually hold. Higher is not
+/// better — at diamond the lensing pulls a dark patch of the backdrop into a
+/// black oval across the top of the way in, which is the wall this was
+/// stopped short of.
+pub const IOR: f32 = 2.0;
+
+/// Overall reflection strength, scaling the Fresnel weight.
+///
+/// Unity: the Fresnel term is already the physical answer to how much light
+/// a surface at that angle returns, so this exists to scale it and there is
+/// no reason to. It was a slider because everything beside it was one.
+pub const SPECULAR: f32 = 1.0;
+
 impl Default for GlassParams {
     fn default() -> Self {
         Self {
             blur_sigma: 2.0,
             blur: 1.0,
-            // The rim runs the full width of the corner radius, and the
-            // glass is as thick as that rim is wide.
-            bevel: 1.0,
+            // The glass is as thick as the rim is wide; see `BEVEL`.
             refract: 1.0,
-            // Flint glass: well past a window pane, so the rim still bends and
-            // mirrors hard enough to read at UI scale, but off the slider's
-            // 3.0 ceiling. At diamond the lensing pulled a dark patch of the
-            // backdrop into a black oval across the top of the way in.
-            ior: 1.7,
             aberration: 0.1,
-            specular: 1.0,
             sky: 0.0,
             // Light from the upper left, the convention every OS uses.
             light_dir: [-0.707, -0.707],
@@ -397,12 +423,6 @@ impl Pipeline {
     /// need to compare it against what mpv currently reports.
     pub fn border_rect(&self) -> [f32; 4] {
         self.rect
-    }
-
-    /// The bevel slider as it stands, for diagnostics that need to say what
-    /// width the ratio works out to on a given panel.
-    pub fn glass_bevel(&self) -> f32 {
-        self.glass.bevel
     }
 
     pub fn composite(&self) -> &Target {
@@ -677,11 +697,11 @@ impl Pipeline {
         self.prog_glass
             .set_vec4_array(gl, "u_panel_style[0]", &styles);
 
-        self.prog_glass.set_f32(gl, "u_bevel", g.bevel);
+        self.prog_glass.set_f32(gl, "u_bevel", BEVEL);
         self.prog_glass.set_f32(gl, "u_refract", g.refract);
-        self.prog_glass.set_f32(gl, "u_ior", g.ior);
+        self.prog_glass.set_f32(gl, "u_ior", IOR);
         self.prog_glass.set_f32(gl, "u_aberration", g.aberration);
-        self.prog_glass.set_f32(gl, "u_specular", g.specular);
+        self.prog_glass.set_f32(gl, "u_specular", SPECULAR);
         self.prog_glass.set_f32(gl, "u_sky", g.sky);
         self.prog_glass
             .set_vec2(gl, "u_light_dir", g.light_dir[0], g.light_dir[1]);

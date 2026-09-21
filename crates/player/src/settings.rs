@@ -20,11 +20,16 @@ const GLASS_ON: &str = "glass.enabled";
 const AUTOPLAY: &str = "playback.autoplay";
 /// What `bevel` and `refract` were called while they were pixel widths.
 ///
-/// Both are ratios now — of a panel's corner radius, and of the bevel — so a
+/// Both became ratios — of a panel's corner radius, and of the bevel — so a
 /// saved number means something different than it did. Rather than let an old
 /// 39.5 arrive as a ratio of 39.5, the names changed, which makes the old keys
-/// unknown and therefore skipped; these convert them instead, so a look tuned
-/// by eye survives the change rather than silently snapping back to default.
+/// unknown and therefore skipped; the conversion below handles them instead,
+/// so a look tuned by eye survives the change rather than silently snapping
+/// back to default.
+///
+/// Only `refract` is still a setting. The old bevel is read anyway, because
+/// it is the width the old refract was measured against and there is no way
+/// to convert one without the other.
 const LEGACY_BEVEL: &str = "glass.bevel";
 const LEGACY_REFRACT: &str = "glass.refract";
 /// The corner radius those pixel values were tuned against: every panel had
@@ -36,13 +41,12 @@ const SUB_POS: &str = "subtitles.pos";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Key {
-    // Glass
+    // Glass. Bevel, IOR and Reflect were here and are constants in
+    // `pipeline` now: they are what the material is rather than how much of
+    // it you want, and none of them has a range where the answer is taste.
     Blur,
-    Bevel,
     Refract,
-    Ior,
     Aberration,
-    Specular,
     Sky,
     Tint,
     // Ambient border
@@ -86,11 +90,8 @@ pub struct Param {
 
 pub const REGISTRY: &[Param] = &[
     Param { key: Key::Blur, name: "glass.blur", section: Section::Glass, label: "Blur", min: 0.0, max: 40.0 },
-    Param { key: Key::Bevel, name: "glass.bevel_ratio", section: Section::Glass, label: "Bevel", min: 0.05, max: 2.0 },
     Param { key: Key::Refract, name: "glass.refract_ratio", section: Section::Glass, label: "Refract", min: 0.0, max: 4.0 },
-    Param { key: Key::Ior, name: "glass.ior", section: Section::Glass, label: "IOR", min: 1.0, max: 3.0 },
     Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: "Fringe", min: 0.0, max: 1.0 },
-    Param { key: Key::Specular, name: "glass.specular", section: Section::Glass, label: "Reflect", min: 0.0, max: 2.0 },
     Param { key: Key::Sky, name: "glass.sky", section: Section::Glass, label: "Sky", min: 0.0, max: 4.0 },
     Param { key: Key::Tint, name: "glass.tint", section: Section::Glass, label: "Tint", min: 0.0, max: 1.0 },
     Param { key: Key::EdgeBlur, name: "border.edge_blur", section: Section::Border, label: "Edge blur", min: 0.0, max: 0.1 },
@@ -163,11 +164,8 @@ impl Store {
         };
         match param.key {
             Key::Blur => glass.blur_sigma,
-            Key::Bevel => glass.bevel,
             Key::Refract => glass.refract,
-            Key::Ior => glass.ior,
             Key::Aberration => glass.aberration,
-            Key::Specular => glass.specular,
             Key::Sky => glass.sky,
             // The colour stays in code; how much of it shows is the part
             // worth adjusting by eye.
@@ -189,11 +187,8 @@ impl Store {
         let mut border = self.border.get();
         match param.key {
             Key::Blur => glass.blur_sigma = v,
-            Key::Bevel => glass.bevel = v,
             Key::Refract => glass.refract = v,
-            Key::Ior => glass.ior = v,
             Key::Aberration => glass.aberration = v,
-            Key::Specular => glass.specular = v,
             Key::Sky => glass.sky = v,
             Key::Tint => glass.tint_amount = v,
             Key::EdgeBlur => border.edge_blur = v,
@@ -340,14 +335,12 @@ impl Store {
     /// setting it names and nothing else.
     pub fn apply_saved(&self, saved: &[(String, f32)]) {
         let (mut legacy_bevel, mut legacy_refract) = (None, None);
-        let (mut saw_bevel, mut saw_refract) = (false, false);
+        let mut saw_refract = false;
         for (name, value) in saved {
             if let Some(index) = REGISTRY.iter().position(|p| p.name == name) {
                 self.set(index, *value);
-                match REGISTRY[index].key {
-                    Key::Bevel => saw_bevel = true,
-                    Key::Refract => saw_refract = true,
-                    _ => {}
+                if REGISTRY[index].key == Key::Refract {
+                    saw_refract = true;
                 }
                 continue;
             }
@@ -367,12 +360,6 @@ impl Store {
         // Only where the file has not already been written in the new terms;
         // a real value never loses to a converted one.
         let index_of = |key: Key| REGISTRY.iter().position(|p| p.key == key);
-        if !saw_bevel {
-            if let (Some(px), Some(i)) = (legacy_bevel, index_of(Key::Bevel)) {
-                self.set(i, px / LEGACY_RADIUS);
-                eprintln!("dbm: converted saved bevel {px}px to a ratio of the radius");
-            }
-        }
         if !saw_refract {
             // Against the bevel it was tuned beside, which is what the new
             // value is a fraction of.

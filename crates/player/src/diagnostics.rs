@@ -268,7 +268,7 @@ impl Probe {
             pipeline.glass_enabled, pipeline.border_enabled
         );
         self.sample_panel(pipeline, gl);
-        self.sample_rims(pipeline, gl, pipeline.glass_bevel());
+        self.sample_rims(pipeline, gl, crate::pipeline::BEVEL);
         self.sample_letterbox(pipeline, gl, player);
         (pipeline.glass_enabled, pipeline.border_enabled)
     }
