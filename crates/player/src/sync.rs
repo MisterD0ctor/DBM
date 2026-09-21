@@ -139,7 +139,6 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_at_last(player.playlist_pos + 1 >= player.playlist_count);
     // The other end, so previous can say there is nothing before this.
     ui.set_at_first(player.playlist_pos <= 0);
-    ui.set_playlist_count(player.playlist_count as i32);
     // Raw, beside the formatted text: undoing a reset has to put back the
     // number, and parsing it out of "+0.30 s" would be reading our own label.
     ui.set_sub_delay(player.sub_delay as f32);
@@ -272,11 +271,6 @@ pub fn push_playlist(ui: &MainWindow, player: &PlayerState) {
     // Where the panel opens: the part holding the file playing, on its row.
     let current = shelf.groups.iter().position(|g| g.current().is_some());
     ui.set_playlist_current_group(current.map_or(-1, |g| g as i32));
-    ui.set_playlist_current(
-        current
-            .and_then(|g| shelf.groups[g].current())
-            .map_or(-1, |row| row as i32),
-    );
     ui.set_playlist_drills(shelf.groups.iter().any(|g| !g.leaf));
 
     // The page on show is kept by its name, not its place. Seasons found

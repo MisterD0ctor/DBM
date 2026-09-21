@@ -470,14 +470,22 @@ impl Driver {
                     ui.set_resume_left(crate::state::format_left(resume.seconds_left).into());
                     if let Some(still) = &resume.still {
                         gpu.pipeline.set_backdrop(&gpu.gl, still);
+                        // The interface needs to know, because with no
+                        // backdrop and no film there is no picture for the
+                        // way in's glass to bend and it gives itself a
+                        // ground instead. Set only where one was actually
+                        // drawn: a resume with no atlas leaves the window
+                        // black, which is the case that needs the ground.
+                        ui.set_backdrop(true);
                     }
                 }
                 Completion::Resume(None) => {}
-                Completion::NextSeason { from, found } => {
+                Completion::Onward { from, to } => {
                     if self.player.path.as_deref() == Some(from.as_str()) {
-                        if let Some((folder, season)) = found {
-                            ui.set_next_season_path(folder.to_string_lossy().as_ref().into());
-                            ui.set_next_season_label(format!("Season {season}").into());
+                        if let Some(onward) = to {
+                            ui.set_onward_path(onward.path.as_str().into());
+                            ui.set_onward_label(onward.label.as_str().into());
+                            ui.set_onward_season(onward.season);
                         }
                     }
                 }
@@ -487,7 +495,7 @@ impl Driver {
             sync::push_playlist(&ui, &self.player);
         }
 
-        // The end of the last file is the moment to look for the next season,
+        // The end of the last file is the moment to look for the way on,
         // once per file — or its closing credits, where the credits pill makes
         // the same offer before the file is over. The offer belongs to the
         // file that asked for it, so a new one takes it back down.
@@ -495,16 +503,42 @@ impl Driver {
             && self.player.playlist_pos + 1 >= self.player.playlist_count;
         if self.player.path != self.season_asked {
             if self.season_asked.take().is_some() {
-                ui.set_next_season_path("".into());
-                ui.set_next_season_label("".into());
+                ui.set_onward_path("".into());
+                ui.set_onward_label("".into());
+                ui.set_onward_season(false);
             }
         }
         if ending && self.season_asked.is_none() {
             if let Some(path) = self.player.path.clone() {
                 self.season_asked = Some(path.clone());
                 self.worker.submit(move |_mpv| {
-                    let found = playlist::next_season(std::path::Path::new(&path));
-                    Some(Completion::NextSeason { from: path, found })
+                    let to = playlist::next_season(std::path::Path::new(&path))
+                        .map(|(folder, season)| crate::worker::Onward {
+                            path: folder.to_string_lossy().into_owned(),
+                            label: format!("Season {season}"),
+                            season: true,
+                        })
+                        // Nothing of this show comes after it — a film, or
+                        // the last season on disk. The next thing to watch is
+                        // then whatever else was left unfinished, which is the
+                        // same film the empty window offers to continue and
+                        // the only other thing the player can name without
+                        // being told. Better than *Open folder…*, which was
+                        // the loudest the interface ever speaks spent on a
+                        // file-manager verb.
+                        .or_else(|| {
+                            crate::session::last_watched()
+                                .filter(|r| r.path != path)
+                                .map(|r| crate::worker::Onward {
+                                    label: match &r.show {
+                                        Some(show) => format!("{show} · {}", r.title),
+                                        None => r.title.clone(),
+                                    },
+                                    path: r.path,
+                                    season: false,
+                                })
+                        });
+                    Some(Completion::Onward { from: path, to })
                 });
             }
         }

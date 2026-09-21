@@ -19,6 +19,15 @@
 //! (XDND, or `wl_data_device`), and there is no honest `cfg` arm for it here,
 //! so there is none: on other platforms this does nothing at all.
 
+/// Whether a drop reaches this program at all on this platform.
+///
+/// Published to the interface, which says in two places that a file can be
+/// dropped on the window. Where this is false it must not say so: an
+/// instruction that does nothing is exactly the kind of guess the player is
+/// not allowed to make. It is a constant because the answer is decided at
+/// compile time by the `cfg` above, not discovered at run time.
+pub const SUPPORTED: bool = cfg!(windows);
+
 /// Distinct from the modal-loop hook's, which is on the same window.
 #[cfg(windows)]
 const SUBCLASS_ID: usize = 0x00DB_3003;

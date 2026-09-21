@@ -33,6 +33,13 @@
 //!                         awake, so the window can be photographed. The
 //!                         only way to actually look at this interface:
 //!                         everything else here reports numbers.
+//! * `DBM_WINDOW=<w>x<h>` — opens at that size instead of 1280×720. Not a
+//!                         test of its own: it goes with any of the others,
+//!                         and it exists because the layout has two widths
+//!                         worth looking at that the default is neither of
+//!                         — 1060, where the transport gives way leftwards
+//!                         rather than crowd the right pill, and the 900×480
+//!                         floor. Pair it with `DBM_CAPTURE`.
 //! * `DBM_FADE_TEST=1`   — samples how the bar fades out when the chrome
 //!                         goes idle. Nothing asks for frames once the
 //!                         interface is gone, so the question is whether the
@@ -48,6 +55,16 @@
 //!                         one actually moves it.
 //! * `DBM_KEY_TEST=1`    — dispatches real key events into the window, for
 //!                         shortcuts whose effect is otherwise off-screen.
+//! * `DBM_READ_TEST=1`   — opens the shortcuts page and presses the keys
+//!                         that read it, with a film playing. The page is
+//!                         the only list here with no row the ring can stand
+//!                         on, so its keys scroll rather than walk — and
+//!                         before they did, every one of them fell through
+//!                         to the film: Home restarted it, PgUp and PgDn
+//!                         jumped its chapters, with the page that documents
+//!                         those keys open on top of them. `time-pos` either
+//!                         side is the whole of the check; the scroll itself
+//!                         is inside a conditional and has nothing to read.
 //! * `DBM_SCAN_TEST=1`   — prints every playlist row's name and length as the
 //!                         background scan fills them in. Point `APPDATA` at
 //!                         an empty directory to watch it do a first scan,
@@ -134,6 +151,19 @@ pub fn install(
     audio: &std::rc::Rc<crate::audio::Watchdog>,
 ) -> Harnesses {
     let mut timers = Vec::new();
+    // First, so a showcase or a test that follows is already at the size
+    // being asked about rather than resizing under itself. It still has to
+    // wait for a frame: asked for here, before the window exists, the height
+    // took and the width did not.
+    if let Some(size) = std::env::var("DBM_WINDOW").ok().and_then(|s| {
+        let (w, h) = s.split_once(['x', 'X'])?;
+        Some(slint::LogicalSize::new(
+            w.trim().parse().ok()?,
+            h.trim().parse().ok()?,
+        ))
+    }) {
+        timers.push(window_size(ui, size));
+    }
     if std::env::var_os("DBM_INPUT_TEST").is_some() {
         timers.push(input_test(ui));
     }
@@ -172,6 +202,9 @@ pub fn install(
     }
     if std::env::var_os("DBM_KEY_TEST").is_some() {
         timers.push(key_test(ui));
+    }
+    if std::env::var_os("DBM_READ_TEST").is_some() {
+        timers.push(read_test(ui, mpv.clone()));
     }
     if std::env::var_os("DBM_REACH_TEST").is_some() {
         timers.push(reach_test(ui));
@@ -438,6 +471,50 @@ fn param_test(ui: &MainWindow) -> slint::Timer {
                 }
                 None => eprintln!("dbm: settings opened, values untouched"),
             }
+        },
+    );
+    timer
+}
+
+/// Open at a size other than the one `main` asks for.
+///
+/// Every width worth looking at is one the default is not: 1060, where the
+/// transport stops being centred rather than crowd the right pill, and the
+/// 900×480 floor. Neither can be photographed by hand on a compositor that
+/// will not be told where to put a window.
+///
+/// Repeated rather than fired once, because the size does not always take on
+/// the first frame and there is nothing to wait for that says when it has.
+/// It stops asking once the window agrees, so nothing fights a real drag.
+fn window_size(ui: &MainWindow, size: slint::LogicalSize) -> slint::Timer {
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut tries = 0u32;
+    let mut done = false;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(100),
+        move || {
+            if done {
+                return;
+            }
+            let Some(ui) = weak.upgrade() else { return };
+            let now = ui.window().size().to_logical(ui.window().scale_factor());
+            if (now.width - size.width).abs() < 1.0 && (now.height - size.height).abs() < 1.0 {
+                done = true;
+                eprintln!("dbm: window {}x{}", now.width, now.height);
+                return;
+            }
+            tries += 1;
+            if tries > 20 {
+                done = true;
+                eprintln!(
+                    "dbm: window stayed {}x{}, asked for {}x{}",
+                    now.width, now.height, size.width, size.height
+                );
+                return;
+            }
+            ui.window().set_size(size);
         },
     );
     timer
@@ -1082,6 +1159,86 @@ fn key_test(ui: &MainWindow) -> slint::Timer {
                     chord(&ui, &[Key::Control, Key::Shift], "O");
                 }
                 7 => eprintln!("dbm: --- key test done ---"),
+                _ => {}
+            }
+            step += 1;
+        },
+    );
+    timer
+}
+
+/// The shortcuts page under the keys that read it.
+///
+/// Every row on that page is a statement, so the ring has only the way back
+/// to stand on and the arrows have nowhere to go. That was the bug: the ring
+/// wrapped on its one row and swallowed them, and Home, PgUp and PgDn went
+/// past it into the film — a reference page that restarted the film when you
+/// asked to go to the top of it.
+///
+/// `time-pos` is the evidence, not the list: the list is built inside the
+/// conditional the drill slides, so nothing out here can read where it
+/// scrolled to. What can be proved is that the film did not move and the
+/// page did not close, which is the whole of what went wrong.
+fn read_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
+    use slint::platform::Key;
+
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut step = 0usize;
+    let mut before = String::new();
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(900),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let pos = || mpv.get_property("time-pos").unwrap_or_else(|| "-".into());
+            let key = |k: Key| chord(&ui, &[], &slint::SharedString::from(k));
+            match step {
+                // Straight there, by the key the page itself documents.
+                0 => {
+                    eprintln!("dbm: pressing ?");
+                    chord(&ui, &[], "?");
+                }
+                1 => {
+                    before = pos();
+                    // The page number stays private to the interface —
+                    // exposing it to be read here would make this test the
+                    // reason a property is public, which is how UI-as-storage
+                    // starts. `?` opens the panel on page 4 or not at all.
+                    eprintln!(
+                        "dbm: settings-open={} time-pos={before}",
+                        ui.get_settings_open()
+                    );
+                    eprintln!("dbm: pressing End");
+                    key(Key::End);
+                }
+                2 => {
+                    eprintln!("dbm: pressing Home");
+                    key(Key::Home);
+                }
+                3 => {
+                    eprintln!("dbm: pressing PageDown");
+                    key(Key::PageDown);
+                }
+                4 => {
+                    eprintln!("dbm: pressing PageUp");
+                    key(Key::PageUp);
+                }
+                5 => {
+                    eprintln!("dbm: pressing Down");
+                    key(Key::DownArrow);
+                }
+                6 => {
+                    // Playing, so the two will differ — the check is that
+                    // they differ by about the time this test took, rather
+                    // than by everything back to zero.
+                    eprintln!(
+                        "dbm: settings-open={} time-pos={} (was {before})",
+                        ui.get_settings_open(),
+                        pos()
+                    );
+                    eprintln!("dbm: --- read test done ---");
+                }
                 _ => {}
             }
             step += 1;

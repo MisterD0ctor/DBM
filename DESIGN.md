@@ -229,7 +229,12 @@ nowhere else in the interface is a colour written out.
 
 ### Neutral
 
-**Text and glyphs** — four steps under Lit, each 0x20 below the one above:
+**Text and glyphs** — four steps under Lit, 0x20 apart, except at the top:
+Lit is `0xff` and Strong `0xe0`, which is `0x1f`. The ladder is built upward
+from the floor at `0x80` in steps of `0x20` — `0x80, 0xa0, 0xc0, 0xe0` — and
+the step above `0xe0` would be `0x100`, which does not exist in eight bits.
+Full white is one short of the rule and always will be; every step that can
+keep it does:
 
 - **Strong** (`#ffffffe0`): text that leads. The media title, the elapsed and
   total times, the timestamp under a seek preview, a switch's label, a
@@ -286,7 +291,10 @@ a brand colour, a semantic red/green, or an accent to this palette is a proposal
 to stop the film from being the only source of colour on screen. Status is
 carried by alpha and by glyph, never by hue.
 
-**The Two-Step Rule.** Adjacent text steps differ by at least 0x20 of alpha.
+**The Two-Step Rule.** Adjacent text steps differ by at least 0x20 of alpha,
+with the one exception arithmetic forces on the ladder's top rung — see above,
+and do not "fix" it by moving Strong down, which would spend a real step to
+satisfy a rule about the one gap nobody can widen.
 Closer than that and the hierarchy stops reading over moving video, where the
 backdrop changes faster than the eye can calibrate. Measured over the same
 glass, the steps land at 1.00, 0.79, 0.56 and 0.39 luminance — Lit, Strong,
@@ -332,6 +340,16 @@ zero from its round O without a mark. It also sets a little narrower, so a
 long title keeps a few more characters, and its tracked capitals look like
 panel lettering, which is what the controls are. Bundled, it is the same face
 on every platform the player runs on.
+
+**Latin, and then the system.** The four files compiled in cover Latin and
+nothing else, so a track named in its own script — العربية and فارسی sit in
+the tracks panel of the episode this was last checked against — is drawn by
+whatever the machine has. The words are right and the face is not ours: the
+fallback sets smaller at the same size and on its own baseline, and on a
+machine with nothing for that script it is tofu. Endonyms are the Capitals
+Rule taken seriously, so the answer is not to romanise them; it is either a
+font for each script the table names, which is several megabytes per script
+in a binary that ships its own libmpv, or this, knowingly. It is this.
 
 **The times are monospaced because they move.** In a proportional face the
 elapsed time changes width as it counts, and a figure that shuffles sideways
@@ -477,7 +495,15 @@ layout pass on every one of those reads.
 slider rows 30px. A heading that follows a group is 44px — the same 28px with
 the 16px group gap carried above it. The group gap is the row gap: the same
 16px that insets every wash and pads every panel, so the space that separates
-two ideas is the space the rows already stand in. The window opens at 1280×720 and floors at
+two ideas is the space the rows already stand in — and it is *derived* from
+it, not typed again, because two literals asserting an identity is one of them
+waiting to drift. Every number in this paragraph is named once, in the `Rows`
+global, where the components that draw the rows can also reach it; the panel
+arithmetic that sizes a page used to write 34, 30 and 38 out by hand, one
+literal per page, under a comment warning against exactly that. So is the
+12px a surface keeps from the next one — a panel above the timeline, the
+hover label on that line, the flash's caption under its ring, the seek
+preview clear of an open panel. One idea, one name. The window opens at 1280×720 and floors at
 900×480, below which the title would have next to no room left; it never
 reflows. The floor was once where the pills met, and it stayed put while the
 right pill grew twice, until at 900px the volume track lay over Play.
@@ -519,6 +545,18 @@ of the glass darkens as the frame behind it brightens, on a smooth curve rather
 than a threshold, so white text keeps a ground over a white scene. The pull
 toward the tint colour is a setting; the absorption under it is not.
 
+**What the material is, and what you want of it, are different questions.**
+Three of the glass page's sliders answered the first and have stopped being
+settings: the **bevel** (1.0 — the rim is the corner), the **index of
+refraction** (2.0 — well past a window pane, short of the diamond that pulls a
+black oval across the top of the way in) and the **reflection strength** (1.0 —
+the Fresnel term is already the physical answer and there is no reason to scale
+it). They are constants in `pipeline.rs`, and none of them had a range where
+the result was a matter of taste rather than of whether the panes still read as
+one material. What is left on that page — blur, refraction depth, fringe, sky,
+tint — is how much of the material you want, which is the question worth a
+slider.
+
 Fading a surface in fades its glass with it: opacity scales the shader's
 coverage, so a panel arriving at a third of its opacity refracts a third as
 hard. Glass at full strength beneath a half-faded surface reads as a hole in the
@@ -534,19 +572,33 @@ stopped, covered across the window, softened past the point where its pixels
 read, dimmed to 42% and falling away toward the corners. It arrives over 400ms,
 the one arrival slower than a surface, because it is the window's light
 changing rather than a control answering. Everything downstream treats it as
-the frame, so the way in refracts it like any panel refracts a film. With no
-unfinished film, or no atlas for it, the window stays black. The **single
-exception** to glass is the fatal-error pane, which carries a Soft wash fill
-(`#ffffff14`) at the panel radius: every failure that raises it leaves the
-player with no render context, so the glass it publishes is drawn by nobody.
+the frame, so the way in refracts it like any panel refracts a film.
+
+With no unfinished film, or no atlas for it, the window stays black — and a
+fresh install opens in exactly that state, every time. The **one exception**
+to glass covers this and one other case, and they are the same case: *there is
+no glass to paint over.* The way in then carries a Soft wash fill
+(`#ffffff14`) at the panel radius.
+
+- **Carrying a fatal error.** Every failure that raises it leaves the player
+  with no render context, so the glass it publishes is drawn by nobody.
+- **No film and no backdrop.** There is a render context and nothing in it.
+  Over Ground, refraction has nothing to bend and the rim nothing to mirror,
+  so the way in came up as three lines of white text on black — at the one
+  moment the product is being met for the first time, the whole of what it is
+  for was missing from the screen.
+
+Nowhere else. Everywhere else the material is real, and a fill would cover the
+thing this product exists for.
 
 ### Named Rules
 
 **The Proportional Rim Rule.** Bevel is a fraction of the corner radius, never a
 count of pixels. The same absolute rim that looks right rolling around a 32px
-panel corner swallows a 28px pane whole. One slider therefore means the same
+panel corner swallows a 28px pane whole. One number therefore means the same
 thing on every piece of glass, and a small pane simply has a small rolled edge —
-which is also how real glass is made.
+which is also how real glass is made. It is 1.0: the rim runs the full width of
+the corner, which is why a capsule is rim the whole way through.
 
 **The Room to Be Glass Rule.** A surface must leave more margin around its
 contents than its own bevel is wide, or the material has nowhere to render. The
@@ -601,6 +653,13 @@ the axes, which is exactly the part the eye catches.
 - **Active:** glyph to Lit, and every button that sets it swaps its own glyph as
   well — muted for unmuted, slashed for unslashed. A wash behind an engaged
   button was tried and taken back out: it made the state read as chrome.
+  **A button lights for a state you put it in, never for the state it came
+  in.** Mute is off until you mute it, so Mute earns the Lit glyph; the
+  ambient border is on to begin with, so lighting for that put the brightest
+  mark in the right pill on a control nobody had touched, and spent the
+  system's only emphasis on a default. It wears the swapped glyph alone,
+  which is the channel that carries this anyway, and its tip says which way
+  pressing goes.
 - **Open:** a held Strong wash for as long as the panel it opened is showing — a
   separate channel from the lit glyph, so the two never share one highlight.
   A button that opens something does not also light for a state. The
@@ -714,7 +773,8 @@ parts, on two levels, the way the settings are.
   file playing, or else the first not finished. Escape goes back a page before
   it closes the panel. Home and End go to the first and last row and PgUp and
   PgDn a page at a time, here and in the tracks, stopping at the ends; with a
-  list open they are the list's keys, not the film's.
+  list open they are the list's keys, not the film's — **every list, including
+  the one with no row to land on.** See Shortcut rows.
 
 ### The resume measure
 
@@ -796,8 +856,14 @@ row already has, beside the fact that is already there.
 - **Row:** 34px, the page's heading and the way out of it at once
 - **Text:** Label role at Body, starting on the row-label line; Lit on hover,
   over a Soft wash
-- **Chevron:** 14px, hanging in the 14px margin so the words land where every
-  heading and row label in the panel starts
+- **Chevron:** 18px, in the icon column, laid out exactly as a drill row lays
+  out its icon and with the same air after it. A back row is the way out of a
+  page of those, and the pair read as one movement only when they are built
+  the same. It hung in the margin at 14px once, which did line the label up
+  with the headings — and left the arrow pinched between the panel edge and
+  the first letter, which is the cost the eye actually notices. That was the
+  last icon in the system at any size but 24 or 18, so the exception the icon
+  rule used to carry is gone with it.
 
 ### Panels
 - **Shape:** 32px radius, 16px padding, no background of its own
@@ -827,8 +893,18 @@ row already has, beside the fact that is already there.
   the reference page they are inert — no wash and no pointer, because a wash
   under a row that does nothing when clicked is an offer the row cannot keep.
   The page lists what the pointer does as well, under POINTER — click, double
-  click, the two wheels and a drop — because it is the one reference the player
-  has
+  click, the two wheels and, where the platform has one, a drop — because it is
+  the one reference the player has
+- **A page that is read, not walked.** Every row of the reference is a
+  statement, so the ring has only the way back to stand on and the arrows have
+  nowhere to go. They move the list instead: ↑ and ↓ by a row, PgUp and PgDn by
+  a screenful less a row, Home and End to the ends. This is not a nicety. The
+  keys were falling through to the film underneath — Home restarted it, PgUp
+  and PgDn jumped its chapters — so the one page that documents those keys was
+  the one page where pressing them did something else, and reaching it with
+  `?` and then pressing Home threw the film back to 0:00. **No key belonging
+  to a list may reach the film while a panel is open**, whether or not that
+  panel has a use for it; on a page with none, doing nothing is the answer
 - **The keys beyond the bar** are mpv's own, so the habit carries over:
   Shift with an arrow for a one-second seek, `[` `]` and Backspace for speed
   on a fixed ladder (0.25× to 4×), `,` `.` for a frame, PgUp PgDn for chapters,
@@ -888,12 +964,20 @@ sits in for the first seconds of every unseen file and permanently on a machine
 with no ffmpeg.
 
 ### The action flash
-An answer, not a control: a 24px glyph in Lit inside a 56px circle of glass at
-the centre of the picture, and 12px under it, when there is one, a 28px capsule
+An answer, not a control: a 24px glyph in Lit inside a 56px circle of glass,
+and 12px under it, when there is one, a 28px capsule
 carrying the one number that has nowhere else to appear — Title at 600 in Lit,
 14px of padding, never wider than the bar. It lives 700ms, long enough to read a
 two-character figure and short enough that a held key flickers rather than
 strobes.
+
+**A seek is thrown to the side it seeks to** — a fifth of the way across for
+back, four fifths for forward — and everything else sits in the middle. The
+glyph already points the right way, but an arrow held down is read where it
+lands rather than looked at, and a mark that arrives on the left and one that
+arrives on the right are told apart before either is a shape. Clamped inside
+the panel margins, so the throw shortens on a narrow window rather than
+taking the ring off the edge of it.
 
 A **figure** replaces the ring with its words alone, for 1200ms: the speed
 after `[`, `]` or Backspace, the chapter after PgUp or PgDn, the track after J
@@ -922,10 +1006,25 @@ but never to the dialog *Open folder…* raises: an arrow held a moment too long
 is not a press deliberate enough to put one up.
 
 At the end of the last file — the end of a season, or of a film alone in its
-folder — it offers two things, the way on first and *Restart* second. The way
-on is the next season by name — *Season 8* — when a folder beside this one holds
-the same show at a later season, and *Open folder…* when not, opening on the
-shelf above this file's folder, which for a film is where the next one is.
+folder — it offers two things, the way on first and *Restart* second.
+
+**The way on is always named, where the player can name it.** This is the
+loudest the interface ever speaks, and it is the last thing it says about a
+film; spending that on a file-manager verb while the player still knows
+something to call the thing is the one ending worth getting right. So, in
+order: the next season, by name — *Season 8* — when a folder beside this one
+holds the same show at a later season; failing that, the newest other film
+still unfinished, by name, which is the same film the way in offers to
+continue and the only other thing the player can name without being told; and
+only when it can name neither, *Open folder…*, opening on the shelf above this
+file's folder. A noun in every case, as *Season 8* is: the thing you are going
+to, not a verb about going there.
+
+The credits pill does **not** take the second of those. It says *Next
+episode*, and only another episode of the same show can honour that; another
+film is an honest thing to offer over a file that has ended and a dishonest
+thing to call the next episode.
+
 Restart alone was the least likely thing anyone wanted there. With two,
 each choice is a 40px capsule of its own, set 4px inside the pill (24 − 4 = 20,
 concentric) with its words still 18px from the pill's edge, 6px apart, each
@@ -971,7 +1070,18 @@ With no film loaded, a panel of glass centred in the window, over the backdrop:
   Enter presses it at once, without first raising the ring: it is the first
   row, and the one the window is opened to get back to.
 - **Open file, Open folder, Settings and Shortcuts** as shortcut rows with their keys, then
-  a line at Quiet saying a file can be dropped anywhere.
+  a line at Quiet saying a file can be dropped anywhere — **on the platforms
+  where one can.** The drop target is Windows-only; Linux would be a different
+  implementation against a different protocol and does not have one yet. Both
+  places that offer a drop — this line and the POINTER row on the reference
+  page — are conditioned on it, and where there is none the line has nothing to
+  say at rest and takes no height. *Guess well, and never lie about it* is a
+  product principle, and a printed instruction that does nothing is the
+  plainest way to break it. **The gap goes with the line.** A note carries its
+  own 16px above it, so a window with nothing to add leaves its last row the
+  same air the heading has above it — and not, as it did, sixteen pixels of
+  glass below the thing that ended, which is the Gap Goes Above Rule read
+  backwards.
 
 While an open is in flight Continue and the two open rows fade to half and stop
 answering — to the pointer and to every key — and the line names what is
@@ -980,7 +1090,9 @@ failure it widens to 420px and offers nothing to open: a Title headline at
 Strong, the driver's own error text at Body in Hint size wrapping to three
 lines, a line at Quiet saying what usually puts it right — a driver update,
 except for shaders the driver would not build, where a current driver means
-the bug is the player's — and after a
+the bug is the player's, and asked for on its own account rather than
+alongside the drop line, which it shared until the drop line learned to
+disappear and took it along — and after a
 group gap two rows — *Copy details*, which puts the headline and the driver's
 words on the clipboard and says *Copied* for two seconds, and *Close the player*.
 
@@ -1018,8 +1130,10 @@ words on the clipboard and says *Copied* for two seconds, and *Close the player*
   gap 0x20 wide left to put one in, and the floor is the contrast margin
   everything else stands on.
 - **Don't** give a panel a background fill. The glass beneath it is the surface;
-  a fill paints over the thing this product exists for. The fatal-error pane is
-  the one exception, because there is no glass to paint over.
+  a fill paints over the thing this product exists for. The way in is the one
+  exception, in the two states where there is no glass to paint over: carrying
+  a fatal error, and on a window with no film and no backdrop. See Elevation &
+  Depth. Both are the same case and take the same wash at the same radius.
 - **Don't** draw a border, a ring or a hairline. There is no outline anywhere in
   this interface, and a focus ring would make the keyboard the only thing that
   draws one.
@@ -1029,15 +1143,27 @@ words on the clipboard and says *Copied* for two seconds, and *Close the player*
 - **Don't** open two panels at once.
 - **Don't** animate for its own sake. Motion here is a response: 45ms for a
   wash, 100ms for a track, 120ms for a surface or a switch, ease-out, no bounce,
-  no overshoot. Two things are slower on purpose: the title pill resizing to a
-  new title over 160ms ease-in-out, so a file change is a movement rather than
-  a flicker, and the backdrop's 400ms arrival, the one motion that is not a
-  response to anything.
+  no overshoot. Four things depart from that, each for a reason that is about
+  what is moving rather than about how it looks:
+  - the **title pill** resizing to a new title over 160ms ease-in-out, so a
+    file change is a movement rather than a flicker;
+  - the **backdrop's** 400ms arrival, the one motion that is not a response to
+    anything — it is the window's light changing, not a control answering;
+  - a **settings drill**, 220ms ease-in-out, moving the page sideways and the
+    panel's own height with it. Longer than a surface because it is a journey
+    rather than an arrival, and eased at both ends because it starts and stops
+    in place rather than coming from nowhere. The panel and the page are one
+    number, so the box and what is in it arrive together;
+  - the **seek preview's** fade, 60ms — half the shared duration, and the one
+    surface with a number of its own. It is not announcing itself; it is
+    following a pointer, and at 120ms it read as trailing the hand rather than
+    belonging to it.
 - **Don't** substitute an icon library. The set is 60 SVGs drawn at 24×24 as
   one family; extend it rather than replacing it.
 - **Don't** show an icon at a size other than 24px or 18px. Scaled from the
   24×24 drawings, those give a 2px and a 1.5px line and both stay legible; at
   16px the line falls to 1.33px, and at 12px every line lands on a pixel
   boundary and turns to two grey rows, so detailed icons blur into blobs. A
-  smaller size needs its own drawing. The back row's 14px chevron is the one
-  exception, simple enough to survive it.
+  smaller size needs its own drawing. There are **no** exceptions: the back
+  row's 14px chevron was the only one and it is now 18px, for a reason that
+  had nothing to do with this rule and happened to settle it.

@@ -65,12 +65,12 @@ pub enum Completion {
     /// What the empty window can offer to pick back up, looked for once at
     /// startup when nothing was named on the command line.
     Resume(Option<crate::session::Resume>),
-    /// The folder of the season after the one that just ended, if one sits
-    /// beside it, and which season it is. `from` is the file that asked, so
-    /// an answer that arrives after something else started is dropped.
-    NextSeason {
+    /// Where the way on goes once a list has run out, already named. `from`
+    /// is the file that asked, so an answer that arrives after something
+    /// else started is dropped, and `None` means there is nowhere to go.
+    Onward {
         from: String,
-        found: Option<(std::path::PathBuf, u32)>,
+        to: Option<Onward>,
     },
     /// Seasons of the playing show found in folders beside its own, for the
     /// playlist panel. `paths` is the list they were looked for beside, so an
@@ -79,6 +79,24 @@ pub enum Completion {
         paths: Vec<String>,
         seasons: Vec<crate::shelf::Beside>,
     },
+}
+
+/// The way on from the end of a list, worked out on the worker because both
+/// of the things it looks at are on disk.
+///
+/// Named here rather than in the interface: what it is called depends on
+/// which of the two it turned out to be, and the interface should not have to
+/// know that a season and a film are found in different ways.
+pub struct Onward {
+    pub path: String,
+    /// What the pill says. A noun, as *Season 8* is: the thing you are going
+    /// to, not a verb about going there.
+    pub label: String,
+    /// Whether it is more of the same show. The credits pill offers *Next
+    /// episode*, and only another episode can honour that — a different film
+    /// is a fair thing to offer when a file has ended and not a fair thing to
+    /// call the next episode.
+    pub season: bool,
 }
 
 type Job = Box<dyn FnOnce(&Mpv) -> Option<Completion> + Send + 'static>;

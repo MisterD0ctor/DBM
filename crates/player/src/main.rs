@@ -103,6 +103,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[cfg(target_os = "linux")]
     slint::set_xdg_app_id("io.github.MisterD0ctor.DBM")?;
 
+    // Set once: the answer is a `cfg`, not something that can change under a
+    // running window. The interface has two lines that offer a drop and must
+    // not offer one where nothing would catch it.
+    ui.set_drop_supported(dropped::SUPPORTED);
+
     // `Arc` for two reasons: the address of the `Mpv` must stay put, because
     // the render context keeps a raw pointer to the symbol table inside it;
     // and the worker thread needs a share of it.
