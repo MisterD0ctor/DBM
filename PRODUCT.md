@@ -95,10 +95,12 @@ scope.
 - Icons are drawn for 24×24 and displayed at 24px or 18px, which scale their
   2px lines to 2px and 1.5px. The back row's 14px chevron is the one exception.
 
-**Undecided or not yet built:** code signing, an update mechanism, MPRIS and
-XDND as the Linux answers to the media keys and the drop target, and language
-endonyms from a real locale database (currently a hand-written 42-language
-table with ISO 639-2 folding).
+**Undecided or not yet built:** code signing, an update mechanism, XDND as
+the Linux answer to the drop target, and language endonyms from a real locale
+database (currently a hand-written 42-language table with ISO 639-2 folding).
+The Linux media keys are built — MPRIS over D-Bus, see `mpris` — with one
+deliberate gap: Stop pauses rather than unloading, because everything the bus
+is told rides a drawn frame and a player with no film draws none.
 
 ## Brand Commitments
 

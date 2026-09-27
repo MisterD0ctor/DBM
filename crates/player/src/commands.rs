@@ -33,6 +33,12 @@ pub const FINE_SEEK_STEP: f64 = 1.0;
 /// joins the ladder at the next rung rather than being snapped to one.
 const SPEEDS: &[f64] = &[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0];
 
+/// The ends of that ladder, for a caller that has to advertise a range
+/// rather than step through one — see `mpris`.
+pub fn speed_limits() -> (f64, f64) {
+    (SPEEDS[0], SPEEDS[SPEEDS.len() - 1])
+}
+
 /// One rung up or down from `current`. At either end there is no rung, and
 /// nothing is sent.
 pub fn step_speed(mpv: &Mpv, current: f64, direction: i32) {
@@ -44,6 +50,12 @@ pub fn step_speed(mpv: &Mpv, current: f64, direction: i32) {
     if let Some(speed) = next {
         set_prop(mpv, "speed", &fmt(speed));
     }
+}
+
+/// Play at a given speed, for a caller that arrived at a number of its own
+/// rather than stepping the ladder.
+pub fn set_speed(mpv: &Mpv, speed: f64) {
+    set_prop(mpv, "speed", &fmt(speed));
 }
 
 pub fn reset_speed(mpv: &Mpv) {
@@ -348,6 +360,12 @@ pub fn playlist_step(mpv: &Mpv, delta: i32) {
             &["playlist-prev"]
         },
     );
+}
+
+/// Seek to a point, counted in seconds from the start. Exact, like every
+/// seek that is not a drag in progress.
+pub fn seek_to(mpv: &Mpv, seconds: f64) {
+    run(mpv, &["seek", &fmt(seconds), "absolute+exact"]);
 }
 
 pub fn restart(mpv: &Mpv) {

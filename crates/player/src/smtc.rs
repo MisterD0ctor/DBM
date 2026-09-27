@@ -16,14 +16,11 @@
 //! solved the same way: it is retried from the frame path until it takes.
 //!
 //! Linux has no equivalent in the same sense. MPRIS over D-Bus is the
-//! counterpart and is a different enough shape — a service name, an object
-//! path, a property-change signal — that it is its own piece of work, not a
-//! `cfg` arm of this one. Everything here compiles away to nothing there.
-
-use std::sync::Arc;
-
-use crate::mpv::Mpv;
-use crate::state::PlayerState;
+//! counterpart and is a different enough shape — a bus name, an object path,
+//! a property-change signal — that it is its own piece of work rather than a
+//! `cfg` arm of this one. It lives in `mpris` and wears the same face: a
+//! `Controls` with a `publish`, which is what the re-export at the bottom is
+//! for. Everything in this file compiles away to nothing there.
 
 // ---------------------------------------------------------------------------
 // Windows
@@ -34,9 +31,11 @@ pub use windows_impl::Controls;
 
 #[cfg(windows)]
 mod windows_impl {
-    use super::*;
-
     use std::cell::RefCell;
+    use std::sync::Arc;
+
+    use crate::mpv::Mpv;
+    use crate::state::PlayerState;
 
     /// What the overlay is currently showing, so it is only told about
     /// changes.
@@ -269,21 +268,7 @@ mod windows_impl {
 // Everywhere else
 // ---------------------------------------------------------------------------
 
+/// The render driver asks for `smtc::Controls` on both platforms and is told
+/// nothing more; which of the two answers it gets is decided here, once.
 #[cfg(not(windows))]
-pub use other::Controls;
-
-#[cfg(not(windows))]
-mod other {
-    use super::*;
-
-    pub struct Controls;
-
-    impl Controls {
-        pub fn new(_mpv: Arc<Mpv>) -> Self {
-            Self
-        }
-
-        /// No-op until there is an MPRIS implementation to put here.
-        pub fn publish(&self, _window: &slint::Window, _player: &PlayerState, _moved: bool) {}
-    }
-}
+pub use crate::mpris::Controls;

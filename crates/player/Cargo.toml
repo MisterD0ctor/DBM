@@ -28,6 +28,11 @@ md-5 = "0.11"
 # already the default here — so this only widens what is reachable.
 [target.'cfg(not(windows))'.dependencies]
 slint = { version = "1.17", features = ["unstable-winit-030"] }
+# The media keys and the desktop's media widget, which here means MPRIS over
+# D-Bus - see `mpris`. Default features: that is the blocking API over
+# `async-io`, so nothing drags in an async runtime the rest of the player
+# would then have to live with.
+zbus = "5"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = [

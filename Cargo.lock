@@ -1044,6 +1044,7 @@ dependencies = [
  "slint-build",
  "windows 0.61.3",
  "winresource",
+ "zbus",
 ]
 
 [[package]]

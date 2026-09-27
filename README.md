@@ -59,9 +59,12 @@ the video plays black with sound. The Flatpak build below avoids both.
 
 ## Platforms
 
-Windows and Linux both ship. On Linux, the Windows-only pieces (the modal
-resize-loop hook, the media keys, the drop target, keeping the display awake)
-compile away and have no counterpart yet. macOS is out of scope.
+Windows and Linux both ship. The media keys and the desktop's own media
+controls reach the player on both, through different systems: Windows' SMTC
+and, on Linux, MPRIS over D-Bus — see `smtc` and `mpris`, and
+`DBM_MPRIS_TEST=1` to watch it work. The pieces that are still Windows-only
+(the modal resize-loop hook, the drop target, keeping the display awake)
+compile away on Linux and have no counterpart yet. macOS is out of scope.
 
 ## Packaging
 

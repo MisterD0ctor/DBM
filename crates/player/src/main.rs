@@ -45,6 +45,7 @@
 //! | `session`     | remembering the position and tracks of each file      |
 //! | `settings`    | the registry of tunable material parameters           |
 //! | `smtc`        | the OS media overlay and the buttons on a headset     |
+//! | `mpris`       | the same two things on Linux, over D-Bus              |
 //! | `awake`       | keeping the display on while something plays          |
 //! | `paths`       | where the app keeps its own files                     |
 //! | `worker`      | a thread for anything that would block the frame path |
@@ -65,6 +66,8 @@ mod durations;
 mod gfx;
 mod harness;
 mod modal_loop;
+#[cfg(not(windows))]
+mod mpris;
 mod naming;
 mod mpv;
 mod paths;
@@ -96,12 +99,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let ui = MainWindow::new()?;
 
     // Wayland pairs a window with its desktop entry by this id; without it the
-    // dock shows a generic icon and no name. It is the Flatpak's id, and the
-    // desktop file is named after it. Here and not earlier: it needs the
-    // platform `MainWindow::new` brings up, and is read when the native window
-    // is created at `show`.
+    // dock shows a generic icon and no name. It is the Flatpak's id, the
+    // desktop file is named after it and the MPRIS bus name is built from it,
+    // which is why the string itself lives in `mpris`. Here and not earlier:
+    // it needs the platform `MainWindow::new` brings up, and is read when the
+    // native window is created at `show`.
     #[cfg(target_os = "linux")]
-    slint::set_xdg_app_id("io.github.MisterD0ctor.DBM")?;
+    slint::set_xdg_app_id(mpris::APP_ID)?;
 
     // Set once: the answer is a `cfg`, not something that can change under a
     // running window. The interface has two lines that offer a drop and must
@@ -155,8 +159,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         params,
         preview,
         audio.clone(),
-        // Registers itself from the frame path: the window handle it needs
-        // does not exist yet, and will not until the loop has turned.
+        // On Windows this registers itself from the frame path: the window
+        // handle it needs does not exist yet and will not until the loop has
+        // turned. On Linux there is no handle in it, so the bus name is
+        // claimed here and now — see `mpris`.
         smtc::Controls::new(mpv.clone()),
         activity,
     );
