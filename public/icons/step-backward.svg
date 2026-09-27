@@ -23,9 +23,9 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#505050"
      inkscape:document-units="px"
-     inkscape:zoom="22.627417"
-     inkscape:cx="8.8388348"
-     inkscape:cy="13.147767"
+     inkscape:zoom="32"
+     inkscape:cx="5.71875"
+     inkscape:cy="11.640625"
      inkscape:window-width="3440"
      inkscape:window-height="1403"
      inkscape:window-x="0"
@@ -39,7 +39,7 @@
        id="path-effect2"
        is_visible="true"
        lpeversion="1"
-       nodesatellites_param="F,0,1,1,0,0.2820519,0,1 @ F,0,0,1,0,0.71283372,0,1 @ F,0,0,1,0,0.71283372,0,1"
+       nodesatellites_param="F,0,1,1,0,0,0,1 @ F,0,0,1,0,0.71283372,0,1 @ F,0,0,1,0,0.71283372,0,1"
        radius="0"
        unit="px"
        method="auto"
@@ -75,15 +75,15 @@
      id="layer1">
     <path
        style="fill:#ffffff;stroke-width:0.554995;stroke-linejoin:bevel;stroke-miterlimit:100"
-       d="M 5.3183451,3.0234922 1.1304267,0.35644937 A 0.39114923,0.39114923 151.24535 0 0 0.52916665,0.68637539 V 5.6636246 A 0.39114923,0.39114923 28.75465 0 0 1.1304267,5.9935506 L 5.3183451,3.3265078 a 0.17962253,0.17962253 90 0 0 0,-0.3030156 z"
+       d="M 4.7624999,3.175 1.1165715,0.66842418 A 0.37497227,0.37497227 152.25426 0 0 0.52916665,0.97741705 V 5.3725829 A 0.37497227,0.37497227 27.745739 0 0 1.1165715,5.6815758 Z"
        id="path2"
        sodipodi:nodetypes="cccc"
        inkscape:path-effect="#path-effect2"
-       inkscape:original-d="M 5.5562499,3.175 0.52916665,-0.02645833 V 6.3764583 Z"
+       inkscape:original-d="M 4.7624999,3.175 0.52916665,0.26458333 V 6.0854166 Z"
        transform="matrix(-1,0,0,0.90909091,6.3498676,0.28863636)" />
     <path
        style="fill:#ffffff;stroke:#ffffff;stroke-width:0.528902;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:100;stroke-dasharray:none"
-       d="M 0.79361766,0.79374999 V 5.55625"
+       d="M 0.79361766,1.0583333 V 5.2916666"
        id="path1"
        sodipodi:nodetypes="cc" />
   </g>
