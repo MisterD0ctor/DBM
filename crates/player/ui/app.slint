@@ -3274,8 +3274,24 @@ export component MainWindow inherits Window {
     /// The room the two pages share: the panel under its own padding, less
     /// the switch below them, which belongs to neither and does not move
     /// with them.
+    ///
+    /// Measured off the panel as it is this frame, not off `playlist-h`,
+    /// which is where it is going. The two are the same at rest and differ
+    /// for the 220ms of a drill, because the box animates to its new height
+    /// and the arithmetic does not — and the switch is packed *after* this,
+    /// so it takes the whole of the difference. Drilling back up it leapt to
+    /// just under the second row and sat there while the panel closed down
+    /// around it; drilling in, it dropped out through the bottom edge. The
+    /// one row that is not on either page was the only thing moving.
+    ///
+    /// Reading an element's height from up here is the same move the glass
+    /// rect below makes, and for the same reason: `playlist-h` is the
+    /// destination, and anything that has to agree with what is on screen
+    /// has to ask the box. It is a property, not a layout query — nothing
+    /// here asks the panel what size it would like to be, which is what the
+    /// once-a-frame rule is about.
     property <length> playlist-pages-h: max(0px,
-        root.playlist-h - root.panel-pad - Rows.group-gap - root.toggle-h);
+        playlist-panel.height - root.panel-pad - Rows.group-gap - root.toggle-h);
     /// Each page's list, under that page's own head — a heading on the list
     /// of parts, a way back on a part's page. Both are wanted at once, for
     /// the 220ms the two spend moving past each other.
