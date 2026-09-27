@@ -141,8 +141,11 @@ pub struct GlassParams {
     /// backdrop, so it scales how strongly the rim displaces what is behind
     /// it.
     pub refract: f32,
-    /// Fraction by which the red and blue transmission offsets differ from
-    /// green: the prismatic fringe.
+    /// Dispersive power — how far the index of refraction spreads across the
+    /// visible band, as (n_F - n_C) / (n_d - 1), the reciprocal of the Abbe
+    /// number. The shader integrates the transmitted ray over wavelength
+    /// with it, so this is the width of a spectrum rather than the gap
+    /// between three copies of an edge: the prismatic fringe.
     pub aberration: f32,
     /// Brightness of the synthetic sky seen where the reflection escapes
     /// upward off the bevel.

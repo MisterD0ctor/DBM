@@ -557,6 +557,20 @@ one material. What is left on that page — blur, refraction depth, fringe, sky,
 tint — is how much of the material you want, which is the question worth a
 slider.
 
+**The fringe is a spectrum, not three copies.** The index of refraction is a
+function of wavelength (Cauchy's law, anchored so the index above is the one
+at the sodium d line), and the transmitted colour is integrated across the
+visible band under the CIE 1931 observer and D65 — the illuminant sRGB white
+already is. The Fringe slider is dispersive power, the reciprocal of an Abbe
+number. It used to scale one offset three ways, red up and blue down, which
+read as a coloured edge while subtle and as three coloured copies of the edge
+past a pixel or two; it also had the order backwards, since short wavelengths
+bend more. Now the band is sampled as finely as the smear is wide — one
+wavelength across the flat middle of every panel, where the slope and so the
+spread are zero, up to twenty four at the rim — and each sample's weight is
+its exact share of the curve, so a flat backdrop comes through white at any
+count. At Fringe 0 it is the old single ray, to within 1/255.
+
 Fading a surface in fades its glass with it: opacity scales the shader's
 coverage, so a panel arriving at a third of its opacity refracts a third as
 hard. Glass at full strength beneath a half-faded surface reads as a hole in the

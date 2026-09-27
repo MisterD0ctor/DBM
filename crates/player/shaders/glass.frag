@@ -37,7 +37,11 @@
 //     reflectance. Grazing angles at the rim go strongly reflective, which is
 //     why real glass edges look bright without any hand-placed highlight.
 //
-// Wavelength enters only as chromatic aberration on the transmitted ray.
+// Wavelength enters on the transmitted ray, and enters properly: the index
+// of refraction is a function of it, so every wavelength lands somewhere
+// slightly different and the colour at a fragment is the integral of what
+// they each found, weighted by the eye's response under D65. See dispersion,
+// below.
 
 in vec2 v_uv;
 out vec4 frag;
@@ -88,7 +92,12 @@ uniform float u_refract;
 /// 1.8 flint, 2.4 diamond. Higher bends harder and, through the Fresnel term,
 /// also makes the rim more mirror-like.
 uniform float u_ior;
-/// Fraction by which the red and blue transmission offsets differ from green.
+/// How strongly the index of refraction varies with wavelength, as dispersive
+/// power: the spread of the index between the F and C lines as a fraction of
+/// (n_d - 1). That is the reciprocal of the Abbe number, which is how glass
+/// is actually specified. Real glasses run about 1/70 for crown to 1/20 for
+/// dense flint; this goes well past that, because here the fringe is a thing
+/// to be seen rather than a defect to be corrected out.
 uniform float u_aberration;
 /// Overall strength of the reflection, scaling the Fresnel weight.
 uniform float u_specular;
@@ -157,7 +166,146 @@ const vec2 RIM_SAMPLES[8] = vec2[8](
 /// How far in the supersampling reaches, as a fraction of the bevel: the
 /// stretch where the slope is past about 1, which contains the reflection's
 /// turn through horizontal (t near 0.87) as well as the rim itself.
-const float RIM_BAND = 0.25;
+const float RIM_BAND = 0.5;
+
+// --- dispersion ---------------------------------------------------------------
+//
+// The fringe used to be three taps: the same offset scaled up for red, left
+// alone for green, scaled down for blue. That is fine while it is subtle and
+// falls apart the moment it is not — past a pixel or two of spread the panel
+// stops having a coloured edge and starts having three coloured copies of
+// its edge, because three copies is all it ever was. It was also the wrong
+// way round. Shorter wavelengths bend *more*, so blue should land further
+// from where it entered than red, and it was doing the opposite.
+//
+// So the index is a function of wavelength and the transmitted colour is an
+// integral rather than three samples:
+//
+//     C = integral over lambda of  backdrop(offset(n(lambda))) * w(lambda)
+//
+// `w` is the CIE 1931 2-degree observer under D65, carried through to linear
+// sRGB and normalised so the whole band sums to white. Its three lobes are
+// what turn a smooth sweep of sample positions into a smooth sweep of hue,
+// and they overlap the way the eye's cones do, which is why the result reads
+// as one edge seen through glass rather than as a stack of coloured copies.
+//
+// The band is integrated in strata, and a stratum's weight is the exact
+// difference of the cumulative curve at its two ends rather than a point
+// sample of the curve. That matters more than it sounds: the weights then
+// add to exactly white at any number of strata, however few, so changing how
+// many are taken changes how finely the smear is resolved and never what
+// colour a flat backdrop comes out. A running normalisation would have had
+// to divide by a sum that includes the negative lobes, which is a small
+// number divided by a small number on the one channel that can least afford
+// it.
+//
+// Linear sRGB cannot hold a spectral colour — its red weight goes negative
+// between about 470 and 600nm, which is the gamut saying so rather than an
+// error. Two things keep that from showing: what is sampled is the *blurred*
+// backdrop, so neighbouring wavelengths land on values close to each other
+// and the negative lobes have nothing sharp to ring against; and the result
+// is floored at zero before anything downstream divides by its luminance.
+
+/// The visible band, in microns, as bin edges: 395nm to 705nm in 10nm steps.
+const float LAMBDA_MIN = 0.395;
+const float LAMBDA_MAX = 0.705;
+#define SPECTRUM_STEPS 31
+
+/// 1/lambda^2 at the sodium d line, 587.6nm — where `u_ior` is the index.
+const float INV_D2 = 2.896647;
+/// 1/lambda_F^2 - 1/lambda_C^2, the hydrogen F and C lines at 486.1 and
+/// 656.3nm. Dispersive power is measured across those two, so this is what
+/// turns `u_aberration` into Cauchy's B.
+const float INV_FC = 1.910389;
+
+/// Running integral of the weight curve, at each bin edge.
+///
+/// CIE 1931 2-degree colour matching functions times the D65 relative SPD,
+/// through the XYZ-to-linear-sRGB matrix, normalised so the last entry is
+/// exactly white. Integrating the tables that produced this puts the white
+/// point at x=0.3126 y=0.3293, against D65's nominal 0.3127, 0.3290 — the
+/// difference is the band's two tails, which are outside 395-705nm and
+/// carry nothing the eye can see.
+const vec3 SPECTRUM_CUM[SPECTRUM_STEPS + 1] = vec3[SPECTRUM_STEPS + 1](
+    vec3( 0.00000000,  0.00000000,  0.00000000), // 395 nm
+    vec3( 0.00093823, -0.00080654,  0.00568553), // 405 nm
+    vec3( 0.00404350, -0.00351265,  0.02489721), // 415 nm
+    vec3( 0.01357884, -0.01198610,  0.08596233), // 425 nm
+    vec3( 0.03098087, -0.02803644,  0.20748264), // 435 nm
+    vec3( 0.05311861, -0.05003088,  0.39262043), // 445 nm
+    vec3( 0.06951930, -0.07004844,  0.60172096), // 455 nm
+    vec3( 0.07152753, -0.08118067,  0.79931933), // 465 nm
+    vec3( 0.05530278, -0.07739773,  0.94676202), // 475 nm
+    vec3( 0.02127480, -0.05526971,  1.03871131), // 485 nm
+    vec3(-0.02501829, -0.01632332,  1.08526277), // 495 nm
+    vec3(-0.08902081,  0.04700714,  1.10827798), // 505 nm
+    vec3(-0.17317586,  0.14294143,  1.11493777), // 515 nm
+    vec3(-0.26527511,  0.26915942,  1.10911351), // 525 nm
+    vec3(-0.34809658,  0.41766198,  1.09664552), // 535 nm
+    vec3(-0.40120054,  0.56663327,  1.08109925), // 545 nm
+    vec3(-0.41396470,  0.70896237,  1.06436262), // 555 nm
+    vec3(-0.37644293,  0.83098707,  1.04863943), // 565 nm
+    vec3(-0.28447462,  0.92638733,  1.03497219), // 575 nm
+    vec3(-0.13607994,  0.99377601,  1.02363832), // 585 nm
+    vec3( 0.04599053,  1.02944966,  1.01554964), // 595 nm
+    vec3( 0.25728695,  1.04257596,  1.00967816), // 605 nm
+    vec3( 0.46795548,  1.04019214,  1.00572908), // 615 nm
+    vec3( 0.64979452,  1.03078720,  1.00323507), // 625 nm
+    vec3( 0.78224303,  1.02090310,  1.00179215), // 635 nm
+    vec3( 0.87623919,  1.01252772,  1.00093805), // 645 nm
+    vec3( 0.93356458,  1.00692433,  1.00047846), // 655 nm
+    vec3( 0.96799488,  1.00339281,  1.00022333), // 665 nm
+    vec3( 0.98539565,  1.00156592,  1.00009968), // 675 nm
+    vec3( 0.99370136,  1.00067989,  1.00004242), // 685 nm
+    vec3( 0.99784600,  1.00023300,  1.00001444), // 695 nm
+    vec3( 1.00000000,  1.00000000,  1.00000000)  // 705 nm
+);
+
+/// The weight curve integrated from 395nm up to `micron`.
+///
+/// Linear between table entries, which makes the difference of two of these
+/// the trapezoid rule over the stretch between them.
+vec3 spectrum_upto(float micron) {
+    float u = clamp((micron - LAMBDA_MIN) / (LAMBDA_MAX - LAMBDA_MIN), 0.0, 1.0)
+            * float(SPECTRUM_STEPS);
+    int i = min(int(u), SPECTRUM_STEPS - 1);
+    return mix(SPECTRUM_CUM[i], SPECTRUM_CUM[i + 1], u - float(i));
+}
+
+/// Index of refraction at one wavelength, by Cauchy's two-term law
+/// n(lambda) = A + B / lambda^2, written against the d line so that `u_ior`
+/// stays the index of the material rather than a coefficient of it.
+float index_at(float micron, float n_d, float b) {
+    return max(n_d + b * (1.0 / (micron * micron) - INV_D2), 1.0);
+}
+
+/// Lateral-over-vertical displacement of a vertical ray entering a surface of
+/// this slope at this index. Split out of `glass_at` because dispersion
+/// needs it once per wavelength; see the derivation there.
+float transmit_ratio(float slope, float slope2, float n) {
+    float n2 = n * n;
+    float d = sqrt(n2 + (n2 - 1.0) * slope2);
+    return -slope * (d - 1.0) / (slope2 + d);
+}
+
+/// Most wavelengths a fragment will take, and the most it may take inside the
+/// supersampled rim band, where eight of these are averaged anyway.
+#define MAX_BANDS 24
+#define RIM_BANDS 8
+
+/// A fixed per-pixel offset in [0,1), to break the strata out of lockstep.
+///
+/// Stratified sampling of a band puts the samples at the same wavelengths in
+/// every pixel, which draws the bands it was meant to dissolve. Rotating the
+/// set by a per-pixel amount turns that structure into noise at the same
+/// amplitude, and the noise is far below what the blurred backdrop is doing
+/// anyway. Hashed from the pixel rather than from a clock, so it is the same
+/// every frame and a still panel does not crawl.
+float dither_at(vec2 p) {
+    vec3 q = fract(vec3(p.xyx) * 0.1031);
+    q += dot(q, q.yzx + 33.33);
+    return fract((q.x + q.y) * q.z);
+}
 
 vec3 base_at(vec2 p) {
     return texture(u_base, clamp(p, vec2(0.0), vec2(1.0)) * u_base_scale).rgb;
@@ -188,7 +336,11 @@ vec2 sd_round_box_normal(vec2 p, vec2 half_size, float r) {
 /// The glass surface at pixel `px` of one panel. A point just outside the
 /// outline, as an edge sample can be, is shaded as the rim itself: `t` clamps
 /// to 1 there, and every term below is finite at 1.
-vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted) {
+///
+/// `budget` is the most wavelengths this sample may take and `dither` where
+/// in each stratum it takes them; see dispersion, above.
+vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
+              int budget, float dither) {
     vec2 uv = px / u_size;
     vec2 rel = px - centre;
     float d = sd_round_box(rel, half_size, radius);
@@ -238,18 +390,51 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted) 
     // `slope` is negative on the bevel, so this pulls the sample inward:
     // the rim shows magnified content from under the panel, exactly as a
     // bevelled pane does.
-    float transmission_ratio = -slope * (D - 1.0) / (slope2 + D);
-    vec2 transmission_offset =
-        -box_normal * transmission_ratio * height * thickness / u_size;
+    // That ratio is `transmit_ratio`, above, because it is now wanted once
+    // per wavelength. This is the part every wavelength shares: the
+    // direction, and how far the ray descends, in pixels.
+    vec2 reach = -box_normal * height * thickness;
 
-    // Chromatic aberration: shorter wavelengths bend more, so the same
-    // offset is scaled up for red and down for blue.
-    float ab = u_aberration;
-    vec3 refracted = vec3(
-        blur_at(uv + transmission_offset * (1.0 + ab)).r,
-        blur_at(uv + transmission_offset).g,
-        blur_at(uv + transmission_offset * (1.0 - ab)).b
-    );
+    // Dispersion. Cauchy's B from the dispersive power, and the two ends of
+    // the band from it — violet has the highest index and lands furthest in.
+    float cauchy_b = u_aberration * (ior - 1.0) / INV_FC;
+    float ratio_violet = transmit_ratio(slope, slope2, index_at(LAMBDA_MIN, ior, cauchy_b));
+    float ratio_red = transmit_ratio(slope, slope2, index_at(LAMBDA_MAX, ior, cauchy_b));
+
+    // How far apart those two land, in pixels, is the whole of what decides
+    // how many wavelengths are worth taking. Under a pixel there is nothing
+    // to resolve and the d-line ray is the answer, which is every fragment
+    // across the flat middle of every panel, where the slope is zero and so
+    // is every offset. Past that, about one wavelength per pixel of smear:
+    // fewer and the sweep arrives as bands, which is the three-copy look
+    // again with more copies.
+    float spread = length(reach) * abs(ratio_violet - ratio_red);
+    int bands = int(clamp(ceil(spread), 1.0, float(budget)));
+
+    vec3 refracted;
+    if (bands <= 1) {
+        refracted = blur_at(uv + reach * transmit_ratio(slope, slope2, ior) / u_size);
+    } else {
+        refracted = vec3(0.0);
+        float width = (LAMBDA_MAX - LAMBDA_MIN) / float(bands);
+        vec3 below = vec3(0.0);
+        for (int i = 0; i < MAX_BANDS; i++) {
+            if (i >= bands) {
+                break;
+            }
+            float start = LAMBDA_MIN + float(i) * width;
+            // The stratum's exact share of the curve, so the shares add to
+            // white at any count; its ray from a dithered point inside it.
+            vec3 upto = spectrum_upto(start + width);
+            vec3 share = upto - below;
+            below = upto;
+            float n = index_at(start + dither * width, ior, cauchy_b);
+            refracted += share * blur_at(uv + reach * transmit_ratio(slope, slope2, n) / u_size);
+        }
+        // Out of gamut comes out negative; see dispersion, above. The
+        // absorption below divides by this colour's luminance.
+        refracted = max(refracted, vec3(0.0));
+    }
 
     // Tint first. Glass is not a neutral filter, and without this a panel
     // over dark video reads as a hole rather than a surface.
@@ -345,15 +530,22 @@ void main() {
             continue;
         }
 
+        float dither = dither_at(px);
         vec3 glass;
         if (d > -max(RIM_BAND * u_bevel * radius, 1.0)) {
             glass = vec3(0.0);
+            // Each sub-sample takes its wavelengths from a different eighth
+            // of the stratum, so the eight together resolve the band as
+            // finely as one sample taking eight times as many — the rim,
+            // where the smear is widest, gets its spectral resolution from
+            // the supersampling it was doing anyway.
             for (int s = 0; s < 8; s++) {
-                glass += glass_at(px + RIM_SAMPLES[s], centre, half_size, radius, tinted);
+                glass += glass_at(px + RIM_SAMPLES[s], centre, half_size, radius, tinted,
+                                  RIM_BANDS, fract(dither + float(s) * 0.125));
             }
             glass *= 0.125;
         } else {
-            glass = glass_at(px, centre, half_size, radius, tinted);
+            glass = glass_at(px, centre, half_size, radius, tinted, MAX_BANDS, dither);
         }
 
         col = mix(col, glass, coverage);

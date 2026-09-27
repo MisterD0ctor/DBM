@@ -91,7 +91,7 @@ pub struct Param {
 pub const REGISTRY: &[Param] = &[
     Param { key: Key::Blur, name: "glass.blur", section: Section::Glass, label: "Blur", min: 0.0, max: 40.0 },
     Param { key: Key::Refract, name: "glass.refract_ratio", section: Section::Glass, label: "Refract", min: 0.0, max: 4.0 },
-    Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: "Fringe", min: 0.0, max: 1.0 },
+    Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: "Fringe", min: 0.0, max: 4.0 },
     Param { key: Key::Sky, name: "glass.sky", section: Section::Glass, label: "Sky", min: 0.0, max: 4.0 },
     Param { key: Key::Tint, name: "glass.tint", section: Section::Glass, label: "Tint", min: 0.0, max: 1.0 },
     Param { key: Key::EdgeBlur, name: "border.edge_blur", section: Section::Border, label: "Edge blur", min: 0.0, max: 0.1 },
