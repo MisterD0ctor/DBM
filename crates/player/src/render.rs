@@ -132,6 +132,9 @@ pub struct Driver {
     smtc: crate::smtc::Controls,
     /// Holds the display on while something plays.
     awake: crate::awake::Awake,
+    /// When a hand was last on the controls — see
+    /// `keep_the_interface_moving`, the only thing that reads it here.
+    activity: crate::chrome::Activity,
     diag: diagnostics::Probe,
     /// A picture of a finished frame, when one is asked for.
     capture: diagnostics::Capture,
@@ -148,6 +151,7 @@ impl Driver {
         preview: Rc<crate::preview::Preview>,
         audio: Rc<crate::audio::Watchdog>,
         smtc: crate::smtc::Controls,
+        activity: crate::chrome::Activity,
     ) -> Self {
         Self {
             ui,
@@ -174,6 +178,7 @@ impl Driver {
             audio,
             smtc,
             awake: crate::awake::Awake::default(),
+            activity,
             diag: diagnostics::Probe::new(),
             capture: diagnostics::Capture::new(),
         }
@@ -315,21 +320,32 @@ impl Driver {
         }
     }
 
-    /// Ask for another frame while there is an interface on screen.
+    /// Ask for another frame while a hand is on the controls.
     ///
-    /// Otherwise the only thing asking is mpv, and the interface can only
-    /// move as often as the film does — a hover, a slider, the seek preview
-    /// following the pointer, all of them stepping at 24 or 30 to a second on
-    /// a display capable of five times that.
+    /// Otherwise the only thing asking is mpv, and what follows the pointer
+    /// can only move as often as the film does — a hover, a slider, the seek
+    /// preview tracking the timeline, all of them stepping at 24 or 30 to a
+    /// second on a display capable of five times that.
     ///
-    /// Only while something is actually shown, though. With the chrome hidden
-    /// there is nothing to animate, and a player sitting at the display's
-    /// refresh rate to composite an unchanged picture is just a heater. The
-    /// passes downstream are already skipped when nothing changed, so these
-    /// extra frames cost a composite and no more.
+    /// Tied to the hand rather than to the chrome, and the difference is most
+    /// of the player's CPU. Slint asks for its own frames: an animation runs
+    /// at the display's rate with nothing here helping it, measured at 160
+    /// draws a second against 165 with this on. What it cannot ask for is a
+    /// frame for something that moved *between* pointer events, which is the
+    /// whole of the list above and nothing else. So the question worth asking
+    /// is whether the pointer is live this quarter-second, not whether the bar
+    /// is up — the bar is up for three seconds after the hand stops, and every
+    /// frame in that window was a full composite of a picture that had not
+    /// changed. At 165Hz with a panel open that was half the CPU the player
+    /// used, spent on nothing: 21% of a core against 10% with it gone.
     fn keep_the_interface_moving(&self) {
-        let Some(ui) = self.ui.upgrade() else { return };
-        if !ui.global::<crate::Chrome>().get_idle() {
+        // No second test against `Chrome::idle`: a hand that moved within the
+        // quarter-second cannot also have been still for three, so the chrome
+        // is up by construction whenever this asks for anything.
+        if !self.activity.stirring() {
+            return;
+        }
+        if let Some(ui) = self.ui.upgrade() {
             ui.window().request_redraw();
         }
     }

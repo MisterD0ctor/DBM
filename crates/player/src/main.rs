@@ -144,7 +144,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     // Timers stop when their handle drops, so both of these are held until
     // the event loop returns.
-    let idle_timer = chrome::install(&ui, activity);
+    let idle_timer = chrome::install(&ui, activity.clone());
 
     let mut driver = render::Driver::new(
         ui.as_weak(),
@@ -158,6 +158,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Registers itself from the frame path: the window handle it needs
         // does not exist yet, and will not until the loop has turned.
         smtc::Controls::new(mpv.clone()),
+        activity,
     );
     ui.window()
         .set_rendering_notifier(move |state, api| driver.on(state, api))?;

@@ -51,6 +51,18 @@ void main() {
     vec2 delta = box_pos - pos;
     vec2 dir = sign(delta);
 
+    // Inside the picture the clamp changes nothing, so `dir` is zero and every
+    // tap below lands on the same texel — a weighted average of one colour with
+    // itself. The answer is that colour, and the loop is the long way round to
+    // it. Bailing here is not an approximation: it is the same result, and it
+    // is most of the frame. What the spread pass reads out of this target is
+    // the surround; inside the rect it takes the video directly and never looks
+    // at what was written here at all.
+    if (dir == vec2(0.0)) {
+        frag = vec4(src(box_pos).rgb, 1.0);
+        return;
+    }
+
     float radius = length(edge_blur * 3.0 * u_size);
 
     // The radius scales with the full frame size, so a large edge_blur would

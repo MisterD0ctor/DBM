@@ -32,6 +32,22 @@ use crate::{Chrome, MainWindow};
 /// How long the chrome stays up after the last activity.
 pub const HIDE_AFTER: Duration = Duration::from_millis(3000);
 
+/// How long a hand counts as still on the controls after it last moved.
+///
+/// A second, much shorter clock off the same bump, and the two want very
+/// different lengths because they answer different questions. `HIDE_AFTER`
+/// asks whether to *show* the chrome, and three seconds is how long a person
+/// expects it to stay after they stop. This asks whether anything is moving
+/// under the pointer right now — see `render::keep_the_interface_moving` —
+/// and there the honest answer is a quarter of a second, because that is how
+/// long after the last mouse event anything can still be following it.
+///
+/// Comfortably longer than the gap between mouse events at any report rate,
+/// so a drag or a hover never falls through the gap and stutters; short
+/// enough that a hand let go of the mouse stops costing frames almost at
+/// once.
+pub const STIR_FOR: Duration = Duration::from_millis(250);
+
 /// How often the idle clock is checked.
 ///
 /// Polled rather than re-armed on each activity: activity arrives on every
@@ -55,6 +71,12 @@ impl Activity {
 
     pub fn is_idle(&self) -> bool {
         self.0.get().elapsed() >= HIDE_AFTER
+    }
+
+    /// Whether a hand is on the controls this moment, rather than merely
+    /// having been on them recently enough to keep the chrome up.
+    pub fn stirring(&self) -> bool {
+        self.0.get().elapsed() < STIR_FOR
     }
 }
 
