@@ -26,11 +26,11 @@ possibly a different decoder set, for no reason anybody chose.
 
 ## The filename suffix
 
-`ffmpeg-x86_64-pc-windows-msvc.exe` keeps its target-triple suffix because
-Tauri's `externalBin` mechanism requires it, and the Tauri build still
-references this directory while it remains as a porting reference. The lookup
-accepts both that name and a plain `ffmpeg.exe`, which is what a packaged build
-will place beside the executable.
+`ffmpeg-x86_64-pc-windows-msvc.exe` keeps the target-triple suffix Tauri's
+`externalBin` mechanism required, from the Tauri build this player replaced.
+Nothing needs it any more, but renaming a Git LFS object is churn for no gain:
+the lookup accepts both that name and a plain `ffmpeg.exe`, and the installer
+script copies it in under the plain name.
 
 ## Licensing
 
