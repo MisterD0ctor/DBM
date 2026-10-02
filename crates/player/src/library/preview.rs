@@ -5,10 +5,8 @@
 //! rather than a decode. The UI is handed a picture and two offsets and knows
 //! nothing about how either was produced.
 //!
-//! Built by ffmpeg, which is not libmpv and not a dependency of this crate:
-//! if it is not on the machine there are no thumbnails and the preview falls
-//! back to the timestamp alone. That is a feature degrading, not a failure,
-//! and nothing here reports it as one after the first mention.
+//! Built by ffmpeg; with none on the machine there are no thumbnails, and
+//! the preview falls back to the timestamp alone — see `ffmpeg`.
 //!
 //! Every frame is extracted by its own `-ss` seek rather than by scanning.
 //! A linear pass over a two-hour film to collect 64 frames costs minutes; 64
@@ -24,9 +22,10 @@
 //! the scrubber and the list reads.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::library::ffmpeg;
 use crate::worker::{Completion, Reporter};
 
 /// Tiles across and down. 64 frames is roughly one per two minutes of a
@@ -100,8 +99,8 @@ pub fn build(video: &Path, generation: u64) -> Option<Sprite> {
     if let Some(cached) = cached(video) {
         return Some(cached);
     }
-    let ffmpeg = ffmpeg_path()?;
-    announce(&ffmpeg);
+    let ffmpeg = ffmpeg::path()?;
+    ffmpeg::announce(&ffmpeg);
     if !current(generation) {
         return None;
     }
@@ -152,86 +151,14 @@ impl Drop for Cleanup {
 }
 
 // ---------------------------------------------------------------------------
-// ffmpeg
+// Reading a file
 // ---------------------------------------------------------------------------
-
-/// Where ffmpeg is, if anywhere.
-///
-/// `DBM_FFMPEG` overrides; then the copy this app ships with; then whatever
-/// the `PATH` turns up. The shipped copy has to come before `PATH` or a
-/// machine with its own ffmpeg would quietly use that one instead — a
-/// different build, possibly a different decoder set, for no reason.
-///
-/// Two names because the vendored file keeps the target-triple suffix Tauri's
-/// sidecar mechanism requires, while a packaged build places it plainly.
-pub(crate) fn ffmpeg_path() -> Option<PathBuf> {
-    if let Some(explicit) = std::env::var_os("DBM_FFMPEG") {
-        let path = PathBuf::from(explicit);
-        return path.is_file().then_some(path);
-    }
-    let names: &[&str] = if cfg!(windows) {
-        &["ffmpeg.exe", "ffmpeg-x86_64-pc-windows-msvc.exe"]
-    } else {
-        &["ffmpeg", "ffmpeg-x86_64-unknown-linux-gnu"]
-    };
-    if let Some(shipped) = crate::paths::vendored(names) {
-        return Some(shipped);
-    }
-    let name = names[0];
-    std::env::var_os("PATH")?
-        .to_string_lossy()
-        .split(if cfg!(windows) { ';' } else { ':' })
-        .map(|dir| Path::new(dir).join(name))
-        .find(|p| p.is_file())
-}
-
-/// Name the ffmpeg actually in use, once per run.
-///
-/// Four things can supply it — the override, the copy beside the executable,
-/// this crate's vendor directory, the `PATH` — so "the thumbnails are missing"
-/// is otherwise a question with no way to answer it.
-pub(crate) fn announce(ffmpeg: &Path) {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| eprintln!("dbm: ffmpeg at {}", ffmpeg.display()));
-}
-
-pub(crate) fn command(ffmpeg: &Path) -> Command {
-    let mut cmd = Command::new(ffmpeg);
-    cmd.stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped());
-    // Without this every ffmpeg flashes a console window on Windows.
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
-    cmd
-}
 
 /// Duration in seconds and display aspect ratio, read off ffmpeg's own
 /// report. `-i` with no output makes ffmpeg describe the file and exit.
 fn probe(ffmpeg: &Path, video: &Path) -> Option<(f64, Option<f64>)> {
-    let out = command(ffmpeg)
-        .arg("-hide_banner")
-        .arg("-i")
-        .arg(video)
-        .output()
-        .ok()?;
-    let text = String::from_utf8_lossy(&out.stderr);
-    Some((parse_duration(&text)?, parse_aspect(&text)))
-}
-
-/// `  Duration: 01:23:45.67, start: ...`
-pub(crate) fn parse_duration(text: &str) -> Option<f64> {
-    let rest = text.split("Duration:").nth(1)?.trim_start();
-    let clock = rest.split(',').next()?.trim();
-    let mut parts = clock.split(':');
-    let h: f64 = parts.next()?.trim().parse().ok()?;
-    let m: f64 = parts.next()?.trim().parse().ok()?;
-    let s: f64 = parts.next()?.trim().parse().ok()?;
-    Some(h * 3600.0 + m * 60.0 + s)
+    let text = ffmpeg::describe(ffmpeg, video)?;
+    Some((ffmpeg::parse_duration(&text)?, parse_aspect(&text)))
 }
 
 /// `DAR 16:9` where present, else the coded `1920x1080`.
@@ -282,7 +209,7 @@ fn extract(
         }
         let at = step * (index as f64 + 0.5);
         let out = into.join(format!("{:03}.jpg", index + 1));
-        let child = command(ffmpeg)
+        let child = ffmpeg::command(ffmpeg)
             .arg("-nostdin")
             .arg("-y")
             // Before `-i`, so ffmpeg seeks the container rather than
@@ -342,7 +269,7 @@ fn assemble(ffmpeg: &Path, tiles: &Path, sprite: &Path, tile_w: u32, generation:
     if !current(generation) {
         return false;
     }
-    let ok = command(ffmpeg)
+    let ok = ffmpeg::command(ffmpeg)
         .arg("-nostdin")
         .arg("-y")
         .arg("-i")
@@ -434,10 +361,10 @@ pub struct Still {
 /// nothing worth spending 64 ffmpeg spawns on at startup.
 pub fn still(video: &Path, fraction: f32) -> Option<Still> {
     let sprite = cached(video)?;
-    let ffmpeg = ffmpeg_path()?;
+    let ffmpeg = ffmpeg::path()?;
     let (x, y) = sprite.tile_at(fraction);
     let (width, height) = (sprite.tile_w, sprite.tile_h);
-    let mut cmd = command(&ffmpeg);
+    let mut cmd = ffmpeg::command(&ffmpeg);
     let out = cmd
         .stdout(Stdio::piped())
         .arg("-nostdin")
@@ -554,13 +481,6 @@ mod tests {
         assert_eq!(s.tile_at(1.0), (7 * 192, 7 * 108));
         assert_eq!(s.tile_at(2.0), (7 * 192, 7 * 108));
         assert_eq!(s.tile_at(-1.0), (0, 0));
-    }
-
-    #[test]
-    fn duration_is_read_off_ffmpeg_report() {
-        let text = "  Duration: 01:23:45.67, start: 0.000000, bitrate: 1234 kb/s";
-        let seconds = parse_duration(text).unwrap();
-        assert!((seconds - 5025.67).abs() < 0.01, "{seconds}");
     }
 
     #[test]

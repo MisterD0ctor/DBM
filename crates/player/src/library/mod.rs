@@ -11,6 +11,7 @@
 
 pub mod cache;
 pub mod durations;
+pub mod ffmpeg;
 pub mod naming;
 pub mod onward;
 pub mod playlist;

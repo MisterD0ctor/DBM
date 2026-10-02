@@ -33,6 +33,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::library::cache::PathMap;
+use crate::library::ffmpeg;
 use crate::worker::{Completion, Reporter, Worker};
 
 /// One file, described.
@@ -112,10 +113,10 @@ fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
     }
     // No ffmpeg is the same answer the preview gets: the feature is not
     // there, and the rows stay as mpv alone can fill them.
-    let Some(ffmpeg) = crate::library::preview::ffmpeg_path() else {
+    let Some(ffmpeg) = ffmpeg::path() else {
         return;
     };
-    crate::library::preview::announce(&ffmpeg);
+    ffmpeg::announce(&ffmpeg);
 
     for path in unknown {
         if !current() {
@@ -143,16 +144,10 @@ fn probe(ffmpeg: &Path, path: &str) -> Option<Found> {
     if !Path::new(path).is_file() {
         return None;
     }
-    let out = crate::library::preview::command(ffmpeg)
-        .arg("-hide_banner")
-        .arg("-i")
-        .arg(path)
-        .output()
-        .ok()?;
-    let report = String::from_utf8_lossy(&out.stderr);
+    let report = ffmpeg::describe(ffmpeg, Path::new(path))?;
     Some(Found {
         path: path.to_string(),
-        seconds: crate::library::preview::parse_duration(&report).unwrap_or(0.0),
+        seconds: ffmpeg::parse_duration(&report).unwrap_or(0.0),
         title: parse_title(&report),
     })
 }
