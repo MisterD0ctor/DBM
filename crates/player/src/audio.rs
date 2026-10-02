@@ -237,84 +237,16 @@ fn unexpected_shape(payload: &str) {
 /// The `name` of every device in an `audio-device-list` payload.
 ///
 /// mpv renders node-shaped properties as JSON when they are observed as
-/// strings, so this is `[{"name":…,"description":…}, …]`. Rather than take a
-/// JSON dependency for one property, the strings are walked in order: a string
-/// followed by a colon is a key, and the string after the key `name` is a
-/// device. Anything that is not that shape yields nothing, which the caller
-/// treats as "do not act".
-///
-/// Escapes are decoded only as far as equality needs — `\uXXXX` is left as it
-/// was written. Two readings of the same device always produce the same text,
-/// which is all a set comparison asks for.
+/// strings, so this is `[{"name":…,"description":…}, …]`. Anything that is not
+/// that shape yields nothing, which the caller treats as "do not act".
 fn device_names(payload: &str) -> BTreeSet<String> {
-    let bytes = payload.as_bytes();
-    let mut out = BTreeSet::new();
-    let mut i = 0;
-    // Whether the string about to be read is the value of a `name` key.
-    let mut expecting = false;
-
-    while i < bytes.len() {
-        if bytes[i] != b'"' {
-            i += 1;
-            continue;
-        }
-        let Some((text, end)) = read_string(bytes, i) else {
-            // Unterminated: the payload is truncated or not JSON at all.
-            break;
-        };
-        i = end;
-        // A colon after it makes it a key rather than a value.
-        let mut j = i;
-        while j < bytes.len() && bytes[j].is_ascii_whitespace() {
-            j += 1;
-        }
-        if bytes.get(j) == Some(&b':') {
-            expecting = text == "name";
-        } else if expecting {
-            out.insert(text);
-            expecting = false;
-        }
-    }
-    out
-}
-
-/// Read the JSON string starting at the quote at `start`. Returns its contents
-/// and the index just past the closing quote.
-fn read_string(bytes: &[u8], start: usize) -> Option<(String, usize)> {
-    let mut out = Vec::new();
-    let mut i = start + 1;
-    while i < bytes.len() {
-        match bytes[i] {
-            b'"' => {
-                return Some((String::from_utf8_lossy(&out).into_owned(), i + 1));
-            }
-            b'\\' => {
-                let next = *bytes.get(i + 1)?;
-                match next {
-                    b'"' => out.push(b'"'),
-                    b'\\' => out.push(b'\\'),
-                    b'/' => out.push(b'/'),
-                    b'n' => out.push(b'\n'),
-                    b't' => out.push(b'\t'),
-                    b'r' => out.push(b'\r'),
-                    b'b' => out.push(0x08),
-                    b'f' => out.push(0x0c),
-                    // Left as written, including `\uXXXX`: it only has to be
-                    // consistent, not readable.
-                    other => {
-                        out.push(b'\\');
-                        out.push(other);
-                    }
-                }
-                i += 2;
-            }
-            b => {
-                out.push(b);
-                i += 1;
-            }
-        }
-    }
-    None
+    let Ok(serde_json::Value::Array(devices)) = serde_json::from_str(payload) else {
+        return BTreeSet::new();
+    };
+    devices
+        .iter()
+        .filter_map(|device| device.get("name")?.as_str().map(str::to_owned))
+        .collect()
 }
 
 #[cfg(test)]
@@ -350,6 +282,12 @@ mod tests {
     fn decodes_the_escapes_a_device_name_can_carry() {
         let payload = r#"[{"name":"wasapi/a\\b\"c"}]"#;
         assert_eq!(names(payload), vec!["wasapi/a\\b\"c".to_string()]);
+    }
+
+    #[test]
+    fn a_unicode_escape_is_read_as_the_character() {
+        let payload = r#"[{"name":"pulse/Kopfh\u00f6rer"}]"#;
+        assert_eq!(names(payload), vec!["pulse/Kopfhörer".to_string()]);
     }
 
     #[test]
