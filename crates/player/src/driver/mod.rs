@@ -285,7 +285,7 @@ impl Driver {
                     // find what it can offer to pick back up. A stat per
                     // played file and one ffmpeg run, so on the worker.
                     self.app.worker.submit(|_mpv| {
-                        Some(Completion::Resume(crate::playback::session::last_watched()))
+                        Some(Completion::Resume(crate::library::resume::last_watched()))
                     });
                 }
                 self.gpu = Some(Gpu {
@@ -548,32 +548,7 @@ impl Driver {
             if let Some(path) = self.player.path.clone() {
                 self.season_asked = Some(path.clone());
                 self.app.worker.submit(move |_mpv| {
-                    let to = playlist::next_season(std::path::Path::new(&path))
-                        .map(|(folder, season)| crate::worker::Onward {
-                            path: folder.to_string_lossy().into_owned(),
-                            label: format!("Season {season}"),
-                            season: true,
-                        })
-                        // Nothing of this show comes after it — a film, or
-                        // the last season on disk. The next thing to watch is
-                        // then whatever else was left unfinished, which is the
-                        // same film the empty window offers to continue and
-                        // the only other thing the player can name without
-                        // being told. Better than *Open folder…*, which was
-                        // the loudest the interface ever speaks spent on a
-                        // file-manager verb.
-                        .or_else(|| {
-                            crate::playback::session::last_watched()
-                                .filter(|r| r.path != path)
-                                .map(|r| crate::worker::Onward {
-                                    label: match &r.show {
-                                        Some(show) => format!("{show} · {}", r.title),
-                                        None => r.title.clone(),
-                                    },
-                                    path: r.path,
-                                    season: false,
-                                })
-                        });
+                    let to = crate::library::onward::after(&path);
                     Some(Completion::Onward { from: path, to })
                 });
             }

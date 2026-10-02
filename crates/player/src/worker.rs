@@ -23,19 +23,11 @@ use std::thread::JoinHandle;
 use crate::playback::mpv::Mpv;
 use crate::MainWindow;
 
-/// A playlist that has been scanned and written out, ready to hand to mpv.
-pub struct Playlist {
-    /// The M3U on disk.
-    pub m3u: std::path::PathBuf,
-    /// Which entry to start on.
-    pub start: usize,
-    pub count: usize,
-}
-
 /// Work that finished. Add a variant per kind of background job.
 pub enum Completion {
     Lists(crate::interface::sync::Lists),
-    Opened(Result<Playlist, String>),
+    /// A path opened and scanned into a playlist, or why it could not be.
+    Opened(Result<crate::library::playlist::Prepared, String>),
     /// Something the person watching should be told, raised from a background
     /// job. The audio watchdog is the first caller: it repairs the audio chain
     /// silently, and silence is exactly what made the original fault so
@@ -46,7 +38,7 @@ pub enum Completion {
     Probed(Vec<crate::library::probe::Found>),
     /// What the empty window can offer to pick back up, looked for once at
     /// startup when nothing was named on the command line.
-    Resume(Option<crate::playback::session::Resume>),
+    Resume(Option<crate::library::resume::Resume>),
     /// The light behind the empty window when no film can give it one — see
     /// `mark`.
     Mark(crate::library::preview::Still),
@@ -55,7 +47,7 @@ pub enum Completion {
     /// else started is dropped, and `None` means there is nowhere to go.
     Onward {
         from: String,
-        to: Option<Onward>,
+        to: Option<crate::library::onward::Onward>,
     },
     /// Seasons of the playing show found in folders beside its own, for the
     /// playlist panel. `paths` is the list they were looked for beside, so an
@@ -64,24 +56,6 @@ pub enum Completion {
         paths: Vec<String>,
         seasons: Vec<crate::library::shelf::Beside>,
     },
-}
-
-/// The way on from the end of a list, worked out on the worker because both
-/// of the things it looks at are on disk.
-///
-/// Named here rather than in the interface: what it is called depends on
-/// which of the two it turned out to be, and the interface should not have to
-/// know that a season and a film are found in different ways.
-pub struct Onward {
-    pub path: String,
-    /// What the pill says. A noun, as *Season 8* is: the thing you are going
-    /// to, not a verb about going there.
-    pub label: String,
-    /// Whether it is more of the same show. The credits pill is the offer to
-    /// skip ahead to the next episode, and only another episode can honour
-    /// that — a different film is a fair thing to offer when a file has ended
-    /// and not a fair thing to cut a film's credits short for.
-    pub season: bool,
 }
 
 type Job = Box<dyn FnOnce(&Mpv) -> Option<Completion> + Send + 'static>;

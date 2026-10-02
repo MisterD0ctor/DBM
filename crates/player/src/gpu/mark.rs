@@ -1,7 +1,7 @@
 //! The player's own mark, as the light behind an empty window.
 //!
 //! The way in is glass, and glass needs something behind it to bend. With a
-//! film left unfinished that is a frame of it — see `session::last_watched` —
+//! film left unfinished that is a frame of it — see `resume::last_watched` —
 //! but a fresh install has none, and until now its window stayed black and
 //! the way in fell back to a flat fill: at the one moment the player is met
 //! for the first time, the material it exists for was the one thing missing.

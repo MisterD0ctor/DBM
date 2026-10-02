@@ -42,15 +42,24 @@ pub fn is_video_file(path: &Path) -> bool {
 /// Runs on the worker: this is `read_dir` over a directory that may be huge
 /// or on a network share. The command line and the open dialog both arrive
 /// here, so there is one answer to what a path means.
-pub fn prepare(path: &Path) -> Result<crate::worker::Playlist, String> {
+pub fn prepare(path: &Path) -> Result<Prepared, String> {
     let selection = resolve(path)?;
     let m3u = crate::paths::playlist_m3u();
     write_m3u(&selection.videos, &m3u)?;
-    Ok(crate::worker::Playlist {
+    Ok(Prepared {
         m3u,
         start: selection.start,
         count: selection.videos.len(),
     })
+}
+
+/// A playlist that has been scanned and written out, ready to hand to mpv.
+pub struct Prepared {
+    /// The M3U on disk.
+    pub m3u: PathBuf,
+    /// Which entry to start on.
+    pub start: usize,
+    pub count: usize,
 }
 
 /// What to play, and where to start.
