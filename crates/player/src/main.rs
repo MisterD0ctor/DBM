@@ -11,83 +11,41 @@
 //! terms, is in THIRD-PARTY.md.
 //!
 //! The architecture rests on one thing: the video arrives as a texture inside
-//! Slint's scene graph rather than in a sibling HWND the UI can never sample.
-//! Everything else follows from that — the ambient border and the glass are
-//! both shader passes over that texture, which is why the forked mpv
-//! `//!HOOK BORDER` stage is no longer needed.
+//! Slint's scene graph rather than in a sibling window the UI can never
+//! sample. Everything else follows from that — the ambient border and the
+//! glass are both shader passes over that texture, which is why the forked
+//! mpv `//!HOOK BORDER` stage is no longer needed.
 //!
-//! Layout of the crate, roughly outermost-first:
+//! Layout of the crate:
 //!
-//! | module        | owns                                                  |
-//! |---------------|-------------------------------------------------------|
-//! | `mpv`         | libmpv FFI: properties, commands, events, render API  |
-//! | `state`       | the mirrored copy of the properties the UI binds to   |
-//! | `tracks`      | reading the list-shaped properties                    |
-//! | `commands`    | actions expressed as mpv commands                     |
-//! | `actions`     | binding UI callbacks to those commands                |
-//! | `audio`       | putting audio back when its device comes and goes     |
-//! | `sync`        | carrying values mpv → state → UI, once per frame      |
-//! | `scrub`       | coalescing timeline drags into seeks mpv can keep up with |
-//! | `chrome`      | the idle clock behind auto-hide                       |
-//! | `render`      | driving the GPU pipeline from the rendering notifier  |
-//! | `pipeline`    | the passes themselves: border, blur, glass            |
-//! | `gfx`         | GL primitives the passes are built from               |
-//! | `modal_loop`  | keeping frames coming while Windows owns the loop     |
-//! | `diagnostics` | opt-in instrumentation                                |
-//! | `naming`      | filenames and track titles into something readable    |
-//! | `playlist`    | turning a path into a list of videos to play          |
-//! | `shelf`       | the shape a playlist is shown in: seasons and shows   |
-//! | `durations`   | how long each file is, and how far in you got         |
-//! | `probe`       | what a file says about itself before it is played     |
-//! | `preview`     | thumbnail atlases for the seek preview                |
-//! | `dialog`      | asking the desktop for a path, off the UI thread      |
-//! | `mark`        | the logo as the light behind an empty window          |
-//! | `dropped`     | files dragged onto the window                         |
-//! | `session`     | remembering the position and tracks of each file      |
-//! | `settings`    | the registry of tunable material parameters           |
-//! | `subline`     | where subtitles sit, clear of the bar while it is up  |
-//! | `smtc`        | the OS media overlay and the buttons on a headset     |
-//! | `mpris`       | the same two things on Linux, over D-Bus              |
-//! | `awake`       | keeping the display on while something plays          |
-//! | `paths`       | where the app keeps its own files                     |
-//! | `worker`      | a thread for anything that would block the frame path |
-//! | `harness`     | opt-in automated exercises                            |
+//! | module        | owns                                                      |
+//! |---------------|-----------------------------------------------------------|
+//! | `driver`      | the frame: Slint's rendering notifier, and all it runs    |
+//! | `playback`    | mpv: the binding, its mirrored state, commands, resuming  |
+//! | `library`     | files on disk: playlists, names, lengths, preview sheets  |
+//! | `interface`   | the Rust side of `app.slint`: callbacks and properties    |
+//! | `gpu`         | the passes drawn over the video: border, blur, glass      |
+//! | `platform`    | what each OS has to be asked for in its own way           |
+//! | `worker`      | a thread for anything that would block the frame path     |
+//! | `settings`    | what the person has set, kept between runs                |
+//! | `paths`       | where the app keeps its own files                         |
+//! | `diagnostics` | opt-in instrumentation                                    |
+//! | `harness`     | opt-in automated exercises                                |
+//!
+//! Each folder's `mod.rs` says what is in it.
 //!
 //! Run with a video path: `cargo run -p dbm-player -- some/video.mkv`
 
-mod actions;
-mod audio;
-mod awake;
-mod chrome;
-mod commands;
-mod cursor;
 mod diagnostics;
-mod dialog;
-mod dropped;
-mod durations;
-mod gfx;
+mod driver;
+mod gpu;
 mod harness;
-mod mark;
-mod modal_loop;
-#[cfg(not(windows))]
-mod mpris;
-mod mpv;
-mod naming;
+mod interface;
+mod library;
 mod paths;
-mod pipeline;
-mod playlist;
-mod preview;
-mod probe;
-mod render;
-mod scrub;
-mod session;
+mod platform;
+mod playback;
 mod settings;
-mod shelf;
-mod smtc;
-mod state;
-mod subline;
-mod sync;
-mod tracks;
 mod worker;
 
 use std::rc::Rc;
@@ -109,18 +67,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // it needs the platform `MainWindow::new` brings up, and is read when the
     // native window is created at `show`.
     #[cfg(target_os = "linux")]
-    slint::set_xdg_app_id(mpris::APP_ID)?;
+    slint::set_xdg_app_id(platform::mpris::APP_ID)?;
 
     // Set once: the answer is a `cfg`, not something that can change under a
     // running window. The interface has two lines that offer a drop and must
     // not offer one where nothing would catch it.
-    ui.set_drop_supported(dropped::SUPPORTED);
+    ui.set_drop_supported(platform::dropped::SUPPORTED);
 
     // `Arc` for two reasons: the address of the `Mpv` must stay put, because
     // the render context keeps a raw pointer to the symbol table inside it;
     // and the worker thread needs a share of it.
-    let mpv = Arc::new(mpv::Mpv::new(session::configure)?);
-    for (name, format) in state::OBSERVED {
+    let mpv = Arc::new(playback::mpv::Mpv::new(playback::session::configure)?);
+    for (name, format) in playback::state::OBSERVED {
         if let Err(e) = mpv.observe(name, *format) {
             eprintln!("dbm: cannot observe {name}: {e}");
         }
@@ -132,32 +90,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Watches for audio devices coming and going. Observing the list is what
     // starts mpv's hotplug monitor, so this has to be armed whether or not
     // anything ever disappears.
-    let audio = audio::Watchdog::new(worker.clone());
-    audio::observe(&mpv);
+    let audio = playback::audio::Watchdog::new(worker.clone());
+    playback::audio::observe(&mpv);
 
-    let activity = chrome::Activity::new();
+    let activity = interface::chrome::Activity::new();
     // Shared: `actions` feeds it drag positions, the render driver feeds it
     // the completions that let the next one go out.
-    let scrubber = Rc::new(scrub::Scrubber::new());
+    let scrubber = Rc::new(playback::scrub::Scrubber::new());
     let params = Rc::new(settings::Store::default());
     // Shared: the render loop learns the duration and takes delivery of the
     // thumbnail atlas; `actions` answers the pointer from both.
-    let preview = Rc::new(preview::Preview::default());
+    let preview = Rc::new(library::preview::Preview::default());
     // Loads what was saved, then writes changes back once they settle. The
     // defaults in `GlassParams` are now the reset target rather than the
     // source of truth.
     let saver = settings::Persister::install(params.clone(), worker.clone());
     // Shared: `actions` moves the line when the person does, the render
     // driver when the bar does, and both have to go through one place.
-    let subline = Rc::new(subline::Subline::new(params.clone()));
-    actions::wire(
+    let subline = Rc::new(interface::subline::Subline::new(params.clone()));
+    interface::actions::wire(
         &ui, &mpv, &activity, &scrubber, &worker, &params, &preview, &audio, &subline,
     );
     // Timers stop when their handle drops, so both of these are held until
     // the event loop returns.
-    let idle_timer = chrome::install(&ui, activity.clone());
+    let idle_timer = interface::chrome::install(&ui, activity.clone());
 
-    let mut driver = render::Driver::new(
+    let mut driver = driver::Driver::new(
         ui.as_weak(),
         mpv.clone(),
         file,
@@ -170,7 +128,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // handle it needs does not exist yet and will not until the loop has
         // turned. On Linux there is no handle in it, so the bus name is
         // claimed here and now — see `mpris`.
-        smtc::Controls::new(mpv.clone()),
+        platform::smtc::Controls::new(mpv.clone()),
         activity,
         subline,
     );
@@ -179,7 +137,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Checkpoint the resume position while playing. mpv writes on a clean
     // quit by itself; this is what covers everything less tidy.
-    let checkpoint = session::checkpoint_periodically(mpv.clone());
+    let checkpoint = playback::session::checkpoint_periodically(mpv.clone());
 
     ui.show()?;
     let harnesses = harness::install(&ui, &mpv, &audio);

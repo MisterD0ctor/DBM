@@ -38,7 +38,7 @@ pub const HIDE_AFTER: Duration = Duration::from_millis(3000);
 /// different lengths because they answer different questions. `HIDE_AFTER`
 /// asks whether to *show* the chrome, and three seconds is how long a person
 /// expects it to stay after they stop. This asks whether anything is moving
-/// under the pointer right now — see `render::keep_the_interface_moving` —
+/// under the pointer right now — see `driver::keep_the_interface_moving` —
 /// and there the honest answer is a quarter of a second, because that is how
 /// long after the last mouse event anything can still be following it.
 ///
@@ -102,7 +102,7 @@ pub fn install(ui: &MainWindow, activity: Activity) -> slint::Timer {
         // the callback rather than by the timer below because the pointer has
         // to come back the moment the hand moves, and the timer would make
         // that up to a poll late.
-        let mut pointer = crate::cursor::Pointer::new();
+        let mut pointer = crate::platform::cursor::Pointer::new();
         // Weak, because this callback is owned by the window it asks about.
         let weak = ui.as_weak();
         ui.global::<Chrome>().on_hide_pointer(move |hide| {

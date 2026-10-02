@@ -15,11 +15,11 @@
 //! the rim can catch it. The light of the player, standing in for the light
 //! of a film until there is one.
 
-use crate::preview::Still;
+use crate::library::preview::Still;
 
 /// The logo, as the repository keeps it. Rendered rather than shipped as a
 /// bitmap so that there is one drawing of it, not two to keep in step.
-const LOGO: &[u8] = include_bytes!("../../../public/death-by-mpv.svg");
+const LOGO: &[u8] = include_bytes!("../../../../public/death-by-mpv.svg");
 
 /// The tile, 16:9 like the window it covers.
 ///

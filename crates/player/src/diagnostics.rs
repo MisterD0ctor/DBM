@@ -23,10 +23,11 @@
 
 use std::time::{Duration, Instant};
 
-use crate::pipeline::Pipeline;
-use crate::state::PlayerState;
-use crate::tracks::TrackKind;
-use crate::{pipeline::GlassPanel, tracks};
+use crate::gpu::pipeline::GlassPanel;
+use crate::gpu::pipeline::Pipeline;
+use crate::playback::state::PlayerState;
+use crate::playback::tracks;
+use crate::playback::tracks::TrackKind;
 
 #[derive(Default)]
 struct Phases {
@@ -278,7 +279,7 @@ impl Probe {
             pipeline.glass_enabled, pipeline.border_enabled
         );
         self.sample_panel(pipeline, gl);
-        self.sample_rims(pipeline, gl, crate::pipeline::BEVEL);
+        self.sample_rims(pipeline, gl, crate::gpu::pipeline::BEVEL);
         self.sample_letterbox(pipeline, gl, player);
         (pipeline.glass_enabled, pipeline.border_enabled)
     }
@@ -407,7 +408,7 @@ impl Probe {
         }
         // As the panel labels it, heading and all, so the dump shows what is
         // on screen rather than a second opinion about it.
-        let listing = crate::naming::listing(
+        let listing = crate::library::naming::listing(
             player
                 .playlist
                 .iter()

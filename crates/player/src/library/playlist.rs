@@ -116,15 +116,17 @@ pub fn watching_order(mut videos: Vec<PathBuf>) -> Vec<PathBuf> {
     videos.sort_by(|a, b| natural_path(a, b));
     let keys: Vec<Option<(String, u32, u32)>> = videos
         .iter()
-        .map(|p| match crate::naming::parse(&p.to_string_lossy()) {
-            crate::naming::Media::Episode {
-                show,
-                season,
-                episode,
-                ..
-            } => Some((show.to_lowercase(), season.unwrap_or(0), episode)),
-            crate::naming::Media::Movie { .. } => None,
-        })
+        .map(
+            |p| match crate::library::naming::parse(&p.to_string_lossy()) {
+                crate::library::naming::Media::Episode {
+                    show,
+                    season,
+                    episode,
+                    ..
+                } => Some((show.to_lowercase(), season.unwrap_or(0), episode)),
+                crate::library::naming::Media::Movie { .. } => None,
+            },
+        )
         .collect();
     let mut first: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
     for (i, key) in keys.iter().enumerate() {
@@ -210,11 +212,11 @@ fn digits(chars: &mut std::iter::Peekable<std::str::Chars>) -> String {
 /// in the player is read. Where two folders hold the same season, the first
 /// found stands for it.
 pub fn seasons_beside(current: &Path) -> Vec<(PathBuf, u32)> {
-    let crate::naming::Media::Episode {
+    let crate::library::naming::Media::Episode {
         show,
         season: Some(season),
         ..
-    } = crate::naming::parse(&current.to_string_lossy())
+    } = crate::library::naming::parse(&current.to_string_lossy())
     else {
         return Vec::new();
     };
@@ -239,11 +241,11 @@ pub fn seasons_beside(current: &Path) -> Vec<(PathBuf, u32)> {
         let Some(first) = first else {
             continue;
         };
-        if let crate::naming::Media::Episode {
+        if let crate::library::naming::Media::Episode {
             show: other,
             season: Some(n),
             ..
-        } = crate::naming::parse(&first.to_string_lossy())
+        } = crate::library::naming::parse(&first.to_string_lossy())
         {
             if n != season
                 && other.eq_ignore_ascii_case(&show)
@@ -265,10 +267,10 @@ pub fn seasons_beside(current: &Path) -> Vec<(PathBuf, u32)> {
 /// Asked at the end of a season, where the useful offer is the next one. The
 /// nearest later season wins, so a shelf holding seasons 8 and 9 offers 8.
 pub fn next_season(current: &Path) -> Option<(PathBuf, u32)> {
-    let crate::naming::Media::Episode {
+    let crate::library::naming::Media::Episode {
         season: Some(season),
         ..
-    } = crate::naming::parse(&current.to_string_lossy())
+    } = crate::library::naming::parse(&current.to_string_lossy())
     else {
         return None;
     };
@@ -339,7 +341,7 @@ mod tests {
     /// test rather than a file type that opens a player which refuses it.
     #[test]
     fn the_installer_registers_exactly_what_the_player_opens() {
-        let nsi = include_str!("../../../packaging/death-by-mpv.nsi");
+        let nsi = include_str!("../../../../packaging/death-by-mpv.nsi");
         let registered: Vec<&str> = nsi
             .lines()
             .filter_map(|line| line.trim().strip_prefix("!insertmacro ${MACRO} \""))
@@ -371,7 +373,8 @@ mod tests {
         let mapped: Vec<&str> = TYPES.iter().map(|(ext, _)| *ext).collect();
         assert_eq!(mapped, VIDEO_EXTENSIONS);
 
-        let entry = include_str!("../../../packaging/flatpak/io.github.MisterD0ctor.DBM.desktop");
+        let entry =
+            include_str!("../../../../packaging/flatpak/io.github.MisterD0ctor.DBM.desktop");
         let claimed: std::collections::BTreeSet<&str> = entry
             .lines()
             .find_map(|line| line.strip_prefix("MimeType="))

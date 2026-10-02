@@ -12,7 +12,7 @@
 //!
 //! What comes back is a path and nothing more. Turning that into a playlist
 //! is the same job the command line already goes through — see
-//! [`crate::playlist::prepare`] — which is why this module knows nothing
+//! [`crate::library::playlist::prepare`] — which is why this module knows nothing
 //! about mpv, playlists or the worker.
 
 use crate::MainWindow;
@@ -69,7 +69,7 @@ fn choose(want: Want, start: Option<std::path::PathBuf>) -> Option<std::path::Pa
     match want {
         Want::File => dialog
             .set_title("Open video")
-            .add_filter("Video", crate::playlist::VIDEO_EXTENSIONS)
+            .add_filter("Video", crate::library::playlist::VIDEO_EXTENSIONS)
             .add_filter("All files", &["*"])
             .pick_file(),
         Want::Folder => dialog.set_title("Open folder").pick_folder(),

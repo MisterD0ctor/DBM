@@ -23,8 +23,8 @@ use std::collections::BTreeSet;
 use std::rc::Rc;
 use std::time::Duration;
 
-use crate::mpv::{Event, Mpv, Value, FORMAT_STRING};
-use crate::tracks::{self, TrackKind};
+use crate::playback::mpv::{Event, Mpv, Value, FORMAT_STRING};
+use crate::playback::tracks::{self, TrackKind};
 use crate::worker::{Completion, Worker};
 
 /// How long the device list must stay still before the audio chain is touched.
@@ -37,7 +37,7 @@ const SETTLE: Duration = Duration::from_millis(1200);
 
 /// Start mpv's hotplug monitor.
 ///
-/// Separate from [`crate::state::OBSERVED`] on purpose: that list is the
+/// Separate from [`crate::playback::state::OBSERVED`] on purpose: that list is the
 /// properties the interface binds to, and this one is never displayed. It is
 /// observed for the side effect — mpv does not track devices otherwise — and
 /// read only here.

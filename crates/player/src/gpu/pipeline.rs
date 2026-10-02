@@ -22,8 +22,8 @@
 
 use glow::HasContext;
 
-use crate::gfx::{bind_texture, saved_draw_fbo, Program, ScreenQuad, Target};
-use crate::mpv::RenderContext;
+use crate::gpu::gfx::{bind_texture, saved_draw_fbo, Program, ScreenQuad, Target};
+use crate::playback::mpv::RenderContext;
 
 /// Must match `MAX_PANELS` in glass.frag.
 ///
@@ -244,21 +244,21 @@ struct Backdrop {
 
 impl Pipeline {
     pub fn new(gl: &glow::Context) -> Result<Self, String> {
-        let vert = include_str!("../shaders/fullscreen.vert");
+        let vert = include_str!("../../shaders/fullscreen.vert");
         Ok(Self {
             quad: ScreenQuad::new(gl)?,
-            prog_extend: Program::new(gl, vert, include_str!("../shaders/border_extend.frag"))
+            prog_extend: Program::new(gl, vert, include_str!("../../shaders/border_extend.frag"))
                 .map_err(|e| format!("border_extend: {e}"))?,
-            prog_spread: Program::new(gl, vert, include_str!("../shaders/border_spread.frag"))
+            prog_spread: Program::new(gl, vert, include_str!("../../shaders/border_spread.frag"))
                 .map_err(|e| format!("border_spread: {e}"))?,
             video: Target::new(),
             extended: Target::new(),
             composite: Target::new(),
             blur_out: Target::new(),
             glassed: Target::new(),
-            prog_glass: Program::new(gl, vert, include_str!("../shaders/glass.frag"))
+            prog_glass: Program::new(gl, vert, include_str!("../../shaders/glass.frag"))
                 .map_err(|e| format!("glass: {e}"))?,
-            prog_gauss: Program::new(gl, vert, include_str!("../shaders/blur_gauss.frag"))
+            prog_gauss: Program::new(gl, vert, include_str!("../../shaders/blur_gauss.frag"))
                 .map_err(|e| format!("blur_gauss: {e}"))?,
             gauss_tmp: Target::new(),
             panels: Vec::new(),
@@ -270,7 +270,7 @@ impl Pipeline {
             rect: [0.0, 0.0, 1.0, 1.0],
             border_enabled: true,
             glass_enabled: true,
-            prog_backdrop: Program::new(gl, vert, include_str!("../shaders/backdrop.frag"))
+            prog_backdrop: Program::new(gl, vert, include_str!("../../shaders/backdrop.frag"))
                 .map_err(|e| format!("backdrop: {e}"))?,
             backdrop: None,
             show_backdrop: false,
@@ -281,7 +281,7 @@ impl Pipeline {
     ///
     /// Uploaded once and kept: it is a few hundred kilobytes, and the window
     /// only needs it until a film arrives.
-    pub fn set_backdrop(&mut self, gl: &glow::Context, still: &crate::preview::Still) {
+    pub fn set_backdrop(&mut self, gl: &glow::Context, still: &crate::library::preview::Still) {
         let tex = unsafe {
             let Ok(tex) = gl.create_texture() else {
                 return;

@@ -26,8 +26,8 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use crate::commands;
-use crate::mpv::Mpv;
+use crate::playback::commands;
+use crate::playback::mpv::Mpv;
 use crate::settings::Store;
 
 /// Smaller moves than this are not worth a command. A hundredth of a percent

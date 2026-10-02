@@ -34,8 +34,8 @@ mod windows_impl {
     use std::cell::RefCell;
     use std::sync::Arc;
 
-    use crate::mpv::Mpv;
-    use crate::state::PlayerState;
+    use crate::playback::mpv::Mpv;
+    use crate::playback::state::PlayerState;
 
     /// What the overlay is currently showing, so it is only told about
     /// changes.
@@ -255,7 +255,7 @@ mod windows_impl {
     /// it to the UI thread would only add a hop — and a button pressed while
     /// the interface is asleep would wait for a frame that is not coming.
     fn pressed(mpv: &Mpv, button: SystemMediaTransportControlsButton) {
-        use crate::commands;
+        use crate::playback::commands;
         match button {
             SystemMediaTransportControlsButton::Play => commands::set_pause(mpv, false),
             SystemMediaTransportControlsButton::Pause => commands::set_pause(mpv, true),
@@ -275,4 +275,4 @@ mod windows_impl {
 /// The render driver asks for `smtc::Controls` on both platforms and is told
 /// nothing more; which of the two answers it gets is decided here, once.
 #[cfg(not(windows))]
-pub use crate::mpris::Controls;
+pub use crate::platform::mpris::Controls;

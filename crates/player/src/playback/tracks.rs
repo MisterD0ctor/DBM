@@ -10,7 +10,7 @@
 //! Both lists are pulled on demand rather than observed: the counts are
 //! observed, and a change there is what triggers a re-read.
 
-use crate::mpv::Mpv;
+use crate::playback::mpv::Mpv;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrackKind {
@@ -56,12 +56,12 @@ pub struct Chapter {
 ///
 /// One kind at a time: the right label depends on the company a track keeps,
 /// and a subtitle track keeps company with the other subtitles, not with the
-/// audio. See [`crate::naming::track_labels`].
+/// audio. See [`crate::library::naming::track_labels`].
 pub fn labelled(tracks: &[Track], kind: TrackKind) -> Vec<(&Track, String)> {
     let of_kind = of_kind(tracks, kind);
-    let infos: Vec<crate::naming::TrackInfo> = of_kind
+    let infos: Vec<crate::library::naming::TrackInfo> = of_kind
         .iter()
-        .map(|t| crate::naming::TrackInfo {
+        .map(|t| crate::library::naming::TrackInfo {
             id: t.id,
             title: t.title.as_deref(),
             language: t.lang.as_deref(),
@@ -72,7 +72,7 @@ pub fn labelled(tracks: &[Track], kind: TrackKind) -> Vec<(&Track, String)> {
         .collect();
     of_kind
         .into_iter()
-        .zip(crate::naming::track_labels(&infos))
+        .zip(crate::library::naming::track_labels(&infos))
         .collect()
 }
 
@@ -90,7 +90,7 @@ impl PlaylistEntry {
     pub fn embedded_title(&self) -> Option<&str> {
         self.title
             .as_deref()
-            .filter(|t| *t != crate::naming::strip_path(&self.filename))
+            .filter(|t| *t != crate::library::naming::strip_path(&self.filename))
     }
 }
 

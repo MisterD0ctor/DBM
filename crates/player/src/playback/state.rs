@@ -8,8 +8,8 @@
 //! provide the reactivity, and duplicating that here would mean two sources
 //! of truth for the same value.
 
-use crate::mpv::{Event, Value, FORMAT_DOUBLE, FORMAT_FLAG, FORMAT_STRING};
-use crate::tracks::{PlaylistEntry, Track};
+use crate::playback::mpv::{Event, Value, FORMAT_DOUBLE, FORMAT_FLAG, FORMAT_STRING};
+use crate::playback::tracks::{PlaylistEntry, Track};
 use std::ffi::c_int;
 
 /// Properties to observe, and the format to receive each in.
@@ -91,7 +91,7 @@ pub struct PlayerState {
     pub chapter: i64,
     pub chapter_count: i64,
     /// Read on the worker with the tracks — see `worker`.
-    pub chapters: Vec<crate::tracks::Chapter>,
+    pub chapters: Vec<crate::playback::tracks::Chapter>,
     /// Files that would not play this run, by path, so their playlist rows
     /// can say so after the notice has gone.
     pub failed: std::collections::HashSet<String>,
@@ -117,17 +117,17 @@ pub struct PlayerState {
     pub playlist: Vec<PlaylistEntry>,
     /// Parallel to `playlist`, and only as long as it: read in the same job,
     /// applied in the same step.
-    pub progress: Vec<crate::durations::Progress>,
+    pub progress: Vec<crate::library::durations::Progress>,
     /// What `probe` found, by path.
     ///
     /// Only ever added to, and read *over* `playlist` and `progress` rather
     /// than written into them: those are replaced wholesale by every list
     /// read, and a read that left the worker before a probe landed would
     /// otherwise put the row back the way it was.
-    pub probed: std::collections::HashMap<String, crate::probe::Found>,
+    pub probed: std::collections::HashMap<String, crate::library::probe::Found>,
     /// Seasons of the show found beside a playlist that is one season of it —
-    /// see [`crate::shelf`]. Not queued: shown, and opened when picked.
-    pub beside: Vec<crate::shelf::Beside>,
+    /// see [`crate::library::shelf`]. Not queued: shown, and opened when picked.
+    pub beside: Vec<crate::library::shelf::Beside>,
 }
 
 impl PlayerState {
@@ -274,8 +274,8 @@ impl PlayerState {
         current >= start
             && self.path.as_deref().is_some_and(|path| {
                 matches!(
-                    crate::naming::parse(path),
-                    crate::naming::Media::Episode { .. }
+                    crate::library::naming::parse(path),
+                    crate::library::naming::Media::Episode { .. }
                 )
             })
     }
@@ -297,7 +297,9 @@ impl PlayerState {
         }
         let named = self.chapters.iter().position(|c| {
             c.time >= self.duration / 2.0
-                && c.title.as_deref().is_some_and(crate::naming::is_credits)
+                && c.title
+                    .as_deref()
+                    .is_some_and(crate::library::naming::is_credits)
         });
         if named.is_some() {
             return named;
@@ -305,7 +307,7 @@ impl PlayerState {
         let unnamed = self.chapters.iter().all(|c| {
             c.title
                 .as_deref()
-                .map_or(true, crate::naming::is_unnamed_chapter)
+                .map_or(true, crate::library::naming::is_unnamed_chapter)
         });
         let last = self.chapters.len().checked_sub(1)?;
         let tail = self.duration - self.chapters[last].time;
@@ -381,7 +383,7 @@ impl PlayerState {
             .as_deref()
             .or(self.filename.as_deref())
             .unwrap_or("");
-        crate::naming::titled(path, self.embedded_title())
+        crate::library::naming::titled(path, self.embedded_title())
     }
 
     /// The container's own title, where it has one.
@@ -391,7 +393,7 @@ impl PlayerState {
     /// would mean parsing a name that has already been parsed.
     fn embedded_title(&self) -> Option<&str> {
         let title = self.media_title.as_deref()?;
-        let name = crate::naming::strip_path(self.path.as_deref().unwrap_or(""));
+        let name = crate::library::naming::strip_path(self.path.as_deref().unwrap_or(""));
         let bare = self.filename.as_deref().unwrap_or("");
         (!title.is_empty() && title != name && title != bare).then_some(title)
     }
@@ -401,12 +403,12 @@ impl PlayerState {
     /// Defaults rather than an `Option`: a row whose file has never been
     /// played here is the ordinary case, not a missing value, and the answer
     /// it wants — no length, no progress — is exactly the default.
-    pub fn progress_of(&self, row: usize) -> crate::durations::Progress {
+    pub fn progress_of(&self, row: usize) -> crate::library::durations::Progress {
         self.progress.get(row).copied().unwrap_or_default()
     }
 
     /// Take delivery of described files. Returns whether any row changes.
-    pub fn apply_probed(&mut self, found: Vec<crate::probe::Found>) -> bool {
+    pub fn apply_probed(&mut self, found: Vec<crate::library::probe::Found>) -> bool {
         let mut changed = false;
         for f in found {
             if self.probed.get(&f.path) == Some(&f) {
@@ -420,7 +422,7 @@ impl PlayerState {
 
     /// [`progress_of`](Self::progress_of), with a probed length filling in
     /// for one mpv has never reported.
-    pub fn known_progress(&self, row: usize) -> crate::durations::Progress {
+    pub fn known_progress(&self, row: usize) -> crate::library::durations::Progress {
         let mut progress = self.progress_of(row);
         if progress.seconds > 0.0 {
             return progress;
@@ -447,7 +449,7 @@ impl PlayerState {
             .or_else(|| self.probed_for(row)?.title.as_deref())
     }
 
-    fn probed_for(&self, row: usize) -> Option<&crate::probe::Found> {
+    fn probed_for(&self, row: usize) -> Option<&crate::library::probe::Found> {
         self.probed.get(&self.playlist.get(row)?.filename)
     }
 
@@ -515,7 +517,7 @@ pub fn format_time(seconds: f64) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tracks::Chapter;
+    use crate::playback::tracks::Chapter;
 
     fn playing(path: &str, chapter: i64, marks: &[(f64, &str)]) -> PlayerState {
         PlayerState {

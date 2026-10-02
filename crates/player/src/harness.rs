@@ -133,8 +133,9 @@ use std::time::Duration;
 
 use slint::{ComponentHandle, Model, ModelRc};
 
-use crate::mpv::Mpv;
-use crate::{modal_loop, MainWindow, TrackItem};
+use crate::platform::modal_loop;
+use crate::playback::mpv::Mpv;
+use crate::{MainWindow, TrackItem};
 
 /// Handles for everything armed here. Kept in one value so `main` does not
 /// have to name each timer just to hold it open.
@@ -145,7 +146,7 @@ pub struct Harnesses {
 pub fn install(
     ui: &MainWindow,
     mpv: &std::sync::Arc<Mpv>,
-    audio: &std::rc::Rc<crate::audio::Watchdog>,
+    audio: &std::rc::Rc<crate::playback::audio::Watchdog>,
 ) -> Harnesses {
     let mut timers = Vec::new();
     // First, so a showcase or a test that follows is already at the size
@@ -877,7 +878,7 @@ fn park_pointer(_ui: &MainWindow) {}
 
 fn report_cursor(ui: &MainWindow, when: &str) {
     let asked = ui.get_pointer_hidden();
-    let on_screen = match crate::cursor::on_screen() {
+    let on_screen = match crate::platform::cursor::on_screen() {
         Some(true) => "on screen",
         Some(false) => "hidden",
         None => "not answerable on this platform",
@@ -1626,7 +1627,7 @@ fn modal_test(ui: &MainWindow) -> slint::Timer {
 /// would not be anywhere else.
 fn audio_test(
     mpv: std::sync::Arc<Mpv>,
-    audio: std::rc::Rc<crate::audio::Watchdog>,
+    audio: std::rc::Rc<crate::playback::audio::Watchdog>,
 ) -> slint::Timer {
     const BASELINE: &str = r#"[{"name":"auto","description":"Autoselect device"}]"#;
     const PLUS_ONE: &str = r#"[{"name":"auto","description":"Autoselect device"},
@@ -1681,10 +1682,10 @@ fn audio_test(
 }
 
 /// An `audio-device-list` change as mpv would report it.
-fn device_list(payload: &str) -> crate::mpv::Event {
-    crate::mpv::Event::Property {
+fn device_list(payload: &str) -> crate::playback::mpv::Event {
+    crate::playback::mpv::Event::Property {
         name: "audio-device-list".into(),
-        value: crate::mpv::Value::Str(payload.into()),
+        value: crate::playback::mpv::Value::Str(payload.into()),
     }
 }
 
@@ -1921,7 +1922,7 @@ struct Heard {
 
 #[cfg(not(windows))]
 fn listen(bus: &zbus::blocking::Connection, heard: std::sync::Arc<Heard>) {
-    let Some(name) = crate::mpris::claimed() else {
+    let Some(name) = crate::platform::mpris::claimed() else {
         eprintln!("dbm: mpris test: nothing of ours on the bus to listen to");
         return;
     };
@@ -1982,7 +1983,7 @@ fn neighbours(bus: &zbus::blocking::Connection) {
         .collect();
     eprintln!(
         "dbm: mpris ours={} players on the bus: {}",
-        crate::mpris::claimed().unwrap_or("none"),
+        crate::platform::mpris::claimed().unwrap_or("none"),
         if players.is_empty() {
             "none".into()
         } else {
@@ -2017,7 +2018,7 @@ fn press(bus: &zbus::blocking::Connection, button: &str, offset: Option<i64>) {
 fn ours(bus: &zbus::blocking::Connection) -> Option<zbus::blocking::Proxy<'static>> {
     zbus::blocking::Proxy::new(
         bus,
-        crate::mpris::claimed()?,
+        crate::platform::mpris::claimed()?,
         "/org/mpris/MediaPlayer2",
         "org.mpris.MediaPlayer2.Player",
     )
@@ -2265,7 +2266,7 @@ fn drop_test(ui: &MainWindow, path: String) -> slint::Timer {
             match step {
                 0 => report_drop(&ui, "before"),
                 1 => {
-                    if let Err(e) = crate::dropped::post_test_drop(&ui, &path) {
+                    if let Err(e) = crate::platform::dropped::post_test_drop(&ui, &path) {
                         eprintln!("dbm: drop test: {e}");
                     }
                 }
@@ -2407,7 +2408,7 @@ fn report_resume_file(mpv: &Mpv) {
         eprintln!("dbm: progress: nothing playing");
         return;
     };
-    let name = crate::durations::watch_later_name(&path);
+    let name = crate::library::durations::watch_later_name(&path);
     let file = crate::paths::watch_later_dir().join(&name);
     let start = std::fs::read_to_string(&file)
         .ok()

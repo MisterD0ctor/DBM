@@ -87,7 +87,7 @@ impl Scan {
 
 fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
     let current = || GENERATION.load(Ordering::SeqCst) == generation;
-    let lengths = crate::durations::load();
+    let lengths = crate::library::durations::load();
     let titles = load_titles();
 
     // Everything already known goes back in one delivery, before any ffmpeg
@@ -113,10 +113,10 @@ fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
     }
     // No ffmpeg is the same answer the preview gets: the feature is not
     // there, and the rows stay as mpv alone can fill them.
-    let Some(ffmpeg) = crate::preview::ffmpeg_path() else {
+    let Some(ffmpeg) = crate::library::preview::ffmpeg_path() else {
         return;
     };
-    crate::preview::announce(&ffmpeg);
+    crate::library::preview::announce(&ffmpeg);
 
     for path in unknown {
         if !current() {
@@ -126,7 +126,7 @@ fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
             continue;
         };
         if found.seconds > 0.0 {
-            crate::durations::record(&path, found.seconds);
+            crate::library::durations::record(&path, found.seconds);
         }
         record_title(&path, found.title.as_deref());
         if !reporter.send(Completion::Probed(vec![found])) {
@@ -144,7 +144,7 @@ fn probe(ffmpeg: &Path, path: &str) -> Option<Found> {
     if !Path::new(path).is_file() {
         return None;
     }
-    let out = crate::preview::command(ffmpeg)
+    let out = crate::library::preview::command(ffmpeg)
         .arg("-hide_banner")
         .arg("-i")
         .arg(path)
@@ -153,7 +153,7 @@ fn probe(ffmpeg: &Path, path: &str) -> Option<Found> {
     let report = String::from_utf8_lossy(&out.stderr);
     Some(Found {
         path: path.to_string(),
-        seconds: crate::preview::parse_duration(&report).unwrap_or(0.0),
+        seconds: crate::library::preview::parse_duration(&report).unwrap_or(0.0),
         title: parse_title(&report),
     })
 }

@@ -1,6 +1,6 @@
 //! The shape a playlist is shown in.
 //!
-//! mpv plays one flat list, in the order [`crate::playlist::watching_order`]
+//! mpv plays one flat list, in the order [`crate::library::playlist::watching_order`]
 //! settles, and Next and autoplay walk that list as they always did. This is
 //! only how the panel lays it out. A season of one show is shown as it always
 //! was. A list spanning several seasons becomes a list of those seasons, each
@@ -14,8 +14,8 @@
 
 use std::path::Path;
 
-use crate::durations::Progress;
-use crate::naming::Media;
+use crate::library::durations::Progress;
+use crate::library::naming::Media;
 use crate::worker::{Completion, Worker};
 
 /// A file as the playlist has it.
@@ -111,7 +111,7 @@ enum Part {
 
 /// Lay a playlist out in parts, with any seasons found beside it.
 pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
-    let heading = crate::naming::listing(items.iter().map(|i| (i.path, i.title))).heading;
+    let heading = crate::library::naming::listing(items.iter().map(|i| (i.path, i.title))).heading;
 
     // Runs of consecutive files rather than a gathering by key. The list is in
     // watching order, which already keeps a show's files together; were one
@@ -119,7 +119,7 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
     // will do than one part collected from both ends of the queue.
     let mut runs: Vec<(Part, Option<String>, Vec<usize>)> = Vec::new();
     for (i, item) in items.iter().enumerate() {
-        let (part, show) = match crate::naming::parse(item.path) {
+        let (part, show) = match crate::library::naming::parse(item.path) {
             Media::Episode { show, season, .. } => {
                 (Part::Show(show.to_lowercase(), season), Some(show))
             }
@@ -147,10 +147,10 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
             };
             let labels: Vec<String> = if leaf {
                 let item = &items[members[0]];
-                vec![crate::naming::titled(item.path, item.title)]
+                vec![crate::library::naming::titled(item.path, item.title)]
             } else {
                 in_season(
-                    crate::naming::listing(
+                    crate::library::naming::listing(
                         members.iter().map(|&i| (items[i].path, items[i].title)),
                     )
                     .rows,
@@ -193,7 +193,8 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
     if heading.is_some() && groups.len() == 1 && !beside.is_empty() {
         for b in beside {
             let labels = in_season(
-                crate::naming::listing(b.files.iter().map(|(p, _)| (p.as_str(), None))).rows,
+                crate::library::naming::listing(b.files.iter().map(|(p, _)| (p.as_str(), None)))
+                    .rows,
                 Some(b.season),
             );
             let (label, named) = part_label(Some(b.season), None, true);
@@ -228,7 +229,7 @@ fn in_season(rows: Vec<String>, season: Option<u32>) -> Vec<String> {
     match season {
         Some(n) => rows
             .iter()
-            .map(|row| crate::naming::without_season(row, n))
+            .map(|row| crate::library::naming::without_season(row, n))
             .collect(),
         None => rows,
     }
@@ -302,7 +303,7 @@ pub fn look_beside(paths: &[String]) -> Vec<Beside> {
         show,
         season: Some(season),
         ..
-    } = crate::naming::parse(first)
+    } = crate::library::naming::parse(first)
     else {
         return Vec::new();
     };
@@ -310,7 +311,7 @@ pub fn look_beside(paths: &[String]) -> Vec<Beside> {
     let one_season = paths.iter().all(|p| {
         Path::new(p).parent() == folder
             && matches!(
-                crate::naming::parse(p),
+                crate::library::naming::parse(p),
                 Media::Episode { show: ref s, season: Some(n), .. }
                     if n == season && s.eq_ignore_ascii_case(&show)
             )
@@ -318,15 +319,15 @@ pub fn look_beside(paths: &[String]) -> Vec<Beside> {
     if !one_season {
         return Vec::new();
     }
-    crate::playlist::seasons_beside(Path::new(first))
+    crate::library::playlist::seasons_beside(Path::new(first))
         .into_iter()
         .filter_map(|(dir, season)| {
-            let files: Vec<String> = crate::playlist::scan_flat(&dir)
+            let files: Vec<String> = crate::library::playlist::scan_flat(&dir)
                 .ok()?
                 .iter()
                 .map(|p| p.to_string_lossy().into_owned())
                 .collect();
-            let progress = crate::durations::of(&files);
+            let progress = crate::library::durations::of(&files);
             Some(Beside {
                 season,
                 files: files.into_iter().zip(progress).collect(),

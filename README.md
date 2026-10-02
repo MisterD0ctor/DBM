@@ -134,7 +134,7 @@ licence asks of anyone passing the binaries on, including you if you fork this.
 
 | path | what it is |
 |---|---|
-| `crates/player/src/` | the application; the module table at the top of `main.rs` says what each file owns |
+| `crates/player/src/` | the application, in folders by concern; the table at the top of `main.rs` says what each one owns |
 | `crates/player/ui/` | the interface, in Slint |
 | `crates/player/shaders/` | the border, blur and glass passes, and the backdrop drawn while nothing is loaded |
 | `crates/player/vendor/` | libmpv and ffmpeg, shipped |

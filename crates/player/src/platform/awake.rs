@@ -13,7 +13,7 @@
 //! Linux would inhibit through the desktop's D-Bus screensaver interface,
 //! which is its own piece of work; everything here compiles away there.
 
-use crate::state::PlayerState;
+use crate::playback::state::PlayerState;
 
 #[derive(Default)]
 pub struct Awake {

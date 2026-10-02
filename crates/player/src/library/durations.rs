@@ -243,7 +243,11 @@ pub struct Recorder {
 const NEAR_END: f64 = 2.0;
 
 impl Recorder {
-    pub fn poll(&mut self, worker: &crate::worker::Worker, player: &crate::state::PlayerState) {
+    pub fn poll(
+        &mut self,
+        worker: &crate::worker::Worker,
+        player: &crate::playback::state::PlayerState,
+    ) {
         self.watch_ending(worker, player);
         let Some(path) = player.path.as_deref() else {
             return;
@@ -268,7 +272,11 @@ impl Recorder {
 
     /// Notices a file reaching its ending: its credits, its last frame, or
     /// its last moments before autoplay took the next one.
-    fn watch_ending(&mut self, worker: &crate::worker::Worker, player: &crate::state::PlayerState) {
+    fn watch_ending(
+        &mut self,
+        worker: &crate::worker::Worker,
+        player: &crate::playback::state::PlayerState,
+    ) {
         if self.playing.as_ref().map(|p| p.0.as_str()) != player.path.as_deref() {
             if let Some((path, duration, true)) = self.playing.take() {
                 self.finish(worker, path, duration);

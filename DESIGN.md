@@ -568,7 +568,7 @@ settings: the **bevel** (1.0 — the rim is the corner), the **index of
 refraction** (2.0 — well past a window pane, short of the diamond that pulls a
 black oval across the top of the way in) and the **reflection strength** (1.0 —
 the Fresnel term is already the physical answer and there is no reason to scale
-it). They are constants in `pipeline.rs`, and none of them had a range where
+it). They are constants in `gpu/pipeline.rs`, and none of them had a range where
 the result was a matter of taste rather than of whether the panes still read as
 one material. What is left on that page — blur, refraction depth, fringe, sky,
 tint — is how much of the material you want, which is the question worth a

@@ -14,12 +14,12 @@ use std::time::Duration;
 
 use slint::ComponentHandle;
 
-use crate::chrome::Activity;
-use crate::commands;
-use crate::mpv::Mpv;
-use crate::scrub::Scrubber;
+use crate::interface::chrome::Activity;
+use crate::interface::sync;
+use crate::playback::commands;
+use crate::playback::mpv::Mpv;
+use crate::playback::scrub::Scrubber;
 use crate::settings::Store;
-use crate::sync;
 use crate::worker::Worker;
 use crate::MainWindow;
 
@@ -35,9 +35,9 @@ pub fn wire(
     scrubber: &Rc<Scrubber>,
     worker: &Rc<Worker>,
     params: &Rc<Store>,
-    preview: &Rc<crate::preview::Preview>,
-    audio: &Rc<crate::audio::Watchdog>,
-    subline: &Rc<crate::subline::Subline>,
+    preview: &Rc<crate::library::preview::Preview>,
+    audio: &Rc<crate::playback::audio::Watchdog>,
+    subline: &Rc<crate::interface::subline::Subline>,
 ) {
     push_constants(ui);
 
@@ -112,7 +112,7 @@ pub fn wire(
                     ui.set_preview_sprite(image);
                     ui.set_preview_tile_w(tile_w);
                     ui.set_preview_tile_h(tile_h);
-                    preview.set_sprite(Some(crate::preview::Sprite {
+                    preview.set_sprite(Some(crate::library::preview::Sprite {
                         path,
                         tile_w: tile_w as u32,
                         tile_h: tile_h as u32,
@@ -273,7 +273,7 @@ pub fn wire(
                 .upgrade()
                 .and_then(|ui| near(&ui))
                 .and_then(|p| p.parent().map(std::path::Path::to_path_buf));
-            crate::dialog::pick(crate::dialog::Want::File, start, weak.clone());
+            crate::platform::dialog::pick(crate::platform::dialog::Want::File, start, weak.clone());
         });
     }
     {
@@ -286,7 +286,11 @@ pub fn wire(
                 .upgrade()
                 .and_then(|ui| near(&ui))
                 .and_then(|p| p.parent()?.parent().map(std::path::Path::to_path_buf));
-            crate::dialog::pick(crate::dialog::Want::Folder, start, weak.clone());
+            crate::platform::dialog::pick(
+                crate::platform::dialog::Want::Folder,
+                start,
+                weak.clone(),
+            );
         });
     }
     ui.on_quit(|| {
@@ -331,9 +335,9 @@ pub fn wire(
             }
             // Same job the command line goes through, scan and all.
             worker.submit(move |_mpv| {
-                Some(crate::worker::Completion::Opened(crate::playlist::prepare(
-                    &path,
-                )))
+                Some(crate::worker::Completion::Opened(
+                    crate::library::playlist::prepare(&path),
+                ))
             });
         });
     }

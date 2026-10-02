@@ -529,7 +529,11 @@ impl Preview {
             Some(sprite) => sprite.tile_at(fraction),
             None => (0, 0),
         };
-        (crate::state::format_time(seconds), x as i32, y as i32)
+        (
+            crate::playback::state::format_time(seconds),
+            x as i32,
+            y as i32,
+        )
     }
 }
 

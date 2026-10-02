@@ -76,7 +76,7 @@ VIProductVersion "${VERSION}.0"
 ; ---------------------------------------------------------------------------
 ; The file types the player knows how to open.
 ;
-; This list must match `VIDEO_EXTENSIONS` in crates/player/src/playlist.rs —
+; This list must match `VIDEO_EXTENSIONS` in crates/player/src/library/playlist.rs —
 ; offering to open a file the player would then refuse to scan is a lie the
 ; installer tells on the player's behalf. A test in that module reads this
 ; file and fails if the two drift apart.

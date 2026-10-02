@@ -10,7 +10,7 @@
 //! Failures are logged rather than propagated: a rejected seek should not
 //! take the player down with it.
 
-use crate::mpv::Mpv;
+use crate::playback::mpv::Mpv;
 
 /// Arrow-key seek, in seconds.
 pub const SEEK_STEP: f64 = 10.0;
@@ -157,8 +157,8 @@ pub fn toggle_mute(mpv: &Mpv) {
 /// Reading at the moment of the decision is guaranteed fresh in a way a
 /// mirrored copy is not, which is worth a thread hop.
 pub fn toggle_subtitles(mpv: &Mpv) {
-    let tracks = crate::tracks::read_tracks(mpv);
-    let subs = crate::tracks::of_kind(&tracks, crate::tracks::TrackKind::Sub);
+    let tracks = crate::playback::tracks::read_tracks(mpv);
+    let subs = crate::playback::tracks::of_kind(&tracks, crate::playback::tracks::TrackKind::Sub);
     if subs.is_empty() {
         return;
     }
@@ -169,13 +169,15 @@ pub fn toggle_subtitles(mpv: &Mpv) {
     // could see. The next press did the work, so the key took two goes the
     // first time it was used on such a file.
     let showing = mpv.get_bool("sub-visibility")
-        && crate::tracks::selected(&tracks, crate::tracks::TrackKind::Sub).is_some();
+        && crate::playback::tracks::selected(&tracks, crate::playback::tracks::TrackKind::Sub)
+            .is_some();
     if showing {
         set_prop(mpv, "sub-visibility", "no");
         return;
     }
     // Only trust the current selection if it names a track this file has.
-    if crate::tracks::selected(&tracks, crate::tracks::TrackKind::Sub).is_none() {
+    if crate::playback::tracks::selected(&tracks, crate::playback::tracks::TrackKind::Sub).is_none()
+    {
         set_prop(mpv, "sid", &subs[0].id.to_string());
     }
     set_prop(mpv, "sub-visibility", "yes");

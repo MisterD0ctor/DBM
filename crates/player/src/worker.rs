@@ -20,8 +20,8 @@ use std::sync::mpsc::{self, Receiver, Sender, TryIter};
 use std::sync::Arc;
 use std::thread::JoinHandle;
 
-use crate::mpv::Mpv;
-use crate::tracks::{PlaylistEntry, Track};
+use crate::playback::mpv::Mpv;
+use crate::playback::tracks::{PlaylistEntry, Track};
 use crate::MainWindow;
 
 /// Track and playlist contents, read together because they are invalidated
@@ -33,9 +33,9 @@ pub struct Lists {
     /// into it the resume point sits. Read here rather than in a job of its
     /// own because it is answered *from* the playlist — the paths have to be
     /// known before the lookup can start, and they are known right here.
-    pub progress: Vec<crate::durations::Progress>,
+    pub progress: Vec<crate::library::durations::Progress>,
     /// The file's chapter marks. Invalidated with the tracks, by a new file.
-    pub chapters: Vec<crate::tracks::Chapter>,
+    pub chapters: Vec<crate::playback::tracks::Chapter>,
     /// The generation this was read for, so a stale result can be discarded
     /// if the lists moved again while the job was running.
     pub generation: u64,
@@ -61,13 +61,13 @@ pub enum Completion {
     Notice(String),
     /// Playlist entries described by `probe` without being played: their
     /// lengths and titles. Several at once when they came from the cache.
-    Probed(Vec<crate::probe::Found>),
+    Probed(Vec<crate::library::probe::Found>),
     /// What the empty window can offer to pick back up, looked for once at
     /// startup when nothing was named on the command line.
-    Resume(Option<crate::session::Resume>),
+    Resume(Option<crate::playback::session::Resume>),
     /// The light behind the empty window when no film can give it one — see
     /// `mark`.
-    Mark(crate::preview::Still),
+    Mark(crate::library::preview::Still),
     /// Where the way on goes once a list has run out, already named. `from`
     /// is the file that asked, so an answer that arrives after something
     /// else started is dropped, and `None` means there is nowhere to go.
@@ -80,7 +80,7 @@ pub enum Completion {
     /// answer for a list since replaced is dropped.
     Beside {
         paths: Vec<String>,
-        seasons: Vec<crate::shelf::Beside>,
+        seasons: Vec<crate::library::shelf::Beside>,
     },
 }
 

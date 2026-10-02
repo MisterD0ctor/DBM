@@ -26,15 +26,18 @@ use slint::{
     BorrowedOpenGLTextureOrigin, ComponentHandle, GraphicsAPI, RenderingState,
 };
 
-use crate::gfx::Target;
-use crate::mpv::{self, Mpv};
-use crate::pipeline::{GlassPanel, Pipeline};
-use crate::scrub::Scrubber;
+use crate::gpu::gfx::Target;
+use crate::gpu::pipeline::{GlassPanel, Pipeline};
+use crate::interface::sync;
+use crate::library::playlist;
+use crate::platform::modal_loop;
+use crate::playback::commands;
+use crate::playback::mpv::{self, Mpv};
+use crate::playback::scrub::Scrubber;
+use crate::playback::state::PlayerState;
 use crate::settings::Store;
-use crate::state::PlayerState;
 use crate::worker::{Completion, Worker};
-use crate::{commands, playlist};
-use crate::{diagnostics, modal_loop, sync, MainWindow};
+use crate::{diagnostics, MainWindow};
 
 /// Identity of what a Slint image property points at: texture id, active
 /// image size, allocated texture size.
@@ -102,16 +105,16 @@ pub struct Driver {
     panels: Vec<GlassPanel>,
     modal: ModalHook,
     /// Installed the same way and for the same reason as the modal hook.
-    drops: crate::dropped::Accepting,
+    drops: crate::platform::dropped::Accepting,
     scrubber: Rc<Scrubber>,
     worker: Rc<Worker>,
     lists: sync::ListSync,
     /// Keeps the duration cache the playlist reads from up to date.
-    durations: crate::durations::Recorder,
+    durations: crate::library::durations::Recorder,
     /// Describes the playlist's other files without playing them.
-    scan: crate::probe::Scan,
+    scan: crate::library::probe::Scan,
     /// Looks for the seasons beside a playlist that is one season of a show.
-    neighbours: crate::shelf::Neighbours,
+    neighbours: crate::library::shelf::Neighbours,
     /// Last seen state of the playlist panel, so its opening can be noticed.
     playlist_open: bool,
     /// The file the next season was last looked for on behalf of.
@@ -127,18 +130,18 @@ pub struct Driver {
     loads_seen: u64,
     params: Rc<Store>,
     /// Shared with `actions`, which answers the pointer from it.
-    preview: Rc<crate::preview::Preview>,
+    preview: Rc<crate::library::preview::Preview>,
     /// Reads the same event stream as `player`, for what is not UI state.
-    audio: Rc<crate::audio::Watchdog>,
+    audio: Rc<crate::playback::audio::Watchdog>,
     /// The OS media overlay, told what is playing when it changes.
-    smtc: crate::smtc::Controls,
+    smtc: crate::platform::smtc::Controls,
     /// Holds the display on while something plays.
-    awake: crate::awake::Awake,
+    awake: crate::platform::awake::Awake,
     /// When a hand was last on the controls — see
     /// `keep_the_interface_moving`, the only thing that reads it here.
-    activity: crate::chrome::Activity,
+    activity: crate::interface::chrome::Activity,
     /// Where subtitles sit — told every frame where the bar is.
-    subline: Rc<crate::subline::Subline>,
+    subline: Rc<crate::interface::subline::Subline>,
     diag: diagnostics::Probe,
     /// A picture of a finished frame, when one is asked for.
     capture: diagnostics::Capture,
@@ -152,11 +155,11 @@ impl Driver {
         scrubber: Rc<Scrubber>,
         worker: Rc<Worker>,
         params: Rc<Store>,
-        preview: Rc<crate::preview::Preview>,
-        audio: Rc<crate::audio::Watchdog>,
-        smtc: crate::smtc::Controls,
-        activity: crate::chrome::Activity,
-        subline: Rc<crate::subline::Subline>,
+        preview: Rc<crate::library::preview::Preview>,
+        audio: Rc<crate::playback::audio::Watchdog>,
+        smtc: crate::platform::smtc::Controls,
+        activity: crate::interface::chrome::Activity,
+        subline: Rc<crate::interface::subline::Subline>,
     ) -> Self {
         Self {
             ui,
@@ -166,14 +169,14 @@ impl Driver {
             player: PlayerState::default(),
             panels: Vec::new(),
             modal: ModalHook::new(),
-            drops: crate::dropped::Accepting::default(),
+            drops: crate::platform::dropped::Accepting::default(),
             scrubber,
             preview,
             worker,
             lists: sync::ListSync::default(),
-            durations: crate::durations::Recorder::default(),
-            scan: crate::probe::Scan::default(),
-            neighbours: crate::shelf::Neighbours::default(),
+            durations: crate::library::durations::Recorder::default(),
+            scan: crate::library::probe::Scan::default(),
+            neighbours: crate::library::shelf::Neighbours::default(),
             playlist_open: false,
             season_asked: None,
             replies: Vec::new(),
@@ -183,7 +186,7 @@ impl Driver {
             params,
             audio,
             smtc,
-            awake: crate::awake::Awake::default(),
+            awake: crate::platform::awake::Awake::default(),
             activity,
             subline,
             diag: diagnostics::Probe::new(),
@@ -306,8 +309,9 @@ impl Driver {
                     // Nothing named, so the empty window is what is coming:
                     // find what it can offer to pick back up. A stat per
                     // played file and one ffmpeg run, so on the worker.
-                    self.worker
-                        .submit(|_mpv| Some(Completion::Resume(crate::session::last_watched())));
+                    self.worker.submit(|_mpv| {
+                        Some(Completion::Resume(crate::playback::session::last_watched()))
+                    });
                 }
                 self.gpu = Some(Gpu {
                     ctx,
@@ -517,7 +521,9 @@ impl Driver {
                     ui.set_resume_show(resume.show.unwrap_or_default().into());
                     ui.set_resume_title(resume.title.into());
                     ui.set_resume_progress(resume.fraction);
-                    ui.set_resume_left(crate::state::format_left(resume.seconds_left).into());
+                    ui.set_resume_left(
+                        crate::playback::state::format_left(resume.seconds_left).into(),
+                    );
                     if let Some(still) = &resume.still {
                         gpu.pipeline.set_backdrop(&gpu.gl, still);
                         // The interface needs to know, because with no
@@ -584,7 +590,7 @@ impl Driver {
                         // the loudest the interface ever speaks spent on a
                         // file-manager verb.
                         .or_else(|| {
-                            crate::session::last_watched()
+                            crate::playback::session::last_watched()
                                 .filter(|r| r.path != path)
                                 .map(|r| crate::worker::Onward {
                                     label: match &r.show {
@@ -714,7 +720,7 @@ fn publish(
 /// takes its inputs: the frame body holds `gpu` mutably throughout, and
 /// anything taking `&self` would borrow the whole driver a second time.
 fn poll_preview(
-    preview: &crate::preview::Preview,
+    preview: &crate::library::preview::Preview,
     player: &PlayerState,
     weak: &slint::Weak<MainWindow>,
     ui: &MainWindow,
@@ -734,7 +740,7 @@ fn poll_preview(
     ui.set_preview_tile_w(0);
     ui.set_preview_tile_h(0);
 
-    crate::preview::spawn(path, weak.clone());
+    crate::library::preview::spawn(path, weak.clone());
 }
 
 /// Draw the mark for the backdrop, on the worker.
@@ -743,5 +749,5 @@ fn poll_preview(
 /// than a wait, but the frame path's rule is that nothing it does can stall,
 /// and the cheapest way to keep a rule is not to argue about its edges.
 fn light_with_the_mark(worker: &Worker) {
-    worker.submit(|_mpv| crate::mark::still().map(Completion::Mark));
+    worker.submit(|_mpv| crate::gpu::mark::still().map(Completion::Mark));
 }

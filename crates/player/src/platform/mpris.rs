@@ -54,9 +54,9 @@ use zbus::names::InterfaceName;
 use zbus::object_server::SignalEmitter;
 use zbus::zvariant::{ObjectPath, Value};
 
-use crate::commands;
-use crate::mpv::Mpv;
-use crate::state::PlayerState;
+use crate::playback::commands;
+use crate::playback::mpv::Mpv;
+use crate::playback::state::PlayerState;
 
 /// What this application is called on a Linux desktop: the name of its
 /// desktop entry, the Wayland app id the window is tagged with, and the tail

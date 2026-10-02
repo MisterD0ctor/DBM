@@ -18,8 +18,8 @@
 
 use std::cell::Cell;
 
-use crate::commands;
-use crate::mpv::Mpv;
+use crate::playback::commands;
+use crate::playback::mpv::Mpv;
 
 #[derive(Default)]
 pub struct Scrubber {

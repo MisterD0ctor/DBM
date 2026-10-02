@@ -15,11 +15,11 @@ use std::rc::Rc;
 
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
-use crate::mpv::{Event, Mpv};
-use crate::pipeline::{GlassPanel, MAX_PANELS};
+use crate::gpu::pipeline::{GlassPanel, MAX_PANELS};
+use crate::playback::mpv::{Event, Mpv};
+use crate::playback::state::{self, PlayerState};
+use crate::playback::tracks::{self, TrackKind};
 use crate::settings::{self, Section, Store};
-use crate::state::{self, PlayerState};
-use crate::tracks::{self, TrackKind};
 use crate::worker::{Completion, Lists, Worker};
 use crate::{MainWindow, ParamItem, PlaylistGroup, PlaylistItem, TrackItem};
 
@@ -34,7 +34,7 @@ pub fn drain_events(
     player: &mut PlayerState,
     replies: &mut Vec<u64>,
     notices: &mut Vec<String>,
-    audio: &Rc<crate::audio::Watchdog>,
+    audio: &Rc<crate::playback::audio::Watchdog>,
 ) -> bool {
     let mut dirty = false;
     replies.clear();
@@ -68,7 +68,7 @@ pub fn drain_events(
             notices.push(match &path {
                 Some(path) => format!(
                     "{reason} — could not play {}",
-                    crate::naming::titled(path, None)
+                    crate::library::naming::titled(path, None)
                 ),
                 None => format!("{reason} — could not play that file"),
             });
@@ -188,7 +188,7 @@ impl ListSync {
             Some(Completion::Lists(Lists {
                 tracks: tracks::read_tracks(mpv),
                 chapters: tracks::read_chapters(mpv),
-                progress: crate::durations::of(&paths),
+                progress: crate::library::durations::of(&paths),
                 playlist,
                 generation,
             }))
@@ -241,11 +241,11 @@ fn selected_row(player: &PlayerState, kind: TrackKind) -> i32 {
 /// not rebuild the subtitle and audio menus as well — and so a row the
 /// pointer is resting on is recreated no more often than it has to be.
 pub fn push_playlist(ui: &MainWindow, player: &PlayerState) {
-    let items: Vec<crate::shelf::Item> = player
+    let items: Vec<crate::library::shelf::Item> = player
         .playlist
         .iter()
         .enumerate()
-        .map(|(row, e)| crate::shelf::Item {
+        .map(|(row, e)| crate::library::shelf::Item {
             path: &e.filename,
             title: player.known_title(row),
             index: e.index,
@@ -254,7 +254,7 @@ pub fn push_playlist(ui: &MainWindow, player: &PlayerState) {
             failed: player.failed.contains(&e.filename),
         })
         .collect();
-    let shelf = crate::shelf::arrange(&items, &player.beside);
+    let shelf = crate::library::shelf::arrange(&items, &player.beside);
 
     ui.set_next_label(next_label(&shelf).into());
     ui.set_playlist_named(shelf.heading.is_some());
@@ -299,7 +299,7 @@ pub fn push_playlist(ui: &MainWindow, player: &PlayerState) {
 ///
 /// Empty at the end of the list, and for a file playing that the list does
 /// not hold; the pills fall back to their own words.
-fn next_label(shelf: &crate::shelf::Shelf) -> String {
+fn next_label(shelf: &crate::library::shelf::Shelf) -> String {
     let rows = || {
         shelf
             .groups
@@ -327,7 +327,7 @@ fn next_label(shelf: &crate::shelf::Shelf) -> String {
 }
 
 /// One part of the list, as the panel draws it.
-fn group_item(group: &crate::shelf::Group) -> PlaylistGroup {
+fn group_item(group: &crate::library::shelf::Group) -> PlaylistGroup {
     let count = group.entries.len();
     PlaylistGroup {
         label: group.label.as_str().into(),
@@ -354,7 +354,7 @@ fn group_item(group: &crate::shelf::Group) -> PlaylistGroup {
     }
 }
 
-fn entry_item(entry: &crate::shelf::Entry) -> PlaylistItem {
+fn entry_item(entry: &crate::library::shelf::Entry) -> PlaylistItem {
     PlaylistItem {
         index: entry.index.map_or(-1, |i| i as i32),
         path: entry.path.as_str().into(),

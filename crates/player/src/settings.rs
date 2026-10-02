@@ -15,8 +15,8 @@
 
 use std::cell::Cell;
 
-use crate::commands;
-use crate::pipeline::{BorderParams, GlassParams};
+use crate::gpu::pipeline::{BorderParams, GlassParams};
+use crate::playback::commands;
 
 const AMBIENCE_ON: &str = "ambience.enabled";
 const GLASS_ON: &str = "glass.enabled";
