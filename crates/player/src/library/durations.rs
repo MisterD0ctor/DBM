@@ -15,59 +15,30 @@
 //! Everything here touches the disk, so everything here runs on the worker.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use md5::Digest;
+
+use crate::library::cache::PathMap;
 
 /// The cache, as the Tauri build wrote it: a flat object of path to seconds.
 pub type Cache = HashMap<String, f64>;
 
-static WRITE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static LENGTHS: PathMap<f64> = PathMap::new("durations.json");
 
-fn cache_file() -> PathBuf {
-    crate::paths::app_data_dir().join("durations.json")
-}
-
-/// **Blocking.** Worker thread only.
-///
-/// A missing or unreadable file is an empty cache, not an error: the first
-/// run of the player has no cache, and neither does one whose file somebody
-/// deleted. Both mean the same thing — nothing is known yet.
+/// Every length known. **Blocking.** Worker thread only.
 pub fn load() -> Cache {
-    std::fs::read_to_string(cache_file())
-        .ok()
-        .and_then(|text| serde_json::from_str(&text).ok())
-        .unwrap_or_default()
+    LENGTHS.load()
 }
 
 /// Remember one file's length.
 ///
-/// **Blocking.** Worker thread only.
-///
-/// Re-reads before writing rather than holding the map in memory, because two
-/// things write here — every file that finishes loading — and the file is a
-/// few tens of kilobytes at worst. Reading first also means a cache edited by
-/// hand, or written by the other build, is merged rather than clobbered.
+/// **Blocking.** Worker thread only. Two threads write here: the worker, as
+/// files play, and the probe, as a folder is scanned.
 pub fn record(path: &str, seconds: f64) {
     if seconds <= 0.0 || path.is_empty() {
         return;
     }
-    // Two threads write here now: the worker, as files play, and the probe,
-    // as a folder is scanned. Each rewrites the whole file from what it just
-    // read, so without this one of two overlapping writes is simply lost.
-    let _guard = WRITE.lock().unwrap_or_else(|e| e.into_inner());
-    let mut cache = load();
-    if cache.get(path).copied() == Some(seconds) {
-        return;
-    }
-    cache.insert(path.to_string(), seconds);
-    let file = cache_file();
-    let Ok(json) = serde_json::to_string(&cache) else {
-        return;
-    };
-    if let Err(e) = std::fs::write(&file, json) {
-        eprintln!("dbm: could not write {}: {e}", file.display());
-    }
+    LENGTHS.set(path, seconds);
 }
 
 /// What is known about one playlist entry.
@@ -161,48 +132,26 @@ pub fn watch_later_name(path: &str) -> String {
 /// credits, or its length when it simply ran out.
 pub type Finished = HashMap<String, f64>;
 
-static FINISHED_WRITE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+static FINISHED: PathMap<f64> = PathMap::new("finished.json");
 
 /// mpv checkpoints the position every ten seconds, so a file left in its
 /// credits can hold a resume point a little before the moment they were
 /// noticed. This much short of the ending is still the same viewing.
 const CHECKPOINT_SLACK: f64 = 15.0;
 
-fn finished_file() -> PathBuf {
-    crate::paths::app_data_dir().join("finished.json")
-}
-
-/// **Blocking.** Worker thread only.
-///
-/// Missing or unreadable is empty, for the same reason as the durations:
-/// nothing has been finished here yet.
+/// Every file watched to its end. **Blocking.** Worker thread only.
 pub fn load_finished() -> Finished {
-    std::fs::read_to_string(finished_file())
-        .ok()
-        .and_then(|text| serde_json::from_str(&text).ok())
-        .unwrap_or_default()
+    FINISHED.load()
 }
 
 /// Remember that a file reached its ending, and where that ending began.
 ///
-/// **Blocking.** Worker thread only. Re-read before writing, as `record` is.
+/// **Blocking.** Worker thread only.
 pub fn record_finished(path: &str, at: f64) {
     if path.is_empty() {
         return;
     }
-    let _guard = FINISHED_WRITE.lock().unwrap_or_else(|e| e.into_inner());
-    let mut finished = load_finished();
-    if finished.get(path).copied() == Some(at) {
-        return;
-    }
-    finished.insert(path.to_string(), at);
-    let file = finished_file();
-    let Ok(json) = serde_json::to_string(&finished) else {
-        return;
-    };
-    if let Err(e) = std::fs::write(&file, json) {
-        eprintln!("dbm: could not write {}: {e}", file.display());
-    }
+    FINISHED.set(path, at);
 }
 
 /// Whether a file counts as finished, given where mpv would resume it now.

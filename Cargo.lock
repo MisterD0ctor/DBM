@@ -1040,6 +1040,7 @@ dependencies = [
  "raw-window-handle",
  "resvg",
  "rfd",
+ "serde",
  "serde_json",
  "slint",
  "slint-build",

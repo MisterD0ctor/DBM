@@ -9,6 +9,7 @@
 //! Nothing here touches the interface; most of it touches the disk, and runs
 //! off the UI thread.
 
+pub mod cache;
 pub mod durations;
 pub mod naming;
 pub mod onward;

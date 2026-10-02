@@ -16,8 +16,10 @@ glow = "0.16"
 libloading = "0.8"
 raw-window-handle = "0.6"
 rfd = "0.17.2"
-# The duration cache: a flat path-to-seconds map, and the MD5 mpv names its
-# watch-later files by — see `durations`.
+# The small JSON caches of what is known about each file — see
+# `library::cache` — and the MD5 mpv names its watch-later files by. `serde`
+# is named only for its traits; `serde_json` already brings it.
+serde = "1"
 serde_json = "1"
 md-5 = "0.11"
 # Draws the logo into the light behind an empty window — see `mark`. Slint

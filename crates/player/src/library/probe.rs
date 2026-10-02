@@ -29,11 +29,10 @@
 //! files. A file ffmpeg is already reading is finished first, since a probe
 //! is short and cannot be interrupted anyway.
 
-use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Mutex;
 
+use crate::library::cache::PathMap;
 use crate::worker::{Completion, Reporter, Worker};
 
 /// One file, described.
@@ -88,7 +87,7 @@ impl Scan {
 fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
     let current = || GENERATION.load(Ordering::SeqCst) == generation;
     let lengths = crate::library::durations::load();
-    let titles = load_titles();
+    let titles = TITLES.load();
 
     // Everything already known goes back in one delivery, before any ffmpeg
     // starts: a folder opened for the second time is complete the moment its
@@ -182,41 +181,14 @@ pub fn parse_title(report: &str) -> Option<String> {
 // ---------------------------------------------------------------------------
 
 /// Path to title. An empty string is a file that was asked and has none.
-type Titles = HashMap<String, String>;
-
-fn titles_file() -> PathBuf {
-    crate::paths::app_data_dir().join("titles.json")
-}
-
-/// **Blocking.** Missing or unreadable is empty, as for the duration cache.
-fn load_titles() -> Titles {
-    std::fs::read_to_string(titles_file())
-        .ok()
-        .and_then(|text| serde_json::from_str(&text).ok())
-        .unwrap_or_default()
-}
-
-/// Serialises read-modify-write on `titles.json`. One scan writes at a time
-/// in practice, but a superseded one can still be finishing its last file as
-/// the next starts, and two rewrites of the same file lose one of them.
-static TITLES_WRITE: Mutex<()> = Mutex::new(());
+///
+/// One scan writes at a time in practice, but a superseded one can still be
+/// finishing its last file as the next starts.
+static TITLES: PathMap<String> = PathMap::new("titles.json");
 
 /// **Blocking.**
 fn record_title(path: &str, title: Option<&str>) {
-    let _guard = TITLES_WRITE.lock().unwrap_or_else(|e| e.into_inner());
-    let mut titles = load_titles();
-    let value = title.unwrap_or("").to_string();
-    if titles.get(path) == Some(&value) {
-        return;
-    }
-    titles.insert(path.to_string(), value);
-    let file = titles_file();
-    let Ok(json) = serde_json::to_string(&titles) else {
-        return;
-    };
-    if let Err(e) = std::fs::write(&file, json) {
-        eprintln!("dbm: could not write {}: {e}", file.display());
-    }
+    TITLES.set(path, title.unwrap_or("").to_string());
 }
 
 #[cfg(test)]
