@@ -1297,6 +1297,20 @@ fn open_test(ui: &MainWindow, path: String) -> slint::Timer {
                 0 => {
                     eprintln!("dbm: opening {path}");
                     ui.invoke_open_path(path.as_str().into());
+                    // Whether the interface goes on saying so. With a film
+                    // already playing, the flag used to be cleared on the
+                    // very next frame, because a file existed — so these
+                    // read false at once and "Opening …" never reached the
+                    // screen. Now they should read true until mpv loads the
+                    // new file, then false.
+                    for ms in [30u64, 150, 600, 1400] {
+                        let weak = weak.clone();
+                        slint::Timer::single_shot(Duration::from_millis(ms), move || {
+                            if let Some(ui) = weak.upgrade() {
+                                eprintln!("dbm: +{ms:>4}ms opening={}", ui.get_opening());
+                            }
+                        });
+                    }
                 }
                 // Two ticks: the scan is on the worker and the `loadlist`
                 // that follows is asynchronous again.

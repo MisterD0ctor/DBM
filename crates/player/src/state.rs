@@ -101,6 +101,10 @@ pub struct PlayerState {
     /// know to re-pull. Covers both the list mutating and the selection
     /// moving within it.
     pub tracks_generation: u64,
+    /// How many files mpv has finished opening this run. Read by the render
+    /// driver to tell when an open is over: the moment one loads, not the
+    /// moment one exists — a film already playing is a file that exists.
+    pub loads: u64,
     /// mpv's own layout: OSD size and the margins around the video.
     pub osd: [f64; 6],
     /// Display size of the video itself, aspect already applied.
@@ -133,6 +137,7 @@ impl PlayerState {
             // A new file invalidates everything list-shaped.
             Event::FileLoaded => {
                 self.tracks_generation = self.tracks_generation.wrapping_add(1);
+                self.loads = self.loads.wrapping_add(1);
                 true
             }
             Event::StartFile

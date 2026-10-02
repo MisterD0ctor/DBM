@@ -123,6 +123,8 @@ pub struct Driver {
     notices: Vec<String>,
     /// Which playlist entry to start on once `loadlist` reports done.
     pending_start: Option<usize>,
+    /// `PlayerState::loads` as of the last frame — see where it is compared.
+    loads_seen: u64,
     params: Rc<Store>,
     /// Shared with `actions`, which answers the pointer from it.
     preview: Rc<crate::preview::Preview>,
@@ -174,6 +176,7 @@ impl Driver {
             replies: Vec::new(),
             notices: Vec::new(),
             pending_start: None,
+            loads_seen: 0,
             params,
             audio,
             smtc,
@@ -390,6 +393,18 @@ impl Driver {
         }
         if moved {
             sync::push_scalars(&ui, &self.player);
+        }
+        // An open is over when mpv finishes opening a file — not when it has
+        // one. This used to ask the second question, and with a film already
+        // playing the answer was yes on the very next frame: "Opening …" over
+        // a playing film was cleared before it was ever drawn, so the slow
+        // case it exists for showed nothing at all. The failures end it by
+        // their own routes: a scan that found nothing clears it where the
+        // scan reports back, and a file mpv could not play raises a notice,
+        // which clears it above.
+        if self.player.loads != self.loads_seen {
+            self.loads_seen = self.player.loads;
+            ui.set_opening(false);
         }
         // Every frame, not only the ones that moved: registration needs a
         // window handle that does not exist yet on the first of them, and the

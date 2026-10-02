@@ -520,7 +520,11 @@ lands on top of it either.
 
 **The Bar Stays For A Pause.** The bar hides after three still seconds while a
 film plays, and not while it is paused. Pausing is stopping to look at where you
-are, which is the moment the bar is for.
+are, which is the moment the bar is for. Nor while an open is in flight:
+*Opening …* takes the title pill's place, and it is the only sign anywhere that
+a folder on a share is still being read. The open is over when mpv finishes
+opening the new file — not when there is a file, which over a film already
+playing was true at once and cleared the line before it was ever drawn.
 
 **The Gap Goes Above Rule.** The 16px group gap always sits above the thing that
 starts something new, never below the thing that ended — above a section

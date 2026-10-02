@@ -2331,9 +2331,15 @@ export component MainWindow inherits Window {
     // So does a paused film. Pausing is stopping to look at where you are —
     // how far in, how long is left, which episode — and the bar used to leave
     // three seconds into exactly that.
+    //
+    // And so does an open that has not finished. "Opening …" takes the title
+    // pill's place, and that line is the only sign anywhere that a folder on
+    // a share is still being read; with the bar gone three seconds in, a
+    // scan that took ten looked like a click that had been ignored, and the
+    // second Ctrl+O it invited was refused without a word.
     property <bool> controls-visible: !Chrome.idle
         || root.menu-open || root.playlist-open || root.settings-open
-        || root.files-open || (root.paused && root.has-file);
+        || root.files-open || (root.paused && root.has-file) || root.opening;
 
     /// Whether the pointer should be off screen.
     ///
