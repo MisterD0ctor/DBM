@@ -12,8 +12,8 @@
 //! the border it just drew, which is the step mpv's own compositor used to do
 //! and the reason the fork existed.
 //!
-//! The blur chain is a dual-Kawase pyramid ending at quarter resolution, and
-//! feeds the glass pass as the backdrop the panels refract.
+//! The blur is a separable Gaussian at the window's own resolution, and feeds
+//! the glass pass as the backdrop the panels refract.
 //!
 //! The division of labour with the UI: Slint owns layout and content, this
 //! owns material. Panel rectangles are read out of Slint's own layout every
@@ -25,55 +25,6 @@ use glow::HasContext;
 use crate::gfx::{bind_texture, saved_draw_fbo, Program, ScreenQuad, Target};
 use crate::mpv::RenderContext;
 
-/// Depth of the downsample pyramid; the smallest level is 1/2^LEVELS of the
-/// window. This sets how far the blur reaches, independently of the
-/// resolution it comes back at.
-const LEVELS: usize = 1;
-/// Pyramid level the upsample chain stops at, and so the resolution of the
-/// blur texture: 0 is native, 1 half, 2 quarter.
-///
-/// Must be less than `LEVELS` - the chain climbs from `LEVELS` down to this,
-/// so if they are equal there is nothing to climb and the blur texture is
-/// never written at all.
-const OUTPUT_LEVEL: usize = 0;
-
-/// How the backdrop blur is produced.
-// One variant is always unused: `BLUR` is a compile-time choice.
-#[allow(dead_code)]
-#[derive(PartialEq, Eq)]
-pub enum BlurKind {
-    /// Dual-Kawase pyramid. A wide blur for very little work, because most of
-    /// it happens at reduced size. `LEVELS` and `OUTPUT_LEVEL` apply, and
-    /// `GlassParams::blur` scales the tap offset.
-    ///
-    /// Note that even at `blur: 0.0` this still softens the backdrop, because
-    /// the downsampling itself is a low-pass. There is no setting here that
-    /// yields a genuinely sharp backdrop.
-    Pyramid,
-    /// Separable Gaussian at native resolution. No downsampling anywhere, so
-    /// cost scales linearly with radius instead of being nearly free.
-    /// `GlassParams::blur_sigma` is the radius in pixels - and at 0 it is a
-    /// passthrough, giving a perfectly sharp backdrop. `LEVELS` and
-    /// `OUTPUT_LEVEL` are unused.
-    ///
-    /// Worth the cost for two reasons: a sharp backdrop is unreachable with
-    /// the pyramid at all, and refraction magnifies the backdrop, under which
-    /// a pyramid-reconstructed texture can show faint blockiness.
-    FullRes,
-}
-
-pub const BLUR: BlurKind = BlurKind::FullRes;
-
-// Catch that at build time rather than as a silently black backdrop: an empty
-// upsample range leaves `blur_out` holding the black it was cleared to, and
-// the glass then refracts nothing.
-const _: () = assert!(
-    OUTPUT_LEVEL < LEVELS,
-    "OUTPUT_LEVEL must be less than LEVELS, or the upsample chain never runs"
-);
-/// Base Kawase tap offset, in texels of each pass's source. Scaled at runtime
-/// by `GlassParams::blur`.
-const KAWASE_OFFSET: f32 = 1.0;
 /// Must match `MAX_PANELS` in glass.frag.
 ///
 /// Ten is what the interface can put on screen at once: five pieces of bar,
@@ -124,18 +75,9 @@ pub struct GlassPanel {
 /// later; the defaults aim at Apple-ish rather than subtle.
 #[derive(Clone, Copy, Debug)]
 pub struct GlassParams {
-    /// Gaussian radius in pixels; 0 is a sharp passthrough. Only used when
-    /// `BLUR` is `FullRes`.
+    /// Gaussian radius of the backdrop blur, in pixels; 0 is a sharp
+    /// passthrough.
     pub blur_sigma: f32,
-    /// Backdrop blur strength, as a multiplier on the Kawase tap offset.
-    /// Only used when `BLUR` is `Pyramid`.
-    ///
-    /// 1.0 is the natural radius for the pyramid depth; roughly, effective
-    /// radius scales as `blur * 2^LEVELS`. Push much past ~3.0 and the taps
-    /// spread far enough apart that the pyramid stops hiding its own
-    /// structure and banding shows — widen `LEVELS` instead for more than
-    /// that, at the cost of two passes and a coarser backdrop.
-    pub blur: f32,
     /// Effective glass thickness for transmission, as a fraction of the bevel
     /// width. How far the refracted ray descends before it reaches the
     /// backdrop, so it scales how strongly the rim displaces what is behind
@@ -207,7 +149,6 @@ impl Default for GlassParams {
     fn default() -> Self {
         Self {
             blur_sigma: 2.0,
-            blur: 1.0,
             // The glass is as thick as the rim is wide; see `BEVEL`.
             refract: 1.0,
             aberration: 0.1,
@@ -224,8 +165,6 @@ pub struct Pipeline {
     quad: ScreenQuad,
     prog_extend: Program,
     prog_spread: Program,
-    prog_down: Program,
-    prog_up: Program,
 
     /// mpv renders here, with a transparent surround.
     video: Target,
@@ -233,9 +172,7 @@ pub struct Pipeline {
     extended: Target,
     /// Ambient border with the video composited over it. What Slint shows.
     composite: Target,
-    down: Vec<Target>,
-    up: Vec<Target>,
-    /// Final blur output, at `OUTPUT_LEVEL`.
+    /// The composite, blurred: what the glass refracts.
     ///
     /// Single-buffered: this was double-buffered while Slint displayed the
     /// blur directly, because a rounded-clip subtree gets cached into a layer
@@ -249,8 +186,7 @@ pub struct Pipeline {
     glassed: Target,
     prog_glass: Program,
     prog_gauss: Program,
-    /// Scratch for the horizontal half of the full-resolution Gaussian.
-    /// Unallocated unless `BLUR` is `FullRes`.
+    /// Scratch for the horizontal half of the Gaussian.
     gauss_tmp: Target,
     panels: Vec<GlassPanel>,
     pub glass: GlassParams,
@@ -312,15 +248,9 @@ impl Pipeline {
                 .map_err(|e| format!("border_extend: {e}"))?,
             prog_spread: Program::new(gl, vert, include_str!("../shaders/border_spread.frag"))
                 .map_err(|e| format!("border_spread: {e}"))?,
-            prog_down: Program::new(gl, vert, include_str!("../shaders/blur_down.frag"))
-                .map_err(|e| format!("blur_down: {e}"))?,
-            prog_up: Program::new(gl, vert, include_str!("../shaders/blur_up.frag"))
-                .map_err(|e| format!("blur_up: {e}"))?,
             video: Target::new(),
             extended: Target::new(),
             composite: Target::new(),
-            down: (0..LEVELS).map(|_| Target::new()).collect(),
-            up: (0..LEVELS).map(|_| Target::new()).collect(),
             blur_out: Target::new(),
             glassed: Target::new(),
             prog_glass: Program::new(gl, vert, include_str!("../shaders/glass.frag"))
@@ -438,26 +368,20 @@ impl Pipeline {
         &self.blur_out
     }
 
-    /// Sample the centre of every stage of the blur pyramid, to find where
-    /// a black frame enters. Diagnostics only - stalls the GL pipeline.
+    /// Sample the centre of every stage of the blur, to find where a black
+    /// frame enters. Diagnostics only - stalls the GL pipeline.
     pub fn blur_chain_debug(&self, gl: &glow::Context) -> String {
-        let mut out = String::new();
         let probe = |t: &Target| {
             let (w, h) = t.size();
             let px = t.sample_grid(gl, &[(w / 2, h / 2)]);
             format!("{w}x{h}{:?}", px.first().copied().unwrap_or([0; 4]))
         };
-        out.push_str(&format!("composite {} | ", probe(&self.composite)));
-        for (k, t) in self.down.iter().enumerate() {
-            out.push_str(&format!("down[{k}]=L{} {} | ", k + 1, probe(t)));
-        }
-        for (level, t) in self.up.iter().enumerate() {
-            if (OUTPUT_LEVEL + 1..LEVELS).contains(&level) {
-                out.push_str(&format!("up[{level}] {} | ", probe(t)));
-            }
-        }
-        out.push_str(&format!("blur_out {}", probe(&self.blur_out)));
-        out
+        format!(
+            "composite {} | horizontal {} | blur_out {}",
+            probe(&self.composite),
+            probe(&self.gauss_tmp),
+            probe(&self.blur_out),
+        )
     }
 
     /// The raw mpv output, before the border pass. Diagnostics only.
@@ -473,43 +397,19 @@ impl Pipeline {
     /// frame from mpv.
     fn ensure_sizes(&mut self, gl: &glow::Context, w: u32, h: u32) -> (bool, bool) {
         let resized = self.composite.size() != (w, h);
-        if !self.video.ensure_size(gl, w, h)
-            || !self.extended.ensure_size(gl, w, h)
-            || !self.composite.ensure_size(gl, w, h)
-            || !self.glassed.ensure_size(gl, w, h)
-        {
-            return (false, resized);
-        }
-        if BLUR == BlurKind::FullRes {
-            // Both Gaussian passes run at native size; the pyramid targets
-            // are dead weight in this mode and stay unallocated.
-            if !self.gauss_tmp.ensure_size(gl, w, h) || !self.blur_out.ensure_size(gl, w, h) {
-                return (false, resized);
-            }
-            return (true, resized);
-        }
-
-        // `down[k]` holds level k+1, so the chain descends 1..=LEVELS.
-        for k in 0..LEVELS {
-            let (lw, lh) = level_size(w, h, k + 1);
-            if !self.down[k].ensure_size(gl, lw, lh) {
-                return (false, resized);
-            }
-        }
-        // Coming back up, levels LEVELS-1 down to OUTPUT_LEVEL are written.
-        // The last of those lands in `blur_out`, so only the intermediate
-        // ones need a target of their own.
-        for level in OUTPUT_LEVEL + 1..LEVELS {
-            let (lw, lh) = level_size(w, h, level);
-            if !self.up[level].ensure_size(gl, lw, lh) {
-                return (false, resized);
-            }
-        }
-        let (ow, oh) = level_size(w, h, OUTPUT_LEVEL);
-        if !self.blur_out.ensure_size(gl, ow, oh) {
-            return (false, resized);
-        }
-        (true, resized)
+        // Every target is the window's own size: both halves of the Gaussian
+        // run at native resolution, like everything else.
+        let ok = [
+            &mut self.video,
+            &mut self.extended,
+            &mut self.composite,
+            &mut self.glassed,
+            &mut self.gauss_tmp,
+            &mut self.blur_out,
+        ]
+        .into_iter()
+        .all(|target| target.ensure_size(gl, w, h));
+        (ok, resized)
     }
 
     /// Pull mpv's current frame and run the whole chain.
@@ -642,7 +542,12 @@ impl Pipeline {
 
     /// Separable Gaussian at native resolution: horizontal into scratch,
     /// vertical into the blur output.
-    fn run_blur_gauss(&mut self, gl: &glow::Context) {
+    ///
+    /// Native rather than downsampled because refraction magnifies the
+    /// backdrop with sub-pixel displacement, and a texture rebuilt from a
+    /// smaller one shows its blocks under that magnification. It also makes
+    /// a radius of 0 a true passthrough, which no downsampling chain can be.
+    fn run_blur(&mut self, gl: &glow::Context) {
         let sigma = self.glass.blur_sigma.max(0.0);
         self.prog_gauss.bind(gl);
         self.prog_gauss.set_f32(gl, "u_sigma", sigma);
@@ -758,72 +663,17 @@ impl Pipeline {
         self.quad.draw_to(gl, &self.composite);
     }
 
-    fn run_blur(&mut self, gl: &glow::Context) {
-        if BLUR == BlurKind::FullRes {
-            self.run_blur_gauss(gl);
-            return;
-        }
-        // Down the pyramid. Each pass reads the level above it, so the texel
-        // size passed in is always the *source* texel size.
-        self.prog_down.bind(gl);
-        let offset = KAWASE_OFFSET * self.glass.blur.max(0.0);
-        self.prog_down.set_f32(gl, "u_offset", offset);
-        let mut src = self.composite.texture();
-        let mut src_size = self.composite.size();
-        let mut src_scale = self.composite.scale();
-        for i in 0..LEVELS {
-            self.prog_down.set_vec2(
-                gl,
-                "u_texel",
-                1.0 / src_size.0.max(1) as f32,
-                1.0 / src_size.1.max(1) as f32,
-            );
-            self.prog_down
-                .set_vec2(gl, "u_src_scale", src_scale.0, src_scale.1);
-            bind_texture(gl, &self.prog_down, "u_src", 0, src);
-            self.quad.draw_to(gl, &self.down[i]);
-            src = self.down[i].texture();
-            src_size = self.down[i].size();
-            src_scale = self.down[i].scale();
-        }
-
-        // Back up to OUTPUT_LEVEL. Because the levels are now numbered by
-        // their actual shift, OUTPUT_LEVEL 0 means a final pass at native
-        // resolution rather than being unreachable.
-        self.prog_up.bind(gl);
-        self.prog_up.set_f32(gl, "u_offset", offset);
-        for level in (OUTPUT_LEVEL..LEVELS).rev() {
-            let target: &Target = if level == OUTPUT_LEVEL {
-                &self.blur_out
-            } else {
-                &self.up[level]
-            };
-            self.prog_up.set_vec2(
-                gl,
-                "u_texel",
-                1.0 / src_size.0.max(1) as f32,
-                1.0 / src_size.1.max(1) as f32,
-            );
-            self.prog_up
-                .set_vec2(gl, "u_src_scale", src_scale.0, src_scale.1);
-            bind_texture(gl, &self.prog_up, "u_src", 0, src);
-            self.quad.draw_to(gl, target);
-            src = target.texture();
-            src_size = target.size();
-            src_scale = target.scale();
-        }
-    }
-
     pub fn release(&mut self, gl: &glow::Context) {
-        self.video.release(gl);
-        self.extended.release(gl);
-        self.composite.release(gl);
-        self.glassed.release(gl);
-        self.gauss_tmp.release(gl);
-        for t in self.down.iter_mut().chain(self.up.iter_mut()) {
-            t.release(gl);
+        for target in [
+            &mut self.video,
+            &mut self.extended,
+            &mut self.composite,
+            &mut self.glassed,
+            &mut self.gauss_tmp,
+            &mut self.blur_out,
+        ] {
+            target.release(gl);
         }
-        self.blur_out.release(gl);
         self.quad.release(gl);
         if let Some(b) = self.backdrop.take() {
             unsafe { gl.delete_texture(b.tex) };
@@ -831,8 +681,6 @@ impl Pipeline {
         for p in [
             &self.prog_extend,
             &self.prog_spread,
-            &self.prog_down,
-            &self.prog_up,
             &self.prog_glass,
             &self.prog_gauss,
             &self.prog_backdrop,
@@ -840,9 +688,4 @@ impl Pipeline {
             p.release(gl);
         }
     }
-}
-
-/// Size of pyramid level `i`, never smaller than one texel.
-fn level_size(w: u32, h: u32, level: usize) -> (u32, u32) {
-    ((w >> level).max(1), (h >> level).max(1))
 }

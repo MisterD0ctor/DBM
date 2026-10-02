@@ -368,7 +368,7 @@ impl Probe {
     }
 
     /// One-shot dump of everything worth eyeballing when something looks
-    /// wrong: the blur pyramid stage by stage, the parsed tracks, and the
+    /// wrong: the blur stage by stage, the parsed tracks, and the
     /// mirrored playback state.
     fn dump(&self, pipeline: &Pipeline, gl: &glow::Context, player: &PlayerState) {
         eprintln!("dbm: chain {}", pipeline.blur_chain_debug(gl));

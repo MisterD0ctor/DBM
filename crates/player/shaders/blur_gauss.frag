@@ -1,11 +1,9 @@
 // Separable Gaussian, run at full resolution.
 //
-// The alternative to the Kawase pyramid. The pyramid gets a wide blur almost
-// free by doing the work at reduced size; this does none of that, so cost
-// scales linearly with radius. It exists for one reason: refraction magnifies
-// the backdrop with sub-pixel displacement, and a pyramid-reconstructed
-// texture can show faint blockiness under that magnification. A true Gaussian
-// cannot.
+// No downsampling anywhere, so cost scales linearly with radius rather than
+// being nearly free. Worth it because refraction magnifies the backdrop with
+// sub-pixel displacement, and a texture reconstructed from a smaller one
+// shows faint blockiness under that magnification. A true Gaussian cannot.
 //
 // Run twice - horizontally, then vertically - which is what makes an O(n^2)
 // kernel O(n).
