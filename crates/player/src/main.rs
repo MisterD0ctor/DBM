@@ -20,6 +20,7 @@
 //!
 //! | module        | owns                                                      |
 //! |---------------|-----------------------------------------------------------|
+//! | `app`         | the handles the rest share, in one value                  |
 //! | `driver`      | the frame: Slint's rendering notifier, and all it runs    |
 //! | `playback`    | mpv: the binding, its mirrored state, commands, resuming  |
 //! | `library`     | files on disk: playlists, names, lengths, preview sheets  |
@@ -36,6 +37,7 @@
 //!
 //! Run with a video path: `cargo run -p dbm-player -- some/video.mkv`
 
+mod app;
 mod diagnostics;
 mod driver;
 mod gpu;
@@ -52,6 +54,8 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use slint::ComponentHandle;
+
+use crate::app::App;
 
 slint::include_modules!();
 
@@ -74,9 +78,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // not offer one where nothing would catch it.
     ui.set_drop_supported(platform::dropped::SUPPORTED);
 
-    // `Arc` for two reasons: the address of the `Mpv` must stay put, because
-    // the render context keeps a raw pointer to the symbol table inside it;
-    // and the worker thread needs a share of it.
     let mpv = Arc::new(playback::mpv::Mpv::new(playback::session::configure)?);
     for (name, format) in playback::state::OBSERVED {
         if let Err(e) = mpv.observe(name, *format) {
@@ -84,53 +85,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    // Anything that would block the frame path goes here — see `worker`.
     let worker = Rc::new(worker::Worker::spawn(mpv.clone(), ui.as_weak()));
-
-    // Watches for audio devices coming and going. Observing the list is what
-    // starts mpv's hotplug monitor, so this has to be armed whether or not
-    // anything ever disappears.
-    let audio = playback::audio::Watchdog::new(worker.clone());
+    let settings = Rc::new(settings::Store::default());
+    let app = App {
+        mpv: mpv.clone(),
+        worker: worker.clone(),
+        settings: settings.clone(),
+        activity: interface::chrome::Activity::new(),
+        scrubber: Rc::new(playback::scrub::Scrubber::new()),
+        preview: Rc::new(library::preview::Preview::default()),
+        // Watches for audio devices coming and going.
+        audio: playback::audio::Watchdog::new(worker.clone()),
+        subline: Rc::new(interface::subline::Subline::new(settings.clone())),
+    };
+    // Observing the device list is what starts mpv's hotplug monitor, so this
+    // has to be armed whether or not anything ever disappears.
     playback::audio::observe(&mpv);
 
-    let activity = interface::chrome::Activity::new();
-    // Shared: `actions` feeds it drag positions, the render driver feeds it
-    // the completions that let the next one go out.
-    let scrubber = Rc::new(playback::scrub::Scrubber::new());
-    let params = Rc::new(settings::Store::default());
-    // Shared: the render loop learns the duration and takes delivery of the
-    // thumbnail atlas; `actions` answers the pointer from both.
-    let preview = Rc::new(library::preview::Preview::default());
     // Loads what was saved, then writes changes back once they settle. The
     // defaults in `GlassParams` are now the reset target rather than the
     // source of truth.
-    let saver = settings::Persister::install(params.clone(), worker.clone());
-    // Shared: `actions` moves the line when the person does, the render
-    // driver when the bar does, and both have to go through one place.
-    let subline = Rc::new(interface::subline::Subline::new(params.clone()));
-    interface::actions::wire(
-        &ui, &mpv, &activity, &scrubber, &worker, &params, &preview, &audio, &subline,
-    );
-    // Timers stop when their handle drops, so both of these are held until
-    // the event loop returns.
-    let idle_timer = interface::chrome::install(&ui, activity.clone());
+    let saver = settings::Persister::install(settings, worker);
+    interface::actions::wire(&ui, &app);
+    // Timers stop when their handle drops, so this and the others below are
+    // held until the event loop returns.
+    let idle_timer = interface::chrome::install(&ui, app.activity.clone());
 
     let mut driver = driver::Driver::new(
         ui.as_weak(),
-        mpv.clone(),
+        app.clone(),
         file,
-        scrubber,
-        worker,
-        params,
-        preview,
-        audio.clone(),
         // On Windows this registers itself from the frame path: the window
         // handle it needs does not exist yet and will not until the loop has
         // turned. On Linux there is no handle in it, so the bus name is
         // claimed here and now — see `mpris`.
         platform::smtc::Controls::new(mpv.clone()),
-        activity,
-        subline,
     );
     ui.window()
         .set_rendering_notifier(move |state, api| driver.on(state, api))?;
@@ -140,7 +129,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let checkpoint = playback::session::checkpoint_periodically(mpv.clone());
 
     ui.show()?;
-    let harnesses = harness::install(&ui, &mpv, &audio);
+    let harnesses = harness::install(&ui, &app);
 
     ui.run()?;
 

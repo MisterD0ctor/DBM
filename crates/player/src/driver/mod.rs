@@ -18,7 +18,6 @@
 //! frame is what stops the glass lagging a frame behind its widget.
 
 use std::num::NonZeroU32;
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use slint::{
@@ -26,6 +25,7 @@ use slint::{
     BorrowedOpenGLTextureOrigin, ComponentHandle, GraphicsAPI, RenderingState,
 };
 
+use crate::app::App;
 use crate::gpu::gfx::Target;
 use crate::gpu::pipeline::{GlassPanel, Pipeline};
 use crate::interface::sync;
@@ -33,9 +33,7 @@ use crate::library::playlist;
 use crate::platform::modal_loop;
 use crate::playback::commands;
 use crate::playback::mpv::{self, Mpv};
-use crate::playback::scrub::Scrubber;
 use crate::playback::state::PlayerState;
-use crate::settings::Store;
 use crate::worker::{Completion, Worker};
 use crate::{diagnostics, MainWindow};
 
@@ -97,7 +95,7 @@ impl ModalHook {
 
 pub struct Driver {
     ui: slint::Weak<MainWindow>,
-    mpv: Arc<Mpv>,
+    app: App,
     /// Loaded once the render context exists — see `RenderingSetup`.
     file: Option<String>,
     gpu: Option<Gpu>,
@@ -106,8 +104,6 @@ pub struct Driver {
     modal: ModalHook,
     /// Installed the same way and for the same reason as the modal hook.
     drops: crate::platform::dropped::Accepting,
-    scrubber: Rc<Scrubber>,
-    worker: Rc<Worker>,
     lists: sync::ListSync,
     /// Keeps the duration cache the playlist reads from up to date.
     durations: crate::library::durations::Recorder,
@@ -128,20 +124,10 @@ pub struct Driver {
     pending_start: Option<usize>,
     /// `PlayerState::loads` as of the last frame — see where it is compared.
     loads_seen: u64,
-    params: Rc<Store>,
-    /// Shared with `actions`, which answers the pointer from it.
-    preview: Rc<crate::library::preview::Preview>,
-    /// Reads the same event stream as `player`, for what is not UI state.
-    audio: Rc<crate::playback::audio::Watchdog>,
     /// The OS media overlay, told what is playing when it changes.
     smtc: crate::platform::smtc::Controls,
     /// Holds the display on while something plays.
     awake: crate::platform::awake::Awake,
-    /// When a hand was last on the controls — see
-    /// `keep_the_interface_moving`, the only thing that reads it here.
-    activity: crate::interface::chrome::Activity,
-    /// Where subtitles sit — told every frame where the bar is.
-    subline: Rc<crate::interface::subline::Subline>,
     diag: diagnostics::Probe,
     /// A picture of a finished frame, when one is asked for.
     capture: diagnostics::Capture,
@@ -150,29 +136,19 @@ pub struct Driver {
 impl Driver {
     pub fn new(
         ui: slint::Weak<MainWindow>,
-        mpv: Arc<Mpv>,
+        app: App,
         file: Option<String>,
-        scrubber: Rc<Scrubber>,
-        worker: Rc<Worker>,
-        params: Rc<Store>,
-        preview: Rc<crate::library::preview::Preview>,
-        audio: Rc<crate::playback::audio::Watchdog>,
         smtc: crate::platform::smtc::Controls,
-        activity: crate::interface::chrome::Activity,
-        subline: Rc<crate::interface::subline::Subline>,
     ) -> Self {
         Self {
             ui,
-            mpv,
+            app,
             file,
             gpu: None,
             player: PlayerState::default(),
             panels: Vec::new(),
             modal: ModalHook::new(),
             drops: crate::platform::dropped::Accepting::default(),
-            scrubber,
-            preview,
-            worker,
             lists: sync::ListSync::default(),
             durations: crate::library::durations::Recorder::default(),
             scan: crate::library::probe::Scan::default(),
@@ -183,12 +159,8 @@ impl Driver {
             notices: Vec::new(),
             pending_start: None,
             loads_seen: 0,
-            params,
-            audio,
             smtc,
             awake: crate::platform::awake::Awake::default(),
-            activity,
-            subline,
             diag: diagnostics::Probe::new(),
             capture: diagnostics::Capture::new(),
         }
@@ -289,9 +261,9 @@ impl Driver {
         // Events are drained on the UI thread at video rate; this wakeup only
         // has to cover the paused case, where no frames are coming and an
         // event would otherwise sit unnoticed.
-        self.mpv.set_wakeup(self.waker());
+        self.app.mpv.set_wakeup(self.waker());
 
-        match unsafe { mpv::RenderContext::new(&self.mpv, get_proc_address, notify) } {
+        match unsafe { mpv::RenderContext::new(&self.app.mpv, get_proc_address, notify) } {
             Ok(ctx) => {
                 eprintln!("dbm: mpv render context created on Slint's GL context");
                 // Open only now. With `vo=libmpv` there is no video output
@@ -303,13 +275,14 @@ impl Driver {
                 // one on a network share, would otherwise stall startup.
                 if let Some(f) = self.file.take() {
                     let path = std::path::PathBuf::from(f);
-                    self.worker
+                    self.app
+                        .worker
                         .submit(move |_mpv| Some(Completion::Opened(playlist::prepare(&path))));
                 } else {
                     // Nothing named, so the empty window is what is coming:
                     // find what it can offer to pick back up. A stat per
                     // played file and one ffmpeg run, so on the worker.
-                    self.worker.submit(|_mpv| {
+                    self.app.worker.submit(|_mpv| {
                         Some(Completion::Resume(crate::playback::session::last_watched()))
                     });
                 }
@@ -318,7 +291,7 @@ impl Driver {
                     gl,
                     pipeline,
                     published: None,
-                    _mpv: self.mpv.clone(),
+                    _mpv: self.app.mpv.clone(),
                 });
             }
             Err(e) => self.fatal(
@@ -351,7 +324,7 @@ impl Driver {
         // No second test against `Chrome::idle`: a hand that moved within the
         // quarter-second cannot also have been still for three, so the chrome
         // is up by construction whenever this asks for anything.
-        if !self.activity.stirring() {
+        if !self.app.activity.stirring() {
             return;
         }
         if let Some(ui) = self.ui.upgrade() {
@@ -377,11 +350,11 @@ impl Driver {
 
         let t = self.diag.begin();
         let moved = sync::drain_events(
-            &self.mpv,
+            &self.app.mpv,
             &mut self.player,
             &mut self.replies,
             &mut self.notices,
-            &self.audio,
+            &self.app.audio,
         );
         // A failure marks its playlist row, which the list otherwise only
         // hears about on the next read.
@@ -419,23 +392,23 @@ impl Driver {
         self.awake.follow(&self.player);
         // Two reads and a comparison while the bar is still; a command a
         // frame only while it fades. See `subline`.
-        self.subline.follow(
-            &self.mpv,
+        self.app.subline.follow(
+            &self.app.mpv,
             ui.get_subtitle_ceiling() as f64,
             ui.get_subtitle_lift() as f64,
         );
-        if let Some(own) = self.subline.readout() {
+        if let Some(own) = self.app.subline.readout() {
             ui.set_sub_pos_text(format!("{own:.0}%").into());
         }
         for id in std::mem::take(&mut self.replies) {
             match id {
-                commands::REPLY_SCRUB => self.scrubber.on_reply(&self.mpv),
+                commands::REPLY_SCRUB => self.app.scrubber.on_reply(&self.app.mpv),
                 // The list exists now. Which entry plays was settled
                 // before it loaded — see `commands::load_list` — so all this
                 // has to do is make sure it is playing.
                 commands::REPLY_LOADLIST => {
                     if self.pending_start.take().is_some() {
-                        commands::set_pause(&self.mpv, false);
+                        commands::set_pause(&self.app.mpv, false);
                     }
                 }
                 _ => {}
@@ -455,13 +428,13 @@ impl Driver {
         }
         self.playlist_open = open;
 
-        self.lists.poll(&self.worker, &self.player);
-        self.durations.poll(&self.worker, &self.player);
-        poll_preview(&self.preview, &self.player, &self.ui, &ui);
+        self.lists.poll(&self.app.worker, &self.player);
+        self.durations.poll(&self.app.worker, &self.player);
+        poll_preview(&self.app.preview, &self.player, &self.ui, &ui);
         // Several probe results can land in one drain, and seasons found
         // beside the list with them; the playlist is rebuilt once for all.
         let mut probed = false;
-        for completion in self.worker.drain() {
+        for completion in self.app.worker.drain() {
             match completion {
                 Completion::Lists(lists) => {
                     self.lists.apply(&ui, &mut self.player, lists);
@@ -474,8 +447,8 @@ impl Driver {
                         .iter()
                         .map(|e| e.filename.clone())
                         .collect();
-                    self.scan.request(&paths, &self.worker);
-                    if self.neighbours.request(&paths, &self.worker)
+                    self.scan.request(&paths, &self.app.worker);
+                    if self.neighbours.request(&paths, &self.app.worker)
                         && !self.player.beside.is_empty()
                     {
                         self.player.beside.clear();
@@ -488,7 +461,7 @@ impl Driver {
                         list.count, list.start
                     );
                     self.pending_start = Some(list.start);
-                    commands::load_list(&self.mpv, &list.m3u, list.start);
+                    commands::load_list(&self.app.mpv, &list.m3u, list.start);
                 }
                 Completion::Opened(Err(e)) => {
                     eprintln!("dbm: cannot open: {e}");
@@ -533,12 +506,12 @@ impl Driver {
                         // drawn.
                         ui.set_backdrop(true);
                     } else {
-                        light_with_the_mark(&self.worker);
+                        light_with_the_mark(&self.app.worker);
                     }
                 }
                 // Nothing to continue, which on a fresh install is every
                 // time: the window is lit by the player's own mark instead.
-                Completion::Resume(None) => light_with_the_mark(&self.worker),
+                Completion::Resume(None) => light_with_the_mark(&self.app.worker),
                 Completion::Mark(still) => {
                     gpu.pipeline.set_backdrop(&gpu.gl, &still);
                     ui.set_backdrop(true);
@@ -574,7 +547,7 @@ impl Driver {
         if ending && self.season_asked.is_none() {
             if let Some(path) = self.player.path.clone() {
                 self.season_asked = Some(path.clone());
-                self.worker.submit(move |_mpv| {
+                self.app.worker.submit(move |_mpv| {
                     let to = playlist::next_season(std::path::Path::new(&path))
                         .map(|(folder, season)| crate::worker::Onward {
                             path: folder.to_string_lossy().into_owned(),
@@ -614,11 +587,11 @@ impl Driver {
         // Material parameters, if a slider moved. Coalesced in the store,
         // so a drag costs one update per frame however fast it moves.
         let mut params_dirty = false;
-        if let Some((glass, border)) = self.params.take_changes() {
+        if let Some((glass, border)) = self.app.settings.take_changes() {
             gpu.pipeline.glass = glass;
             gpu.pipeline.params = border;
-            gpu.pipeline.border_enabled = self.params.ambience_on();
-            gpu.pipeline.glass_enabled = self.params.glass_on();
+            gpu.pipeline.border_enabled = self.app.settings.ambience_on();
+            gpu.pipeline.glass_enabled = self.app.settings.glass_on();
             params_dirty = true;
         }
 

@@ -143,11 +143,8 @@ pub struct Harnesses {
     _timers: Vec<slint::Timer>,
 }
 
-pub fn install(
-    ui: &MainWindow,
-    mpv: &std::sync::Arc<Mpv>,
-    audio: &std::rc::Rc<crate::playback::audio::Watchdog>,
-) -> Harnesses {
+pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
+    let (mpv, audio) = (&app.mpv, &app.audio);
     let mut timers = Vec::new();
     // First, so a showcase or a test that follows is already at the size
     // being asked about rather than resizing under itself. It still has to
