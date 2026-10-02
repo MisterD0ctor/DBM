@@ -238,8 +238,8 @@ pub fn post_test_drop(ui: &crate::MainWindow, path: &str) -> Result<(), String> 
 
     let header = std::mem::size_of::<DropFiles>();
     let bytes = header + wide.len() * 2;
-    let block = unsafe { GlobalAlloc(GMEM_MOVEABLE, bytes) }
-        .map_err(|e| format!("GlobalAlloc: {e}"))?;
+    let block =
+        unsafe { GlobalAlloc(GMEM_MOVEABLE, bytes) }.map_err(|e| format!("GlobalAlloc: {e}"))?;
     let base = unsafe { GlobalLock(block) };
     if base.is_null() {
         return Err("GlobalLock returned null".into());

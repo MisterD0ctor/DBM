@@ -379,8 +379,10 @@ mod tests {
             .split(';')
             .filter(|t| !t.is_empty())
             .collect();
-        let expected: std::collections::BTreeSet<&str> =
-            TYPES.iter().flat_map(|(_, types)| types.iter().copied()).collect();
+        let expected: std::collections::BTreeSet<&str> = TYPES
+            .iter()
+            .flat_map(|(_, types)| types.iter().copied())
+            .collect();
         assert_eq!(claimed, expected);
     }
 
@@ -400,7 +402,11 @@ mod tests {
         ]);
         assert_eq!(
             names(&sorted),
-            ["[Group] Show - 9.mkv", "[Group] Show - 11.mkv", "[Group] Show - 100.mkv"]
+            [
+                "[Group] Show - 9.mkv",
+                "[Group] Show - 11.mkv",
+                "[Group] Show - 100.mkv"
+            ]
         );
     }
 
@@ -433,7 +439,12 @@ mod tests {
         ]);
         assert_eq!(
             names(&sorted),
-            ["a/Film 2.mkv", "a/Film 10.mkv", "B/alien (1979).mkv", "b/Zodiac (2007).mkv"]
+            [
+                "a/Film 2.mkv",
+                "a/Film 10.mkv",
+                "B/alien (1979).mkv",
+                "b/Zodiac (2007).mkv"
+            ]
         );
     }
 

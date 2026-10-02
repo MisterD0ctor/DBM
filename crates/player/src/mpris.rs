@@ -154,12 +154,10 @@ impl Controls {
         // Detached: the thread ends when the sender above is dropped, and
         // dropping the connection with it is what releases the bus name.
         // There is nothing to join for and nothing to collect.
-        let spawned = std::thread::Builder::new()
-            .name("dbm-mpris".into())
-            .spawn({
-                let position = position.clone();
-                move || serve(heard, mpv, position)
-            });
+        let spawned = std::thread::Builder::new().name("dbm-mpris".into()).spawn({
+            let position = position.clone();
+            move || serve(heard, mpv, position)
+        });
         if let Err(e) = &spawned {
             eprintln!("dbm: no thread for the media controls ({e})");
         }
@@ -778,15 +776,19 @@ fn claim(mpv: Arc<Mpv>, position: Arc<AtomicI64>) -> zbus::Result<Connection> {
     // player would sit in a queue nobody ever looks at, believing itself
     // registered. With it, a taken name is an error that can be answered.
     let mut name = bus_name();
-    let mut asked =
-        conn.request_name_with_flags(name.as_str(), zbus::fdo::RequestNameFlags::DoNotQueue.into());
+    let mut asked = conn.request_name_with_flags(
+        name.as_str(),
+        zbus::fdo::RequestNameFlags::DoNotQueue.into(),
+    );
     if matches!(asked, Err(zbus::Error::NameTaken)) {
         // Another copy is already running. The specification's own answer:
         // add the process id, which the desktop reads as a second instance
         // of the same application rather than a different one.
         name = format!("{name}.instance{}", std::process::id());
-        asked = conn
-            .request_name_with_flags(name.as_str(), zbus::fdo::RequestNameFlags::DoNotQueue.into());
+        asked = conn.request_name_with_flags(
+            name.as_str(),
+            zbus::fdo::RequestNameFlags::DoNotQueue.into(),
+        );
     }
     asked?;
 

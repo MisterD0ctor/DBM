@@ -54,7 +54,10 @@ impl Sprite {
     pub fn tile_at(&self, fraction: f32) -> (u32, u32) {
         let total = (self.grid * self.grid).max(1);
         let index = ((fraction.clamp(0.0, 1.0) * total as f32) as u32).min(total - 1);
-        ((index % self.grid) * self.tile_w, (index / self.grid) * self.tile_h)
+        (
+            (index % self.grid) * self.tile_w,
+            (index / self.grid) * self.tile_h,
+        )
     }
 }
 
@@ -116,8 +119,9 @@ pub fn build(video: &Path, generation: u64) -> Option<Sprite> {
         return None;
     }
     let tile_w = match aspect {
-        Some(ratio) if ratio > 0.0 => (((TILE_H as f64 * ratio).round() as u32 + 1) & !1)
-            .clamp(48, 480),
+        Some(ratio) if ratio > 0.0 => {
+            (((TILE_H as f64 * ratio).round() as u32 + 1) & !1).clamp(48, 480)
+        }
         _ => TILE_W_FALLBACK,
     };
 
@@ -387,12 +391,7 @@ fn meta_path(sprite: &Path) -> PathBuf {
 
 fn modified(path: &Path) -> Option<u64> {
     let stamp = std::fs::metadata(path).ok()?.modified().ok()?;
-    Some(
-        stamp
-            .duration_since(std::time::UNIX_EPOCH)
-            .ok()?
-            .as_secs(),
-    )
+    Some(stamp.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs())
 }
 
 /// `<mtime> <tile_w> <tile_h> <grid>` — four numbers, so reading it back

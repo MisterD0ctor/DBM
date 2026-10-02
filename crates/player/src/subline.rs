@@ -99,7 +99,11 @@ impl Subline {
         // instead would move the first for nothing and leave the second
         // still underneath.
         let at = own - lift * (own - ceiling).max(0.0);
-        if self.sent.get().is_some_and(|sent| (sent - at).abs() < SETTLED) {
+        if self
+            .sent
+            .get()
+            .is_some_and(|sent| (sent - at).abs() < SETTLED)
+        {
             return;
         }
         commands::set_sub_pos(mpv, at);

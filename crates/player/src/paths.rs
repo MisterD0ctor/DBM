@@ -25,9 +25,7 @@ pub fn app_data_dir() -> PathBuf {
                 .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
         }
     });
-    let dir = base
-        .unwrap_or_else(std::env::temp_dir)
-        .join(APP_DIR);
+    let dir = base.unwrap_or_else(std::env::temp_dir).join(APP_DIR);
     let _ = std::fs::create_dir_all(&dir);
     dir
 }
@@ -51,7 +49,9 @@ pub fn watch_later_dir() -> PathBuf {
 /// `None` is a normal answer; the callers fall back to the system.
 pub fn vendored(names: &[&str]) -> Option<PathBuf> {
     let mut roots: Vec<PathBuf> = Vec::new();
-    if let Some(dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf))
+    if let Some(dir) = std::env::current_exe()
+        .ok()
+        .and_then(|e| e.parent().map(Path::to_path_buf))
     {
         roots.push(dir);
     }

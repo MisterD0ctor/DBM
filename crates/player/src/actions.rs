@@ -19,8 +19,8 @@ use crate::commands;
 use crate::mpv::Mpv;
 use crate::scrub::Scrubber;
 use crate::settings::Store;
-use crate::worker::Worker;
 use crate::sync;
+use crate::worker::Worker;
 use crate::MainWindow;
 
 /// A click on the video is held this long so a double-click can cancel it.
@@ -71,7 +71,10 @@ pub fn wire(
     // What the end of a file offers: this one again, or the next one.
     on!(on_replay, |m| commands::replay(m));
     on!(on_play_next, |m| commands::advance(m, 1));
-    on!(on_seek_relative, |m, secs| commands::seek_relative(m, secs as f64));
+    on!(on_seek_relative, |m, secs| commands::seek_relative(
+        m,
+        secs as f64
+    ));
     // Release: land exactly, and drop any coalesced drag update, which is
     // now stale by definition.
     {
@@ -82,8 +85,12 @@ pub fn wire(
         });
     }
     {
-        let (mpv, scrubber, seen, weak) =
-            (mpv.clone(), scrubber.clone(), activity.clone(), ui.as_weak());
+        let (mpv, scrubber, seen, weak) = (
+            mpv.clone(),
+            scrubber.clone(),
+            activity.clone(),
+            ui.as_weak(),
+        );
         ui.on_seek_scrub(move |f| {
             seen.bump();
             // The mirrored state is the cheapest source of the current
@@ -137,7 +144,9 @@ pub fn wire(
     }
     on!(on_nudge_volume, |m, d| commands::nudge_volume(m, d as f64));
     on!(on_set_volume, |m, v| commands::set_volume(m, v as f64));
-    on!(on_nudge_sub_delay, |m, d| commands::nudge_sub_delay(m, d as f64));
+    on!(on_nudge_sub_delay, |m, d| commands::nudge_sub_delay(
+        m, d as f64
+    ));
     on!(on_playlist_step, |m, d| commands::playlist_step(m, d));
     on!(on_play_index, |m, i| commands::playlist_play(m, i as i64));
     // -1 is the menu's "Off" row rather than a real track id.
@@ -182,8 +191,12 @@ pub fn wire(
             });
         }
         {
-            let (params, seen, models, before) =
-                (params.clone(), activity.clone(), models.clone(), before.clone());
+            let (params, seen, models, before) = (
+                params.clone(),
+                activity.clone(),
+                models.clone(),
+                before.clone(),
+            );
             ui.on_reset_section(move |section| {
                 seen.bump();
                 if let Some(section) = crate::settings::Section::from_index(section) {
@@ -219,7 +232,7 @@ pub fn wire(
                     3 => {
                         commands::set_sub_delay(&mpv, delay as f64);
                         params.set_sub_scale(
-                            commands::set_sub_scale(&mpv, was.sub_scale as f64) as f32,
+                            commands::set_sub_scale(&mpv, was.sub_scale as f64) as f32
                         );
                         subline.set(&mpv, was.sub_pos as f64);
                     }
@@ -256,9 +269,10 @@ pub fn wire(
         let (seen, weak) = (activity.clone(), ui.as_weak());
         ui.on_open_file(move || {
             seen.bump();
-            let start = weak.upgrade().and_then(|ui| near(&ui)).and_then(|p| {
-                p.parent().map(std::path::Path::to_path_buf)
-            });
+            let start = weak
+                .upgrade()
+                .and_then(|ui| near(&ui))
+                .and_then(|p| p.parent().map(std::path::Path::to_path_buf));
             crate::dialog::pick(crate::dialog::Want::File, start, weak.clone());
         });
     }
@@ -288,11 +302,15 @@ pub fn wire(
         direction
     ));
     on!(on_reset_speed, |m| commands::reset_speed(m));
-    on!(on_frame_step, |m, direction| commands::frame_step(m, direction));
-    on!(on_chapter_step, |m, direction| commands::chapter_step(m, direction));
-    on!(on_cycle_track, |m, subtitles, direction| commands::cycle_track(
-        m, subtitles, direction
+    on!(on_frame_step, |m, direction| commands::frame_step(
+        m, direction
     ));
+    on!(on_chapter_step, |m, direction| commands::chapter_step(
+        m, direction
+    ));
+    on!(on_cycle_track, |m, subtitles, direction| {
+        commands::cycle_track(m, subtitles, direction)
+    });
     {
         let (worker, seen) = (worker.clone(), activity.clone());
         let weak = ui.as_weak();
@@ -332,8 +350,12 @@ pub fn wire(
         });
     }
     {
-        let (params, seen, mpv, subline) =
-            (params.clone(), activity.clone(), mpv.clone(), subline.clone());
+        let (params, seen, mpv, subline) = (
+            params.clone(),
+            activity.clone(),
+            mpv.clone(),
+            subline.clone(),
+        );
         ui.on_nudge_sub_pos(move |delta| {
             seen.bump();
             subline.set(&mpv, params.sub_pos() as f64 + delta as f64);

@@ -142,10 +142,7 @@ impl PlayerState {
                 self.loads = self.loads.wrapping_add(1);
                 true
             }
-            Event::StartFile
-            | Event::EndFile { .. }
-            | Event::Seek
-            | Event::PlaybackRestart => true,
+            Event::StartFile | Event::EndFile { .. } | Event::Seek | Event::PlaybackRestart => true,
             // Filtered out in  before reaching here - command
             // completions are routed to whoever issued them.
             Event::CommandReply { .. } | Event::Shutdown => false,
@@ -258,9 +255,10 @@ impl PlayerState {
         let Some(chapter) = self.chapters.get(index) else {
             return String::new();
         };
-        chapter.title.clone().unwrap_or_else(|| {
-            format!("Chapter {} of {}", index + 1, self.chapters.len())
-        })
+        chapter
+            .title
+            .clone()
+            .unwrap_or_else(|| format!("Chapter {} of {}", index + 1, self.chapters.len()))
     }
 
     /// Whether an episode's closing credits are playing: the chapter playing
@@ -276,7 +274,10 @@ impl PlayerState {
         // Last, being the one that parses a name.
         current >= start
             && self.path.as_deref().is_some_and(|path| {
-                matches!(crate::naming::parse(path), crate::naming::Media::Episode { .. })
+                matches!(
+                    crate::naming::parse(path),
+                    crate::naming::Media::Episode { .. }
+                )
             })
     }
 
@@ -302,10 +303,11 @@ impl PlayerState {
         if named.is_some() {
             return named;
         }
-        let unnamed = self
-            .chapters
-            .iter()
-            .all(|c| c.title.as_deref().map_or(true, crate::naming::is_unnamed_chapter));
+        let unnamed = self.chapters.iter().all(|c| {
+            c.title
+                .as_deref()
+                .map_or(true, crate::naming::is_unnamed_chapter)
+        });
         let last = self.chapters.len().checked_sub(1)?;
         let tail = self.duration - self.chapters[last].time;
         (unnamed && last > 0 && tail > 0.0 && tail <= CREDITS_TAIL).then_some(last)
@@ -537,7 +539,11 @@ mod tests {
     }
 
     const EPISODE: &str = "Show.Name.S01E02.1080p.mkv";
-    const MARKS: &[(f64, &str)] = &[(0.0, "Episode"), (3400.0, "End Credits"), (3550.0, "Preview")];
+    const MARKS: &[(f64, &str)] = &[
+        (0.0, "Episode"),
+        (3400.0, "End Credits"),
+        (3550.0, "Preview"),
+    ];
 
     #[test]
     fn the_credits_roll_from_their_chapter_to_the_end() {
@@ -579,7 +585,11 @@ mod tests {
 
     #[test]
     fn a_long_last_act_is_not_credits() {
-        let acts = &[(0.0, "Chapter 01"), (1800.0, "Chapter 02"), (3000.0, "Chapter 03")];
+        let acts = &[
+            (0.0, "Chapter 01"),
+            (1800.0, "Chapter 02"),
+            (3000.0, "Chapter 03"),
+        ];
         assert!(!playing(EPISODE, 2, acts).credits_rolling());
     }
 

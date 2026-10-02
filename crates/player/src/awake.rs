@@ -51,7 +51,10 @@ fn request(on: bool) {
     };
     // Returns the previous state, or zero when Windows refused.
     if unsafe { SetThreadExecutionState(flags) }.0 == 0 {
-        eprintln!("dbm: Windows would not {} the display", if on { "hold" } else { "release" });
+        eprintln!(
+            "dbm: Windows would not {} the display",
+            if on { "hold" } else { "release" }
+        );
     }
 }
 

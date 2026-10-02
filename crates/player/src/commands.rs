@@ -66,13 +66,23 @@ pub fn reset_speed(mpv: &Mpv) {
 /// seeks, so it is slower on a long GOP and there is nothing to be done
 /// about that from here.
 pub fn frame_step(mpv: &Mpv, direction: i32) {
-    run(mpv, &[if direction >= 0 { "frame-step" } else { "frame-back-step" }]);
+    run(
+        mpv,
+        &[if direction >= 0 {
+            "frame-step"
+        } else {
+            "frame-back-step"
+        }],
+    );
 }
 
 /// The previous or next chapter. mpv's own semantics: back from a little way
 /// into a chapter returns to its start before it goes to the one before.
 pub fn chapter_step(mpv: &Mpv, direction: i32) {
-    run(mpv, &["add", "chapter", if direction >= 0 { "1" } else { "-1" }]);
+    run(
+        mpv,
+        &["add", "chapter", if direction >= 0 { "1" } else { "-1" }],
+    );
 }
 
 /// The next subtitle or audio track, wrapping through "none".
@@ -235,7 +245,10 @@ pub fn seek_relative(mpv: &Mpv, seconds: f64) {
 /// are slow. Use [`seek_scrub`] while a drag is in progress and save this for
 /// where the user lets go.
 pub fn seek_fraction(mpv: &Mpv, fraction: f32) {
-    run(mpv, &["seek", &fmt(percent_of(fraction)), "absolute-percent+exact"]);
+    run(
+        mpv,
+        &["seek", &fmt(percent_of(fraction)), "absolute-percent+exact"],
+    );
 }
 
 /// Seek for a drag in progress: keyframe-accurate, so mpv can satisfy it

@@ -78,16 +78,15 @@ pub struct Resume {
 /// can disagree with what mpv will actually do on opening it.
 pub fn last_watched() -> Option<Resume> {
     let dir = paths::watch_later_dir();
-    let mut candidates: Vec<(std::time::SystemTime, String, f64)> =
-        crate::durations::load()
-            .into_iter()
-            .filter(|(_, seconds)| *seconds > 0.0)
-            .filter_map(|(path, seconds)| {
-                let file = dir.join(crate::durations::watch_later_name(&path));
-                let modified = std::fs::metadata(file).ok()?.modified().ok()?;
-                Some((modified, path, seconds))
-            })
-            .collect();
+    let mut candidates: Vec<(std::time::SystemTime, String, f64)> = crate::durations::load()
+        .into_iter()
+        .filter(|(_, seconds)| *seconds > 0.0)
+        .filter_map(|(path, seconds)| {
+            let file = dir.join(crate::durations::watch_later_name(&path));
+            let modified = std::fs::metadata(file).ok()?.modified().ok()?;
+            Some((modified, path, seconds))
+        })
+        .collect();
     candidates.sort_by(|a, b| b.0.cmp(&a.0));
 
     // Newest first, and the first that still stands up: a watch-later file

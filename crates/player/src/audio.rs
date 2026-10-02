@@ -115,7 +115,10 @@ impl Watchdog {
             return;
         }
         if self.trace {
-            eprintln!("dbm: audio devices: {}", names.iter().cloned().collect::<Vec<_>>().join(", "));
+            eprintln!(
+                "dbm: audio devices: {}",
+                names.iter().cloned().collect::<Vec<_>>().join(", ")
+            );
         }
 
         let appeared: Vec<String> = match self.seen.replace(Some(names.clone())) {
@@ -133,11 +136,12 @@ impl Watchdog {
         let me = Rc::downgrade(self);
         // Restarting the timer cancels the pending fire, so a burst of
         // changes costs one recovery rather than one per change.
-        self.settle.start(slint::TimerMode::SingleShot, SETTLE, move || {
-            if let Some(me) = me.upgrade() {
-                me.recover();
-            }
-        });
+        self.settle
+            .start(slint::TimerMode::SingleShot, SETTLE, move || {
+                if let Some(me) = me.upgrade() {
+                    me.recover();
+                }
+            });
     }
 
     fn recover(&self) {
@@ -184,9 +188,8 @@ fn reopen(mpv: &Mpv, remembered: Option<&str>) -> Option<String> {
         // Dropped by mpv when the device died — put back what was playing,
         // provided this file still has it.
         _ => {
-            let usable = remembered.filter(|id| {
-                id.parse::<i64>().is_ok_and(|n| audio.contains(&n))
-            });
+            let usable =
+                remembered.filter(|id| id.parse::<i64>().is_ok_and(|n| audio.contains(&n)));
             match usable {
                 Some(id) => id.to_owned(),
                 // No memory of a track playing, and mpv reports none

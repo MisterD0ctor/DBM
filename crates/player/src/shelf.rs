@@ -80,7 +80,6 @@ impl Group {
             .or_else(|| self.entries.iter().position(|e| !e.progress.finished))
             .unwrap_or(0)
     }
-
 }
 
 /// A playlist, in parts.
@@ -151,8 +150,10 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
                 vec![crate::naming::titled(item.path, item.title)]
             } else {
                 in_season(
-                    crate::naming::listing(members.iter().map(|&i| (items[i].path, items[i].title)))
-                        .rows,
+                    crate::naming::listing(
+                        members.iter().map(|&i| (items[i].path, items[i].title)),
+                    )
+                    .rows,
                     season,
                 )
             };
@@ -448,7 +449,12 @@ mod tests {
             named: false,
             season: Some(1),
             leaf: false,
-            entries: vec![entry(done()), entry(done()), entry(half), entry(Progress::default())],
+            entries: vec![
+                entry(done()),
+                entry(done()),
+                entry(half),
+                entry(Progress::default()),
+            ],
         };
         assert_eq!(group.open_row(), 2);
         group.entries[0].current = true;

@@ -300,16 +300,14 @@ impl Driver {
                 // one on a network share, would otherwise stall startup.
                 if let Some(f) = self.file.take() {
                     let path = std::path::PathBuf::from(f);
-                    self.worker.submit(move |_mpv| {
-                        Some(Completion::Opened(playlist::prepare(&path)))
-                    });
+                    self.worker
+                        .submit(move |_mpv| Some(Completion::Opened(playlist::prepare(&path))));
                 } else {
                     // Nothing named, so the empty window is what is coming:
                     // find what it can offer to pick back up. A stat per
                     // played file and one ffmpeg run, so on the worker.
-                    self.worker.submit(|_mpv| {
-                        Some(Completion::Resume(crate::session::last_watched()))
-                    });
+                    self.worker
+                        .submit(|_mpv| Some(Completion::Resume(crate::session::last_watched())));
                 }
                 self.gpu = Some(Gpu {
                     ctx,
@@ -466,8 +464,12 @@ impl Driver {
                     // Here because this is where the playlist's paths become
                     // known. The scan compares them with the last request and
                     // does nothing when only the tracks moved.
-                    let paths: Vec<String> =
-                        self.player.playlist.iter().map(|e| e.filename.clone()).collect();
+                    let paths: Vec<String> = self
+                        .player
+                        .playlist
+                        .iter()
+                        .map(|e| e.filename.clone())
+                        .collect();
                     self.scan.request(&paths, &self.worker);
                     if self.neighbours.request(&paths, &self.worker)
                         && !self.player.beside.is_empty()
@@ -494,8 +496,7 @@ impl Driver {
                 Completion::Probed(found) => probed |= self.player.apply_probed(found),
                 Completion::Beside { paths, seasons } => {
                     let playing = self.player.playlist.iter().map(|e| e.filename.as_str());
-                    if playing.eq(paths.iter().map(String::as_str))
-                        && self.player.beside != seasons
+                    if playing.eq(paths.iter().map(String::as_str)) && self.player.beside != seasons
                     {
                         self.player.beside = seasons;
                         probed = true;
@@ -506,7 +507,11 @@ impl Driver {
                         "dbm: last unfinished {} at {:.0}%{}",
                         resume.path,
                         resume.fraction * 100.0,
-                        if resume.still.is_some() { ", with a frame" } else { "" }
+                        if resume.still.is_some() {
+                            ", with a frame"
+                        } else {
+                            ""
+                        }
                     );
                     ui.set_resume_path(resume.path.into());
                     ui.set_resume_show(resume.show.unwrap_or_default().into());
@@ -675,7 +680,11 @@ fn say(ui: &MainWindow, text: String) {
 /// The `Image` covers the whole texture, which is generally larger than the
 /// active image because targets grow only. `set` receives the active size so
 /// the UI can clip the source rect down to it.
-fn publish(target: &Target, slot: &mut Option<Published>, set: impl FnOnce(slint::Image, i32, i32)) {
+fn publish(
+    target: &Target,
+    slot: &mut Option<Published>,
+    set: impl FnOnce(slint::Image, i32, i32),
+) {
     let Some(id) = target.texture_id() else {
         return;
     };
@@ -694,7 +703,6 @@ fn publish(target: &Target, slot: &mut Option<Published>, set: impl FnOnce(slint
     set(image, uw as i32, uh as i32);
     *slot = Some(key);
 }
-
 
 /// Ask for a thumbnail atlas when the playing file changes.
 ///

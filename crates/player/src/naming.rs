@@ -57,7 +57,8 @@ pub fn clean_separators(s: &str) -> String {
                 let before = i.checked_sub(1).map(|j| chars[j]);
                 let after = chars.get(i + 1).copied();
                 let digit_at = |j: Option<usize>| {
-                    j.and_then(|j| chars.get(j)).is_some_and(|c| c.is_ascii_digit())
+                    j.and_then(|j| chars.get(j))
+                        .is_some_and(|c| c.is_ascii_digit())
                 };
                 match (before, after) {
                     // 5.1, 7.1, 5.1.2 — a channel layout is single digits on
@@ -90,6 +91,7 @@ pub fn clean_separators(s: &str) -> String {
 }
 
 /// Words that mean "this is a release", not "this is the film".
+#[rustfmt::skip]
 const METADATA: &[&str] = &[
     // Resolution
     "480p", "576p", "720p", "1080p", "1080i", "2160p", "4k", "uhd",
@@ -151,6 +153,7 @@ fn is_metadata(word: &str) -> bool {
 /// cannot appear in prose is a marker carrying a digit (`1080p`, `x265`,
 /// `10bit`, `6ch`) or one of the few spelled-out technical words below.
 fn is_release_token(word: &str) -> bool {
+    #[rustfmt::skip]
     const NEVER_IN_PROSE: &[&str] = &[
         "bluray", "blu-ray", "bdrip", "bdremux", "brrip", "webrip", "web-dl", "webdl",
         "hdtv", "pdtv", "dvdrip", "hdrip", "hdcam", "telesync", "telecine", "hevc",
@@ -357,8 +360,9 @@ pub struct Listing {
 /// Anything else — a film among the episodes, two different shows, a folder
 /// of unparseable names — and each row says what it is on its own.
 pub fn listing<'a>(entries: impl Iterator<Item = (&'a str, Option<&'a str>)>) -> Listing {
-    let described: Vec<(Option<String>, String)> =
-        entries.map(|(path, embedded)| described(path, embedded)).collect();
+    let described: Vec<(Option<String>, String)> = entries
+        .map(|(path, embedded)| described(path, embedded))
+        .collect();
 
     let heading = common_show(&described);
     let rows = described
@@ -380,7 +384,10 @@ fn common_show(described: &[(Option<String>, String)]) -> Option<String> {
     // Case-insensitively: one release naming it `Frieren` and the next
     // `frieren` is still one show, and the first spelling is as good as any.
     entries
-        .all(|(show, _)| show.as_ref().is_some_and(|s| s.eq_ignore_ascii_case(&first)))
+        .all(|(show, _)| {
+            show.as_ref()
+                .is_some_and(|s| s.eq_ignore_ascii_case(&first))
+        })
         .then_some(first)
 }
 
@@ -419,10 +426,7 @@ fn episode_title(embedded: &str, episode: u32) -> Option<String> {
         // A bare number, and only this episode's.
         None => match take_number(&chars, 0, 3) {
             Some((n, end))
-                if n == episode
-                    && chars
-                        .get(end)
-                        .is_some_and(|c| !c.is_alphanumeric()) =>
+                if n == episode && chars.get(end).is_some_and(|c| !c.is_alphanumeric()) =>
             {
                 Some(end)
             }
@@ -655,7 +659,10 @@ fn take_number(chars: &[char], i: usize, max: usize) -> Option<(u32, usize)> {
 
 fn skip_separators(chars: &[char], i: usize) -> usize {
     let mut j = i;
-    while chars.get(j).is_some_and(|c| matches!(c, ' ' | '.' | '_' | '-')) {
+    while chars
+        .get(j)
+        .is_some_and(|c| matches!(c, ' ' | '.' | '_' | '-'))
+    {
         j += 1;
     }
     j
@@ -841,6 +848,7 @@ const LANGUAGES: &[(&str, &str)] = &[
 
 /// Three-letter codes onto their two-letter equivalents. Both the
 /// bibliographic and terminological forms, since files carry either.
+#[rustfmt::skip]
 const ALPHA3: &[(&str, &str)] = &[
     ("ara", "ar"), ("bul", "bg"), ("ben", "bn"), ("cze", "cs"), ("ces", "cs"),
     ("dan", "da"), ("ger", "de"), ("deu", "de"), ("gre", "el"), ("ell", "el"),
@@ -1023,9 +1031,17 @@ pub fn is_credits(title: &str) -> bool {
     {
         return false;
     }
-    ["credits", "credit", "endcredits", "outro", "ending", "ed", "closing"]
-        .iter()
-        .any(|w| has(w))
+    [
+        "credits",
+        "credit",
+        "endcredits",
+        "outro",
+        "ending",
+        "ed",
+        "closing",
+    ]
+    .iter()
+    .any(|w| has(w))
         || (has("end") && (words.len() == 1 || has("titles")))
 }
 
@@ -1042,7 +1058,9 @@ pub fn is_unnamed_chapter(title: &str) -> bool {
         return !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit());
     }
     title.chars().any(|c| c.is_ascii_digit())
-        && title.chars().all(|c| c.is_ascii_digit() || c == ':' || c == '.')
+        && title
+            .chars()
+            .all(|c| c.is_ascii_digit() || c == ':' || c == '.')
 }
 
 fn channel_layout(channels: i64) -> Option<&'static str> {
@@ -1082,7 +1100,8 @@ mod tests {
 
     #[test]
     fn dotted_episode() {
-        let (show, s, e, _, title) = episode("Show.Name.S01E02.Episode.Title.1080p.WEB-DL.x264-GRP.mkv");
+        let (show, s, e, _, title) =
+            episode("Show.Name.S01E02.Episode.Title.1080p.WEB-DL.x264-GRP.mkv");
         assert_eq!(show, "Show Name");
         assert_eq!((s, e), (Some(1), 2));
         assert_eq!(title.as_deref(), Some("Episode Title"));
@@ -1116,7 +1135,8 @@ mod tests {
 
     #[test]
     fn anime_season_and_episode_without_an_e() {
-        let (show, s, e, end, title) = episode(r"C:\Users\k\Videos\[EMBER] Sousou no Frieren S2 - 01.mkv");
+        let (show, s, e, end, title) =
+            episode(r"C:\Users\k\Videos\[EMBER] Sousou no Frieren S2 - 01.mkv");
         assert_eq!(show, "Sousou no Frieren");
         assert_eq!((s, e, end), (Some(2), 1, None));
         assert_eq!(title, None);
@@ -1159,8 +1179,14 @@ mod tests {
 
     #[test]
     fn a_resolution_after_a_dash_is_not_an_episode() {
-        assert!(matches!(parse("Some Show - 1080p.mkv"), Media::Movie { .. }));
-        assert!(matches!(parse("Some Show - 1080 WEB.mkv"), Media::Movie { .. }));
+        assert!(matches!(
+            parse("Some Show - 1080p.mkv"),
+            Media::Movie { .. }
+        ));
+        assert!(matches!(
+            parse("Some Show - 1080 WEB.mkv"),
+            Media::Movie { .. }
+        ));
     }
 
     #[test]
@@ -1183,7 +1209,10 @@ mod tests {
         );
         // A tag that repeats the bare number says it once, as with a season.
         assert_eq!(
-            titled("[Grp] Wandering Road - 01.mkv", Some("01 - A Journey Begins")),
+            titled(
+                "[Grp] Wandering Road - 01.mkv",
+                Some("01 - A Journey Begins")
+            ),
             "Wandering Road \u{b7} E01 \u{b7} A Journey Begins"
         );
     }
@@ -1203,7 +1232,10 @@ mod tests {
 
     #[test]
     fn a_release_group_is_not_the_show() {
-        assert_eq!(strip_group("[EMBER] Sousou no Frieren"), "Sousou no Frieren");
+        assert_eq!(
+            strip_group("[EMBER] Sousou no Frieren"),
+            "Sousou no Frieren"
+        );
         assert_eq!(strip_group("(Group) Show"), "Show");
         assert_eq!(strip_group("Show [Group]"), "Show [Group]");
         // An unclosed bracket is not a tag; leave the name alone.
@@ -1310,7 +1342,10 @@ mod tests {
         );
         // And does not say the year twice.
         assert_eq!(
-            titled("blade.runner.2049.2017.1080p.mkv", Some("Blade Runner 2049")),
+            titled(
+                "blade.runner.2049.2017.1080p.mkv",
+                Some("Blade Runner 2049")
+            ),
             "Blade Runner 2049 (2017)"
         );
     }
@@ -1319,43 +1354,29 @@ mod tests {
     fn one_show_becomes_the_heading() {
         let list = listing(
             [
-                ("[EMBER] Sousou no Frieren S2 - 01.mkv", Some("The Chosen One")),
+                (
+                    "[EMBER] Sousou no Frieren S2 - 01.mkv",
+                    Some("The Chosen One"),
+                ),
                 ("[EMBER] Sousou no Frieren S2 - 02.mkv", None),
             ]
             .into_iter(),
         );
         assert_eq!(list.heading.as_deref(), Some("Sousou no Frieren"));
-        assert_eq!(
-            list.rows,
-            ["S02E01 \u{b7} The Chosen One", "S02E02"]
-        );
+        assert_eq!(list.rows, ["S02E01 \u{b7} The Chosen One", "S02E02"]);
     }
 
     #[test]
     fn a_mixed_list_keeps_the_show_on_every_row() {
-        let list = listing(
-            [
-                ("Show.A.S01E01.mkv", None),
-                ("Show.B.S01E01.mkv", None),
-            ]
-            .into_iter(),
-        );
+        let list = listing([("Show.A.S01E01.mkv", None), ("Show.B.S01E01.mkv", None)].into_iter());
         assert_eq!(list.heading, None);
-        assert_eq!(
-            list.rows,
-            ["Show A \u{b7} S01E01", "Show B \u{b7} S01E01"]
-        );
+        assert_eq!(list.rows, ["Show A \u{b7} S01E01", "Show B \u{b7} S01E01"]);
     }
 
     #[test]
     fn a_film_among_the_episodes_is_enough_to_stop_it() {
-        let list = listing(
-            [
-                ("Show.A.S01E01.mkv", None),
-                ("Some.Movie.2019.mkv", None),
-            ]
-            .into_iter(),
-        );
+        let list =
+            listing([("Show.A.S01E01.mkv", None), ("Some.Movie.2019.mkv", None)].into_iter());
         assert_eq!(list.heading, None);
         assert_eq!(list.rows, ["Show A \u{b7} S01E01", "Some Movie (2019)"]);
     }
@@ -1417,7 +1438,10 @@ mod tests {
             titled("Show.Name.S01E02.The.Title.1080p.mkv", None),
             "Show Name · S01E02 · The Title"
         );
-        assert_eq!(titled("Some.Movie.2019.1080p.mkv", None), "Some Movie (2019)");
+        assert_eq!(
+            titled("Some.Movie.2019.1080p.mkv", None),
+            "Some Movie (2019)"
+        );
     }
 
     #[test]
@@ -1465,10 +1489,23 @@ mod tests {
 
     #[test]
     fn placeholder_chapter_titles_are_unnamed() {
-        for title in ["00:42:22.832", "00:00:00.000", "Chapter 07", "chapter 3", "01"] {
+        for title in [
+            "00:42:22.832",
+            "00:00:00.000",
+            "Chapter 07",
+            "chapter 3",
+            "01",
+        ] {
             assert!(is_unnamed_chapter(title), "{title}");
         }
-        for title in ["End Credits", "Chapter One", "Chapter", "Act 3", "", "2001: A Space Odyssey"] {
+        for title in [
+            "End Credits",
+            "Chapter One",
+            "Chapter",
+            "Act 3",
+            "",
+            "2001: A Space Odyssey",
+        ] {
             assert!(!is_unnamed_chapter(title), "{title}");
         }
     }
@@ -1511,7 +1548,11 @@ mod tests {
         assert_eq!(parsed.text, None);
     }
 
-    fn track(id: i64, title: Option<&'static str>, lang: Option<&'static str>) -> TrackInfo<'static> {
+    fn track(
+        id: i64,
+        title: Option<&'static str>,
+        lang: Option<&'static str>,
+    ) -> TrackInfo<'static> {
         TrackInfo {
             id,
             title,
@@ -1576,4 +1617,3 @@ mod tests {
         assert_eq!(labels, ["English · Forced · external"]);
     }
 }
-

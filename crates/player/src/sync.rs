@@ -16,11 +16,11 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
 use crate::mpv::{Event, Mpv};
-use crate::worker::{Completion, Lists, Worker};
 use crate::pipeline::{GlassPanel, MAX_PANELS};
+use crate::settings::{self, Section, Store};
 use crate::state::{self, PlayerState};
 use crate::tracks::{self, TrackKind};
-use crate::settings::{self, Section, Store};
+use crate::worker::{Completion, Lists, Worker};
 use crate::{MainWindow, ParamItem, PlaylistGroup, PlaylistItem, TrackItem};
 
 /// Drain mpv's event queue into the mirrored state.
@@ -110,8 +110,7 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     // row and the bar's own glyph with it — both of which were claiming
     // subtitles were on for a file mpv had chosen none for.
     ui.set_subs_visible(
-        player.sub_visibility
-            && tracks::selected(&player.tracks, TrackKind::Sub).is_some(),
+        player.sub_visibility && tracks::selected(&player.tracks, TrackKind::Sub).is_some(),
     );
     ui.set_panscan(player.panscan > 0.5);
     ui.set_sub_delay_text(format_delay(player.sub_delay).into());
@@ -135,7 +134,11 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     // Raw, beside the formatted text: undoing a reset has to put back the
     // number, and parsing it out of "+0.30 s" would be reading our own label.
     ui.set_sub_delay(player.sub_delay as f32);
-    ui.set_speed(if player.speed > 0.0 { player.speed as f32 } else { 1.0 });
+    ui.set_speed(if player.speed > 0.0 {
+        player.speed as f32
+    } else {
+        1.0
+    });
     ui.set_speed_text(state::format_speed(player.speed).into());
     ui.set_duration(player.duration as f32);
     ui.set_chapter_label(player.chapter_label().into());
@@ -193,12 +196,7 @@ impl ListSync {
     }
 
     /// Take delivery of a finished read.
-    pub fn apply(
-        &mut self,
-        ui: &MainWindow,
-        player: &mut PlayerState,
-        lists: Lists,
-    ) {
+    pub fn apply(&mut self, ui: &MainWindow, player: &mut PlayerState, lists: Lists) {
         self.in_flight = false;
         if player.apply_lists(lists) {
             push_lists(ui, player);
@@ -213,7 +211,11 @@ fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_sub_current(selected_row(player, TrackKind::Sub));
     ui.set_audio_current(selected_row(player, TrackKind::Audio));
     ui.set_chapter_marks(ModelRc::new(VecModel::from(
-        player.chapters.iter().map(|c| c.time as f32).collect::<Vec<_>>(),
+        player
+            .chapters
+            .iter()
+            .map(|c| c.time as f32)
+            .collect::<Vec<_>>(),
     )));
     ui.set_chapter_label(player.chapter_label().into());
     // The chapter's name arrives with the list, a moment after its number.

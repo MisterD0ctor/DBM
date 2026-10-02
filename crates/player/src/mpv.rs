@@ -131,17 +131,24 @@ pub enum Value {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
-    Property { name: String, value: Value },
+    Property {
+        name: String,
+        value: Value,
+    },
     /// An async command finished. `id` is whatever was passed to
     /// [`Mpv::command_async`], which is how a caller recognises its own.
-    CommandReply { id: u64 },
+    CommandReply {
+        id: u64,
+    },
     StartFile,
     FileLoaded,
     /// A file stopped playing. `failure` carries mpv's own description when it
     /// stopped *because it could not be played*, and is `None` for every
     /// ordinary ending. Without this the interface cannot tell "the film
     /// finished" from "that file is not a video", and showed neither.
-    EndFile { failure: Option<String> },
+    EndFile {
+        failure: Option<String>,
+    },
     Seek,
     PlaybackRestart,
     Shutdown,
@@ -156,7 +163,10 @@ pub enum Error {
     Load(String),
     Create,
     /// An mpv API call returned a negative status code.
-    Api { call: &'static str, code: c_int },
+    Api {
+        call: &'static str,
+        code: c_int,
+    },
     Nul,
 }
 
@@ -202,13 +212,14 @@ struct Lib {
     /// than anything invented here — "Unrecognized file format" rather than
     /// "error -13".
     mpv_error_string: unsafe extern "C" fn(c_int) -> *const c_char,
-    mpv_command_async:
-        unsafe extern "C" fn(*mut MpvHandle, u64, *mut *const c_char) -> c_int,
-    mpv_observe_property:
-        unsafe extern "C" fn(*mut MpvHandle, u64, *const c_char, c_int) -> c_int,
+    mpv_command_async: unsafe extern "C" fn(*mut MpvHandle, u64, *mut *const c_char) -> c_int,
+    mpv_observe_property: unsafe extern "C" fn(*mut MpvHandle, u64, *const c_char, c_int) -> c_int,
     mpv_wait_event: unsafe extern "C" fn(*mut MpvHandle, f64) -> *mut RawEvent,
-    mpv_set_wakeup_callback:
-        unsafe extern "C" fn(*mut MpvHandle, Option<unsafe extern "C" fn(*mut c_void)>, *mut c_void),
+    mpv_set_wakeup_callback: unsafe extern "C" fn(
+        *mut MpvHandle,
+        Option<unsafe extern "C" fn(*mut c_void)>,
+        *mut c_void,
+    ),
     mpv_render_context_create:
         unsafe extern "C" fn(*mut *mut MpvRenderCtx, *mut MpvHandle, *mut RenderParam) -> c_int,
     mpv_render_context_set_update_callback: unsafe extern "C" fn(
@@ -383,7 +394,9 @@ impl Mpv {
         if raw.is_null() {
             return None;
         }
-        let out = unsafe { CStr::from_ptr(raw) }.to_string_lossy().into_owned();
+        let out = unsafe { CStr::from_ptr(raw) }
+            .to_string_lossy()
+            .into_owned();
         // The string is mpv-allocated; it has to go back to mpv, not to Rust.
         unsafe { (self.lib.mpv_free)(raw as *mut c_void) };
         Some(out)
@@ -393,7 +406,10 @@ impl Mpv {
     /// A missing property reads as false, which is the useful default for
     /// every flag this app asks about.
     pub fn get_bool(&self, name: &str) -> bool {
-        matches!(self.get_property(name).as_deref(), Some("yes") | Some("true"))
+        matches!(
+            self.get_property(name).as_deref(),
+            Some("yes") | Some("true")
+        )
     }
 
     /// Convenience for the numeric properties this app reads.
@@ -503,7 +519,9 @@ impl Mpv {
             return "unknown error".into();
         }
         // Static storage owned by mpv; not ours to free.
-        unsafe { CStr::from_ptr(raw) }.to_string_lossy().into_owned()
+        unsafe { CStr::from_ptr(raw) }
+            .to_string_lossy()
+            .into_owned()
     }
 
     pub fn command_async(&self, reply_id: u64, args: &[&str]) -> Result<()> {
@@ -514,7 +532,6 @@ impl Mpv {
             (self.lib.mpv_command_async)(self.handle, reply_id, ptrs.as_mut_ptr())
         })
     }
-
 }
 
 impl Drop for Mpv {

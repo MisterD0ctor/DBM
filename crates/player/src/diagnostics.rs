@@ -169,7 +169,10 @@ impl Probe {
         // Frames or seconds, whichever comes first. A paused player draws
         // only when something asks it to, so a frame count alone never
         // reaches the mark — and paused is the state most worth probing.
-        if self.probe && !self.probed && (self.frames >= 90 || self.started.elapsed() > Self::PROBE_AFTER) {
+        if self.probe
+            && !self.probed
+            && (self.frames >= 90 || self.started.elapsed() > Self::PROBE_AFTER)
+        {
             self.probed = true;
             self.dump(pipeline, gl, player);
             self.sampled_enables = Some(self.sample_enables(pipeline, gl, player));
@@ -380,10 +383,7 @@ impl Probe {
             player.progress() * 100.0,
             player.paused,
             player.volume,
-            player.video_rect(
-                pipeline.composite().size().0,
-                pipeline.composite().size().1,
-            ),
+            player.video_rect(pipeline.composite().size().0, pipeline.composite().size().1,),
         );
         eprintln!("dbm: tracks ({} total)", player.tracks.len());
         // Per kind, so the dump shows what each menu section shows rather
@@ -513,12 +513,7 @@ impl Capture {
 /// `glReadPixels` hands back rows from the bottom up, which is the order a BMP
 /// with a positive height already wants — so the rows go down as they are.
 /// Only the channel order needs turning round: GL gives RGBA, BMP wants BGRA.
-fn write_bmp(
-    path: &std::path::Path,
-    rgba: &[u8],
-    width: u32,
-    height: u32,
-) -> std::io::Result<()> {
+fn write_bmp(path: &std::path::Path, rgba: &[u8], width: u32, height: u32) -> std::io::Result<()> {
     use std::io::Write;
 
     const FILE_HEADER: u32 = 14;

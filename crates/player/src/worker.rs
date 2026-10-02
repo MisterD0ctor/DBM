@@ -133,9 +133,9 @@ impl Reporter {
         if self.reply.send(completion).is_err() {
             return false;
         }
-        let _ = self.waker.upgrade_in_event_loop(|ui| {
-            slint::ComponentHandle::window(&ui).request_redraw()
-        });
+        let _ = self
+            .waker
+            .upgrade_in_event_loop(|ui| slint::ComponentHandle::window(&ui).request_redraw());
         true
     }
 }
@@ -189,10 +189,7 @@ impl Worker {
 
     /// Queue work. Returns whether it was accepted — a `false` means the
     /// worker is shutting down.
-    pub fn submit(
-        &self,
-        job: impl FnOnce(&Mpv) -> Option<Completion> + Send + 'static,
-    ) -> bool {
+    pub fn submit(&self, job: impl FnOnce(&Mpv) -> Option<Completion> + Send + 'static) -> bool {
         self.jobs
             .as_ref()
             .is_some_and(|tx| tx.send(Box::new(job)).is_ok())

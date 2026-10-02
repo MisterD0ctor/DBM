@@ -647,8 +647,12 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 // clipboard can be read back from outside.
                 "fatal-copy" => {
                     ui.set_fatal("The player cannot show video on this computer.".into());
-                    ui.set_fatal_detail("The graphics driver would not build the player's shaders.".into());
-                    ui.set_fatal_note("If the driver is current, this is a bug in the player.".into());
+                    ui.set_fatal_detail(
+                        "The graphics driver would not build the player's shaders.".into(),
+                    );
+                    ui.set_fatal_note(
+                        "If the driver is current, this is a bug in the player.".into(),
+                    );
                     ui.invoke_copy_details();
                 }
                 // A caption-only flash — the speed, as `]` raises it.
@@ -663,7 +667,9 @@ fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                          variable \"backdrop\""
                             .into(),
                     );
-                    ui.set_fatal_note("If the driver is current, this is a bug in the player.".into());
+                    ui.set_fatal_note(
+                        "If the driver is current, this is a bug in the player.".into(),
+                    );
                 }
                 // Held rather than provoked. A real open clears this the
                 // moment mpv reports a file, which on a local disk is too few
@@ -719,8 +725,7 @@ fn fade_test(ui: &MainWindow) -> slint::Timer {
             }
             settled += 1;
             if settled == 12 {
-                let steps: Vec<String> =
-                    seen.iter().map(|v| format!("{v:.2}")).collect();
+                let steps: Vec<String> = seen.iter().map(|v| format!("{v:.2}")).collect();
                 eprintln!(
                     "dbm: bar faded through {} value(s): {}",
                     seen.len(),
@@ -759,8 +764,7 @@ fn paused_resize_test(ui: &MainWindow) -> slint::Timer {
                 // one.
                 2 => {
                     eprintln!("dbm: --- resizing while paused ---");
-                    ui.window()
-                        .set_size(slint::LogicalSize::new(1000.0, 900.0));
+                    ui.window().set_size(slint::LogicalSize::new(1000.0, 900.0));
                 }
                 4 => eprintln!("dbm: --- settled; the border must match ---"),
                 // Flipping the switch is what makes the probe take a fresh
@@ -871,12 +875,12 @@ fn cursor_test(ui: &MainWindow) -> slint::Timer {
 fn park_pointer(ui: &MainWindow) {
     let at = ui.window().position();
     let size = ui.window().size();
-    let (x, y) = (
-        at.x + size.width as i32 / 2,
-        at.y + size.height as i32 / 2,
-    );
+    let (x, y) = (at.x + size.width as i32 / 2, at.y + size.height as i32 / 2);
     let moved = unsafe { windows::Win32::UI::WindowsAndMessaging::SetCursorPos(x, y) };
-    eprintln!("dbm: cursor  parked at {x},{y} ({})", if moved.is_ok() { "ok" } else { "refused" });
+    eprintln!(
+        "dbm: cursor  parked at {x},{y} ({})",
+        if moved.is_ok() { "ok" } else { "refused" }
+    );
 }
 
 #[cfg(not(windows))]
@@ -983,8 +987,7 @@ fn scroll_test(ui: &MainWindow) -> slint::Timer {
                 // Short enough that the panel cannot hold both lists, which
                 // is the only state where the split does anything.
                 0 => {
-                    ui.window()
-                        .set_size(slint::LogicalSize::new(1280.0, 520.0));
+                    ui.window().set_size(slint::LogicalSize::new(1280.0, 520.0));
                     ui.invoke_open_menu(true);
                 }
                 1 => report_lists(&ui, "tracks, short"),
@@ -998,8 +1001,7 @@ fn scroll_test(ui: &MainWindow) -> slint::Timer {
                 }
                 3 => eprintln!("dbm: subs scrolled to {:.0}", ui.get_subs_scroll()),
                 4 => {
-                    ui.window()
-                        .set_size(slint::LogicalSize::new(1280.0, 720.0));
+                    ui.window().set_size(slint::LogicalSize::new(1280.0, 720.0));
                     ui.invoke_open_playlist(true);
                 }
                 5 => eprintln!(
@@ -1806,7 +1808,8 @@ fn report_smtc(ui: &MainWindow, mpv: &Mpv, label: &str) {
     eprintln!(
         "dbm: smtc {label:<14} ours[paused={} entry={} {}] windows[{app} {status} {title:?}]",
         ui.get_paused(),
-        mpv.get_property("playlist-pos").unwrap_or_else(|| "-".into()),
+        mpv.get_property("playlist-pos")
+            .unwrap_or_else(|| "-".into()),
         ui.get_media_title(),
     );
 }
@@ -1941,9 +1944,9 @@ fn listen(bus: &zbus::blocking::Connection, heard: std::sync::Arc<Heard>) {
         .sender(name)
         .and_then(|rule| rule.path("/org/mpris/MediaPlayer2"))
         .map(zbus::match_rule::Builder::build);
-    let signals = match rule.and_then(|rule| {
-        zbus::blocking::MessageIterator::for_match_rule(rule, bus, None)
-    }) {
+    let signals = match rule
+        .and_then(|rule| zbus::blocking::MessageIterator::for_match_rule(rule, bus, None))
+    {
         Ok(signals) => signals,
         Err(e) => {
             eprintln!("dbm: mpris test: cannot listen ({e})");
@@ -1991,7 +1994,11 @@ fn neighbours(bus: &zbus::blocking::Connection) {
     eprintln!(
         "dbm: mpris ours={} players on the bus: {}",
         crate::mpris::claimed().unwrap_or("none"),
-        if players.is_empty() { "none".into() } else { players.join(", ") }
+        if players.is_empty() {
+            "none".into()
+        } else {
+            players.join(", ")
+        }
     );
 }
 
@@ -2040,15 +2047,15 @@ fn report_mpris(
 ) {
     use std::sync::atomic::Ordering;
 
-    let (status, title, position, next) = read_back(bus).unwrap_or_else(|| {
-        ("no player".into(), "-".into(), 0.0, false)
-    });
+    let (status, title, position, next) =
+        read_back(bus).unwrap_or_else(|| ("no player".into(), "-".into(), 0.0, false));
     eprintln!(
         "dbm: mpris {label:<14} ours[paused={} entry={} {}] \
          bus[{status} {title:?} at {position:.1}s next={next}] \
          heard[changed={} seeked={}]",
         ui.get_paused(),
-        mpv.get_property("playlist-pos").unwrap_or_else(|| "-".into()),
+        mpv.get_property("playlist-pos")
+            .unwrap_or_else(|| "-".into()),
         ui.get_media_title(),
         heard.changed.load(Ordering::Relaxed),
         heard.seeked.load(Ordering::Relaxed),
@@ -2197,9 +2204,7 @@ fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
                         eprintln!("dbm: credits: cannot write chapters: {e}");
                         return;
                     }
-                    if let Err(e) =
-                        mpv.set_property("chapters-file", &marks.to_string_lossy())
-                    {
+                    if let Err(e) = mpv.set_property("chapters-file", &marks.to_string_lossy()) {
                         eprintln!("dbm: credits: mpv refused chapters-file: {e}");
                     }
                     eprintln!("dbm: credits from {credits_at:.0}s of {duration:.0}s");
@@ -2327,7 +2332,11 @@ fn report_rows(ui: &MainWindow, ms: usize) {
         rows.len()
     );
     for row in rows.iter() {
-        eprintln!("dbm: scan      {:<44} {}", row.label.as_str(), row.length.as_str());
+        eprintln!(
+            "dbm: scan      {:<44} {}",
+            row.label.as_str(),
+            row.length.as_str()
+        );
     }
 }
 

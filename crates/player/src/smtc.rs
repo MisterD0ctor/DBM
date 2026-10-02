@@ -121,8 +121,10 @@ mod windows_impl {
                     Err(e) => {
                         *attempts += 1;
                         if *attempts >= GIVE_UP_AFTER {
-                            eprintln!("dbm: media keys unavailable ({e}); headset buttons \
-                                       and the volume overlay will not reach the player");
+                            eprintln!(
+                                "dbm: media keys unavailable ({e}); headset buttons \
+                                       and the volume overlay will not reach the player"
+                            );
                             *state = State::Off;
                         }
                         return;
@@ -181,7 +183,9 @@ mod windows_impl {
             // The parsed name rather than the file name: the overlay is one
             // line wide and `[Group] Show - 03 [1080p][AV1]` spends most of it
             // on the encode. See `naming`.
-            updater.VideoProperties()?.SetTitle(&now.title.as_str().into())?;
+            updater
+                .VideoProperties()?
+                .SetTitle(&now.title.as_str().into())?;
             updater.Update()?;
         }
         Ok(())

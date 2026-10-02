@@ -93,9 +93,9 @@ fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
     // Everything already known goes back in one delivery, before any ffmpeg
     // starts: a folder opened for the second time is complete the moment its
     // list is, rather than filling in row by row out of a cache.
-    let (known, unknown): (Vec<String>, Vec<String>) = paths.into_iter().partition(|path| {
-        lengths.get(path).is_some_and(|s| *s > 0.0) && titles.contains_key(path)
-    });
+    let (known, unknown): (Vec<String>, Vec<String>) = paths
+        .into_iter()
+        .partition(|path| lengths.get(path).is_some_and(|s| *s > 0.0) && titles.contains_key(path));
     let known: Vec<Found> = known
         .into_iter()
         .map(|path| Found {

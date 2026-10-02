@@ -88,6 +88,7 @@ pub struct Param {
     pub max: f32,
 }
 
+#[rustfmt::skip]
 pub const REGISTRY: &[Param] = &[
     Param { key: Key::Blur, name: "glass.blur", section: Section::Glass, label: "Blur", min: 0.0, max: 40.0 },
     Param { key: Key::Refract, name: "glass.refract_ratio", section: Section::Glass, label: "Refract", min: 0.0, max: 4.0 },
@@ -363,7 +364,9 @@ impl Store {
         if !saw_refract {
             // Against the bevel it was tuned beside, which is what the new
             // value is a fraction of.
-            let was = legacy_bevel.unwrap_or(LEGACY_RADIUS * 0.6).max(f32::EPSILON);
+            let was = legacy_bevel
+                .unwrap_or(LEGACY_RADIUS * 0.6)
+                .max(f32::EPSILON);
             if let (Some(px), Some(i)) = (legacy_refract, index_of(Key::Refract)) {
                 self.set(i, px / was);
                 eprintln!("dbm: converted saved refract {px}px to a ratio of the bevel");
@@ -393,7 +396,6 @@ pub fn load(path: &std::path::Path) -> Vec<(String, f32)> {
         })
         .collect()
 }
-
 
 /// Writes settings out shortly after they stop changing.
 ///
@@ -461,8 +463,7 @@ impl Persister {
         // tuning most needs to hear about, because everything they have just
         // adjusted is in it.
         self.worker.submit(move |_mpv| {
-            let borrowed: Vec<(&str, f32)> =
-                values.iter().map(|(n, v)| (n.as_str(), *v)).collect();
+            let borrowed: Vec<(&str, f32)> = values.iter().map(|(n, v)| (n.as_str(), *v)).collect();
             save_owned(&path, &borrowed)
                 .err()
                 .map(crate::worker::Completion::Notice)
