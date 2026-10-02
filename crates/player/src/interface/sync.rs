@@ -1,90 +1,25 @@
-//! Moving data between mpv, the mirrored state, and the UI.
+//! Carrying what mpv says out to the interface.
 //!
 //! One direction only: mpv is the source of truth, this carries its values
 //! outward. Anything travelling the other way is an action, and lives in
 //! `actions`/`commands`.
 //!
-//! Everything here is called once per frame from the render driver, so the
-//! rule that matters is: **never make a blocking property read on this
-//! path.** `mpv_get_property_string` waits on mpv's core lock, and during a
-//! resize that lock is contended enough to cost hundreds of milliseconds a
-//! frame. Scalars are observed and arrive on the event queue; the list-shaped
-//! properties are read only when a count or selection actually moves.
+//! Everything here is called from the frame path, so the rule that matters
+//! is: **never make a blocking property read on this path.**
+//! `mpv_get_property_string` waits on mpv's core lock, and during a resize
+//! that lock is contended enough to cost hundreds of milliseconds a frame.
+//! Scalars are observed and arrive on the event queue; the list-shaped
+//! properties are read on the worker, and only when a count or selection
+//! actually moves.
 
-use std::rc::Rc;
+use slint::{ModelRc, VecModel};
 
-use slint::{ComponentHandle, Model, ModelRc, VecModel};
-
-use crate::gpu::pipeline::{GlassPanel, MAX_PANELS};
-use crate::interface::format;
-use crate::playback::mpv::{Event, Mpv};
+use crate::interface::{format, playlist_panel};
+use crate::library::durations::Progress;
 use crate::playback::state::PlayerState;
-use crate::playback::tracks::{self, TrackKind};
-use crate::settings::{self, Section, Store};
-use crate::worker::{Completion, Lists, Worker};
-use crate::{MainWindow, ParamItem, PlaylistGroup, PlaylistItem, TrackItem};
-
-/// Drain mpv's event queue into the mirrored state.
-///
-/// Returns whether anything the UI shows changed. Draining here rather than
-/// on a thread of its own keeps `mpv_wait_event` single-threaded — it is not
-/// safe to call concurrently — and means events still flow while Windows owns
-/// the loop during a resize drag, since the modal hook keeps frames coming.
-pub fn drain_events(
-    mpv: &Mpv,
-    player: &mut PlayerState,
-    replies: &mut Vec<u64>,
-    notices: &mut Vec<String>,
-    audio: &Rc<crate::playback::audio::Watchdog>,
-) -> bool {
-    let mut dirty = false;
-    replies.clear();
-    notices.clear();
-    while let Some(event) = mpv.poll_event() {
-        // Command completions are not state; they belong to whoever issued
-        // the command, so they are collected for the driver to route.
-        if let Event::CommandReply { id } = event {
-            replies.push(id);
-            continue;
-        }
-        // A file that stopped because it could not be played. mpv knows why
-        // and says so in its own words, which are better than any wording
-        // invented here — "Unrecognized file format" beats "playback error".
-        //
-        // Named by the file's own name, not its path. A path fills the
-        // capsule with the drive and folders, and elision takes the end —
-        // exactly the part that says which file in a season it was.
-        //
-        // Reason first. The capsule elides at the width of the bar, and with
-        // a scene release's name in front it was the reason — the one part
-        // worth reading — that fell off the end. The name is the one the
-        // playlist shows, not the file's, and the path is remembered so the
-        // row can go on saying so after the notice has gone.
-        if let Event::EndFile {
-            failure: Some(reason),
-        } = &event
-        {
-            let path = player.path.clone().or_else(|| player.filename.clone());
-            let reason = format::sentence(reason);
-            notices.push(match &path {
-                Some(path) => format!(
-                    "{reason} — could not play {}",
-                    crate::library::naming::titled(path, None)
-                ),
-                None => format!("{reason} — could not play that file"),
-            });
-            if let Some(path) = path {
-                player.failed.insert(path);
-            }
-        }
-        // Not everything mpv reports is state the interface shows. The
-        // watchdog reads the same stream for the device list and the audio
-        // track, neither of which belongs in `PlayerState`.
-        audio.on_event(&event);
-        dirty |= player.apply(&event);
-    }
-    dirty
-}
+use crate::playback::tracks::{self, Chapter, PlaylistEntry, Track, TrackKind};
+use crate::worker::{Completion, Worker};
+use crate::{MainWindow, TrackItem};
 
 /// Push the scalar values the UI binds to.
 pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
@@ -137,6 +72,23 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     // Where the dialogs open: beside this file, or on the shelf above its
     // folder.
     ui.set_current_path(player.path.clone().unwrap_or_default().into());
+}
+
+/// Track, chapter and playlist contents, read together because they are
+/// invalidated together and a single job means a single round trip.
+pub struct Lists {
+    pub tracks: Vec<Track>,
+    pub playlist: Vec<PlaylistEntry>,
+    /// One per playlist entry, in the same order: how long it is and how far
+    /// into it the resume point sits. Read here rather than in a job of its
+    /// own because it is answered *from* the playlist — the paths have to be
+    /// known before the lookup can start, and they are known right here.
+    pub progress: Vec<Progress>,
+    /// The file's chapter marks. Invalidated with the tracks, by a new file.
+    pub chapters: Vec<Chapter>,
+    /// The generation this was read for, so a stale result can be discarded
+    /// if the lists moved again while the job was running.
+    pub generation: u64,
 }
 
 /// Requests list reads and applies the results.
@@ -211,7 +163,7 @@ fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_chapter_label(player.chapter_label().into());
     // The chapter's name arrives with the list, a moment after its number.
     ui.set_credits_rolling(player.credits_rolling());
-    push_playlist(ui, player);
+    playlist_panel::push(ui, player);
 }
 
 /// Which row of a track list is the selected one, or -1.
@@ -226,145 +178,6 @@ fn selected_row(player: &PlayerState, kind: TrackKind) -> i32 {
         .map_or(-1, |row| row as i32)
 }
 
-/// Hand the playlist alone to the UI.
-///
-/// Separate so a scan result, which changes nothing about the tracks, does
-/// not rebuild the subtitle and audio menus as well — and so a row the
-/// pointer is resting on is recreated no more often than it has to be.
-pub fn push_playlist(ui: &MainWindow, player: &PlayerState) {
-    let items: Vec<crate::library::shelf::Item> = player
-        .playlist
-        .iter()
-        .enumerate()
-        .map(|(row, e)| crate::library::shelf::Item {
-            path: &e.filename,
-            title: player.known_title(row),
-            index: e.index,
-            current: e.current,
-            progress: player.known_progress(row),
-            failed: player.failed.contains(&e.filename),
-        })
-        .collect();
-    let shelf = crate::library::shelf::arrange(&items, &player.beside);
-
-    ui.set_next_label(next_label(&shelf).into());
-    ui.set_playlist_named(shelf.heading.is_some());
-    ui.set_playlist_heading(match shelf.title() {
-        Some(title) => title.into(),
-        None => slint::SharedString::from("PLAYLIST"),
-    });
-    // Where the panel opens: the part holding the file playing, on its row.
-    let current = shelf.groups.iter().position(|g| g.current().is_some());
-    ui.set_playlist_current_group(current.map_or(-1, |g| g as i32));
-    ui.set_playlist_drills(shelf.groups.iter().any(|g| !g.leaf));
-
-    // The page on show is kept by its name, not its place. Seasons found
-    // beside this one arrive a moment after it and go in around it, and a
-    // page held by number would turn into another season under the reader.
-    let shown = usize::try_from(ui.get_playlist_page())
-        .ok()
-        .and_then(|page| ui.get_playlist_groups().row_data(page))
-        .map(|group| group.label);
-    let groups: Vec<PlaylistGroup> = shelf.groups.iter().map(group_item).collect();
-    if let Some(label) = shown {
-        ui.set_playlist_page(
-            groups
-                .iter()
-                .position(|g| g.label == label)
-                .map_or(-1, |page| page as i32),
-        );
-    }
-    ui.set_playlist_groups(ModelRc::new(VecModel::from(groups)));
-}
-
-/// What the way on is called: the file after this one, as its row names it.
-///
-/// The row's own words rather than the file's title, because they are
-/// already in the form the panel says them — "E04 · Slabtown", with the show
-/// and season said once in the heading over the rows. The end pill has no
-/// heading over it, but it has the film that just ended, which is the same
-/// show and season, so the row's words still read whole there. Across the
-/// boundary into another part they would not: an E01 could be anybody's, so
-/// the part goes first — "Season 6 · E01 · No Way Out". A part that is one
-/// film is named by the film, and its row would only say it again.
-///
-/// Empty at the end of the list, and for a file playing that the list does
-/// not hold; the pills fall back to their own words.
-fn next_label(shelf: &crate::library::shelf::Shelf) -> String {
-    let rows = || {
-        shelf
-            .groups
-            .iter()
-            .enumerate()
-            .flat_map(|(part, g)| g.entries.iter().map(move |e| (part, g, e)))
-    };
-    let Some((part, playing)) = rows()
-        .find(|(_, _, e)| e.current)
-        .and_then(|(part, _, e)| Some((part, e.index?)))
-    else {
-        return String::new();
-    };
-    let Some((next_part, group, entry)) = rows().find(|(_, _, e)| e.index == Some(playing + 1))
-    else {
-        return String::new();
-    };
-    if next_part == part {
-        entry.label.clone()
-    } else if group.leaf {
-        group.label.clone()
-    } else {
-        format!("{} · {}", group.label, entry.label)
-    }
-}
-
-/// One part of the list, as the panel draws it.
-fn group_item(group: &crate::library::shelf::Group) -> PlaylistGroup {
-    let count = group.entries.len();
-    PlaylistGroup {
-        label: group.label.as_str().into(),
-        // A heading shouts the interface's own words and never the user's:
-        // SEASON 7, but a show's name in its own case.
-        heading: (if group.named {
-            group.label.clone()
-        } else {
-            group.label.to_uppercase()
-        })
-        .into(),
-        titular: group.named,
-        detail: if count == 1 {
-            "1 episode".into()
-        } else {
-            format!("{count} episodes").into()
-        },
-        current: group.current().is_some(),
-        leaf: group.leaf,
-        open_row: group.open_row() as i32,
-        entries: ModelRc::new(VecModel::from(
-            group.entries.iter().map(entry_item).collect::<Vec<_>>(),
-        )),
-    }
-}
-
-fn entry_item(entry: &crate::library::shelf::Entry) -> PlaylistItem {
-    PlaylistItem {
-        index: entry.index.map_or(-1, |i| i as i32),
-        path: entry.path.as_str().into(),
-        label: entry.label.as_str().into(),
-        current: entry.current,
-        // A file never played here has no length to show and no progress to
-        // draw; an empty string and a zero say so, and the row leaves both
-        // out rather than printing "0:00".
-        length: if entry.progress.seconds > 0.0 {
-            format::time(entry.progress.seconds).into()
-        } else {
-            Default::default()
-        },
-        progress: entry.progress.fraction,
-        finished: entry.progress.finished,
-        failed: entry.failed,
-    }
-}
-
 fn track_model(player: &PlayerState, kind: TrackKind) -> ModelRc<TrackItem> {
     ModelRc::new(VecModel::from(
         tracks::labelled(&player.tracks, kind)
@@ -376,137 +189,4 @@ fn track_model(player: &PlayerState, kind: TrackKind) -> ModelRc<TrackItem> {
             })
             .collect::<Vec<_>>(),
     ))
-}
-
-/// Read the glass panel geometry out of Slint's own layout.
-///
-/// Same process, same frame, read synchronously — so the glass cannot lag the
-/// widget it belongs to. Slint works in logical pixels and the pipeline in
-/// physical ones, hence the scale factor.
-pub fn collect_panels(ui: &MainWindow, out: &mut Vec<GlassPanel>) {
-    let dpi = ui.window().scale_factor();
-    out.clear();
-    let rects = ui.get_glass_rects();
-    for i in 0..rects.row_count() {
-        let Some(g) = rects.row_data(i) else { continue };
-        // A hidden panel publishes a zero-sized rect rather than dropping out
-        // of the array, which keeps the UI side a plain literal. Skip those.
-        // A panel mid-fade still needs glass; one faded out entirely is as
-        // absent as one that was never opened.
-        if g.width <= 0.0 || g.height <= 0.0 || g.opacity <= 0.004 {
-            continue;
-        }
-        // The cap counts panels that are really on screen, not how far into
-        // the declaration list we have read. Capping the read instead meant
-        // that once the list grew past `MAX_PANELS` — which it did the moment
-        // the timeline became two pills — whatever was declared last silently
-        // got no glass, however few panels were actually open. Every entry
-        // past the live ones is a placeholder for something closed.
-        if out.len() == MAX_PANELS {
-            warn_overflow();
-            return;
-        }
-        out.push(GlassPanel {
-            rect: [
-                g.x * dpi,
-                g.y * dpi,
-                (g.x + g.width) * dpi,
-                (g.y + g.height) * dpi,
-            ],
-            radius: g.radius * dpi,
-            tint_alpha: g.tint,
-            opacity: g.opacity,
-        });
-    }
-}
-
-/// Said once, not once a frame. Losing glass off the end of the list is quiet
-/// enough that it wants saying at all, and repeating it sixty times a second
-/// would bury everything else.
-fn warn_overflow() {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        eprintln!("dbm: more than {MAX_PANELS} glass panels on screen; the rest get none");
-    });
-}
-
-/// The slider rows, split by the page they appear on.
-///
-/// Two models rather than one filtered in the UI: each page binds to its own
-/// list, and a row carries its registry index so the callback needs no
-/// arithmetic to map back.
-pub struct ParamModels {
-    glass: Rc<VecModel<ParamItem>>,
-    border: Rc<VecModel<ParamItem>>,
-}
-
-impl ParamModels {
-    pub fn build(ui: &MainWindow, store: &Store) -> Self {
-        let models = Self {
-            glass: section_model(store, Section::Glass),
-            border: section_model(store, Section::Border),
-        };
-        ui.set_glass_params(ModelRc::from(models.glass.clone()));
-        ui.set_border_params(ModelRc::from(models.border.clone()));
-        models
-    }
-
-    /// Refresh one row in place.
-    ///
-    /// Deliberately not a rebuild: replacing a model makes the repeater tear
-    /// down and recreate every row, destroying the `TouchArea` the pointer is
-    /// holding — which is what once made the sliders click-only.
-    pub fn update(&self, store: &Store, index: usize) {
-        let Some(param) = settings::REGISTRY.get(index) else {
-            return;
-        };
-        let model = self.model_for(param.section);
-        if let Some(row) = rows_of(param.section).position(|i| i == index) {
-            model.set_row_data(row, param_row(store, index));
-        }
-    }
-
-    /// Rebuild both pages. For a reset, where every row moved at once and no
-    /// drag is in progress.
-    pub fn refresh_all(&self, store: &Store) {
-        for (section, model) in [
-            (Section::Glass, &self.glass),
-            (Section::Border, &self.border),
-        ] {
-            for (row, index) in rows_of(section).enumerate() {
-                model.set_row_data(row, param_row(store, index));
-            }
-        }
-    }
-
-    fn model_for(&self, section: Section) -> &VecModel<ParamItem> {
-        match section {
-            Section::Glass => &self.glass,
-            Section::Border => &self.border,
-        }
-    }
-}
-
-fn rows_of(section: Section) -> impl Iterator<Item = usize> {
-    (0..settings::REGISTRY.len()).filter(move |i| settings::REGISTRY[*i].section == section)
-}
-
-fn section_model(store: &Store, section: Section) -> Rc<VecModel<ParamItem>> {
-    Rc::new(VecModel::from(
-        rows_of(section)
-            .map(|i| param_row(store, i))
-            .collect::<Vec<_>>(),
-    ))
-}
-
-fn param_row(store: &Store, index: usize) -> ParamItem {
-    let param = &settings::REGISTRY[index];
-    let value = store.value(index);
-    let span = (param.max - param.min).max(f32::EPSILON);
-    ParamItem {
-        index: index as i32,
-        label: param.label.into(),
-        fraction: ((value - param.min) / span).clamp(0.0, 1.0),
-        readout: format::readout(value, param.min, param.max).into(),
-    }
 }

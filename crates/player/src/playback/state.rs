@@ -233,7 +233,7 @@ impl PlayerState {
     /// A result is discarded if the lists moved again while it was being
     /// read — the newer request is already on its way, and applying a stale
     /// snapshot would flicker the menu.
-    pub fn apply_lists(&mut self, lists: crate::worker::Lists) -> bool {
+    pub fn apply_lists(&mut self, lists: crate::interface::sync::Lists) -> bool {
         if lists.generation != self.tracks_generation {
             return false;
         }

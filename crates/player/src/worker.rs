@@ -21,25 +21,7 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use crate::playback::mpv::Mpv;
-use crate::playback::tracks::{PlaylistEntry, Track};
 use crate::MainWindow;
-
-/// Track and playlist contents, read together because they are invalidated
-/// together and a single job means a single round trip.
-pub struct Lists {
-    pub tracks: Vec<Track>,
-    pub playlist: Vec<PlaylistEntry>,
-    /// One per playlist entry, in the same order: how long it is and how far
-    /// into it the resume point sits. Read here rather than in a job of its
-    /// own because it is answered *from* the playlist — the paths have to be
-    /// known before the lookup can start, and they are known right here.
-    pub progress: Vec<crate::library::durations::Progress>,
-    /// The file's chapter marks. Invalidated with the tracks, by a new file.
-    pub chapters: Vec<crate::playback::tracks::Chapter>,
-    /// The generation this was read for, so a stale result can be discarded
-    /// if the lists moved again while the job was running.
-    pub generation: u64,
-}
 
 /// A playlist that has been scanned and written out, ready to hand to mpv.
 pub struct Playlist {
@@ -52,7 +34,7 @@ pub struct Playlist {
 
 /// Work that finished. Add a variant per kind of background job.
 pub enum Completion {
-    Lists(Lists),
+    Lists(crate::interface::sync::Lists),
     Opened(Result<Playlist, String>),
     /// Something the person watching should be told, raised from a background
     /// job. The audio watchdog is the first caller: it repairs the audio chain

@@ -17,6 +17,8 @@
 //! layout that depends on the state just pushed, and reading them in the same
 //! frame is what stops the glass lagging a frame behind its widget.
 
+mod events;
+
 use std::num::NonZeroU32;
 use std::sync::{Arc, Mutex};
 
@@ -28,7 +30,7 @@ use slint::{
 use crate::app::App;
 use crate::gpu::gfx::Target;
 use crate::gpu::pipeline::{GlassPanel, Pipeline};
-use crate::interface::{format, sync};
+use crate::interface::{format, glass, playlist_panel, sync};
 use crate::library::playlist;
 use crate::platform::modal_loop;
 use crate::playback::commands;
@@ -349,7 +351,7 @@ impl Driver {
         self.drops.poll(&ui);
 
         let t = self.diag.begin();
-        let moved = sync::drain_events(
+        let moved = events::drain(
             &self.app.mpv,
             &mut self.player,
             &mut self.replies,
@@ -359,7 +361,7 @@ impl Driver {
         // A failure marks its playlist row, which the list otherwise only
         // hears about on the next read.
         if !self.notices.is_empty() {
-            sync::push_playlist(&ui, &self.player);
+            playlist_panel::push(&ui, &self.player);
         }
         for notice in std::mem::take(&mut self.notices) {
             // A notice means something concluded, which is the backstop for
@@ -526,7 +528,7 @@ impl Driver {
             }
         }
         if probed {
-            sync::push_playlist(&ui, &self.player);
+            playlist_panel::push(&ui, &self.player);
         }
 
         // The end of the last file is the moment to look for the way on,
@@ -578,7 +580,7 @@ impl Driver {
         }
         let t = self.diag.mark_lists(t);
 
-        sync::collect_panels(&ui, &mut self.panels);
+        glass::collect(&ui, &mut self.panels);
         let t = self.diag.mark_panels(t);
         self.diag.panels_changed(&self.panels);
 

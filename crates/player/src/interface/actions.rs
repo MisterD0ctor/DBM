@@ -14,7 +14,7 @@ use std::time::Duration;
 use slint::ComponentHandle;
 
 use crate::app::App;
-use crate::interface::sync;
+use crate::interface::sliders;
 use crate::library::preview::Sprite;
 use crate::platform::dialog;
 use crate::playback::commands;
@@ -220,7 +220,7 @@ fn wire_tracks(ui: &MainWindow, app: &App) {
 fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
     // Sliders report a normalised position; the registry owns the range.
     // The model is updated here so the readout follows the drag.
-    let models = Rc::new(sync::ParamModels::build(ui, &app.settings));
+    let models = Rc::new(sliders::ParamModels::build(ui, &app.settings));
     {
         let (app, models) = (app.clone(), models.clone());
         ui.on_set_param(move |index, fraction| {
