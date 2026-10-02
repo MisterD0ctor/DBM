@@ -1919,7 +1919,7 @@ struct Heard {
 
 #[cfg(not(windows))]
 fn listen(bus: &zbus::blocking::Connection, heard: std::sync::Arc<Heard>) {
-    let Some(name) = crate::platform::mpris::claimed() else {
+    let Some(name) = crate::platform::media_keys::mpris::claimed() else {
         eprintln!("dbm: mpris test: nothing of ours on the bus to listen to");
         return;
     };
@@ -1980,7 +1980,7 @@ fn neighbours(bus: &zbus::blocking::Connection) {
         .collect();
     eprintln!(
         "dbm: mpris ours={} players on the bus: {}",
-        crate::platform::mpris::claimed().unwrap_or("none"),
+        crate::platform::media_keys::mpris::claimed().unwrap_or("none"),
         if players.is_empty() {
             "none".into()
         } else {
@@ -2015,7 +2015,7 @@ fn press(bus: &zbus::blocking::Connection, button: &str, offset: Option<i64>) {
 fn ours(bus: &zbus::blocking::Connection) -> Option<zbus::blocking::Proxy<'static>> {
     zbus::blocking::Proxy::new(
         bus,
-        crate::platform::mpris::claimed()?,
+        crate::platform::media_keys::mpris::claimed()?,
         "/org/mpris/MediaPlayer2",
         "org.mpris.MediaPlayer2.Player",
     )

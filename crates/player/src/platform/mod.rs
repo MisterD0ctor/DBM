@@ -10,8 +10,6 @@ pub mod awake;
 pub mod cursor;
 pub mod dialog;
 pub mod dropped;
+pub mod media_keys;
 pub mod modal_loop;
-#[cfg(not(windows))]
-pub mod mpris;
-pub mod smtc;
 pub mod window;

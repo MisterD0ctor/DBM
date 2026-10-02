@@ -90,8 +90,9 @@ pub struct Driver {
     pending_start: Option<usize>,
     /// `PlayerState::loads` as of the last frame — see where it is compared.
     loads_seen: u64,
-    /// The OS media overlay, told what is playing when it changes.
-    smtc: crate::platform::smtc::Controls,
+    /// The media keys and the desktop's media widget, told what is playing
+    /// when it changes.
+    media_keys: crate::platform::media_keys::Controls,
     /// Holds the display on while something plays.
     awake: crate::platform::awake::Awake,
     diag: diagnostics::Probe,
@@ -104,7 +105,7 @@ impl Driver {
         ui: slint::Weak<MainWindow>,
         app: App,
         file: Option<String>,
-        smtc: crate::platform::smtc::Controls,
+        media_keys: crate::platform::media_keys::Controls,
     ) -> Self {
         Self {
             ui,
@@ -125,7 +126,7 @@ impl Driver {
             notices: Vec::new(),
             pending_start: None,
             loads_seen: 0,
-            smtc,
+            media_keys,
             awake: crate::platform::awake::Awake::default(),
             diag: diagnostics::Probe::new(),
             capture: diagnostics::Capture::new(),
@@ -400,7 +401,7 @@ impl Driver {
         // Every frame, not only the ones that moved: registration needs a
         // window handle that does not exist yet on the first of them, and the
         // update itself is skipped unless something changed.
-        self.smtc.publish(ui.window(), &self.player, moved);
+        self.media_keys.publish(ui.window(), &self.player, moved);
         self.awake.follow(&self.player);
         // Two reads and a comparison while the bar is still; a command a
         // frame only while it fades. See `subline`.

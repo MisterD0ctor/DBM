@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // it needs the platform `MainWindow::new` brings up, and is read when the
     // native window is created at `show`.
     #[cfg(target_os = "linux")]
-    slint::set_xdg_app_id(platform::mpris::APP_ID)?;
+    slint::set_xdg_app_id(platform::media_keys::mpris::APP_ID)?;
 
     // Set once: the answer is a `cfg`, not something that can change under a
     // running window. The interface has two lines that offer a drop and must
@@ -119,7 +119,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // handle it needs does not exist yet and will not until the loop has
         // turned. On Linux there is no handle in it, so the bus name is
         // claimed here and now — see `mpris`.
-        platform::smtc::Controls::new(mpv.clone()),
+        platform::media_keys::Controls::new(mpv.clone()),
     );
     ui.window()
         .set_rendering_notifier(move |state, api| driver.on(state, api))?;
