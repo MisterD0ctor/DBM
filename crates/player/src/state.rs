@@ -35,7 +35,6 @@ pub const OBSERVED: &[(&str, c_int)] = &[
     ("sub-visibility", FORMAT_FLAG),
     ("sub-delay", FORMAT_DOUBLE),
     ("sub-scale", FORMAT_DOUBLE),
-    ("sub-pos", FORMAT_DOUBLE),
     ("panscan", FORMAT_DOUBLE),
     ("speed", FORMAT_DOUBLE),
     ("chapter", FORMAT_DOUBLE),
@@ -77,11 +76,14 @@ pub struct PlayerState {
     pub playlist_count: i64,
     pub sub_visibility: bool,
     pub sub_delay: f64,
-    /// Size multiplier and vertical placement. Mirrored rather than read from
-    /// the saved settings so the readout shows what mpv settled on, including
-    /// any clamping it did of its own.
+    /// Size multiplier. Mirrored rather than read from the saved settings so
+    /// the readout shows what mpv settled on, including any clamping it did
+    /// of its own.
+    ///
+    /// Placement is not mirrored: while the bar is up mpv holds a line lifted
+    /// clear of it, and the readout shows where the person put the line, not
+    /// where the bar has moved it — see `subline`.
     pub sub_scale: f64,
-    pub sub_pos: f64,
     /// 0 letterboxes to fit, 1 crops to fill.
     pub panscan: f64,
     /// Playback speed. Zero until mpv first reports it, which reads as 1.
@@ -186,7 +188,6 @@ impl PlayerState {
             "sub-visibility" => set(&mut self.sub_visibility, flag),
             "sub-delay" => set(&mut self.sub_delay, num.unwrap_or(0.0)),
             "sub-scale" => set(&mut self.sub_scale, num.unwrap_or(1.0)),
-            "sub-pos" => set(&mut self.sub_pos, num.unwrap_or(100.0)),
             "panscan" => set(&mut self.panscan, num.unwrap_or(0.0)),
             "speed" => set(&mut self.speed, num.unwrap_or(1.0)),
             "chapter" => set(&mut self.chapter, num.map_or(-1, |n| n as i64)),

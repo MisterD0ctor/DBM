@@ -3008,6 +3008,36 @@ export component MainWindow inherits Window {
 
     property <length> pills-y: root.height - root.panel-margin - root.pill-h;
     out property <length> timeline-y: root.pills-y - root.pill-gap - root.timeline-h;
+
+    /// The highest a subtitle may rest while the bar is up, in mpv's own
+    /// `sub-pos` — percent of the window's height, from the top. At this
+    /// value a line keeps mpv's bottom margin above the timeline: the same
+    /// air it keeps above the window's edge when nothing is in the way, so
+    /// the bar arriving reads as the floor rising rather than the line being
+    /// shoved. The Rust side takes the lower of this and the person's own
+    /// Position — see `subline`.
+    out property <float> subtitle-ceiling: 100 * root.timeline-y / root.height;
+    /// How much of that applies this frame. The bar's own fade, on the bar's
+    /// own trigger, so the line climbs as the bar arrives and settles as it
+    /// goes rather than leaping when either starts.
+    ///
+    /// Except while the Position is being set. Then the stepper has to move
+    /// what the person is looking at: held at the ceiling, the line would not
+    /// stir for the first few steps upward from the default, nor for any step
+    /// down into the letterbox, and the one place the Position is set would
+    /// be the one place it cannot be seen. So from the first press of
+    /// Position the line goes down to where it rests, and it comes back up
+    /// when Timing or Size is pressed or the page is left — those two are set
+    /// by reading the line, which is what lifting it is for.
+    out property <float> subtitle-lift: root.controls-visible && root.has-file
+        && !(root.placing-subtitles && root.settings-open
+            && root.settings-page == 3) ? 1.0 : 0.0;
+    /// Whether Position was the last of the page's three adjustments used.
+    property <bool> placing-subtitles: false;
+    animate subtitle-lift {
+        duration: root.fade;
+        easing: ease-out;
+    }
     /// Centred in the window, until centring it would bring it closer to the
     /// right pill than the gap — below 1060px, where half the transport's
     /// 232px meets the right pill's 380px. From there it holds the gap and
@@ -3712,6 +3742,7 @@ export component MainWindow inherits Window {
     changed settings-page => {
         root.reset-armed = 0;
         root.reset-undoable = 0;
+        root.placing-subtitles = false;
         // Only on the way in. Going back leaves this where it is, which is
         // what keeps the departing page drawn while it slides out.
         if (root.settings-page != 0) {
@@ -3722,6 +3753,25 @@ export component MainWindow inherits Window {
     changed settings-open => {
         root.reset-armed = 0;
         root.reset-undoable = 0;
+        root.placing-subtitles = false;
+    }
+
+    /// The subtitles page's three adjustments, as its rows and its keys both
+    /// make them. Position lets the line down to where it rests while it is
+    /// being set; the other two lift it back up — see `subtitle-lift`.
+    function step-sub-delay(dir: float) {
+        root.placing-subtitles = false;
+        root.nudge-sub-delay(dir * root.delay-step);
+    }
+
+    function step-sub-scale(dir: float) {
+        root.placing-subtitles = false;
+        root.nudge-sub-scale(dir * root.sub-scale-step);
+    }
+
+    function step-sub-pos(dir: float) {
+        root.placing-subtitles = true;
+        root.nudge-sub-pos(dir * root.sub-pos-step);
     }
 
     /// Left and right, but only where the row under the ring is something
@@ -3747,15 +3797,15 @@ export component MainWindow inherits Window {
         }
         if (root.settings-page == 3) {
             if (root.focus-row == 1) {
-                root.nudge-sub-delay(delta * root.delay-step);
+                root.step-sub-delay(delta);
                 return true;
             }
             if (root.focus-row == 2) {
-                root.nudge-sub-scale(delta * root.sub-scale-step);
+                root.step-sub-scale(delta);
                 return true;
             }
             if (root.focus-row == 3) {
-                root.nudge-sub-pos(delta * root.sub-pos-step);
+                root.step-sub-pos(delta);
                 return true;
             }
         }
@@ -4919,7 +4969,7 @@ export component MainWindow inherits Window {
                         focused: root.focus-row == 1;
                         value: root.sub-delay-text;
                         stepped(dir) => {
-                            root.nudge-sub-delay(dir * root.delay-step);
+                            root.step-sub-delay(dir);
                         }
                     }
                     StepperRow {
@@ -4928,7 +4978,7 @@ export component MainWindow inherits Window {
                         focused: root.focus-row == 2;
                         value: root.sub-scale-text;
                         stepped(dir) => {
-                            root.nudge-sub-scale(dir * root.sub-scale-step);
+                            root.step-sub-scale(dir);
                         }
                     }
                     StepperRow {
@@ -4937,7 +4987,7 @@ export component MainWindow inherits Window {
                         focused: root.focus-row == 3;
                         value: root.sub-pos-text;
                         stepped(dir) => {
-                            root.nudge-sub-pos(dir * root.sub-pos-step);
+                            root.step-sub-pos(dir);
                         }
                     }
                     Rectangle {

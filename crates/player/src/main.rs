@@ -44,6 +44,7 @@
 //! | `dropped`     | files dragged onto the window                         |
 //! | `session`     | remembering the position and tracks of each file      |
 //! | `settings`    | the registry of tunable material parameters           |
+//! | `subline`     | where subtitles sit, clear of the bar while it is up  |
 //! | `smtc`        | the OS media overlay and the buttons on a headset     |
 //! | `mpris`       | the same two things on Linux, over D-Bus              |
 //! | `awake`       | keeping the display on while something plays          |
@@ -81,6 +82,7 @@ mod session;
 mod settings;
 mod shelf;
 mod smtc;
+mod subline;
 mod state;
 mod sync;
 mod tracks;
@@ -143,8 +145,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // defaults in `GlassParams` are now the reset target rather than the
     // source of truth.
     let saver = settings::Persister::install(params.clone(), worker.clone());
+    // Shared: `actions` moves the line when the person does, the render
+    // driver when the bar does, and both have to go through one place.
+    let subline = Rc::new(subline::Subline::new(params.clone()));
     actions::wire(
-        &ui, &mpv, &activity, &scrubber, &worker, &params, &preview, &audio,
+        &ui, &mpv, &activity, &scrubber, &worker, &params, &preview, &audio, &subline,
     );
     // Timers stop when their handle drops, so both of these are held until
     // the event loop returns.
@@ -165,6 +170,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // claimed here and now — see `mpris`.
         smtc::Controls::new(mpv.clone()),
         activity,
+        subline,
     );
     ui.window()
         .set_rendering_notifier(move |state, api| driver.on(state, api))?;

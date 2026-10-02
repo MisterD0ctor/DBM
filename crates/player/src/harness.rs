@@ -1440,14 +1440,20 @@ fn report_panels(ui: &MainWindow, label: &str) {
 fn report_subs(ui: &MainWindow, mpv: &Mpv, label: &str) {
     // Blocking reads, acceptable only because this is a one-shot diagnostic
     // step rather than the frame path.
+    // The two positions agree only while nothing lifts the line: the panel
+    // shows where the person put it, mpv holds where the bar lets it sit. The
+    // subtitles page asks for no lift, so on it they should match.
     eprintln!(
-        "dbm: {label:<20} mpv delay={:?} scale={:?} pos={:?} | panel {} {} {}",
+        "dbm: {label:<20} mpv delay={:?} scale={:?} pos={:?} | panel {} {} {} \
+         | ceiling {:.1} lift {:.2}",
         mpv.get_property("sub-delay"),
         mpv.get_property("sub-scale"),
         mpv.get_property("sub-pos"),
         ui.get_sub_delay_text(),
         ui.get_sub_scale_text(),
         ui.get_sub_pos_text(),
+        ui.get_subtitle_ceiling(),
+        ui.get_subtitle_lift(),
     );
 }
 

@@ -37,6 +37,7 @@ pub fn wire(
     params: &Rc<Store>,
     preview: &Rc<crate::preview::Preview>,
     audio: &Rc<crate::audio::Watchdog>,
+    subline: &Rc<crate::subline::Subline>,
 ) {
     push_constants(ui);
 
@@ -199,12 +200,13 @@ pub fn wire(
         // is per-file state mpv owns, and the interface already had the
         // number on screen when the reset was pressed.
         {
-            let (params, seen, models, before, mpv) = (
+            let (params, seen, models, before, mpv, subline) = (
                 params.clone(),
                 activity.clone(),
                 models.clone(),
                 before.clone(),
                 mpv.clone(),
+                subline.clone(),
             );
             ui.on_undo_reset(move |page, delay| {
                 seen.bump();
@@ -219,7 +221,7 @@ pub fn wire(
                         params.set_sub_scale(
                             commands::set_sub_scale(&mpv, was.sub_scale as f64) as f32,
                         );
-                        params.set_sub_pos(commands::set_sub_pos(&mpv, was.sub_pos as f64) as f32);
+                        subline.set(&mpv, was.sub_pos as f64);
                     }
                     _ => {}
                 }
@@ -330,16 +332,21 @@ pub fn wire(
         });
     }
     {
-        let (params, seen, mpv) = (params.clone(), activity.clone(), mpv.clone());
+        let (params, seen, mpv, subline) =
+            (params.clone(), activity.clone(), mpv.clone(), subline.clone());
         ui.on_nudge_sub_pos(move |delta| {
             seen.bump();
-            let sent = commands::set_sub_pos(&mpv, params.sub_pos() as f64 + delta as f64);
-            params.set_sub_pos(sent as f32);
+            subline.set(&mpv, params.sub_pos() as f64 + delta as f64);
         });
     }
     {
-        let (params, seen, mpv, before) =
-            (params.clone(), activity.clone(), mpv.clone(), before.clone());
+        let (params, seen, mpv, before, subline) = (
+            params.clone(),
+            activity.clone(),
+            mpv.clone(),
+            before.clone(),
+            subline.clone(),
+        );
         ui.on_reset_subtitles(move || {
             seen.bump();
             before.set(Some(params.before()));
@@ -348,7 +355,7 @@ pub fn wire(
             // "reset" on a page means the whole page.
             commands::set_sub_delay(&mpv, 0.0);
             params.set_sub_scale(commands::set_sub_scale(&mpv, commands::SUB_SCALE_DEFAULT) as f32);
-            params.set_sub_pos(commands::set_sub_pos(&mpv, commands::SUB_POS_DEFAULT) as f32);
+            subline.set(&mpv, commands::SUB_POS_DEFAULT);
         });
     }
 
@@ -356,7 +363,7 @@ pub fn wire(
     ui.set_autoplay(params.autoplay());
     commands::set_autoplay(mpv, params.autoplay());
     commands::set_sub_scale(mpv, params.sub_scale() as f64);
-    commands::set_sub_pos(mpv, params.sub_pos() as f64);
+    subline.set(mpv, params.sub_pos() as f64);
 
     wire_video_clicks(ui, mpv, activity);
     wire_fullscreen(ui);

@@ -300,8 +300,12 @@ pub const SUB_POS_DEFAULT: f64 = 100.0;
 ///
 /// The clamp has to happen somewhere, and here is the only place that knows
 /// both the range and that mpv is about to be told. Returning the value lets
-/// the caller record the same number that was sent, so a saved setting can
+/// the caller record the same number that was sent, so a saved size can
 /// never drift from what the player is doing.
+///
+/// Placement is the exception, on purpose. It is only ever sent by
+/// `subline`, which saves where the person put the line and sends where the
+/// bar lets it sit — two numbers that differ for as long as the bar is up.
 pub fn set_sub_scale(mpv: &Mpv, value: f64) -> f64 {
     let value = value.clamp(SUB_SCALE_MIN, SUB_SCALE_MAX);
     set_prop(mpv, "sub-scale", &fmt(value));

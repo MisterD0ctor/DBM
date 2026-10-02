@@ -526,6 +526,19 @@ a folder on a share is still being read. The open is over when mpv finishes
 opening the new file — not when there is a file, which over a film already
 playing was true at once and cleared the line before it was ever drawn.
 
+**The Bar Is A Floor.** While the bar is up, subtitles rest above it. The line
+keeps its own place — the Position on the subtitles page — and rises only as
+far as it must: to sit mpv's own bottom margin above the timeline, the same air
+it keeps above the window's edge when nothing is in the way. It climbs on the
+bar's own fade and settles as the bar goes. A line already above the timeline
+does not move, and one resting in the letterbox comes all the way up. The case
+that made this necessary is pausing to read a line, which holds the bar up over
+exactly that line. The one exception is setting the Position: from its first
+press the line goes down to where it rests, so the stepper moves what is being
+looked at, and it comes back up when Timing or Size is pressed or the page is
+left — those two are set by reading the line. The readout always shows where
+the line was put, never where the bar has moved it.
+
 **The Gap Goes Above Rule.** The 16px group gap always sits above the thing that
 starts something new, never below the thing that ended — above a section
 heading, above a trailing reset. Split evenly, or left out, a heading sits the

@@ -137,6 +137,8 @@ pub struct Driver {
     /// When a hand was last on the controls — see
     /// `keep_the_interface_moving`, the only thing that reads it here.
     activity: crate::chrome::Activity,
+    /// Where subtitles sit — told every frame where the bar is.
+    subline: Rc<crate::subline::Subline>,
     diag: diagnostics::Probe,
     /// A picture of a finished frame, when one is asked for.
     capture: diagnostics::Capture,
@@ -154,6 +156,7 @@ impl Driver {
         audio: Rc<crate::audio::Watchdog>,
         smtc: crate::smtc::Controls,
         activity: crate::chrome::Activity,
+        subline: Rc<crate::subline::Subline>,
     ) -> Self {
         Self {
             ui,
@@ -182,6 +185,7 @@ impl Driver {
             smtc,
             awake: crate::awake::Awake::default(),
             activity,
+            subline,
             diag: diagnostics::Probe::new(),
             capture: diagnostics::Capture::new(),
         }
@@ -411,6 +415,16 @@ impl Driver {
         // update itself is skipped unless something changed.
         self.smtc.publish(ui.window(), &self.player, moved);
         self.awake.follow(&self.player);
+        // Two reads and a comparison while the bar is still; a command a
+        // frame only while it fades. See `subline`.
+        self.subline.follow(
+            &self.mpv,
+            ui.get_subtitle_ceiling() as f64,
+            ui.get_subtitle_lift() as f64,
+        );
+        if let Some(own) = self.subline.readout() {
+            ui.set_sub_pos_text(format!("{own:.0}%").into());
+        }
         for id in std::mem::take(&mut self.replies) {
             match id {
                 commands::REPLY_SCRUB => self.scrubber.on_reply(&self.mpv),
