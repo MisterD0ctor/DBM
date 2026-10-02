@@ -2254,9 +2254,6 @@ export component MainWindow inherits Window {
     /// tile arithmetic both live on the Rust side, where they are testable
     /// and where the one copy of each already is.
     callback preview-at(float);
-    /// A finished thumbnail atlas: path, tile width, tile height, grid. Comes
-    /// from the thread that built it, by way of the event loop.
-    callback preview-ready(string, int, int, int);
     callback nudge-volume(float);
     callback nudge-sub-delay(float);
     callback nudge-sub-scale(float);

@@ -27,6 +27,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::worker::{Completion, Reporter};
+
 /// Tiles across and down. 64 frames is roughly one per two minutes of a
 /// feature — close enough to land on the right scene, cheap enough to build
 /// while the film is starting.
@@ -75,27 +77,17 @@ fn current(generation: u64) -> bool {
     GENERATION.load(Ordering::SeqCst) == generation
 }
 
-/// Build the atlas for one video off the UI thread, and hand it back through
-/// the event loop when it is ready.
+/// Build the atlas for one video off the UI thread, and report it like any
+/// other background result when it is ready.
 ///
 /// Returns immediately. A build that produces nothing says nothing: see
 /// [`build`] for why that is the ordinary case rather than an error.
-pub fn spawn(video: PathBuf, ui: slint::Weak<crate::MainWindow>) {
+pub fn spawn(video: PathBuf, reporter: Reporter) {
     let generation = supersede();
     std::thread::spawn(move || {
-        let Some(sprite) = build(&video, generation) else {
-            return;
-        };
-        let _ = slint::invoke_from_event_loop(move || {
-            if let Some(ui) = ui.upgrade() {
-                ui.invoke_preview_ready(
-                    sprite.path.to_string_lossy().as_ref().into(),
-                    sprite.tile_w as i32,
-                    sprite.tile_h as i32,
-                    sprite.grid as i32,
-                );
-            }
-        });
+        if let Some(sprite) = build(&video, generation) {
+            reporter.send(Completion::Preview(sprite));
+        }
     });
 }
 

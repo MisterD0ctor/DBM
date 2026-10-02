@@ -511,7 +511,7 @@ impl Driver {
         ui.set_preview_tile_w(0);
         ui.set_preview_tile_h(0);
 
-        crate::library::preview::spawn(path, self.ui.clone());
+        crate::library::preview::spawn(path, self.app.worker.reporter());
     }
 
     /// Look for the way on at the end of the last file, once per file — or in

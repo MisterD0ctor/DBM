@@ -15,7 +15,6 @@ use slint::ComponentHandle;
 
 use crate::app::App;
 use crate::interface::sliders;
-use crate::library::preview::Sprite;
 use crate::platform::dialog;
 use crate::playback::commands;
 use crate::settings::{Before, Section, REGISTRY};
@@ -139,34 +138,6 @@ fn wire_timeline(ui: &MainWindow, app: &App) {
             // drag.
             let paused = weak.upgrade().is_some_and(|ui| ui.get_paused());
             app.scrubber.drag_to(&app.mpv, f, paused);
-        });
-    }
-    // Delivery of a finished atlas, from the thread that built it.
-    {
-        let (app, weak) = (app.clone(), ui.as_weak());
-        ui.on_preview_ready(move |path, tile_w, tile_h, grid| {
-            let Some(ui) = weak.upgrade() else { return };
-            let path = std::path::PathBuf::from(path.as_str());
-            match slint::Image::load_from_path(&path) {
-                Ok(image) => {
-                    eprintln!("dbm: preview atlas {grid}x{grid} tiles of {tile_w}x{tile_h}");
-                    ui.set_preview_sprite(image);
-                    ui.set_preview_tile_w(tile_w);
-                    ui.set_preview_tile_h(tile_h);
-                    app.preview.set_sprite(Some(Sprite {
-                        path,
-                        tile_w: tile_w as u32,
-                        tile_h: tile_h as u32,
-                        grid: grid as u32,
-                    }));
-                    // The pointer may already be on the timeline, in which
-                    // case it is showing a timestamp and an empty frame.
-                    let (_, x, y) = app.preview.again();
-                    ui.set_preview_clip_x(x);
-                    ui.set_preview_clip_y(y);
-                }
-                Err(e) => eprintln!("dbm: preview atlas unreadable: {e:?}"),
-            }
         });
     }
     // Answered from what is already known — the duration and the atlas —
