@@ -4,19 +4,23 @@
 //! Slint's own context during `RenderingSetup` / `BeforeRendering` /
 //! `AfterRendering`. Everything else in the app is free of graphics concerns.
 //!
-//! The per-frame order matters and is not arbitrary:
+//! The per-frame order matters and is not arbitrary — see [`Driver::frame`]:
 //!
-//!   1. install the modal-loop hook if it is not up yet
-//!   2. drain mpv events into the mirrored state
-//!   3. push state and lists to the UI
-//!   4. read panel geometry back out of the UI
-//!   5. run the pipeline, which needs (4) to know where the glass goes
-//!   6. publish the finished texture
+//!   1. install the window hooks that are not up yet
+//!   2. drain mpv's events into the mirrored state, and push what moved
+//!   3. bring what follows the player up to date: media keys, wake lock,
+//!      the subtitle line
+//!   4. ask for background work, and take delivery of what finished — see
+//!      `completions`
+//!   5. read panel geometry back out of the UI
+//!   6. run the pipeline, which needs (5) to know where the glass goes, and
+//!      publish the finished texture
 //!
-//! Steps 3 and 4 straddle the UI deliberately: the panel rectangles depend on
+//! Steps 2 and 5 straddle the UI deliberately: the panel rectangles depend on
 //! layout that depends on the state just pushed, and reading them in the same
 //! frame is what stops the glass lagging a frame behind its widget.
 
+mod completions;
 mod events;
 
 use std::num::NonZeroU32;
@@ -36,7 +40,7 @@ use crate::platform::modal_loop;
 use crate::playback::commands;
 use crate::playback::mpv::{self, Mpv};
 use crate::playback::state::PlayerState;
-use crate::worker::{Completion, Worker};
+use crate::worker::Completion;
 use crate::{diagnostics, MainWindow};
 
 /// Identity of what a Slint image property points at: texture id, active
@@ -115,8 +119,8 @@ pub struct Driver {
     neighbours: crate::library::shelf::Neighbours,
     /// Last seen state of the playlist panel, so its opening can be noticed.
     playlist_open: bool,
-    /// The file the next season was last looked for on behalf of.
-    season_asked: Option<String>,
+    /// The file the way on was last looked for on behalf of.
+    onward_asked: Option<String>,
     /// Reply ids seen this frame, routed below. Reused to avoid allocating
     /// on the frame path.
     replies: Vec<u64>,
@@ -156,7 +160,7 @@ impl Driver {
             scan: crate::library::probe::Scan::default(),
             neighbours: crate::library::shelf::Neighbours::default(),
             playlist_open: false,
-            season_asked: None,
+            onward_asked: None,
             replies: Vec::new(),
             notices: Vec::new(),
             pending_start: None,
@@ -343,14 +347,40 @@ impl Driver {
         })
     }
 
+    /// One frame, in the order the module doc gives.
+    ///
+    /// The GPU state is taken out of the driver for the length of it and put
+    /// back at the end, so each step can borrow the rest of the driver freely
+    /// while the pipeline is held.
     fn frame(&mut self) {
-        let (Some(gpu), Some(ui)) = (self.gpu.as_mut(), self.ui.upgrade()) else {
+        let Some(ui) = self.ui.upgrade() else {
+            return;
+        };
+        let Some(mut gpu) = self.gpu.take() else {
             return;
         };
         self.modal.poll(&ui);
         self.drops.poll(&ui);
 
         let t = self.diag.begin();
+        let moved = self.take_events(&ui);
+        self.follow(&ui, moved);
+        let t = self.diag.mark_events(t);
+
+        self.background(&ui, &mut gpu);
+        let t = self.diag.mark_lists(t);
+
+        glass::collect(&ui, &mut self.panels);
+        let t = self.diag.mark_panels(t);
+        self.diag.panels_changed(&self.panels);
+
+        self.draw(&ui, &mut gpu, t);
+        self.gpu = Some(gpu);
+    }
+
+    /// Drain mpv's events into the mirrored state, and push out what moved.
+    /// Returns whether any of it did.
+    fn take_events(&mut self, ui: &MainWindow) -> bool {
         let moved = events::drain(
             &self.app.mpv,
             &mut self.player,
@@ -361,7 +391,7 @@ impl Driver {
         // A failure marks its playlist row, which the list otherwise only
         // hears about on the next read.
         if !self.notices.is_empty() {
-            playlist_panel::push(&ui, &self.player);
+            playlist_panel::push(ui, &self.player);
         }
         for notice in std::mem::take(&mut self.notices) {
             // A notice means something concluded, which is the backstop for
@@ -370,10 +400,10 @@ impl Driver {
             // turns true, so without this the line would say "Opening…"
             // until the next successful one.
             ui.set_opening(false);
-            say(&ui, notice);
+            say(ui, notice);
         }
         if moved {
-            sync::push_scalars(&ui, &self.player);
+            sync::push_scalars(ui, &self.player);
         }
         // An open is over when mpv finishes opening a file — not when it has
         // one. This used to ask the second question, and with a film already
@@ -386,21 +416,6 @@ impl Driver {
         if self.player.loads != self.loads_seen {
             self.loads_seen = self.player.loads;
             ui.set_opening(false);
-        }
-        // Every frame, not only the ones that moved: registration needs a
-        // window handle that does not exist yet on the first of them, and the
-        // update itself is skipped unless something changed.
-        self.smtc.publish(ui.window(), &self.player, moved);
-        self.awake.follow(&self.player);
-        // Two reads and a comparison while the bar is still; a command a
-        // frame only while it fades. See `subline`.
-        self.app.subline.follow(
-            &self.app.mpv,
-            ui.get_subtitle_ceiling() as f64,
-            ui.get_subtitle_lift() as f64,
-        );
-        if let Some(own) = self.app.subline.readout() {
-            ui.set_sub_pos_text(format::position(own).into());
         }
         for id in std::mem::take(&mut self.replies) {
             match id {
@@ -416,10 +431,32 @@ impl Driver {
                 _ => {}
             }
         }
-        let t = self.diag.mark_events(t);
+        moved
+    }
 
-        // Ask for a list read if they moved, and take delivery of any that
-        // finished. Both are cheap; the reading itself is on the worker.
+    /// Bring everything that follows the player up to date with it: the OS
+    /// media controls, the display's wake lock, and the subtitle line.
+    fn follow(&mut self, ui: &MainWindow, moved: bool) {
+        // Every frame, not only the ones that moved: registration needs a
+        // window handle that does not exist yet on the first of them, and the
+        // update itself is skipped unless something changed.
+        self.smtc.publish(ui.window(), &self.player, moved);
+        self.awake.follow(&self.player);
+        // Two reads and a comparison while the bar is still; a command a
+        // frame only while it fades. See `subline`.
+        self.app.subline.follow(
+            &self.app.mpv,
+            ui.get_subtitle_ceiling() as f64,
+            ui.get_subtitle_lift() as f64,
+        );
+        if let Some(own) = self.app.subline.readout() {
+            ui.set_sub_pos_text(format::position(own).into());
+        }
+    }
+
+    /// Ask for the background work the player's state calls for, and take
+    /// delivery of whatever finished.
+    fn background(&mut self, ui: &MainWindow, gpu: &mut Gpu) {
         // Opening the playlist is the cue to go and look at the resume
         // positions again: they are written to disk behind our back, and this
         // is the moment somebody cares what they say.
@@ -430,135 +467,80 @@ impl Driver {
         }
         self.playlist_open = open;
 
+        // Each of these asks only when what it follows has moved; the work
+        // itself is on the worker.
         self.lists.poll(&self.app.worker, &self.player);
         self.durations.poll(&self.app.worker, &self.player);
-        poll_preview(&self.app.preview, &self.player, &self.ui, &ui);
+        self.poll_preview(ui);
+
         // Several probe results can land in one drain, and seasons found
         // beside the list with them; the playlist is rebuilt once for all.
-        let mut probed = false;
-        for completion in self.app.worker.drain() {
-            match completion {
-                Completion::Lists(lists) => {
-                    self.lists.apply(&ui, &mut self.player, lists);
-                    // Here because this is where the playlist's paths become
-                    // known. The scan compares them with the last request and
-                    // does nothing when only the tracks moved.
-                    let paths: Vec<String> = self
-                        .player
-                        .playlist
-                        .iter()
-                        .map(|e| e.filename.clone())
-                        .collect();
-                    self.scan.request(&paths, &self.app.worker);
-                    if self.neighbours.request(&paths, &self.app.worker)
-                        && !self.player.beside.is_empty()
-                    {
-                        self.player.beside.clear();
-                        probed = true;
-                    }
-                }
-                Completion::Opened(Ok(list)) => {
-                    eprintln!(
-                        "dbm: opened {} file(s), starting at {}",
-                        list.count, list.start
-                    );
-                    self.pending_start = Some(list.start);
-                    commands::load_list(&self.app.mpv, &list.m3u, list.start);
-                }
-                Completion::Opened(Err(e)) => {
-                    eprintln!("dbm: cannot open: {e}");
-                    // Nothing was found to load, so no file is coming.
-                    ui.set_opening(false);
-                    say(&ui, e);
-                }
-                Completion::Notice(text) => say(&ui, text),
-                Completion::Probed(found) => probed |= self.player.apply_probed(found),
-                Completion::Beside { paths, seasons } => {
-                    let playing = self.player.playlist.iter().map(|e| e.filename.as_str());
-                    if playing.eq(paths.iter().map(String::as_str)) && self.player.beside != seasons
-                    {
-                        self.player.beside = seasons;
-                        probed = true;
-                    }
-                }
-                Completion::Resume(Some(resume)) => {
-                    eprintln!(
-                        "dbm: last unfinished {} at {:.0}%{}",
-                        resume.path,
-                        resume.fraction * 100.0,
-                        if resume.still.is_some() {
-                            ", with a frame"
-                        } else {
-                            ""
-                        }
-                    );
-                    ui.set_resume_path(resume.path.into());
-                    ui.set_resume_show(resume.show.unwrap_or_default().into());
-                    ui.set_resume_title(resume.title.into());
-                    ui.set_resume_progress(resume.fraction);
-                    ui.set_resume_left(format::left(resume.seconds_left).into());
-                    if let Some(still) = &resume.still {
-                        gpu.pipeline.set_backdrop(&gpu.gl, still);
-                        // The interface needs to know, because with no
-                        // backdrop and no film there is no picture for the
-                        // way in's glass to bend and it gives itself a
-                        // ground instead. Set only where one was actually
-                        // drawn.
-                        ui.set_backdrop(true);
-                    } else {
-                        light_with_the_mark(&self.app.worker);
-                    }
-                }
-                // Nothing to continue, which on a fresh install is every
-                // time: the window is lit by the player's own mark instead.
-                Completion::Resume(None) => light_with_the_mark(&self.app.worker),
-                Completion::Mark(still) => {
-                    gpu.pipeline.set_backdrop(&gpu.gl, &still);
-                    ui.set_backdrop(true);
-                }
-                Completion::Onward { from, to } => {
-                    if self.player.path.as_deref() == Some(from.as_str()) {
-                        if let Some(onward) = to {
-                            ui.set_onward_path(onward.path.as_str().into());
-                            ui.set_onward_label(onward.label.as_str().into());
-                            ui.set_onward_season(onward.season);
-                        }
-                    }
-                }
-            }
+        // The worker's own handle, so the drain does not hold the driver
+        // borrowed while each result is taken in.
+        let worker = self.app.worker.clone();
+        let mut playlist_moved = false;
+        for completion in worker.drain() {
+            playlist_moved |= self.receive(ui, gpu, completion);
         }
-        if probed {
-            playlist_panel::push(&ui, &self.player);
+        if playlist_moved {
+            playlist_panel::push(ui, &self.player);
         }
 
-        // The end of the last file is the moment to look for the way on,
-        // once per file — or its closing credits, where the credits pill makes
-        // the same offer before the file is over. The offer belongs to the
-        // file that asked for it, so a new one takes it back down.
+        self.look_onward(ui);
+    }
+
+    /// Ask for a thumbnail atlas when the playing file changes.
+    ///
+    /// Driven off the mirrored `path` rather than off opening a playlist: what
+    /// wants thumbnails is whatever is on screen now, and that changes at the
+    /// end of every file as well as when someone picks one.
+    fn poll_preview(&self, ui: &MainWindow) {
+        let preview = &self.app.preview;
+        preview.set_duration(self.player.duration);
+        let Some(path) = self.player.path.as_deref() else {
+            return;
+        };
+        let path = std::path::PathBuf::from(path);
+        if !preview.claim(&path) {
+            return;
+        }
+        // The old atlas belongs to the old file. Cleared now rather than left
+        // under the pointer showing the previous film for however long the new
+        // one takes to build.
+        preview.set_sprite(None);
+        ui.set_preview_tile_w(0);
+        ui.set_preview_tile_h(0);
+
+        crate::library::preview::spawn(path, self.ui.clone());
+    }
+
+    /// Look for the way on at the end of the last file, once per file — or in
+    /// its closing credits, where the credits pill makes the same offer before
+    /// the file is over. The offer belongs to the file that asked for it, so
+    /// a new one takes it back down.
+    fn look_onward(&mut self, ui: &MainWindow) {
         let ending = (self.player.eof_reached || self.player.credits_rolling())
             && self.player.playlist_pos + 1 >= self.player.playlist_count;
-        if self.player.path != self.season_asked {
-            if self.season_asked.take().is_some() {
-                ui.set_onward_path("".into());
-                ui.set_onward_label("".into());
-                ui.set_onward_season(false);
-            }
+        if self.player.path != self.onward_asked && self.onward_asked.take().is_some() {
+            ui.set_onward_path("".into());
+            ui.set_onward_label("".into());
+            ui.set_onward_season(false);
         }
-        if ending && self.season_asked.is_none() {
-            if let Some(path) = self.player.path.clone() {
-                self.season_asked = Some(path.clone());
-                self.app.worker.submit(move |_mpv| {
-                    let to = crate::library::onward::after(&path);
-                    Some(Completion::Onward { from: path, to })
-                });
-            }
+        if !ending || self.onward_asked.is_some() {
+            return;
         }
-        let t = self.diag.mark_lists(t);
+        let Some(path) = self.player.path.clone() else {
+            return;
+        };
+        self.onward_asked = Some(path.clone());
+        self.app.worker.submit(move |_mpv| {
+            let to = crate::library::onward::after(&path);
+            Some(Completion::Onward { from: path, to })
+        });
+    }
 
-        glass::collect(&ui, &mut self.panels);
-        let t = self.diag.mark_panels(t);
-        self.diag.panels_changed(&self.panels);
-
+    /// Run the pipeline and hand Slint the result.
+    fn draw(&mut self, ui: &MainWindow, gpu: &mut Gpu, t: std::time::Instant) {
         // Material parameters, if a slider moved. Coalesced in the store,
         // so a drag costs one update per frame however fast it moves.
         let mut params_dirty = false;
@@ -656,46 +638,4 @@ fn publish(
             .build();
     set(image, uw as i32, uh as i32);
     *slot = Some(key);
-}
-
-/// Ask for a thumbnail atlas when the playing file changes.
-///
-/// Driven off the mirrored `path` rather than off opening a playlist: what
-/// wants thumbnails is whatever is on screen now, and that changes at the end
-/// of every file as well as when someone picks one.
-///
-/// A free function rather than a method for the same reason `ListSync::poll`
-/// takes its inputs: the frame body holds `gpu` mutably throughout, and
-/// anything taking `&self` would borrow the whole driver a second time.
-fn poll_preview(
-    preview: &crate::library::preview::Preview,
-    player: &PlayerState,
-    weak: &slint::Weak<MainWindow>,
-    ui: &MainWindow,
-) {
-    preview.set_duration(player.duration);
-    let Some(path) = player.path.as_deref() else {
-        return;
-    };
-    let path = std::path::PathBuf::from(path);
-    if !preview.claim(&path) {
-        return;
-    }
-    // The old atlas belongs to the old file. Cleared now rather than left
-    // under the pointer showing the previous film for however long the new
-    // one takes to build.
-    preview.set_sprite(None);
-    ui.set_preview_tile_w(0);
-    ui.set_preview_tile_h(0);
-
-    crate::library::preview::spawn(path, weak.clone());
-}
-
-/// Draw the mark for the backdrop, on the worker.
-///
-/// Parsing an SVG and rasterising it is a millisecond of arithmetic rather
-/// than a wait, but the frame path's rule is that nothing it does can stall,
-/// and the cheapest way to keep a rule is not to argue about its edges.
-fn light_with_the_mark(worker: &Worker) {
-    worker.submit(|_mpv| crate::gpu::mark::still().map(Completion::Mark));
 }
