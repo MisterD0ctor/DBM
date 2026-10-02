@@ -43,40 +43,27 @@ const SUBCLASS_ID: usize = 0x00DB_3003;
 static TARGET: std::sync::Mutex<Option<slint::Weak<crate::MainWindow>>> =
     std::sync::Mutex::new(None);
 
-/// Installs the hook, retrying until the window exists.
-///
-/// Same shape as the modal-loop hook and for the same reason: there is no
-/// window handle until the window manager has made the window, which is after
-/// the event loop has turned at least once.
+/// Installs the hook, retrying from the frame path until the window exists —
+/// see [`UntilWindow`](crate::platform::window::UntilWindow).
 #[cfg(windows)]
 #[derive(Default)]
 pub struct Accepting {
-    done: bool,
-    attempts: u32,
+    until: crate::platform::window::UntilWindow,
 }
 
 #[cfg(windows)]
 impl Accepting {
-    const GIVE_UP_AFTER: u32 = 120;
-
     pub fn poll(&mut self, ui: &crate::MainWindow) {
-        if self.done {
-            return;
-        }
-        match accept(ui) {
-            Ok(()) => {
-                self.done = true;
+        use crate::platform::window::Attempt;
+
+        match self.until.poll(|| accept(ui)) {
+            Attempt::Took(()) => {
                 if std::env::var_os("DBM_TRACE").is_some() {
                     eprintln!("dbm: accepting dropped files");
                 }
             }
-            Err(e) => {
-                self.attempts += 1;
-                if self.attempts == Self::GIVE_UP_AFTER {
-                    self.done = true;
-                    eprintln!("dbm: cannot accept dropped files ({e})");
-                }
-            }
+            Attempt::GaveUp(e) => eprintln!("dbm: cannot accept dropped files ({e})"),
+            Attempt::Waiting => {}
         }
     }
 }
@@ -87,7 +74,7 @@ fn accept(ui: &crate::MainWindow) -> Result<(), String> {
     use windows::Win32::System::Ole::RevokeDragDrop;
     use windows::Win32::UI::Shell::{DragAcceptFiles, SetWindowSubclass};
 
-    let hwnd = hwnd_of(ui.window())?;
+    let hwnd = crate::platform::window::hwnd(ui.window())?;
 
     // winit's own drop target, which would otherwise swallow every drop into
     // an event Slint never delivers. An error here means there was none to
@@ -103,22 +90,6 @@ fn accept(ui: &crate::MainWindow) -> Result<(), String> {
     }
     *TARGET.lock().unwrap() = Some(ui.as_weak());
     Ok(())
-}
-
-#[cfg(windows)]
-fn hwnd_of(window: &slint::Window) -> Result<windows::Win32::Foundation::HWND, String> {
-    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-
-    let provider = window.window_handle();
-    let handle = provider
-        .window_handle()
-        .map_err(|e| format!("no window handle yet: {e}"))?;
-    let RawWindowHandle::Win32(win32) = handle.as_raw() else {
-        return Err("window handle is not Win32".into());
-    };
-    Ok(windows::Win32::Foundation::HWND(
-        win32.hwnd.get() as *mut core::ffi::c_void
-    ))
 }
 
 #[cfg(windows)]
@@ -230,7 +201,7 @@ pub fn post_test_drop(ui: &crate::MainWindow, path: &str) -> Result<(), String> 
         wide: i32,
     }
 
-    let hwnd = hwnd_of(ui.window())?;
+    let hwnd = crate::platform::window::hwnd(ui.window())?;
     let mut wide: Vec<u16> = path.encode_utf16().collect();
     // One terminator for the string, one for the list.
     wide.push(0);

@@ -25,6 +25,8 @@
 //! owned a separate HWND and presented from its own thread, entirely
 //! independent of this thread's message pump.
 
+use crate::platform::window::{Attempt, UntilWindow};
+
 /// Interval between forced repaints while the modal loop owns the thread.
 /// ~8ms keeps a 60fps source smooth without spinning harder than the display.
 #[cfg(windows)]
@@ -47,24 +49,45 @@ static TRACE: AtomicBool = AtomicBool::new(false);
 #[cfg(windows)]
 static TICKS: AtomicU64 = AtomicU64::new(0);
 
-/// Install the hook. The window handle is only available once the window
-/// manager has actually created the window, which Slint documents as being
-/// after at least one turn of the event loop — so this is expected to fail on
-/// the first attempts and should be retried until it succeeds.
+/// Installs the hook, retrying from the frame path until the window exists —
+/// see [`UntilWindow`]. `DBM_NO_MODAL_HOOK` leaves it out, to see what
+/// happens without it.
+pub struct Hook {
+    until: UntilWindow,
+}
+
+impl Hook {
+    pub fn new() -> Self {
+        Self {
+            until: if std::env::var_os("DBM_NO_MODAL_HOOK").is_some() {
+                UntilWindow::never()
+            } else {
+                UntilWindow::new()
+            },
+        }
+    }
+
+    pub fn poll(&mut self, window: &slint::Window) {
+        if let Attempt::GaveUp(e) = self.until.poll(|| keep_rendering_during_modal_loop(window)) {
+            eprintln!(
+                "dbm: modal-loop hook unavailable ({e}); holding a window edge will stall rendering"
+            );
+        }
+    }
+}
+
+impl Default for Hook {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Subclass the window, so its modal loop can be turned into paints.
 #[cfg(windows)]
-pub fn keep_rendering_during_modal_loop(window: &slint::Window) -> Result<(), String> {
-    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-    use windows::Win32::Foundation::HWND;
+fn keep_rendering_during_modal_loop(window: &slint::Window) -> Result<(), String> {
     use windows::Win32::UI::Shell::SetWindowSubclass;
 
-    let provider = window.window_handle();
-    let handle = provider
-        .window_handle()
-        .map_err(|e| format!("no window handle yet: {e}"))?;
-    let RawWindowHandle::Win32(win32) = handle.as_raw() else {
-        return Err("window handle is not Win32".into());
-    };
-    let hwnd = HWND(win32.hwnd.get() as *mut core::ffi::c_void);
+    let hwnd = crate::platform::window::hwnd(window)?;
     TRACE.store(std::env::var_os("DBM_TRACE").is_some(), Ordering::Relaxed);
 
     if unsafe { SetWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID, 0) }.as_bool() {
@@ -135,18 +158,12 @@ unsafe extern "system" fn subclass_proc(
 /// thing froze.
 #[cfg(windows)]
 pub fn enter_modal_size_loop_for_test(window: &slint::Window) {
-    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-    use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
+    use windows::Win32::Foundation::{LPARAM, WPARAM};
     use windows::Win32::UI::WindowsAndMessaging::{PostMessageW, SC_SIZE, WM_SYSCOMMAND};
 
-    let provider = window.window_handle();
-    let Ok(handle) = provider.window_handle() else {
+    let Ok(hwnd) = crate::platform::window::hwnd(window) else {
         return;
     };
-    let RawWindowHandle::Win32(win32) = handle.as_raw() else {
-        return;
-    };
-    let hwnd = HWND(win32.hwnd.get() as *mut core::ffi::c_void);
     let _ = unsafe {
         PostMessageW(
             Some(hwnd),
@@ -161,7 +178,7 @@ pub fn enter_modal_size_loop_for_test(window: &slint::Window) {
 pub fn enter_modal_size_loop_for_test(_window: &slint::Window) {}
 
 #[cfg(not(windows))]
-pub fn keep_rendering_during_modal_loop(_window: &slint::Window) -> Result<(), String> {
+fn keep_rendering_during_modal_loop(_window: &slint::Window) -> Result<(), String> {
     // X11/Wayland have no equivalent: resizing is handled through the normal
     // event stream, so the loop is never taken away from us.
     Ok(())

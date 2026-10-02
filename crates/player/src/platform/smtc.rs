@@ -69,12 +69,9 @@ mod windows_impl {
         MediaPlaybackStatus, MediaPlaybackType, SystemMediaTransportControls,
         SystemMediaTransportControlsButton, SystemMediaTransportControlsButtonPressedEventArgs,
     };
-    use windows::Win32::Foundation::HWND;
     use windows::Win32::System::WinRT::ISystemMediaTransportControlsInterop;
 
-    /// Attempts before the window handle is declared hopeless. Same budget as
-    /// the modal-loop hook: a couple of seconds of frames.
-    const GIVE_UP_AFTER: u32 = 120;
+    use crate::platform::window::{Attempt, UntilWindow};
 
     pub struct Controls {
         state: RefCell<State>,
@@ -82,7 +79,7 @@ mod windows_impl {
 
     enum State {
         /// Waiting for a window handle to register against.
-        Pending { mpv: Arc<Mpv>, attempts: u32 },
+        Pending { mpv: Arc<Mpv>, until: UntilWindow },
         Live {
             controls: SystemMediaTransportControls,
             shown: Option<Shown>,
@@ -95,7 +92,10 @@ mod windows_impl {
     impl Controls {
         pub fn new(mpv: Arc<Mpv>) -> Self {
             Self {
-                state: RefCell::new(State::Pending { mpv, attempts: 0 }),
+                state: RefCell::new(State::Pending {
+                    mpv,
+                    until: UntilWindow::new(),
+                }),
             }
         }
 
@@ -109,26 +109,24 @@ mod windows_impl {
         /// an answer that changes a few times an hour.
         pub fn publish(&self, window: &slint::Window, player: &PlayerState, moved: bool) {
             let mut state = self.state.borrow_mut();
-            if let State::Pending { mpv, attempts } = &mut *state {
-                match register(window, mpv.clone()) {
-                    Ok(controls) => {
+            if let State::Pending { mpv, until } = &mut *state {
+                match until.poll(|| register(window, mpv.clone())) {
+                    Attempt::Took(controls) => {
                         eprintln!("dbm: media keys registered with Windows");
                         *state = State::Live {
                             controls,
                             shown: None,
                         };
                     }
-                    Err(e) => {
-                        *attempts += 1;
-                        if *attempts >= GIVE_UP_AFTER {
-                            eprintln!(
-                                "dbm: media keys unavailable ({e}); headset buttons \
-                                       and the volume overlay will not reach the player"
-                            );
-                            *state = State::Off;
-                        }
+                    Attempt::GaveUp(e) => {
+                        eprintln!(
+                            "dbm: media keys unavailable ({e}); headset buttons \
+                             and the volume overlay will not reach the player"
+                        );
+                        *state = State::Off;
                         return;
                     }
+                    Attempt::Waiting => return,
                 }
             }
             let State::Live { controls, shown } = &mut *state else {
@@ -196,7 +194,7 @@ mod windows_impl {
         window: &slint::Window,
         mpv: Arc<Mpv>,
     ) -> Result<SystemMediaTransportControls, String> {
-        let controls = for_window(window).map_err(|e| e.to_string())?;
+        let controls = for_window(window)?;
 
         // `IsEnabled` is what makes Windows show us at all. Play and pause are
         // always sensible; the skip buttons are switched on and off with the
@@ -226,25 +224,16 @@ mod windows_impl {
         Ok(controls)
     }
 
-    fn for_window(window: &slint::Window) -> windows::core::Result<SystemMediaTransportControls> {
-        use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-
-        let provider = window.window_handle();
-        let handle = provider
-            .window_handle()
-            .map_err(|_| windows::core::Error::from_win32())?;
-        let RawWindowHandle::Win32(win32) = handle.as_raw() else {
-            return Err(windows::core::Error::from_win32());
-        };
-        let hwnd = HWND(win32.hwnd.get() as *mut core::ffi::c_void);
-
+    fn for_window(window: &slint::Window) -> Result<SystemMediaTransportControls, String> {
+        let hwnd = crate::platform::window::hwnd(window)?;
         let interop = windows::core::factory::<
             SystemMediaTransportControls,
             ISystemMediaTransportControlsInterop,
-        >()?;
+        >()
+        .map_err(|e| e.to_string())?;
         // Per-window rather than per-process, which is why this needs the
         // handle at all.
-        unsafe { interop.GetForWindow(hwnd) }
+        unsafe { interop.GetForWindow(hwnd) }.map_err(|e| e.to_string())
     }
 
     /// One button, as an mpv command.

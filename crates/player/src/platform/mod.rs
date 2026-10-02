@@ -14,3 +14,4 @@ pub mod modal_loop;
 #[cfg(not(windows))]
 pub mod mpris;
 pub mod smtc;
+pub mod window;

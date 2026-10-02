@@ -59,46 +59,6 @@ struct Gpu {
     _mpv: Arc<Mpv>,
 }
 
-/// Tracks whether the Windows modal-resize hook is installed yet.
-///
-/// It cannot go in before the loop starts, because the window handle only
-/// exists once the window manager has made the window — so it is retried from
-/// the frame path until it takes.
-struct ModalHook {
-    done: bool,
-    attempts: u32,
-}
-
-impl ModalHook {
-    const GIVE_UP_AFTER: u32 = 120;
-
-    fn new() -> Self {
-        Self {
-            done: std::env::var_os("DBM_NO_MODAL_HOOK").is_some(),
-            attempts: 0,
-        }
-    }
-
-    fn poll(&mut self, ui: &MainWindow) {
-        if self.done {
-            return;
-        }
-        match modal_loop::keep_rendering_during_modal_loop(ui.window()) {
-            Ok(()) => self.done = true,
-            Err(e) => {
-                self.attempts += 1;
-                if self.attempts == Self::GIVE_UP_AFTER {
-                    self.done = true;
-                    eprintln!(
-                        "dbm: modal-loop hook unavailable ({e}); holding a window edge \
-                         will stall rendering"
-                    );
-                }
-            }
-        }
-    }
-}
-
 pub struct Driver {
     ui: slint::Weak<MainWindow>,
     app: App,
@@ -107,7 +67,7 @@ pub struct Driver {
     gpu: Option<Gpu>,
     player: PlayerState,
     panels: Vec<GlassPanel>,
-    modal: ModalHook,
+    modal: modal_loop::Hook,
     /// Installed the same way and for the same reason as the modal hook.
     drops: crate::platform::dropped::Accepting,
     lists: sync::ListSync,
@@ -153,7 +113,7 @@ impl Driver {
             gpu: None,
             player: PlayerState::default(),
             panels: Vec::new(),
-            modal: ModalHook::new(),
+            modal: modal_loop::Hook::new(),
             drops: crate::platform::dropped::Accepting::default(),
             lists: sync::ListSync::default(),
             durations: crate::library::durations::Recorder::default(),
@@ -359,7 +319,7 @@ impl Driver {
         let Some(mut gpu) = self.gpu.take() else {
             return;
         };
-        self.modal.poll(&ui);
+        self.modal.poll(ui.window());
         self.drops.poll(&ui);
 
         let t = self.diag.begin();
