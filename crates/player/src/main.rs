@@ -41,6 +41,7 @@
 //! | `probe`       | what a file says about itself before it is played     |
 //! | `preview`     | thumbnail atlases for the seek preview                |
 //! | `dialog`      | asking the desktop for a path, off the UI thread      |
+//! | `mark`        | the logo as the light behind an empty window          |
 //! | `dropped`     | files dragged onto the window                         |
 //! | `session`     | remembering the position and tracks of each file      |
 //! | `settings`    | the registry of tunable material parameters           |
@@ -66,6 +67,7 @@ mod dropped;
 mod durations;
 mod gfx;
 mod harness;
+mod mark;
 mod modal_loop;
 #[cfg(not(windows))]
 mod mpris;

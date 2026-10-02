@@ -20,6 +20,9 @@ rfd = "0.17.2"
 # watch-later files by — see `durations`.
 serde_json = "1"
 md-5 = "0.11"
+# Draws the logo into the light behind an empty window — see `mark`. Slint
+# already renders its SVG icons with it, so this adds no crate to the build.
+resvg = { version = "0.47", default-features = false }
 
 # Hiding the pointer over a film needs the winit window behind Slint's, and
 # the accessor for it is gated behind this. Asked for only where it is used:

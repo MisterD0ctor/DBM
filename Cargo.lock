@@ -1038,6 +1038,7 @@ dependencies = [
  "libloading",
  "md-5",
  "raw-window-handle",
+ "resvg",
  "rfd",
  "serde_json",
  "slint",

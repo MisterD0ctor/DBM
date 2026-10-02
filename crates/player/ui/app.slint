@@ -2579,7 +2579,7 @@ export component MainWindow inherits Window {
             + root.invite-detail-h + root.fatal-note-h
             + Rows.group-gap + 2 * Rows.row
         : root.panel-pad + root.invite-first * (Rows.row + Rows.group-gap)
-            + (root.invite-show ? Rows.heading : 0px)
+            + (root.invite-show || root.invite-named ? Rows.heading : 0px)
             + 4 * Rows.row + root.invite-note-h;
     /// Whether a file dropped on this window reaches the player.
     ///
@@ -2617,6 +2617,9 @@ export component MainWindow inherits Window {
         ? Rows.group-gap + root.note-line-h : 0px;
     /// Continue carries its show's name on a heading line above it.
     property <bool> invite-show: root.has-resume && root.resume-show != "";
+    /// With nothing to continue, the panel is about the player rather than a
+    /// film, and it says whose it is in the same place and the same role.
+    property <bool> invite-named: root.fatal == "" && !root.has-resume;
     /// One line of the Title role, 14px, for the sentence that names the
     /// failure.
     property <length> invite-line-h: 22px;
@@ -5582,20 +5585,20 @@ export component MainWindow inherits Window {
         y: root.invite-y + root.invite-rise;
         width: root.invite-w;
         height: root.invite-h;
-        // The two cases that earn a fill, and they are one case: there is no
-        // glass to paint over.
+        // The one case that earns a fill: there is no glass to paint over.
         //
         // Every one of the three failures that sets `fatal` leaves the player
         // with no render context, so the glass pass never runs and the rect
-        // published for this pane is drawn by nobody. And a window with no
-        // film and no backdrop has a render context and nothing in it: over
-        // Ground, refraction has nothing to bend and the rim nothing to
-        // mirror, so the way in came up as three lines of white text on black
-        // — at the one moment the product is being met for the first time,
-        // the whole of what it is for was missing from the screen. A fresh
-        // install opens in that state every time.
+        // published for this pane is drawn by nobody.
         //
-        // The same wash at the same radius in both, because it is the same
+        // A window with nothing behind it is the other way to have no glass,
+        // and it no longer lasts: with no film to light it, the player's own
+        // mark does — see `mark` — so what is left of it is the moment before
+        // that light arrives, and a logo that would not draw. A fresh install
+        // used to open in it every time, three lines of white text on black at
+        // the one moment the product is being met for the first time.
+        //
+        // The same wash at the same radius either way, because it is the same
         // answer: a ground that is not glass, where there is no glass.
         // Everywhere else the material is real and a fill would cover it.
         property <bool> bare: root.fatal != "" || !root.backdrop;
@@ -5732,6 +5735,15 @@ export component MainWindow inherits Window {
             // lost its number, which is the part that says which.
             if root.fatal == "" && root.invite-show: MenuHeading {
                 text: root.resume-show;
+                titular: true;
+            }
+            // The player's own name, where the show's goes when there is a
+            // film to continue. This window is the first thing anyone ever
+            // sees of the player, and it used to say *Open file…* without
+            // ever saying what was asking. Named role, natural case: it is a
+            // name, the way a show's is, not one of the interface's labels.
+            if root.invite-named: MenuHeading {
+                text: "Death by MPV";
                 titular: true;
             }
             if root.fatal == "" && root.has-resume: ResumeRow {

@@ -65,6 +65,9 @@ pub enum Completion {
     /// What the empty window can offer to pick back up, looked for once at
     /// startup when nothing was named on the command line.
     Resume(Option<crate::session::Resume>),
+    /// The light behind the empty window when no film can give it one — see
+    /// `mark`.
+    Mark(crate::preview::Still),
     /// Where the way on goes once a list has run out, already named. `from`
     /// is the file that asked, so an answer that arrives after something
     /// else started is dropped, and `None` means there is nowhere to go.

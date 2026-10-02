@@ -519,12 +519,19 @@ impl Driver {
                         // backdrop and no film there is no picture for the
                         // way in's glass to bend and it gives itself a
                         // ground instead. Set only where one was actually
-                        // drawn: a resume with no atlas leaves the window
-                        // black, which is the case that needs the ground.
+                        // drawn.
                         ui.set_backdrop(true);
+                    } else {
+                        light_with_the_mark(&self.worker);
                     }
                 }
-                Completion::Resume(None) => {}
+                // Nothing to continue, which on a fresh install is every
+                // time: the window is lit by the player's own mark instead.
+                Completion::Resume(None) => light_with_the_mark(&self.worker),
+                Completion::Mark(still) => {
+                    gpu.pipeline.set_backdrop(&gpu.gl, &still);
+                    ui.set_backdrop(true);
+                }
                 Completion::Onward { from, to } => {
                     if self.player.path.as_deref() == Some(from.as_str()) {
                         if let Some(onward) = to {
@@ -720,4 +727,13 @@ fn poll_preview(
     ui.set_preview_tile_h(0);
 
     crate::preview::spawn(path, weak.clone());
+}
+
+/// Draw the mark for the backdrop, on the worker.
+///
+/// Parsing an SVG and rasterising it is a millisecond of arithmetic rather
+/// than a wait, but the frame path's rule is that nothing it does can stall,
+/// and the cheapest way to keep a rule is not to argue about its edges.
+fn light_with_the_mark(worker: &Worker) {
+    worker.submit(|_mpv| crate::mark::still().map(Completion::Mark));
 }

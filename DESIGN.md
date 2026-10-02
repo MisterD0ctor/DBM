@@ -605,22 +605,25 @@ the one arrival slower than a surface, because it is the window's light
 changing rather than a control answering. Everything downstream treats it as
 the frame, so the way in refracts it like any panel refracts a film.
 
-With no unfinished film, or no atlas for it, the window stays black — and a
-fresh install opens in exactly that state, every time. The **one exception**
-to glass covers this and one other case, and they are the same case: *there is
-no glass to paint over.* The way in then carries a Soft wash fill
-(`#ffffff14`) at the panel radius.
+With no unfinished film, or no atlas for it, **the mark lights the window
+instead**: the logo, drawn into a 32×18 tile and given to the same pass, so it
+is covered, softened, dimmed and fallen away exactly as a film's frame would
+be. At that size the pass leaves no edge to read — photographed at 64×36 the
+eye sockets and jaw still made a face glowing behind the panel, and a face is
+the one thing this pass exists to soften away — so what reaches the glass is
+the mark's coral as light, brightest behind the panel and falling off across
+its rim, where refraction has something to show. A fresh install opens in this
+state every time, and it used to open on black: three lines of white text with
+the whole of what the product is for missing, at the one moment it is being met
+for the first time.
 
-- **Carrying a fatal error.** Every failure that raises it leaves the player
-  with no render context, so the glass it publishes is drawn by nobody.
-- **No film and no backdrop.** There is a render context and nothing in it.
-  Over Ground, refraction has nothing to bend and the rim nothing to mirror,
-  so the way in came up as three lines of white text on black — at the one
-  moment the product is being met for the first time, the whole of what it is
-  for was missing from the screen.
-
-Nowhere else. Everywhere else the material is real, and a fill would cover the
-thing this product exists for.
+The **one exception** to glass is *there is no glass to paint over*: the way in
+carrying a fatal error, where every failure that raises it leaves the player
+with no render context, so the glass it publishes is drawn by nobody. It then
+carries a Soft wash fill (`#ffffff14`) at the panel radius. The same fill stays
+as the fallback for a window with no backdrop at all, which the mark leaves
+only for a logo that would not draw. Nowhere else. Everywhere else the material
+is real, and a fill would cover the thing this product exists for.
 
 ### Named Rules
 
@@ -1108,7 +1111,11 @@ and for the seek preview when the preview reaches its column; a hover label
 that would land on it goes up a row instead. Glass never lies on glass.
 
 ### The way in
-With no film loaded, a panel of glass centred in the window, over the backdrop:
+With no film loaded, a panel of glass centred in the window, over the backdrop.
+With nothing to continue, it is headed with the player's own name — *Death by
+MPV*, in the Named role, where a show's name goes over Continue — because then
+the panel is about the player rather than a film, and the first window anyone
+ever sees used to say *Open file…* without saying what was asking:
 
 - **Continue**, first, when there is a film to continue: a play glyph at Body,
   the film's name at Strong in Body size — the one line on the window about a
@@ -1185,9 +1192,10 @@ words on the clipboard and says *Copied* for two seconds, and *Close the player*
   everything else stands on.
 - **Don't** give a panel a background fill. The glass beneath it is the surface;
   a fill paints over the thing this product exists for. The way in is the one
-  exception, in the two states where there is no glass to paint over: carrying
-  a fatal error, and on a window with no film and no backdrop. See Elevation &
-  Depth. Both are the same case and take the same wash at the same radius.
+  exception, where there is no glass to paint over: carrying a fatal error,
+  with no render context to draw it. A window with no film to light it is not
+  that case — the mark lights it, and the way in is glass. See Elevation &
+  Depth.
 - **Don't** draw a border, a ring or a hairline. There is no outline anywhere in
   this interface, and a focus ring would make the keyboard the only thing that
   draws one.
