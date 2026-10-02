@@ -1037,7 +1037,13 @@ pointer: it sits where a click means play or pause.
 
 ### The end-of-file pill
 The bar's own 48px capsule, in the middle of the picture where the film
-stopped: a 24px glyph and the word — *Next* — in Prompt at Lit, 12px apart, inset 18px. Button wash on hover. It is the
+stopped: a 24px glyph and the name of what comes next — *E04 · Slabtown*, in
+the words its playlist row uses — in Prompt at Lit, 12px apart, inset 18px. It
+grows with the name to half the bar's width, and past that the name elides; a
+film's can run to a sentence, and this is a capsule, not a banner. Into
+another part the part goes first — *Season 6 · E01 · No Way Out* — because an
+E01 on its own could be anybody's. *Next* is what is left when the list cannot
+say. Button wash on hover. It is the
 one surface not tied to the idle clock: the bar hides after a few still seconds,
 and this is what should still be there when it does.
 
@@ -1052,9 +1058,11 @@ folder — it offers two things, the way on first and *Restart* second.
 
 **The way on is always named, where the player can name it.** This is the
 loudest the interface ever speaks, and it is the last thing it says about a
-film; spending that on a file-manager verb while the player still knows
-something to call the thing is the one ending worth getting right. So, in
-order: the next season, by name — *Season 8* — when a folder beside this one
+film; spending that on a verb while the player still knows something to call
+the thing is the one ending worth getting right. That holds mid-season as much
+as at the end of one — the rule once stopped at the end, and said *Next* over
+an episode whose name was on the playlist's next row. At the end of the last
+file, in order: the next season, by name — *Season 8* — when a folder beside this one
 holds the same show at a later season; failing that, the newest other film
 still unfinished, by name, which is the same film the way in offers to
 continue and the only other thing the player can name without being told; and
@@ -1062,10 +1070,10 @@ only when it can name neither, *Open folder…*, opening on the shelf above this
 file's folder. A noun in every case, as *Season 8* is: the thing you are going
 to, not a verb about going there.
 
-The credits pill does **not** take the second of those. It says *Next
-episode*, and only another episode of the same show can honour that; another
-film is an honest thing to offer over a file that has ended and a dishonest
-thing to call the next episode.
+The credits pill does **not** take the second of those. It is the offer to
+skip the credits into the next episode, and only another episode of the same
+show can honour that; another film is an honest thing to offer over a file that
+has ended and a dishonest thing to cut a film's credits short for.
 
 Restart alone was the least likely thing anyone wanted there. With two,
 each choice is a 40px capsule of its own, set 4px inside the pill (24 − 4 = 20,
@@ -1074,7 +1082,11 @@ taking the Button wash on its own and the Strong wash under the keyboard.
 
 ### The credits pill
 While an episode's closing credits play, the end pill's single capsule offers
-*Next episode* with the Next glyph. The credits are a chapter named for them —
+what comes next with the Next glyph, named as the end pill names it — the next
+file as its row says it, or at the end of a season the season after it — and
+*Next episode* only when neither can be said. It is no wider than the bar's
+right pill, the corner it keeps to; a long title elides rather than reach over
+the names. The credits are a chapter named for them —
 *End Credits*, *Credits*, *Outro*, *ED*, *Ending* — in the file's second half,
 and the pill stays from there to the end. Where no chapter has a real name —
 each titled with its own start time, *Chapter 7*, or nothing, as broadcast

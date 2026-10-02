@@ -256,6 +256,7 @@ pub fn push_playlist(ui: &MainWindow, player: &PlayerState) {
         .collect();
     let shelf = crate::shelf::arrange(&items, &player.beside);
 
+    ui.set_next_label(next_label(&shelf).into());
     ui.set_playlist_named(shelf.heading.is_some());
     ui.set_playlist_heading(match shelf.title() {
         Some(title) => title.into(),
@@ -283,6 +284,46 @@ pub fn push_playlist(ui: &MainWindow, player: &PlayerState) {
         );
     }
     ui.set_playlist_groups(ModelRc::new(VecModel::from(groups)));
+}
+
+/// What the way on is called: the file after this one, as its row names it.
+///
+/// The row's own words rather than the file's title, because they are
+/// already in the form the panel says them — "E04 · Slabtown", with the show
+/// and season said once in the heading over the rows. The end pill has no
+/// heading over it, but it has the film that just ended, which is the same
+/// show and season, so the row's words still read whole there. Across the
+/// boundary into another part they would not: an E01 could be anybody's, so
+/// the part goes first — "Season 6 · E01 · No Way Out". A part that is one
+/// film is named by the film, and its row would only say it again.
+///
+/// Empty at the end of the list, and for a file playing that the list does
+/// not hold; the pills fall back to their own words.
+fn next_label(shelf: &crate::shelf::Shelf) -> String {
+    let rows = || {
+        shelf
+            .groups
+            .iter()
+            .enumerate()
+            .flat_map(|(part, g)| g.entries.iter().map(move |e| (part, g, e)))
+    };
+    let Some((part, playing)) = rows()
+        .find(|(_, _, e)| e.current)
+        .and_then(|(part, _, e)| Some((part, e.index?)))
+    else {
+        return String::new();
+    };
+    let Some((next_part, group, entry)) = rows().find(|(_, _, e)| e.index == Some(playing + 1))
+    else {
+        return String::new();
+    };
+    if next_part == part {
+        entry.label.clone()
+    } else if group.leaf {
+        group.label.clone()
+    } else {
+        format!("{} · {}", group.label, entry.label)
+    }
 }
 
 /// One part of the list, as the panel draws it.

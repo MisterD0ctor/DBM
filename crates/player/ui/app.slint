@@ -1625,6 +1625,10 @@ component EndChoice inherits Rectangle {
             font-size: Type.prompt;
             font-weight: Type.weight-title;
             vertical-alignment: center;
+            // The capsule is capped by whoever places it; a name longer than
+            // that ends in an ellipsis rather than out through the rim.
+            overflow: elide;
+            min-width: 0px;
         }
     }
 
@@ -1950,6 +1954,10 @@ export component MainWindow inherits Window {
     in property <bool> at-last;
     /// ...and the other end: there is nothing before this one.
     in property <bool> at-first;
+    /// The file after this one, as its playlist row names it — "E04 ·
+    /// Slabtown" — or empty when there is none or the list cannot say. What
+    /// the end pill and the credits pill call the way on.
+    in property <string> next-label;
     /// The subtitle delay as a number, beside `sub-delay-text`, so undoing a
     /// reset can put back what was there.
     in property <float> sub-delay;
@@ -1984,10 +1992,11 @@ export component MainWindow inherits Window {
     /// unfinished — the one the empty window would offer to continue.
     in property <string> onward-path;
     in property <string> onward-label;
-    /// Whether that is more of the same show. The credits pill says *Next
-    /// episode*, which only another episode can honour; another film is an
-    /// honest thing to offer over a file that has ended and a dishonest thing
-    /// to call the next episode, so the credits pill does not offer it.
+    /// Whether that is more of the same show. The credits pill is the offer
+    /// to skip ahead to the next episode, which only another episode can
+    /// honour; another film is an honest thing to offer over a file that has
+    /// ended and a dishonest thing to skip a film's credits for, so the
+    /// credits pill does not offer it.
     in property <bool> onward-season;
     /// The playing file, for the dialogs to open near.
     in property <string> current-path;
@@ -2716,8 +2725,15 @@ export component MainWindow inherits Window {
     /// file-manager verb while it still knows something to call the thing.
     property <string> end-onward-label: root.onward-path != ""
         ? root.onward-label : "Open folder…";
-    property <length> end-first-w:
-        2 * root.end-choice-pad + 24px + root.end-gap + end-measure.preferred-width;
+    /// The widest the pill grows before its words elide: half the bar. It
+    /// names things now, and a name has no upper length — a film's can run
+    /// to a sentence — but this is a capsule in the middle of the picture,
+    /// not a banner across it.
+    property <length> end-max: root.bar-w / 2;
+    property <length> end-first-w: min(
+        2 * root.end-choice-pad + 24px + root.end-gap + end-measure.preferred-width,
+        root.end-max - (root.end-two
+            ? 2 * root.end-inset + root.btn-gap + root.end-second-w : 0px));
     property <length> end-second-w:
         2 * root.end-choice-pad + 24px + root.end-gap + end-folder-measure.preferred-width;
     property <length> end-w: root.end-two
@@ -2725,10 +2741,18 @@ export component MainWindow inherits Window {
         : root.end-first-w;
     property <length> end-x: (root.width - root.end-w) / 2;
     property <length> end-y: (root.height - root.end-h) / 2;
-    /// Restart at the end of the last file, next at the end of any other —
-    /// which only happens with autoplay off, since otherwise mpv has already
-    /// moved on by the time anyone could read it.
-    property <string> end-label: root.at-last ? "Restart" : "Next";
+    /// Restart at the end of the last file, and at the end of any other the
+    /// file that comes next — which only happens with autoplay off, since
+    /// otherwise mpv has already moved on by the time anyone could read it.
+    ///
+    /// By name, for the reason the onward choice is named at the end of a
+    /// season: this is the loudest the interface ever speaks, and *Next* is a
+    /// verb about going where "E04 · Slabtown" is the place. The rule used to
+    /// stop at the end of a season, as if the player only knew what came next
+    /// when there was nothing left in the list. The bare word is what is left
+    /// when the list cannot say.
+    property <string> end-label: root.at-last ? "Restart"
+        : root.next-label != "" ? root.next-label : "Next";
 
     // --- the credits pill ---
     //
@@ -2745,9 +2769,19 @@ export component MainWindow inherits Window {
     property <bool> credits-onward: !root.at-last || root.onward-season;
     property <bool> credits-offered: root.credits-rolling && root.has-file
         && !root.at-end && root.credits-onward && root.fatal == "";
-    property <string> credits-label: "Next episode";
-    property <length> credits-w:
-        2 * root.pill-text-pad + 24px + root.end-gap + credits-measure.preferred-width;
+    /// Named like the end pill's way on: the next file as its row says it,
+    /// or at the end of a season the season after it. *Next episode* is what
+    /// is left when neither can be said.
+    property <string> credits-label: !root.at-last && root.next-label != ""
+        ? root.next-label
+        : root.at-last && root.onward-path != "" ? root.onward-label
+        : "Next episode";
+    /// No wider than the bar's right pill, which is the corner it keeps to:
+    /// the names roll up the middle, and a long episode title elides rather
+    /// than reach over them.
+    property <length> credits-w: min(
+        2 * root.pill-text-pad + 24px + root.end-gap + credits-measure.preferred-width,
+        root.right-w);
     property <length> credits-x: root.bar-x + root.bar-w - root.credits-w;
     /// Rides the bar's own fade, so it moves exactly as far and as fast as
     /// the bar arrives.
