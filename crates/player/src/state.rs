@@ -1,9 +1,8 @@
 //! Mirror of the mpv properties the UI cares about.
 //!
-//! The Tauri build round-trips these as JSON over an IPC channel and rebuilds
-//! them into reactive signals on the other side. Here there is no boundary to
-//! cross: mpv's typed event queue is drained on the UI thread and written
-//! straight into this struct, which is then pushed into Slint properties.
+//! There is no boundary to cross: mpv's typed event queue is drained on the
+//! UI thread and written straight into this struct, which is then pushed into
+//! Slint properties.
 //!
 //! Everything is a plain field rather than a signal. Slint's own properties
 //! provide the reactivity, and duplicating that here would mean two sources
@@ -44,14 +43,14 @@ pub const OBSERVED: &[(&str, c_int)] = &[
     // these are what keep the `selected` flags from going stale.
     ("sid", FORMAT_STRING),
     ("aid", FORMAT_STRING),
-    // Where mpv actually laid the video out. Observed rather than polled:
-    // `mpv_get_property_string` blocks on mpv's core lock, and six of them
-    // per frame on the render path cost 220ms each frame during a resize,
-    // when that lock is contended. Off the event stream they are free.
     // The video's own size after aspect correction. Enough, with `panscan`,
     // to work out where a frame will land without waiting to be told.
     ("dwidth", FORMAT_DOUBLE),
     ("dheight", FORMAT_DOUBLE),
+    // Where mpv actually laid the video out. Observed rather than polled:
+    // `mpv_get_property_string` blocks on mpv's core lock, and six of them
+    // per frame on the render path cost 220ms each frame during a resize,
+    // when that lock is contended. Off the event stream they are free.
     ("osd-dimensions/w", FORMAT_DOUBLE),
     ("osd-dimensions/h", FORMAT_DOUBLE),
     ("osd-dimensions/ml", FORMAT_DOUBLE),
@@ -143,7 +142,7 @@ impl PlayerState {
                 true
             }
             Event::StartFile | Event::EndFile { .. } | Event::Seek | Event::PlaybackRestart => true,
-            // Filtered out in  before reaching here - command
+            // Filtered out by the event drain before reaching here: command
             // completions are routed to whoever issued them.
             Event::CommandReply { .. } | Event::Shutdown => false,
         }
@@ -370,9 +369,6 @@ impl PlayerState {
         [x0 as f32, y0 as f32, 1.0 - x0 as f32, 1.0 - y0 as f32]
     }
 
-    /// Best name to show for what is playing. `media-title` carries embedded
-    /// metadata where a file has it and falls back to the filename otherwise,
-    /// which is what mpv itself displays.
     /// What the bar shows.
     ///
     /// mpv's `media-title` is the container's own title where one exists, and
@@ -502,8 +498,7 @@ pub fn format_speed(speed: f64) -> String {
     format!("{text}×")
 }
 
-/// `H:MM:SS`, dropping the hours field when it would be zero — matching how
-/// the Tauri build renders timestamps.
+/// `H:MM:SS`, dropping the hours field when it would be zero.
 pub fn format_time(seconds: f64) -> String {
     if !seconds.is_finite() || seconds < 0.0 {
         return "0:00".into();

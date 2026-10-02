@@ -216,75 +216,6 @@ pub fn is_finished(finished: &Finished, path: &str, start: f64) -> bool {
         .is_some_and(|&at| start <= 0.0 || start >= at - CHECKPOINT_SLACK)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn the_hash_is_mpvs_own_spelling() {
-        // Upper-case hex of the MD5 of the path, no separators, no extension:
-        // mpv's `mp_get_playback_resume_config_filename`. The vector is the
-        // well-known MD5 of "abc", so a broken digest shows up here rather
-        // than as an empty playlist row.
-        assert_eq!(watch_later_name("abc"), "900150983CD24FB0D6963F7D28E17F72");
-    }
-
-    /// Drives the whole lookup against a real directory: a cache file, a
-    /// watch-later file named the way mpv names it, and the three cases a
-    /// playlist actually contains — watched part-way, known but never
-    /// started, and never seen at all.
-    #[test]
-    fn a_row_knows_its_length_and_how_far_in_it_is() {
-        let dir = std::env::temp_dir().join(format!("dbm-durations-{}", std::process::id()));
-        let app = dir.join("Death by MPV");
-        std::fs::create_dir_all(app.join("watch_later")).unwrap();
-        // `app_data_dir` is where both files live, and it is read from the
-        // environment — which is also how the harness keeps test runs out of
-        // the real one.
-        std::env::set_var("APPDATA", &dir);
-
-        std::fs::write(
-            app.join("durations.json"),
-            r#"{"C:/films/seen.mkv":1200.0,"C:/films/fresh.mkv":600.0}"#,
-        )
-        .unwrap();
-        std::fs::write(
-            app.join("watch_later")
-                .join(watch_later_name("C:/films/seen.mkv")),
-            "start=300.0\nvid=1\n",
-        )
-        .unwrap();
-
-        let found = of(&[
-            "C:/films/seen.mkv".to_string(),
-            "C:/films/fresh.mkv".to_string(),
-            "C:/films/never.mkv".to_string(),
-        ]);
-        assert_eq!(found[0].seconds, 1200.0);
-        assert!((found[0].fraction - 0.25).abs() < 1e-6);
-        // Known length, no saved position: a full-length row with no fill.
-        assert_eq!(found[1].seconds, 600.0);
-        assert_eq!(found[1].fraction, 0.0);
-        // Never played here, so nothing is known and nothing is shown.
-        assert_eq!(found[2], Progress::default());
-
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
-    fn a_viewing_started_again_is_not_finished() {
-        let finished = Finished::from([("C:/films/seen.mkv".to_string(), 1200.0)]);
-        // mpv deleted the position at the end.
-        assert!(is_finished(&finished, "C:/films/seen.mkv", 0.0));
-        // Left in the credits, checkpointed a few seconds before they were
-        // noticed.
-        assert!(is_finished(&finished, "C:/films/seen.mkv", 1190.0));
-        // Watching it again, a quarter of the way in.
-        assert!(!is_finished(&finished, "C:/films/seen.mkv", 300.0));
-        assert!(!is_finished(&finished, "C:/films/fresh.mkv", 0.0));
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Noticing a duration worth keeping
 // ---------------------------------------------------------------------------
@@ -368,5 +299,74 @@ impl Recorder {
         }
         self.finished = Some(path.clone());
         worker.run(move |_mpv| record_finished(&path, at));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_hash_is_mpvs_own_spelling() {
+        // Upper-case hex of the MD5 of the path, no separators, no extension:
+        // mpv's `mp_get_playback_resume_config_filename`. The vector is the
+        // well-known MD5 of "abc", so a broken digest shows up here rather
+        // than as an empty playlist row.
+        assert_eq!(watch_later_name("abc"), "900150983CD24FB0D6963F7D28E17F72");
+    }
+
+    /// Drives the whole lookup against a real directory: a cache file, a
+    /// watch-later file named the way mpv names it, and the three cases a
+    /// playlist actually contains — watched part-way, known but never
+    /// started, and never seen at all.
+    #[test]
+    fn a_row_knows_its_length_and_how_far_in_it_is() {
+        let dir = std::env::temp_dir().join(format!("dbm-durations-{}", std::process::id()));
+        let app = dir.join("Death by MPV");
+        std::fs::create_dir_all(app.join("watch_later")).unwrap();
+        // `app_data_dir` is where both files live, and it is read from the
+        // environment — which is also how the harness keeps test runs out of
+        // the real one.
+        std::env::set_var("APPDATA", &dir);
+
+        std::fs::write(
+            app.join("durations.json"),
+            r#"{"C:/films/seen.mkv":1200.0,"C:/films/fresh.mkv":600.0}"#,
+        )
+        .unwrap();
+        std::fs::write(
+            app.join("watch_later")
+                .join(watch_later_name("C:/films/seen.mkv")),
+            "start=300.0\nvid=1\n",
+        )
+        .unwrap();
+
+        let found = of(&[
+            "C:/films/seen.mkv".to_string(),
+            "C:/films/fresh.mkv".to_string(),
+            "C:/films/never.mkv".to_string(),
+        ]);
+        assert_eq!(found[0].seconds, 1200.0);
+        assert!((found[0].fraction - 0.25).abs() < 1e-6);
+        // Known length, no saved position: a full-length row with no fill.
+        assert_eq!(found[1].seconds, 600.0);
+        assert_eq!(found[1].fraction, 0.0);
+        // Never played here, so nothing is known and nothing is shown.
+        assert_eq!(found[2], Progress::default());
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_viewing_started_again_is_not_finished() {
+        let finished = Finished::from([("C:/films/seen.mkv".to_string(), 1200.0)]);
+        // mpv deleted the position at the end.
+        assert!(is_finished(&finished, "C:/films/seen.mkv", 0.0));
+        // Left in the credits, checkpointed a few seconds before they were
+        // noticed.
+        assert!(is_finished(&finished, "C:/films/seen.mkv", 1190.0));
+        // Watching it again, a quarter of the way in.
+        assert!(!is_finished(&finished, "C:/films/seen.mkv", 300.0));
+        assert!(!is_finished(&finished, "C:/films/fresh.mkv", 0.0));
     }
 }

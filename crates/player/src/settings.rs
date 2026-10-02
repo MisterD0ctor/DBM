@@ -1,9 +1,12 @@
-//! The tunable material parameters, in one list.
+//! What the person has set, kept between runs.
 //!
-//! Both the UI and the pipeline read from this registry rather than each
-//! keeping its own copy of what exists, so adding a knob is a single entry
-//! here: it appears in the panel, gets a slider with the right range, and
-//! reaches the shader, without touching the UI file or the render code.
+//! Two kinds of thing, saved to one file. The material parameters — the glass
+//! and the ambient border — are a registry: both the UI and the pipeline read
+//! from it rather than each keeping its own copy of what exists, so adding a
+//! knob is a single entry here: it appears in the panel, gets a slider with
+//! the right range, and reaches the shader, without touching the UI file or
+//! the render code. Beside them sit the preferences that are not sliders:
+//! whether each effect runs, autoplay, and the subtitles' size and place.
 //!
 //! Values live in a shared store because the two ends run at different
 //! times — the UI writes whenever a slider moves, the pipeline reads once a
@@ -212,59 +215,6 @@ impl Store {
             .replace(false)
             .then(|| (self.glass.get(), self.border.get()))
     }
-}
-
-// ---------------------------------------------------------------------------
-// Persistence
-// ---------------------------------------------------------------------------
-
-impl Store {
-    pub fn ambience_on(&self) -> bool {
-        self.ambience_on.get()
-    }
-
-    /// Read on every parameter change and never written from the interface:
-    /// there is no switch any more, because turning the glass off erased the
-    /// panel the switch was printed on. The flag survives in the settings
-    /// file, which is plain text, for anyone working on the shader who wants
-    /// the unrefracted picture back for a minute.
-    pub fn glass_on(&self) -> bool {
-        self.glass_on.get()
-    }
-
-    pub fn autoplay(&self) -> bool {
-        self.autoplay.get()
-    }
-
-    pub fn set_ambience(&self, on: bool) {
-        self.ambience_on.set(on);
-        self.touch();
-    }
-
-    pub fn set_autoplay(&self, on: bool) {
-        self.autoplay.set(on);
-        self.touch();
-    }
-
-    pub fn sub_scale(&self) -> f32 {
-        self.sub_scale.get()
-    }
-
-    pub fn sub_pos(&self) -> f32 {
-        self.sub_pos.get()
-    }
-
-    /// Record what was actually sent to mpv. The clamp lives in `commands`,
-    /// which is the only place that knows the range.
-    pub fn set_sub_scale(&self, value: f32) {
-        self.sub_scale.set(value);
-        self.touch();
-    }
-
-    pub fn set_sub_pos(&self, value: f32) {
-        self.sub_pos.set(value);
-        self.touch();
-    }
 
     /// Restore one section to the built-in defaults.
     ///
@@ -303,7 +253,69 @@ impl Store {
         self.dirty.set(true);
         self.unsaved.set(true);
     }
+}
 
+// ---------------------------------------------------------------------------
+// Preferences
+// ---------------------------------------------------------------------------
+
+impl Store {
+    pub fn ambience_on(&self) -> bool {
+        self.ambience_on.get()
+    }
+
+    /// Read on every parameter change and never written from the interface:
+    /// there is no switch any more, because turning the glass off erased the
+    /// panel the switch was printed on. The flag survives in the settings
+    /// file, which is plain text, for anyone working on the shader who wants
+    /// the unrefracted picture back for a minute.
+    pub fn glass_on(&self) -> bool {
+        self.glass_on.get()
+    }
+
+    pub fn autoplay(&self) -> bool {
+        self.autoplay.get()
+    }
+
+    pub fn set_ambience(&self, on: bool) {
+        self.ambience_on.set(on);
+        self.touch();
+    }
+
+    pub fn set_autoplay(&self, on: bool) {
+        self.autoplay.set(on);
+        self.touch();
+    }
+
+    pub fn sub_scale(&self) -> f32 {
+        self.sub_scale.get()
+    }
+
+    pub fn sub_pos(&self) -> f32 {
+        self.sub_pos.get()
+    }
+
+    /// Record the size mpv was sent, which `commands::set_sub_scale` has
+    /// already clamped.
+    pub fn set_sub_scale(&self, value: f32) {
+        self.sub_scale.set(value);
+        self.touch();
+    }
+
+    /// Record where the person put the line. Only `subline` calls this, with
+    /// a value it has already clamped — see there for why placement is the
+    /// one setting not taken back from what mpv was sent.
+    pub fn set_sub_pos(&self, value: f32) {
+        self.sub_pos.set(value);
+        self.touch();
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Saving and loading
+// ---------------------------------------------------------------------------
+
+impl Store {
     /// Whether anything changed since the last call, clearing the flag.
     ///
     /// Only the fact matters, not the values: the saver re-reads them when it
@@ -381,7 +393,7 @@ impl Store {
 
 /// Read the saved settings. A missing or unreadable file is not an error —
 /// it just means the defaults stand.
-pub fn load(path: &std::path::Path) -> Vec<(String, f32)> {
+fn load(path: &std::path::Path) -> Vec<(String, f32)> {
     let Ok(text) = std::fs::read_to_string(path) else {
         return Vec::new();
     };
@@ -463,8 +475,7 @@ impl Persister {
         // tuning most needs to hear about, because everything they have just
         // adjusted is in it.
         self.worker.submit(move |_mpv| {
-            let borrowed: Vec<(&str, f32)> = values.iter().map(|(n, v)| (n.as_str(), *v)).collect();
-            save_owned(&path, &borrowed)
+            save(&path, &values)
                 .err()
                 .map(crate::worker::Completion::Notice)
         });
@@ -476,9 +487,9 @@ impl Persister {
 /// player down, but it must not pass in silence either. Every material
 /// parameter the person has just tuned is in this file, and the first they
 /// knew of it not being written was the next time they started the player.
-fn save_owned(path: &std::path::Path, values: &[(&str, f32)]) -> Result<(), String> {
+fn save(path: &std::path::Path, values: &[(String, f32)]) -> Result<(), String> {
     use std::fmt::Write as _;
-    let mut out = String::from("# Death by MPV - material parameters\n");
+    let mut out = String::from("# Death by MPV settings\n");
     for (name, value) in values {
         let _ = writeln!(out, "{name} = {value}");
     }

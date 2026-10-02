@@ -2,13 +2,20 @@
 //!
 //! All of it is opt-in and costs a branch when off:
 //!
-//! * `DBM_TRACE=1`     — periodic frame-rate and phase-timing report.
-//! * `DBM_GPU_TIME=1`  — `glFinish` between pipeline passes, so the timings
-//!                       are GPU work rather than how fast we queued it.
-//!                       Serialises the pipeline; read the numbers, not the
-//!                       frame rate, while it is on.
-//! * `DBM_PROBE=1`     — one-shot pixel readbacks and a state dump. These
-//!                       stall the pipeline outright.
+//! * `DBM_TRACE=1` — periodic frame-rate and phase-timing report, and a line
+//!   from each part of the player that has something to say about itself.
+//! * `DBM_GPU_TIME=1` — `glFinish` between pipeline passes, so the timings are
+//!   GPU work rather than how fast we queued it. Serialises the pipeline; read
+//!   the numbers, not the frame rate, while it is on.
+//! * `DBM_PROBE=1` — one-shot pixel readbacks and a state dump. These stall
+//!   the pipeline outright.
+//! * `DBM_BORDER_WATCH=1` — reports, every frame, how far the rect the border
+//!   was drawn against is from where the picture really is. No readback.
+//! * `DBM_CAPTURE=<path.bmp>` — one picture of the finished frame, interface
+//!   and all, read off the framebuffer; `DBM_CAPTURE_AFTER=<ms>` is how long
+//!   to let things settle first. See [`Capture`].
+//!
+//! The automated exercises that drive the interface live in `harness`.
 //!
 //! The phase timings earned their place: a 220ms-per-frame regression during
 //! resize was invisible until the render path was broken down, and guessing

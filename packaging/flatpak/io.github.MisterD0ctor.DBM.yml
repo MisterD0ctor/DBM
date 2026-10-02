@@ -125,5 +125,6 @@ modules:
           - target
           - crates/player/vendor
       # Every crate in Cargo.lock, so the build runs offline. Regenerate
-      # whenever Cargo.lock changes — see Packaging in the top-level README.
+      # whenever a crate is added, removed or changes version — see
+      # Packaging in the top-level README.
       - cargo-sources.json

@@ -63,7 +63,7 @@ pub fn vendored(names: &[&str]) -> Option<PathBuf> {
         .find(|candidate| candidate.is_file())
 }
 
-/// Tunable material parameters, saved between runs.
+/// The saved settings — see `settings`.
 ///
 /// Plain text on purpose: it is a short list of numbers, and being able to
 /// open it in an editor while tuning is worth more than a compact format.
@@ -72,6 +72,7 @@ pub fn settings_file() -> PathBuf {
     // caller to redirect `APPDATA` was the arrangement before, and it cost a
     // real settings file: one run without the prefix is all it takes, and
     // nothing about the run says it happened.
+    //
     // Any harness at all, rather than a list of the ones believed to write
     // settings: that list was wrong within a day of being written, because
     // `DBM_KEY_TEST` presses B and B is the ambience switch. A test run has

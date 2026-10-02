@@ -43,9 +43,9 @@ impl Scrubber {
     }
 
     /// A drag moved. Sends immediately if the line is clear, otherwise
-    /// replaces whatever was waiting.
-    /// A drag moved. `paused` is the current playback state, used once at
-    /// the start of a drag to decide whether to resume afterwards.
+    /// replaces whatever was waiting. `paused` is the current playback state,
+    /// used once at the start of a drag to decide whether to resume
+    /// afterwards.
     ///
     /// Playback pauses for the duration: a moving picture fights the one the
     /// user is trying to find, and mpv has less to do if it is not also

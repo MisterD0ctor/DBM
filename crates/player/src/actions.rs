@@ -263,8 +263,8 @@ pub fn wire(
     }
 
     // Opening. The dialog runs on its own thread and comes back through
-    // `open-path`, which is also where a future drag-and-drop would arrive:
-    // by the time anything reaches here it is just a path.
+    // `open-path`, which is also where a dropped file and the command line
+    // arrive: by the time anything reaches here it is just a path.
     {
         let (seen, weak) = (activity.clone(), ui.as_weak());
         ui.on_open_file(move || {

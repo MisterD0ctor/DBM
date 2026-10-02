@@ -241,8 +241,6 @@ fn selected_row(player: &PlayerState, kind: TrackKind) -> i32 {
 /// not rebuild the subtitle and audio menus as well — and so a row the
 /// pointer is resting on is recreated no more often than it has to be.
 pub fn push_playlist(ui: &MainWindow, player: &PlayerState) {
-    use slint::Model as _;
-
     let items: Vec<crate::shelf::Item> = player
         .playlist
         .iter()
@@ -441,10 +439,6 @@ fn warn_overflow() {
     });
 }
 
-/// Rebuild the settings rows from the registry and the current values.
-///
-/// Called when a value changes rather than every frame: the model is a fresh
-/// allocation and the panel is usually closed.
 /// The slider rows, split by the page they appear on.
 ///
 /// Two models rather than one filtered in the UI: each page binds to its own

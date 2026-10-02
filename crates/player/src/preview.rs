@@ -472,59 +472,6 @@ pub fn still(video: &Path, fraction: f32) -> Option<Still> {
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn sprite() -> Sprite {
-        Sprite {
-            path: PathBuf::new(),
-            tile_w: 192,
-            tile_h: 108,
-            grid: 8,
-        }
-    }
-
-    #[test]
-    fn tiles_run_left_to_right_then_down() {
-        let s = sprite();
-        assert_eq!(s.tile_at(0.0), (0, 0));
-        // Second tile of the first row.
-        assert_eq!(s.tile_at(1.0 / 64.0), (192, 0));
-        // First tile of the second row.
-        assert_eq!(s.tile_at(8.0 / 64.0), (0, 108));
-    }
-
-    #[test]
-    fn the_end_lands_on_the_last_tile_not_past_it() {
-        let s = sprite();
-        assert_eq!(s.tile_at(1.0), (7 * 192, 7 * 108));
-        assert_eq!(s.tile_at(2.0), (7 * 192, 7 * 108));
-        assert_eq!(s.tile_at(-1.0), (0, 0));
-    }
-
-    #[test]
-    fn duration_is_read_off_ffmpeg_report() {
-        let text = "  Duration: 01:23:45.67, start: 0.000000, bitrate: 1234 kb/s";
-        let seconds = parse_duration(text).unwrap();
-        assert!((seconds - 5025.67).abs() < 0.01, "{seconds}");
-    }
-
-    #[test]
-    fn aspect_prefers_the_declared_ratio() {
-        let text = "Video: h264, yuv420p, 1920x816 [SAR 1:1 DAR 40:17], 24 fps";
-        let ratio = parse_aspect(text).unwrap();
-        assert!((ratio - 40.0 / 17.0).abs() < 0.001, "{ratio}");
-    }
-
-    #[test]
-    fn aspect_falls_back_to_the_coded_size() {
-        let text = "Video: h264, yuv420p, 960x400, 30 fps";
-        let ratio = parse_aspect(text).unwrap();
-        assert!((ratio - 2.4).abs() < 0.001, "{ratio}");
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Shared state
 // ---------------------------------------------------------------------------
@@ -583,5 +530,58 @@ impl Preview {
             None => (0, 0),
         };
         (crate::state::format_time(seconds), x as i32, y as i32)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sprite() -> Sprite {
+        Sprite {
+            path: PathBuf::new(),
+            tile_w: 192,
+            tile_h: 108,
+            grid: 8,
+        }
+    }
+
+    #[test]
+    fn tiles_run_left_to_right_then_down() {
+        let s = sprite();
+        assert_eq!(s.tile_at(0.0), (0, 0));
+        // Second tile of the first row.
+        assert_eq!(s.tile_at(1.0 / 64.0), (192, 0));
+        // First tile of the second row.
+        assert_eq!(s.tile_at(8.0 / 64.0), (0, 108));
+    }
+
+    #[test]
+    fn the_end_lands_on_the_last_tile_not_past_it() {
+        let s = sprite();
+        assert_eq!(s.tile_at(1.0), (7 * 192, 7 * 108));
+        assert_eq!(s.tile_at(2.0), (7 * 192, 7 * 108));
+        assert_eq!(s.tile_at(-1.0), (0, 0));
+    }
+
+    #[test]
+    fn duration_is_read_off_ffmpeg_report() {
+        let text = "  Duration: 01:23:45.67, start: 0.000000, bitrate: 1234 kb/s";
+        let seconds = parse_duration(text).unwrap();
+        assert!((seconds - 5025.67).abs() < 0.01, "{seconds}");
+    }
+
+    #[test]
+    fn aspect_prefers_the_declared_ratio() {
+        let text = "Video: h264, yuv420p, 1920x816 [SAR 1:1 DAR 40:17], 24 fps";
+        let ratio = parse_aspect(text).unwrap();
+        assert!((ratio - 40.0 / 17.0).abs() < 0.001, "{ratio}");
+    }
+
+    #[test]
+    fn aspect_falls_back_to_the_coded_size() {
+        let text = "Video: h264, yuv420p, 960x400, 30 fps";
+        let ratio = parse_aspect(text).unwrap();
+        assert!((ratio - 2.4).abs() < 0.001, "{ratio}");
     }
 }

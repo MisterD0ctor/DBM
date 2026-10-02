@@ -85,11 +85,6 @@ pub struct PlaylistEntry {
 }
 
 impl PlaylistEntry {
-    /// Prefer embedded metadata, then the file name read for what it says.
-    ///
-    /// A full path in a menu row is noise, and so is the half of a scene
-    /// filename that describes the encode rather than the film — see
-    /// [`crate::naming`].
     /// The container's own title, where mpv has one for this entry and it is
     /// not simply the file name it fell back to.
     pub fn embedded_title(&self) -> Option<&str> {

@@ -1,14 +1,15 @@
 //! Direct libmpv bindings for the render-API path.
 //!
-//! The Tauri build talks to mpv through `libmpv-wrapper.dll`, which marshals
-//! every call as JSON because that was the shape the IPC boundary wanted.
-//! There is no IPC boundary here, and the wrapper never exported
-//! `mpv_render_context_*` in the first place, so this binds libmpv directly.
+//! Only the handful of entry points this player calls: options and properties
+//! as strings, async commands, the event queue, and the render context that
+//! draws into Slint's own GL context. The render API is the reason they are
+//! bound here rather than taken from a wrapper — it is the part the whole
+//! architecture rests on, and the part a wrapper is likeliest to leave out.
 //!
 //! Loaded at runtime with `libloading` rather than linked, which keeps the
-//! build free of an import library and lets the DLL be swapped: the vendored
-//! fork today, stock libmpv once the border shader lives in our own pipeline
-//! and the fork stops being needed.
+//! build free of an import library and lets the library be swapped without
+//! recompiling: the vendored build on Windows, the system's or the Flatpak's
+//! on Linux, or whatever `DBM_LIBMPV` names.
 
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::path::{Path, PathBuf};
@@ -73,8 +74,6 @@ const GL_RGBA8: c_int = 0x8058;
 /// `mpv_format`. We only observe the scalar kinds; anything list-shaped
 /// (tracks, playlist) is pulled with a command when its count changes,
 /// which avoids marshalling a node tree across the FFI boundary.
-#[allow(dead_code)]
-pub const FORMAT_NONE: c_int = 0;
 pub const FORMAT_STRING: c_int = 1;
 pub const FORMAT_FLAG: c_int = 3;
 pub const FORMAT_DOUBLE: c_int = 5;
@@ -317,9 +316,8 @@ impl Mpv {
     ///
     /// `vo=libmpv` is mandatory: it is what makes mpv defer presentation to
     /// the render context instead of creating a window of its own. That is
-    /// the whole point of this path - no second HWND, so no DWM boundary
-    /// between the video and the UI, so the UI can sample the video.
-    /// Create and initialize a player.
+    /// the whole point of this path - no second window, so no compositor
+    /// boundary between the video and the UI, so the UI can sample the video.
     ///
     /// `configure` runs after the built-in options and before
     /// `mpv_initialize`, which is the only window in which some options —
@@ -373,7 +371,10 @@ impl Mpv {
         })
     }
 
-    #[allow(dead_code)]
+    /// Set a property and wait for mpv to take it.
+    ///
+    /// **Blocking**, like [`Mpv::get_property`]: worker thread only. Anything
+    /// on an interactive path goes through `commands`, which queues a `set`.
     pub fn set_property(&self, name: &str, value: &str) -> Result<()> {
         let (n, v) = (cstr(name)?, cstr(value)?);
         check("mpv_set_property_string", unsafe {
@@ -385,9 +386,11 @@ impl Mpv {
     ///
     /// **Blocking.** Waits on mpv's core, which under load costs tens to
     /// hundreds of milliseconds. Call it from the worker thread, never from
-    /// the frame path — see `worker` for why. `None` when mpv has no value for it yet —
-    /// which is the normal state for anything video-shaped until a file is
-    /// loaded and the first frame has been decoded.
+    /// the frame path — see `worker` for why.
+    ///
+    /// `None` when mpv has no value for it yet, which is the normal state for
+    /// anything video-shaped until a file is loaded and the first frame has
+    /// been decoded.
     pub fn get_property(&self, name: &str) -> Option<String> {
         let n = cstr(name).ok()?;
         let raw = unsafe { (self.lib.mpv_get_property_string)(self.handle, n.as_ptr()) };
@@ -417,12 +420,6 @@ impl Mpv {
         self.get_property(name)?.parse().ok()
     }
 
-    /// Queue a command and return immediately.
-    ///
-    /// The synchronous [`Mpv::command`] waits for mpv core to finish, which
-    /// for an exact seek is around 200ms of a locked UI thread. Anything on
-    /// an interactive path must use this instead; completion arrives as
-    /// [`Event::CommandReply`] carrying `reply_id`.
     /// Ask mpv to report changes to `name`. Values arrive through
     /// [`Mpv::poll_event`] as [`Event::Property`].
     pub fn observe(&self, name: &str, format: c_int) -> Result<()> {
@@ -524,6 +521,12 @@ impl Mpv {
             .into_owned()
     }
 
+    /// Queue a command and return immediately.
+    ///
+    /// There is deliberately no synchronous counterpart: `mpv_command` waits
+    /// for mpv's core to finish, which for an exact seek is around 200ms of
+    /// a locked UI thread. Completion arrives as [`Event::CommandReply`]
+    /// carrying `reply_id`.
     pub fn command_async(&self, reply_id: u64, args: &[&str]) -> Result<()> {
         let owned: Vec<CString> = args.iter().map(|a| cstr(a)).collect::<Result<_>>()?;
         let mut ptrs: Vec<*const c_char> = owned.iter().map(|c| c.as_ptr()).collect();

@@ -27,9 +27,11 @@ use crate::mpv::RenderContext;
 
 /// Must match `MAX_PANELS` in glass.frag.
 ///
-/// Ten is what the interface can put on screen at once: five pieces of bar,
-/// one open panel and the seek preview, with room left over. The shader loops
-/// to this bound whatever the count, so the headroom costs an early exit.
+/// More than the interface can put on screen at once. Of the fifteen surfaces
+/// it declares, the most that can be up together is ten: the bar's four panes,
+/// the flash's two, the hover label, the seek preview, one open panel and an
+/// end or credits pill. The shader loops to this bound whatever the count, so
+/// the headroom costs an early exit.
 pub const MAX_PANELS: usize = 14;
 
 /// Live parameters for the ambient border. Defaults match the `//!PARAM`
@@ -71,8 +73,9 @@ pub struct GlassPanel {
     pub opacity: f32,
 }
 
-/// Look of the glass. These are the knobs worth exposing to a settings panel
-/// later; the defaults aim at Apple-ish rather than subtle.
+/// Look of the glass: what the settings panel's glass page adjusts, plus the
+/// light direction and tint colour, which stay in code. The defaults aim at
+/// visible rather than subtle.
 #[derive(Clone, Copy, Debug)]
 pub struct GlassParams {
     /// Gaussian radius of the backdrop blur, in pixels; 0 is a sharp
@@ -351,19 +354,18 @@ impl Pipeline {
         &self.glassed
     }
 
-    /// Video plus ambient border, before the glass pass. Diagnostics.
     /// The video rect the border was last drawn from. For diagnostics that
     /// need to compare it against what mpv currently reports.
     pub fn border_rect(&self) -> [f32; 4] {
         self.rect
     }
 
+    /// Video plus ambient border, before the glass pass. Diagnostics.
     pub fn composite(&self) -> &Target {
         &self.composite
     }
 
-    /// The blurred backdrop glass panels sample — the buffer most recently
-    /// written, which is the one Slint should be showing.
+    /// The blurred composite the glass panels refract.
     pub fn blur(&self) -> &Target {
         &self.blur_out
     }
@@ -385,7 +387,6 @@ impl Pipeline {
     }
 
     /// The raw mpv output, before the border pass. Diagnostics only.
-    #[allow(dead_code)]
     pub fn video(&self) -> &Target {
         &self.video
     }

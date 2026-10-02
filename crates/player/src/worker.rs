@@ -95,10 +95,10 @@ pub struct Onward {
     /// What the pill says. A noun, as *Season 8* is: the thing you are going
     /// to, not a verb about going there.
     pub label: String,
-    /// Whether it is more of the same show. The credits pill offers *Next
-    /// episode*, and only another episode can honour that — a different film
-    /// is a fair thing to offer when a file has ended and not a fair thing to
-    /// call the next episode.
+    /// Whether it is more of the same show. The credits pill is the offer to
+    /// skip ahead to the next episode, and only another episode can honour
+    /// that — a different film is a fair thing to offer when a file has ended
+    /// and not a fair thing to cut a film's credits short for.
     pub season: bool,
 }
 

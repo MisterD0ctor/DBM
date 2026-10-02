@@ -177,8 +177,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ui.window()
         .set_rendering_notifier(move |state, api| driver.on(state, api))?;
 
-    // Must happen after the window exists but before the loop runs: see
-    // `modal_loop` for why holding a window edge otherwise freezes the video.
     // Checkpoint the resume position while playing. mpv writes on a clean
     // quit by itself; this is what covers everything less tidy.
     let checkpoint = session::checkpoint_periodically(mpv.clone());

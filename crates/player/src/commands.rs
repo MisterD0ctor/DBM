@@ -12,7 +12,7 @@
 
 use crate::mpv::Mpv;
 
-/// Arrow-key seek, in seconds. Matches the Tauri build.
+/// Arrow-key seek, in seconds.
 pub const SEEK_STEP: f64 = 10.0;
 /// Arrow-key volume step.
 pub const VOLUME_STEP: f64 = 2.0;
@@ -265,9 +265,9 @@ fn percent_of(fraction: f32) -> f64 {
     f64::from(fraction.clamp(0.0, 1.0)) * 100.0
 }
 
-/// Set the volume outright, for the slider. Clamped to mpv own ceiling so
-/// a drag to the far end cannot ask for something it will reject.
 /// Put the volume at a level outright — what the bar does under a hand.
+/// Clamped to `VOLUME_MAX` so a drag to the far end cannot ask for something
+/// mpv will reject.
 ///
 /// Unmutes. A hand that places the level has said what it wants to hear, and
 /// mute would answer with a number nobody can hear: the bar draws itself
@@ -362,7 +362,7 @@ pub fn replay(mpv: &Mpv) {
 ///
 /// The unpause is queued behind the step rather than timed after it: mpv
 /// executes queued commands in order, so by the time the property is written
-/// the new file is the current one. The Tauri build slept 100ms here.
+/// the new file is the current one — no delay between the two is needed.
 pub fn advance(mpv: &Mpv, delta: i32) {
     playlist_step(mpv, delta);
     set_pause(mpv, false);
