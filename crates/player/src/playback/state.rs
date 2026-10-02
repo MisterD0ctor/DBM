@@ -477,43 +477,6 @@ fn set<T: PartialEq>(slot: &mut T, value: T) -> bool {
     true
 }
 
-/// How much of a film is left, the way a person says it: "43 min left",
-/// "1 h 12 min left". Minutes are rounded up, so a row never claims nothing
-/// is left of something that has not ended.
-pub fn format_left(seconds: f64) -> String {
-    if !seconds.is_finite() || seconds < 60.0 {
-        return "under a minute left".into();
-    }
-    let minutes = (seconds / 60.0).ceil() as u64;
-    match (minutes / 60, minutes % 60) {
-        (0, m) => format!("{m} min left"),
-        (h, 0) => format!("{h} h left"),
-        (h, m) => format!("{h} h {m} min left"),
-    }
-}
-
-/// A speed as a person writes it: `1×`, `1.5×`, `1.25×`.
-pub fn format_speed(speed: f64) -> String {
-    let speed = if speed > 0.0 { speed } else { 1.0 };
-    let text = format!("{speed:.2}");
-    let text = text.trim_end_matches('0').trim_end_matches('.');
-    format!("{text}×")
-}
-
-/// `H:MM:SS`, dropping the hours field when it would be zero.
-pub fn format_time(seconds: f64) -> String {
-    if !seconds.is_finite() || seconds < 0.0 {
-        return "0:00".into();
-    }
-    let total = seconds as u64;
-    let (h, m, s) = (total / 3600, (total % 3600) / 60, total % 60);
-    if h > 0 {
-        format!("{h}:{m:02}:{s:02}")
-    } else {
-        format!("{m}:{s:02}")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

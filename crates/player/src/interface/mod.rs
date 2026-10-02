@@ -7,5 +7,6 @@
 
 pub mod actions;
 pub mod chrome;
+pub mod format;
 pub mod subline;
 pub mod sync;

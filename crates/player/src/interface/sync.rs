@@ -16,8 +16,9 @@ use std::rc::Rc;
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 
 use crate::gpu::pipeline::{GlassPanel, MAX_PANELS};
+use crate::interface::format;
 use crate::playback::mpv::{Event, Mpv};
-use crate::playback::state::{self, PlayerState};
+use crate::playback::state::PlayerState;
 use crate::playback::tracks::{self, TrackKind};
 use crate::settings::{self, Section, Store};
 use crate::worker::{Completion, Lists, Worker};
@@ -64,7 +65,7 @@ pub fn drain_events(
         } = &event
         {
             let path = player.path.clone().or_else(|| player.filename.clone());
-            let reason = capitalised(reason);
+            let reason = format::sentence(reason);
             notices.push(match &path {
                 Some(path) => format!(
                     "{reason} — could not play {}",
@@ -85,21 +86,11 @@ pub fn drain_events(
     dirty
 }
 
-/// mpv's reasons are lower-case fragments — "unrecognized file format" —
-/// and here one starts a sentence.
-fn capitalised(text: &str) -> String {
-    let mut chars = text.chars();
-    match chars.next() {
-        Some(first) => first.to_uppercase().chain(chars).collect(),
-        None => String::new(),
-    }
-}
-
 /// Push the scalar values the UI binds to.
 pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_media_title(player.display_title().into());
-    ui.set_elapsed(state::format_time(player.time_pos).into());
-    ui.set_total(state::format_time(player.duration).into());
+    ui.set_elapsed(format::time(player.time_pos).into());
+    ui.set_total(format::time(player.duration).into());
     ui.set_progress(player.progress());
     ui.set_paused(player.paused);
     ui.set_muted(player.muted);
@@ -113,8 +104,8 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
         player.sub_visibility && tracks::selected(&player.tracks, TrackKind::Sub).is_some(),
     );
     ui.set_panscan(player.panscan > 0.5);
-    ui.set_sub_delay_text(format_delay(player.sub_delay).into());
-    ui.set_sub_scale_text(format!("{:.2}×", player.sub_scale).into());
+    ui.set_sub_delay_text(format::delay(player.sub_delay).into());
+    ui.set_sub_scale_text(format::scale(player.sub_scale).into());
     // Whether anything is loaded at all.
     //
     // Derived from mpv every frame rather than set once at startup. It used to
@@ -139,7 +130,7 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     } else {
         1.0
     });
-    ui.set_speed_text(state::format_speed(player.speed).into());
+    ui.set_speed_text(format::speed(player.speed).into());
     ui.set_duration(player.duration as f32);
     ui.set_chapter_label(player.chapter_label().into());
     ui.set_credits_rolling(player.credits_rolling());
@@ -364,7 +355,7 @@ fn entry_item(entry: &crate::library::shelf::Entry) -> PlaylistItem {
         // draw; an empty string and a zero say so, and the row leaves both
         // out rather than printing "0:00".
         length: if entry.progress.seconds > 0.0 {
-            state::format_time(entry.progress.seconds).into()
+            format::time(entry.progress.seconds).into()
         } else {
             Default::default()
         },
@@ -516,37 +507,6 @@ fn param_row(store: &Store, index: usize) -> ParamItem {
         index: index as i32,
         label: param.label.into(),
         fraction: ((value - param.min) / span).clamp(0.0, 1.0),
-        readout: format_value(value, param.min, param.max).into(),
+        readout: format::readout(value, param.min, param.max).into(),
     }
-}
-
-/// Signed, because the sign is the whole point: a delay says whether the
-/// subtitles are running early or late. Zero is written without one, so the
-/// untouched case does not read as a setting someone made.
-fn format_delay(seconds: f64) -> String {
-    if seconds.abs() < 0.005 {
-        "0.00 s".into()
-    } else {
-        format!("{seconds:+.2} s")
-    }
-}
-
-/// Enough precision to tune by, without a column of noise.
-///
-/// From the parameter's range rather than its current value, which is what
-/// the value alone cannot tell you: 5.000 is three meaningless digits on a
-/// blur that runs to 40, and 0.010 is the whole story on an edge blur that
-/// runs to 0.1. Same number, opposite needs.
-fn format_value(value: f32, min: f32, max: f32) -> String {
-    let span = (max - min).abs();
-    let decimals = if span >= 100.0 {
-        0
-    } else if span >= 10.0 {
-        1
-    } else if span >= 1.0 {
-        2
-    } else {
-        3
-    };
-    format!("{value:.decimals$}")
 }

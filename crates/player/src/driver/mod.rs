@@ -28,7 +28,7 @@ use slint::{
 use crate::app::App;
 use crate::gpu::gfx::Target;
 use crate::gpu::pipeline::{GlassPanel, Pipeline};
-use crate::interface::sync;
+use crate::interface::{format, sync};
 use crate::library::playlist;
 use crate::platform::modal_loop;
 use crate::playback::commands;
@@ -398,7 +398,7 @@ impl Driver {
             ui.get_subtitle_lift() as f64,
         );
         if let Some(own) = self.app.subline.readout() {
-            ui.set_sub_pos_text(format!("{own:.0}%").into());
+            ui.set_sub_pos_text(format::position(own).into());
         }
         for id in std::mem::take(&mut self.replies) {
             match id {
@@ -494,9 +494,7 @@ impl Driver {
                     ui.set_resume_show(resume.show.unwrap_or_default().into());
                     ui.set_resume_title(resume.title.into());
                     ui.set_resume_progress(resume.fraction);
-                    ui.set_resume_left(
-                        crate::playback::state::format_left(resume.seconds_left).into(),
-                    );
+                    ui.set_resume_left(format::left(resume.seconds_left).into());
                     if let Some(still) = &resume.still {
                         gpu.pipeline.set_backdrop(&gpu.gl, still);
                         // The interface needs to know, because with no
