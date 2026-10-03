@@ -20,7 +20,50 @@ env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+    # The Linux side, which is also what the Flatpak builds: formatting, the
+    # lints, and the tests. Nothing is packaged here — the Flatpak is built
+    # and attached by hand with packaging/flatpak/build.sh.
+    linux:
+        name: Linux
+        runs-on: ubuntu-latest
+
+        steps:
+            # No LFS: the vendored binaries are Windows ones, and nothing on
+            # this side reads them.
+            - uses: actions/checkout@v4
+
+            # What `cargo build` links against on Linux — see Building from
+            # source in the README.
+            - name: Install system libraries
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y --no-install-recommends \
+                      libfontconfig1-dev libfreetype-dev libxkbcommon-dev \
+                      libwayland-dev libgl-dev
+
+            - name: Install Rust stable
+              uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: rustfmt, clippy
+
+            - name: Rust cache
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: .
+
+            - name: Format
+              run: cargo fmt --check
+
+            # Warnings fail the build: a lint let through once is a lint
+            # nobody reads again.
+            - name: Lint
+              run: cargo clippy -p dbm-player --all-targets -- -D warnings
+
+            - name: Test
+              run: cargo test -p dbm-player
+
     build:
+        name: Windows
         runs-on: windows-latest
 
         steps:
@@ -34,11 +77,19 @@ jobs:
 
             - name: Install Rust stable
               uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: clippy
 
             - name: Rust cache
               uses: Swatinem/rust-cache@v2
               with:
                   workspaces: .
+
+            # The Windows-only code — the drop target, the modal-loop hook,
+            # SMTC, the wake lock — is linted nowhere else. Formatting is
+            # checked once, on the Linux side.
+            - name: Lint
+              run: cargo clippy -p dbm-player --all-targets -- -D warnings
 
             - name: Build
               run: cargo build --release -p dbm-player
