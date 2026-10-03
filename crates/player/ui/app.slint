@@ -22,10 +22,10 @@ import { ScrollList } from "scroll_list.slint";
 export { Chrome, Flash, Tip, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem }
 
 export component MainWindow inherits Window {
-    // The title bar and the task bar. 128px because that is the largest of
-    // the set that is a plain square PNG, and window managers scale down
-    // better than they scale up. The executable's own icon is a different
-    // thing — a Windows resource, compiled in — and is not wired yet.
+    // The title bar and the task bar: 256px, since window managers scale
+    // down better than they scale up. The executable's own icon — the one
+    // Explorer, the taskbar pin and the installer show — is a different
+    // thing, a Windows resource compiled in by `build.rs`.
     icon: @image-url("../icons/128x128@2x.png");
 
     // --- from the render pipeline ---

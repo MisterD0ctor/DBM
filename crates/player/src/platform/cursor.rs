@@ -34,6 +34,12 @@ pub struct Pointer {
     hidden: bool,
 }
 
+impl Pointer {
+    pub fn new() -> Self {
+        Self { hidden: false }
+    }
+}
+
 impl Default for Pointer {
     fn default() -> Self {
         Self::new()
@@ -46,10 +52,6 @@ impl Default for Pointer {
 
 #[cfg(windows)]
 impl Pointer {
-    pub fn new() -> Self {
-        Self { hidden: false }
-    }
-
     /// Hide the pointer, or show it. Does nothing if it is already that way.
     ///
     /// The window is not part of this on Windows: the count below belongs to
@@ -95,10 +97,6 @@ pub fn on_screen() -> Option<bool> {
 
 #[cfg(not(windows))]
 impl Pointer {
-    pub fn new() -> Self {
-        Self { hidden: false }
-    }
-
     /// Hide the pointer, or show it. Does nothing if it is already that way.
     ///
     /// Through the winit window behind Slint's, which is the only place the

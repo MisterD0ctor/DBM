@@ -10,4 +10,4 @@ target
 *.sw?
 
 # Impeccable critique snapshots — generated reports
-.impeccable/
+.impeccable/critique/
