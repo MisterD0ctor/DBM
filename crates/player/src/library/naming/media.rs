@@ -1,241 +1,8 @@
-//! Turning file and track names into something worth reading.
-//!
-//! Two jobs, both of them guesswork over conventions nobody agreed on:
-//!
-//! * A filename like `Show.Name.S01E02.Episode.Title.1080p.WEB-DL.x264-GRP`
-//!   has a show, a season, an episode and a title in it, wrapped in release
-//!   metadata that means nothing once the file is playing. Fansub releases
-//!   often have no season at all — `[Group] Show - 01 (1080p)` — and number
-//!   a show's episodes straight through.
-//! * A track carries a language code, sometimes a title, and — for external
-//!   subtitles, where mpv uses the filename as the title — the same release
-//!   junk again, plus the flags that actually matter: forced, SDH, commentary.
-//!
-//! Everything here is a pure function over strings. No mpv, no UI, no I/O:
-//! the parsing is all guesswork and guesswork wants tests, which is easiest
-//! when there is nothing to set up first.
+//! What a filename turned out to be, and the line it is shown as.
 
-use std::collections::HashMap;
-
-// ---------------------------------------------------------------------------
-// Cleaners
-// ---------------------------------------------------------------------------
-
-/// Strip leading directory components, for either platform's separator.
-pub fn strip_path(name: &str) -> &str {
-    match name.rfind(['/', '\\']) {
-        Some(i) => &name[i + 1..],
-        None => name,
-    }
-}
-
-/// Strip a trailing extension.
-///
-/// Only a short one: a dot four characters from the end of
-/// `Movie.2019.WEB-DL` is a separator, not an extension, and cutting there
-/// would eat half the name.
-pub fn strip_extension(name: &str) -> &str {
-    match name.rfind('.') {
-        Some(i) if i > 0 && name.len() - i <= 5 => &name[..i],
-        _ => name,
-    }
-}
-
-/// Dots and underscores used as word separators become spaces.
-///
-/// Not every dot: `5.1` and `H.264` are one token each, and splitting them
-/// turns a clean name into a scattering of digits. A dot is a separator only
-/// when it is not sitting between two digits, or between a single letter and
-/// a digit.
-pub fn clean_separators(s: &str) -> String {
-    let chars: Vec<char> = s.chars().collect();
-    let mut out = String::with_capacity(s.len());
-    for (i, &c) in chars.iter().enumerate() {
-        let separator = match c {
-            '_' => true,
-            '.' => {
-                let before = i.checked_sub(1).map(|j| chars[j]);
-                let after = chars.get(i + 1).copied();
-                let digit_at = |j: Option<usize>| {
-                    j.and_then(|j| chars.get(j))
-                        .is_some_and(|c| c.is_ascii_digit())
-                };
-                match (before, after) {
-                    // 5.1, 7.1, 5.1.2 — a channel layout is single digits on
-                    // both sides. `2019.1080p` is digits either side too, and
-                    // the run length is the only thing that separates them.
-                    (Some(a), Some(b)) if a.is_ascii_digit() && b.is_ascii_digit() => {
-                        let lone_before = !digit_at(i.checked_sub(2));
-                        let lone_after = !digit_at(Some(i + 2));
-                        !(lone_before && lone_after)
-                    }
-                    // H.264, x.265 — but only where the letter stands
-                    // alone. In `Movie.2019` the dot is a separator, and the
-                    // only thing telling the two apart is what precedes the
-                    // letter.
-                    (Some(a), Some(b)) if a.is_ascii_alphabetic() && b.is_ascii_digit() => {
-                        let lone = i
-                            .checked_sub(2)
-                            .map(|j| chars[j])
-                            .is_none_or(|p| !p.is_alphanumeric());
-                        !lone
-                    }
-                    _ => true,
-                }
-            }
-            _ => false,
-        };
-        out.push(if separator { ' ' } else { c });
-    }
-    out.split_whitespace().collect::<Vec<_>>().join(" ")
-}
-
-/// Words that mean "this is a release", not "this is the film".
-#[rustfmt::skip]
-const METADATA: &[&str] = &[
-    // Resolution
-    "480p", "576p", "720p", "1080p", "1080i", "2160p", "4k", "uhd",
-    // Source
-    "bluray", "blu-ray", "bdrip", "bdremux", "remux", "brrip", "webrip", "web-dl", "webdl",
-    "web", "hdtv", "pdtv", "dvdrip", "dvd", "hdrip", "hdcam", "cam", "telesync", "telecine",
-    "amzn", "nf", "dsnp", "hmax", "atvp", "pcok", "hulu", "stan", "ip",
-    // Video codec
-    "x264", "x265", "h264", "h265", "h.264", "h.265", "hevc", "avc", "av1", "vp9", "mpeg2",
-    "xvid", "divx", "10bit", "8bit",
-    // Dynamic range
-    "hdr", "hdr10", "hdr10+", "hdr10plus", "dv", "sdr", "hlg",
-    // Audio
-    "aac", "aac2", "aac5", "ac3", "eac3", "dts", "dts-hd", "dtshd", "dts-x", "flac", "truehd",
-    "atmos", "ddp5", "ddp", "dd5", "dd+", "dd", "lpcm", "mp3", "opus", "2ch", "6ch", "8ch",
-    // Edition and packaging
-    "proper", "repack", "internal", "limited", "extended", "unrated", "uncut", "imax",
-    "hybrid", "multi", "dual",
-];
-
-/// Cut the name at the first release tag.
-///
-/// Truncating rather than removing word by word, because everything after the
-/// first tag is metadata too — `1080p WEB-DL x264-GROUP` has no title hiding
-/// in the middle of it.
-pub fn strip_metadata(s: &str) -> String {
-    let words: Vec<&str> = s.split(' ').collect();
-    for (i, w) in words.iter().enumerate() {
-        if is_metadata(w) {
-            return trim_junk(&words[..i].join(" "));
-        }
-    }
-    trim_junk(s)
-}
-
-/// Whether one word is a release marker rather than part of a name.
-///
-/// Split out so the same judgement serves two callers: cutting a name short
-/// at the first marker, and deciding whether a container's title tag was
-/// written by a person at all.
-fn is_metadata(word: &str) -> bool {
-    let bare = word
-        .trim_matches(|c: char| !c.is_alphanumeric() && c != '+' && c != '.' && c != '-')
-        .to_ascii_lowercase();
-    if bare.is_empty() {
-        return false;
-    }
-    // A release group trailing the codec, as in `x264-GRP`.
-    let head = bare.split('-').next().unwrap_or(&bare);
-    METADATA.contains(&bare.as_str()) || METADATA.contains(&head)
-}
-
-/// Whether one word could only have come from a release name.
-///
-/// Narrower than [`is_metadata`] on purpose. Most of `METADATA` is ordinary
-/// English — a film can be called *The Extended Cut*, a title can contain
-/// *Proper*, and *Stan* is a name — so that list is right for cutting a file
-/// name short and wrong for judging whether a person wrote something. What
-/// cannot appear in prose is a marker carrying a digit (`1080p`, `x265`,
-/// `10bit`, `6ch`) or one of the few spelled-out technical words below.
-fn is_release_token(word: &str) -> bool {
-    #[rustfmt::skip]
-    const NEVER_IN_PROSE: &[&str] = &[
-        "bluray", "blu-ray", "bdrip", "bdremux", "brrip", "webrip", "web-dl", "webdl",
-        "hdtv", "pdtv", "dvdrip", "hdrip", "hdcam", "telesync", "telecine", "hevc",
-        "avc", "xvid", "divx", "truehd", "dtshd", "dts-hd", "dts-x", "flac", "lpcm",
-    ];
-    let bare = word
-        .trim_matches(|c: char| !c.is_alphanumeric() && c != '+' && c != '.' && c != '-')
-        .to_ascii_lowercase();
-    if bare.is_empty() {
-        return false;
-    }
-    let head = bare.split('-').next().unwrap_or(&bare);
-    if NEVER_IN_PROSE.contains(&bare.as_str()) || NEVER_IN_PROSE.contains(&head) {
-        return true;
-    }
-    bare.chars().any(|c| c.is_ascii_digit()) && is_metadata(&bare)
-}
-
-/// Whether a container's title tag is a title, or the file name in disguise.
-///
-/// mpv reports the container's `title` tag, and the rule used to be "if it is
-/// not exactly the file name, a person wrote it". Packers are not so tidy. One
-/// real file carries
-///
-/// ```text
-/// PSArips.com | Game.of.Thrones.S07E01.Dragonstone.1080p.10bit.BluRay.6CH.x265.HEVC-PSA
-/// ```
-///
-/// which is not equal to the file name, so it passed the old test and landed
-/// whole — advertisement included — in the slot meant for the one part of the
-/// name a human actually typed.
-///
-/// Two cheap tests catch it, and both have to pass for the title to be used.
-/// Nobody types `1080p` into an episode title; and a title that contains the
-/// file's own stem is the file name wearing a hat, however much has been
-/// bolted on either side of it.
-fn authored(embedded: &str, path: &str) -> bool {
-    if clean_separators(embedded).split(' ').any(is_release_token) {
-        return false;
-    }
-    let stem = comparable(strip_extension(strip_path(path)));
-    !stem.is_empty() && !comparable(embedded).contains(&stem)
-}
-
-/// Lower case, separators as spaces, runs of space collapsed — enough to
-/// compare a title against a file name without either's punctuation deciding
-/// the answer.
-fn comparable(s: &str) -> String {
-    clean_separators(s)
-        .to_ascii_lowercase()
-        .split_whitespace()
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-/// Drop a bracketed tag from the front of a name.
-///
-/// A name opening with `[Group]` or `(Group)` is a release group's signature,
-/// not part of the title — the convention is near-universal in fansubbing and
-/// nowhere does a film actually begin with a bracket.
-pub fn strip_group(s: &str) -> &str {
-    let s = s.trim_start();
-    let close = match s.chars().next() {
-        Some('[') => ']',
-        Some('(') => ')',
-        _ => return s,
-    };
-    match s.find(close) {
-        Some(i) => s[i + 1..].trim_start(),
-        None => s,
-    }
-}
-
-/// Trim the punctuation a cut leaves dangling.
-fn trim_junk(s: &str) -> String {
-    const JUNK: [char; 12] = ['-', '–', '.', ',', '(', ')', '[', ']', '{', '}', '_', ' '];
-    s.trim().trim_matches(JUNK).trim().to_string()
-}
-
-// ---------------------------------------------------------------------------
-// What a filename turned out to be
-// ---------------------------------------------------------------------------
+use super::clean::{
+    authored, clean_separators, strip_extension, strip_group, strip_metadata, strip_path, trim_junk,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Media {
@@ -693,386 +460,6 @@ fn split_year(name: &str) -> (String, Option<u32>) {
     (name.to_string(), None)
 }
 
-// ---------------------------------------------------------------------------
-// Track names
-// ---------------------------------------------------------------------------
-
-/// A flag a subtitle track carries about itself, rather than a name.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Flag {
-    /// Only the signs and the foreign dialogue.
-    Forced,
-    /// Includes sound effects and speaker labels.
-    Sdh,
-    /// A commentary track rather than the film's own dialogue.
-    Commentary,
-}
-
-impl Flag {
-    fn label(self) -> &'static str {
-        match self {
-            Self::Forced => "Forced",
-            Self::Sdh => "SDH",
-            Self::Commentary => "Commentary",
-        }
-    }
-
-    fn detect(word: &str) -> Option<Self> {
-        match word {
-            "forced" | "foreign" => Some(Self::Forced),
-            "sdh" | "cc" | "hearingimpaired" | "hearing" => Some(Self::Sdh),
-            "commentary" | "comm" => Some(Self::Commentary),
-            _ => None,
-        }
-    }
-}
-
-/// What a track's own title turned out to say.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct TrackName {
-    /// Whatever is left once the flags and the release junk are removed.
-    pub text: Option<String>,
-    pub flags: Vec<Flag>,
-}
-
-/// Read a track title.
-///
-/// mpv uses the filename as the title of an external subtitle, so this has to
-/// cope with `Movie.2019.1080p.WEB-DL.forced.eng.srt` as readily as with
-/// `Director's commentary`. The flags are the part worth keeping: whether a
-/// subtitle is forced decides whether you want it, and no language code says
-/// so.
-pub fn parse_track_name(title: &str, language: Option<&str>) -> TrackName {
-    let stem = strip_extension(strip_path(title));
-    let cleaned = clean_separators(stem);
-
-    // A title someone typed reads as a sentence; a filename reads as tokens.
-    // The difference matters: pulling "commentary" out of `Director's
-    // commentary` as a flag leaves "Director's", which is not a name for
-    // anything. So words are only taken out of something that arrived as a
-    // filename — dot- or underscore-separated, or a single token.
-    let written = stem.contains(' ') && !stem.contains('.') && !stem.contains('_');
-
-    let mut flags = Vec::new();
-    let mut kept: Vec<&str> = Vec::new();
-
-    for word in cleaned.split(' ') {
-        let bare: String = word
-            .chars()
-            .filter(|c| c.is_alphanumeric())
-            .collect::<String>()
-            .to_ascii_lowercase();
-        if bare.is_empty() {
-            continue;
-        }
-        if let Some(flag) = Flag::detect(&bare) {
-            if !flags.contains(&flag) {
-                flags.push(flag);
-            }
-            if !written {
-                continue;
-            }
-        }
-        // The language is already shown beside the name; repeating it in the
-        // name too is how you get "English — English".
-        if language.is_some_and(|l| same_language(&bare, l)) || base_code(&bare).is_some() {
-            continue;
-        }
-        kept.push(word);
-    }
-
-    let text = strip_metadata(&kept.join(" "));
-    // A flag the text already says out loud does not need saying twice.
-    let lowered = text.to_ascii_lowercase();
-    flags.retain(|f| !lowered.contains(&f.label().to_ascii_lowercase()));
-    TrackName {
-        text: (!text.is_empty()).then_some(text),
-        flags,
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Languages
-// ---------------------------------------------------------------------------
-
-/// Endonyms: a language written the way it writes itself, which is what
-/// someone looking for their own language is scanning the list for.
-///
-/// Keyed by ISO 639-1. Not every language — the long tail falls back to the
-/// raw code, and the point where that starts to matter is the point to bring
-/// in a real CLDR table rather than to keep extending this one.
-const LANGUAGES: &[(&str, &str)] = &[
-    ("ar", "العربية"),
-    ("bg", "Български"),
-    ("bn", "বাংলা"),
-    ("cs", "Čeština"),
-    ("da", "Dansk"),
-    ("de", "Deutsch"),
-    ("el", "Ελληνικά"),
-    ("en", "English"),
-    ("es", "Español"),
-    ("et", "Eesti"),
-    ("fa", "فارسی"),
-    ("fi", "Suomi"),
-    ("fr", "Français"),
-    ("he", "עברית"),
-    ("hi", "हिन्दी"),
-    ("hr", "Hrvatski"),
-    ("hu", "Magyar"),
-    ("id", "Indonesia"),
-    ("is", "Íslenska"),
-    ("it", "Italiano"),
-    ("ja", "日本語"),
-    ("ko", "한국어"),
-    ("lt", "Lietuvių"),
-    ("lv", "Latviešu"),
-    ("ms", "Melayu"),
-    ("nb", "Norsk bokmål"),
-    ("nl", "Nederlands"),
-    ("nn", "Norsk nynorsk"),
-    ("no", "Norsk"),
-    ("pl", "Polski"),
-    ("pt", "Português"),
-    ("ro", "Română"),
-    ("ru", "Русский"),
-    ("sk", "Slovenčina"),
-    ("sl", "Slovenščina"),
-    ("sr", "Српски"),
-    ("sv", "Svenska"),
-    ("th", "ไทย"),
-    ("tr", "Türkçe"),
-    ("uk", "Українська"),
-    ("vi", "Tiếng Việt"),
-    ("zh", "中文"),
-];
-
-/// Three-letter codes onto their two-letter equivalents. Both the
-/// bibliographic and terminological forms, since files carry either.
-#[rustfmt::skip]
-const ALPHA3: &[(&str, &str)] = &[
-    ("ara", "ar"), ("bul", "bg"), ("ben", "bn"), ("cze", "cs"), ("ces", "cs"),
-    ("dan", "da"), ("ger", "de"), ("deu", "de"), ("gre", "el"), ("ell", "el"),
-    ("eng", "en"), ("spa", "es"), ("est", "et"), ("per", "fa"), ("fas", "fa"),
-    ("fin", "fi"), ("fre", "fr"), ("fra", "fr"), ("heb", "he"), ("hin", "hi"),
-    ("hrv", "hr"), ("hun", "hu"), ("ind", "id"), ("ice", "is"), ("isl", "is"),
-    ("ita", "it"), ("jpn", "ja"), ("kor", "ko"), ("lit", "lt"), ("lav", "lv"),
-    ("may", "ms"), ("msa", "ms"), ("nob", "nb"), ("dut", "nl"), ("nld", "nl"),
-    ("nno", "nn"), ("nor", "no"), ("pol", "pl"), ("por", "pt"), ("rum", "ro"),
-    ("ron", "ro"), ("rus", "ru"), ("slo", "sk"), ("slk", "sk"), ("slv", "sl"),
-    ("srp", "sr"), ("swe", "sv"), ("tha", "th"), ("tur", "tr"), ("ukr", "uk"),
-    ("vie", "vi"), ("chi", "zh"), ("zho", "zh"),
-];
-
-/// The two-letter code a tag reduces to: `en-US` and `eng` both give `en`.
-///
-/// Whoever muxed the file picked from `en`, `eng` and `en-US` more or less at
-/// random, so nothing that compares languages can compare the raw strings.
-pub fn base_code(tag: &str) -> Option<&'static str> {
-    let tag = tag.trim().to_ascii_lowercase();
-    let head = tag.split(['-', '_']).next().unwrap_or(&tag);
-    if let Some((code, _)) = LANGUAGES.iter().find(|(c, _)| *c == head) {
-        return Some(code);
-    }
-    ALPHA3
-        .iter()
-        .find(|(three, _)| *three == head)
-        .map(|(_, two)| *two)
-}
-
-/// How to write a language code for a reader. Unknown codes come back
-/// upper-cased, which at least reads as a code rather than as a word.
-pub fn language_name(tag: &str) -> String {
-    match base_code(tag).and_then(|c| LANGUAGES.iter().find(|(code, _)| *code == c)) {
-        Some((_, name)) => (*name).to_string(),
-        None => tag.trim().to_ascii_uppercase(),
-    }
-}
-
-/// Do two tags name the same language?
-pub fn same_language(a: &str, b: &str) -> bool {
-    let (a, b) = (a.trim(), b.trim());
-    if a.is_empty() || b.is_empty() {
-        return false;
-    }
-    if a.eq_ignore_ascii_case(b) {
-        return true;
-    }
-    match (base_code(a), base_code(b)) {
-        (Some(x), Some(y)) => x == y,
-        _ => false,
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Track labels
-// ---------------------------------------------------------------------------
-
-/// One track, as much of it as naming a track needs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct TrackInfo<'a> {
-    /// Only for the last-resort label. mpv numbers tracks within a type, so
-    /// an id is not unique across a file and cannot key anything.
-    pub id: i64,
-    pub title: Option<&'a str>,
-    pub language: Option<&'a str>,
-    pub external: bool,
-    /// mpv's codec name, for a track that says nothing else about itself.
-    pub codec: Option<&'a str>,
-    /// How many channels, for the same.
-    pub channels: Option<i64>,
-}
-
-/// What to call each track, given all the others it sits with.
-///
-/// One list at a time — the subtitles, or the audio, not both. The right
-/// label depends on the company a track keeps: with one English track
-/// "English" is the whole label, and with three it is not a label at all. Two
-/// English subtitles and two English audio tracks are four tracks but two
-/// lists, and numbering them 1-4 would be answering a question nobody asked.
-///
-/// Returns labels positionally, in step with the input, for the same reason
-/// the id is only a fallback.
-///
-/// Mirrors what the Tauri build did, minus the region qualifiers — telling
-/// `es-419` from `es-ES` needs a real locale database.
-pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
-    let key = |t: &TrackInfo| t.language.map(|l| base_code(l).unwrap_or(l).to_string());
-
-    let mut per_language: HashMap<String, usize> = HashMap::new();
-    for t in tracks {
-        if let Some(k) = key(t) {
-            *per_language.entry(k).or_insert(0) += 1;
-        }
-    }
-
-    let mut seen: HashMap<String, usize> = HashMap::new();
-    let mut out = Vec::with_capacity(tracks.len());
-    for t in tracks {
-        let parsed = t
-            .title
-            .map(|title| parse_track_name(title, t.language))
-            .unwrap_or_default();
-
-        let mut label = match (key(t), &parsed.text) {
-            (Some(l), Some(text)) => format!("{} — {text}", language_name(&l)),
-            (Some(l), None) => {
-                let name = language_name(&l);
-                // Only number them when the language alone cannot tell them
-                // apart; a lone Swedish track is "Svenska", not "Svenska 1".
-                if per_language.get(&l).copied().unwrap_or(0) > 1 {
-                    let n = seen.entry(l).and_modify(|c| *c += 1).or_insert(1);
-                    format!("{name} {n}")
-                } else {
-                    name
-                }
-            }
-            (None, Some(text)) => text.clone(),
-            // No language and no title: named by what it technically is.
-            // "AAC 5.1" is true and tells two tracks apart; "Track 1" said
-            // only that a track existed, and read the same in both lists.
-            (None, None) => by_format(t).unwrap_or_else(|| format!("Track {}", t.id)),
-        };
-
-        for flag in &parsed.flags {
-            label.push_str(" · ");
-            label.push_str(flag.label());
-        }
-        if t.external {
-            label.push_str(" · external");
-        }
-        out.push(label);
-    }
-    out
-}
-
-/// A track's format as a person would name it: "AAC 5.1", "E-AC-3 stereo",
-/// "ASS". `None` when mpv did not say what the codec is.
-fn by_format(t: &TrackInfo) -> Option<String> {
-    let codec = codec_name(t.codec?);
-    Some(match t.channels.and_then(channel_layout) {
-        Some(layout) => format!("{codec} {layout}"),
-        None => codec,
-    })
-}
-
-/// mpv reports FFmpeg's internal codec names, some of which are not what
-/// anyone calls the format.
-fn codec_name(codec: &str) -> String {
-    match codec.to_ascii_lowercase().as_str() {
-        "subrip" => "SRT".into(),
-        "hdmv_pgs_subtitle" => "PGS".into(),
-        "dvd_subtitle" => "VobSub".into(),
-        "mov_text" => "Timed text".into(),
-        "webvtt" => "WebVTT".into(),
-        "eac3" => "E-AC-3".into(),
-        "ac3" => "AC-3".into(),
-        "truehd" => "TrueHD".into(),
-        "opus" => "Opus".into(),
-        "vorbis" => "Vorbis".into(),
-        other => other.to_ascii_uppercase(),
-    }
-}
-
-/// Whether a chapter's title marks closing credits.
-///
-/// Chapter names are structural rather than written — `End Credits`,
-/// `Outro`, `ED` — so whole words are matched, and a title about the start
-/// (`Opening Credits`, `Intro`, `OP`) is refused whatever else it says.
-pub fn is_credits(title: &str) -> bool {
-    let words: Vec<String> = title
-        .split(|c: char| !c.is_alphanumeric())
-        .filter(|w| !w.is_empty())
-        .map(str::to_lowercase)
-        .collect();
-    let has = |word: &str| words.iter().any(|w| w == word);
-    if ["opening", "intro", "op", "recap", "previously", "cold"]
-        .iter()
-        .any(|w| has(w))
-    {
-        return false;
-    }
-    [
-        "credits",
-        "credit",
-        "endcredits",
-        "outro",
-        "ending",
-        "ed",
-        "closing",
-    ]
-    .iter()
-    .any(|w| has(w))
-        || (has("end") && (words.len() == 1 || has("titles")))
-}
-
-/// Whether a chapter's title is only a placeholder — its own start time,
-/// `00:42:22.832`, or `Chapter 7` — which is what a muxer writes when nobody
-/// named anything.
-pub fn is_unnamed_chapter(title: &str) -> bool {
-    let title = title.trim();
-    if let Some(rest) = title
-        .strip_prefix("Chapter")
-        .or_else(|| title.strip_prefix("chapter"))
-    {
-        let rest = rest.trim_start();
-        return !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit());
-    }
-    title.chars().any(|c| c.is_ascii_digit())
-        && title
-            .chars()
-            .all(|c| c.is_ascii_digit() || c == ':' || c == '.')
-}
-
-fn channel_layout(channels: i64) -> Option<&'static str> {
-    match channels {
-        1 => Some("mono"),
-        2 => Some("stereo"),
-        6 => Some("5.1"),
-        8 => Some("7.1"),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1089,7 +476,6 @@ mod tests {
             other => panic!("expected an episode, got {other:?}"),
         }
     }
-
     #[test]
     fn dashed_episode() {
         let (show, s, e, end, title) = episode("Show Name - S01E02 - Episode Title.mkv");
@@ -1097,7 +483,6 @@ mod tests {
         assert_eq!((s, e, end), (Some(1), 2, None));
         assert_eq!(title.as_deref(), Some("Episode Title"));
     }
-
     #[test]
     fn dotted_episode() {
         let (show, s, e, _, title) =
@@ -1106,33 +491,28 @@ mod tests {
         assert_eq!((s, e), (Some(1), 2));
         assert_eq!(title.as_deref(), Some("Episode Title"));
     }
-
     #[test]
     fn double_episode() {
         let (_, _, e, end, title) = episode("Show - S01E02-E03 - Two Parter.mkv");
         assert_eq!((e, end), (2, Some(3)));
         assert_eq!(title.as_deref(), Some("Two Parter"));
     }
-
     #[test]
     fn alternate_marker() {
         let (show, s, e, _, _) = episode("Show Name 1x02 Title.mkv");
         assert_eq!(show, "Show Name");
         assert_eq!((s, e), (Some(1), 2));
     }
-
     #[test]
     fn spaced_marker() {
         let (_, s, e, _, _) = episode("Show - S01 E02 - Title.mkv");
         assert_eq!((s, e), (Some(1), 2));
     }
-
     #[test]
     fn a_marker_must_start_a_word() {
         // Otherwise "Class" would be read as a season marker.
         assert!(matches!(parse("Class1x02 thing.mkv"), Media::Movie { .. }));
     }
-
     #[test]
     fn anime_season_and_episode_without_an_e() {
         let (show, s, e, end, title) =
@@ -1141,7 +521,6 @@ mod tests {
         assert_eq!((s, e, end), (Some(2), 1, None));
         assert_eq!(title, None);
     }
-
     #[test]
     fn fansub_numbering_without_a_season() {
         let (show, s, e, end, title) =
@@ -1150,33 +529,28 @@ mod tests {
         assert_eq!((s, e, end), (None, 1, None));
         assert_eq!(title, None);
     }
-
     #[test]
     fn a_checksum_alone_is_not_a_title() {
         let (_, _, e, _, title) = episode("[Grp] Wandering Road - 04 [ABCD1234].mkv");
         assert_eq!(e, 4);
         assert_eq!(title, None);
     }
-
     #[test]
     fn a_title_after_the_number_is_kept() {
         let (show, _, e, _, title) = episode("Wandering Road - 03 - Old Friends.mkv");
         assert_eq!((show.as_str(), e), ("Wandering Road", 3));
         assert_eq!(title.as_deref(), Some("Old Friends"));
     }
-
     #[test]
     fn a_revision_is_the_same_episode() {
         let (_, _, e, _, title) = episode("[Grp] Wandering Road - 03v2 [720p].mkv");
         assert_eq!(e, 3);
         assert_eq!(title, None);
     }
-
     #[test]
     fn a_year_after_a_dash_is_a_film() {
         assert!(matches!(parse("Some Film - 2019.mkv"), Media::Movie { .. }));
     }
-
     #[test]
     fn a_resolution_after_a_dash_is_not_an_episode() {
         assert!(matches!(
@@ -1188,19 +562,16 @@ mod tests {
             Media::Movie { .. }
         ));
     }
-
     #[test]
     fn a_hyphen_inside_a_name_is_not_a_dash() {
         assert!(matches!(parse("Spider-Man 2.mkv"), Media::Movie { .. }));
     }
-
     #[test]
     fn a_marked_season_wins_over_the_dash() {
         // `S2 - 01` has the same dash and number, and the season is worth having.
         let (_, s, e, _, _) = episode("[EMBER] Sousou no Frieren S2 - 01.mkv");
         assert_eq!((s, e), (Some(2), 1));
     }
-
     #[test]
     fn an_episode_without_a_season_is_numbered_on_its_own() {
         assert_eq!(
@@ -1216,7 +587,6 @@ mod tests {
             "Wandering Road \u{b7} E01 \u{b7} A Journey Begins"
         );
     }
-
     #[test]
     fn a_fansub_folder_becomes_one_show() {
         let list = listing(
@@ -1229,7 +599,6 @@ mod tests {
         assert_eq!(list.heading.as_deref(), Some("Wandering Road"));
         assert_eq!(list.rows, ["E01 \u{b7} A Journey Begins", "E02"]);
     }
-
     #[test]
     fn a_release_group_is_not_the_show() {
         assert_eq!(
@@ -1241,7 +610,6 @@ mod tests {
         // An unclosed bracket is not a tag; leave the name alone.
         assert_eq!(strip_group("[weird name"), "[weird name");
     }
-
     #[test]
     fn a_resolution_is_not_an_episode() {
         // `S2 1080p` must not read 108 as the episode number.
@@ -1250,7 +618,6 @@ mod tests {
             other => panic!("expected a movie, got {other:?}"),
         }
     }
-
     #[test]
     fn the_container_title_fills_the_episode_slot() {
         // The name knows the show and the numbering; the container knows the
@@ -1263,7 +630,6 @@ mod tests {
             "Sousou no Frieren \u{b7} S02E01 \u{b7} The Chosen One"
         );
     }
-
     #[test]
     fn a_container_that_repeats_the_numbering_says_it_once() {
         let path = "[EMBER] Sousou no Frieren S2 - 03.mkv";
@@ -1277,7 +643,6 @@ mod tests {
             "Sousou no Frieren \u{b7} S02E03 \u{b7} Somewhere She'd Like"
         );
     }
-
     #[test]
     fn a_title_may_be_about_a_number() {
         // 2001 is not episode 3, so it stays where it is.
@@ -1287,7 +652,6 @@ mod tests {
             "Sousou no Frieren \u{b7} S02E03 \u{b7} 2001 - A Space Odyssey"
         );
     }
-
     #[test]
     fn a_container_title_is_not_a_file_name() {
         // No metadata stripping: someone typed this one.
@@ -1297,7 +661,6 @@ mod tests {
             "Show \u{b7} S01E01 \u{b7} The Extended Cut"
         );
     }
-
     #[test]
     fn an_advertisement_in_the_title_tag_is_not_a_title() {
         // Verbatim from a real file. The tag is the release name with a site
@@ -1315,7 +678,6 @@ mod tests {
             "Game of Thrones \u{b7} S07E01 \u{b7} Dragonstone"
         );
     }
-
     #[test]
     fn a_title_tag_that_swallowed_the_file_name_is_refused() {
         // The same shape with no technical marker to give it away, so the one
@@ -1327,13 +689,11 @@ mod tests {
             "Show \u{b7} S01E02 \u{b7} The Reckoning"
         );
     }
-
     #[test]
     fn a_container_title_of_only_numbering_adds_nothing() {
         let path = "Show.S01E01.mkv";
         assert_eq!(titled(path, Some("S01E01")), "Show \u{b7} S01E01");
     }
-
     #[test]
     fn a_container_title_replaces_a_film_name_but_keeps_the_year() {
         assert_eq!(
@@ -1349,7 +709,6 @@ mod tests {
             "Blade Runner 2049 (2017)"
         );
     }
-
     #[test]
     fn one_show_becomes_the_heading() {
         let list = listing(
@@ -1365,14 +724,12 @@ mod tests {
         assert_eq!(list.heading.as_deref(), Some("Sousou no Frieren"));
         assert_eq!(list.rows, ["S02E01 \u{b7} The Chosen One", "S02E02"]);
     }
-
     #[test]
     fn a_mixed_list_keeps_the_show_on_every_row() {
         let list = listing([("Show.A.S01E01.mkv", None), ("Show.B.S01E01.mkv", None)].into_iter());
         assert_eq!(list.heading, None);
         assert_eq!(list.rows, ["Show A \u{b7} S01E01", "Show B \u{b7} S01E01"]);
     }
-
     #[test]
     fn a_film_among_the_episodes_is_enough_to_stop_it() {
         let list =
@@ -1380,14 +737,12 @@ mod tests {
         assert_eq!(list.heading, None);
         assert_eq!(list.rows, ["Show A \u{b7} S01E01", "Some Movie (2019)"]);
     }
-
     #[test]
     fn an_empty_list_has_no_show() {
         let list = listing([].into_iter());
         assert_eq!(list.heading, None);
         assert!(list.rows.is_empty());
     }
-
     #[test]
     fn movie_with_year() {
         match parse("Some.Movie.2019.1080p.BluRay.x264.mkv") {
@@ -1398,7 +753,6 @@ mod tests {
             other => panic!("expected a movie, got {other:?}"),
         }
     }
-
     #[test]
     fn resolution_is_not_a_year() {
         match parse("Some Movie 2160p.mkv") {
@@ -1409,7 +763,6 @@ mod tests {
             other => panic!("expected a movie, got {other:?}"),
         }
     }
-
     #[test]
     fn a_leading_year_is_the_title() {
         match parse("1917.2019.1080p.mkv") {
@@ -1420,7 +773,6 @@ mod tests {
             other => panic!("expected a movie, got {other:?}"),
         }
     }
-
     #[test]
     fn plain_name_survives() {
         match parse("holiday clip.mp4") {
@@ -1431,7 +783,6 @@ mod tests {
             other => panic!("expected a movie, got {other:?}"),
         }
     }
-
     #[test]
     fn display_lines() {
         assert_eq!(
@@ -1442,178 +793,5 @@ mod tests {
             titled("Some.Movie.2019.1080p.mkv", None),
             "Some Movie (2019)"
         );
-    }
-
-    #[test]
-    fn separators_keep_numbers_together() {
-        assert_eq!(clean_separators("Movie.DD5.1.H.264"), "Movie DD5.1 H.264");
-        assert_eq!(clean_separators("Show.Name__Title"), "Show Name Title");
-    }
-
-    #[test]
-    fn extension_only_when_short() {
-        assert_eq!(strip_extension("show.mkv"), "show");
-        assert_eq!(strip_extension("Movie.2019.WEB-DL"), "Movie.2019.WEB-DL");
-        assert_eq!(strip_extension(".hidden"), ".hidden");
-    }
-
-    #[test]
-    fn credits_chapters_are_recognised() {
-        for title in [
-            "End Credits",
-            "Credits",
-            "Closing Credits",
-            "Outro",
-            "ED",
-            "Ending",
-            "Ending Theme",
-            "End",
-            "End Titles",
-            "credits_roll",
-        ] {
-            assert!(is_credits(title), "{title}");
-        }
-        for title in [
-            "Opening Credits",
-            "Intro",
-            "OP",
-            "Chapter 12",
-            "Edward's Return",
-            "Previously On",
-            "The End of the Beginning",
-            "Preview",
-        ] {
-            assert!(!is_credits(title), "{title}");
-        }
-    }
-
-    #[test]
-    fn placeholder_chapter_titles_are_unnamed() {
-        for title in [
-            "00:42:22.832",
-            "00:00:00.000",
-            "Chapter 07",
-            "chapter 3",
-            "01",
-        ] {
-            assert!(is_unnamed_chapter(title), "{title}");
-        }
-        for title in [
-            "End Credits",
-            "Chapter One",
-            "Chapter",
-            "Act 3",
-            "",
-            "2001: A Space Odyssey",
-        ] {
-            assert!(!is_unnamed_chapter(title), "{title}");
-        }
-    }
-
-    #[test]
-    fn paths_are_stripped() {
-        assert_eq!(strip_path(r"C:\videos\show.mkv"), "show.mkv");
-        assert_eq!(strip_path("/videos/show.mkv"), "show.mkv");
-    }
-
-    #[test]
-    fn language_codes_fold_together() {
-        assert!(same_language("eng", "en-US"));
-        assert!(same_language("SWE", "sv"));
-        assert!(!same_language("en", "sv"));
-        assert_eq!(language_name("swe"), "Svenska");
-        assert_eq!(language_name("ja"), "日本語");
-        assert_eq!(language_name("qqq"), "QQQ");
-    }
-
-    #[test]
-    fn subtitle_filenames_become_flags() {
-        let parsed = parse_track_name("Movie.2019.1080p.WEB-DL.forced.eng.srt", Some("eng"));
-        assert_eq!(parsed.flags, vec![Flag::Forced]);
-        assert_eq!(parsed.text.as_deref(), Some("Movie 2019"));
-    }
-
-    #[test]
-    fn a_written_title_keeps_its_words() {
-        // The flag is recognised but not repeated: the title already says it.
-        let parsed = parse_track_name("Director's commentary", Some("eng"));
-        assert!(parsed.flags.is_empty());
-        assert_eq!(parsed.text.as_deref(), Some("Director's commentary"));
-    }
-
-    #[test]
-    fn a_bare_flag_is_only_a_flag() {
-        let parsed = parse_track_name("forced", Some("eng"));
-        assert_eq!(parsed.flags, vec![Flag::Forced]);
-        assert_eq!(parsed.text, None);
-    }
-
-    fn track(
-        id: i64,
-        title: Option<&'static str>,
-        lang: Option<&'static str>,
-    ) -> TrackInfo<'static> {
-        TrackInfo {
-            id,
-            title,
-            language: lang,
-            external: false,
-            codec: None,
-            channels: None,
-        }
-    }
-
-    #[test]
-    fn a_track_that_says_nothing_is_named_by_its_format() {
-        let bare = |codec, channels| TrackInfo {
-            id: 1,
-            title: None,
-            language: None,
-            external: false,
-            codec: Some(codec),
-            channels,
-        };
-        assert_eq!(track_labels(&[bare("aac", Some(6))]), ["AAC 5.1"]);
-        assert_eq!(track_labels(&[bare("subrip", None)]), ["SRT"]);
-        assert_eq!(track_labels(&[bare("eac3", Some(2))]), ["E-AC-3 stereo"]);
-    }
-
-    #[test]
-    fn one_track_per_language_is_not_numbered() {
-        let labels = track_labels(&[track(1, None, Some("eng")), track(2, None, Some("swe"))]);
-        assert_eq!(labels, ["English", "Svenska"]);
-    }
-
-    #[test]
-    fn several_of_one_language_are_numbered() {
-        let labels = track_labels(&[track(1, None, Some("eng")), track(2, None, Some("en-US"))]);
-        assert_eq!(labels, ["English 1", "English 2"]);
-    }
-
-    #[test]
-    fn ids_repeat_across_a_file_and_must_not_key_anything() {
-        // mpv numbers within a type, so the subtitle list has its own id 1.
-        // Labels come back positionally for exactly this reason.
-        let labels = track_labels(&[track(1, None, Some("eng")), track(1, None, Some("swe"))]);
-        assert_eq!(labels, ["English", "Svenska"]);
-    }
-
-    #[test]
-    fn a_title_keeps_its_own_words() {
-        let labels = track_labels(&[track(1, Some("Director's commentary"), Some("eng"))]);
-        assert_eq!(labels, ["English — Director's commentary"]);
-    }
-
-    #[test]
-    fn flags_ride_along() {
-        let labels = track_labels(&[TrackInfo {
-            id: 1,
-            title: Some("forced"),
-            language: Some("eng"),
-            external: true,
-            codec: None,
-            channels: None,
-        }]);
-        assert_eq!(labels, ["English · Forced · external"]);
     }
 }
