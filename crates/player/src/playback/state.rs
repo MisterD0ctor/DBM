@@ -307,7 +307,7 @@ impl PlayerState {
         let unnamed = self.chapters.iter().all(|c| {
             c.title
                 .as_deref()
-                .map_or(true, crate::library::naming::is_unnamed_chapter)
+                .is_none_or(crate::library::naming::is_unnamed_chapter)
         });
         let last = self.chapters.len().checked_sub(1)?;
         let tail = self.duration - self.chapters[last].time;

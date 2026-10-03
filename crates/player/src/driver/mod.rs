@@ -33,7 +33,7 @@ use slint::{
 
 use crate::app::App;
 use crate::gpu::gfx::Target;
-use crate::gpu::pipeline::{GlassPanel, Pipeline};
+use crate::gpu::pipeline::{Frame, GlassPanel, Pipeline};
 use crate::interface::{format, glass, playlist_panel, sync};
 use crate::library::playlist;
 use crate::platform::modal_loop;
@@ -86,8 +86,9 @@ pub struct Driver {
     replies: Vec<u64>,
     /// What the interface should say out loud this frame. Same reuse.
     notices: Vec<String>,
-    /// Which playlist entry to start on once `loadlist` reports done.
-    pending_start: Option<usize>,
+    /// Whether a `loadlist` is on its way, so that its reply knows to start
+    /// playback.
+    loading_list: bool,
     /// `PlayerState::loads` as of the last frame — see where it is compared.
     loads_seen: u64,
     /// The media keys and the desktop's media widget, told what is playing
@@ -115,7 +116,7 @@ impl Driver {
             player: PlayerState::default(),
             panels: Vec::new(),
             modal: modal_loop::Hook::new(),
-            drops: crate::platform::dropped::Accepting::default(),
+            drops: crate::platform::dropped::Accepting::new(),
             lists: sync::ListSync::default(),
             durations: crate::library::durations::Recorder::default(),
             scan: crate::library::probe::Scan::default(),
@@ -124,7 +125,7 @@ impl Driver {
             onward_asked: None,
             replies: Vec::new(),
             notices: Vec::new(),
-            pending_start: None,
+            loading_list: false,
             loads_seen: 0,
             media_keys,
             awake: crate::platform::awake::Awake::default(),
@@ -384,10 +385,9 @@ impl Driver {
                 // The list exists now. Which entry plays was settled
                 // before it loaded — see `commands::load_list` — so all this
                 // has to do is make sure it is playing.
-                commands::REPLY_LOADLIST => {
-                    if self.pending_start.take().is_some() {
-                        commands::set_pause(&self.app.mpv, false);
-                    }
+                commands::REPLY_LOADLIST if self.loading_list => {
+                    self.loading_list = false;
+                    commands::set_pause(&self.app.mpv, false);
                 }
                 _ => {}
             }
@@ -523,16 +523,15 @@ impl Driver {
         // second call would swallow the frame it reported.
         let new_frame = gpu.ctx.wants_redraw();
 
-        let rendered = match gpu.pipeline.render(
-            &gpu.gl,
-            &gpu.ctx,
-            size.width,
-            size.height,
+        let frame = Frame {
+            width: size.width,
+            height: size.height,
             new_frame,
             params_dirty,
             rect,
-            &self.panels,
-        ) {
+            panels: &self.panels,
+        };
+        let rendered = match gpu.pipeline.render(&gpu.gl, &gpu.ctx, &frame) {
             Ok(v) => v,
             Err(e) => {
                 eprintln!("dbm: pipeline: {e}");

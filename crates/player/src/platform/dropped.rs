@@ -53,6 +53,10 @@ pub struct Accepting {
 
 #[cfg(windows)]
 impl Accepting {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn poll(&mut self, ui: &crate::MainWindow) {
         use crate::platform::window::Attempt;
 
@@ -162,11 +166,14 @@ fn open(path: String) {
 // ---------------------------------------------------------------------------
 
 #[cfg(not(windows))]
-#[derive(Default)]
 pub struct Accepting;
 
 #[cfg(not(windows))]
 impl Accepting {
+    pub fn new() -> Self {
+        Self
+    }
+
     /// Nothing yet: X11 and Wayland each want their own protocol, and
     /// pretending otherwise here would only hide that.
     pub fn poll(&mut self, _ui: &crate::MainWindow) {}

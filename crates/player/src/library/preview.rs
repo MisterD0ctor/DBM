@@ -384,7 +384,7 @@ pub fn still(video: &Path, fraction: f32) -> Option<Still> {
         .output()
         .ok()?;
     let expected = (width * height * 4) as usize;
-    (out.status.success() && out.stdout.len() == expected).then(|| Still {
+    (out.status.success() && out.stdout.len() == expected).then_some(Still {
         rgba: out.stdout,
         width,
         height,

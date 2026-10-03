@@ -43,7 +43,7 @@ pub fn last_watched() -> Option<Resume> {
                 Some((modified, path, seconds))
             })
             .collect();
-    candidates.sort_by(|a, b| b.0.cmp(&a.0));
+    candidates.sort_by_key(|(modified, ..)| std::cmp::Reverse(*modified));
 
     // Newest first, and the first that still stands up: a watch-later file
     // can outlive the video it describes, and mpv also writes entries that

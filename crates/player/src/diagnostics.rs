@@ -555,7 +555,7 @@ fn write_bmp(path: &std::path::Path, rgba: &[u8], width: u32, height: u32) -> st
     out.extend_from_slice(&0u32.to_le_bytes());
     out.extend_from_slice(&0u32.to_le_bytes());
 
-    for px in rgba.chunks_exact(4) {
+    for px in rgba.as_chunks::<4>().0 {
         out.extend_from_slice(&[px[2], px[1], px[0], px[3]]);
     }
     std::fs::File::create(path)?.write_all(&out)

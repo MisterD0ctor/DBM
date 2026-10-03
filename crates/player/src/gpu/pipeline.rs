@@ -164,6 +164,25 @@ impl Default for GlassParams {
     }
 }
 
+/// What one frame is drawn from.
+#[derive(Clone, Copy)]
+pub struct Frame<'a> {
+    /// The window, in physical pixels.
+    pub width: u32,
+    pub height: u32,
+    /// mpv has a new picture to render.
+    pub new_frame: bool,
+    /// A material parameter changed, so the passes must run again even with
+    /// nothing else moving — otherwise a slider does nothing on a paused
+    /// frame.
+    pub params_dirty: bool,
+    /// The video's rect within the window, normalised. From observed state
+    /// rather than read from mpv here — see `state::OBSERVED`.
+    pub rect: [f32; 4],
+    /// The surfaces that want glass under them.
+    pub panels: &'a [GlassPanel],
+}
+
 pub struct Pipeline {
     quad: ScreenQuad,
     prog_extend: Program,
@@ -421,18 +440,16 @@ impl Pipeline {
         &mut self,
         gl: &glow::Context,
         ctx: &RenderContext,
-        w: u32,
-        h: u32,
-        new_frame: bool,
-        // A material parameter changed, so the passes must run again even
-        // with nothing else moving - otherwise a slider does nothing on a
-        // paused frame.
-        params_dirty: bool,
-        // Video rect within the window, normalised. Comes from observed
-        // state rather than being read from mpv here — see `state::OBSERVED`.
-        rect: [f32; 4],
-        panels: &[GlassPanel],
+        frame: &Frame,
     ) -> Result<bool, String> {
+        let Frame {
+            width: w,
+            height: h,
+            new_frame,
+            params_dirty,
+            rect,
+            panels,
+        } = *frame;
         let (ok, resized) = self.ensure_sizes(gl, w, h);
         if !ok {
             return Ok(false);

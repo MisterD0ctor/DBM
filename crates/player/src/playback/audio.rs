@@ -186,19 +186,15 @@ fn reopen(mpv: &Mpv, remembered: Option<&str>) -> Option<String> {
         Some(id) if id.parse::<u32>().is_ok() => id.to_owned(),
         // Dropped by mpv when the device died — put back what was playing,
         // provided this file still has it.
-        _ => {
-            let usable =
-                remembered.filter(|id| id.parse::<i64>().is_ok_and(|n| audio.contains(&n)));
-            match usable {
-                Some(id) => id.to_owned(),
-                // No memory of a track playing, and mpv reports none
-                // selected. Choosing one here would turn audio on for someone
-                // who had turned it off — including off in an earlier session,
-                // which watch-later restores and `user_disabled` cannot know
-                // about. Silence that was asked for is not a fault to fix.
-                None => return None,
-            }
-        }
+        //
+        // And nothing at all with no memory of a track playing and none
+        // selected. Choosing one here would turn audio on for someone who
+        // had turned it off — including off in an earlier session, which
+        // watch-later restores and `user_disabled` cannot know about.
+        // Silence that was asked for is not a fault to fix.
+        _ => remembered
+            .filter(|id| id.parse::<i64>().is_ok_and(|n| audio.contains(&n)))?
+            .to_owned(),
     };
 
     // Deselect first. Writing back the id mpv already holds is discarded as a

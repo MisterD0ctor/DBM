@@ -49,7 +49,7 @@ impl Driver {
                     "dbm: opened {} file(s), starting at {}",
                     list.count, list.start
                 );
-                self.pending_start = Some(list.start);
+                self.loading_list = true;
                 commands::load_list(&self.app.mpv, &list.m3u, list.start);
                 false
             }

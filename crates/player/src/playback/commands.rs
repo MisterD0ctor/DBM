@@ -35,6 +35,8 @@ const SPEEDS: &[f64] = &[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4
 
 /// The ends of that ladder, for a caller that has to advertise a range
 /// rather than step through one — see `mpris`.
+// Only MPRIS asks for this; SMTC has no rate or position to set.
+#[cfg_attr(windows, allow(dead_code))]
 pub fn speed_limits() -> (f64, f64) {
     (SPEEDS[0], SPEEDS[SPEEDS.len() - 1])
 }
@@ -54,6 +56,8 @@ pub fn step_speed(mpv: &Mpv, current: f64, direction: i32) {
 
 /// Play at a given speed, for a caller that arrived at a number of its own
 /// rather than stepping the ladder.
+// Only MPRIS asks for this; SMTC has no rate or position to set.
+#[cfg_attr(windows, allow(dead_code))]
 pub fn set_speed(mpv: &Mpv, speed: f64) {
     set_prop(mpv, "speed", &fmt(speed));
 }
@@ -383,6 +387,8 @@ pub fn playlist_step(mpv: &Mpv, delta: i32) {
 
 /// Seek to a point, counted in seconds from the start. Exact, like every
 /// seek that is not a drag in progress.
+// Only MPRIS asks for this; SMTC has no rate or position to set.
+#[cfg_attr(windows, allow(dead_code))]
 pub fn seek_to(mpv: &Mpv, seconds: f64) {
     run(mpv, &["seek", &fmt(seconds), "absolute+exact"]);
 }
