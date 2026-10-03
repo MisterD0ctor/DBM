@@ -459,12 +459,37 @@ fn near(ui: &MainWindow) -> Option<std::path::PathBuf> {
 /// row wide, and the part that identifies it to the person who just picked it
 /// is the end. No extension — `naming` strips it everywhere else too, and
 /// "Opening S02E01.mkv…" reads like a file manager rather than a player.
+///
+/// Decided from the name alone. Whether the path is a folder is a question
+/// for the disk, and this runs on the UI thread at the moment of a click, on
+/// a path that may be on a share; every other part of opening is kept off
+/// this thread for that reason. A video extension is stripped, and a folder
+/// called `Show.S01.1080p` keeps all of its name, since `1080p` is not one.
 fn opening_name(path: &std::path::Path) -> String {
-    let name = if path.is_dir() {
-        path.file_name().map(std::ffi::OsStr::to_string_lossy)
+    let name = if crate::library::playlist::is_video_file(path) {
+        path.file_stem()
     } else {
-        path.file_stem().map(std::ffi::OsStr::to_string_lossy)
+        path.file_name()
     };
-    name.map(std::borrow::Cow::into_owned)
+    name.map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| path.display().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::opening_name;
+    use std::path::Path;
+
+    #[test]
+    fn an_opening_is_named_without_touching_the_disk() {
+        assert_eq!(
+            opening_name(Path::new("/films/Show/S02E01 - Pilot.mkv")),
+            "S02E01 - Pilot"
+        );
+        assert_eq!(
+            opening_name(Path::new("/films/Show.S01.1080p")),
+            "Show.S01.1080p"
+        );
+        assert_eq!(opening_name(Path::new("/films/Season 2")), "Season 2");
+    }
 }
