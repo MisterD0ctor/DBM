@@ -63,11 +63,37 @@ the video plays black with sound — and seek previews want an `ffmpeg` on the
 `PATH`, without which they are simply absent. The Flatpak build below takes
 care of all of it.
 
+### Checking a change
+
+CI runs these on Linux and on Windows for every push, and fails on a single
+warning:
+
+```sh
+cargo fmt --check
+cargo clippy -p dbm-player --all-targets -- -D warnings
+cargo test -p dbm-player
+```
+
+The tests cover what can be checked without a window: reading file and track
+names, playlist order, the caches, formatting. What needs a window — the
+interface, playback, the platform hooks — has a harness built into the
+player: environment switches that drive it and print what happened, or hold
+one surface still and save a picture of the frame. The top of
+[`crates/player/src/harness/mod.rs`](crates/player/src/harness/mod.rs) lists
+them all. On a desktop, run them through `scripts/headless.sh`, which gives
+the player a headless compositor of its own so the window never lands on
+yours (GNOME's `mutter` is all it needs):
+
+```sh
+scripts/headless.sh env DBM_SHOWCASE=playlist DBM_CAPTURE=playlist.bmp \
+    ./target/release/dbm-player path/to/video.mkv
+```
+
 ## Platforms
 
 Windows and Linux both ship. The media keys and the desktop's own media
 controls reach the player on both, through different systems: Windows' SMTC
-and, on Linux, MPRIS over D-Bus — see `smtc` and `mpris`, and
+and, on Linux, MPRIS over D-Bus — see `platform/media_keys`, and
 `DBM_MPRIS_TEST=1` to watch it work. The pieces that are still Windows-only
 (the modal resize-loop hook, the drop target, keeping the display awake)
 compile away on Linux and have no counterpart yet. macOS is out of scope.
@@ -140,6 +166,7 @@ licence asks of anyone passing the binaries on, including you if you fork this.
 | `crates/player/vendor/` | libmpv and ffmpeg, shipped |
 | `packaging/` | the Windows installer, and the Flatpak under `flatpak/` |
 | `public/icons/` | the icon set, drawn for 24×24 |
+| `scripts/` | regenerating the app icons, and running the harness headless |
 
 Earlier versions of this player were a Tauri 2 + Leptos application, with mpv
 in a sibling window the WebView could never see. That tree was removed once the
