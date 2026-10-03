@@ -1,0 +1,243 @@
+// Controls that are not rows: the bar's icon buttons, a stepper's discs,
+// and the choices on the end-of-file pill.
+
+import { Chrome, Tip } from "globals.slint";
+import { Motion, Paint, Type } from "theme.slint";
+
+export component IconButton inherits Rectangle {
+    in property <image> icon;
+    /// Lit glyph: the thing this button controls is on.
+    ///
+    /// Every button that sets this swaps its own glyph as well — muted for
+    /// unmuted, slashed for unslashed — and between the two marks that is
+    /// enough. A wash behind an engaged button was tried and taken back out:
+    /// on a bar of seven controls it made the state read as chrome rather
+    /// than as the glyph, and the glyph is the thing that says which state it
+    /// is rather than merely that there is one.
+    in property <bool> active;
+    /// Held background: the panel this button opens is showing. A separate
+    /// channel from `active`, so the two never share one highlight - though
+    /// no button wears both now: one that opened a menu and also lit for a
+    /// state was read as a switch, and clicked as one.
+    in property <bool> open;
+    // The icon set is drawn for 24x24; anything else resamples it.
+    in property <length> glyph: 24px;
+    /// What this button is called, and the key that does the same thing.
+    /// A button with no `tip` stays silent rather than showing an empty one.
+    in property <string> tip;
+    in property <string> keys;
+    /// Whether the keyboard is on this button. The bar's own ring, reached
+    /// with Tab while nothing is open.
+    in property <bool> focused;
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    /// Whether pressing it would do anything. Previous on the first file of a
+    /// playlist is a button with nowhere to go, and one that looks the same as
+    /// when it has somewhere is a promise it cannot keep.
+    in property <bool> enabled: true;
+    callback clicked();
+
+    width: 40px;
+    height: 40px;
+    border-radius: self.height / 2;
+    background: root.open || root.ring ? Paint.wash-strong
+        : touch.has-hover && root.enabled ? Paint.wash-button
+        : transparent;
+    animate background { duration: Motion.highlight; easing: ease-out; }
+
+    accessible-role: button;
+    accessible-label: root.tip;
+    accessible-enabled: root.enabled;
+    accessible-action-default => {
+        if (root.enabled) {
+            root.clicked();
+        }
+    }
+
+    Image {
+        source: root.icon;
+        width: root.glyph;
+        height: root.glyph;
+        x: (parent.width - self.width) / 2;
+        y: (parent.height - self.height) / 2;
+        image-fit: contain;
+        // Dim, the floor of the ladder, rather than a faded copy of Body: a
+        // disabled glyph takes an existing step like every other role.
+        // Lit under the pointer and under the ring as well as when on: the
+        // ring's wash is the same one an open panel holds, so the glyph is
+        // what says the keyboard is here.
+        colorize: !root.enabled ? Paint.dim
+            : root.active || root.ring || touch.has-hover ? Paint.lit
+            : Paint.body;
+    }
+
+    // The keyboard gets the label the pointer gets. It was only ever raised by
+    // hovering, so a bar walked with Tab was thirteen unnamed marks.
+    changed ring => {
+        if (root.tip == "") {
+            return;
+        }
+        if (root.ring) {
+            root.tip-claim = Tip.point(root.tip, root.keys, root.tip-cx);
+        } else {
+            Tip.release(root.tip-claim);
+        }
+    }
+
+    // A name that changes while it is up - Fullscreen becoming Leave
+    // fullscreen from the F key - is said again rather than left stale.
+    changed tip => {
+        if (Tip.seq == root.tip-claim) {
+            root.tip-claim = Tip.point(root.tip, root.keys, root.tip-cx);
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: root.enabled ? pointer : default;
+        // `moved` only fires while a button is held, so plain hovering has
+        // to come through `pointer-event`.
+        pointer-event(event) => {
+            Chrome.pointed(event.kind == PointerEventKind.down);
+        }
+        clicked => {
+            // The question was answered by pressing: a name hanging over the
+            // result is in the way of seeing it. It comes back on the next
+            // arrival, as a native tooltip does.
+            Tip.release(root.tip-claim);
+            if (root.enabled) {
+                root.clicked();
+            }
+        }
+
+        // Asked for once, on arrival and departure, rather than bound - so
+        // `absolute-position`, which is a question for the layout, is put
+        // when a hand moves and not once a frame.
+        //
+        // Leaving only clears the tip if the tip is still this button's.
+        // Sliding along a row of them fires the next button's arrival and
+        // this one's departure in an order nobody promises, and the wrong
+        // order would take down the label that just went up.
+        changed has-hover => {
+            if (root.tip == "") {
+                return;
+            }
+            if (self.has-hover) {
+                root.tip-claim = Tip.point(root.tip, root.keys, root.tip-cx);
+            } else {
+                Tip.release(root.tip-claim);
+            }
+        }
+    }
+
+    private property <length> tip-cx:
+        root.absolute-position.x + root.width / 2;
+    /// This button's claim on the tip, from `Tip.point`. Never a real one
+    /// until it has pointed.
+    private property <int> tip-claim: -1;
+}
+
+/// One end of a stepper. Small, round and repeated, so it is its own thing
+/// rather than two copies of the same block inside `StepperRow`.
+export component StepButton inherits Rectangle {
+    in property <string> glyph;
+    callback clicked();
+
+    accessible-role: button;
+    accessible-label: root.glyph == "+" ? "Increase" : "Decrease";
+    accessible-action-default => {
+        root.clicked();
+    }
+
+    width: 26px;
+    height: 26px;
+    border-radius: self.height / 2;
+    background: touch.has-hover ? Paint.wash-strong : Paint.wash-soft;
+    animate background { duration: Motion.highlight; easing: ease-out; }
+
+    Text {
+        text: root.glyph;
+        color: Paint.strong;
+        font-size: Type.glyph;
+        width: 100%;
+        height: 100%;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed(event.kind == PointerEventKind.down);
+        }
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// One thing the end-of-file pill offers.
+///
+/// A capsule of its own inside the pill, so that when there are two, each
+/// lights on its own under the pointer rather than the whole pill lighting
+/// for either.
+export component EndChoice inherits Rectangle {
+    in property <image> icon;
+    in property <string> label;
+    /// Where the words start, from this capsule's own edge.
+    in property <length> pad;
+    in property <length> gap;
+    /// Whether the keyboard is on this choice: it is part of the bar's Tab
+    /// walk while the pill is up.
+    in property <bool> focused;
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    callback picked();
+
+    border-radius: self.height / 2;
+    background: root.ring ? Paint.wash-strong
+        : touch.has-hover ? Paint.wash-button
+        : transparent;
+    animate background { duration: Motion.highlight; easing: ease-out; }
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => {
+        root.picked();
+    }
+
+    HorizontalLayout {
+        padding-left: root.pad;
+        padding-right: root.pad;
+        spacing: root.gap;
+        alignment: center;
+
+        Image {
+            source: root.icon;
+            width: 24px;
+            height: 24px;
+            y: (parent.height - self.height) / 2;
+            image-fit: contain;
+            colorize: Paint.lit;
+        }
+        Text {
+            text: root.label;
+            color: Paint.lit;
+            font-size: Type.prompt;
+            font-weight: Type.weight-title;
+            vertical-alignment: center;
+            // The capsule is capped by whoever places it; a name longer than
+            // that ends in an ellipsis rather than out through the rim.
+            overflow: elide;
+            min-width: 0px;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed(event.kind == PointerEventKind.down);
+        }
+        clicked => {
+            Chrome.bump();
+            root.picked();
+        }
+    }
+}

@@ -1,0 +1,255 @@
+// The interface's typefaces, compiled into the binary rather than asked of the
+// system: IBM Plex Sans in the three weights the type scale uses — Medium
+// (500), 600 and 700 — and IBM Plex Mono Medium for the times that tick. See
+// THIRD-PARTY.md for their licence.
+import "../fonts/IBMPlexSans-Medium.ttf";
+import "../fonts/IBMPlexSans-SemiBold.ttf";
+import "../fonts/IBMPlexSans-Bold.ttf";
+import "../fonts/IBMPlexMono-Medium.ttf";
+
+// The design tokens: every colour, size, duration and row metric the
+// interface uses, named by what it is for. Nothing here draws anything.
+
+/// How long the wash under a pointer takes to arrive.
+///
+/// One value for every hover highlight — bar buttons, steppers, menu rows —
+/// because they are the same gesture and reading them at different speeds is
+/// what makes an interface feel loose. Short on purpose: a highlight is
+/// feedback that the pointer landed, and feedback that arrives after the eye
+/// has already moved on is not feedback.
+export global Motion {
+    out property <duration> highlight: 45ms;
+    /// How long the pointer has to rest on a control before it says its name.
+    ///
+    /// Long enough that crossing the bar on the way somewhere else raises
+    /// nothing, short enough that stopping on a glyph you do not recognise
+    /// feels like it answered rather than like it eventually got round to it.
+    out property <duration> tip-delay: 500ms;
+    /// How long after a tip goes down the next one comes up without waiting.
+    ///
+    /// Once one name has been asked for, the pointer moving along the bar is
+    /// reading it, and making each neighbour wait out the delay again turns
+    /// that into a stutter: a label, nothing, a label.
+    out property <duration> tip-grace: 300ms;
+}
+
+/// Every colour in the interface, named by what it is for.
+///
+/// One hue, white, at a few alphas, and one dark knob. Written here rather
+/// than at each use, because values scattered through a file drift apart one
+/// careful tweak at a time: that is how the text ladder came to have ten
+/// rungs 0x0d apart, most of them indistinguishable over a moving picture.
+export global Paint {
+    // --- text and glyphs ------------------------------------------------------
+    //
+    // Five steps, 0x20 apart — the Two-Step Rule: closer than that and the
+    // steps stop reading as a hierarchy over moving video, where the backdrop
+    // changes faster than the eye can calibrate. Built upward from `dim`,
+    // which does not move: the floor is what sets the worst-case contrast
+    // over a bright frame, so everything else stands on it.
+    //
+    // 0x80, 0xa0, 0xc0, 0xe0 — and then `lit`, which is 0xff rather than the
+    // 0x100 the rule asks for, because there is no 0x100 in eight bits. The
+    // top rung is 0x1f and always will be. Do not close it by moving `strong`
+    // down: that spends a real step to satisfy a rule about the one gap
+    // nobody can widen.
+    //
+    // Five steps cannot give ten roles a value each, and they should not
+    // have: roles that sit in different places, or differ by case, size or
+    // tracking, share a step rather than wear a near-copy of one.
+
+    /// The active state and nothing else: the current row, a control that is
+    /// on, the flash, the end-of-file prompt.
+    out property <color> lit: #ffffff;
+    /// Text that leads: the media title, times and values, a switch's label,
+    /// a fatal headline.
+    out property <color> strong: #ffffffe0;
+    /// Row labels, section headings and a show's name, glyphs at rest.
+    out property <color> body: #ffffffc0;
+    /// Beside or under something else: a shortcut's keys, a row's running
+    /// time, prose hints, chevrons at rest, a scroll thumb.
+    out property <color> quiet: #ffffffa0;
+    /// A slider's own value, beside the name of the thing it sets. The floor.
+    out property <color> dim: #ffffff80;
+
+    // --- marks ------------------------------------------------------------------
+
+    /// The played length of the timeline — the one near-solid white that reads
+    /// as a measurement rather than as text.
+    out property <color> played: #fffffff2;
+    /// The filled length of a slider or the volume; a lit switch track.
+    out property <color> fill: #ffffffcc;
+    /// The unfilled length of every track, switch and measure.
+    out property <color> rail: #ffffff2e;
+    /// Dark on a lit switch track, so the knob reads as a hole punched in it.
+    out property <color> knob: #101010e6;
+    /// The window before a frame exists.
+    out property <color> ground: #000000;
+
+    // --- washes -----------------------------------------------------------------
+    //
+    // Three, and the two a row can wear are 0x20 apart — the Two-Step Rule the
+    // text keeps, for the same reason. The focus wash was once 0x0f above the
+    // hover: over moving video, with a hand resting in a panel and the keys
+    // walking it, the two were one colour and nothing said which row Enter
+    // would press.
+
+    /// Where the keyboard is, a button whose panel is open, a hovered stepper
+    /// disc. A wash rather than a ring: there is no border anywhere in this
+    /// interface, and introducing one for this would make the keyboard the
+    /// only thing that draws an outline.
+    out property <color> wash-strong: #ffffff34;
+    /// A hovered icon button, or a choice on the end-of-file pill. Never on a
+    /// row, so it never has to be told apart from the two either side of it.
+    out property <color> wash-button: #ffffff24;
+    /// A hovered row of any kind; a stepper disc at rest; a scroll hint's rail.
+    out property <color> wash-soft: #ffffff14;
+}
+
+/// The type scale. Nine roles over four sizes: the eight sizes below, and the
+/// timecode, which is a readout's size set in `numerals`.
+///
+/// Named here rather than written at each of the twenty-eight places text
+/// appears, because a scale spread across twenty-eight literals cannot be
+/// judged — only audited, and it had already drifted: every readout in the
+/// interface was sitting a step below the size the design system claims for
+/// it. That is how a timestamp ended up at 11px over moving video, where a
+/// figure has to be read at a glance and got smaller than the glyphs around
+/// it.
+///
+/// The floor is 12px and it is only for capitals, which are read by their
+/// shape. Below that, white text over arbitrary moving content stops being
+/// read and starts being recognised — fine for a heading whose wording you
+/// already know, no use at all for a number that changes.
+///
+/// Roles rather than sizes, and several roles share a size: what separates a
+/// title from a body line is weight, and what separates a readout from a hint
+/// is that one is a figure and the other is prose. Two names on one value cost
+/// nothing and keep the next change from having to be everywhere at once.
+export global Type {
+    /// The interface's family, in the three weights below.
+    out property <string> face: "IBM Plex Sans";
+    /// Times that tick: the two ends of the timeline and the time over the
+    /// seek preview. Monospaced so a counting figure keeps its width instead
+    /// of shuffling sideways every second.
+    out property <string> numerals: "IBM Plex Mono";
+    /// 600. The media title, the flash, a fatal headline. (The row that is
+    /// playing is body size at 700 — see `MenuRow`.)
+    out property <length> title: 14px;
+    /// 500. Row labels, menu items, switch labels — anything that is the name
+    /// of something you can press.
+    out property <length> body: 14px;
+    /// 500. A playlist heading carrying a show's name rather than a section
+    /// name: a section label's weight and alpha, in its own case and size and
+    /// with no tracking, because it is the user's word and not the
+    /// interface's.
+    out property <length> named: 13px;
+    /// 500. Figures: timestamps, slider and stepper values, a row's running
+    /// time, a shortcut's keys — and the labels of the dense rows those sit
+    /// in, which read as part of the same line rather than as menu entries.
+    out property <length> readout: 13px;
+    /// 500. Prose the interface adds underneath something else: the drop hint,
+    /// the line under a failure saying what usually fixes it. A readout's size and
+    /// its own name, because prose is what would want a different one first.
+    out property <length> hint: 13px;
+    /// 500, capitals, tracked. Section headings, and the way back out of
+    /// a page.
+    out property <length> label: 12px;
+    /// Tracking for that role, and only that role.
+    ///
+    /// Capitals set solid read as a word; capitals with air between them read
+    /// as a label, which is the whole job — and it is what lets the weight
+    /// come all the way down without the kicker losing its identity.
+    ///
+    /// It had to come down. At 700 a section label put more ink on screen per
+    /// character than the rows beneath it — 34.9 lit pixels against 25.6 —
+    /// so the alpha ladder said kicker while the page said heading, and the
+    /// only thing telling the two apart was the capitals.
+    ///
+    /// 600 was tried first and changed nothing: Segoe UI, the face then,
+    /// ships Semibold as its own family rather than as a weight of Segoe UI,
+    /// so 600 and 700 rasterised identically, to the pixel. Tracked capitals
+    /// at the body's own weight is the treatment that was wanted anyway, and
+    /// it stayed when faces with both weights replaced it.
+    out property <length> label-track: 1px;
+    /// A character standing in for an icon — the stepper's minus and plus.
+    /// Sized against the 26px disc it sits in, not against the text.
+    out property <length> glyph: 16px;
+    /// The one thing the interface says louder than the rest: the word on the
+    /// end-of-file pill, sized against the 24px arrow beside it.
+    out property <length> prompt: 16px;
+
+    /// The three weights, the only three the bundled files carry.
+    /// Plain is Medium, 500: at 400 the 13–14px lines over glass read thin,
+    /// and Plex's in-between Text weight (450) was not quite enough.
+    out property <int> weight-plain: 500;
+    /// Title and Prompt.
+    out property <int> weight-title: 600;
+    /// The current row in a list.
+    out property <int> weight-current: 700;
+}
+
+/// Metrics for the wash behind a hovered row.
+///
+/// Rows span the full width of a panel, but a panel's glass has rounded
+/// corners and a row does not — so a full-bleed highlight leaks past the glass
+/// wherever the corner is still curving in, which is the first and last row of
+/// every list. Insetting the wash and rounding it keeps it on the glass, and
+/// reads as deliberate besides: it is what a native menu does.
+///
+/// The inset is the row gap, which is also the panel's padding — see below
+/// for why that one number settles every corner at once.
+export global Rows {
+    // Every row wears the same corner, and the panel is built around it.
+    //
+    // Two corners are concentric — they share a centre, so the gap between
+    // them stays even the whole way round — when their radii differ by
+    // exactly that gap. So rather than give the end rows a corner of their
+    // own, the gap is made the same on all four sides and the panel takes
+    // whatever radius that implies. The first and last rows then come out
+    // concentric on their own, and every row in between is identical to
+    // them. Anything else and the curves pinch at 45 degrees while still
+    // meeting cleanly on the axes, which is the part the eye catches.
+    //
+    // Turn `radius` or `gap`; `panel-radius` follows, and the invariant
+    // cannot be broken by editing one of the three.
+    out property <length> radius: 16px;
+    out property <length> gap: 16px;
+    out property <length> panel-radius: Rows.radius + Rows.gap;
+    /// Panel padding is the gap: it is what puts the end rows the same
+    /// distance from the panel edge as every row is from the sides.
+    out property <length> panel-pad: Rows.gap;
+
+    /// Where a label starts, and where a trailing control ends — measured
+    /// from the panel edge, so text sits inside the wash rather than on its
+    /// rim.
+    out property <length> label-x: Rows.gap + 14px;
+    out property <length> trail-x: Rows.gap + 10px;
+    /// Space before a row that is not one of the list above it — a reset, a
+    /// setting about the list. Without it the eye reads one more entry and
+    /// only the wording says otherwise.
+    ///
+    /// The row gap, and derived rather than typed: the space that separates
+    /// two ideas is the space the rows already stand in, and a second literal
+    /// here is a second thing to remember when the first one moves.
+    out property <length> group-gap: Rows.gap;
+
+    /// The air one surface keeps from the next: a panel or the hover label
+    /// above the timeline row, the credits pill lifted off it, the flash's
+    /// caption under its ring, the seek preview clear of a panel. One idea,
+    /// and it was thirteen bare twelves and three private properties for it.
+    out property <length> offset: 12px;
+
+    /// The rows themselves. Here rather than at the top of `MainWindow`
+    /// because the components below are outside it and cannot see anything
+    /// declared there — which is why eight of them wrote the height out and
+    /// the panel arithmetic wrote it twelve times more.
+    out property <length> row: 34px;
+    /// A heading over a group of them.
+    out property <length> heading: 28px;
+    /// The two denser rows, both on the settings pages: a slider, which is a
+    /// label and a track, and a stepper, which is a label and two discs.
+    out property <length> slider-row: 30px;
+    out property <length> stepper-row: 38px;
+
+}

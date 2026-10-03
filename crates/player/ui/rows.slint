@@ -1,0 +1,1053 @@
+// Every kind of row a panel is made of, and the two marks they share: the
+// wash under a hovered or focused row, and the bar beside the current one.
+// A row fills its panel's width and insets its own wash, so no row is a
+// special case at either end of a list — see `Rows` for the arithmetic.
+
+import { Chrome } from "globals.slint";
+import { Motion, Paint, Rows, Type } from "theme.slint";
+import { StepButton } from "controls.slint";
+
+/// The mark on the row that is the current one — the subtitle track in use,
+/// the episode playing.
+///
+/// A shape, because a text style was not enough. Weight and alpha were
+/// carrying this alone, and in a list of names that differ by two characters,
+/// read at a glance, over moving video, they were close to invisible — and
+/// once a focus wash could land on any row, the one row that mattered was the
+/// hardest of all to find.
+///
+/// It sits inside the wash rather than at the row's edge, so a row that is
+/// both current and focused wears both marks without them touching. That is
+/// the whole point of using a shape here: the wash and the bar are different
+/// channels, and neither has to give way to the other.
+export component ActiveMark inherits Rectangle {
+    in property <bool> on;
+
+    width: 100%;
+    height: 100%;
+
+    Rectangle {
+        x: Rows.gap + 4px;
+        y: (parent.height - self.height) / 2;
+        width: 3px;
+        height: 14px;
+        border-radius: self.width / 2;
+        background: Paint.lit;
+        opacity: root.on ? 1.0 : 0.0;
+        animate opacity { duration: Motion.highlight; easing: ease-out; }
+    }
+}
+
+/// The wash behind a hovered row. Fills the row it is placed in and insets
+/// itself; the row says only whether it is lit.
+export component RowHighlight inherits Rectangle {
+    in property <bool> lit;
+    in property <color> shade: Paint.wash-soft;
+
+    width: 100%;
+    height: 100%;
+
+    // Full row height, so adjacent washes meet rather than leaving a seam,
+    // and so the first and last ones sit exactly `gap` from the panel edge —
+    // the panel's padding being the same gap. That is the whole trick: no row
+    // is a special case.
+    Rectangle {
+        x: Rows.gap;
+        width: parent.width - 2 * Rows.gap;
+        height: 100%;
+        border-radius: Rows.radius;
+        background: root.lit ? root.shade : transparent;
+        animate background { duration: Motion.highlight; easing: ease-out; }
+    }
+}
+
+/// One selectable line in the menu. Note it has no opaque background: the
+/// glass beneath comes from the pipeline, and only the hover state adds a
+/// wash on top of it.
+export component MenuRow inherits Rectangle {
+    in property <string> label;
+    in property <bool> active;
+    /// Whether the keyboard is on this row.
+    in property <bool> focused;
+    /// ...and whether the ring is being shown at all. A row is never lit for
+    /// a keyboard nobody is using.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    callback picked();
+
+    height: Rows.row;
+
+    accessible-role: button;
+    accessible-checkable: true;
+    accessible-checked: root.active;
+    accessible-label: root.label;
+    accessible-action-default => {
+        root.picked();
+    }
+
+    RowHighlight {
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+    }
+
+    ActiveMark {
+        on: root.active;
+    }
+
+    Text {
+        x: Rows.label-x;
+        width: parent.width - Rows.label-x - Rows.trail-x;
+        height: 100%;
+        text: root.label;
+        color: root.active || root.ring ? Paint.lit : Paint.body;
+        font-size: Type.body;
+        font-weight: root.active ? Type.weight-current : Type.weight-plain;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
+        }
+        clicked => {
+            root.picked();
+        }
+    }
+}
+
+/// A playlist line: what it is, how long it is, and how far into it you got.
+///
+/// A `MenuRow` with two more facts on it, rather than a parameterised
+/// `MenuRow`: the label has to make room for the time, which means the two
+/// know about each other, and a row that is sometimes a plain menu row and
+/// sometimes this would carry that arithmetic everywhere it is used.
+export component PlaylistRow inherits Rectangle {
+    /// Whether the keyboard is on this row.
+    in property <bool> focused;
+    /// ...and whether the ring is being shown at all. A row is never lit for
+    /// a keyboard nobody is using.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    in property <string> label;
+    in property <string> length;
+    in property <float> progress;
+    in property <bool> active;
+    /// It would not play. The row says so where the running time goes, and
+    /// goes on saying it after the notice has gone.
+    in property <bool> failed;
+    in property <bool> finished;
+    /// Whether the measure is drawn: something started, or something done.
+    private property <bool> measured: (root.progress > 0.001 || root.finished) && !root.failed;
+    /// Length of the resume measure. Fixed rather than a share of the row,
+    /// so it reads the same however wide the panel is and can never grow
+    /// into the width that would make it a rule. Shorter than the shortest
+    /// title the list is likely to hold, which is what keeps it from reading
+    /// as anything belonging to the words.
+    private property <length> measure-w: 44px;
+    /// The running time's column, as wide as an hour-long time. Measured
+    /// from each row's own time, the measures stepped in and out with the
+    /// digits — invisible while one row in a season wore one, and a zigzag
+    /// once finished episodes gave most of them one.
+    private property <length> time-col: max(48px, time.width);
+    /// Where the row's trailing column ends. Further in on a page where
+    /// other rows carry a chevron, so this row's time and measure stand in
+    /// the same columns as theirs.
+    in property <length> trail: Rows.trail-x;
+    callback picked();
+
+    height: Rows.row;
+
+    accessible-role: button;
+    accessible-checkable: true;
+    accessible-checked: root.active;
+    accessible-label: root.failed ? root.label + ", could not play"
+        : root.finished ? root.label + ", watched" : root.label;
+    accessible-action-default => {
+        root.picked();
+    }
+
+    RowHighlight {
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+    }
+
+    ActiveMark {
+        on: root.active;
+    }
+
+    Text {
+        x: Rows.label-x;
+        // Clear of the time on the trailing edge, so a long title elides
+        // rather than running underneath it.
+        width: parent.width - Rows.label-x - root.trail - root.time-col
+            - Rows.group-gap - (root.measured ? root.measure-w + Rows.group-gap : 0);
+        height: 100%;
+        text: root.label;
+        color: root.active || root.ring ? Paint.lit : Paint.body;
+        font-size: Type.body;
+        font-weight: root.active ? Type.weight-current : Type.weight-plain;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // Right-aligned, so a column of them reads as a column.
+    time := Text {
+        x: parent.width - root.trail - self.width;
+        height: 100%;
+        text: root.failed ? "Could not play" : root.length;
+        color: Paint.quiet;
+        font-size: Type.readout;
+        vertical-alignment: center;
+    }
+
+    // How far into this one you got. A hairline rather than a bar: it is
+    // something the row knows, not something to operate. The unfilled part
+    // stays visible along its whole length, because that is what makes it a
+    // measure rather than a mark - a lone bright segment says only that
+    // something happened, and the same segment on a track says how much.
+    //
+    // On the row's own line, beside the running time, and neither of the two
+    // places it was tried first. Under the title and the width of the column
+    // it is a divider: a 2px rule across a list row is one whichever way it
+    // is filled, and at the end of an episode the fill covers the track and
+    // leaves nothing but a rule between two titles. Under the title and
+    // short, it lands at about the width of the words above it and becomes
+    // an underline instead. Here it is neither, because it is not under
+    // anything - it sits where the row's other fact sits, and the row reads
+    // as one line: this episode, this far in, this long.
+    Rectangle {
+        x: parent.width - root.trail - root.time-col - Rows.group-gap - root.measure-w;
+        y: (parent.height - self.height) / 2;
+        width: root.measure-w;
+        height: 4px;
+        visible: root.measured;
+        background: Paint.rail;
+        border-radius: self.height / 2;
+
+        Rectangle {
+            x: 0;
+            // Never a sliver: a file barely started still has to show that
+            // it was started at all, and one pixel of white does not. Full
+            // for one finished: seen through is the whole measure, and a
+            // position left somewhere in the credits is no reason to draw
+            // it short.
+            width: root.finished ? parent.width
+                : max(self.height, parent.width * root.progress);
+            height: 100%;
+            background: Paint.strong;
+            border-radius: parent.border-radius;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
+        }
+        clicked => {
+            root.picked();
+        }
+    }
+}
+
+/// One part of a playlist made of several: a season, or a show's worth of a
+/// folder that holds more than one.
+///
+/// A drill row with a count on it: how many files. The figure stands in the
+/// running times' column and the chevron in a column of its own, which the
+/// file rows on the same page leave empty so the columns still line up. It
+/// once wore a measure of how much of the part had been watched, summed from
+/// its files; that said nothing the page it opens onto does not say better.
+export component GroupRow inherits Rectangle {
+    in property <bool> focused;
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    in property <string> label;
+    /// "10 episodes".
+    in property <string> detail;
+    /// It holds the file playing.
+    in property <bool> active;
+    private property <length> chevron: 18px;
+    /// Where the figure's column ends: clear of the chevron by a drill row's
+    /// own spacing. A file row beside this one is given the same end.
+    private property <length> column-end: root.width - Rows.trail-x - root.chevron - 10px;
+    private property <length> time-col: max(48px, detail-text.width);
+    callback opened();
+
+    height: Rows.row;
+
+    accessible-role: button;
+    accessible-label: root.label + ", " + root.detail;
+    accessible-action-default => {
+        root.opened();
+    }
+
+    RowHighlight {
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+    }
+
+    ActiveMark {
+        on: root.active;
+    }
+
+    Text {
+        x: Rows.label-x;
+        width: root.column-end - root.time-col - Rows.group-gap - self.x;
+        height: 100%;
+        text: root.label;
+        color: root.active || root.ring ? Paint.lit : Paint.body;
+        font-size: Type.body;
+        font-weight: root.active ? Type.weight-current : Type.weight-plain;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    detail-text := Text {
+        x: root.column-end - self.width;
+        height: 100%;
+        text: root.detail;
+        color: Paint.quiet;
+        font-size: Type.readout;
+        vertical-alignment: center;
+    }
+
+    Image {
+        source: @image-url("../../../public/icons/angle-small-right.svg");
+        x: parent.width - Rows.trail-x - root.chevron;
+        y: (parent.height - self.height) / 2;
+        width: root.chevron;
+        height: root.chevron;
+        image-fit: contain;
+        colorize: touch.has-hover || root.ring ? Paint.lit : Paint.quiet;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
+        }
+        clicked => {
+            root.opened();
+        }
+    }
+}
+
+/// The way in's offer to pick up where you stopped: the last film left
+/// unfinished, and how far into it you got.
+///
+/// A playlist row without the running time and with a play mark in front.
+/// The time is the part that stops mattering here — the question on an empty
+/// window is which thing and how far, not how long — and the mark is what
+/// says this row starts something, where every other row in the panel names
+/// a dialog. The title leads, at Strong: it is the one line on the window
+/// that is about a film rather than about the player.
+export component ResumeRow inherits Rectangle {
+    in property <bool> focused;
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    in property <string> label;
+    in property <float> progress;
+    /// How much is left, already worded: "43 min left".
+    in property <string> left;
+    private property <length> measure-w: 44px;
+    private property <length> icon-size: 18px;
+    callback picked();
+
+    height: Rows.row;
+
+    accessible-role: button;
+    accessible-label: "Continue " + root.label;
+    accessible-action-default => {
+        root.picked();
+    }
+
+    RowHighlight {
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+    }
+
+    Image {
+        source: @image-url("../../../public/icons/play.svg");
+        x: Rows.label-x;
+        y: (parent.height - self.height) / 2;
+        width: root.icon-size;
+        height: root.icon-size;
+        image-fit: contain;
+        colorize: touch.has-hover || root.ring ? Paint.lit : Paint.body;
+    }
+
+    Text {
+        x: Rows.label-x + root.icon-size + 10px;
+        width: left-text.x - Rows.group-gap - root.measure-w - Rows.group-gap - self.x;
+        height: 100%;
+        text: root.label;
+        color: root.ring ? Paint.lit : Paint.strong;
+        font-size: Type.body;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+
+    // What is left, where a playlist row keeps its running time: the question
+    // on an empty window is not how long a film is but how long finishing it
+    // takes.
+    left-text := Text {
+        x: parent.width - Rows.trail-x - self.width;
+        height: 100%;
+        text: root.left;
+        color: Paint.quiet;
+        font-size: Type.readout;
+        vertical-alignment: center;
+    }
+
+    // The resume measure, exactly as a playlist row wears it.
+    Rectangle {
+        x: left-text.x - Rows.group-gap - root.measure-w;
+        y: (parent.height - self.height) / 2;
+        width: root.measure-w;
+        height: 4px;
+        background: Paint.rail;
+        border-radius: self.height / 2;
+
+        Rectangle {
+            x: 0;
+            width: max(self.height, parent.width * root.progress);
+            height: 100%;
+            background: Paint.strong;
+            border-radius: parent.border-radius;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
+        }
+        clicked => {
+            root.picked();
+        }
+    }
+}
+
+/// A menu row with its keyboard shortcut on the right. Where a row has one,
+/// showing it is how the shortcut gets learned.
+export component ShortcutRow inherits Rectangle {
+    /// Whether the keyboard is on this row.
+    in property <bool> focused;
+    /// ...and whether the ring is being shown at all. A row is never lit for
+    /// a keyboard nobody is using.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    in property <string> label;
+    in property <string> shortcut;
+    /// A row that states a binding rather than performing one. It takes no
+    /// pointer and lights up for nobody: a wash under a row that does
+    /// nothing when clicked is an offer the row cannot keep.
+    in property <bool> inert: false;
+    callback picked();
+
+    height: Rows.row;
+
+    // A constant role, as Slint requires; a reference row says it is not a
+    // button by being one that is not enabled.
+    accessible-role: button;
+    accessible-enabled: !root.inert;
+    accessible-label: root.shortcut == "" ? root.label : root.label + ", " + root.shortcut;
+    accessible-action-default => {
+        if (!root.inert) {
+            root.picked();
+        }
+    }
+
+    RowHighlight {
+        lit: !root.inert && (touch.has-hover || root.ring);
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+    }
+
+    HorizontalLayout {
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+        spacing: 12px;
+
+        Text {
+            text: root.label;
+            font-size: Type.body;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            overflow: elide;
+            color: root.ring && !root.inert ? Paint.lit : Paint.body;
+        }
+
+        Text {
+            text: root.shortcut;
+            color: Paint.quiet;
+            font-size: Type.readout;
+            vertical-alignment: center;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: root.inert ? default : pointer;
+        pointer-event(event) => {
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
+        }
+        clicked => {
+            if (!root.inert) {
+                root.picked();
+            }
+        }
+    }
+}
+
+/// A labelled slider. Reports a normalised position; the range lives in the
+/// registry on the Rust side.
+export component ParamSlider inherits Rectangle {
+    /// Whether the keyboard is on this row. Left and right move it.
+    in property <bool> focused;
+    /// ...and whether the ring is being shown at all.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    in property <string> label;
+    in property <float> fraction;
+    in property <string> readout;
+    callback moved(float);
+
+    height: Rows.slider-row;
+
+    accessible-role: slider;
+    accessible-label: root.label;
+    accessible-value: root.readout;
+    accessible-action-increment => {
+        root.moved(clamp(root.fraction + 0.05, 0.0, 1.0));
+    }
+    accessible-action-decrement => {
+        root.moved(clamp(root.fraction - 0.05, 0.0, 1.0));
+    }
+
+    // The sliders never had a hover wash: the track grows instead, which says
+    // enough for a pointer already on it. The keyboard has no such thing to
+    // stand on, so the row lights like every other row under the ring.
+    RowHighlight {
+        lit: root.ring;
+        shade: Paint.wash-strong;
+    }
+
+    HorizontalLayout {
+        spacing: 10px;
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+
+        Text {
+            width: 78px;
+            text: root.label;
+            color: root.ring ? Paint.lit : Paint.body;
+            font-size: Type.readout;
+            vertical-alignment: center;
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+
+            Rectangle {
+                y: (parent.height - self.height) / 2;
+                width: 100%;
+                height: drag.has-hover || drag.pressed ? 6px : 4px;
+                border-radius: self.height / 2;
+                background: Paint.rail;
+                // The same 100ms the timeline and volume tracks grow at, with
+                // the same easing. It was 90ms with no easing, which matched
+                // nothing in the file and was documented nowhere — one
+                // gesture, one speed.
+                animate height { duration: 100ms; easing: ease-out; }
+
+                Rectangle {
+                    x: 0;
+                    width: parent.width * clamp(root.fraction, 0, 1);
+                    height: parent.height;
+                    border-radius: parent.border-radius;
+                    background: Paint.fill;
+                }
+            }
+
+            drag := TouchArea {
+                mouse-cursor: pointer;
+                pointer-event(event) => {
+                    Chrome.pointed-at(event.kind == PointerEventKind.down,
+                        event.kind == PointerEventKind.move, root.focused);
+                }
+                moved => {
+                    if (self.pressed) {
+                        root.moved(self.mouse-x / self.width);
+                    }
+                }
+                clicked => {
+                    root.moved(self.mouse-x / self.width);
+                }
+            }
+        }
+
+        Text {
+            width: 46px;
+            text: root.readout;
+            color: Paint.dim;
+            font-size: Type.readout;
+            horizontal-alignment: right;
+            vertical-alignment: center;
+        }
+    }
+}
+
+/// A row that is a switch and nothing else.
+///
+/// It used to be able to lead somewhere as well, which divided it into two hit
+/// zones — the left four fifths toggling, the right 48px navigating — with
+/// nothing on screen to say where the boundary was, and one wash across both
+/// because lighting half a row reads as the row being cut in two. A click
+/// aimed at the chevron that landed short turned off the effect it was
+/// reaching past. The rows that drilled now look like the rows that drill, and
+/// this one has one target again.
+///
+/// Reports the value it wants rather than flipping `checked` itself. Assigning
+/// to a bound property in Slint drops the binding for good, which would leave
+/// the switch stuck the next time the same state changed from a key or from
+/// Rust.
+export component ToggleRow inherits Rectangle {
+    /// Whether the keyboard is on this row.
+    in property <bool> focused;
+    /// ...and whether the ring is being shown at all. A row is never lit for
+    /// a keyboard nobody is using.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    in property <string> label;
+    in property <bool> checked;
+    /// The value the row wants; the owner of the state applies it.
+    callback toggled(bool);
+
+    height: 40px;
+
+    accessible-role: switch;
+    accessible-label: root.label;
+    accessible-checked: root.checked;
+    accessible-action-default => {
+        root.toggled(!root.checked);
+    }
+
+    RowHighlight {
+        lit: switch-touch.has-hover || root.ring;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+    }
+
+    HorizontalLayout {
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+        spacing: 12px;
+
+        Rectangle {
+            width: 34px;
+
+            Rectangle {
+                y: (parent.height - self.height) / 2;
+                width: 100%;
+                height: 18px;
+                border-radius: self.height / 2;
+                background: root.checked ? Paint.fill : Paint.rail;
+                animate background { duration: 120ms; easing: ease-out; }
+
+                Rectangle {
+                    x: root.checked ? parent.width - self.width - 2px : 2px;
+                    y: 2px;
+                    width: 14px;
+                    height: 14px;
+                    border-radius: self.height / 2;
+                    // Dark on the lit track, light on the dark one: the knob
+                    // reads as a hole punched in the switch either way.
+                    background: root.checked ? Paint.knob : Paint.fill;
+                    animate x { duration: 120ms; easing: ease-out; }
+                }
+            }
+        }
+
+        // Body, the rows' own step. A setting about a list is furniture
+        // beside it, and at Strong the one switch under the playlist out-inked
+        // the episodes it governs.
+        Text {
+            text: root.label;
+            color: root.ring ? Paint.lit : Paint.body;
+            font-size: Type.body;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+            overflow: elide;
+        }
+
+    }
+
+    switch-touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
+        }
+        clicked => {
+            root.toggled(!root.checked);
+        }
+    }
+}
+
+/// A row that leads somewhere: an icon naming the subject, the label, and a
+/// chevron. Every row in the settings tree is one of these now — an effect
+/// that can be turned off says so with its glyph rather than with a switch,
+/// because a switch beside a chevron is two things to press in one row.
+export component DrillRow inherits Rectangle {
+    /// Whether the keyboard is on this row.
+    in property <bool> focused;
+    /// ...and whether the ring is being shown at all. A row is never lit for
+    /// a keyboard nobody is using.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    in property <image> icon;
+    in property <string> label;
+    callback opened();
+
+    height: Rows.row;
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-action-default => {
+        root.opened();
+    }
+
+    RowHighlight {
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+    }
+
+    HorizontalLayout {
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+        spacing: 10px;
+
+        Rectangle {
+            width: 18px;
+
+            Image {
+                source: root.icon;
+                width: 18px;
+                height: 18px;
+                x: 0;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+                // With the words: the icon names the same subject, so the
+                // ring lights the two together.
+                colorize: root.ring ? Paint.lit : Paint.body;
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: root.ring ? Paint.lit : Paint.body;
+            font-size: Type.body;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+
+        Rectangle {
+            width: 18px;
+
+            Image {
+                source: @image-url("../../../public/icons/angle-small-right.svg");
+                width: 18px;
+                height: 18px;
+                x: 0;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+                colorize: touch.has-hover || root.ring ? Paint.lit : Paint.quiet;
+            }
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
+        }
+        clicked => {
+            root.opened();
+        }
+    }
+}
+
+/// An adjustment with no meaningful range to drag across.
+///
+/// A stepper rather than a slider because these are read as numbers, not as
+/// positions: a subtitle delay is +0.30 s, and the useful move is one step at
+/// a time. Sliders are for the material parameters, where the eye judges the
+/// result and the number is incidental.
+export component StepperRow inherits Rectangle {
+    /// Whether the keyboard is on this row. Left and right step it.
+    in property <bool> focused;
+    /// ...and whether the ring is being shown at all.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    in property <image> icon;
+    in property <string> label;
+    in property <string> value;
+    /// -1 or +1; the caller owns the step size.
+    callback stepped(float);
+
+    height: Rows.stepper-row;
+
+    accessible-role: spinbox;
+    accessible-label: root.label;
+    accessible-value: root.value;
+    accessible-action-increment => {
+        root.stepped(1);
+    }
+    accessible-action-decrement => {
+        root.stepped(-1);
+    }
+
+    // Same as the sliders: its two buttons light on hover, and neither of
+    // them is where the keyboard is — the row is.
+    RowHighlight {
+        lit: root.ring;
+        shade: Paint.wash-strong;
+    }
+
+    HorizontalLayout {
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+        spacing: 8px;
+
+        Rectangle {
+            width: 18px;
+
+            Image {
+                source: root.icon;
+                width: 18px;
+                height: 18px;
+                x: 0;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+                colorize: Paint.quiet;
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: root.ring ? Paint.lit : Paint.body;
+            font-size: Type.readout;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+
+        Rectangle {
+            width: 26px;
+
+            StepButton {
+                y: (parent.height - self.height) / 2;
+                // U+2212, not a hyphen: it matches the digits either side.
+                glyph: "−";
+                clicked => {
+                    root.stepped(-1);
+                }
+            }
+        }
+
+        Text {
+            width: 62px;
+            text: root.value;
+            color: Paint.strong;
+            font-size: Type.readout;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+
+        Rectangle {
+            width: 26px;
+
+            StepButton {
+                y: (parent.height - self.height) / 2;
+                glyph: "+";
+                clicked => {
+                    root.stepped(1);
+                }
+            }
+        }
+    }
+}
+
+/// Header for a page that has one above it. Doubles as the way back, since a
+/// title bar is where the eye already is when leaving a page.
+export component BackRow inherits Rectangle {
+    /// Whether the keyboard is on this row.
+    in property <bool> focused;
+    /// ...and whether the ring is being shown at all. A row is never lit for
+    /// a keyboard nobody is using.
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    in property <string> label;
+    /// A name rather than a label: a show's, heading a page of its episodes.
+    /// Its own case and size and no tracking, as a panel heading holding one.
+    in property <bool> titular;
+    callback back();
+
+    height: Rows.row;
+
+    accessible-role: button;
+    accessible-label: "Back from " + root.label;
+    accessible-action-default => {
+        root.back();
+    }
+
+    RowHighlight {
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+    }
+
+    // The arrow is laid out as `DrillRow` lays out its icon, at the same
+    // size in the same column with the same air after it — a back row is the
+    // way out of a page of those, and the pair read as one movement only if
+    // they are built the same. Hanging it in the margin at 14px did line the
+    // label up with the headings, but it left the arrow pinched between the
+    // panel edge and the first letter, which is the cost the eye actually
+    // notices.
+    HorizontalLayout {
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+        spacing: 10px;
+
+        Rectangle {
+            width: 18px;
+
+            Image {
+                source: @image-url("../../../public/icons/angle-small-left.svg");
+                width: 18px;
+                height: 18px;
+                x: 0;
+                y: (parent.height - self.height) / 2;
+                image-fit: contain;
+                colorize: touch.has-hover || root.ring ? Paint.lit : Paint.body;
+            }
+        }
+
+        Text {
+            text: root.label;
+            color: touch.has-hover || root.ring ? Paint.lit : Paint.body;
+            font-size: root.titular ? Type.named : Type.label;
+            font-weight: Type.weight-plain;
+            letter-spacing: root.titular ? 0 : Type.label-track;
+            overflow: elide;
+            vertical-alignment: center;
+            horizontal-stretch: 1;
+        }
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
+        }
+        clicked => {
+            root.back();
+        }
+    }
+}
+
+/// A line that states a fact rather than offering an action. No hover, no
+/// hit area: there is nothing here to press.
+export component EmptyRow inherits Rectangle {
+    in property <string> label;
+
+    height: Rows.row;
+
+    Text {
+        x: Rows.label-x;
+        width: parent.width - Rows.label-x - Rows.trail-x;
+        height: 100%;
+        text: root.label;
+        color: Paint.quiet;
+        font-size: Type.body;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}
+
+/// A section label.
+///
+/// A box around the text rather than the text itself, so it can be given the
+/// panel's width and elide within it: a heading used to be a fixed word, and
+/// can now be a show's name of any length.
+export component MenuHeading inherits Rectangle {
+    in property <string> text;
+    /// A name rather than a label — the show a playlist is all of. Natural
+    /// case, its own size and no tracking, where a section kicker like
+    /// SUBTITLES or EFFECTS has capitals and air, because it is the user's
+    /// word and not the interface's. Everything else about it is the same,
+    /// including the weight and the alpha: the difference between the two is
+    /// what they are, and nothing else needs to say so.
+    in property <bool> titular;
+    /// Whether a group already ended above this one.
+    ///
+    /// If it did, the heading takes the group gap above it. Set level, a
+    /// kicker sits the same distance from the group it names as from the one
+    /// it follows — measured at 30px above and 32px below — and a label
+    /// equidistant between two things labels neither. The space belongs to
+    /// the heading rather than to the row above, because the row above does
+    /// not know it is last.
+    in property <bool> after-content;
+    /// What the section is about, drawn before the words. Optional: a heading
+    /// over rows that carry icons of their own — the settings page — would
+    /// only be saying it twice.
+    in property <image> icon;
+    private property <bool> iconic: root.icon.width > 0;
+    /// A row's 18px. It was 16px, smaller because the words beside it are
+    /// 12px capitals rather than 14px lowercase, but icons are shown at 24px
+    /// or 18px only: those are the sizes the 24×24 drawings are checked at,
+    /// and at 16px their 2px lines fell to 1.33px, a width no pixel can hold.
+    private property <length> icon-size: 18px;
+    private property <length> icon-gap: 8px;
+
+    height: 28px + (root.after-content ? Rows.group-gap : 0px);
+
+    // Starts where the row labels start, and the words move over for it.
+    // It cannot hang in the margin the way the back row's arrow does: that
+    // margin is 14px to the edge of the wash, which a 14px chevron fits and
+    // an 18px mark with space after it does not.
+    if root.iconic: Image {
+        source: root.icon;
+        x: Rows.label-x;
+        y: parent.height - 28px + (28px - self.height) / 2;
+        width: root.icon-size;
+        height: root.icon-size;
+        image-fit: contain;
+        // The heading's own alpha, so the mark and the words are one thing.
+        colorize: Paint.body;
+    }
+
+    Text {
+        // Aligned with the row labels below it, not with the panel edge.
+        x: Rows.label-x + (root.iconic ? root.icon-size + root.icon-gap : 0px);
+        width: parent.width - self.x - Rows.trail-x;
+        // Held to the bottom 28px, so the gap above stays above.
+        y: parent.height - self.height;
+        height: 28px;
+        text: root.text;
+        color: Paint.body;
+        font-size: root.titular ? Type.named : Type.label;
+        // A kicker is lighter than the rows it labels, not heavier. What
+        // tells it from them is case, size and the tracking — it wears the
+        // rows' own alpha — and not stroke weight, the one axis a label must
+        // not beat its own content on.
+        //
+        // The same weight for a show's name, which is the other thing this
+        // slot can hold. It was 600 while the kicker was 700 and the two
+        // read as one family; at 400 against 600 they stopped, and since 600
+        // is Bold here it had become a small copy of the playing row rather
+        // than a heading. A name is still not a label — it keeps its own
+        // case and its own size — but both are headings,
+        // and a panel should not look like it was designed twice.
+        font-weight: Type.weight-plain;
+        letter-spacing: root.titular ? 0 : Type.label-track;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+}

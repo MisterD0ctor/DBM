@@ -1,0 +1,111 @@
+// A list that scrolls, for the panels whose rows can outgrow the window.
+
+import { Paint, Rows } from "theme.slint";
+
+/// A list that scrolls when it is handed less height than its content needs.
+///
+/// The height comes from the caller and the content height is arithmetic on
+/// the row count, so nothing here has to measure anything — which keeps panel
+/// geometry a calculation rather than a layout query, for the reason given at
+/// the top of `MainWindow`.
+export component ScrollList inherits Rectangle {
+    /// What the rows add up to, unconstrained.
+    in property <length> content-height;
+    /// How far the list has been scrolled, as the negative offset Flickable
+    /// keeps. Exposed so a test can confirm the wheel reaches it — there is
+    /// otherwise nothing on screen a test can read.
+    out property <length> offset: flick.viewport-y;
+
+    clip: true;
+
+    /// Bring one row into view, by its top and height inside the list.
+    ///
+    /// Called when the keyboard moves rather than bound to anything: the
+    /// pointer owns this list the rest of the time, and a binding on
+    /// `viewport-y` would take the flick and the wheel away from it. Scrolls
+    /// by the least that works, so arrowing down a long list walks the
+    /// bottom edge instead of jumping the row to the middle.
+    public function reveal(top: length, h: length) {
+        if (top < -flick.viewport-y) {
+            flick.viewport-y = -top;
+        } else if (top + h > -flick.viewport-y + root.height) {
+            flick.viewport-y = root.height - top - h;
+        }
+    }
+
+    /// Put one row in the middle, as far as the ends of the list allow.
+    ///
+    /// For a panel opening, rather than a ring moving. The least scroll that
+    /// shows a row lands it on the bottom edge, which is right for a walk and
+    /// wrong for an arrival: the episode you are on belongs with the ones
+    /// either side of it in view.
+    public function centre(top: length, h: length) {
+        flick.viewport-y = min(0px,
+            max(root.height - root.content-height, (root.height - h) / 2 - top));
+    }
+
+    /// Move the list by a distance, stopping at its ends.
+    ///
+    /// For a page that is read rather than walked. `reveal` and `centre` both
+    /// take a row, because every other list here has one the ring can stand
+    /// on; the shortcuts page has none, so its keys move the list itself.
+    /// Home and End are the same call asked for more than there is.
+    public function scroll-by(dy: length) {
+        flick.viewport-y = clamp(flick.viewport-y - dy,
+            min(0px, root.height - root.content-height), 0px);
+    }
+
+    /// The same movement, asked for by a caller that cannot reach this list.
+    ///
+    /// The settings pages are built inside a conditional so the drill can
+    /// slide them, which puts every element on them out of reach of the key
+    /// handler at the window. So the keys leave the distance in `asked-by`
+    /// and bump `asked-tick`, and the list picks it up here. The tick is
+    /// what makes a second press of the same key a second movement.
+    ///
+    /// It still goes through `scroll-by`, which reads the live offset — so
+    /// the wheel and the flick keep the list between two presses instead of
+    /// being snapped back to wherever the keyboard last left it.
+    in property <length> asked-by;
+    in property <int> asked-tick;
+    changed asked-tick => {
+        root.scroll-by(root.asked-by);
+    }
+
+    flick := Flickable {
+        width: 100%;
+        height: 100%;
+        viewport-width: self.width;
+        viewport-height: root.content-height;
+
+        VerticalLayout {
+            // Rows keep their own height instead of being stretched to fill,
+            // so a short list sits at the top rather than spreading out.
+            alignment: start;
+            @children
+        }
+    }
+
+    // A hint, not a control: it says there is more below and roughly where
+    // you are. The flick and the wheel are what move the list.
+    Rectangle {
+        x: parent.width - 7px;
+        y: 2px;
+        width: 3px;
+        height: parent.height - 4px;
+        border-radius: self.width / 2;
+        background: Paint.wash-soft;
+        visible: root.content-height > root.height;
+
+        Rectangle {
+            width: 100%;
+            // Proportional to how much of the list is on screen, with a floor
+            // so a very long list still leaves something to see.
+            height: max(24px, parent.height * (root.height / root.content-height));
+            y: (parent.height - self.height)
+                * (-flick.viewport-y / max(1px, root.content-height - root.height));
+            border-radius: parent.border-radius;
+            background: Paint.quiet;
+        }
+    }
+}

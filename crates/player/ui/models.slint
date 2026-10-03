@@ -1,0 +1,78 @@
+// The structs the Rust side fills in and the interface draws from: the
+// glass each surface asks for, and the rows of the settings, track and
+// playlist panels.
+
+/// A panel the pipeline should render glass beneath. Lengths are logical
+/// pixels; the Rust side scales them by the window's scale factor.
+export struct GlassRect {
+    x: length,
+    y: length,
+    width: length,
+    height: length,
+    radius: length,
+    /// How much the glass pulls toward its tint colour, 0..1.
+    tint: float,
+    /// How far the surface has faded in, 0..1. The glass is drawn under the
+    /// panel, so it has to arrive with it — glass at full strength beneath a
+    /// half-faded surface reads as a hole in the picture.
+    opacity: float,
+}
+
+export struct ParamItem {
+    /// Index into the registry on the Rust side. Carried on the row because
+    /// the sliders are split across pages now, so a repeater's position in
+    /// its own list no longer identifies the parameter.
+    index: int,
+    label: string,
+    /// Normalised 0..1, so the slider needs no knowledge of the real range.
+    fraction: float,
+    /// Formatted for display by the Rust side, which owns the range.
+    readout: string,
+}
+
+export struct TrackItem {
+    id: int,
+    label: string,
+    selected: bool,
+}
+
+export struct PlaylistItem {
+    /// Its place in mpv's playlist, or -1 for a file in a season beside the
+    /// list rather than in it.
+    index: int,
+    /// Where it is, for opening a file that is not in the list.
+    path: string,
+    label: string,
+    current: bool,
+    /// How long this file is, already formatted. Empty when the player has
+    /// never opened it and so has no idea.
+    length: string,
+    /// How far through it the resume point sits, 0..1. Zero for a file that
+    /// was never started, and for one that was finished.
+    progress: float,
+    /// Watched to its end or into its credits, and not started again since:
+    /// what tells a finished episode from one never started, which the
+    /// progress alone cannot.
+    finished: bool,
+    /// It would not play, this run.
+    failed: bool,
+}
+
+/// One part of a playlist, as the panel shows it — see `playlist-groups`.
+export struct PlaylistGroup {
+    /// How its row names it: Season 7, Specials, a show's name and season.
+    label: string,
+    /// How its page's way back names it: SEASON 7, or a show's name in its
+    /// own case, which `titular` says.
+    heading: string,
+    titular: bool,
+    /// How many files, already worded: "10 episodes".
+    detail: string,
+    /// It holds the file playing.
+    current: bool,
+    /// One file, which stands in the list of parts as itself.
+    leaf: bool,
+    /// The row its page opens on: the file playing, or the first unfinished.
+    open-row: int,
+    entries: [PlaylistItem],
+}
