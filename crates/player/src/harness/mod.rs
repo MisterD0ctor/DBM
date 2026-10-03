@@ -128,6 +128,11 @@
 //!
 //! Each returns a `Timer` that must be kept alive for the duration of the
 //! run; dropping it stops the exercise.
+//!
+//! On a desktop, run them through `scripts/headless.sh`. A window the harness
+//! opens takes focus as it maps and sits under whatever the hand was about to
+//! click, and on Wayland nothing the window asks for can stop that; the script
+//! gives the run a headless compositor of its own, which nobody can see.
 
 mod drive;
 mod keys;
