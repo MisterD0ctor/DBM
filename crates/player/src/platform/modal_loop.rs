@@ -40,12 +40,10 @@ const TIMER_ID: usize = 0x00DB_3001;
 const SUBCLASS_ID: usize = 0x00DB_3002;
 
 #[cfg(windows)]
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 
-/// Diagnostics for the window procedure, which has no other way to reach the
-/// rest of the program.
-#[cfg(windows)]
-static TRACE: AtomicBool = AtomicBool::new(false);
+/// Heartbeat ticks in the current modal loop, for the trace line that says
+/// the hook did its job.
 #[cfg(windows)]
 static TICKS: AtomicU64 = AtomicU64::new(0);
 
@@ -88,10 +86,9 @@ fn keep_rendering_during_modal_loop(window: &slint::Window) -> Result<(), String
     use windows::Win32::UI::Shell::SetWindowSubclass;
 
     let hwnd = crate::platform::window::hwnd(window)?;
-    TRACE.store(std::env::var_os("DBM_TRACE").is_some(), Ordering::Relaxed);
 
     if unsafe { SetWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID, 0) }.as_bool() {
-        if TRACE.load(Ordering::Relaxed) {
+        if crate::diagnostics::trace() {
             eprintln!("dbm: modal-loop hook installed");
         }
         Ok(())
@@ -123,13 +120,13 @@ unsafe extern "system" fn subclass_proc(
         WM_ENTERSIZEMOVE => unsafe {
             SetTimer(Some(hwnd), TIMER_ID, TICK_MS, None);
             TICKS.store(0, Ordering::Relaxed);
-            if TRACE.load(Ordering::Relaxed) {
+            if crate::diagnostics::trace() {
                 eprintln!("dbm: modal loop entered — heartbeat timer started");
             }
         },
         WM_EXITSIZEMOVE => unsafe {
             let _ = KillTimer(Some(hwnd), TIMER_ID);
-            if TRACE.load(Ordering::Relaxed) {
+            if crate::diagnostics::trace() {
                 eprintln!(
                     "dbm: modal loop exited after {} heartbeat ticks",
                     TICKS.load(Ordering::Relaxed)

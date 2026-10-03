@@ -76,8 +76,7 @@ impl Watchdog {
             last_track: RefCell::new(None),
             user_disabled: Cell::new(false),
             settle: slint::Timer::default(),
-            trace: std::env::var_os("DBM_AUDIO_TEST").is_some()
-                || std::env::var_os("DBM_TRACE").is_some(),
+            trace: std::env::var_os("DBM_AUDIO_TEST").is_some() || crate::diagnostics::trace(),
         })
     }
 

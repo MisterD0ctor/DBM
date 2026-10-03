@@ -85,7 +85,7 @@ impl Scrubber {
     /// letting it through afterwards would seek away from where the user let
     /// go.
     pub fn release(&self, mpv: &Mpv, fraction: f32) {
-        if std::env::var_os("DBM_TRACE").is_some() && self.requested.get() > 0 {
+        if crate::diagnostics::trace() && self.requested.get() > 0 {
             eprintln!(
                 "dbm: drag ended - {} updates coalesced into {} seeks",
                 self.requested.get(),

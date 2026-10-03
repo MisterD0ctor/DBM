@@ -58,7 +58,7 @@ impl Accepting {
 
         match self.until.poll(|| accept(ui)) {
             Attempt::Took(()) => {
-                if std::env::var_os("DBM_TRACE").is_some() {
+                if crate::diagnostics::trace() {
                     eprintln!("dbm: accepting dropped files");
                 }
             }

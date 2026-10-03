@@ -21,13 +21,21 @@
 //! resize was invisible until the render path was broken down, and guessing
 //! at it twice got the wrong answer both times.
 
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
-use crate::gpu::pipeline::GlassPanel;
-use crate::gpu::pipeline::Pipeline;
+use crate::gpu::pipeline::{GlassPanel, Pipeline};
 use crate::playback::state::PlayerState;
-use crate::playback::tracks;
-use crate::playback::tracks::TrackKind;
+use crate::playback::tracks::{self, TrackKind};
+
+/// Whether `DBM_TRACE` is set: the switch every part of the player checks
+/// before saying something about itself. Read once, from any thread —
+/// including from inside a window procedure, which has no other way to reach
+/// the rest of the program.
+pub fn trace() -> bool {
+    static TRACE: OnceLock<bool> = OnceLock::new();
+    *TRACE.get_or_init(|| std::env::var_os("DBM_TRACE").is_some())
+}
 
 #[derive(Default)]
 struct Phases {
@@ -77,7 +85,7 @@ impl Probe {
 
     pub fn new() -> Self {
         Self {
-            trace: std::env::var_os("DBM_TRACE").is_some(),
+            trace: trace(),
             probe: std::env::var_os("DBM_PROBE").is_some(),
             watch_border: std::env::var_os("DBM_BORDER_WATCH").is_some(),
             worst_gap: 0.0,
