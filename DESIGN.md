@@ -97,7 +97,7 @@ components:
     typography: "{typography.readout}"
     backgroundColor: "transparent"
   timeline-time:
-    width: "60px"
+    minWidth: "60px"
     textColor: "{colors.strong}"
     typography: "{typography.readout}"
   menu-row:
@@ -730,8 +730,13 @@ the axes, which is exactly the part the eye catches.
 
 ### Timeline row
 - **Shape:** one 28px capsule of glass across the bar's full width
-- **Times:** Strong in Readout size, centred in 60px each — wide enough for
-  `1:23:45`, so the row does not shift when a film passes the hour
+- **Times:** Strong in Readout size, each centred in a column of 60px, widened
+  by exactly as much as the film's length reads wider than `00:00` — so a time
+  past the hour keeps the air a shorter one has, and a film under an hour keeps
+  the 60px it always had. Sized from the length rather than the time played,
+  so it is set when a film opens and the row does not shift when the time
+  played passes the hour. A fixed 60px left `1:03:12` 4px from the capsule's
+  end, inside its 14px curve
 - **Track:** 5px at Rail, growing to 7px under the pointer or a drag (100ms
   ease-out); played length at Played, width-driven so it stays crisp
 - **Hit area:** the full row height, not the track it draws — a 5px target is

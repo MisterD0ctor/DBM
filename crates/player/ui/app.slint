@@ -758,10 +758,24 @@ export component MainWindow inherits Window {
     /// Shorter than the control pills: they hold a 24px glyph, these hold a
     /// single line of type.
     property <length> timeline-h: 28px;
-    /// Wide enough for "1:23:45" without the pill resizing when a film ticks
-    /// past the hour — the same reasoning as the title pill, for the same
-    /// reason: a pill that resizes itself never sits still.
-    property <length> time-w: 60px;
+    /// Wide enough for the longest either time can read — the length of the
+    /// film, since the elapsed time never passes it.
+    ///
+    /// 60px holds a time under an hour with air either side, and a longer one
+    /// widens the column by exactly as much as it reads wider than "00:00", so
+    /// it keeps the same air. Fixed at 60px once, which was wide enough for
+    /// "1:23:45" only on paper: past the hour seven figures took 52 of the 60,
+    /// sat 4px from the end of a capsule whose corner is 14px, and ran into
+    /// its curve — and out of it wherever the face sets a hair wider. Measured
+    /// rather than assumed, because a figure's width is the font's and the
+    /// platform's to decide.
+    ///
+    /// From the total rather than the elapsed time, so it is set when a film
+    /// opens and holds for all of it: the row does not shift when the elapsed
+    /// time passes the hour, which is what the fixed width was for. A film
+    /// under an hour has the row it always had.
+    property <length> time-w: 60px
+        + max(0px, time-measure.preferred-width - minutes-measure.preferred-width);
 
     property <length> bar-x: root.panel-margin;
     property <length> bar-w: root.width - 2 * root.panel-margin;
@@ -3540,7 +3554,7 @@ export component MainWindow inherits Window {
         }
 
         Text {
-            // Centred over the 60px the figure owns, not over the reach of
+            // Centred over the column the figure owns, not over the reach of
             // the surface behind it.
             width: root.time-w;
             height: 100%;
@@ -4061,6 +4075,26 @@ export component MainWindow inherits Window {
     /// Measured, never drawn — the pill is sized around the words it holds,
     /// and only the font knows how wide they are. Same contract as
     /// `title-measure`: these settings must match the visible text exactly.
+    // The film's length as the timeline writes it, and the widest a time
+    // under an hour can read — the two `time-w` is the difference of.
+    time-measure := Text {
+        text: root.total;
+        font-family: Type.numerals;
+        font-size: Type.readout;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    minutes-measure := Text {
+        text: "00:00";
+        font-family: Type.numerals;
+        font-size: Type.readout;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
     end-measure := Text {
         text: root.end-two ? root.end-onward-label : root.end-label;
         font-size: Type.prompt;
