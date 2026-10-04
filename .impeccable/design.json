@@ -303,30 +303,25 @@
       }
     ],
     "material": {
-      "note": "The glass and ambient-border values as the code ships them (pipeline.rs). Not expressible as Stitch tokens: they are shader uniforms. Most are sliders on the settings panel's glass and ambient-border pages; bevel, ior and specular are constants and deliberately not adjustable — see `fixed` below.",
+      "note": "The glass and ambient-border values as the code ships them (gpu/pipeline.rs). Not expressible as Stitch tokens: they are shader uniforms. Most are sliders on the settings panel's glass and ambient-border pages; bevel, ior and specular are constants and deliberately not adjustable — see `fixed` below.",
       "glass": {
         "blurSigma": 2.0,
-        "blur": 1.0,
         "bevel": 1.0,
         "refract": 1.0,
         "ior": 2.0,
         "aberration": 0.1,
         "specular": 1.0,
-        "sky": 0.0,
+        "rim": 2.0,
         "tint": 0.2,
         "tintColor": [
           0.0,
           0.0,
           0.0
-        ],
-        "lightDirection": [
-          -0.707,
-          -0.707
         ]
       },
       "absorption": {
         "curve": "absorbed = 1 - 0.75 * (1 - exp(-1.5 * luma)) / luma, then a saturation lift on what remains",
-        "appliesTo": "the transmitted component only, never the rim, the sky highlight or the mirrored backdrop",
+        "appliesTo": "the transmitted component only, never the rim, the rim light or the mirrored backdrop",
         "adjustable": false
       },
       "border": {
@@ -531,7 +526,7 @@
       {
         "name": "The Transmissive Middle Rule",
         "section": "elevation",
-        "body": "Absorption — the thing that keeps white text and white controls legible over a bright frame — is applied to the transmitted component only, never to the rim, the sky highlight or the mirrored backdrop. The rim is the full corner radius, so a capsule is rim the whole way through and has no transmitted component to darken. A pane that exists to give something a ground must be tall enough to have a flat middle. This is why the timeline's glass is the height of its row and not the height of its 5px track."
+        "body": "Absorption — the thing that keeps white text and white controls legible over a bright frame — is applied to the transmitted component only, never to the rim, the rim light or the mirrored backdrop. The rim is the full corner radius, so a capsule is rim the whole way through and has no transmitted component to darken. A pane that exists to give something a ground must be tall enough to have a flat middle. This is why the timeline's glass is the height of its row and not the height of its 5px track."
       },
       {
         "name": "The Concentric Rule",

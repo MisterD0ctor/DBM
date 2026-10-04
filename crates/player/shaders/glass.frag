@@ -31,11 +31,14 @@
 //   * transmission — Snell's law bends the ray, so it lands somewhere else on
 //     the backdrop. This gives the panel apparent thickness, and is by far
 //     the strongest cue that it is an object rather than a hole.
-//   * reflection — the mirrored ray either escapes upward, where it sees a
-//     synthetic sky, or tips over and sees the backdrop again.
+//   * reflection — the mirrored ray either tips over and sees the backdrop
+//     again, or escapes upward off the screen, where there is nothing to see.
 //   * Fresnel — how the two are weighted, from the exact unpolarised
 //     reflectance. Grazing angles at the rim go strongly reflective, which is
 //     why real glass edges look bright without any hand-placed highlight.
+//
+// One term is placed by hand on top of those: the rim light, a line of light
+// along the top and bottom of each pane's outermost edge — see `u_rim`.
 //
 // Wavelength enters on the transmitted ray, and enters properly: the index
 // of refraction is a function of it, so every wavelength lands somewhere
@@ -101,10 +104,10 @@ uniform float u_ior;
 uniform float u_aberration;
 /// Overall strength of the reflection, scaling the Fresnel weight.
 uniform float u_specular;
-/// Brightness of the synthetic sky seen where the reflection escapes upward.
-uniform float u_sky;
-/// Direction that sky highlight comes from, in screen space.
-uniform vec2 u_light_dir;
+/// Brightness of the rim light: a line along the top and bottom of each pane's
+/// outermost edge, where the surface has turned past 45 degrees and the
+/// mirrored ray points back down. Zero turns it off.
+uniform float u_rim;
 uniform vec3 u_tint;
 /// Global tint strength. The per-panel value in `u_panel_style` says whether
 /// a panel takes tint at all; this says how much, and is the slider.
@@ -125,7 +128,7 @@ uniform float u_tint_amount;
 // more there is to transmit, which is what tinted glass physically does.
 //
 // Applied to the transmitted component only. Everything that makes the
-// material read as glass — the Fresnel rim, the sky highlight, the mirrored
+// material read as glass — the Fresnel rim, the rim light, the mirrored
 // backdrop — is added after this and is untouched, so a panel over a bright
 // scene goes deep and keeps its edge rather than turning into a flat card.
 //
@@ -144,8 +147,8 @@ const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 // and counting samples in and out would only quantise it into steps.
 //
 // What does alias is the shading just inside it. The dome's slope runs to
-// infinity at the rim, so reflectance, the mirror direction and the swing from
-// reflected backdrop to sky all happen within the last pixel or two — a
+// infinity at the rim, so reflectance, the mirror direction and the reflection
+// fading as it swings upward all happen within the last pixel or two — a
 // single sample per pixel lands on whichever part of that it happens to hit,
 // and the bright edge crawls as a panel moves. So the shading, and only the
 // shading, is supersampled there. Across the flat middle it changes slowly and
@@ -478,16 +481,8 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     vec2 mirror = vec2(-2.0 * slope, 1.0 - slope2) / (1.0 + slope2);
     vec3 mirror3 = vec3(box_normal * mirror.x, mirror.y);
 
-    // Pointing up, the mirrored ray escapes and sees a synthetic sky: a
-    // broad highlight from `u_light_dir`, lit from both sides so the far
-    // edge catches a dimmer rim of it too.
-    float sky = dot(mirror3, normalize(vec3(u_light_dir, 0.0)));
-    sky = sky < 0.0 ? -0.7 * sky : sky;
-    sky *= 1.0 - mirror.y;
-    sky *= sky * u_sky;
-
-    // Tipped over and pointing down, it sees the backdrop again — a
-    // screen-space reflection, displaced by the same lateral-over-
+    // Tipped over and pointing down, the mirrored ray sees the backdrop
+    // again — a screen-space reflection, displaced by the same lateral-over-
     // vertical reasoning as the refracted ray.
     //
     // The denominator vanishes as the mirrored ray passes horizontal
@@ -500,8 +495,14 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
         -box_normal * reflection_ratio * height * bevel / u_size;
     vec3 reflected = base_at(uv + reflection_offset) * u_specular;
 
-    // Cross-fade the two as the mirrored ray swings through horizontal.
-    vec3 specular = mix(reflected, vec3(sky), smoothstep(-0.7, 0.0, mirror.y));
+    float rim = pow(max(0.0, 2.0 * abs(mirror3.y / mirror.x) - 1.0) * max(0.0, -mirror.y * (1.0 - mirror.x)), 2.0);
+    rim *= u_rim;
+
+    // Pointing up, the mirrored ray leaves the screen and finds nothing to
+    // reflect, so the reflection fades out as it swings through horizontal —
+    // which also hides the turn, where the screen-space offset above runs off
+    // to infinity.
+    vec3 specular = (reflected + vec3(rim)) * (1.0 - smoothstep(-0.7, 0.0, mirror.y));
 
     // Fresnel decides how much of each the viewer gets.
     return mix(refracted, specular, reflectance);

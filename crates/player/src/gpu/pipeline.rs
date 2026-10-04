@@ -74,8 +74,8 @@ pub struct GlassPanel {
 }
 
 /// Look of the glass: what the settings panel's glass page adjusts, plus the
-/// light direction and tint colour, which stay in code. The defaults aim at
-/// visible rather than subtle.
+/// tint colour, which stays in code. The defaults aim at visible rather than
+/// subtle.
 #[derive(Clone, Copy, Debug)]
 pub struct GlassParams {
     /// Gaussian radius of the backdrop blur, in pixels; 0 is a sharp
@@ -92,11 +92,10 @@ pub struct GlassParams {
     /// with it, so this is the width of a spectrum rather than the gap
     /// between three copies of an edge: the prismatic fringe.
     pub aberration: f32,
-    /// Brightness of the synthetic sky seen where the reflection escapes
-    /// upward off the bevel.
-    pub sky: f32,
-    /// Direction that sky highlight comes from, in screen space.
-    pub light_dir: [f32; 2],
+    /// Brightness of the rim light: a line along the top and bottom of each
+    /// pane's outermost edge, where the surface has turned past 45 degrees.
+    /// Zero turns it off.
+    pub rim: f32,
     pub tint: [f32; 3],
     /// How far a panel pulls toward the tint colour, 0..1. Scales the
     /// per-panel opt-in rather than replacing it.
@@ -109,7 +108,7 @@ pub struct GlassParams {
 // longer. They are what the material *is* rather than how much of it you
 // want: the rim is the corner, the glass is flint, and a mirror reflects.
 // Turning any of them makes the panes stop being one material — and unlike
-// blur, fringe, sky or tint, none of them has a range where the answer is a
+// blur, fringe, rim or tint, none of them has a range where the answer is a
 // matter of taste rather than of whether the glass still reads as glass.
 //
 // They live here rather than in `GlassParams` because a value nobody can set
@@ -155,9 +154,7 @@ impl Default for GlassParams {
             // The glass is as thick as the rim is wide; see `BEVEL`.
             refract: 1.0,
             aberration: 0.1,
-            sky: 0.0,
-            // Light from the upper left, the convention every OS uses.
-            light_dir: [-0.707, -0.707],
+            rim: 2.0,
             tint: [0.0, 0.0, 0.0],
             tint_amount: 0.2,
         }
@@ -628,9 +625,7 @@ impl Pipeline {
         self.prog_glass.set_f32(gl, "u_ior", IOR);
         self.prog_glass.set_f32(gl, "u_aberration", g.aberration);
         self.prog_glass.set_f32(gl, "u_specular", SPECULAR);
-        self.prog_glass.set_f32(gl, "u_sky", g.sky);
-        self.prog_glass
-            .set_vec2(gl, "u_light_dir", g.light_dir[0], g.light_dir[1]);
+        self.prog_glass.set_f32(gl, "u_rim", g.rim);
         self.prog_glass.set_vec3(gl, "u_tint", g.tint);
         self.prog_glass.set_f32(gl, "u_tint_amount", g.tint_amount);
 
