@@ -560,7 +560,7 @@ shadow, the same on every side: darkest at the pane's edge and falling off
 steeply, gone within the pane's own corner radius plus 4px, so a pill casts a
 small one and a panel a larger one, as the rim scales. Every shadow is laid on the frame before any glass, so no
 pane's shadow falls across another pane's glass: they stand at the same height.
-How dark it is, at its darkest, is the glass page's Shadow slider, 0.1 by
+How dark it is, at its darkest, is the glass page's Shadow slider, 0.2 by
 default; enough to set a pane off a bright frame, too little to read as a
 smudge over a dark one.
 

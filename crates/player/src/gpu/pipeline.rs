@@ -121,7 +121,8 @@ pub struct GlassParams {
 // They live here rather than in `GlassParams` because a value nobody can set
 // is not a parameter. Nothing carries them through the store, nothing writes
 // them to disk, and `settings.rs` has three fewer entries in its registry —
-// the panel's glass page follows the registry, so it simply shows five rows.
+// the panel's glass page follows the registry, so it simply has no row for
+// any of them.
 // An old settings file naming `glass.bevel_ratio`, `glass.ior` or
 // `glass.specular` is skipped the way any unknown key is.
 

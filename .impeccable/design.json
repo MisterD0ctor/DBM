@@ -214,7 +214,7 @@
     "shadows": [
       {
         "name": "pane",
-        "value": "0.1",
+        "value": "0.2",
         "purpose": "The shadow each glass pane casts on the picture behind it, at its darkest, at the pane's edge. The same on every side, falling off steeply — a smooth step times an exponential — and gone within the pane's corner radius plus 4px, so it scales with the pane as the rim does. Laid on the frame before any glass, so it never falls on another pane. The glass page's Shadow slider, 0..1."
       }
     ],
@@ -311,16 +311,16 @@
     "material": {
       "note": "The glass and ambient-border values as the code ships them (gpu/pipeline.rs). Not expressible as Stitch tokens: they are shader uniforms. Most are sliders on the settings panel's glass and ambient-border pages; bevel, ior and specular are constants and deliberately not adjustable — see `fixed` below.",
       "glass": {
-        "blurSigma": 2.0,
+        "blurSigma": 4.0,
         "bevel": 1.0,
         "refract": 1.0,
         "ior": 2.0,
-        "aberration": 0.1,
+        "aberration": 0.2,
         "specular": 1.0,
-        "rim": 0.5,
-        "tint": 0.2,
-        "absorb": 1.0,
-        "shadow": 0.1,
+        "rim": 0.1,
+        "tint": 0.0,
+        "absorb": 0.5,
+        "shadow": 0.2,
         "tintColor": [
           0.0,
           0.0,
@@ -358,7 +358,7 @@
           "ior",
           "specular"
         ],
-        "why": "What the material is, rather than how much of it you want. None has a range where the answer is taste rather than whether the panes still read as one material, so all three are constants in pipeline.rs and the glass page shows five sliders, not eight."
+        "why": "What the material is, rather than how much of it you want. None has a range where the answer is taste rather than whether the panes still read as one material, so all three are constants in pipeline.rs and the glass page has no slider for any of them."
       }
     }
   },
