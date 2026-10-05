@@ -291,6 +291,7 @@
         "purpose": "How long the bar waits on stillness before it goes — while a film plays, and never while it is paused."
       }
     ],
+    "motionNote": "All of it stops with one switch: Animations, on the settings panel's accessibility page. Every duration above that moves something lives in the Motion global in theme.slint and is 0ms with the switch off, so surfaces, pages, washes, tracks and switches arrive in the frame they were asked for; the backdrop, which the pipeline fades rather than Slint, is drawn at full strength the frame it arrives. tip-delay, tip-grace, flash-dwell, reset-confirm and idle-hide stay as they are: they are waits, not motion. Saved as accessibility.animations, on by default.",
     "breakpoints": [
       {
         "name": "opening",
@@ -575,7 +576,7 @@
       "Don't let it drift toward the utilitarian player — VLC, MPC-HC, mpv's own OSC. Grey chrome, system widgets and dense toolbars are the failure mode that function-first reasoning always argues for, and the reason this was rebuilt.",
       "Don't open two panels at once.",
       "Don't animate for its own sake. Motion here is a response: 45ms for a wash, 100ms for a track, 120ms for a surface or a switch, ease-out, no bounce, no overshoot. Four things depart from that, each for a reason that is about what is moving rather than about how it looks: the title pill resizing to a new title over 160ms ease-in-out, so a file change is a movement rather than a flicker; the backdrop's 400ms arrival, the one motion that is not a response to anything — it is the window's light changing, not a control answering; a settings drill, 220ms ease-in-out, moving the page sideways and the panel's own height with it, longer than a surface because it is a journey rather than an arrival and eased at both ends because it starts and stops in place; and the seek preview's fade, 60ms — half the shared duration, and the one surface with a number of its own, because it is not announcing itself but following a pointer.",
-      "Don't substitute an icon library. The set is 60 SVGs drawn at 24×24 as one family; extend it rather than replacing it.",
+      "Don't substitute an icon library. The set is 61 SVGs drawn at 24×24 as one family; extend it rather than replacing it.",
       "Don't show an icon at a size other than 24px or 18px. Scaled from the 24×24 drawings, those give a 2px and a 1.5px line and both stay legible; at 16px the line falls to 1.33px, and at 12px every line lands on a pixel boundary and turns to two grey rows, so detailed icons blur into blobs. A smaller size needs its own drawing. There are no exceptions: the back row's 14px chevron was the only one and it is now 18px."
     ]
   }

@@ -279,10 +279,12 @@ pub(super) fn panel_test(ui: &MainWindow) -> slint::Timer {
                 17 => ui.invoke_open_settings_page(3),
                 18 => report_panels(&ui, "settings subtitles"),
                 19 => ui.invoke_open_settings_page(4),
-                20 => report_panels(&ui, "settings shortcuts"),
-                21 => ui.invoke_open_settings(false),
-                22 => report_panels(&ui, "closed again"),
-                23 => eprintln!("dbm: --- panel test done ---"),
+                20 => report_panels(&ui, "settings accessibility"),
+                21 => ui.invoke_open_settings_page(5),
+                22 => report_panels(&ui, "settings shortcuts"),
+                23 => ui.invoke_open_settings(false),
+                24 => report_panels(&ui, "closed again"),
+                25 => eprintln!("dbm: --- panel test done ---"),
                 _ => {}
             }
             step += 1;

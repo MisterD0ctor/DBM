@@ -156,7 +156,8 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 "glass" => ui.invoke_open_settings_page(1),
                 "ambience" => ui.invoke_open_settings_page(2),
                 "subs" => ui.invoke_open_settings_page(3),
-                "shortcuts" => ui.invoke_open_settings_page(4),
+                "accessibility" => ui.invoke_open_settings_page(4),
+                "shortcuts" => ui.invoke_open_settings_page(5),
                 _ => {}
             }
             eprintln!("dbm: showcase ready ({surface})");

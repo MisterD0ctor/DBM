@@ -15,17 +15,18 @@
 //!   with the arrow keys, reporting the ring's row and the list's scroll at
 //!   each. `=glass` walks into the glass page and steps a slider with Left
 //!   instead; `=up` opens the playlist without a key, so the first Up has to
-//!   both show the ring and land on the bottom row.
+//!   both show the ring and land on the bottom row; `=accessibility` walks to
+//!   the accessibility page and presses Enter on its switch twice.
 //! * `DBM_RESIZE_TEST=1` — sweeps the window width like a drag. Note this does
 //!   *not* enter Windows' modal resize loop, which is why it once reported
 //!   healthy while the real thing froze.
 //! * `DBM_MODAL_TEST=1` — posts `WM_SYSCOMMAND`/`SC_SIZE` to enter that modal
 //!   loop for real.
-//! * `DBM_TOGGLE_TEST=1` — flips each effect switch and autoplay in turn, then
-//!   drives a slider and resets its section. Pair it with `DBM_PROBE=1`, which
-//!   takes a fresh pixel reading each time an effect switch moves. Point
-//!   `APPDATA` at a scratch directory when running it: a reset is saved like
-//!   any other change.
+//! * `DBM_TOGGLE_TEST=1` — flips each effect switch, autoplay and the
+//!   animations switch in turn, then drives a slider and resets its section.
+//!   Pair it with `DBM_PROBE=1`, which takes a fresh pixel reading each time
+//!   an effect switch moves. Point `APPDATA` at a scratch directory when
+//!   running it: a reset is saved like any other change.
 //! * `DBM_PARAM_TEST=<0..1>` — opens the settings and sets the glass tint to
 //!   that value through the same callback a slider drag uses. Anything that is
 //!   not a number opens the panel and touches nothing, which is how a value

@@ -251,6 +251,10 @@ pub struct Pipeline {
     /// from whether a file is loaded; the moment one is, mpv's own frames
     /// take the target back.
     pub show_backdrop: bool,
+    /// Whether the backdrop fades up or is simply there. The interface's
+    /// Animations setting: everything Slint moves stops with `Motion`, and
+    /// this is the one movement the pipeline draws itself.
+    pub animate: bool,
 }
 
 /// How long the backdrop takes to come up. Longer than a surface's 120ms,
@@ -300,6 +304,7 @@ impl Pipeline {
                 .map_err(|e| format!("backdrop: {e}"))?,
             backdrop: None,
             show_backdrop: false,
+            animate: true,
         })
     }
 
@@ -358,7 +363,11 @@ impl Pipeline {
         let Some(b) = self.backdrop.as_mut() else {
             return;
         };
-        let t = (b.arrived.elapsed().as_secs_f32() / BACKDROP_ARRIVAL.as_secs_f32()).min(1.0);
+        let t = if self.animate {
+            (b.arrived.elapsed().as_secs_f32() / BACKDROP_ARRIVAL.as_secs_f32()).min(1.0)
+        } else {
+            1.0
+        };
         // Ease out, like every other arrival here.
         let level = 1.0 - (1.0 - t).powi(3);
         b.settled = t >= 1.0;

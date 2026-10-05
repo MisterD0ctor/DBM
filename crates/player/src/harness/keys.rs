@@ -6,7 +6,7 @@ use slint::ComponentHandle;
 
 use super::drive::chord;
 use crate::playback::mpv::Mpv;
-use crate::MainWindow;
+use crate::{MainWindow, Motion};
 
 /// Walk the keyboard into a panel and down it, with real key events.
 ///
@@ -46,6 +46,42 @@ pub(super) fn reach_test(ui: &MainWindow) -> slint::Timer {
                         eprintln!("dbm: up -> row {}", ui.get_focus_row());
                     }
                     3 => eprintln!("dbm: --- reach test done ---"),
+                    _ => {}
+                }
+                step += 1;
+                return;
+            }
+            // The accessibility page's switch, pressed with Enter rather than
+            // clicked: the keys reach it through `focus-activate-settings`,
+            // which a click never touches. Twice, so the run leaves it on.
+            if mode == "accessibility" {
+                let down = slint::SharedString::from(Key::DownArrow);
+                let enter = slint::SharedString::from(Key::Return);
+                match step {
+                    0 => {
+                        eprintln!("dbm: pressing S for the settings");
+                        chord(&ui, &[], "s");
+                    }
+                    // S lands the ring on the first row, so three Downs reach
+                    // Accessibility; Enter opens it; Down onto the switch.
+                    1..=3 | 5 => {
+                        chord(&ui, &[], down.as_str());
+                        eprintln!("dbm: down -> row {}", ui.get_focus_row());
+                    }
+                    4 => {
+                        chord(&ui, &[], enter.as_str());
+                        eprintln!("dbm: enter, opening the accessibility page");
+                    }
+                    6 | 7 => {
+                        chord(&ui, &[], enter.as_str());
+                        eprintln!(
+                            "dbm: enter on row {} -> animations {}, surface {}ms",
+                            ui.get_focus_row(),
+                            ui.global::<Motion>().get_enabled(),
+                            ui.global::<Motion>().get_surface()
+                        );
+                    }
+                    8 => eprintln!("dbm: --- reach test done ---"),
                     _ => {}
                 }
                 step += 1;

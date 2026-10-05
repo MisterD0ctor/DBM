@@ -510,6 +510,7 @@ impl Driver {
             gpu.pipeline.params = border;
             gpu.pipeline.border_enabled = self.app.settings.ambience_on();
             gpu.pipeline.glass_enabled = self.app.settings.glass_on();
+            gpu.pipeline.animate = self.app.settings.animations();
             params_dirty = true;
         }
 

@@ -5,7 +5,7 @@ use std::time::Duration;
 use slint::{ComponentHandle, Model};
 
 use crate::playback::mpv::Mpv;
-use crate::MainWindow;
+use crate::{MainWindow, Motion};
 
 /// Open the settings panel and drive one parameter to its maximum, so the
 /// probe frame lands with a value nothing else would have produced.
@@ -140,8 +140,24 @@ fn report_row(ui: &MainWindow, label: &str) {
     eprintln!("dbm: {label:<18} {}", rows.join(" "));
 }
 
-/// Walk the effect switches and autoplay, leaving each one back where it
-/// started so a run does not quietly rewrite the saved settings.
+/// Every motion token, as the interface reads it.
+fn report_motion(ui: &MainWindow, label: &str) {
+    let motion = ui.global::<Motion>();
+    eprintln!(
+        "dbm: {label:<18} highlight={}ms track-grow={}ms surface={}ms switch={}ms \
+         title-width={}ms drill={}ms",
+        motion.get_highlight(),
+        motion.get_track_grow(),
+        motion.get_surface(),
+        motion.get_switch(),
+        motion.get_title_width(),
+        motion.get_drill(),
+    );
+}
+
+/// Walk the effect switches, autoplay and the animations switch, leaving each
+/// one back where it started so a run does not quietly rewrite the saved
+/// settings.
 ///
 /// The interesting part is not the property afterwards — that only says the
 /// click landed — but what the probe reads out of the framebuffer between the
@@ -192,23 +208,47 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
                     "dbm: autoplay on  -> keep-open={:?}",
                     mpv.get_property("keep-open")
                 ),
+                // Animations, the way the switch turns them off: `Motion`
+                // first, then the callback that saves it. What to read is the
+                // tokens every `animate` in the interface takes its duration
+                // from — all of them zero with the switch off, and back to
+                // their lengths with it on.
+                7 => {
+                    ui.global::<Motion>().set_enabled(false);
+                    ui.invoke_set_animations(false);
+                    report_motion(&ui, "animations off");
+                }
+                8 => {
+                    ui.global::<Motion>().set_enabled(true);
+                    ui.invoke_set_animations(true);
+                    report_motion(&ui, "animations on");
+                }
                 // Reset. Drive one slider somewhere it would never be by
                 // default, then put the section back and read the row again.
                 // The row is the thing to check: the value reaching the
                 // pipeline is already covered by `DBM_PARAM_TEST`, and what
                 // broke before was the model, which lost the drag when it
                 // was rebuilt instead of updated in place.
-                7 => {
-                    ui.invoke_set_param(7, 1.0);
+                //
+                // Tint found by key, as `param_test` finds it. This was the
+                // bare index 7, which stopped being tint when three rows left
+                // the glass page and has driven the ambient border's edge blur
+                // ever since — a row this report never prints.
+                9 => {
+                    let tint = crate::settings::REGISTRY
+                        .iter()
+                        .position(|p| p.key == crate::settings::Key::Tint)
+                        .expect("the registry has a tint row");
+                    ui.invoke_set_param(tint as i32, 1.0);
                     eprintln!("dbm: tint driven to max");
                 }
-                8 => report_row(&ui, "after tint max"),
-                9 => {
+                10 => report_row(&ui, "after tint max"),
+                11 => {
                     ui.invoke_reset_section(0);
                     eprintln!("dbm: glass section reset");
                 }
-                10 => report_row(&ui, "after reset"),
-                11 => eprintln!("dbm: --- toggle test done ---"),
+                12 => report_row(&ui, "after reset"),
+                13 => eprintln!("dbm: --- toggle test done ---"),
                 _ => {}
             }
             step += 1;

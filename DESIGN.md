@@ -905,6 +905,9 @@ row already has, beside the fact that is already there.
   punched through it either way
 - **Motion:** 120ms ease-out on the knob, 120ms on the track colour
 - **Hover:** Soft wash; one target for the whole row
+- **Use:** Autoplay under the playlist, and Animations on the accessibility
+  page — a page of one switch and no reset, because the switch is its own
+  undo
 
 ### Drill rows
 - **Row:** 34px; an 18px icon and the label, both at Body, 10px apart, with a
@@ -1242,7 +1245,17 @@ words on the clipboard and says *Copied* for two seconds, and *Close the player*
     surface with a number of its own. It is not announcing itself; it is
     following a pointer, and at 120ms it read as trailing the hand rather than
     belonging to it.
-- **Don't** substitute an icon library. The set is 60 SVGs drawn at 24×24 as
+
+  **All of it stops with one switch**: Animations, on the settings panel's
+  accessibility page. Every duration that moves something is a token in the
+  `Motion` global, and each is zero with the switch off, so surfaces, pages,
+  washes, tracks and switches arrive in the frame they were asked for; the
+  backdrop, which the pipeline fades rather than Slint, is simply there. The
+  waits stay — the tip's delay and grace, the flash's dwell, the reset's
+  confirmation, the idle clock — because a wait is not motion. A new
+  animation takes its duration from `Motion`, never a number of its own, or
+  it is the one thing left moving for someone who asked for nothing to.
+- **Don't** substitute an icon library. The set is 61 SVGs drawn at 24×24 as
   one family; extend it rather than replacing it.
 - **Don't** show an icon at a size other than 24px or 18px. Scaled from the
   24×24 drawings, those give a 2px and a 1.5px line and both stay legible; at

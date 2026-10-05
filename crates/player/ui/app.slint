@@ -19,7 +19,7 @@ import { ScrollList } from "scroll_list.slint";
 
 // What the Rust side reaches besides the window: the globals it drives and
 // the structs it fills in.
-export { Chrome, Flash, Tip, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem }
+export { Chrome, Flash, Tip, Motion, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem }
 
 export component MainWindow inherits Window {
     // The title bar and the task bar: 256px, since window managers scale
@@ -164,7 +164,7 @@ export component MainWindow inherits Window {
     /// constant 1: the one page is the leaf, and nothing ever moves.
     property <float> playlist-drill: root.playlist-top ? 0.0 : 1.0;
     animate playlist-drill {
-        duration: 220ms;
+        duration: Motion.drill;
         easing: ease-in-out;
     }
     /// Which part the drilled-in page draws.
@@ -284,13 +284,15 @@ export component MainWindow inherits Window {
     property <bool> focus-has-reset: root.settings-open
         && root.settings-page >= 1 && root.settings-page <= 3;
     /// Per page: the rows, plus the way back, plus the reset that follows
-    /// them. The shortcuts page offers only the way back — every row on it is
-    /// a statement rather than a control.
+    /// them. Accessibility has no reset — its one switch is undone by
+    /// pressing it again — and the shortcuts page offers only the way back:
+    /// every row on it is a statement rather than a control.
     property <int> settings-focus-count:
-        root.settings-page == 0 ? 4
+        root.settings-page == 0 ? 5
         : root.settings-page == 1 ? 2 + root.glass-params.length
         : root.settings-page == 2 ? 2 + root.border-params.length
         : root.settings-page == 3 ? 5
+        : root.settings-page == 4 ? 2
         : 1;
     /// The same count for `leaf-page`, which on the way back out is not the
     /// page the keyboard is on. The reset row is the last of its page, so
@@ -300,6 +302,7 @@ export component MainWindow inherits Window {
         root.leaf-page == 1 ? 2 + root.glass-params.length
         : root.leaf-page == 2 ? 2 + root.border-params.length
         : root.leaf-page == 3 ? 5
+        : root.leaf-page == 4 ? 2
         : 1;
 
     in property <bool> opening: false;
@@ -326,6 +329,10 @@ export component MainWindow inherits Window {
     callback quit();
     callback set-ambience(bool);
     callback set-autoplay(bool);
+    /// The accessibility page's switch. `Motion.enabled` is already set when
+    /// this runs; it is for saving the choice, and for the backdrop's fade,
+    /// which the pipeline draws rather than Slint.
+    callback set-animations(bool);
 
     // --- actions, executed on the Rust side ---
     // Key handling lives here rather than in Rust because the `Key.*`
@@ -427,9 +434,11 @@ export component MainWindow inherits Window {
     in-out property <bool> files-open: false;
     in-out property <bool> settings-open: false;
     /// Which page the settings panel shows: 0 the list, 1 glass, 2 ambient
-    /// border, 3 subtitles. Pages replace each other in place rather than
-    /// opening further panels, so there is only ever one settings surface -
-    /// and only one glass rect - on screen.
+    /// border, 3 subtitles, 4 accessibility, 5 shortcuts — the rows of the
+    /// list in order, so the row under the ring plus one is its page. Pages
+    /// replace each other in place rather than opening further panels, so
+    /// there is only ever one settings surface - and only one glass rect - on
+    /// screen.
     property <int> settings-page: 0;
     in-out property <bool> fullscreen: false;
     // Rust owns the idle clock; the policy for what that means lives here.
@@ -591,8 +600,8 @@ export component MainWindow inherits Window {
     // something arriving rather than something that was abruptly always
     // there. Each has one animated number saying how far in it is; the
     // opacity, the offset and the glass rect all come off that, so they
-    // cannot drift apart mid-animation.
-    property <duration> fade: 120ms;
+    // cannot drift apart mid-animation. They all take `Motion.surface`, and
+    // the seek preview half of it.
     /// How far a surface sits below its place before it arrives.
     property <length> lift: 6px;
 
@@ -622,7 +631,7 @@ export component MainWindow inherits Window {
     animate bar-shown, menu-shown, playlist-shown, settings-shown,
             files-shown, end-shown, credits-shown, invite-shown,
             tip-shown {
-        duration: root.fade;
+        duration: Motion.surface;
         easing: ease-out;
     }
 
@@ -634,7 +643,7 @@ export component MainWindow inherits Window {
     /// along the track, and at the shared duration it reads as trailing the
     /// hand rather than belonging to it.
     animate preview-shown {
-        duration: root.fade / 2;
+        duration: Motion.surface / 2;
         easing: ease-out;
     }
 
@@ -805,7 +814,7 @@ export component MainWindow inherits Window {
     // moving there over a moment reads as deliberate. The glass follows
     // because it is drawn from this same property.
     animate left-w {
-        duration: 160ms;
+        duration: Motion.title-width;
         easing: ease-in-out;
     }
 
@@ -994,7 +1003,7 @@ export component MainWindow inherits Window {
         : Flash.figure != 0 ? 1200ms : 700ms;
     property <float> flash-shown: 0;
     animate flash-shown {
-        duration: root.fade;
+        duration: Motion.surface;
         easing: ease-out;
     }
     property <length> flash-rise: (1.0 - root.flash-shown) * root.lift;
@@ -1184,7 +1193,7 @@ export component MainWindow inherits Window {
     /// Whether Position was the last of the page's three adjustments used.
     property <bool> placing-subtitles: false;
     animate subtitle-lift {
-        duration: root.fade;
+        duration: Motion.surface;
         easing: ease-out;
     }
     /// Centred in the window, until centring it would bring it closer to the
@@ -1798,7 +1807,7 @@ export component MainWindow inherits Window {
             } else if (root.focus-row == root.invite-first + 2) {
                 root.open-settings(true);
             } else {
-                root.open-settings-page(4);
+                root.open-settings-page(5);
             }
             return true;
         }
@@ -1820,6 +1829,10 @@ export component MainWindow inherits Window {
         }
         if (root.focus-row == 0) {
             root.settings-page = 0;
+            return true;
+        }
+        if (root.settings-page == 4) {
+            root.set-motion(!Motion.enabled);
             return true;
         }
         if (root.focus-row == root.settings-focus-count - 1) {
@@ -1869,6 +1882,14 @@ export component MainWindow inherits Window {
             root.reset-subtitles();
         }
         root.reset-undoable = page;
+    }
+
+    /// Turn the interface's motion on or off, from the switch or from Enter
+    /// on its row. Set here first so the change is seen on the next frame,
+    /// before Rust has heard about it.
+    function set-motion(on: bool) {
+        Motion.enabled = on;
+        root.set-animations(on);
     }
 
     pure function reset-label(page: int) -> string {
@@ -1982,7 +2003,7 @@ export component MainWindow inherits Window {
         // on screen, and the ring never left row 0. A call that does
         // something does not belong in a condition beside the test for
         // whether it should happen.
-        if (root.settings-open && root.settings-page == 4) {
+        if (root.settings-open && root.settings-page == 5) {
             if (root.on-read(text)) {
                 return true;
             }
@@ -2579,10 +2600,10 @@ export component MainWindow inherits Window {
         // which otherwise sat three levels down behind the gear. Pressed
         // again on that page, it closes it, as S does the panel.
         if (root.keys-act && text == "?") {
-            if (root.settings-open && root.settings-page == 4) {
+            if (root.settings-open && root.settings-page == 5) {
                 root.open-settings(false);
             } else {
-                root.open-settings-page(4);
+                root.open-settings-page(5);
                 root.focus-show(0);
             }
             return true;
@@ -2870,7 +2891,7 @@ export component MainWindow inherits Window {
     // is a thing being moved, not a surface fading in, so it eases out of
     // rest and back into it.
     animate drill {
-        duration: 220ms;
+        duration: Motion.drill;
         easing: ease-in-out;
     }
 
@@ -2896,18 +2917,20 @@ export component MainWindow inherits Window {
                     + Rows.group-gap + root.row-h
             : root.settings-page == 3
                 ? root.row-h + 3 * Rows.stepper-row + Rows.group-gap + root.row-h
+            : root.settings-page == 4
+                ? root.row-h + root.toggle-h
             // The shortcuts are a list rather than a page of controls: it is
             // handed whatever is left and scrolls inside it.
-            : root.settings-page == 4
+            : root.settings-page == 5
                 ? root.row-h + root.shortcuts-natural
-            // Three headings and four rows that lead somewhere. Named
+            // Four headings and five rows that lead somewhere. Named
             // rather than arithmetic on bare numbers: the rows this page has
             // lost were invisible inside `2 * 40px`, and the panel stood six
             // pixels taller than its contents until someone looked at it.
-            // The four pages above were still writing 34, 30 and 38 out when
+            // The pages above were still writing 34, 30 and 38 out when
             // that was written, which is the same mistake one line earlier.
-            // Two of the three headings follow a group and take the gap.
-            : 3 * root.heading-h + 4 * root.row-h + 2 * Rows.group-gap;
+            // Three of the four headings follow a group and take the gap.
+            : 4 * root.heading-h + 5 * root.row-h + 3 * Rows.group-gap;
 
         width: 340px;
         height: min(root.panel-pad + self.body, root.panel-max-h);
@@ -2920,7 +2943,7 @@ export component MainWindow inherits Window {
         // With `drill`, and by the same numbers: the box and the pages in it
         // are one movement.
         animate height {
-            duration: 220ms;
+            duration: Motion.drill;
             easing: ease-in-out;
         }
         visible: root.settings-shown > root.shown-epsilon;
@@ -3014,6 +3037,22 @@ export component MainWindow inherits Window {
                         }
                     }
 
+                    // How the interface behaves, rather than what it shows:
+                    // the settings for using it at all, where the rest of the
+                    // panel is about liking it.
+                    MenuHeading {
+                        text: "INTERFACE";
+                        after-content: true;
+                    }
+                    DrillRow {
+                        icon: @image-url("../../../public/icons/accessibility.svg");
+                        label: "Accessibility";
+                        focused: root.settings-open && root.focus-row == 3;
+                        opened => {
+                            root.settings-page = 4;
+                        }
+                    }
+
                     // Not KEYBOARD: the page behind it lists what the pointer
                     // does as well.
                     MenuHeading {
@@ -3023,9 +3062,9 @@ export component MainWindow inherits Window {
                     DrillRow {
                         icon: @image-url("../../../public/icons/shortcuts.svg");
                         label: "Shortcuts";
-                        focused: root.settings-open && root.focus-row == 3;
+                        focused: root.settings-open && root.focus-row == 4;
                         opened => {
-                            root.settings-page = 4;
+                            root.settings-page = 5;
                         }
                     }
                 }
@@ -3151,7 +3190,32 @@ export component MainWindow inherits Window {
                     }
                 }
 
+                // One switch for now. A page rather than a row on the front
+                // because what belongs here is a kind of setting, not one of
+                // them, and the next one should have somewhere to go.
                 if root.leaf-page == 4: VerticalLayout {
+                    BackRow {
+                        label: "ACCESSIBILITY";
+                        focused: root.focus-row == 0;
+                        back => {
+                            root.settings-page = 0;
+                        }
+                    }
+                    // Everything that moves: surfaces fading and rising,
+                    // pages sliding, washes, tracks and switches easing, and
+                    // the backdrop coming up. Off, each arrives in the frame
+                    // it was asked for — see `Motion`.
+                    ToggleRow {
+                        label: "Animations";
+                        checked: Motion.enabled;
+                        focused: root.focus-row == 1;
+                        toggled(on) => {
+                            root.set-motion(on);
+                        }
+                    }
+                }
+
+                if root.leaf-page == 5: VerticalLayout {
                     BackRow {
                         label: "SHORTCUTS";
                         focused: root.focus-row == 0;
@@ -3339,7 +3403,7 @@ export component MainWindow inherits Window {
         // the box snapping to the new size while the pages were still
         // sliding under it would be two movements where there is one.
         animate height {
-            duration: 220ms;
+            duration: Motion.drill;
             easing: ease-in-out;
         }
         x: root.anchored-x(root.playlist-anchor, self.width);
@@ -3594,7 +3658,7 @@ export component MainWindow inherits Window {
             height: scrub.has-hover || scrub.pressed ? 7px : 5px;
             border-radius: self.height / 2;
             background: Paint.rail;
-            animate height { duration: 100ms; easing: ease-out; }
+            animate height { duration: Motion.track-grow; easing: ease-out; }
 
             // Width-driven rather than clipped, so it stays crisp at any
             // size and needs no layer.
@@ -3864,7 +3928,7 @@ export component MainWindow inherits Window {
                 left: root.resume-left;
                 focused: !root.has-file && root.focus-row == 0;
                 opacity: root.opening ? 0.5 : 1.0;
-                animate opacity { duration: 120ms; easing: ease-out; }
+                animate opacity { duration: Motion.surface; easing: ease-out; }
                 picked => {
                     if (!root.opening) {
                         root.open-path(root.resume-path);
@@ -3881,7 +3945,7 @@ export component MainWindow inherits Window {
                 focused: !root.has-file && root.focus-row == root.invite-first;
                 inert: root.opening;
                 opacity: root.opening ? 0.5 : 1.0;
-                animate opacity { duration: 120ms; easing: ease-out; }
+                animate opacity { duration: Motion.surface; easing: ease-out; }
                 picked => {
                     root.request-open(false);
                 }
@@ -3892,7 +3956,7 @@ export component MainWindow inherits Window {
                 focused: !root.has-file && root.focus-row == root.invite-first + 1;
                 inert: root.opening;
                 opacity: root.opening ? 0.5 : 1.0;
-                animate opacity { duration: 120ms; easing: ease-out; }
+                animate opacity { duration: Motion.surface; easing: ease-out; }
                 picked => {
                     root.request-open(true);
                 }
@@ -3915,7 +3979,7 @@ export component MainWindow inherits Window {
                 shortcut: "?";
                 focused: !root.has-file && root.focus-row == root.invite-first + 3;
                 picked => {
-                    root.open-settings-page(4);
+                    root.open-settings-page(5);
                 }
             }
 
@@ -4503,7 +4567,7 @@ export component MainWindow inherits Window {
                     height: vol.has-hover || vol.pressed ? 7px : 5px;
                     border-radius: self.height / 2;
                     background: Paint.rail;
-                    animate height { duration: 100ms; easing: ease-out; }
+                    animate height { duration: Motion.track-grow; easing: ease-out; }
 
                     Rectangle {
                         x: 0;

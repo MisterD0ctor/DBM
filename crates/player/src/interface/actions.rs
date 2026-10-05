@@ -18,7 +18,7 @@ use crate::interface::sliders;
 use crate::platform::dialog;
 use crate::playback::commands;
 use crate::settings::{Before, Section, REGISTRY};
-use crate::MainWindow;
+use crate::{MainWindow, Motion};
 
 /// A click on the video is held this long so a double-click can cancel it.
 /// Without the delay, double-clicking to go fullscreen pauses and unpauses on
@@ -266,6 +266,17 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
             commands::set_autoplay(&app.mpv, on);
         });
     }
+    // The interface has already stopped moving by the time this runs:
+    // `Motion.enabled` is set on the Slint side first. What is left is saving
+    // it, and the backdrop's fade, which the driver hands the pipeline from
+    // the store.
+    {
+        let app = app.clone();
+        ui.on_set_animations(move |on| {
+            app.activity.bump();
+            app.settings.set_animations(on);
+        });
+    }
 }
 
 /// The subtitles page: timing, size and placement.
@@ -432,6 +443,7 @@ fn restore_preferences(ui: &MainWindow, app: &App) {
     let settings = &app.settings;
     ui.set_ambience_on(settings.ambience_on());
     ui.set_autoplay(settings.autoplay());
+    ui.global::<Motion>().set_enabled(settings.animations());
     commands::set_autoplay(&app.mpv, settings.autoplay());
     commands::set_sub_scale(&app.mpv, settings.sub_scale() as f64);
     app.subline.set(&app.mpv, settings.sub_pos() as f64);

@@ -10,15 +10,44 @@ import "../fonts/IBMPlexMono-Medium.ttf";
 // The design tokens: every colour, size, duration and row metric the
 // interface uses, named by what it is for. Nothing here draws anything.
 
-/// How long the wash under a pointer takes to arrive.
+/// How long things take to move, and whether they move at all.
 ///
-/// One value for every hover highlight — bar buttons, steppers, menu rows —
-/// because they are the same gesture and reading them at different speeds is
-/// what makes an interface feel loose. Short on purpose: a highlight is
-/// feedback that the pointer landed, and feedback that arrives after the eye
-/// has already moved on is not feedback.
+/// Every duration the interface animates over is here, named for what is
+/// moving, so that one switch stops all of it: Animations, on the settings
+/// panel's accessibility page. With it off each of these is zero, and
+/// everything arrives, leaves and changes in the frame it was asked to. The
+/// two delays at the end are not motion — they are how long a tip waits
+/// before it is shown at all — and stay as they are.
 export global Motion {
-    out property <duration> highlight: 45ms;
+    /// Whether anything moves. Set from the saved setting at startup and by
+    /// the switch; nothing else writes it.
+    in-out property <bool> enabled: true;
+
+    /// How long the wash under a pointer takes to arrive.
+    ///
+    /// One value for every hover highlight — bar buttons, steppers, menu rows
+    /// — because they are the same gesture and reading them at different
+    /// speeds is what makes an interface feel loose. Short on purpose: a
+    /// highlight is feedback that the pointer landed, and feedback that
+    /// arrives after the eye has already moved on is not feedback.
+    out property <duration> highlight: Motion.enabled ? 45ms : 0ms;
+    /// A track thickening under the pointer: the timeline's, the volume's and
+    /// a settings slider's. One gesture, one speed.
+    out property <duration> track-grow: Motion.enabled ? 100ms : 0ms;
+    /// A surface fading in or out, and rising the few pixels it travels: the
+    /// panels, the bar, the flash, the tip. The glass fades with it.
+    out property <duration> surface: Motion.enabled ? 120ms : 0ms;
+    /// A switch's knob crossing its track, and the track's colour with it.
+    out property <duration> switch: Motion.enabled ? 120ms : 0ms;
+    /// The title pill resizing to a new title. A pill that jumped on every
+    /// file change would be a flicker; moving there over a moment reads as
+    /// deliberate.
+    out property <duration> title-width: Motion.enabled ? 160ms : 0ms;
+    /// A drill: a page moving sideways and the panel's height with it, in the
+    /// settings and in the playlist. Longer than a surface because it is a
+    /// journey rather than an arrival.
+    out property <duration> drill: Motion.enabled ? 220ms : 0ms;
+
     /// How long the pointer has to rest on a control before it says its name.
     ///
     /// Long enough that crossing the bar on the way somewhere else raises

@@ -555,11 +555,11 @@ export component ParamSlider inherits Rectangle {
                 height: drag.has-hover || drag.pressed ? 6px : 4px;
                 border-radius: self.height / 2;
                 background: Paint.rail;
-                // The same 100ms the timeline and volume tracks grow at, with
-                // the same easing. It was 90ms with no easing, which matched
-                // nothing in the file and was documented nowhere — one
-                // gesture, one speed.
-                animate height { duration: 100ms; easing: ease-out; }
+                // The same `track-grow` the timeline and volume tracks grow
+                // at, with the same easing. It was 90ms with no easing, which
+                // matched nothing in the file and was documented nowhere —
+                // one gesture, one speed.
+                animate height { duration: Motion.track-grow; easing: ease-out; }
 
                 Rectangle {
                     x: 0;
@@ -651,7 +651,7 @@ export component ToggleRow inherits Rectangle {
                 height: 18px;
                 border-radius: self.height / 2;
                 background: root.checked ? Paint.fill : Paint.rail;
-                animate background { duration: 120ms; easing: ease-out; }
+                animate background { duration: Motion.switch; easing: ease-out; }
 
                 Rectangle {
                     x: root.checked ? parent.width - self.width - 2px : 2px;
@@ -662,7 +662,7 @@ export component ToggleRow inherits Rectangle {
                     // Dark on the lit track, light on the dark one: the knob
                     // reads as a hole punched in the switch either way.
                     background: root.checked ? Paint.knob : Paint.fill;
-                    animate x { duration: 120ms; easing: ease-out; }
+                    animate x { duration: Motion.switch; easing: ease-out; }
                 }
             }
         }

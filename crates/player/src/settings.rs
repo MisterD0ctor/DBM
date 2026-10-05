@@ -6,7 +6,8 @@
 //! knob is a single entry here: it appears in the panel, gets a slider with
 //! the right range, and reaches the shader, without touching the UI file or
 //! the render code. Beside them sit the preferences that are not sliders:
-//! whether each effect runs, autoplay, and the subtitles' size and place.
+//! whether each effect runs, autoplay, whether the interface animates, and
+//! the subtitles' size and place.
 //!
 //! Values live in a shared store because the two ends run at different
 //! times — the UI writes whenever a slider moves, the pipeline reads once a
@@ -21,6 +22,7 @@ use crate::playback::commands;
 const AMBIENCE_ON: &str = "ambience.enabled";
 const GLASS_ON: &str = "glass.enabled";
 const AUTOPLAY: &str = "playback.autoplay";
+const ANIMATIONS: &str = "accessibility.animations";
 /// What `bevel` and `refract` were called while they were pixel widths.
 ///
 /// Both became ratios — of a panel's corner radius, and of the bevel — so a
@@ -133,6 +135,10 @@ pub struct Store {
     glass_on: Cell<bool>,
     /// Autoplay: advance through the playlist at the end of a file.
     autoplay: Cell<bool>,
+    /// Whether anything in the interface moves. Off, every surface, page and
+    /// highlight arrives in the frame it was asked for — see `Motion` in
+    /// theme.slint — and so does the backdrop the pipeline fades up.
+    animations: Cell<bool>,
     /// Subtitle size and vertical placement. Preferences rather than
     /// per-file state, which is why they are here and the delay is not: a
     /// size that suits your eyes suits every file, a delay never does.
@@ -153,6 +159,7 @@ impl Default for Store {
             ambience_on: Cell::new(true),
             glass_on: Cell::new(true),
             autoplay: Cell::new(true),
+            animations: Cell::new(true),
             sub_scale: Cell::new(commands::SUB_SCALE_DEFAULT as f32),
             sub_pos: Cell::new(commands::SUB_POS_DEFAULT as f32),
             // Set so the first frame pushes the defaults through, rather
@@ -295,6 +302,15 @@ impl Store {
         self.touch();
     }
 
+    pub fn animations(&self) -> bool {
+        self.animations.get()
+    }
+
+    pub fn set_animations(&self, on: bool) {
+        self.animations.set(on);
+        self.touch();
+    }
+
     pub fn sub_scale(&self) -> f32 {
         self.sub_scale.get()
     }
@@ -344,6 +360,7 @@ impl Store {
         out.push((AMBIENCE_ON.into(), self.ambience_on.get() as u8 as f32));
         out.push((GLASS_ON.into(), self.glass_on.get() as u8 as f32));
         out.push((AUTOPLAY.into(), self.autoplay.get() as u8 as f32));
+        out.push((ANIMATIONS.into(), self.animations.get() as u8 as f32));
         out.push((SUB_SCALE.into(), self.sub_scale.get()));
         out.push((SUB_POS.into(), self.sub_pos.get()));
         out
@@ -374,6 +391,7 @@ impl Store {
                 AMBIENCE_ON => self.ambience_on.set(*value >= 0.5),
                 GLASS_ON => self.glass_on.set(*value >= 0.5),
                 AUTOPLAY => self.autoplay.set(*value >= 0.5),
+                ANIMATIONS => self.animations.set(*value >= 0.5),
                 _ => {}
             }
         }
@@ -508,4 +526,29 @@ fn save(path: &std::path::Path, values: &[(String, f32)]) -> Result<(), String> 
         eprintln!("dbm: could not save settings: {e}");
         format!("Settings could not be saved — {e}")
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn animations_survive_a_save_and_a_load() {
+        let store = Store::default();
+        assert!(store.animations(), "the interface moves until told not to");
+        store.set_animations(false);
+        let saved = store.to_saved();
+        assert!(saved.contains(&(ANIMATIONS.to_string(), 0.0)), "{saved:?}");
+
+        let loaded = Store::default();
+        loaded.apply_saved(&saved);
+        assert!(!loaded.animations());
+    }
+
+    #[test]
+    fn a_file_from_before_the_switch_keeps_the_interface_moving() {
+        let store = Store::default();
+        store.apply_saved(&[(AUTOPLAY.to_string(), 0.0)]);
+        assert!(store.animations());
+    }
 }
