@@ -1035,6 +1035,7 @@ name = "dbm-player"
 version = "0.3.0"
 dependencies = [
  "glow 0.16.0",
+ "libc",
  "libloading",
  "md-5",
  "raw-window-handle",

@@ -8,7 +8,7 @@
 //! failure, and nothing reports it as one after the first mention.
 
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::{Child, Command, Stdio};
 
 /// Where ffmpeg is, if anywhere.
 ///
@@ -50,19 +50,57 @@ pub fn announce(ffmpeg: &Path) {
     ONCE.call_once(|| eprintln!("dbm: ffmpeg at {}", ffmpeg.display()));
 }
 
+/// Without this every ffmpeg flashes a console window on Windows.
+#[cfg(windows)]
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+#[cfg(windows)]
+const BELOW_NORMAL_PRIORITY_CLASS: u32 = 0x0000_4000;
+/// The niceness `spawn_behind` gives a process: well behind the player, not
+/// as far as idle, so the work still finishes on a machine that is busy with
+/// something else.
+#[cfg(not(windows))]
+const BEHIND: libc::c_int = 10;
+
 pub fn command(ffmpeg: &Path) -> Command {
     let mut cmd = Command::new(ffmpeg);
     cmd.stdin(Stdio::null())
         .stdout(Stdio::null())
         .stderr(Stdio::piped());
-    // Without this every ffmpeg flashes a console window on Windows.
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x0800_0000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
     cmd
+}
+
+/// Start `cmd` below the player's own priority, so that when the two want the
+/// same core the player gets it.
+///
+/// For work nobody is watching: the seek preview's frames. The player draws
+/// at the display's rate and mpv decodes against the clock, so a moment's
+/// wait for a core shows on screen; a thumbnail sheet that arrives a little
+/// later does not.
+///
+/// On Linux the niceness is set once the process has started, not before:
+/// that would take a `pre_exec` hook, which makes the standard library fork
+/// the whole player rather than spawn, and every page the renderer then
+/// writes is copied while the child gets as far as `exec`. The moments
+/// ffmpeg runs at full priority are spent loading itself.
+pub fn spawn_behind(cmd: &mut Command) -> std::io::Result<Child> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS);
+    }
+    let child = cmd.spawn()?;
+    // A process that cannot be reniced still does its work, only less
+    // politely, so a refusal is not worth failing it over.
+    #[cfg(not(windows))]
+    unsafe {
+        libc::setpriority(libc::PRIO_PROCESS, child.id(), BEHIND);
+    }
+    Ok(child)
 }
 
 /// Ask ffmpeg to describe a file, and return what it said.

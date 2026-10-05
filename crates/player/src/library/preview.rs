@@ -16,6 +16,9 @@
 //! film is 64 ffmpeg spawns and takes as long as it takes; the worker is also
 //! what keeps the track lists current, and a menu that stays empty until the
 //! thumbnails finish would be a worse bug than having no thumbnails at all.
+//! Its ffmpeg runs behind the player, too — see `ffmpeg::spawn_behind` — as
+//! the build mostly happens while a film is starting, when the player is
+//! busiest.
 //!
 //! A generation counter, bumped on every request, is what stops an abandoned
 //! file's ffmpeg processes from outliving it — the same coalescing shape as
@@ -40,6 +43,22 @@ const TILE_W_FALLBACK: u32 = 192;
 /// How many ffmpeg processes at once. Past this the disk is the limit, not
 /// the CPU, and each process re-opens the file.
 const PARALLEL: usize = 8;
+/// From this much film per tile up, a tile is the keyframe nearest its time
+/// rather than the exact frame.
+///
+/// An exact frame costs a decode of everything from the keyframe before it,
+/// which in a long-GOP encode is hundreds of frames a tile. Built for a
+/// 43-minute episode as it started, that held a 16-thread machine at 85-90%
+/// for eight seconds, and the player drew short of 60 frames a second for
+/// all of them — as few as 39. A keyframe is one decoded frame: the same
+/// atlas now takes two seconds, and the drawing does not notice it.
+///
+/// Twenty seconds because encoders put a keyframe at least every ten or so —
+/// x264 and x265 default to 250 frames — so with a slice this long the
+/// keyframe at or before its midpoint is still inside it, and the tile shows
+/// the scene its slice covers. That is a film of 21 minutes or more; shorter
+/// clips are where ten seconds early would show, and they keep exact frames.
+const KEYFRAME_SLICE: f64 = 20.0;
 
 /// A finished atlas.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -202,6 +221,7 @@ fn extract(
     // Sampled at the midpoint of each slice, so the first tile is not the
     // black frame every film opens on and the last is not past the end.
     let step = duration / total as f64;
+    let keyframes = step >= KEYFRAME_SLICE;
     let mut pending = Vec::new();
     for index in 0..total {
         if !current(generation) {
@@ -209,12 +229,28 @@ fn extract(
         }
         let at = step * (index as f64 + 0.5);
         let out = into.join(format!("{:03}.jpg", index + 1));
-        let child = ffmpeg::command(ffmpeg)
+        let mut command = ffmpeg::command(ffmpeg);
+        command
             .arg("-nostdin")
             .arg("-y")
-            // Before `-i`, so ffmpeg seeks the container rather than
-            // decoding up to the timestamp. This is the whole reason the
-            // build finishes in seconds.
+            // One thread each. A decoder's default is a pool the size of
+            // the machine, and eight of those at once is every core twice
+            // over, with the player's own drawing waiting behind them.
+            .arg("-threads")
+            .arg("1")
+            .arg("-filter_threads")
+            .arg("1");
+        if keyframes {
+            // Decode the keyframe the seek lands on and nothing after it.
+            command
+                .arg("-skip_frame")
+                .arg("nokey")
+                .arg("-noaccurate_seek");
+        }
+        command
+            // Before `-i`, so ffmpeg seeks the container to the keyframe
+            // before the time rather than reading the file up to it. With
+            // exact frames it still decodes forward from there.
             .arg("-ss")
             .arg(format!("{at:.3}"))
             .arg("-i")
@@ -225,9 +261,8 @@ fn extract(
             .arg(format!("scale={tile_w}:{TILE_H}"))
             .arg("-q:v")
             .arg("5")
-            .arg(&out)
-            .spawn();
-        match child {
+            .arg(&out);
+        match ffmpeg::spawn_behind(&mut command) {
             Ok(child) => pending.push(child),
             Err(_) => return false,
         }
@@ -269,7 +304,8 @@ fn assemble(ffmpeg: &Path, tiles: &Path, sprite: &Path, tile_w: u32, generation:
     if !current(generation) {
         return false;
     }
-    let ok = ffmpeg::command(ffmpeg)
+    let mut command = ffmpeg::command(ffmpeg);
+    command
         .arg("-nostdin")
         .arg("-y")
         .arg("-i")
@@ -280,8 +316,9 @@ fn assemble(ffmpeg: &Path, tiles: &Path, sprite: &Path, tile_w: u32, generation:
         .arg("1")
         .arg("-q:v")
         .arg("4")
-        .arg(sprite)
-        .status()
+        .arg(sprite);
+    let ok = ffmpeg::spawn_behind(&mut command)
+        .and_then(|mut child| child.wait())
         .is_ok_and(|s| s.success());
     ok && current(generation) && sprite.is_file()
 }
