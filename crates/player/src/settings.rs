@@ -52,6 +52,7 @@ pub enum Key {
     Aberration,
     Rim,
     Tint,
+    Absorb,
     Shadow,
     // Ambient border
     EdgeBlur,
@@ -99,6 +100,7 @@ pub const REGISTRY: &[Param] = &[
     Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: "Fringe", min: 0.0, max: 4.0 },
     Param { key: Key::Rim, name: "glass.rim", section: Section::Glass, label: "Rim", min: 0.0, max: 1.0 },
     Param { key: Key::Tint, name: "glass.tint", section: Section::Glass, label: "Tint", min: 0.0, max: 1.0 },
+    Param { key: Key::Absorb, name: "glass.absorb", section: Section::Glass, label: "Absorb", min: 0.0, max: 1.0 },
     Param { key: Key::Shadow, name: "glass.shadow", section: Section::Glass, label: "Shadow", min: 0.0, max: 1.0 },
     Param { key: Key::EdgeBlur, name: "border.edge_blur", section: Section::Border, label: "Edge blur", min: 0.0, max: 0.1 },
     Param { key: Key::Spread, name: "border.spread", section: Section::Border, label: "Spread", min: 0.0, max: 5.0 },
@@ -176,6 +178,7 @@ impl Store {
             // The colour stays in code; how much of it shows is the part
             // worth adjusting by eye.
             Key::Tint => glass.tint_amount,
+            Key::Absorb => glass.absorb,
             Key::Shadow => glass.shadow,
             Key::EdgeBlur => border.edge_blur,
             Key::Spread => border.spread,
@@ -198,6 +201,7 @@ impl Store {
             Key::Aberration => glass.aberration = v,
             Key::Rim => glass.rim = v,
             Key::Tint => glass.tint_amount = v,
+            Key::Absorb => glass.absorb = v,
             Key::Shadow => glass.shadow = v,
             Key::EdgeBlur => border.edge_blur = v,
             Key::Spread => border.spread = v,

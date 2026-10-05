@@ -117,6 +117,9 @@ uniform vec3 u_tint;
 /// Global tint strength. The per-panel value in `u_panel_style` says whether
 /// a panel takes tint at all; this says how much, and is the slider.
 uniform float u_tint_amount;
+/// How much of a white backdrop the glass absorbs, 0..1; darker backdrops
+/// lose less. 0 absorbs nothing. See absorption, below.
+uniform float u_absorb;
 /// How dark the shadow under a pane is at its darkest, 0..1. Zero turns it
 /// off; see shadow, below.
 uniform float u_shadow;
@@ -138,7 +141,7 @@ uniform float u_shadow;
 const float SHADOW_DROP = 0.0;
 /// How far its edge fades, as a fraction of the radius, plus a few pixels so
 /// a pane with square corners still casts something soft.
-const float SHADOW_SOFTNESS = 0.5;
+const float SHADOW_SOFTNESS = 1.0;
 const float SHADOW_SOFTNESS_MIN = 4.0;
 
 // --- absorption -------------------------------------------------------------
@@ -160,9 +163,17 @@ const float SHADOW_SOFTNESS_MIN = 4.0;
 // backdrop — is added after this and is untouched, so a panel over a bright
 // scene goes deep and keeps its edge rather than turning into a flat card.
 //
-// Not a uniform and not a slider, deliberately. The tint is a matter of taste
-// and has a control; this is the floor under it, and a floor one click from
-// zero is not one.
+// The glass page's Absorb slider, `u_absorb`, is how much of a white backdrop
+// the pane absorbs; a darker one loses less, along a hyperbola, and black loses
+// nothing:
+//
+//     absorbed = 1 - (1 - a) / ((1 - a) + a * luma)
+//
+// So 0 is a clear pane and 1 absorbs everything that comes through. The
+// saturation lift that follows grows with what was absorbed, to give back the
+// colour the darkening takes. Lower, the floor gives way — white text over a
+// bright frame has less of a ground under it — which is what the slider
+// trades for a clearer pane.
 
 /// Rec. 709, matching how the eye weights the three channels rather than
 /// averaging them: a saturated green frame is far brighter than its mean.
@@ -379,8 +390,8 @@ void panel_shape(int i, out vec2 centre, out vec2 half_size, out float radius) {
 float shadow_at(vec2 px, vec2 centre, vec2 half_size, float radius) {
     float soft = SHADOW_SOFTNESS * radius + SHADOW_SOFTNESS_MIN;
     vec2 drop = vec2(0.0, SHADOW_DROP * radius);
-    float d = sd_round_box(px - centre - drop, half_size, radius);
-    return smoothstep(-soft, soft, -d);
+    float d = max(0.0, sd_round_box(px - centre - drop, half_size, radius));
+    return smoothstep(-soft, 0.0, -d) * exp(-4.0 * d / soft);
 }
 
 /// The glass surface at pixel `px` of one panel. A point just outside the
@@ -501,14 +512,15 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // empty window and every credits roll. The floor is far below any
     // real backdrop, and the curve's own limit at zero is where it lands.
     float backdrop = max(dot(refracted, LUMA), 1e-4);
-    float absorbed = (1.0 - 0.75 * (1.0 - exp(-1.5 * backdrop)) / backdrop)
+    float absorb = clamp(u_absorb, 0.0, 1.0);
+    float absorbed = (1.0 - (1.0 - absorb) / (1.0 - absorb + absorb * backdrop))
                     * tinted;
 
     refracted *= 1.0 - absorbed;
-    vec3 gray = vec3(max(max(refracted.r, refracted.g), refracted.b));
+    vec3 gray = vec3(dot(refracted, LUMA));
 
     // Saturate darkened areas
-    refracted = mix(gray, refracted, 1.0 / (1.0 - 3.0 * absorbed * absorbed));
+    refracted = mix(gray, refracted, 1.0 / (1.0 - 0.5 * absorbed));
 
     // Exact unpolarised Fresnel reflectance, averaging s and p. Written
     // in D so it needs no further trigonometry:

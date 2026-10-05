@@ -556,10 +556,9 @@ screen-space reflection of the backdrop riding on top of it. A surface reads as
 raised because its edge bends light, which is the same reason a real one does.
 
 **One shadow, cast on the picture and nothing else.** Each pane casts a soft
-shadow, darkest just under its lower edge and fading all round, sized from its
-own corner radius as the rim is — dropped a quarter of the radius, softened
-across half of it either side plus 4px — so a pill casts a small one and a
-panel a larger one. Every shadow is laid on the frame before any glass, so no
+shadow, the same on every side: darkest at the pane's edge and falling off
+steeply, gone within the pane's own corner radius plus 4px, so a pill casts a
+small one and a panel a larger one, as the rim scales. Every shadow is laid on the frame before any glass, so no
 pane's shadow falls across another pane's glass: they stand at the same height.
 How dark it is, at its darkest, is the glass page's Shadow slider, 0.1 by
 default; enough to set a pane off a bright frame, too little to read as a
@@ -567,8 +566,11 @@ smudge over a dark one.
 
 Every surface opts into the tint, and with it absorption: the transmitted part
 of the glass darkens as the frame behind it brightens, on a smooth curve rather
-than a threshold, so white text keeps a ground over a white scene. The pull
-toward the tint colour is a setting; the absorption under it is not.
+than a threshold, so white text keeps a ground over a white scene. Both are
+settings: the pull toward the tint colour, and Absorb — how much of a white
+backdrop the pane absorbs, a darker one losing less along a hyperbola and black
+losing nothing. Turned down, the pane clears and the ground under white text
+over a bright scene goes with it.
 
 **What the material is, and what you want of it, are different questions.**
 Three of the glass page's sliders answered the first and have stopped being
@@ -579,8 +581,8 @@ the Fresnel term is already the physical answer and there is no reason to scale
 it). They are constants in `gpu/pipeline.rs`, and none of them had a range where
 the result was a matter of taste rather than of whether the panes still read as
 one material. What is left on that page — blur, refraction depth, fringe, rim,
-tint, shadow — is how much of the material you want, which is the question
-worth a slider. The rim is the one hand-placed light: a line along the top and bottom
+tint, absorption, shadow — is how much of the material you want, which is the
+question worth a slider. The rim is the one hand-placed light: a line along the top and bottom
 of each pane's outermost edge. A reflection that escapes upward off the
 screen finds nothing to reflect, and fades out as it turns.
 

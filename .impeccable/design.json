@@ -215,7 +215,7 @@
       {
         "name": "pane",
         "value": "0.1",
-        "purpose": "The shadow each glass pane casts on the picture behind it, at its darkest, just under its lower edge. Dropped 0.25 of the pane's corner radius and softened across 0.5 of it either side plus 4px, so it scales with the pane as the rim does. Laid on the frame before any glass, so it never falls on another pane. The glass page's Shadow slider, 0..1."
+        "purpose": "The shadow each glass pane casts on the picture behind it, at its darkest, at the pane's edge. The same on every side, falling off steeply — a smooth step times an exponential — and gone within the pane's corner radius plus 4px, so it scales with the pane as the rim does. Laid on the frame before any glass, so it never falls on another pane. The glass page's Shadow slider, 0..1."
       }
     ],
     "shadowNote": "One shadow, cast by each glass pane on the picture and nothing else. Depth is carried by the material first: a domed bevel whose width is a fraction of the panel's own corner radius, a Fresnel term that turns the edge mirror-like as it curves away, and a screen-space reflection of the backdrop riding on top of it.",
@@ -319,6 +319,7 @@
         "specular": 1.0,
         "rim": 0.5,
         "tint": 0.2,
+        "absorb": 1.0,
         "shadow": 0.1,
         "tintColor": [
           0.0,
@@ -327,9 +328,10 @@
         ]
       },
       "absorption": {
-        "curve": "absorbed = 1 - 0.75 * (1 - exp(-1.5 * luma)) / luma, then a saturation lift on what remains",
+        "curve": "absorbed = 1 - (1 - absorb) / ((1 - absorb) + absorb * luma), then a saturation lift of 1 / (1 - 0.5 * absorbed) about the luma",
         "appliesTo": "the transmitted component only, never the rim, the rim light or the mirrored backdrop",
-        "adjustable": false
+        "adjustable": true,
+        "control": "the glass page's Absorb slider, 0..1: the share of a white backdrop absorbed; 0 is a clear pane, 1 absorbs everything"
       },
       "border": {
         "edgeBlur": 0.007,
