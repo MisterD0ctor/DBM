@@ -100,6 +100,9 @@ pub struct GlassParams {
     /// How far a panel pulls toward the tint colour, 0..1. Scales the
     /// per-panel opt-in rather than replacing it.
     pub tint_amount: f32,
+    /// How dark the shadow each pane casts on the picture is, at its darkest,
+    /// 0..1. Its size follows the pane's corner radius; see glass.frag.
+    pub shadow: f32,
 }
 
 // --- the material's fixed properties ----------------------------------------
@@ -154,9 +157,10 @@ impl Default for GlassParams {
             // The glass is as thick as the rim is wide; see `BEVEL`.
             refract: 1.0,
             aberration: 0.1,
-            rim: 2.0,
+            rim: 0.5,
             tint: [0.0, 0.0, 0.0],
             tint_amount: 0.2,
+            shadow: 0.1,
         }
     }
 }
@@ -628,6 +632,7 @@ impl Pipeline {
         self.prog_glass.set_f32(gl, "u_rim", g.rim);
         self.prog_glass.set_vec3(gl, "u_tint", g.tint);
         self.prog_glass.set_f32(gl, "u_tint_amount", g.tint_amount);
+        self.prog_glass.set_f32(gl, "u_shadow", g.shadow);
 
         bind_texture(gl, &self.prog_glass, "u_base", 0, self.composite.texture());
         bind_texture(gl, &self.prog_glass, "u_blur", 1, self.blur().texture());

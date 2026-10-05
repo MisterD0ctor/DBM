@@ -18,11 +18,16 @@
 // rounded-box SDF gives the outward radial direction, and one (radial, up)
 // slice does the rest.
 //
-//        height
-//          ^      ______________              <- flat centre, slope 0
-//          |   __/              \__
-//          | _/                    \_         <- steepening toward the rim
-//          +--------------------------> radial   (t: 0 centre .. 1 rim)
+//     height
+//       ^            ________________              <- flat centre, slope 0
+//       |       ____/                \____
+//       |    __/                          \__
+//       |   /                                \
+//       |  /                                  \      <- steepening toward the rim
+//       | |                                    |
+//       | |                                    |
+//       |_|                                    |_
+//       +----------------------------------------> radial   (t: 0 centre .. 1 rim)
 //
 // The viewer looks straight down, so a fragment's colour is whatever a
 // vertical ray picks up at that surface. Three things happen at the
@@ -112,6 +117,29 @@ uniform vec3 u_tint;
 /// Global tint strength. The per-panel value in `u_panel_style` says whether
 /// a panel takes tint at all; this says how much, and is the slider.
 uniform float u_tint_amount;
+/// How dark the shadow under a pane is at its darkest, 0..1. Zero turns it
+/// off; see shadow, below.
+uniform float u_shadow;
+
+// --- shadow -------------------------------------------------------------------
+//
+// A pane standing off the picture casts a soft shadow onto it, darkest just
+// under its lower edge and fading out all round. It darkens the picture and
+// nothing else: every pane's shadow is laid on the frame before any glass is,
+// so one pane's shadow never falls across another's glass — they stand at the
+// same height — and a pane's own glass, which refracts the frame as it was,
+// is not dimmed by what it casts.
+//
+// Sized from each pane's own corner radius, like the rim: a pill casts a
+// small shadow and a panel a larger one, without either value being a count
+// of pixels that suits one and swamps the other.
+
+/// How far the shadow falls below its pane, as a fraction of the radius.
+const float SHADOW_DROP = 0.0;
+/// How far its edge fades, as a fraction of the radius, plus a few pixels so
+/// a pane with square corners still casts something soft.
+const float SHADOW_SOFTNESS = 0.5;
+const float SHADOW_SOFTNESS_MIN = 4.0;
 
 // --- absorption -------------------------------------------------------------
 //
@@ -336,6 +364,25 @@ vec2 sd_round_box_normal(vec2 p, vec2 half_size, float r) {
     return q.x > q.y ? vec2(s.x, 0.0) : vec2(0.0, s.y);
 }
 
+/// One published panel: its centre and half size in pixels, and its corner
+/// radius, clamped to what the box can hold.
+void panel_shape(int i, out vec2 centre, out vec2 half_size, out float radius) {
+    vec4 rect = u_panel_rect[i];
+    centre = 0.5 * (rect.xy + rect.zw);
+    half_size = max(0.5 * (rect.zw - rect.xy), vec2(0.5));
+    radius = clamp(u_panel_style[i].x, 0.0, min(half_size.x, half_size.y));
+}
+
+/// How much of one panel's shadow falls on pixel `px`, 0..1, before the
+/// strength: the panel's outline dropped by `SHADOW_DROP` and faded across
+/// `SHADOW_SOFTNESS` either side of its edge.
+float shadow_at(vec2 px, vec2 centre, vec2 half_size, float radius) {
+    float soft = SHADOW_SOFTNESS * radius + SHADOW_SOFTNESS_MIN;
+    vec2 drop = vec2(0.0, SHADOW_DROP * radius);
+    float d = sd_round_box(px - centre - drop, half_size, radius);
+    return smoothstep(-soft, soft, -d);
+}
+
 /// The glass surface at pixel `px` of one panel. A point just outside the
 /// outline, as an edge sample can be, is shaded as the rim itself: `t` clamps
 /// to 1 there, and every term below is finite at 1.
@@ -495,14 +542,16 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
         -box_normal * reflection_ratio * height * bevel / u_size;
     vec3 reflected = base_at(uv + reflection_offset) * u_specular;
 
-    float rim = pow(max(0.0, 2.0 * abs(mirror3.y / mirror.x) - 1.0) * max(0.0, -mirror.y * (1.0 - mirror.x)), 2.0);
-    rim *= u_rim;
+    float rim = max(0.0, -mirror.y * (1.0 - mirror.x))
+              * max(0.0, 2.0 * abs(mirror3.y / mirror.x) - 1.0)
+              * 0.5 * (1.0 + cos(0.5 * 3.1459 * (rel.x / half_size.x - 0.25 * sign(box_normal.y))))
+              * u_rim;
 
     // Pointing up, the mirrored ray leaves the screen and finds nothing to
     // reflect, so the reflection fades out as it swings through horizontal —
     // which also hides the turn, where the screen-space offset above runs off
     // to infinity.
-    vec3 specular = (reflected + vec3(rim)) * (1.0 - smoothstep(-0.7, 0.0, mirror.y));
+    vec3 specular = mix(reflected, vec3(1.0), rim) * (1.0 - smoothstep(-0.7, 0.0, mirror.y));
 
     // Fresnel decides how much of each the viewer gets.
     return mix(refracted, specular, reflectance);
@@ -511,22 +560,35 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
 void main() {
     vec2 px = v_uv * u_size;
     vec3 col = base_at(v_uv);
+    vec2 centre;
+    vec2 half_size;
+    float radius;
+
+    // Every shadow first, onto the picture alone; see shadow, above. Each
+    // fades in with its pane.
+    if (u_shadow > 0.0) {
+        for (int i = 0; i < MAX_PANELS; i++) {
+            if (i >= u_panel_count) {
+                break;
+            }
+            panel_shape(i, centre, half_size, radius);
+            float shadow = shadow_at(px, centre, half_size, radius) * u_panel_style[i].z;
+            col *= 1.0 - clamp(u_shadow, 0.0, 1.0) * shadow;
+        }
+    }
 
     for (int i = 0; i < MAX_PANELS; i++) {
         if (i >= u_panel_count) {
             break;
         }
-        vec4 rect = u_panel_rect[i];
-        vec2 centre = 0.5 * (rect.xy + rect.zw);
-        vec2 half_size = max(0.5 * (rect.zw - rect.xy), vec2(0.5));
-        float radius = clamp(u_panel_style[i].x, 0.0, min(half_size.x, half_size.y));
+        panel_shape(i, centre, half_size, radius);
         float tinted = u_panel_style[i].y;
 
         float d = sd_round_box(px - centre, half_size, radius);
 
         // One pixel of feather: the coverage mask, which is all the outline
         // needs (see antialiasing, above).
-        float coverage = (1.0 - smoothstep(-1.5, 0.0, d)) * u_panel_style[i].z;
+        float coverage = smoothstep(-1.5, 0.5, -d) * u_panel_style[i].z;
         if (coverage <= 0.0) {
             continue;
         }

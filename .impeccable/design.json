@@ -211,8 +211,14 @@
         "purpose": "600/16px. The one thing the interface says louder than the rest: the words on the end-of-file pill, sized against the 24px glyph beside them."
       }
     },
-    "shadows": [],
-    "shadowNote": "There are no shadows in this system — not as a prohibition but as an observation about what is built. Depth is carried entirely by the material: a domed bevel whose width is a fraction of the panel's own corner radius, a Fresnel term that turns the edge mirror-like as it curves away, and a screen-space reflection of the backdrop riding on top of it.",
+    "shadows": [
+      {
+        "name": "pane",
+        "value": "0.1",
+        "purpose": "The shadow each glass pane casts on the picture behind it, at its darkest, just under its lower edge. Dropped 0.25 of the pane's corner radius and softened across 0.5 of it either side plus 4px, so it scales with the pane as the rim does. Laid on the frame before any glass, so it never falls on another pane. The glass page's Shadow slider, 0..1."
+      }
+    ],
+    "shadowNote": "One shadow, cast by each glass pane on the picture and nothing else. Depth is carried by the material first: a domed bevel whose width is a fraction of the panel's own corner radius, a Fresnel term that turns the edge mirror-like as it curves away, and a screen-space reflection of the backdrop riding on top of it.",
     "motion": [
       {
         "name": "highlight",
@@ -311,8 +317,9 @@
         "ior": 2.0,
         "aberration": 0.1,
         "specular": 1.0,
-        "rim": 2.0,
+        "rim": 0.5,
         "tint": 0.2,
+        "shadow": 0.1,
         "tintColor": [
           0.0,
           0.0,

@@ -549,13 +549,21 @@ identical rows that says where one idea stops.
 
 ## Elevation & Depth
 
-There are no shadows in this system — not as a prohibition, but as an
-observation about what is currently built. Depth is carried entirely by the
-material: each panel's rim is a domed bevel whose width is a fraction of that
-panel's own corner radius, lit by a Fresnel term that makes the edge turn
-mirror-like as it curves away, with a screen-space reflection of the backdrop
-riding on top of it. A surface reads as raised because its edge bends light,
-which is the same reason a real one does.
+Depth is carried by the material first: each panel's rim is a domed bevel
+whose width is a fraction of that panel's own corner radius, lit by a Fresnel
+term that makes the edge turn mirror-like as it curves away, with a
+screen-space reflection of the backdrop riding on top of it. A surface reads as
+raised because its edge bends light, which is the same reason a real one does.
+
+**One shadow, cast on the picture and nothing else.** Each pane casts a soft
+shadow, darkest just under its lower edge and fading all round, sized from its
+own corner radius as the rim is — dropped a quarter of the radius, softened
+across half of it either side plus 4px — so a pill casts a small one and a
+panel a larger one. Every shadow is laid on the frame before any glass, so no
+pane's shadow falls across another pane's glass: they stand at the same height.
+How dark it is, at its darkest, is the glass page's Shadow slider, 0.1 by
+default; enough to set a pane off a bright frame, too little to read as a
+smudge over a dark one.
 
 Every surface opts into the tint, and with it absorption: the transmitted part
 of the glass darkens as the frame behind it brightens, on a smooth curve rather
@@ -571,8 +579,8 @@ the Fresnel term is already the physical answer and there is no reason to scale
 it). They are constants in `gpu/pipeline.rs`, and none of them had a range where
 the result was a matter of taste rather than of whether the panes still read as
 one material. What is left on that page — blur, refraction depth, fringe, rim,
-tint — is how much of the material you want, which is the question worth a
-slider. The rim is the one hand-placed light: a line along the top and bottom
+tint, shadow — is how much of the material you want, which is the question
+worth a slider. The rim is the one hand-placed light: a line along the top and bottom
 of each pane's outermost edge. A reflection that escapes upward off the
 screen finds nothing to reflect, and fades out as it turns.
 

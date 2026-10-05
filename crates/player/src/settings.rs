@@ -52,6 +52,7 @@ pub enum Key {
     Aberration,
     Rim,
     Tint,
+    Shadow,
     // Ambient border
     EdgeBlur,
     Spread,
@@ -93,11 +94,12 @@ pub struct Param {
 
 #[rustfmt::skip]
 pub const REGISTRY: &[Param] = &[
-    Param { key: Key::Blur, name: "glass.blur", section: Section::Glass, label: "Blur", min: 0.0, max: 40.0 },
+    Param { key: Key::Blur, name: "glass.blur", section: Section::Glass, label: "Blur", min: 0.0, max: 100.0 },
     Param { key: Key::Refract, name: "glass.refract_ratio", section: Section::Glass, label: "Refract", min: 0.0, max: 4.0 },
     Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: "Fringe", min: 0.0, max: 4.0 },
-    Param { key: Key::Rim, name: "glass.rim", section: Section::Glass, label: "Rim", min: 0.0, max: 4.0 },
+    Param { key: Key::Rim, name: "glass.rim", section: Section::Glass, label: "Rim", min: 0.0, max: 1.0 },
     Param { key: Key::Tint, name: "glass.tint", section: Section::Glass, label: "Tint", min: 0.0, max: 1.0 },
+    Param { key: Key::Shadow, name: "glass.shadow", section: Section::Glass, label: "Shadow", min: 0.0, max: 1.0 },
     Param { key: Key::EdgeBlur, name: "border.edge_blur", section: Section::Border, label: "Edge blur", min: 0.0, max: 0.1 },
     Param { key: Key::Spread, name: "border.spread", section: Section::Border, label: "Spread", min: 0.0, max: 5.0 },
     Param { key: Key::Falloff, name: "border.falloff", section: Section::Border, label: "Falloff", min: 0.0, max: 12.0 },
@@ -174,6 +176,7 @@ impl Store {
             // The colour stays in code; how much of it shows is the part
             // worth adjusting by eye.
             Key::Tint => glass.tint_amount,
+            Key::Shadow => glass.shadow,
             Key::EdgeBlur => border.edge_blur,
             Key::Spread => border.spread,
             Key::Falloff => border.falloff,
@@ -195,6 +198,7 @@ impl Store {
             Key::Aberration => glass.aberration = v,
             Key::Rim => glass.rim = v,
             Key::Tint => glass.tint_amount = v,
+            Key::Shadow => glass.shadow = v,
             Key::EdgeBlur => border.edge_blur = v,
             Key::Spread => border.spread = v,
             Key::Falloff => border.falloff = v,
