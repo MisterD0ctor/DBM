@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Model};
 
 use super::drive::chord;
 use crate::playback::mpv::Mpv;
@@ -107,19 +107,30 @@ pub(super) fn reach_test(ui: &MainWindow) -> slint::Timer {
                     chord(&ui, &[], "s");
                 }
 
-                // Down onto Liquid glass, Enter to open it, then Down again
-                // onto the first slider.
-                (true, 1) | (true, 3) => {
-                    chord(&ui, &[], slint::SharedString::from(Key::DownArrow).as_str());
-                    eprintln!("dbm: down -> row {}", ui.get_focus_row());
-                }
-                (true, 2) => {
+                // S puts the ring on the first row, which is Liquid glass, so
+                // Enter opens it straight away. This pressed Down first once,
+                // from before S showed the ring, and from then on walked into
+                // the ambient border's page and stepped its edge blur.
+                (true, 1) => {
                     chord(&ui, &[], slint::SharedString::from(Key::Return).as_str());
                     eprintln!("dbm: enter, opening the glass page");
                 }
-                (true, 4..=11) => {
+                // Down onto the first slider.
+                (true, 2) => {
+                    chord(&ui, &[], slint::SharedString::from(Key::DownArrow).as_str());
+                    eprintln!("dbm: down -> row {}", ui.get_focus_row());
+                }
+                // Named and read back, so a walk that lands on the wrong page
+                // says so rather than reporting a row number that fits any.
+                (true, 3..=10) => {
                     chord(&ui, &[], slint::SharedString::from(Key::LeftArrow).as_str());
-                    eprintln!("dbm: left on row {}", ui.get_focus_row());
+                    let row = ui.get_focus_row();
+                    let slider = (row as usize)
+                        .checked_sub(1)
+                        .and_then(|i| ui.get_glass_params().row_data(i))
+                        .map(|p| format!("{} {}", p.label, p.readout))
+                        .unwrap_or_default();
+                    eprintln!("dbm: left on row {row} -> glass {slider}");
                 }
                 (_, 13) => eprintln!("dbm: --- reach test done ---"),
                 _ => {}
