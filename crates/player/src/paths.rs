@@ -71,17 +71,9 @@ pub fn settings_file() -> PathBuf {
     // A harness that moves settings writes to its own file. Relying on the
     // caller to redirect `APPDATA` was the arrangement before, and it cost a
     // real settings file: one run without the prefix is all it takes, and
-    // nothing about the run says it happened.
-    //
-    // Any harness at all, rather than a list of the ones believed to write
-    // settings: that list was wrong within a day of being written, because
-    // `DBM_KEY_TEST` presses B and B is the ambience switch. A test run has
-    // no business in the real file whatever it thinks it is doing.
-    let harnessed = std::env::vars_os().any(|(k, _)| {
-        let k = k.to_string_lossy();
-        k.starts_with("DBM_") && k.ends_with("_TEST")
-    });
-    let name = if harnessed {
+    // nothing about the run says it happened. A test run has no business in
+    // the real file whatever it thinks it is doing.
+    let name = if crate::harness::armed() {
         eprintln!("dbm: harness armed - settings go to settings.test.conf");
         "settings.test.conf"
     } else {

@@ -133,6 +133,8 @@
 //! opens takes focus as it maps and sits under whatever the hand was about to
 //! click, and on Wayland nothing the window asks for can stop that; the script
 //! gives the run a headless compositor of its own, which nobody can see.
+//! Every run plays its film silently whatever it is run under — see
+//! [`configure`].
 
 mod drive;
 mod keys;
@@ -146,7 +148,49 @@ mod showcase;
 
 use slint::{Model, ModelRc};
 
+use crate::playback::mpv::Mpv;
 use crate::{MainWindow, TrackItem};
+
+/// Whether any exercise is armed: a `DBM_*_TEST` switch of any kind.
+///
+/// Any at all, rather than a list of the ones believed to matter to whoever is
+/// asking: such a list was wrong within a day of being written once, because
+/// `DBM_KEY_TEST` presses B and B is the ambience switch.
+pub fn armed() -> bool {
+    std::env::vars_os().any(|(k, _)| {
+        let k = k.to_string_lossy();
+        k.starts_with("DBM_") && k.ends_with("_TEST")
+    })
+}
+
+/// Whether the player is being driven or photographed rather than watched:
+/// an exercise, a showcase or a capture. Each of them plays a film, and
+/// nobody is listening to it.
+pub fn unattended() -> bool {
+    armed()
+        || std::env::var_os("DBM_SHOWCASE").is_some()
+        || std::env::var_os("DBM_CAPTURE").is_some()
+}
+
+/// Options for a run nobody is watching. Before `mpv_initialize`, like the
+/// rest of mpv's configuration.
+///
+/// The film plays silently. Not by muting it or turning it down: mute and
+/// volume are what several exercises press and read back, and the interface
+/// shows both, so either would change what is being tested. A filter at the
+/// end of the audio chain that takes the gain to zero silences what reaches
+/// the device and nothing else — the levels, the selected track and the
+/// device list are all as they would be, which the audio watchdog's exercise
+/// depends on.
+pub fn configure(mpv: &Mpv) {
+    if !unattended() {
+        return;
+    }
+    match mpv.set_option("af", "lavfi=[volume=0]") {
+        Ok(()) => eprintln!("dbm: unattended - playing silently"),
+        Err(e) => eprintln!("dbm: unattended, but could not silence the audio: {e}"),
+    }
+}
 
 /// Handles for everything armed here. Kept in one value so `main` does not
 /// have to name each timer just to hold it open.

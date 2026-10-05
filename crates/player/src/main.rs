@@ -78,7 +78,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // not offer one where nothing would catch it.
     ui.set_drop_supported(platform::dropped::SUPPORTED);
 
-    let mpv = Arc::new(playback::mpv::Mpv::new(playback::session::configure)?);
+    let mpv = Arc::new(playback::mpv::Mpv::new(|mpv| {
+        playback::session::configure(mpv);
+        harness::configure(mpv);
+    })?);
     for (name, format) in playback::state::OBSERVED {
         if let Err(e) = mpv.observe(name, *format) {
             eprintln!("dbm: cannot observe {name}: {e}");
