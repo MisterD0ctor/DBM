@@ -885,6 +885,8 @@ row already has, beside the fact that is already there.
   value — three decimals on a 0–0.1 edge blur, one on a 0–40 blur
 - **Focus:** the row takes the Strong wash; the sliders have no hover wash,
   since the growing track already answers the pointer
+- **Keys:** ← and → move it a hundredth of its range, which the readout's
+  precision always shows
 
 ### Steppers
 - **Row:** 38px; an 18px icon at Quiet, the label at Body in Readout size, then

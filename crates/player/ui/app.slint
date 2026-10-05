@@ -1982,10 +1982,13 @@ export component MainWindow inherits Window {
         return false;
     }
 
-    /// Twenty steps end to end. Enough that a slider crosses its range in a
-    /// held keypress, fine enough that the eye can stop where it wants —
-    /// these are judged by looking at the picture, not by the number.
-    property <float> focus-step: 0.05;
+    /// A hundredth of the range a press. These are judged by looking at the
+    /// picture, not at the number, and at a twentieth the look you wanted
+    /// was often between two presses. Every press still shows: the readout's
+    /// precision follows the same range, and its last digit is never coarser
+    /// than a hundredth of it. A held key crosses the whole range in a few
+    /// seconds of repeat.
+    property <float> focus-step: 0.01;
 
     /// Tried before every other key, and answers only for keys the row under
     /// the ring can use. Everything else falls through untouched, which is
