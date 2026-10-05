@@ -2923,14 +2923,14 @@ export component MainWindow inherits Window {
             // handed whatever is left and scrolls inside it.
             : root.settings-page == 5
                 ? root.row-h + root.shortcuts-natural
-            // Four headings and five rows that lead somewhere. Named
+            // Three headings and five rows that lead somewhere. Named
             // rather than arithmetic on bare numbers: the rows this page has
             // lost were invisible inside `2 * 40px`, and the panel stood six
             // pixels taller than its contents until someone looked at it.
             // The pages above were still writing 34, 30 and 38 out when
             // that was written, which is the same mistake one line earlier.
-            // Three of the four headings follow a group and take the gap.
-            : 4 * root.heading-h + 5 * root.row-h + 3 * Rows.group-gap;
+            // Two of the three headings follow a group and take the gap.
+            : 3 * root.heading-h + 5 * root.row-h + 2 * Rows.group-gap;
 
         width: 340px;
         height: min(root.panel-pad + self.body, root.panel-max-h);
@@ -3037,9 +3037,13 @@ export component MainWindow inherits Window {
                         }
                     }
 
-                    // How the interface behaves, rather than what it shows:
-                    // the settings for using it at all, where the rest of the
-                    // panel is about liking it.
+                    // The player itself, where the groups above are about the
+                    // picture and what is on it: how the interface behaves,
+                    // and how to drive it. Shortcuts had a heading of its own,
+                    // HELP — not KEYBOARD, since the page lists what the
+                    // pointer does as well — which left three of the four
+                    // headings standing over one row each. The row says what
+                    // it is, and `?` and the way in both open it directly.
                     MenuHeading {
                         text: "INTERFACE";
                         after-content: true;
@@ -3051,13 +3055,6 @@ export component MainWindow inherits Window {
                         opened => {
                             root.settings-page = 4;
                         }
-                    }
-
-                    // Not KEYBOARD: the page behind it lists what the pointer
-                    // does as well.
-                    MenuHeading {
-                        text: "HELP";
-                        after-content: true;
                     }
                     DrillRow {
                         icon: @image-url("../../../public/icons/shortcuts.svg");
