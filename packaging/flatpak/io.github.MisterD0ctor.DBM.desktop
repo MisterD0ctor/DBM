@@ -11,3 +11,4 @@ Keywords=video;movie;film;episode;player;mpv;
 MimeType=video/mp4;video/x-matroska;video/x-msvideo;video/vnd.avi;video/quicktime;video/x-ms-wmv;video/x-flv;video/webm;video/x-m4v;video/mpeg;video/mp2t;
 StartupWMClass=io.github.MisterD0ctor.DBM
 SingleMainWindow=true
+PrefersNonDefaultGPU=true
