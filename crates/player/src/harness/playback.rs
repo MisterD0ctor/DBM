@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use slint::{ComponentHandle, Model};
 
-use super::drive::{arrow, chord, hover};
+use super::drive::{arrow, chord, hover, wheel};
 use super::{playlist_rows, selected_label, short};
 use crate::playback::mpv::Mpv;
 use crate::MainWindow;
@@ -218,6 +218,76 @@ pub(super) fn preview_test(ui: &MainWindow) -> slint::Timer {
         },
     );
     timer
+}
+
+/// Turn the wheel over the picture, then over the volume track.
+///
+/// The wheel was the volume from anywhere in the window once, and is now the
+/// volume only on its own track. Both halves are worth reading back: that the
+/// picture no longer answers, and that the track still does — with the level
+/// said in the hover label at once, not after the wait a name gets. The steps
+/// are shorter than that wait so a label that is up by the next one cannot
+/// have got there by waiting.
+pub(super) fn wheel_test(ui: &MainWindow) -> slint::Timer {
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut step = 0usize;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(400),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let (x, y) = (ui.get_vol_cx(), ui.get_vol_cy());
+            match step {
+                // Let the film start and the bar settle first.
+                0..=4 => {}
+                5 => report_wheel(&ui, "at rest"),
+                6 => {
+                    for _ in 0..3 {
+                        wheel(&ui, 640.0, 300.0, 120.0);
+                    }
+                }
+                7 => report_wheel(&ui, "three notches, picture"),
+                8 => {
+                    eprintln!("dbm: wheel over the volume track at ({x:.0}, {y:.0})");
+                    wheel(&ui, x, y, 120.0);
+                }
+                9 => report_wheel(&ui, "one notch up, track"),
+                10 => {
+                    for _ in 0..3 {
+                        wheel(&ui, x, y, -120.0);
+                    }
+                }
+                11 => report_wheel(&ui, "three notches down"),
+                12 => ui.invoke_toggle_mute(),
+                13 => report_wheel(&ui, "muted"),
+                14 => ui.invoke_toggle_mute(),
+                15 => hover(&ui, 640.0, 300.0),
+                16 => report_wheel(&ui, "pointer gone"),
+                17 => eprintln!("dbm: --- wheel test done ---"),
+                _ => {}
+            }
+            step += 1;
+        },
+    );
+    timer
+}
+
+fn report_wheel(ui: &MainWindow, label: &str) {
+    let tip = ui.global::<crate::Tip>();
+    let glass = ui
+        .get_glass_rects()
+        .iter()
+        .filter(|r| r.width > 0.0 && r.height > 0.0)
+        .count();
+    eprintln!(
+        "dbm: wheel {label:<24} vol={} muted={} tip={:?} {:?} at {:.0} | {glass} glass rect(s)",
+        ui.get_volume(),
+        ui.get_muted(),
+        tip.get_label(),
+        tip.get_keys(),
+        tip.get_cx(),
+    );
 }
 
 fn report_preview(ui: &MainWindow, label: &str) {

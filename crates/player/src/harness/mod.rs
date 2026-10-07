@@ -38,7 +38,8 @@
 //!   the whole reason the dialog does not run on this thread.
 //! * `DBM_SHOWCASE=tip` and `tip-edge` rest the pointer on a button in the
 //!   right-hand pill instead of in the corner, which is the only way the hover
-//!   label is ever on screen.
+//!   label is ever on screen. `tip-volume` rests it on the volume track, whose
+//!   label is the level.
 //! * `DBM_SHOWCASE=drill` — flips the playlist between its list of parts and a
 //!   part's page on every tick, so a capture lands inside the 220ms move rather
 //!   than on whichever end it settled at. The same trick as `flash`: a movement
@@ -61,6 +62,9 @@
 //!   preview would show at each point.
 //! * `DBM_SCROLL_TEST=1` — checks how the tracks and playlist panels divide
 //!   their height between lists, and that a wheel over one actually moves it.
+//! * `DBM_WHEEL_TEST=1` — turns the wheel over the picture, which should do
+//!   nothing, and then over the volume track, which should move the level and
+//!   say it in the hover label without the wait a name gets.
 //! * `DBM_KEY_TEST=1` — dispatches real key events into the window, for
 //!   shortcuts whose effect is otherwise off-screen.
 //! * `DBM_READ_TEST=1` — opens the shortcuts page and presses the keys that
@@ -253,6 +257,9 @@ pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
     }
     if std::env::var_os("DBM_SCROLL_TEST").is_some() {
         timers.push(layout::scroll_test(ui));
+    }
+    if std::env::var_os("DBM_WHEEL_TEST").is_some() {
+        timers.push(playback::wheel_test(ui));
     }
     if std::env::var_os("DBM_KEY_TEST").is_some() {
         timers.push(keys::key_test(ui));

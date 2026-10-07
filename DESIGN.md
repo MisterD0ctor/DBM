@@ -764,6 +764,14 @@ the axes, which is exactly the part the eye catches.
 - **Unity dot:** a dot, not a line, at 100%. A line the height of the track
   divides it into two ranges; a dot is a landmark on one. It reverses against
   the fill the way the switch knob does: Knob on the fill, Quiet off it.
+- **Wheel:** two units a notch, over the track and nowhere else. Over the
+  picture the wheel wakes the bar and changes nothing: it turned the volume from
+  anywhere in the window once, which made the loudest control in the player the
+  one a brushed wheel or two fingers resting on a touchpad could reach.
+- **Label:** the level as a number, which nothing else on the bar gives — the
+  track is 96px for two hundred steps and the glyph beside it moves in tens.
+  *Volume 84%* with ↑ ↓, or *Muted* alone, since a muted level is a number
+  nobody can hear and the track is drawn empty to match.
 
 ### Menu rows
 - **Shape:** 34px tall; the wash is inset 16px on both sides at a 16px radius,
@@ -999,6 +1007,12 @@ question was asked.
 - **Pressing puts it away**, and it comes back on the next arrival; a name
   hanging over the result is in the way of seeing it. A resize takes it at
   once, because every control has moved out from under it.
+- **A reading does not wait, and is not put away.** The volume track's label
+  is the level rather than a name. It opens after the same 500ms when the
+  pointer only rests there, but a level that moves under the pointer is said at
+  once — it is the answer to the wheel, the drag or the key that moved it, and
+  each notch would otherwise start the wait again. A press leaves it up: here
+  the label is the result, not something in front of it.
 - **Above the timeline row, on the line panels open from**, centred on its
   control and clamped inside the bar's margins. There is nowhere closer: the
   row between is one unbroken pane, and a tip laid over it would be glass on

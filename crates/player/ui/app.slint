@@ -1125,9 +1125,10 @@ export component MainWindow inherits Window {
             }
             root.tip-up = false;
             root.tip-shown = 0.0;
-        } else if (root.tip-up || root.tip-warm) {
+        } else if (root.tip-up || root.tip-warm || Tip.now) {
             // One is already up, or only just went: say the new name in its
             // place rather than taking the surface down and bringing it back.
+            // Or it is a reading that has just changed, which does not wait.
             root.raise-tip();
         } else {
             tip-timer.start();
@@ -1210,6 +1211,11 @@ export component MainWindow inherits Window {
     property <length> total-x: root.bar-x + root.bar-w - root.time-w;
     out property <length> scrub-x: root.bar-x + root.time-w + root.pill-gap;
     out property <length> scrub-w: root.bar-w - 2 * (root.time-w + root.pill-gap);
+    /// The middle of the volume track, for the test that turns a wheel over
+    /// it and the photograph of its label.
+    out property <length> vol-cx:
+        root.right-x + root.pill-pad + root.btn + root.btn-gap + root.vol-w / 2;
+    out property <length> vol-cy: root.pills-y + root.pill-h / 2;
 
     // Where each control sits inside the right pill, and so where a panel
     // hanging off it should point.
@@ -1403,7 +1409,7 @@ export component MainWindow inherits Window {
         { heading: "POINTER", icon: @image-url("../../../public/icons/mouse.svg"),
           label: "Play / pause", keys: "Click the picture" },
         { label: "Fullscreen", keys: "Double-click" },
-        { label: "Volume", keys: "Wheel over the picture" },
+        { label: "Volume", keys: "Wheel over its slider" },
         { label: "Seek a second", keys: "Wheel over the timeline" },
         // The one row here that is not true everywhere; see `drop-supported`.
         { label: "Open", keys: "Drop a file or folder", dropping: true },
@@ -2862,9 +2868,14 @@ export component MainWindow inherits Window {
         double-clicked => {
             root.video-double-clicked();
         }
+        // The wheel over the picture wakes the bar and does nothing else. It
+        // turned the volume once, from anywhere in the window, which is the
+        // one control a brushed wheel or two fingers resting on a touchpad
+        // should not reach: the volume has a track, and the wheel works
+        // there. Accepted so the event stops here, and so this area keeps
+        // its hover — one that is refused takes it away.
         scroll-event(event) => {
             Chrome.bump();
-            root.nudge-volume(event.delta-y > 0 ? root.volume-step : -root.volume-step);
             return EventResult.accept;
         }
     }
@@ -4548,8 +4559,30 @@ export component MainWindow inherits Window {
             }
 
             // Volume, spanning mpv's full 0..200 range.
-            Rectangle {
+            vol-track := Rectangle {
                 width: root.vol-w;
+
+                // The level as a number, which nothing else on the bar gives:
+                // the track is 96px for two hundred steps, and the glyph
+                // beside it moves in tens. Muted it says so instead, since
+                // the level is then a number nobody can hear and the track
+                // is drawn empty to match.
+                property <string> tip: root.muted
+                    ? "Muted"
+                    : "Volume " + Math.round(root.volume) + "%";
+                property <string> tip-keys: root.muted ? "" : "↑ ↓";
+                property <length> tip-cx: self.absolute-position.x + self.width / 2;
+                /// This track's claim on the tip, as a button holds one.
+                property <int> tip-claim: -1;
+
+                // A level that moves while the pointer is here is said at
+                // once, wait or no wait: it is the answer to the wheel, the
+                // drag or the key that moved it.
+                changed tip => {
+                    if (Tip.seq == self.tip-claim) {
+                        self.tip-claim = Tip.show(self.tip, self.tip-keys, self.tip-cx);
+                    }
+                }
 
                 accessible-role: slider;
                 accessible-label: "Volume";
@@ -4625,14 +4658,25 @@ export component MainWindow inherits Window {
                             root.set-volume(self.mouse-x / self.width * root.volume-max);
                         }
                     }
+                    // Not put away by a press, the way a button's name is:
+                    // this one is the result, not something in front of it.
                     clicked => {
                         root.set-volume(self.mouse-x / self.width * root.volume-max);
                     }
+                    // The one place the wheel is the volume.
                     scroll-event(event) => {
                         root.nudge-volume(event.delta-y > 0
                             ? root.volume-step
                             : -root.volume-step);
                         return EventResult.accept;
+                    }
+                    changed has-hover => {
+                        if (self.has-hover) {
+                            vol-track.tip-claim = Tip.point(vol-track.tip,
+                                vol-track.tip-keys, vol-track.tip-cx);
+                        } else {
+                            Tip.release(vol-track.tip-claim);
+                        }
                     }
                 }
             }

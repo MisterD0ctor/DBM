@@ -41,6 +41,8 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 // The last button there is, to see the clamp hold a tip
                 // inside the margin rather than off the window.
                 "tip-edge" => (1232.0, 672.0),
+                // The volume track, whose label is a reading, not a name.
+                "tip-volume" => (ui.get_vol_cx(), ui.get_vol_cy()),
                 _ => (40.0, 40.0),
             };
             // Everything else here keeps hovering so the chrome stays up.

@@ -281,9 +281,9 @@ fn percent_of(fraction: f32) -> f64 {
 /// having nothing happen at all is how a control stops being believed.
 ///
 /// Only here, not in `nudge_volume`. Placing a level is a statement; a nudge
-/// is two units on a wheel that also turns over the video, nowhere near the
-/// mute button, and mute is the one setting people reach for because the room
-/// demands it. A wheel brushed by a sleeve should not fill a room with sound.
+/// is two units from an arrow key or a notch of the wheel, and mute is the one
+/// setting people reach for because the room demands it. A key leaned on
+/// should not fill a room with sound.
 pub fn set_volume(mpv: &Mpv, value: f64) {
     // Written rather than read and tested, like everything else here: mpv
     // owns the state, setting a property to what it already holds costs

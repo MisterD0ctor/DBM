@@ -432,7 +432,7 @@
       "name": "Hover Label",
       "kind": "custom",
       "refersTo": "hover-label",
-      "description": "A 28px capsule of glass naming the control under the pointer and giving the key that does the same thing — 500ms after the pointer settles, then a fade and a 6px rise. The name at Body, the key at Quiet in Readout size, 12px apart with 12px of padding. It says what pressing will do, not what the glyph already shows. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "description": "A 28px capsule of glass naming the control under the pointer and giving the key that does the same thing — 500ms after the pointer settles, then a fade and a 6px rise. The name at Body, the key at Quiet in Readout size, 12px apart with 12px of padding. It says what pressing will do, not what the glyph already shows. The volume track's is a reading instead — Volume 84%, or Muted — which opens at once when the level moves under the pointer and stays up through a press. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<span class=\"ds-tip\"><span class=\"ds-tip-name\">Unmute</span><span class=\"ds-tip-keys\">M</span></span>",
       "css": ".ds-tip { display: inline-flex; align-items: center; gap: 12px; height: 28px; padding: 0 12px; border-radius: 14px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); font-family: \"IBM Plex Sans\"; } .ds-tip-name { font-size: 14px; font-weight: 500; color: #ffffffc0; } .ds-tip-keys { font-size: 13px; font-weight: 500; color: #ffffffa0; }"
     },

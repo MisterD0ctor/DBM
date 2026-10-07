@@ -169,11 +169,32 @@ export global Tip {
     /// tip is still the one it put up.
     in-out property <int> seq;
 
+    /// Whether the tip is to go up without the wait. Set by `show`, cleared
+    /// by `point`.
+    in-out property <bool> now;
+
     /// Puts a tip up and returns the claim on it, for `release`.
     public function point(label: string, keys: string, cx: length) -> int {
         Tip.label = label;
         Tip.keys = keys;
         Tip.cx = cx;
+        Tip.now = false;
+        Tip.seq += 1;
+        return Tip.seq;
+    }
+
+    /// The same, with no wait before it opens.
+    ///
+    /// For a tip that is a reading rather than a name: the volume's, which
+    /// changes under the hand that is turning it. The wait is there so that
+    /// crossing the bar raises nothing, and a level that has just moved was
+    /// not crossed. Each notch of a wheel would also start the wait again,
+    /// so a reading that waited would never arrive while it was wanted.
+    public function show(label: string, keys: string, cx: length) -> int {
+        Tip.label = label;
+        Tip.keys = keys;
+        Tip.cx = cx;
+        Tip.now = true;
         Tip.seq += 1;
         return Tip.seq;
     }
