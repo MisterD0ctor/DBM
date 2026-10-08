@@ -40,6 +40,8 @@
 //!   right-hand pill instead of in the corner, which is the only way the hover
 //!   label is ever on screen. `tip-volume` rests it on the volume track, whose
 //!   label is the level.
+//! * `DBM_SHOWCASE=scroll-bar` opens the playlist and rests the pointer on its
+//!   scroll bar, which is the only time the bar is drawn at its grown width.
 //! * `DBM_SHOWCASE=drill` — flips the playlist between its list of parts and a
 //!   part's page on every tick, so a capture lands inside the 220ms move rather
 //!   than on whichever end it settled at. The same trick as `flash`: a movement
@@ -61,7 +63,8 @@
 //! * `DBM_PREVIEW_TEST=1` — hovers along the timeline and reports what the seek
 //!   preview would show at each point.
 //! * `DBM_SCROLL_TEST=1` — checks how the tracks and playlist panels divide
-//!   their height between lists, and that a wheel over one actually moves it.
+//!   their height between lists, that a wheel over one actually moves it, and
+//!   that its scroll bar can be pressed and dragged.
 //! * `DBM_WHEEL_TEST=1` — turns the wheel over the picture, which should do
 //!   nothing, and then over the volume track, which should move the level and
 //!   say it in the hover label without the wait a name gets.

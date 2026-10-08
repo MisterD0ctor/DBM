@@ -1297,6 +1297,8 @@ export component MainWindow inherits Window {
         : root.playlist-open ? playlist-panel.width
         : root.files-open ? files-panel.width
         : settings.width;
+    /// The open panel's right edge, for the test that drags a list's thumb.
+    out property <length> panel-right: root.panel-x + root.panel-w;
 
     /// The preview landing on that panel, which is the one place it must not
     /// be: glass on glass, and the panel is the surface that was asked for
@@ -1510,6 +1512,10 @@ export component MainWindow inherits Window {
     property <length> playlist-top-natural: root.playlist-groups.length * root.row-h;
     property <length> playlist-leaf-natural: root.playlist-entries.length * root.row-h;
 
+    /// Where the showing list starts in the window, for the test that takes
+    /// hold of its scroll bar.
+    out property <length> playlist-list-top:
+        playlist-panel.y + root.panel-pad + root.playlist-head-h;
     /// Scroll offsets, for the test that checks a wheel over a list moves it.
     out property <length> subs-scroll: subs-list.offset;
     out property <length> playlist-scroll: root.playlist-top

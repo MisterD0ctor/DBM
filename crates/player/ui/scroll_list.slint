@@ -1,6 +1,7 @@
 // A list that scrolls, for the panels whose rows can outgrow the window.
 
-import { Paint, Rows } from "theme.slint";
+import { Chrome } from "globals.slint";
+import { Motion, Paint, Rows } from "theme.slint";
 
 /// A list that scrolls when it is handed less height than its content needs.
 ///
@@ -86,26 +87,96 @@ export component ScrollList inherits Rectangle {
         }
     }
 
-    // A hint, not a control: it says there is more below and roughly where
-    // you are. The flick and the wheel are what move the list.
+    // --- the scroll bar ---
+    //
+    // It says there is more below and roughly where you are, and it can be
+    // taken hold of. It was a hint only once, and a thumb that shows where a
+    // long list is but will not be moved there is the one thing on a panel
+    // that looks like a control and is not: a season of episodes was a
+    // wheel's worth of turning from one end to the other.
+
+    /// How far the list can go: what it holds, less what it shows.
+    property <length> reach: max(0px, root.content-height - root.height);
+    /// The rail, inset from the list's top and bottom.
+    property <length> rail-inset: 2px;
+    property <length> rail-h: root.height - 2 * root.rail-inset;
+    /// Proportional to how much of the list is on screen, with a floor so a
+    /// very long list still leaves something to see, and to take hold of.
+    property <length> thumb-h: max(24px,
+        root.rail-h * (root.height / max(1px, root.content-height)));
+    /// How far the thumb's top can travel down the rail.
+    property <length> thumb-run: max(0px, root.rail-h - root.thumb-h);
+    property <length> thumb-y:
+        root.thumb-run * (-flick.viewport-y / max(1px, root.reach));
+    /// Where on the thumb the pointer took hold, measured from its top.
+    property <length> held;
+
+    /// Put the held point of the thumb at `y` on the rail, and the list where
+    /// that leaves it.
+    function drag(y: length) {
+        flick.viewport-y = -root.reach
+            * (clamp(y - root.held, 0px, root.thumb-run)
+                / max(1px, root.thumb-run));
+    }
+
+    // Grows under the pointer or a drag the way every track here does, and
+    // about its own centre line, so it thickens rather than shifts.
     Rectangle {
-        x: parent.width - 7px;
-        y: 2px;
-        width: 3px;
-        height: parent.height - 4px;
+        x: parent.width - 5.5px - self.width / 2;
+        y: root.rail-inset;
+        width: grip.has-hover || grip.pressed ? 5px : 3px;
+        height: root.rail-h;
         border-radius: self.width / 2;
         background: Paint.wash-soft;
-        visible: root.content-height > root.height;
+        visible: root.reach > 0;
+        animate width { duration: Motion.track-grow; easing: ease-out; }
 
         Rectangle {
+            y: root.thumb-y;
             width: 100%;
-            // Proportional to how much of the list is on screen, with a floor
-            // so a very long list still leaves something to see.
-            height: max(24px, parent.height * (root.height / root.content-height));
-            y: (parent.height - self.height)
-                * (-flick.viewport-y / max(1px, root.content-height - root.height));
+            height: root.thumb-h;
             border-radius: parent.border-radius;
             background: Paint.quiet;
+        }
+    }
+
+    // The whole margin the rows' washes leave clear, not the 3px that is
+    // drawn: a target that thin is one nobody can take hold of.
+    grip := TouchArea {
+        x: parent.width - self.width;
+        width: Rows.gap;
+        height: 100%;
+        visible: root.reach > 0;
+        mouse-cursor: pointer;
+        /// The pointer, in the rail's terms.
+        property <length> at: self.mouse-y - root.rail-inset;
+        pointer-event(event) => {
+            Chrome.pointed(event.kind == PointerEventKind.down);
+            if (event.kind == PointerEventKind.down
+                && event.button == PointerEventButton.left) {
+                // On the thumb, it is held where it was taken, so it does not
+                // jump under the hand. On the rail, the thumb is brought to
+                // the pointer by its middle and the drag carries on from
+                // there, which is one press to anywhere in the list.
+                root.held = self.at >= root.thumb-y
+                    && self.at <= root.thumb-y + root.thumb-h
+                    ? self.at - root.thumb-y
+                    : root.thumb-h / 2;
+                root.drag(self.at);
+            }
+        }
+        moved => {
+            if (self.pressed) {
+                root.drag(self.at);
+            }
+        }
+        // The wheel still turns the list from here. Left to fall through to
+        // the list underneath it would, but a refused wheel takes this
+        // area's hover with it, and the bar would thin under a pointer that
+        // had not moved.
+        scroll-event(event) => {
+            root.scroll-by(-event.delta-y);
+            return EventResult.accept;
         }
     }
 }

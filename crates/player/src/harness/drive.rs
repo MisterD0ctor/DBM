@@ -31,6 +31,32 @@ pub(super) fn click(ui: &MainWindow, x: f32, y: f32) {
     });
 }
 
+/// Press at one point, move to another in a few steps, and let go.
+///
+/// The steps matter: a drag is read from the moves made while the button is
+/// down, and one jump from end to end would also pass for a click.
+pub(super) fn drag(ui: &MainWindow, from: (f32, f32), to: (f32, f32)) {
+    use slint::platform::{PointerEventButton, WindowEvent};
+    let at = |t: f32| {
+        slint::LogicalPosition::new(from.0 + (to.0 - from.0) * t, from.1 + (to.1 - from.1) * t)
+    };
+    let window = ui.window();
+    window.dispatch_event(WindowEvent::PointerMoved { position: at(0.0) });
+    window.dispatch_event(WindowEvent::PointerPressed {
+        position: at(0.0),
+        button: PointerEventButton::Left,
+    });
+    for step in 1..=4 {
+        window.dispatch_event(WindowEvent::PointerMoved {
+            position: at(step as f32 / 4.0),
+        });
+    }
+    window.dispatch_event(WindowEvent::PointerReleased {
+        position: at(1.0),
+        button: PointerEventButton::Left,
+    });
+}
+
 /// Turn a wheel over a point, the way a mouse would.
 pub(super) fn wheel(ui: &MainWindow, x: f32, y: f32, delta: f32) {
     use slint::platform::WindowEvent;

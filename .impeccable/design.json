@@ -170,7 +170,7 @@
           "#ffffff34"
         ],
         "rampNote": "The three washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fourth wash would have to be told apart from the two either side of it.",
-        "purpose": "The inset highlight behind a hovered row of any kind; a stepper disc at rest; a scroll hint's rail; and the way in's fill in the two states where there is no glass to paint over."
+        "purpose": "The inset highlight behind a hovered row of any kind; a stepper disc at rest; a scroll bar's rail; and the way in's fill in the two states where there is no glass to paint over."
       }
     },
     "typographyMeta": {
@@ -228,7 +228,7 @@
       {
         "name": "track-grow",
         "value": "100ms ease-out",
-        "purpose": "A track thickening under the pointer: 5px to 7px on the timeline and volume, 4px to 6px on a settings slider."
+        "purpose": "A track thickening under the pointer: 5px to 7px on the timeline and volume, 4px to 6px on a settings slider, 3px to 5px on a scroll bar."
       },
       {
         "name": "surface",

@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use slint::{ComponentHandle, Model};
 
-use super::drive::{click, wheel};
+use super::drive::{click, drag, wheel};
 use super::selected_label;
 use crate::platform::modal_loop;
 use crate::MainWindow;
@@ -219,27 +219,72 @@ pub(super) fn scroll_test(ui: &MainWindow) -> slint::Timer {
                     wheel(&ui, x, y, -240.0);
                 }
                 7 => eprintln!("dbm: playlist scrolled to {:.0}", ui.get_playlist_scroll()),
+                // The scroll bar, which is a control and not only a hint. The
+                // wheel has left the list at its end, so a press on the rail
+                // near the head of it should bring the thumb, and the list,
+                // back to the start.
+                8 => {
+                    let (x, top) = playlist_bar(&ui);
+                    eprintln!("dbm: pressing the rail at ({x:.0}, {:.0})", top + 8.0);
+                    click(&ui, x, top + 8.0);
+                }
+                9 => eprintln!(
+                    "dbm: rail pressed at the head: {:.0}",
+                    ui.get_playlist_scroll()
+                ),
+                // Then the thumb, taken where it is and moved down 30px: the
+                // list should go as far as that is of the thumb's run.
+                10 => {
+                    let (x, top) = playlist_bar(&ui);
+                    drag(&ui, (x, top + 8.0), (x, top + 38.0));
+                }
+                11 => {
+                    let (shown, held) = (ui.get_playlist_list_h(), ui.get_playlist_natural());
+                    let rail = shown - 4.0;
+                    let run = rail - (rail * shown / held).max(24.0);
+                    eprintln!(
+                        "dbm: thumb dragged down 30: {:.0}, expected {:.0}",
+                        ui.get_playlist_scroll(),
+                        (shown - held) * 30.0 / run,
+                    );
+                }
+                12 => {
+                    let (x, top) = playlist_bar(&ui);
+                    let shown = ui.get_playlist_list_h();
+                    drag(&ui, (x, top + 38.0), (x, top + 38.0 + shown));
+                }
+                13 => eprintln!(
+                    "dbm: thumb dragged past the foot: {:.0}, the end is {:.0}",
+                    ui.get_playlist_scroll(),
+                    ui.get_playlist_list_h() - ui.get_playlist_natural(),
+                ),
                 // Back to the tracks menu and click the first real subtitle
                 // row: the one below "Off", inside the scrolling list.
-                8 => ui.invoke_open_menu(true),
-                9 => {
+                14 => ui.invoke_open_menu(true),
+                15 => {
                     let top = ui.get_timeline_y() - ui.get_tracks_h();
                     let y = top + 14.0 + 28.0 + 34.0 + 17.0;
                     let x = ui.get_subs_anchor();
                     eprintln!("dbm: clicking a subtitle row at ({x:.0}, {y:.0})");
                     click(&ui, x, y);
                 }
-                10 => eprintln!(
+                16 => eprintln!(
                     "dbm: subtitle now {:?}",
                     selected_label(&ui.get_sub_tracks())
                 ),
-                11 => eprintln!("dbm: --- scroll test done ---"),
+                17 => eprintln!("dbm: --- scroll test done ---"),
                 _ => {}
             }
             step += 1;
         },
     );
     timer
+}
+
+/// Where the playlist's scroll bar is: its centre line, which runs 5.5px in
+/// from the panel's right edge, and the top of the list it belongs to.
+fn playlist_bar(ui: &MainWindow) -> (f32, f32) {
+    (ui.get_panel_right() - 5.5, ui.get_playlist_list_top())
 }
 
 /// Open each panel in turn and count what reaches the pipeline.

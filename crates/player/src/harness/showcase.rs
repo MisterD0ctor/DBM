@@ -41,6 +41,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 // The last button there is, to see the clamp hold a tip
                 // inside the margin rather than off the window.
                 "tip-edge" => (1232.0, 672.0),
+                // The playlist's scroll bar, which thickens under a pointer.
+                "scroll-bar" => (
+                    ui.get_panel_right() - 5.5,
+                    ui.get_playlist_list_top() + 60.0,
+                ),
                 // The volume track, whose label is a reading, not a name.
                 "tip-volume" => (ui.get_vol_cx(), ui.get_vol_cy()),
                 _ => (40.0, 40.0),
@@ -101,7 +106,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     }
                     ui.invoke_select_subtitle(-1);
                 }
-                "playlist" | "drill" => ui.invoke_open_playlist(true),
+                "playlist" | "drill" | "scroll-bar" => ui.invoke_open_playlist(true),
                 // The list of parts rather than the page the panel opens on.
                 "seasons" => {
                     ui.invoke_open_playlist(true);

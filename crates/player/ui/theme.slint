@@ -31,8 +31,8 @@ export global Motion {
     /// highlight is feedback that the pointer landed, and feedback that
     /// arrives after the eye has already moved on is not feedback.
     out property <duration> highlight: Motion.enabled ? 45ms : 0ms;
-    /// A track thickening under the pointer: the timeline's, the volume's and
-    /// a settings slider's. One gesture, one speed.
+    /// A track thickening under the pointer: the timeline's, the volume's, a
+    /// settings slider's and a scroll bar's. One gesture, one speed.
     out property <duration> track-grow: Motion.enabled ? 100ms : 0ms;
     /// A surface fading in or out, and rising the few pixels it travels: the
     /// panels, the bar, the flash, the tip. The glass fades with it.
@@ -131,7 +131,7 @@ export global Paint {
     /// A hovered icon button, or a choice on the end-of-file pill. Never on a
     /// row, so it never has to be told apart from the two either side of it.
     out property <color> wash-button: #ffffff24;
-    /// A hovered row of any kind; a stepper disc at rest; a scroll hint's rail.
+    /// A hovered row of any kind; a stepper disc at rest; a scroll bar's rail.
     out property <color> wash-soft: #ffffff14;
 }
 

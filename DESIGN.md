@@ -275,7 +275,7 @@ keep it does:
   the end-of-file pill. Never on a row, so it never has to be told apart from
   the washes either side of it.
 - **Soft wash** (`#ffffff14`): the inset highlight behind a hovered row of any
-  kind; a stepper disc at rest; a scroll hint's rail; and the one panel fill in
+  kind; a stepper disc at rest; a scroll bar's rail; and the one panel fill in
   the system, on the fatal-error pane — see Elevation & Depth.
 
 **The Rail** and the Strong wash were once the same `#ffffff2e` under two
@@ -876,13 +876,23 @@ and short, it lands at about the width of the words above it and becomes an
 underline. There is no length that is safe underneath; the fix is the line the
 row already has, beside the fact that is already there.
 
-### Scroll hint
+### Scroll bar
 - **Shape:** a 3px rail at Soft wash, 7px from the list's right edge and inset
   2px top and bottom; the thumb a capsule at Quiet, proportional to how much of
   the list is visible, with a 24px floor
-- **Role:** a hint, not a control. It says there is more and roughly where you
-  are; the wheel, the flick and the keyboard move the list. The keyboard scrolls
-  by the least that reveals the focused row.
+- **Under the pointer:** rail and thumb grow to 5px (100ms ease-out) about
+  their own centre line, the way every track does, and for a drag as well. No
+  change of colour: the growing is the answer, as it is on a slider
+- **Hit area:** the 16px margin the rows' washes leave clear, the full height of
+  the list — not the 3px that is drawn
+- **Drag:** the thumb is held where it was taken, so it does not jump under the
+  hand. A press on the rail brings the thumb there by its middle and the drag
+  carries on, which is one press to anywhere in the list
+- **Role:** it says there is more and roughly where you are, and it can be
+  taken hold of. It was a hint only once: the one thing on a panel that looked
+  like a control and was not. The wheel, the flick and the keyboard move the
+  list as before; the keyboard scrolls by the least that reveals the focused
+  row.
 
 ### Sliders
 - **Row:** 30px; label 78px at Body in Readout size, value 46px right-aligned at
