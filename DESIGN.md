@@ -750,7 +750,8 @@ the axes, which is exactly the part the eye catches.
   played passes the hour. A fixed 60px left `1:03:12` 4px from the capsule's
   end, inside its 14px curve
 - **Track:** 5px at Rail, growing to 7px under the pointer or a drag (100ms
-  ease-out); played length at Played, width-driven so it stays crisp
+  ease-out); played length at Played, width-driven so it stays crisp, and
+  never taller than it is long, as a slider's fill is
 - **Hit area:** the full row height, not the track it draws — a 5px target is
   miserable to grab. The wheel over it seeks.
 - **Chapters:** a dot at each chapter start, the unity dot's shape and its
@@ -760,7 +761,8 @@ the axes, which is exactly the part the eye catches.
 
 ### Volume
 - **Track:** 96px, 5px at Rail growing to 7px (100ms ease-out), filled at Fill
-  across mpv's full 0–200% range
+  across mpv's full 0–200% range, never taller than it is long; empty at zero
+  or muted
 - **Unity dot:** a dot, not a line, at 100%. A line the height of the track
   divides it into two ranges; a dot is a landmark on one. It reverses against
   the fill the way the switch knob does: Knob on the fill, Quiet off it.
@@ -888,7 +890,15 @@ row already has, beside the fact that is already there.
 - **Track:** 4px at Rail, growing to 6px on hover or press (100ms ease-out) —
   a step lighter than the bar's 5px tracks, because these sit inside a panel of
   rows rather than alone on glass
-- **Fill:** width-driven from the left at Fill, never clipped
+- **Fill:** width-driven from the left at Fill, never clipped — and never
+  taller than it is long. It is a capsule like the rail, so below the track's
+  own height it is a circle the width of the value, growing out of the rail's
+  tip until it fills the track and then running along it. Held at full height
+  it had no room for its round ends there, and at one or two per cent stood in
+  the rail's end as a sliver wider than the curve it was meant to be inside.
+  Its edge is at the value all the way down, and at zero there is nothing.
+  Under 2px it is drawn square; there is nothing left to round. The timeline
+  and the volume follow the same rule
 - **Readout:** precision taken from the parameter's *range* rather than its
   value — three decimals on a 0–0.1 edge blur, one on a 0–40 blur
 - **Focus:** the row takes the Strong wash; the sliders have no hover wash,

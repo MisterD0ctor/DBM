@@ -561,11 +561,23 @@ export component ParamSlider inherits Rectangle {
                 // one gesture, one speed.
                 animate height { duration: Motion.track-grow; easing: ease-out; }
 
+                // A capsule, like the rail, and so never taller than it is
+                // long: below the track's own height it is a circle the width
+                // of the value, growing out of the rail's tip until it fills
+                // the track and then running along it. Held at full height it
+                // had no room for its round ends there, and at one or two per
+                // cent stood in the rail's end as a sliver wider than the
+                // curve it was meant to be inside.
+                //
+                // Under two pixels there is nothing left to round, and the
+                // renderer made a cross of the attempt, so the smallest are
+                // drawn square.
                 Rectangle {
                     x: 0;
+                    y: (parent.height - self.height) / 2;
                     width: parent.width * clamp(root.fraction, 0, 1);
-                    height: parent.height;
-                    border-radius: parent.border-radius;
+                    height: min(parent.height, self.width);
+                    border-radius: self.height < 2px ? 0px : self.height / 2;
                     background: Paint.fill;
                 }
             }

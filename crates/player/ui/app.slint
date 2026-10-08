@@ -3672,12 +3672,15 @@ export component MainWindow inherits Window {
             animate height { duration: Motion.track-grow; easing: ease-out; }
 
             // Width-driven rather than clipped, so it stays crisp at any
-            // size and needs no layer.
+            // size and needs no layer. Never taller than it is long, as a
+            // slider's fill is and for its reason: the first seconds of a
+            // film were a sliver standing in the rail's round end.
             Rectangle {
                 x: 0;
+                y: (parent.height - self.height) / 2;
                 width: parent.width * clamp(root.progress, 0, 1);
-                height: parent.height;
-                border-radius: parent.border-radius;
+                height: min(parent.height, self.width);
+                border-radius: self.height < 2px ? 0px : self.height / 2;
                 background: Paint.played;
             }
 
@@ -4602,12 +4605,15 @@ export component MainWindow inherits Window {
                     background: Paint.rail;
                     animate height { duration: Motion.track-grow; easing: ease-out; }
 
+                    // Never taller than it is long, as a slider's fill is.
                     Rectangle {
                         x: 0;
+                        y: (parent.height - self.height) / 2;
                         width: parent.width
                             * clamp(root.muted ? 0 : root.volume / root.volume-max, 0, 1);
-                        height: parent.height;
-                        border-radius: parent.border-radius;
+                        height: min(parent.height, self.width);
+                        border-radius: self.height < 2px ? 0px
+                            : self.height / 2;
                         background: Paint.fill;
                     }
 
