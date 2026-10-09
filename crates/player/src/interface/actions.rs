@@ -221,12 +221,12 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
         });
     }
     // Page numbers as the settings panel counts them: 1 glass, 2 ambient
-    // border, 3 subtitles. The delay travels with the request because it is
-    // per-file state mpv owns, and the interface already had the number on
-    // screen when the reset was pressed.
+    // border, 3 subtitles. The subtitles' delay and speed travel with the
+    // request because they are per-file state mpv owns, and the interface
+    // already had the numbers when the reset was pressed.
     {
         let (app, models, undo) = (app.clone(), models.clone(), undo.clone());
-        ui.on_undo_reset(move |page, delay| {
+        ui.on_undo_reset(move |page, delay, speed| {
             app.activity.bump();
             let Some(was) = undo.take() else {
                 return;
@@ -236,6 +236,7 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
                 2 => app.settings.restore(Section::Border, &was),
                 3 => {
                     commands::set_sub_delay(&app.mpv, delay as f64);
+                    commands::set_sub_speed(&app.mpv, speed as f64);
                     app.settings
                         .set_sub_scale(
                             commands::set_sub_scale(&app.mpv, was.sub_scale as f64) as f32
@@ -279,7 +280,8 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
     }
 }
 
-/// The subtitles page: timing, size and placement.
+/// The subtitles page: timing, size and placement, and lining the timing up
+/// with the film's speech.
 ///
 /// Size and placement are nudged from the stored value rather than from the
 /// mirrored one: the store is what gets saved, and driving both from the same
@@ -312,13 +314,32 @@ fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
             undo.set(Some(app.settings.before()));
             // One row rather than three, matching the settings pages. The
             // delay goes back to zero too even though it is not saved here -
-            // "reset" on a page means the whole page.
+            // "reset" on a page means the whole page. So does the speed a
+            // sync may have set, which has no row of its own to undo it on.
             commands::set_sub_delay(&app.mpv, 0.0);
+            commands::set_sub_speed(&app.mpv, 1.0);
             app.settings
                 .set_sub_scale(
                     commands::set_sub_scale(&app.mpv, commands::SUB_SCALE_DEFAULT) as f32,
                 );
             app.subline.set(&app.mpv, commands::SUB_POS_DEFAULT);
+        });
+    }
+    // Listening takes seconds and runs on a thread of its own; the answer
+    // comes back as a completion, which is where the timing is applied.
+    {
+        let app = app.clone();
+        ui.on_sync_subtitles(move || {
+            app.activity.bump();
+            crate::library::subsync::spawn(app.mpv.clone(), app.worker.reporter());
+        });
+    }
+    {
+        let app = app.clone();
+        ui.on_undo_sync(move |delay, speed| {
+            app.activity.bump();
+            commands::set_sub_delay(&app.mpv, delay as f64);
+            commands::set_sub_speed(&app.mpv, speed as f64);
         });
     }
 }

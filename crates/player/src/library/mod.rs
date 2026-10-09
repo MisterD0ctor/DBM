@@ -19,3 +19,4 @@ pub mod preview;
 pub mod probe;
 pub mod resume;
 pub mod shelf;
+pub mod subsync;

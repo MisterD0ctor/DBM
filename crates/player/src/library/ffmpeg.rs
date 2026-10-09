@@ -1,11 +1,13 @@
 //! ffmpeg, which is not libmpv and not a dependency of this crate.
 //!
-//! Two things shell out to it: the seek preview, which cuts a sheet of frames
-//! out of a film, and the playlist scan, which asks each file how long it is
-//! and what it is called without playing it. If it is not on the machine
-//! neither happens — the preview falls back to the timestamp alone, and the
-//! rows to what mpv itself has said — which is a feature degrading, not a
-//! failure, and nothing reports it as one after the first mention.
+//! Three things shell out to it: the seek preview, which cuts a sheet of
+//! frames out of a film; the playlist scan, which asks each file how long it
+//! is and what it is called without playing it; and the subtitle sync, which
+//! listens to a film's audio. If it is not on the machine none of them
+//! happens — the preview falls back to the timestamp alone, the rows to what
+//! mpv itself has said, and the sync says it cannot — which is a feature
+//! degrading, not a failure, and nothing reports it as one unasked after the
+//! first mention.
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -77,10 +79,10 @@ pub fn command(ffmpeg: &Path) -> Command {
 /// Start `cmd` below the player's own priority, so that when the two want the
 /// same core the player gets it.
 ///
-/// For work nobody is watching: the seek preview's frames. The player draws
-/// at the display's rate and mpv decodes against the clock, so a moment's
-/// wait for a core shows on screen; a thumbnail sheet that arrives a little
-/// later does not.
+/// For work nobody is watching: the seek preview's frames, and the audio a
+/// subtitle sync listens to. The player draws at the display's rate and mpv
+/// decodes against the clock, so a moment's wait for a core shows on screen;
+/// a thumbnail sheet or an answer that arrives a little later does not.
 ///
 /// On Linux the niceness is set once the process has started, not before:
 /// that would take a `pre_exec` hook, which makes the standard library fork

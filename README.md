@@ -59,9 +59,9 @@ they are found and for the licensing that shipping them implies.
 On Linux, `cargo build` also needs the development packages for fontconfig,
 freetype, Wayland, xkbcommon and OpenGL. Running the result needs a
 `libmpv.so.2` whose FFmpeg can decode HEVC — Fedora's stock FFmpeg cannot, and
-the video plays black with sound — and seek previews want an `ffmpeg` on the
-`PATH`, without which they are simply absent. The Flatpak build below takes
-care of all of it.
+the video plays black with sound — and seek previews and the subtitle sync want
+an `ffmpeg` on the `PATH`, without which the first are simply absent and the
+second says it cannot. The Flatpak build below takes care of all of it.
 
 ### Checking a change
 

@@ -48,8 +48,9 @@ truthfully claim any of this.
 
 - Opening one file adopts its folder siblings as the playlist; opening a folder
   scans it recursively.
-- Position, track selection and subtitle delay are remembered per file through
-  mpv's own watch-later mechanism.
+- Position, track selection and subtitle timing — the delay, and the speed a
+  sync may have set — are remembered per file through mpv's own watch-later
+  mechanism.
 - Interface settings persist to `%APPDATA%/Death by MPV/settings.conf` as plain
   text, editable by hand while tuning.
 - Seek-preview thumbnails are cached per file under `previews/`, keyed on path
@@ -78,7 +79,9 @@ certificate is bought.
 prerequisites — nothing is asked of the user's machine. They live in
 `crates/player/vendor/`, tracked in Git LFS, and are looked for beside the
 executable first and in that directory second, so a checkout and a packaged
-build both find them. ffmpeg exists for seek-preview thumbnails only.
+build both find them. ffmpeg exists for three things the player does beside
+playing: seek-preview thumbnails, reading a playlist's lengths and titles, and
+listening to a film to sync its subtitles.
 
 **Platforms.** Windows ships now. Linux is planned and the code is kept honest
 for it — Windows-only work such as the modal resize-loop hook stays isolated

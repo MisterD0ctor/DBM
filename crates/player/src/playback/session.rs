@@ -38,8 +38,13 @@ pub fn configure(mpv: &Mpv) {
     }
     for (key, value) in [
         ("save-position-on-quit", "yes"),
-        // `start` is the position; the rest is what makes it a resume.
-        ("watch-later-options", "start,vid,aid,sid,volume,sub-delay"),
+        // `start` is the position; the rest is what makes it a resume. The
+        // subtitles' speed goes with their delay: a sync can set both, and
+        // one restored without the other is worse than neither.
+        (
+            "watch-later-options",
+            "start,vid,aid,sid,volume,sub-delay,sub-speed",
+        ),
     ] {
         if let Err(e) = mpv.set_option(key, value) {
             eprintln!("dbm: {key}: {e}");

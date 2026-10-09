@@ -6,7 +6,7 @@ machine. Both are tracked in Git LFS — see `.gitattributes` at the repo root.
 | File | Why |
 |---|---|
 | `libmpv-2.dll` | Playback. Loaded at runtime through `libloading`, not linked, so the exact build can be swapped without recompiling. |
-| `ffmpeg-x86_64-pc-windows-msvc.exe` | Seek-preview thumbnails only. Nothing else in the player shells out. |
+| `ffmpeg-x86_64-pc-windows-msvc.exe` | Seek-preview thumbnails, the playlist's lengths and titles, and the audio a subtitle sync listens to. Nothing else in the player shells out. |
 
 ## How they are found
 

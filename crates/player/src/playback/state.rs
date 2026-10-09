@@ -33,6 +33,7 @@ pub const OBSERVED: &[(&str, c_int)] = &[
     ("playlist-count", FORMAT_DOUBLE),
     ("sub-visibility", FORMAT_FLAG),
     ("sub-delay", FORMAT_DOUBLE),
+    ("sub-speed", FORMAT_DOUBLE),
     ("sub-scale", FORMAT_DOUBLE),
     ("panscan", FORMAT_DOUBLE),
     ("speed", FORMAT_DOUBLE),
@@ -75,6 +76,9 @@ pub struct PlayerState {
     pub playlist_count: i64,
     pub sub_visibility: bool,
     pub sub_delay: f64,
+    /// The speed subtitles run at against the film. Zero until mpv first
+    /// reports it, which reads as 1.
+    pub sub_speed: f64,
     /// Size multiplier. Mirrored rather than read from the saved settings so
     /// the readout shows what mpv settled on, including any clamping it did
     /// of its own.
@@ -183,6 +187,7 @@ impl PlayerState {
             }
             "sub-visibility" => set(&mut self.sub_visibility, flag),
             "sub-delay" => set(&mut self.sub_delay, num.unwrap_or(0.0)),
+            "sub-speed" => set(&mut self.sub_speed, num.unwrap_or(1.0)),
             "sub-scale" => set(&mut self.sub_scale, num.unwrap_or(1.0)),
             "panscan" => set(&mut self.panscan, num.unwrap_or(0.0)),
             "speed" => set(&mut self.speed, num.unwrap_or(1.0)),

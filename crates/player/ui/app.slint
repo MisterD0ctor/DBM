@@ -62,6 +62,17 @@ export component MainWindow inherits Window {
     /// The subtitle delay as a number, beside `sub-delay-text`, so undoing a
     /// reset can put back what was there.
     in property <float> sub-delay;
+    /// The speed subtitles run at against the film, for the same undo. Not
+    /// on screen anywhere: it is 1 unless a sync found the subtitles were
+    /// timed for another frame rate, and then it is not a number anyone
+    /// would set by hand.
+    in property <float> sub-speed: 1;
+    /// Where the sync row stands: 0 at rest, 1 listening to the film, 2 with
+    /// a sync just made that it can take back.
+    in-out property <int> sync-state: 0;
+    /// The delay and speed that stood before that sync.
+    in property <float> sync-was-delay;
+    in property <float> sync-was-speed: 1;
     /// Which row of each list is the current one, or -1. Worked out on the
     /// Rust side, since a model cannot be searched from here.
     ///
@@ -284,14 +295,15 @@ export component MainWindow inherits Window {
     property <bool> focus-has-reset: root.settings-open
         && root.settings-page >= 1 && root.settings-page <= 3;
     /// Per page: the rows, plus the way back, plus the reset that follows
-    /// them. Accessibility has no reset — its one switch is undone by
+    /// them — and on the subtitles page the sync above the reset.
+    /// Accessibility has no reset — its one switch is undone by
     /// pressing it again — and the shortcuts page offers only the way back:
     /// every row on it is a statement rather than a control.
     property <int> settings-focus-count:
         root.settings-page == 0 ? 5
         : root.settings-page == 1 ? 2 + root.glass-params.length
         : root.settings-page == 2 ? 2 + root.border-params.length
-        : root.settings-page == 3 ? 5
+        : root.settings-page == 3 ? 6
         : root.settings-page == 4 ? 2
         : 1;
     /// The same count for `leaf-page`, which on the way back out is not the
@@ -301,7 +313,7 @@ export component MainWindow inherits Window {
     property <int> leaf-focus-count:
         root.leaf-page == 1 ? 2 + root.glass-params.length
         : root.leaf-page == 2 ? 2 + root.border-params.length
-        : root.leaf-page == 3 ? 5
+        : root.leaf-page == 3 ? 6
         : root.leaf-page == 4 ? 2
         : 1;
 
@@ -317,8 +329,8 @@ export component MainWindow inherits Window {
     /// matching `settings::Section`.
     callback reset-section(int);
     /// Take back the last reset: the page it was on, as the settings panel
-    /// numbers them, and the subtitle delay that stood before it.
-    callback undo-reset(int, float);
+    /// numbers them, and the subtitle delay and speed that stood before it.
+    callback undo-reset(int, float, float);
     /// One rung of the speed ladder from the speed shown, -1 or +1.
     callback step-speed(float, int);
     callback reset-speed();
@@ -368,6 +380,11 @@ export component MainWindow inherits Window {
     callback nudge-sub-pos(float);
     /// Timing, size and placement all back to their defaults.
     callback reset-subtitles();
+    /// Listen to the film and move the subtitles onto its speech. The answer
+    /// arrives some seconds later, as `sync-state` leaving 1.
+    callback sync-subtitles();
+    /// Take back the last sync: the delay and speed that stood before it.
+    callback undo-sync(float, float);
     /// -1 previous, +1 next.
     callback playlist-step(int);
     /// Ask for a video, or for a folder to play through.
@@ -1847,6 +1864,11 @@ export component MainWindow inherits Window {
             root.set-motion(!Motion.enabled);
             return true;
         }
+        if (root.settings-page == 3
+            && root.focus-row == root.settings-focus-count - 2) {
+            root.sync-row();
+            return true;
+        }
         if (root.focus-row == root.settings-focus-count - 1) {
             if (root.focus-has-reset) {
                 root.reset-row(root.settings-page);
@@ -1868,12 +1890,13 @@ export component MainWindow inherits Window {
     // 3 subtitles. Zero is none.
     property <int> reset-armed: 0;
     property <int> reset-undoable: 0;
-    /// The subtitle delay that stood when the reset went through.
+    /// The subtitle delay and speed that stood when the reset went through.
     property <float> reset-delay: 0;
+    property <float> reset-sub-speed: 1;
 
     function reset-row(page: int) {
         if (root.reset-undoable == page) {
-            root.undo-reset(page, root.reset-delay);
+            root.undo-reset(page, root.reset-delay, root.reset-sub-speed);
             root.reset-undoable = 0;
             return;
         }
@@ -1886,6 +1909,7 @@ export component MainWindow inherits Window {
         reset-timer.stop();
         root.reset-armed = 0;
         root.reset-delay = root.sub-delay;
+        root.reset-sub-speed = root.sub-speed;
         if (page == 1) {
             root.reset-section(0);
         } else if (page == 2) {
@@ -1894,6 +1918,42 @@ export component MainWindow inherits Window {
             root.reset-subtitles();
         }
         root.reset-undoable = page;
+    }
+
+    // --- syncing subtitles to speech ----------------------------------------
+    //
+    // One row with three things to say, the way the reset's has: what it
+    // does, that it is doing it, and that it can be taken back. Listening is
+    // a few seconds for an episode and a quarter of a minute for a film, so
+    // the row says so for as long as it lasts, and a press meanwhile does
+    // nothing — a second run would only be the first one started over.
+    //
+    // The way back is offered until the page is left, like a reset's. What a
+    // sync found is the player's reading of the film, not the hand's, and
+    // the timing that stood before may have been set by ear.
+
+    function sync-row() {
+        if (root.sync-state == 2) {
+            root.undo-sync(root.sync-was-delay, root.sync-was-speed);
+            root.sync-state = 0;
+        } else if (root.sync-state == 0) {
+            root.sync-state = 1;
+            root.sync-subtitles();
+        }
+    }
+
+    pure function sync-label() -> string {
+        return root.sync-state == 1 ? "Listening…"
+            : root.sync-state == 2 ? "Undo sync"
+            : "Sync to speech";
+    }
+
+    /// Leaving the page takes the way back with it. A run still listening
+    /// is left to finish: its answer is said wherever the panel is by then.
+    function forget-sync() {
+        if (root.sync-state == 2) {
+            root.sync-state = 0;
+        }
     }
 
     /// Turn the interface's motion on or off, from the switch or from Enter
@@ -1924,6 +1984,7 @@ export component MainWindow inherits Window {
     changed settings-page => {
         root.reset-armed = 0;
         root.reset-undoable = 0;
+        root.forget-sync();
         root.placing-subtitles = false;
         // Only on the way in. Going back leaves this where it is, which is
         // what keeps the departing page drawn while it slides out.
@@ -1935,6 +1996,7 @@ export component MainWindow inherits Window {
     changed settings-open => {
         root.reset-armed = 0;
         root.reset-undoable = 0;
+        root.forget-sync();
         root.placing-subtitles = false;
     }
 
@@ -2041,9 +2103,12 @@ export component MainWindow inherits Window {
         if (text == Key.UpArrow) {
             if (!Chrome.focus-visible) {
                 // The bottom, but not a reset: one more Enter would be the
-                // first of its two presses from a row nobody looked at.
-                root.focus-show(root.focus-has-reset
-                    ? root.focus-count - 2 : root.focus-count - 1);
+                // first of its two presses from a row nobody looked at. Nor
+                // the sync above the subtitles' reset, which one Enter
+                // starts.
+                root.focus-show(root.focus-count - 1
+                    - (root.focus-has-reset ? 1 : 0)
+                    - (root.settings-open && root.settings-page == 3 ? 1 : 0));
                 return true;
             }
             root.focus-move(-1);
@@ -2936,7 +3001,7 @@ export component MainWindow inherits Window {
                 ? root.row-h + root.border-params.length * Rows.slider-row
                     + Rows.group-gap + root.row-h
             : root.settings-page == 3
-                ? root.row-h + 3 * Rows.stepper-row + Rows.group-gap + root.row-h
+                ? root.row-h + 3 * Rows.stepper-row + Rows.group-gap + 2 * root.row-h
             : root.settings-page == 4
                 ? root.row-h + root.toggle-h
             // The shortcuts are a list rather than a page of controls: it is
@@ -3197,6 +3262,16 @@ export component MainWindow inherits Window {
                     }
                     Rectangle {
                         height: Rows.group-gap;
+                    }
+                    // With the reset, not under Timing: these two are the
+                    // page's actions, and a line of words between two
+                    // steppers would stand out of their column of marks.
+                    MenuRow {
+                        label: root.sync-label();
+                        focused: root.focus-row == root.leaf-focus-count - 2;
+                        picked => {
+                            root.sync-row();
+                        }
                     }
                     MenuRow {
                         label: root.reset-label(3);

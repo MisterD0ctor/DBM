@@ -52,6 +52,10 @@ pub enum Completion {
         from: String,
         to: Option<crate::library::onward::Onward>,
     },
+    /// The timing that puts the selected subtitles over the film's speech,
+    /// or why there is none. Reported from the run's own thread — see
+    /// `subsync`.
+    Synced(crate::library::subsync::Outcome),
     /// Seasons of the playing show found in folders beside its own, for the
     /// playlist panel. `paths` is the list they were looked for beside, so an
     /// answer for a list since replaced is dropped.

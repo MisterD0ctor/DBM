@@ -128,6 +128,92 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
     timer
 }
 
+/// Sync the subtitles to the film's speech, from the keyboard, and read back
+/// what mpv then shows.
+///
+/// `DBM_SYNC_TEST` names the subtitle track, by mpv's `sid` or as a subtitle
+/// file to load, and `DBM_SYNC_AT` a moment in the film to read the line
+/// from afterwards — the only check that the timing went on the right way
+/// round, since a sync that moved the subtitles five seconds the wrong way
+/// reports the same number.
+///
+/// The row is reached with real keys: S, down to the subtitles page, in, and
+/// down to the row above the reset. That is the path `focus-activate-settings`
+/// answers and a click never touches. Then Enter again takes the sync back.
+pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
+    use super::drive::chord;
+    use slint::platform::Key;
+
+    let track = std::env::var("DBM_SYNC_TEST").unwrap_or_default();
+    let at = std::env::var("DBM_SYNC_AT").unwrap_or_else(|_| "19".into());
+    let report = move |ui: &MainWindow, mpv: &Mpv, label: &str| {
+        eprintln!(
+            "dbm: sync {label:<20} state={} delay={:+.2} speed={:.4} said={:?} line={:?}",
+            ui.get_sync_state(),
+            ui.get_sub_delay(),
+            ui.get_sub_speed(),
+            ui.global::<crate::Flash>().get_message(),
+            mpv.get_property("sub-text").unwrap_or_default(),
+        );
+    };
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut step = 0usize;
+    let mut waited = 0usize;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(500),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let down = slint::SharedString::from(Key::DownArrow);
+            let enter = slint::SharedString::from(Key::Return);
+            match step {
+                // Let the film open first: there is no track to pick before.
+                0..=3 => {}
+                4 => {
+                    if track.parse::<i64>().is_ok() {
+                        let _ = mpv.set_property("sid", &track);
+                    } else {
+                        let _ = mpv.command_async(0, &["sub-add", &track, "select"]);
+                    }
+                    let _ = mpv.set_property("pause", "yes");
+                    let _ = mpv.command_async(0, &["seek", &at, "absolute+exact"]);
+                }
+                6 => report(&ui, &mpv, "before"),
+                7 => chord(&ui, &[], "s"),
+                // S puts the ring on the first row; two more reach the
+                // subtitles page, and four inside it the row above the reset.
+                8 | 9 | 11..=14 => chord(&ui, &[], down.as_str()),
+                10 => chord(&ui, &[], enter.as_str()),
+                15 => {
+                    eprintln!("dbm: sync enter on row {}", ui.get_focus_row());
+                    chord(&ui, &[], enter.as_str());
+                }
+                16 => {
+                    // Hold here until the row stops listening.
+                    if ui.get_sync_state() == 1 {
+                        waited += 1;
+                        if waited % 4 == 1 {
+                            eprintln!("dbm: sync listening...");
+                        }
+                        return;
+                    }
+                }
+                // A beat for mpv to redraw the line at its new timing.
+                18 => report(&ui, &mpv, "after the sync"),
+                // Only where there is a sync to take back: with none, Enter
+                // on this row would start another.
+                19 if ui.get_sync_state() == 2 => chord(&ui, &[], enter.as_str()),
+                21 => report(&ui, &mpv, "after taking it back"),
+                22 => eprintln!("dbm: --- sync test done ---"),
+                _ => {}
+            }
+            step += 1;
+        },
+    );
+    timer
+}
+
 /// The glass slider rows, as the panel would show them. Named rather than
 /// indexed in the output, so a registry reordering does not silently change
 /// what the run is reporting on.

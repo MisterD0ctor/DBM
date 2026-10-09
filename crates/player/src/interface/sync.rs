@@ -60,6 +60,11 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     // Raw, beside the formatted text: undoing a reset has to put back the
     // number, and parsing it out of "+0.30 s" would be reading our own label.
     ui.set_sub_delay(player.sub_delay as f32);
+    ui.set_sub_speed(if player.sub_speed > 0.0 {
+        player.sub_speed as f32
+    } else {
+        1.0
+    });
     ui.set_speed(if player.speed > 0.0 {
         player.speed as f32
     } else {

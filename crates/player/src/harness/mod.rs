@@ -92,6 +92,11 @@
 //! * `DBM_SUBS_TEST=1` — steps subtitle timing, size and position, reads each
 //!   back out of mpv, checks the clamp and the reset. Point `APPDATA` at a
 //!   scratch directory: size and position are saved preferences.
+//! * `DBM_SYNC_TEST=<sid or file>` — picks that subtitle track, or loads that
+//!   subtitle file, walks the keyboard to the sync row and presses it, waits
+//!   out the listening, and reports the delay and speed it settled on with
+//!   the line mpv shows at `DBM_SYNC_AT` seconds (19 if unset). Then takes
+//!   the sync back and reports again.
 //! * `DBM_AUDIO_TEST=1` — stages the Bluetooth failure: drops the audio track
 //!   the way mpv does when a device dies, then feeds the watchdog a device
 //!   appearing, and reads `aid` back to see whether anything came of it. Then
@@ -281,6 +286,9 @@ pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
     }
     if std::env::var_os("DBM_SUBS_TEST").is_some() {
         timers.push(settings::subs_test(ui, mpv.clone()));
+    }
+    if std::env::var_os("DBM_SYNC_TEST").is_some() {
+        timers.push(settings::sync_test(ui, mpv.clone()));
     }
     if std::env::var_os("DBM_AUDIO_TEST").is_some() {
         timers.push(platform::audio_test(mpv.clone(), audio.clone()));

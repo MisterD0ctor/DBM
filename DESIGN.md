@@ -984,6 +984,19 @@ row already has, beside the fact that is already there.
   within a second, and a look tuned by eye cannot be typed back in. The ring
   stops at the ends of a page that has one rather than wrapping, and Up from a
   hidden ring lands on the last control, never on the reset.
+- **Sync to speech:** on the subtitles page, the row above its reset. With the
+  reset and not under Timing: the two are the page's actions, and a line of
+  words between two steppers would stand out of their column of marks. One
+  press and the row reads *Listening…* until the answer comes — seconds for an
+  episode, a quarter of a minute for a film — and a press meanwhile does
+  nothing. Then it is *Undo sync* until the page is left, the way a reset
+  offers itself back: what a sync found is the player's reading of the film,
+  and the timing it replaced may have been set by ear. Every outcome is said
+  as a notice, because two of them change nothing on screen — *Subtitles
+  already in sync*, and *Could not match these subtitles to the speech*, which
+  is the answer whenever no timing stands clear of the rest. A sync that is
+  not sure does nothing. Up from a hidden ring passes over this row as it does
+  the reset: one Enter starts it.
 - **Shortcut rows:** Body label, keys at Quiet in Readout size, 12px apart. On
   the reference page they are inert — no wash and no pointer, because a wash
   under a row that does nothing when clicked is an offer the row cannot keep.

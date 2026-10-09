@@ -344,6 +344,17 @@ pub fn set_sub_delay(mpv: &Mpv, seconds: f64) {
     set_prop(mpv, "sub-delay", &fmt(seconds));
 }
 
+/// The speed subtitles run at against the film: 1, unless they were timed
+/// for a transfer at another frame rate — see `subsync`. Per file, like the
+/// delay it goes with, and kept in the same place.
+///
+/// Six places rather than `fmt`'s four. The fourth place of a speed is
+/// seven hundredths of a second by the end of a two-hour film, which is the
+/// error this exists to remove.
+pub fn set_sub_speed(mpv: &Mpv, speed: f64) {
+    set_prop(mpv, "sub-speed", &format!("{speed:.6}"));
+}
+
 /// Whether reaching the end of a file advances to the next.
 ///
 /// mpv expresses this through `keep-open`: `yes` holds the window open only

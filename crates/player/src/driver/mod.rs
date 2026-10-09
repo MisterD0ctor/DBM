@@ -471,6 +471,10 @@ impl Driver {
         preview.set_sprite(None);
         ui.set_preview_tile_w(0);
         ui.set_preview_tile_h(0);
+        // A sync still listening is listening to the old film, and one that
+        // could be undone was this film's to undo.
+        crate::library::subsync::supersede();
+        ui.set_sync_state(0);
 
         crate::library::preview::spawn(path, self.app.worker.reporter());
     }
