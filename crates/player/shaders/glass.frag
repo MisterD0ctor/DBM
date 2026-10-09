@@ -547,12 +547,12 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // The denominator vanishes as the mirrored ray passes horizontal
     // (|slope| -> 1), where the true displacement really is unbounded.
     // Floor it rather than let one ring of pixels smear.
-    float denom = 1.0 - slope2;
-    denom = abs(denom) < 1e-3 ? (denom < 0.0 ? -1e-3 : 1e-3) : denom;
-    float reflection_ratio = -2.0 * slope / denom;
-    vec2 reflection_offset =
-        -box_normal * reflection_ratio * height * bevel / u_size;
-    vec3 reflected = base_at(uv + reflection_offset) * u_specular;
+    //float denom = 1.0 - slope2;
+    //denom = abs(denom) < 1e-3 ? (denom < 0.0 ? -1e-3 : 1e-3) : denom;
+    //float reflection_ratio = -2.0 * slope / denom;
+    //vec2 reflection_offset =
+    //    -box_normal * reflection_ratio * height * bevel / u_size;
+    //vec3 reflected = base_at(uv + reflection_offset) * u_specular;
 
     float rim = max(0.0, -mirror.y * (1.0 - mirror.x))
               * max(0.0, 2.0 * abs(mirror3.y / mirror.x) - 1.0)
@@ -563,10 +563,10 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // reflect, so the reflection fades out as it swings through horizontal —
     // which also hides the turn, where the screen-space offset above runs off
     // to infinity.
-    vec3 specular = mix(reflected, vec3(1.0), rim) * (1.0 - smoothstep(-0.7, 0.0, mirror.y));
+    //vec3 specular = mix(reflected, vec3(1.0), rim) * (1.0 - smoothstep(-0.7, 0.0, mirror.y));
 
     // Fresnel decides how much of each the viewer gets.
-    return mix(refracted, specular, reflectance);
+    return mix(refracted, vec3(1.0), rim * reflectance); // mix(refracted, specular, reflectance);
 }
 
 void main() {
