@@ -31,6 +31,28 @@ pub(super) fn click(ui: &MainWindow, x: f32, y: f32) {
     });
 }
 
+/// Put the button down at a point and leave it down, for a drag whose moves
+/// the caller wants to time itself. Ends with [`release`].
+pub(super) fn press(ui: &MainWindow, x: f32, y: f32) {
+    use slint::platform::{PointerEventButton, WindowEvent};
+    let position = slint::LogicalPosition::new(x, y);
+    let window = ui.window();
+    window.dispatch_event(WindowEvent::PointerMoved { position });
+    window.dispatch_event(WindowEvent::PointerPressed {
+        position,
+        button: PointerEventButton::Left,
+    });
+}
+
+/// Let the button go at a point.
+pub(super) fn release(ui: &MainWindow, x: f32, y: f32) {
+    use slint::platform::{PointerEventButton, WindowEvent};
+    ui.window().dispatch_event(WindowEvent::PointerReleased {
+        position: slint::LogicalPosition::new(x, y),
+        button: PointerEventButton::Left,
+    });
+}
+
 /// Press at one point, move to another in a few steps, and let go.
 ///
 /// The steps matter: a drag is read from the moves made while the button is

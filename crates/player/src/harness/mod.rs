@@ -10,7 +10,10 @@
 //! * `DBM_SCRUB_TEST=1` — drags the timeline from 10% to 90% faster than mpv
 //!   can seek, then lets go. Reports whether playback paused for the drag and
 //!   resumed after it; pair it with `DBM_TRACE=1` for how many updates the
-//!   scrubber coalesced into how many seeks.
+//!   scrubber coalesced into how many seeks. `=slow` drags it at ten pixels a
+//!   second instead, stopping three times, and reports how far the picture
+//!   is from the pointer at each rest — then once more after a fast drag.
+//!   Exact seeks are what every one of those depends on.
 //! * `DBM_REACH_TEST=1` — opens the playlist with P and walks twelve rows down
 //!   with the arrow keys, reporting the ring's row and the list's scroll at
 //!   each. `=glass` walks into the glass page and steps a slider with Left
@@ -323,8 +326,10 @@ pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
     if std::env::var_os("DBM_END_TEST").is_some() {
         timers.push(playback::end_test(ui));
     }
-    if std::env::var_os("DBM_SCRUB_TEST").is_some() {
-        timers.push(playback::scrub_test(ui));
+    match std::env::var("DBM_SCRUB_TEST").as_deref() {
+        Ok("slow") => timers.push(playback::slow_scrub_test(ui)),
+        Ok(_) => timers.push(playback::scrub_test(ui)),
+        Err(_) => {}
     }
     if std::env::var_os("DBM_CREDITS_TEST").is_some() {
         timers.push(playback::credits_test(ui, mpv.clone()));

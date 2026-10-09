@@ -754,6 +754,15 @@ the axes, which is exactly the part the eye catches.
   never taller than it is long, as a slider's fill is
 - **Hit area:** the full row height, not the track it draws — a 5px target is
   miserable to grab. The wheel over it seeks.
+- **Scrubbing:** the film pauses for a drag and the picture follows the
+  pointer as exactly as the hand is moving. Under about forty seconds of film
+  a second it is shown the frame under the pointer; over about sixty, the
+  keyframe before it, which is all a picture passing that fast can be told
+  from. A pointer that stops with the button down gets its frame a tenth of a
+  second later, and letting go lands on it exactly. In film and not in pixels:
+  a pixel of this row is a third of a second of a music video and seven of a
+  feature, and a keyframe is up to ten seconds from where it was asked for
+  either way.
 - **Chapters:** a dot at each chapter start, the unity dot's shape and its
   rule — Knob where the played length covers it, Quiet ahead of it. None at
   the very start, which is the start rather than a boundary, and none at all

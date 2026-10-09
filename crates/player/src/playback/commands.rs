@@ -248,8 +248,8 @@ pub fn seek_relative(mpv: &Mpv, seconds: f64) {
 /// Expressed as a percentage so the duration never crosses into this layer.
 ///
 /// Exact seeks decode from the preceding keyframe forward, which is why they
-/// are slow. Use [`seek_scrub`] while a drag is in progress and save this for
-/// where the user lets go.
+/// are slow. Use [`seek_scrub`] while a drag is in progress, which knows when
+/// one is worth it, and this for where the user lets go.
 pub fn seek_fraction(mpv: &Mpv, fraction: f32) {
     run(
         mpv,
@@ -257,11 +257,18 @@ pub fn seek_fraction(mpv: &Mpv, fraction: f32) {
     );
 }
 
-/// Seek for a drag in progress: keyframe-accurate, so mpv can satisfy it
-/// without decoding up to the target. Issued with a distinct reply id so the
-/// scrubber can tell its own completions apart.
-pub fn seek_scrub(mpv: &Mpv, fraction: f32) {
-    let args = ["seek", &fmt(percent_of(fraction)), "absolute-percent"];
+/// Seek for a drag in progress. To the keyframe before the target unless
+/// `exact`, so mpv can satisfy it without decoding up to the target — the
+/// scrubber asks for exactness only while the hand is slow enough to see
+/// it. Issued with a distinct reply id so the scrubber can tell its own
+/// completions apart.
+pub fn seek_scrub(mpv: &Mpv, fraction: f32, exact: bool) {
+    let how = if exact {
+        "absolute-percent+exact"
+    } else {
+        "absolute-percent"
+    };
+    let args = ["seek", &fmt(percent_of(fraction)), how];
     if let Err(e) = mpv.command_async(REPLY_SCRUB, &args) {
         eprintln!("dbm: scrub seek failed: {e}");
     }

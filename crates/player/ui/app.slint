@@ -366,9 +366,14 @@ export component MainWindow inherits Window {
     callback seek-relative(float);
     /// Absolute position as 0..1 of the file, landing exactly.
     callback seek-fraction(float);
-    /// A drag in progress. Coalesced and seeked cheaply on the Rust side;
-    /// the exact landing happens on release via `seek-fraction`.
+    /// A drag in progress. Coalesced on the Rust side and seeked as exactly
+    /// as the hand is moving — to keyframes while it is fast, to the frame
+    /// once it is slow. The landing on release is `seek-fraction`.
     callback seek-scrub(float);
+    /// The button is still down on the timeline, and where the pointer is.
+    /// Sent a few times a second for as long as it is, moving or not: it is
+    /// how a drag that has stopped is noticed, which no pointer event says.
+    callback seek-held(float);
     /// Where the pointer is over the timeline, 0..1. Answered by setting
     /// `preview-time` and the tile offsets below — the formatting and the
     /// tile arithmetic both live on the Rust side, where they are testable
@@ -3805,6 +3810,23 @@ export component MainWindow inherits Window {
                     ? root.scroll-seek-step
                     : -root.scroll-seek-step);
                 return EventResult.accept;
+            }
+        }
+
+        // A drag that stops is somebody looking at the picture, and a
+        // pointer that is not moving says nothing: no event tells the
+        // scrubber its last seek is the one being looked at. So while the
+        // button is down it is told where the pointer is a few times a
+        // second, and works out for itself whether that is news.
+        //
+        // Running off `pressed` rather than started by a move and stopped
+        // by a release: `restart()` does nothing to a timer that has never
+        // run, and a release off the track fires no `clicked` to stop one.
+        Timer {
+            interval: 60ms;
+            running: scrub.pressed;
+            triggered => {
+                root.seek-held(scrub.mouse-x / scrub.width);
             }
         }
     }

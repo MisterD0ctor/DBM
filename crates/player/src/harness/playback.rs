@@ -142,6 +142,84 @@ pub(super) fn scrub_test(ui: &MainWindow) -> slint::Timer {
     timer
 }
 
+/// Drag the timeline slowly, stop, and see what picture is on screen; then
+/// drag it fast and stop.
+///
+/// A slow drag is given exact seeks and a fast one keyframes — see `scrub` —
+/// and the difference only shows in the picture. So this reads the position
+/// mpv reports against where the pointer is, each time the pointer has
+/// stopped: three times along a slow drag and once after a fast one.
+/// Keyframes alone leave a stopped pointer as far from its frame as the last
+/// keyframe happens to be, which is anything up to ten seconds.
+///
+/// Only at rest, because that is the only time the position means the
+/// picture: while a seek is under way mpv reports where it is going.
+///
+/// Real pointer events, because the half that notices a stopped pointer is a
+/// timer on the Slint side that only a held button runs. Pair it with
+/// `DBM_TRACE=1` for how many of each drag's seeks were exact.
+pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
+    use super::drive::{press, release};
+
+    // Three legs of sixty moves, a rest after each. `leg` is how many moves
+    // into the drag a tick is, for the ticks that move.
+    let leg = |tick: u32| match tick {
+        151..=210 => Some(tick - 150),
+        237..=296 => Some(tick - 236 + 60),
+        323..=382 => Some(tick - 322 + 120),
+        _ => None,
+    };
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut tick = 0u32;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(16),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            tick += 1;
+            let y = ui.get_timeline_y() + 14.0;
+            let x = |fraction: f32| ui.get_scrub_x() + ui.get_scrub_w() * fraction;
+            let picture = || ui.get_progress() * ui.get_duration();
+            let report = |label: &str, fraction: f32| {
+                let wanted = fraction * ui.get_duration();
+                eprintln!(
+                    "dbm: scrub {label:<28} pointer at {wanted:8.2} s, picture at {:8.2} s, {:+.2} s out",
+                    picture(),
+                    picture() - wanted,
+                );
+            };
+            // A sixth of a pixel a tick is ten pixels a second: a hand
+            // feeling for a frame, and well under the speed a drag turns
+            // fast at for anything longer than a few minutes.
+            let slow = |moves: u32| 0.50 + moves as f32 * 0.16 / ui.get_scrub_w();
+            match (tick, leg(tick)) {
+                (_, Some(moves)) => hover(&ui, x(slow(moves)), y),
+                // Let the film start before taking hold of it.
+                (150, _) => press(&ui, x(0.50), y),
+                // Held still before each of these: nothing is sent from
+                // here, and the interface has to notice that by itself.
+                (236, _) => report("slow drag, first rest", slow(60)),
+                (322, _) => report("slow drag, second rest", slow(120)),
+                (408, _) => report("slow drag, third rest", slow(180)),
+                (409, _) => release(&ui, x(slow(180)), y),
+                (425, _) => report("let go", slow(180)),
+                // The second act: a fifth of the film in a sixth of a second.
+                (440, _) => press(&ui, x(0.60), y),
+                (441..=450, _) => hover(&ui, x(0.60 + 0.02 * (tick - 440) as f32), y),
+                (486, _) => report("fast drag, come to rest", 0.80),
+                (487, _) => release(&ui, x(0.80), y),
+                (505, _) => {
+                    report("let go", 0.80);
+                    eprintln!("dbm: --- slow scrub test done ---");
+                }
+                _ => {}
+            }
+        },
+    );
+    timer
+}
+
 /// Watch the bar fade out, in the value the pipeline is actually given.
 ///
 /// Every surface publishes how far it has faded in, so a fade is readable

@@ -134,10 +134,21 @@ fn wire_timeline(ui: &MainWindow, app: &App) {
         ui.on_seek_scrub(move |f| {
             app.activity.bump();
             // The mirrored state is the cheapest source of the current
-            // playback state, and it only matters on the first update of a
-            // drag.
-            let paused = weak.upgrade().is_some_and(|ui| ui.get_paused());
-            app.scrubber.drag_to(&app.mpv, f, paused);
+            // playback state, which only matters on the first update of a
+            // drag, and of the film's length, which is what makes a
+            // distance along the track a speed through the film.
+            let (paused, duration) = weak
+                .upgrade()
+                .map_or((false, 0.0), |ui| (ui.get_paused(), ui.get_duration()));
+            app.scrubber
+                .drag_to(&app.mpv, f, paused, f64::from(duration));
+        });
+    }
+    {
+        let app = app.clone();
+        ui.on_seek_held(move |f| {
+            app.activity.bump();
+            app.scrubber.held_at(&app.mpv, f);
         });
     }
     // Answered from what is already known — the duration and the atlas —
