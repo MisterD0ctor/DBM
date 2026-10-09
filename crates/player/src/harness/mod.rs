@@ -68,6 +68,9 @@
 //! * `DBM_WHEEL_TEST=1` — turns the wheel over the picture, which should do
 //!   nothing, and then over the volume track, which should move the level and
 //!   say it in the hover label without the wait a name gets.
+//! * `DBM_TIMING_TEST=1` — sets a subtitle delay and speed on the file that
+//!   opened, steps to the next and back, and reports both at each: the next
+//!   should start with neither and the first should get its own back.
 //! * `DBM_KEY_TEST=1` — dispatches real key events into the window, for
 //!   shortcuts whose effect is otherwise off-screen.
 //! * `DBM_READ_TEST=1` — opens the shortcuts page and presses the keys that
@@ -96,7 +99,7 @@
 //!   subtitle file, walks the keyboard to the sync row and presses it, waits
 //!   out the listening, and reports the delay and speed it settled on with
 //!   the line mpv shows at `DBM_SYNC_AT` seconds (19 if unset). Then takes
-//!   the sync back and reports again.
+//!   the sync back and reports again, unless `DBM_SYNC_KEEP` is set.
 //! * `DBM_AUDIO_TEST=1` — stages the Bluetooth failure: drops the audio track
 //!   the way mpv does when a device dies, then feeds the watchdog a device
 //!   appearing, and reads `aid` back to see whether anything came of it. Then
@@ -268,6 +271,9 @@ pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
     }
     if std::env::var_os("DBM_WHEEL_TEST").is_some() {
         timers.push(playback::wheel_test(ui));
+    }
+    if std::env::var_os("DBM_TIMING_TEST").is_some() {
+        timers.push(playback::timing_test(ui, mpv.clone()));
     }
     if std::env::var_os("DBM_KEY_TEST").is_some() {
         timers.push(keys::key_test(ui));

@@ -45,6 +45,13 @@ pub fn configure(mpv: &Mpv) {
             "watch-later-options",
             "start,vid,aid,sid,volume,sub-delay,sub-speed",
         ),
+        // The other half of "per file". mpv keeps a setting changed during
+        // one file for every file after it, so a delay that fixed one
+        // episode's subtitles was put on the next episode's as well — and a
+        // speed with it, which no row shows. With this each file starts
+        // untimed and leaves as it started; its own timing comes back from
+        // the entry above when it is opened again.
+        ("reset-on-next-file", "sub-delay,sub-speed"),
     ] {
         if let Err(e) = mpv.set_option(key, value) {
             eprintln!("dbm: {key}: {e}");
@@ -57,11 +64,21 @@ pub fn configure(mpv: &Mpv) {
 pub fn checkpoint_periodically(mpv: Arc<Mpv>) -> slint::Timer {
     let timer = slint::Timer::default();
     timer.start(slint::TimerMode::Repeated, CHECKPOINT, move || {
-        // Async, so this costs the UI thread a queue push. mpv skips the
-        // write when there is nothing loaded.
-        if let Err(e) = mpv.command_async(0, &["write-watch-later-config"]) {
-            eprintln!("dbm: watch-later checkpoint: {e}");
-        }
+        checkpoint(&mpv)
     });
     timer
+}
+
+/// Write the playing file's entry now, rather than at the next tick.
+///
+/// For a change that should not be lost to leaving the file in the next ten
+/// seconds: a subtitle sync, which is made once and on purpose, and which
+/// the file no longer takes with it to the next — see `configure`.
+///
+/// Async, so this costs the UI thread a queue push. mpv skips the write when
+/// there is nothing loaded.
+pub fn checkpoint(mpv: &Mpv) {
+    if let Err(e) = mpv.command_async(0, &["write-watch-later-config"]) {
+        eprintln!("dbm: watch-later checkpoint: {e}");
+    }
 }

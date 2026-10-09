@@ -220,6 +220,59 @@ pub(super) fn preview_test(ui: &MainWindow) -> slint::Timer {
     timer
 }
 
+/// Set the subtitles' timing on one file, go to the next, and come back.
+///
+/// Timing belongs to the file it was set on: the next one should start
+/// untimed, and the first should have its own back when it is returned to.
+/// Both halves, because either can fail alone — a timing that follows the
+/// playlist is the first failing, and one that is simply dropped at the end
+/// of the file would pass the first check and fail the second.
+///
+/// The watch-later file is written by hand before leaving. The player does
+/// that every ten seconds while something plays, and waiting it out would
+/// only be testing the clock.
+pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
+    let report = |ui: &MainWindow, mpv: &Mpv, label: &str| {
+        eprintln!(
+            "dbm: timing {label:<20} {:?} delay={:+.2} speed={:.4}",
+            short(&mpv.get_property("filename").unwrap_or_default().into()),
+            ui.get_sub_delay(),
+            ui.get_sub_speed(),
+        );
+    };
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut step = 0usize;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(700),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            match step {
+                // Let the film open and its playlist arrive first.
+                0..=3 => {}
+                4 => report(&ui, &mpv, "as it opened"),
+                5 => {
+                    ui.invoke_nudge_sub_delay(-5.0);
+                    let _ = mpv.set_property("sub-speed", "1.04");
+                }
+                6 => {
+                    report(&ui, &mpv, "set on the first");
+                    let _ = mpv.command_async(0, &["write-watch-later-config"]);
+                }
+                7 => ui.invoke_playlist_step(1),
+                10 => report(&ui, &mpv, "on the next file"),
+                11 => ui.invoke_playlist_step(-1),
+                14 => report(&ui, &mpv, "back on the first"),
+                15 => eprintln!("dbm: --- timing test done ---"),
+                _ => {}
+            }
+            step += 1;
+        },
+    );
+    timer
+}
+
 /// Turn the wheel over the picture, then over the volume track.
 ///
 /// The wheel was the volume from anywhere in the window once, and is now the

@@ -202,8 +202,12 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                 // A beat for mpv to redraw the line at its new timing.
                 18 => report(&ui, &mpv, "after the sync"),
                 // Only where there is a sync to take back: with none, Enter
-                // on this row would start another.
-                19 if ui.get_sync_state() == 2 => chord(&ui, &[], enter.as_str()),
+                // on this row would start another. `DBM_SYNC_KEEP` leaves
+                // it standing, for a run that goes on to look at what was
+                // saved.
+                19 if ui.get_sync_state() == 2 && std::env::var_os("DBM_SYNC_KEEP").is_none() => {
+                    chord(&ui, &[], enter.as_str())
+                }
                 21 => report(&ui, &mpv, "after taking it back"),
                 22 => eprintln!("dbm: --- sync test done ---"),
                 _ => {}

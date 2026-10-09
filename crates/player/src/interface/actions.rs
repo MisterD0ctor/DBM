@@ -340,6 +340,8 @@ fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
             app.activity.bump();
             commands::set_sub_delay(&app.mpv, delay as f64);
             commands::set_sub_speed(&app.mpv, speed as f64);
+            // Saved at once, as the sync it takes back was.
+            crate::playback::session::checkpoint(&app.mpv);
         });
     }
 }

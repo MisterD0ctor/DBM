@@ -50,7 +50,7 @@ truthfully claim any of this.
   scans it recursively.
 - Position, track selection and subtitle timing — the delay, and the speed a
   sync may have set — are remembered per file through mpv's own watch-later
-  mechanism.
+  mechanism. Timing is the file's alone: the next file starts without it.
 - Interface settings persist to `%APPDATA%/Death by MPV/settings.conf` as plain
   text, editable by hand while tuning.
 - Seek-preview thumbnails are cached per file under `previews/`, keyed on path

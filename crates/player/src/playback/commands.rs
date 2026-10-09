@@ -339,7 +339,8 @@ pub fn set_sub_pos(mpv: &Mpv, value: f64) -> f64 {
 
 /// Timing is per file rather than a preference — a delay that fixes one set
 /// of subtitles is wrong for the next — so mpv's own watch-later file keeps
-/// it, and there is nothing here to remember.
+/// it, the next file starts without it, and there is nothing here to
+/// remember. See `session::configure` for both halves.
 pub fn set_sub_delay(mpv: &Mpv, seconds: f64) {
     set_prop(mpv, "sub-delay", &fmt(seconds));
 }

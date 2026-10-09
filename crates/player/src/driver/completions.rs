@@ -150,6 +150,10 @@ impl Driver {
         }
         commands::set_sub_delay(&self.app.mpv, fit.delay);
         commands::set_sub_speed(&self.app.mpv, fit.speed);
+        // Kept now: the timing is this file's alone, and the next file
+        // along would otherwise take it away within the ten seconds before
+        // the position is next saved.
+        crate::playback::session::checkpoint(&self.app.mpv);
         // What stood before, for the row to offer back.
         ui.set_sync_was_delay(was.0 as f32);
         ui.set_sync_was_speed(was.1 as f32);
