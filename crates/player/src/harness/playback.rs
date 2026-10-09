@@ -209,8 +209,28 @@ pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
                 (441..=450, _) => hover(&ui, x(0.60 + 0.02 * (tick - 440) as f32), y),
                 (486, _) => report("fast drag, come to rest", 0.80),
                 (487, _) => release(&ui, x(0.80), y),
-                (505, _) => {
-                    report("let go", 0.80);
+                (505, _) => report("let go", 0.80),
+                // The third: a drag that wanders off the track before the
+                // button comes up, which is how most of them end.
+                (520, _) => {
+                    eprintln!("dbm: scrub before the third drag paused={}", ui.get_paused());
+                    press(&ui, x(0.30), y);
+                }
+                (521..=530, _) => hover(&ui, x(0.30 + 0.001 * (tick - 520) as f32), y),
+                (531, _) => hover(&ui, x(0.31), y - 80.0),
+                (532, _) => release(&ui, x(0.31), y - 80.0),
+                (560, _) => {
+                    report("let go off the track", 0.31);
+                    eprintln!("dbm: scrub after it paused={}", ui.get_paused());
+                }
+                // And no drag at all: a click still has to seek, now that
+                // it is the button coming up that does it.
+                (570, _) => {
+                    press(&ui, x(0.70), y);
+                    release(&ui, x(0.70), y);
+                }
+                (585, _) => {
+                    report("a click", 0.70);
                     eprintln!("dbm: --- slow scrub test done ---");
                 }
                 _ => {}

@@ -763,6 +763,9 @@ the axes, which is exactly the part the eye catches.
   a pixel of this row is a third of a second of a music video and seven of a
   feature, and a keyframe is up to ten seconds from where it was asked for
   either way.
+- **Letting go** ends a drag wherever the pointer has got to, on the row or
+  off it. A drag wanders off a 28px row more often than it stays on one, and
+  one that only ended on the row left the film paused when it did not.
 - **Chapters:** a dot at each chapter start, the unity dot's shape and its
   rule — Knob where the played length covers it, Quiet ahead of it. None at
   the very start, which is the start rather than a boundary, and none at all

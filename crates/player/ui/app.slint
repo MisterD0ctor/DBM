@@ -3793,6 +3793,19 @@ export component MainWindow inherits Window {
                 // Also on enter and exit, not only on movement: a pointer
                 // that arrives and stops still wants a preview.
                 root.preview-at(self.mouse-x / self.width);
+                // The button coming up is the end of a click or of a drag,
+                // wherever the pointer has got to by then. This was
+                // `clicked` once, which a release off the track never
+                // fires — and a drag wanders off a 28px row more often than
+                // it stays on it. That drag never ended: the film stayed
+                // paused, on the last keyframe the drag had passed. A drag
+                // taken away, by the window losing the pointer, ends the
+                // same way for the same reason.
+                if (event.button == PointerEventButton.left
+                    && (event.kind == PointerEventKind.up
+                        || event.kind == PointerEventKind.cancel)) {
+                    root.seek-fraction(self.mouse-x / self.width);
+                }
             }
             moved => {
                 root.preview-at(self.mouse-x / self.width);
@@ -3801,9 +3814,6 @@ export component MainWindow inherits Window {
                 if (self.pressed) {
                     root.seek-scrub(self.mouse-x / self.width);
                 }
-            }
-            clicked => {
-                root.seek-fraction(self.mouse-x / self.width);
             }
             scroll-event(event) => {
                 root.seek-relative(event.delta-y > 0
@@ -3821,7 +3831,7 @@ export component MainWindow inherits Window {
         //
         // Running off `pressed` rather than started by a move and stopped
         // by a release: `restart()` does nothing to a timer that has never
-        // run, and a release off the track fires no `clicked` to stop one.
+        // run, and this way there is no stopping it to forget.
         Timer {
             interval: 60ms;
             running: scrub.pressed;
