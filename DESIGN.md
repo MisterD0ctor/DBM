@@ -1191,6 +1191,29 @@ end pill it is not tied to the idle clock. It stands aside for an open panel
 and for the seek preview when the preview reaches its column; a hover label
 that would land on it goes up a row instead. Glass never lies on glass.
 
+**Skipping the titles.** The same pill at the other end of an episode: while
+its title sequence plays the capsule says *Skip intro*, with the Skip glyph —
+two arrowheads and no bar, further into this file rather than on to the next —
+in the same corner, on the same lines, and for the same reason — a sequence is
+something people watch, so the offer keeps out of its way and doing nothing is
+watching it. It arrives as the credits pill does: one wake of the bar, the
+ring, Enter. It lands on the first frame after the sequence, exactly, and goes
+three seconds before that — an offer that is over before it is read is noise.
+It needs nowhere to go, so the last episode of a season has it too; a film
+never does, for the reason it has no credits pill.
+
+The sequence is a chapter named for it — *Opening*, *Intro*, *OP*, *Main
+Titles*, *Theme Song* — in the file's first half, to the next mark, and no
+longer than five minutes. A *Recap*, *Previously On* or *Cold Open* is the
+episode and is never skipped. Most files name nothing, and then the sequence
+is heard: the first twenty minutes of this episode and of the one beside it
+in the playlist — same show, same season — are compared, and the longest
+stretch of the same sound in both, fifteen seconds or more, is the titles in
+each. That takes a few seconds the first time and is kept for both; an
+episode that shares nothing with two neighbours has no sequence and is not
+asked again. The player says nothing either way: a sequence that was not
+found is a pill that does not appear.
+
 ### The way in
 With no film loaded, a panel of glass centred in the window, over the backdrop.
 With nothing to continue, it is headed with the player's own name — *Death by

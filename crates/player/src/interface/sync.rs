@@ -74,6 +74,8 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_duration(player.duration as f32);
     ui.set_chapter_label(player.chapter_label().into());
     ui.set_credits_rolling(player.credits_rolling());
+    ui.set_intro_rolling(player.intro_rolling());
+    ui.set_intro_end(player.intro().map_or(0.0, |(_, end)| end as f32));
     // Where the dialogs open: beside this file, or on the shelf above its
     // folder.
     ui.set_current_path(player.path.clone().unwrap_or_default().into());
@@ -122,6 +124,13 @@ impl ListSync {
         self.forced = true;
     }
 
+    /// Whether what the player holds was read since the lists last moved:
+    /// nothing asked for and not yet answered, nothing waiting to be asked.
+    /// Until then the chapters may still be the last file's.
+    pub fn settled(&self, player: &PlayerState) -> bool {
+        !self.in_flight && self.requested == player.tracks_generation
+    }
+
     /// Kick off a read if the lists moved since the last one.
     pub fn poll(&mut self, worker: &Worker, player: &PlayerState) {
         let generation = player.tracks_generation;
@@ -168,6 +177,8 @@ fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_chapter_label(player.chapter_label().into());
     // The chapter's name arrives with the list, a moment after its number.
     ui.set_credits_rolling(player.credits_rolling());
+    ui.set_intro_rolling(player.intro_rolling());
+    ui.set_intro_end(player.intro().map_or(0.0, |(_, end)| end as f32));
     playlist_panel::push(ui, player);
 }
 

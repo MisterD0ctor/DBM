@@ -25,7 +25,7 @@ mod language;
 mod media;
 mod tracks;
 
-pub use chapters::{is_credits, is_unnamed_chapter};
+pub use chapters::{is_credits, is_intro, is_unnamed_chapter};
 pub use clean::strip_path;
 pub use media::{described, listing, parse, titled, without_season, Media};
 pub use tracks::{track_labels, TrackInfo};

@@ -406,8 +406,6 @@ pub fn playlist_step(mpv: &Mpv, delta: i32) {
 
 /// Seek to a point, counted in seconds from the start. Exact, like every
 /// seek that is not a drag in progress.
-// Only MPRIS asks for this; SMTC has no rate or position to set.
-#[cfg_attr(windows, allow(dead_code))]
 pub fn seek_to(mpv: &Mpv, seconds: f64) {
     run(mpv, &["seek", &fmt(seconds), "absolute+exact"]);
 }

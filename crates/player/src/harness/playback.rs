@@ -605,6 +605,88 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
     timer
 }
 
+/// Play into an episode's title sequence and skip it.
+///
+/// Waits for the sequence to be known first, however that comes about —
+/// named by a chapter, remembered, or heard — because the listening is the
+/// part with a real file and a real ffmpeg in it. Ten seconds short of the
+/// end is inside any sequence there is: none is shorter than fifteen.
+pub(super) fn intro_test(ui: &MainWindow) -> slint::Timer {
+    let hold = std::env::var("DBM_INTRO_TEST").is_ok_and(|v| v == "hold");
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut step = 0usize;
+    let mut waited = 0usize;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(700),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let end = ui.get_intro_end();
+            match step {
+                // Let the film open first.
+                0..=2 => {}
+                3 if end <= 0.0 => {
+                    waited += 1;
+                    if waited == 40 {
+                        eprintln!("dbm: intro: no title sequence found in 28 s");
+                        step = 100;
+                    }
+                    return;
+                }
+                3 => {
+                    eprintln!(
+                        "dbm: intro ends at {end:.1}s, known after {:.1}s of waiting",
+                        waited as f32 * 0.7
+                    );
+                    report_intro(&ui, "before");
+                    let duration = ui.get_duration().max(1.0);
+                    ui.invoke_seek_fraction((end - 10.0) / duration);
+                    if hold && !ui.get_paused() {
+                        ui.invoke_toggle_pause();
+                    }
+                }
+                5 => report_intro(&ui, "arrived"),
+                6 if hold => {
+                    eprintln!("dbm: --- intro test: holding ---");
+                    step = 100;
+                }
+                // Past `HIDE_AFTER`, with nothing touched since.
+                10 => report_intro(&ui, "left alone"),
+                // The ring came to the pill on its own, so Enter alone skips.
+                11 => {
+                    let enter = slint::SharedString::from(slint::platform::Key::Return);
+                    chord(&ui, &[], &enter);
+                }
+                13 => report_intro(&ui, "after enter"),
+                14 => eprintln!("dbm: --- intro test done ---"),
+                _ => {}
+            }
+            step += 1;
+        },
+    );
+    timer
+}
+
+fn report_intro(ui: &MainWindow, label: &str) {
+    let rects: Vec<String> = ui
+        .get_glass_rects()
+        .iter()
+        .filter(|r| r.width > 0.0 && r.height > 0.0)
+        .map(|r| format!("{}x{}@{},{}", r.width, r.height, r.x, r.y))
+        .collect();
+    eprintln!(
+        "dbm: intro {label:<11} rolling={} idle={} ring={}@{} t={} | {} rect(s) {}",
+        ui.get_intro_rolling(),
+        ui.global::<crate::Chrome>().get_idle(),
+        ui.global::<crate::Chrome>().get_focus_visible(),
+        ui.get_bar_focus(),
+        ui.get_elapsed(),
+        rects.len(),
+        rects.join(" "),
+    );
+}
+
 fn report_credits(ui: &MainWindow, label: &str) {
     let rects: Vec<String> = ui
         .get_glass_rects()

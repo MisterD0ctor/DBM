@@ -51,6 +51,10 @@ truthfully claim any of this.
 - Position, track selection and subtitle timing — the delay, and the speed a
   sync may have set — are remembered per file through mpv's own watch-later
   mechanism. Timing is the file's alone: the next file starts without it.
+- An episode's title sequence is found once — from a chapter named for it,
+  or by listening for the stretch it shares with the episode beside it — and
+  where it was heard is kept in `intros.json`, for that episode and the one
+  it was compared with.
 - Interface settings persist to `%APPDATA%/Death by MPV/settings.conf` as plain
   text, editable by hand while tuning.
 - Seek-preview thumbnails are cached per file under `previews/`, keyed on path
@@ -79,9 +83,10 @@ certificate is bought.
 prerequisites — nothing is asked of the user's machine. They live in
 `crates/player/vendor/`, tracked in Git LFS, and are looked for beside the
 executable first and in that directory second, so a checkout and a packaged
-build both find them. ffmpeg exists for three things the player does beside
-playing: seek-preview thumbnails, reading a playlist's lengths and titles, and
-listening to a film to sync its subtitles.
+build both find them. ffmpeg exists for four things the player does beside
+playing: seek-preview thumbnails, reading a playlist's lengths and titles,
+listening to a film to sync its subtitles, and listening to two episodes to
+find the title sequence they share.
 
 **Platforms.** Windows ships now. Linux is planned and the code is kept honest
 for it — Windows-only work such as the modal resize-loop hook stays isolated
@@ -109,7 +114,7 @@ is told rides a drawn frame and a player with no film draws none.
 
 - Name: **Death by MPV** (DBM). Bundle identifier `com.kaspe.deathbympv`.
 - Logo: `public/death-by-mpv.svg`. Application icons: `crates/player/icons/`.
-- An icon set of 60 SVGs in `public/icons/`, drawn by the author at 24×24 and
+- An icon set of 62 SVGs in `public/icons/`, drawn by the author at 24×24 and
   wholly the project's own. Future work extends this set rather than
   substituting a library — the look depends on them being one family.
 

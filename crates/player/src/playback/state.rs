@@ -96,6 +96,10 @@ pub struct PlayerState {
     pub chapter_count: i64,
     /// Read on the worker with the tracks — see `worker`.
     pub chapters: Vec<crate::playback::tracks::Chapter>,
+    /// Where an episode's title sequence was heard to be, in seconds, and
+    /// the file that is true of — see `intro`. Kept with its path so a new
+    /// file needs nothing cleared: the answer is simply not about it.
+    pub intro_heard: Option<(String, (f64, f64))>,
     /// Files that would not play this run, by path, so their playlist rows
     /// can say so after the notice has gone.
     pub failed: std::collections::HashSet<String>,
@@ -319,6 +323,56 @@ impl PlayerState {
         (unnamed && last > 0 && tail > 0.0 && tail <= CREDITS_TAIL).then_some(last)
     }
 
+    /// Where the playing episode's title sequence starts and ends, in
+    /// seconds: as its chapters name it, and otherwise as it was heard.
+    ///
+    /// An episode's only. A film's opening titles are the film, as its
+    /// credits are — see [`credits_rolling`](Self::credits_rolling).
+    pub fn intro(&self) -> Option<(f64, f64)> {
+        let path = self.path.as_deref()?;
+        let span = self.intro_named().or_else(|| {
+            self.intro_heard
+                .as_ref()
+                .filter(|(of, _)| of == path)
+                .map(|(_, span)| *span)
+        })?;
+        // Last, being the one that parses a name.
+        matches!(
+            crate::library::naming::parse(path),
+            crate::library::naming::Media::Episode { .. }
+        )
+        .then_some(span)
+    }
+
+    /// The title sequence where a chapter is named for it: from that
+    /// chapter's mark to the next one.
+    ///
+    /// In the file's first half, which keeps an `Ending Theme` nobody
+    /// thought to call an ending out of it, and no longer than
+    /// `INTRO_LONGEST`: a chapter called `Intro` that runs ten minutes is
+    /// an introduction, not a title sequence. The last chapter has no next
+    /// mark to end at and is not one either.
+    pub fn intro_named(&self) -> Option<(f64, f64)> {
+        if self.duration <= 0.0 {
+            return None;
+        }
+        let at = self.chapters.iter().position(|c| {
+            c.time < self.duration / 2.0
+                && c.title
+                    .as_deref()
+                    .is_some_and(crate::library::naming::is_intro)
+        })?;
+        let (start, end) = (self.chapters[at].time, self.chapters.get(at + 1)?.time);
+        (end > start && end - start <= INTRO_LONGEST).then_some((start, end))
+    }
+
+    /// Whether the title sequence is playing, with enough of it left to be
+    /// worth skipping.
+    pub fn intro_rolling(&self) -> bool {
+        self.intro()
+            .is_some_and(|(start, end)| self.time_pos >= start && self.time_pos < end - INTRO_TAIL)
+    }
+
     /// Where the video sits inside a window of this size, normalised
     /// (x0, y0, x1, y1).
     ///
@@ -473,6 +527,13 @@ impl PlayerState {
 /// named, in seconds.
 const CREDITS_TAIL: f64 = 180.0;
 
+/// The longest chapter named for a title sequence that is taken for one,
+/// in seconds.
+const INTRO_LONGEST: f64 = 300.0;
+/// How much of a title sequence has to be left for skipping it to be
+/// offered, in seconds. Less, and it is over before the offer is read.
+const INTRO_TAIL: f64 = 3.0;
+
 /// Assign and report whether the value actually moved.
 fn set<T: PartialEq>(slot: &mut T, value: T) -> bool {
     if *slot == value {
@@ -563,6 +624,62 @@ mod tests {
         // Short, last, and called something else: not a guess worth making.
         let marks = &[(0.0, "Episode"), (3500.0, "Preview")];
         assert!(!playing(EPISODE, 1, marks).credits_rolling());
+    }
+
+    const OPENED: &[(f64, &str)] = &[
+        (0.0, "Cold Open"),
+        (95.0, "Opening"),
+        (185.0, "Part A"),
+        (3400.0, "Ending"),
+    ];
+
+    fn at(mut state: PlayerState, seconds: f64) -> PlayerState {
+        state.time_pos = seconds;
+        state
+    }
+
+    #[test]
+    fn a_chapter_named_for_the_titles_is_the_title_sequence() {
+        let state = playing(EPISODE, 1, OPENED);
+        assert_eq!(state.intro(), Some((95.0, 185.0)));
+        assert!(!at(playing(EPISODE, 0, OPENED), 94.0).intro_rolling());
+        assert!(at(playing(EPISODE, 1, OPENED), 95.0).intro_rolling());
+        assert!(at(playing(EPISODE, 1, OPENED), 181.0).intro_rolling());
+        // Three seconds from its end there is nothing left to skip.
+        assert!(!at(playing(EPISODE, 1, OPENED), 183.0).intro_rolling());
+        assert!(!at(playing(EPISODE, 2, OPENED), 185.0).intro_rolling());
+    }
+
+    #[test]
+    fn a_film_keeps_its_opening_titles() {
+        assert_eq!(playing("Some Film (2019).mkv", 1, OPENED).intro(), None);
+    }
+
+    #[test]
+    fn an_introduction_is_not_a_title_sequence() {
+        let marks = &[(0.0, "Intro"), (600.0, "Act One")];
+        assert_eq!(playing(EPISODE, 0, marks).intro(), None);
+        // Nor is the last chapter, which has nowhere to end.
+        let marks = &[(0.0, "Episode"), (60.0, "Opening")];
+        assert_eq!(playing(EPISODE, 1, marks).intro(), None);
+    }
+
+    #[test]
+    fn a_sequence_that_was_heard_stands_in_where_no_chapter_names_one() {
+        let mut state = at(playing(EPISODE, 1, ACTS), 280.0);
+        assert!(!state.intro_rolling());
+        state.intro_heard = Some((EPISODE.into(), (274.1, 308.9)));
+        assert!(state.intro_rolling());
+        // Heard in another file, it says nothing about this one.
+        state.intro_heard = Some(("Show.Name.S01E03.1080p.mkv".into(), (274.1, 308.9)));
+        assert!(!state.intro_rolling());
+    }
+
+    #[test]
+    fn chapters_are_believed_over_what_was_heard() {
+        let mut state = playing(EPISODE, 1, OPENED);
+        state.intro_heard = Some((EPISODE.into(), (10.0, 40.0)));
+        assert_eq!(state.intro(), Some((95.0, 185.0)));
     }
 
     #[test]

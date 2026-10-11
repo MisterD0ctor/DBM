@@ -125,6 +125,12 @@ export component MainWindow inherits Window {
     /// in the file's second half, or one after it. Decided on the Rust side,
     /// where the names are parsed.
     in property <bool> credits-rolling;
+    /// An episode's title sequence is playing, with enough of it left to be
+    /// worth skipping, and where it ends in seconds. From a chapter named
+    /// for it or, where there is none, from listening for the stretch this
+    /// episode shares with the ones beside it — see `intro`.
+    in property <bool> intro-rolling;
+    in property <float> intro-end;
     /// Whether subtitles are actually on screen — mpv's `sub-visibility`
     /// *and* a track selected to be visible. Either half alone is a state
     /// the interface would report wrongly: visibility on with no track
@@ -362,6 +368,8 @@ export component MainWindow inherits Window {
     callback replay();
     /// The next file, playing.
     callback play-next();
+    /// Past the title sequence: seconds from the start, landing exactly.
+    callback skip-intro(float);
     /// Seconds, signed.
     callback seek-relative(float);
     /// Absolute position as 0..1 of the file, landing exactly.
@@ -586,7 +594,7 @@ export component MainWindow inherits Window {
                 root.bar-focus = 13;
                 Chrome.focus-visible = true;
             }
-        } else if (root.bar-focus >= 13 && !root.credits-offered) {
+        } else if (root.bar-focus >= 13 && !root.corner-offered) {
             Chrome.focus-visible = false;
             root.bar-focus = 0;
         }
@@ -600,8 +608,12 @@ export component MainWindow inherits Window {
     // the next is Enter. It stays while the pill does, bar or no bar, and
     // goes with it: a ring left on a stop that has gone would have Enter
     // skip the episode that just started.
-    changed credits-offered => {
-        if (root.credits-offered) {
+    //
+    // The title sequence starting is the same event at the other end of an
+    // episode, and gets the same: one wake, the ring, and Enter to be past
+    // it.
+    changed corner-offered => {
+        if (root.corner-offered) {
             Chrome.bump();
             root.bar-focus = 13;
             Chrome.focus-visible = true;
@@ -641,7 +653,7 @@ export component MainWindow inherits Window {
     property <float> end-shown: root.at-end && root.has-file ? 1.0 : 0.0;
     /// Stands aside for an open panel, and for the seek preview when the two
     /// would meet: glass is never laid on glass.
-    property <float> credits-shown: root.credits-offered && !root.panel-open
+    property <float> credits-shown: root.corner-offered && !root.panel-open
         && !root.credits-crowded ? 1.0 : 0.0;
     /// The way in. Not gated on the idle clock: there is no film to keep
     /// clean, and an empty window that hides its only control after three
@@ -915,11 +927,23 @@ export component MainWindow inherits Window {
     property <bool> credits-onward: !root.at-last || root.onward-season;
     property <bool> credits-offered: root.credits-rolling && root.has-file
         && !root.at-end && root.credits-onward && root.fatal == "";
+    /// The same pill at the other end of an episode: while its title
+    /// sequence plays, the offer is to be past it. Same corner, same
+    /// capsule, for the same reason — a sequence is something people watch,
+    /// and the offer keeps out of its way. It needs nowhere to go but
+    /// further into the file it is in.
+    property <bool> intro-offered: root.intro-rolling && root.has-file
+        && !root.at-end && root.fatal == "";
+    /// Either. A title sequence is in an episode's first half and its
+    /// credits in the second, so they are never both; were a file to say
+    /// otherwise, the credits are the later word.
+    property <bool> corner-offered: root.credits-offered || root.intro-offered;
+    property <bool> corner-intro: root.intro-offered && !root.credits-offered;
     /// Named like the end pill's way on: the next file as its row says it,
     /// or at the end of a season the season after it. *Next episode* is what
     /// is left when neither can be said.
-    property <string> credits-label: !root.at-last && root.next-label != ""
-        ? root.next-label
+    property <string> credits-label: root.corner-intro ? "Skip intro"
+        : !root.at-last && root.next-label != "" ? root.next-label
         : root.at-last && root.onward-path != "" ? root.onward-label
         : "Next episode";
     /// No wider than the bar's right pill, which is the corner it keeps to:
@@ -1085,7 +1109,7 @@ export component MainWindow inherits Window {
         - (root.tip-over-credits ? root.pill-h + Rows.offset : 0px);
     /// A tip that would land on the credits pill goes up a row instead, over
     /// it. The pill is on that line first, and a tip is the one that moves.
-    property <bool> tip-over-credits: root.credits-offered && !root.panel-open
+    property <bool> tip-over-credits: root.corner-offered && !root.panel-open
         && root.tip-x + root.tip-w + Rows.offset > root.credits-x;
     property <float> tip-shown: 0.0;
     /// What is actually drawn, and the only thing that decides it.
@@ -2504,9 +2528,11 @@ export component MainWindow inherits Window {
     }
 
     /// On to the next episode: the next file, or the next season when this
-    /// was the last of one.
+    /// was the last of one. Or, from the title sequence, on to the episode.
     function credits-activate() {
-        if (!root.at-last) {
+        if (root.corner-intro) {
+            root.skip-intro(root.intro-end);
+        } else if (!root.at-last) {
             root.play-next();
         } else {
             root.end-onward();
@@ -2543,7 +2569,7 @@ export component MainWindow inherits Window {
     /// up, or the credits pill's one. The two are never up together.
     property <int> bar-count: 13
         + (root.at-end && root.has-file ? (root.end-two ? 2 : 1)
-            : root.credits-offered ? 1 : 0);
+            : root.corner-offered ? 1 : 0);
     property <bool> bar-reach: root.has-file && !root.panel-open && root.fatal == "";
 
     function on-bar(text: string, shift: bool) -> bool {
@@ -4322,7 +4348,12 @@ export component MainWindow inherits Window {
             pad: root.pill-text-pad;
             gap: root.end-gap;
             focused: root.bar-reach && root.bar-focus == 13 && !root.at-end;
-            icon: @image-url("../../../public/icons/step-forward.svg");
+            // Next's glyph for the next file, and Skip's for further into
+            // this one. Not Forward's: that has its ten seconds drawn into
+            // it, and this goes as far as the sequence runs.
+            icon: root.corner-intro
+                ? @image-url("../../../public/icons/skip.svg")
+                : @image-url("../../../public/icons/step-forward.svg");
             label: root.credits-label;
             picked => {
                 root.credits-activate();

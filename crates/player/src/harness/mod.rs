@@ -134,6 +134,13 @@
 //!   reports the file that follows. Needs an episode, and a later file beside
 //!   it. `DBM_CREDITS_TEST=own` keeps the file's own chapters and plays into
 //!   the last of them.
+//! * `DBM_INTRO_TEST=1` — waits for the episode's title sequence to be found,
+//!   by its chapters or by listening, and seeks into it so the pill offers to
+//!   skip it. Reports as it arrives and after the bar has gone, then presses
+//!   Enter and reports where that landed. Needs an episode with another of
+//!   its season beside it; point `APPDATA` at a scratch directory to watch
+//!   it listen, since what it hears is kept. `=hold` pauses inside the
+//!   sequence instead of pressing anything, to be photographed.
 //! * `DBM_SMTC_TEST=1` — presses the real media keys and reads the OS media
 //!   session back, so both directions of the overlay are checked against
 //!   Windows rather than against our own copy of what it was told. Windows
@@ -330,6 +337,9 @@ pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
         Ok("slow") => timers.push(playback::slow_scrub_test(ui)),
         Ok(_) => timers.push(playback::scrub_test(ui)),
         Err(_) => {}
+    }
+    if std::env::var_os("DBM_INTRO_TEST").is_some() {
+        timers.push(playback::intro_test(ui));
     }
     if std::env::var_os("DBM_CREDITS_TEST").is_some() {
         timers.push(playback::credits_test(ui, mpv.clone()));

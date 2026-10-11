@@ -94,6 +94,17 @@ impl Driver {
                 ui.set_backdrop(true);
                 false
             }
+            Completion::Intro(heard) => {
+                // Kept with its path, so an answer for a file that has since
+                // been replaced is simply about something else.
+                if let Some(span) = heard.span {
+                    self.player.intro_heard = Some((heard.path, span));
+                    // Nothing else may have moved — a paused film reports
+                    // nothing — and the pill should not wait for it to.
+                    crate::interface::sync::push_scalars(ui, &self.player);
+                }
+                false
+            }
             Completion::Synced(outcome) => {
                 self.synced(ui, outcome);
                 false
