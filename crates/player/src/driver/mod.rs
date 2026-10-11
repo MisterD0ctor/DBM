@@ -81,9 +81,9 @@ pub struct Driver {
     playlist_open: bool,
     /// The file the way on was last looked for on behalf of.
     onward_asked: Option<String>,
-    /// The file whose title sequence was last looked for, so each is looked
-    /// for once.
-    intro_asked: Option<String>,
+    /// The file whose title sequence and credits were last looked for, so
+    /// each is looked for once.
+    titles_asked: Option<String>,
     /// Reply ids seen this frame, routed below. Reused to avoid allocating
     /// on the frame path.
     replies: Vec<u64>,
@@ -126,7 +126,7 @@ impl Driver {
             neighbours: crate::library::shelf::Neighbours::default(),
             playlist_open: false,
             onward_asked: None,
-            intro_asked: None,
+            titles_asked: None,
             replies: Vec::new(),
             notices: Vec::new(),
             loading_list: false,
@@ -452,7 +452,7 @@ impl Driver {
         }
 
         self.look_onward(ui);
-        self.listen_for_the_intro();
+        self.listen_for_the_titles();
     }
 
     /// Ask for a thumbnail atlas when the playing file changes.
@@ -509,25 +509,34 @@ impl Driver {
         });
     }
 
-    /// Have an episode's title sequence listened for, once per file, where
-    /// its chapters do not already name one.
+    /// Have an episode's title sequence and closing credits listened for,
+    /// once per file, whichever of them its chapters do not already mark.
     ///
     /// Not until the lists have been read for this file and hold it: the
     /// episodes beside it are what it is compared with, and the chapters
     /// that could make the whole thing unnecessary arrive in the same read.
-    fn listen_for_the_intro(&mut self) {
+    fn listen_for_the_titles(&mut self) {
+        use crate::library::titles::{self, End};
         let Some(path) = self.player.path.as_deref() else {
             return;
         };
-        if self.intro_asked.as_deref() == Some(path)
+        if self.titles_asked.as_deref() == Some(path)
             || self.player.duration <= 0.0
             || !self.lists.settled(&self.player)
             || !self.player.playlist.iter().any(|e| e.filename == path)
         {
             return;
         }
-        self.intro_asked = Some(path.to_string());
-        if self.player.intro_named().is_some() {
+        self.titles_asked = Some(path.to_string());
+        // The opening first: it is the one that is about to play.
+        let mut ends = Vec::new();
+        if self.player.intro_named().is_none() {
+            ends.push(End::Opening);
+        }
+        if !self.player.credits_marked() {
+            ends.push(End::Closing);
+        }
+        if ends.is_empty() {
             return;
         }
         let paths: Vec<String> = self
@@ -536,12 +545,13 @@ impl Driver {
             .iter()
             .map(|e| e.filename.clone())
             .collect();
-        let beside = crate::library::intro::beside(path, &paths);
+        let beside = titles::beside(path, &paths);
         if beside.is_empty() {
             return;
         }
-        crate::library::intro::spawn(
+        titles::spawn(
             path.to_string(),
+            ends,
             beside,
             self.player.duration,
             self.app.worker.reporter(),

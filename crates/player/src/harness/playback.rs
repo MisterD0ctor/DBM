@@ -542,12 +542,24 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
     let mut step = 0usize;
     let mut credits_at = 0.0f64;
     let own = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "own");
+    let heard = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "heard");
     timer.start(
         slint::TimerMode::Repeated,
         Duration::from_millis(1000),
         move || {
             let Some(ui) = weak.upgrade() else { return };
             match step {
+                // Nothing is given to the file and nothing read off it: where
+                // its credits are is for the player to have heard by the time
+                // it is played into its last twenty seconds.
+                2 if heard => {
+                    credits_at = f64::from(ui.get_duration()) - 25.0;
+                    eprintln!(
+                        "dbm: credits: {} chapters, playing into the last 20s",
+                        ui.get_chapter_marks().row_count()
+                    );
+                }
+                5 if heard => report_credits(&ui, "before"),
                 2 if own => {
                     let marks = ui.get_chapter_marks();
                     credits_at = marks

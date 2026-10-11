@@ -51,10 +51,10 @@ truthfully claim any of this.
 - Position, track selection and subtitle timing — the delay, and the speed a
   sync may have set — are remembered per file through mpv's own watch-later
   mechanism. Timing is the file's alone: the next file starts without it.
-- An episode's title sequence is found once — from a chapter named for it,
-  or by listening for the stretch it shares with the episode beside it — and
-  where it was heard is kept in `intros.json`, for that episode and the one
-  it was compared with.
+- An episode's title sequence and its closing credits are each found once —
+  from the file's chapters, or by listening for the stretch it shares with
+  the episode beside it — and where they were heard is kept in `intros.json`
+  and `outros.json`, for that episode and the one it was compared with.
 - Interface settings persist to `%APPDATA%/Death by MPV/settings.conf` as plain
   text, editable by hand while tuning.
 - Seek-preview thumbnails are cached per file under `previews/`, keyed on path
@@ -86,7 +86,7 @@ executable first and in that directory second, so a checkout and a packaged
 build both find them. ffmpeg exists for four things the player does beside
 playing: seek-preview thumbnails, reading a playlist's lengths and titles,
 listening to a film to sync its subtitles, and listening to two episodes to
-find the title sequence they share.
+find the title sequence and the closing credits they share.
 
 **Platforms.** Windows ships now. Linux is planned and the code is kept honest
 for it — Windows-only work such as the modal resize-loop hook stays isolated

@@ -9,6 +9,7 @@ use crate::interface::format;
 use crate::library::preview::Sprite;
 use crate::library::resume::Resume;
 use crate::library::subsync::{Failure, Outcome};
+use crate::library::titles::End;
 use crate::playback::commands;
 use crate::worker::{Completion, Worker};
 use crate::MainWindow;
@@ -94,11 +95,14 @@ impl Driver {
                 ui.set_backdrop(true);
                 false
             }
-            Completion::Intro(heard) => {
+            Completion::Titles(heard) => {
                 // Kept with its path, so an answer for a file that has since
                 // been replaced is simply about something else.
                 if let Some(span) = heard.span {
-                    self.player.intro_heard = Some((heard.path, span));
+                    match heard.end {
+                        End::Opening => self.player.intro_heard = Some((heard.path, span)),
+                        End::Closing => self.player.credits_heard = Some((heard.path, span.0)),
+                    }
                     // Nothing else may have moved — a paused film reports
                     // nothing — and the pill should not wait for it to.
                     crate::interface::sync::push_scalars(ui, &self.player);

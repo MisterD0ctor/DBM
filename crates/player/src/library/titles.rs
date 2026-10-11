@@ -1,16 +1,20 @@
-//! Finding an episode's title sequence by listening for it.
+//! Finding an episode's title sequence and its closing credits by listening
+//! for them.
 //!
-//! Where a file's chapters name the sequence — `Opening`, `Intro`, `OP` —
-//! nothing here is needed; see `PlayerState::intro`. Most do not: a
-//! broadcast episode is split at its act breaks and the titles fall
-//! somewhere inside the first of them, after a cold open of any length.
+//! Where a file's chapters mark them — `Opening`, `End Credits`, a short
+//! last chapter — nothing here is needed; see `PlayerState::intro` and
+//! `PlayerState::credits_rolling`. Most do not. A broadcast episode is
+//! split at its act breaks and the titles fall somewhere inside the first
+//! of them, after a cold open of any length; a download from a streaming
+//! service has no chapters at all, and nothing says where its credits
+//! start.
 //!
-//! What every episode of a season does have is the same sequence, so this
-//! listens to the start of the episode playing and of one beside it in the
-//! playlist, and takes the stretch of sound the two share — see
-//! `fingerprint`. That answers for both of them, and both answers are kept:
-//! watching a season through, every other episode has already been heard
-//! by the time it starts.
+//! What every episode of a season does have is the same titles and the
+//! same music under its credits, so this listens to one end of the episode
+//! playing and of one beside it in the playlist, and takes the stretch of
+//! sound the two share — see `fingerprint`. That answers for both of them,
+//! and both answers are kept: watching a season through, every other
+//! episode has already been heard by the time it starts.
 //!
 //! Like the subtitle sync, a run has a thread of its own and an ffmpeg per
 //! file behind it, and the player goes on playing while it listens.
@@ -26,32 +30,67 @@ use crate::library::fingerprint::{self, Print};
 use crate::library::naming::{self, Media};
 use crate::worker::{Completion, Reporter};
 
-/// How much of an episode is listened to, in seconds, and never more than
-/// its first half. A cold open runs to a quarter of an hour at the outside;
-/// the half keeps a short episode's closing music — the same in every
-/// episode too — from being taken for its opening.
-const REACH: f64 = 1200.0;
 /// How many episodes beside this one are tried before it is taken to have
-/// no sequence. More than one because a season has its odd episode — a
-/// special, a finale that opens cold and never stops for the titles.
+/// nothing to find. More than one because a season has its odd episode — a
+/// special, a finale that opens cold and never stops for the titles, or
+/// ends on a song of its own.
 const TRIES: usize = 2;
 /// A sequence found starting this close to the start of the file starts
 /// with it, in seconds: the first look has nothing before it to compare.
 const FROM_THE_TOP: f64 = 2.0;
+/// How near the end of the file closing credits have to end, in seconds.
+/// The music under them is followed by a vanity card or two and at most a
+/// look at next week; a stretch two episodes share that stops well short of
+/// that is something else — a recurring cue, a "next time" sting — and the
+/// episode is not over when it plays.
+const NEAR_THE_END: f64 = 300.0;
 
-/// Where a title sequence starts and ends, in seconds.
+/// Which end of an episode.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum End {
+    /// The title sequence, somewhere in the first half.
+    Opening,
+    /// The closing credits, somewhere in the second.
+    Closing,
+}
+
+impl End {
+    /// How much of the episode is listened to for it, in seconds, and never
+    /// more than half. A cold open runs to a quarter of an hour at the
+    /// outside, and credits with everything after them to a few minutes.
+    /// The half keeps each end's music — both the same in every episode —
+    /// from being taken for the other's.
+    fn reach(self) -> f64 {
+        match self {
+            End::Opening => 1200.0,
+            End::Closing => 600.0,
+        }
+    }
+
+    /// What listening for it found, by file: where it is, or that there is
+    /// none.
+    ///
+    /// Both are kept. An episode with no sequence is as much work to hear
+    /// as one with, and without the entry it would be heard again every
+    /// time it was played.
+    fn heard(self) -> &'static PathMap<Option<Span>> {
+        static OPENINGS: PathMap<Option<Span>> = PathMap::new("intros.json");
+        static CLOSINGS: PathMap<Option<Span>> = PathMap::new("outros.json");
+        match self {
+            End::Opening => &OPENINGS,
+            End::Closing => &CLOSINGS,
+        }
+    }
+}
+
+/// Where a sequence starts and ends, in seconds.
 pub type Span = (f64, f64);
 
-/// What listening to a file found: its sequence, or that it has none.
-///
-/// Both are kept. An episode with no sequence is as much work to hear as
-/// one with, and without the entry it would be heard again every time it
-/// was played.
-static HEARD: PathMap<Option<Span>> = PathMap::new("intros.json");
-
-/// A run's answer: the file it listened to and what it found there.
+/// A run's answer: the file it listened to, which end of it, and what it
+/// found there.
 pub struct Outcome {
     pub path: String,
+    pub end: End,
     pub span: Option<Span>,
 }
 
@@ -64,7 +103,7 @@ fn current(generation: u64) -> bool {
 
 /// The episodes worth comparing `path` with: others of the same show and
 /// season in the playlist, nearest first, the one after before the one
-/// before. Empty for a film, which has no sequence to share with anything.
+/// before. Empty for a film, which shares neither end with anything.
 ///
 /// The same season because a show's titles change between them, and
 /// nearest because they also change within one — a cast member gone, a
@@ -96,37 +135,51 @@ pub fn beside(path: &str, playlist: &[String]) -> Vec<String> {
         .collect()
 }
 
-/// Find `path`'s title sequence, off the UI thread, and report it like any
-/// other background result. `duration` is the file's length and `beside`
-/// what [`beside`] said to compare it with.
+/// Find each of `ends` in `path`, off the UI thread, and report them like
+/// any other background result, one at a time and in the order given.
+/// `duration` is the file's length and `beside` what [`beside`] said to
+/// compare it with.
 ///
 /// Returns immediately, and supersedes any run still going: that one was
 /// for a file no longer playing. A superseded run reports nothing, and
 /// neither does one that could not listen at all — no ffmpeg, nothing
 /// beside it — because nothing is waiting on the answer.
-pub fn spawn(path: String, beside: Vec<String>, duration: f64, reporter: Reporter) {
+pub fn spawn(path: String, ends: Vec<End>, beside: Vec<String>, duration: f64, reporter: Reporter) {
     let generation = GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
     std::thread::spawn(move || {
-        let Some(span) = find(&path, &beside, duration, generation) else {
-            return;
-        };
-        if !current(generation) {
-            return;
-        }
-        match span {
-            Some((start, end)) => {
-                eprintln!("dbm: title sequence from {start:.1} s to {end:.1} s")
+        for end in ends {
+            let found = find(&path, end, &beside, duration, generation);
+            if !current(generation) {
+                return;
             }
-            None => eprintln!("dbm: no title sequence heard"),
+            let Some(span) = found else {
+                continue;
+            };
+            let what = match end {
+                End::Opening => "title sequence",
+                End::Closing => "closing credits",
+            };
+            match span {
+                Some((start, to)) => eprintln!("dbm: {what} from {start:.1} s to {to:.1} s"),
+                None => eprintln!("dbm: no {what} heard"),
+            }
+            let path = path.clone();
+            reporter.send(Completion::Titles(Outcome { path, end, span }));
         }
-        reporter.send(Completion::Intro(Outcome { path, span }));
     });
 }
 
 /// `None` when there is no answer; `Some(None)` when the answer is that
 /// there is no sequence.
-fn find(path: &str, beside: &[String], duration: f64, generation: u64) -> Option<Option<Span>> {
-    if let Some(known) = HEARD.load().remove(path) {
+fn find(
+    path: &str,
+    end: End,
+    beside: &[String],
+    duration: f64,
+    generation: u64,
+) -> Option<Option<Span>> {
+    let heard = end.heard();
+    if let Some(known) = heard.load().remove(path) {
         return Some(known);
     }
     if beside.is_empty() || duration <= 0.0 {
@@ -134,13 +187,25 @@ fn find(path: &str, beside: &[String], duration: f64, generation: u64) -> Option
     }
     let ffmpeg = ffmpeg::path()?;
     ffmpeg::announce(&ffmpeg);
-    let reach = REACH.min(duration / 2.0);
-    let ours = listen(&ffmpeg, Path::new(path), reach, generation)?;
+    let reach = end.reach().min(duration / 2.0);
+    let from = |length: f64| match end {
+        End::Opening => 0.0,
+        End::Closing => (length - reach).max(0.0),
+    };
+    let ours = listen(&ffmpeg, Path::new(path), from(duration), reach, generation)?;
 
     let mut compared = false;
     for other in beside {
+        // The other file's length is not known without asking, and its end
+        // cannot be found without it.
+        let theirs_from = match end {
+            End::Opening => Some(0.0),
+            End::Closing => length(&ffmpeg, Path::new(other)).map(from),
+        };
         // A file that will not decode is not an episode without titles.
-        let Some(theirs) = listen(&ffmpeg, Path::new(other), reach, generation) else {
+        let theirs = theirs_from
+            .and_then(|at| listen(&ffmpeg, Path::new(other), at, reach, generation).zip(Some(at)));
+        let Some((theirs, theirs_from)) = theirs else {
             if !current(generation) {
                 return None;
             }
@@ -150,24 +215,31 @@ fn find(path: &str, beside: &[String], duration: f64, generation: u64) -> Option
         let Some(shared) = fingerprint::shared(&ours, &theirs) else {
             continue;
         };
-        let (here, there) = (tidy(shared.first), tidy(shared.second));
-        HEARD.set(path, Some(here));
+        let here = tidy(shared.first, from(duration));
+        let there = tidy(shared.second, theirs_from);
+        if end == End::Closing && here.1 < duration - NEAR_THE_END {
+            continue;
+        }
+        heard.set(path, Some(here));
         // The other half of the same answer. Not written over what that
         // file was found to hold when it was the one playing.
-        if !HEARD.load().contains_key(other) {
-            HEARD.set(other, Some(there));
+        if !heard.load().contains_key(other) {
+            heard.set(other, Some(there));
         }
         return Some(Some(here));
     }
     if !compared {
         return None;
     }
-    HEARD.set(path, None);
+    heard.set(path, None);
     Some(None)
 }
 
-fn tidy((start, end): Span) -> Span {
+/// A stretch found in a recording that began `from` seconds into its file,
+/// as times in the file, to a tenth of a second.
+fn tidy((start, end): Span, from: f64) -> Span {
     let round = |seconds: f64| (seconds * 10.0).round() / 10.0;
+    let (start, end) = (start + from, end + from);
     (
         if start < FROM_THE_TOP {
             0.0
@@ -178,14 +250,22 @@ fn tidy((start, end): Span) -> Span {
     )
 }
 
-/// Decode the first `reach` seconds of a file's first audio track and take
-/// their print.
+/// How long a file is, in seconds, as its header says. **Blocking.**
+fn length(ffmpeg: &Path, file: &Path) -> Option<f64> {
+    if !file.is_file() {
+        return None;
+    }
+    ffmpeg::parse_duration(&ffmpeg::describe(ffmpeg, file)?)
+}
+
+/// Decode `reach` seconds of a file's first audio track, starting `from`
+/// seconds in, and take their print.
 ///
 /// The first track whichever is playing: the music is the same under every
 /// dub, and the neighbour's tracks are not known without asking it. `None`
 /// for a run that was superseded, an ffmpeg that would not start, or a file
 /// with nothing to hear.
-fn listen(ffmpeg: &Path, file: &Path, reach: f64, generation: u64) -> Option<Print> {
+fn listen(ffmpeg: &Path, file: &Path, from: f64, reach: f64, generation: u64) -> Option<Print> {
     // A playlist can hold addresses as well as files, and those are not
     // downloaded twice over for the sake of a pill.
     if !file.is_file() {
@@ -195,7 +275,9 @@ fn listen(ffmpeg: &Path, file: &Path, reach: f64, generation: u64) -> Option<Pri
     command
         // One thread, as the preview's are: the player is decoding the same
         // film, and this is the one of the two nobody is watching.
-        .args(["-v", "error", "-nostdin", "-threads", "1", "-t"])
+        .args(["-v", "error", "-nostdin", "-threads", "1", "-ss"])
+        .arg(format!("{from:.3}"))
+        .arg("-t")
         .arg(format!("{reach:.3}"))
         .arg("-i")
         .arg(file)
@@ -309,7 +391,13 @@ mod tests {
 
     #[test]
     fn a_sequence_at_the_very_start_starts_at_nothing() {
-        assert_eq!(tidy((0.656, 24.856)), (0.0, 24.9));
-        assert_eq!(tidy((274.106, 308.856)), (274.1, 308.9));
+        assert_eq!(tidy((0.656, 24.856), 0.0), (0.0, 24.9));
+        assert_eq!(tidy((274.106, 308.856), 0.0), (274.1, 308.9));
+    }
+
+    #[test]
+    fn credits_are_placed_in_the_file_and_not_in_what_was_listened_to() {
+        // The last ten minutes of 2584 seconds, and 34 seconds at their end.
+        assert_eq!(tidy((563.756, 598.156), 1984.145), (2547.9, 2582.3));
     }
 }

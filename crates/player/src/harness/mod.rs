@@ -133,7 +133,10 @@
 //!   must not, then presses Enter - which the pill's ring must answer - and
 //!   reports the file that follows. Needs an episode, and a later file beside
 //!   it. `DBM_CREDITS_TEST=own` keeps the file's own chapters and plays into
-//!   the last of them.
+//!   the last of them. `=heard` gives it nothing and plays into its last
+//!   twenty seconds, for a file with no chapters whose credits have to be
+//!   found by listening; point `APPDATA` at a scratch directory to watch it
+//!   listen, since what it hears is kept.
 //! * `DBM_INTRO_TEST=1` — waits for the episode's title sequence to be found,
 //!   by its chapters or by listening, and seeks into it so the pill offers to
 //!   skip it. Reports as it arrives and after the bar has gone, then presses

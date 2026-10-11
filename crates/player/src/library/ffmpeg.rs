@@ -4,12 +4,12 @@
 //! frames out of a film; the playlist scan, which asks each file how long it
 //! is and what it is called without playing it; the subtitle sync, which
 //! listens to a film's audio; and the search for an episode's title
-//! sequence, which listens to two. If it is not on the machine none of them
-//! happens — the preview falls back to the timestamp alone, the rows to what
-//! mpv itself has said, the sync says it cannot, and only a sequence its
-//! chapters name is offered to be skipped — which is a feature degrading,
-//! not a failure, and nothing reports it as one unasked after the first
-//! mention.
+//! sequence and credits, which listens to two. If it is not on the machine
+//! none of them happens — the preview falls back to the timestamp alone, the
+//! rows to what mpv itself has said, the sync says it cannot, and titles and
+//! credits are only where the chapters mark them — which is a feature
+//! degrading, not a failure, and nothing reports it as one unasked after
+//! the first mention.
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -82,7 +82,7 @@ pub fn command(ffmpeg: &Path) -> Command {
 /// same core the player gets it.
 ///
 /// For work nobody is watching: the seek preview's frames, and the audio a
-/// subtitle sync or the search for a title sequence listens to. The player draws at the display's rate and mpv
+/// subtitle sync or the search for titles and credits listens to. The player draws at the display's rate and mpv
 /// decodes against the clock, so a moment's wait for a core shows on screen;
 /// a thumbnail sheet or an answer that arrives a little later does not.
 ///

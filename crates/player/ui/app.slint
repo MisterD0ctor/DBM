@@ -122,13 +122,14 @@ export component MainWindow inherits Window {
     /// What the chapter playing is called.
     in property <string> chapter-label;
     /// An episode's closing credits are playing: a chapter named for them,
-    /// in the file's second half, or one after it. Decided on the Rust side,
-    /// where the names are parsed.
+    /// in the file's second half, or one after it — or, where no chapter
+    /// marks them, the stretch its ending shares with the next episode's.
+    /// Decided on the Rust side, where the names are parsed.
     in property <bool> credits-rolling;
     /// An episode's title sequence is playing, with enough of it left to be
     /// worth skipping, and where it ends in seconds. From a chapter named
     /// for it or, where there is none, from listening for the stretch this
-    /// episode shares with the ones beside it — see `intro`.
+    /// episode shares with the ones beside it — see `titles`.
     in property <bool> intro-rolling;
     in property <float> intro-end;
     /// Whether subtitles are actually on screen — mpv's `sub-visibility`

@@ -1175,8 +1175,12 @@ the names. The credits are a chapter named for them —
 and the pill stays from there to the end. Where no chapter has a real name —
 each titled with its own start time, *Chapter 7*, or nothing, as broadcast
 episodes split at their act breaks usually are — the last chapter is the
-credits if it runs three minutes or less. A file without chapters, or a film,
-never gets one. It needs somewhere to go: a later file, or at the
+credits if it runs three minutes or less. A file without chapters, or with
+chapters that say nothing either way, has its credits heard instead, as its
+title sequence is — see *Skipping the titles* below: the last ten minutes of
+this episode and of the one beside it are compared, and the stretch of music
+they share is the credits, provided it ends within five minutes of the end.
+A film never gets one. It needs somewhere to go: a later file, or at the
 end of a season the next season found beside it.
 
 It keeps out of the middle, where the names roll, and sits at the bottom right
@@ -1209,7 +1213,8 @@ episode and is never skipped. Most files name nothing, and then the sequence
 is heard: the first twenty minutes of this episode and of the one beside it
 in the playlist — same show, same season — are compared, and the longest
 stretch of the same sound in both, fifteen seconds or more, is the titles in
-each. That takes a few seconds the first time and is kept for both; an
+each. The closing credits are heard the same way from the other end. That
+takes a few seconds the first time and is kept for both; an
 episode that shares nothing with two neighbours has no sequence and is not
 asked again. The player says nothing either way: a sequence that was not
 found is a pill that does not appear.

@@ -56,10 +56,10 @@ pub enum Completion {
     /// or why there is none. Reported from the run's own thread — see
     /// `subsync`.
     Synced(crate::library::subsync::Outcome),
-    /// Where the playing episode's title sequence is, found by listening or
-    /// remembered from the last time. Reported from the run's own thread —
-    /// see `intro`.
-    Intro(crate::library::intro::Outcome),
+    /// Where the playing episode's title sequence is, or its closing
+    /// credits, found by listening or remembered from the last time.
+    /// Reported from the run's own thread — see `titles`.
+    Titles(crate::library::titles::Outcome),
     /// Seasons of the playing show found in folders beside its own, for the
     /// playlist panel. `paths` is the list they were looked for beside, so an
     /// answer for a list since replaced is dropped.

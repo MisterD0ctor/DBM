@@ -97,9 +97,11 @@ pub struct PlayerState {
     /// Read on the worker with the tracks — see `worker`.
     pub chapters: Vec<crate::playback::tracks::Chapter>,
     /// Where an episode's title sequence was heard to be, in seconds, and
-    /// the file that is true of — see `intro`. Kept with its path so a new
+    /// the file that is true of — see `titles`. Kept with its path so a new
     /// file needs nothing cleared: the answer is simply not about it.
     pub intro_heard: Option<(String, (f64, f64))>,
+    /// Where its closing credits were heard to start, kept the same way.
+    pub credits_heard: Option<(String, f64)>,
     /// Files that would not play this run, by path, so their playlist rows
     /// can say so after the notice has gone.
     pub failed: std::collections::HashSet<String>,
@@ -271,22 +273,42 @@ impl PlayerState {
 
     /// Whether an episode's closing credits are playing: the chapter playing
     /// is the one they start at — see [`credits_chapter`](Self::credits_chapter)
-    /// — or one after it.
+    /// — or one after it. Where the chapters do not say, the credits are
+    /// where they were heard to start, if they were.
     pub fn credits_rolling(&self) -> bool {
-        let Ok(current) = usize::try_from(self.chapter) else {
-            return false;
-        };
-        let Some(start) = self.credits_chapter() else {
-            return false;
+        let rolling = match self.credits_chapter() {
+            Some(start) => usize::try_from(self.chapter).is_ok_and(|current| current >= start),
+            None => self
+                .credits_heard_at()
+                .is_some_and(|start| self.time_pos >= start),
         };
         // Last, being the one that parses a name.
-        current >= start
+        rolling
             && self.path.as_deref().is_some_and(|path| {
                 matches!(
                     crate::library::naming::parse(path),
                     crate::library::naming::Media::Episode { .. }
                 )
             })
+    }
+
+    /// Whether the chapters say where the credits are, by either of the
+    /// ways [`credits_chapter`](Self::credits_chapter) reads them. Where
+    /// they do there is nothing to listen for.
+    pub fn credits_marked(&self) -> bool {
+        self.credits_chapter().is_some()
+    }
+
+    /// Where this file's credits were heard to start. In its second half,
+    /// like everything else that is taken for an ending.
+    fn credits_heard_at(&self) -> Option<f64> {
+        let path = self.path.as_deref()?;
+        self.credits_heard
+            .as_ref()
+            .filter(|(of, start)| {
+                of == path && self.duration > 0.0 && *start >= self.duration / 2.0
+            })
+            .map(|(_, start)| *start)
     }
 
     /// The chapter the closing credits start at, where the chapters say.
@@ -680,6 +702,29 @@ mod tests {
         let mut state = playing(EPISODE, 1, OPENED);
         state.intro_heard = Some((EPISODE.into(), (10.0, 40.0)));
         assert_eq!(state.intro(), Some((95.0, 185.0)));
+    }
+
+    #[test]
+    fn credits_that_were_heard_roll_where_no_chapter_marks_them() {
+        let mut state = at(playing(EPISODE, -1, &[]), 3500.0);
+        assert!(!state.credits_rolling());
+        state.credits_heard = Some((EPISODE.into(), 3480.0));
+        assert!(state.credits_rolling());
+        assert!(!at(state.clone(), 3470.0).credits_rolling());
+        // Heard in another file, or in a film, they say nothing here.
+        state.credits_heard = Some(("Show.Name.S01E03.1080p.mkv".into(), 3480.0));
+        assert!(!state.credits_rolling());
+        let mut film = at(playing("Some Film (2019).mkv", -1, &[]), 3500.0);
+        film.credits_heard = Some(("Some Film (2019).mkv".into(), 3480.0));
+        assert!(!film.credits_rolling());
+    }
+
+    #[test]
+    fn chapters_are_believed_over_credits_that_were_heard() {
+        let mut state = at(playing(EPISODE, 0, MARKS), 3300.0);
+        state.credits_heard = Some((EPISODE.into(), 3200.0));
+        assert!(state.credits_marked());
+        assert!(!state.credits_rolling());
     }
 
     #[test]

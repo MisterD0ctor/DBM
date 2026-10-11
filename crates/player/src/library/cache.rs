@@ -1,11 +1,11 @@
 //! Small JSON maps from a path to something known about it, kept in the
 //! app's data directory.
 //!
-//! Four of these exist — how long each file is, its title tag, where each
+//! Five of these exist — how long each file is, its title tag, where each
 //! finished file's ending began, and where each episode's title sequence
-//! was heard to be — and they share their whole life: read
-//! whole, changed one entry at a time, from more than one thread, and written
-//! whole. So that life is written once, here.
+//! and closing credits were heard to be — and they share their whole life:
+//! read whole, changed one entry at a time, from more than one thread, and
+//! written whole. So that life is written once, here.
 //!
 //! Every write re-reads the file first rather than holding the map in
 //! memory. The files are a few tens of kilobytes at worst, and reading first

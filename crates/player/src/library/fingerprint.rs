@@ -4,6 +4,8 @@
 //! season, and nothing else in two different episodes is — not for long.
 //! So the sequence can be found without knowing anything about it: listen
 //! to two episodes and look for the longest stretch they have in common.
+//! The music under the closing credits is found the same way, at the other
+//! end.
 //!
 //! The samples themselves cannot be compared. Two encodes of one recording
 //! differ in every sample, and the sequence does not start on the same

@@ -60,9 +60,9 @@ On Linux, `cargo build` also needs the development packages for fontconfig,
 freetype, Wayland, xkbcommon and OpenGL. Running the result needs a
 `libmpv.so.2` whose FFmpeg can decode HEVC — Fedora's stock FFmpeg cannot, and
 the video plays black with sound — and seek previews, the subtitle sync and
-finding an episode's title sequence want an `ffmpeg` on the `PATH`, without
-which the first are simply absent, the second says it cannot, and the third
-is left to the files whose chapters name one. The Flatpak build below takes care of all of it.
+finding an episode's title sequence and credits want an `ffmpeg` on the
+`PATH`, without which the first are simply absent, the second says it cannot,
+and the third is left to the files whose chapters mark them. The Flatpak build below takes care of all of it.
 
 ### Checking a change
 
