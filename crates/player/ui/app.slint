@@ -939,10 +939,28 @@ export component MainWindow inherits Window {
     /// otherwise, the credits are the later word.
     property <bool> corner-offered: root.credits-offered || root.intro-offered;
     property <bool> corner-intro: root.intro-offered && !root.credits-offered;
+    /// Which of the two the pill is dressed as. Not `corner-intro` alone:
+    /// the offer ends the moment the pill is pressed and the pill takes
+    /// `Motion.surface` to leave, and for that long it has to go on saying
+    /// what it said — it used to turn into the name of the next episode on
+    /// its way out. So the last offer made is remembered until another is.
+    property <bool> corner-was-intro: false;
+    property <bool> corner-says-intro: root.corner-intro
+        || (!root.corner-offered && root.corner-was-intro);
+    changed corner-intro => {
+        if (root.corner-offered) {
+            root.corner-was-intro = root.corner-intro;
+        }
+    }
+    changed credits-offered => {
+        if (root.credits-offered) {
+            root.corner-was-intro = false;
+        }
+    }
     /// Named like the end pill's way on: the next file as its row says it,
     /// or at the end of a season the season after it. *Next episode* is what
     /// is left when neither can be said.
-    property <string> credits-label: root.corner-intro ? "Skip intro"
+    out property <string> credits-label: root.corner-says-intro ? "Skip intro"
         : !root.at-last && root.next-label != "" ? root.next-label
         : root.at-last && root.onward-path != "" ? root.onward-label
         : "Next episode";
@@ -4351,7 +4369,7 @@ export component MainWindow inherits Window {
             // Next's glyph for the next file, and Skip's for further into
             // this one. Not Forward's: that has its ten seconds drawn into
             // it, and this goes as far as the sequence runs.
-            icon: root.corner-intro
+            icon: root.corner-says-intro
                 ? @image-url("../../../public/icons/skip.svg")
                 : @image-url("../../../public/icons/step-forward.svg");
             label: root.credits-label;

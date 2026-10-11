@@ -137,7 +137,9 @@
 //! * `DBM_INTRO_TEST=1` — waits for the episode's title sequence to be found,
 //!   by its chapters or by listening, and seeks into it so the pill offers to
 //!   skip it. Reports as it arrives and after the bar has gone, then presses
-//!   Enter and reports where that landed. Needs an episode with another of
+//!   Enter and reports where that landed — and what the pill says, which
+//!   has to be the same after it as before: the pill fades out for a moment
+//!   after the offer has ended. Needs an episode with another of
 //!   its season beside it; point `APPDATA` at a scratch directory to watch
 //!   it listen, since what it hears is kept. `=hold` pauses inside the
 //!   sequence instead of pressing anything, to be photographed.

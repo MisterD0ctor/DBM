@@ -676,8 +676,9 @@ fn report_intro(ui: &MainWindow, label: &str) {
         .map(|r| format!("{}x{}@{},{}", r.width, r.height, r.x, r.y))
         .collect();
     eprintln!(
-        "dbm: intro {label:<11} rolling={} idle={} ring={}@{} t={} | {} rect(s) {}",
+        "dbm: intro {label:<11} rolling={} says={:?} idle={} ring={}@{} t={} | {} rect(s) {}",
         ui.get_intro_rolling(),
+        ui.get_credits_label(),
         ui.global::<crate::Chrome>().get_idle(),
         ui.global::<crate::Chrome>().get_focus_visible(),
         ui.get_bar_focus(),
