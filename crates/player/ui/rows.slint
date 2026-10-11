@@ -72,6 +72,13 @@ export component MenuRow inherits Rectangle {
     /// ...and whether the ring is being shown at all. A row is never lit for
     /// a keyboard nobody is using.
     private property <bool> ring: root.focused && Chrome.focus-visible;
+    /// What the row does, drawn before the words. For a row that is an
+    /// action among rows that carry icons — a settings page's reset, under
+    /// its steppers and sliders — where a line of bare words would stand out
+    /// of their column of marks. A choice in a list has none: its mark is
+    /// the one that says it is chosen.
+    in property <image> icon;
+    private property <bool> iconic: root.icon.width > 0;
     callback picked();
 
     height: Rows.row;
@@ -93,9 +100,21 @@ export component MenuRow inherits Rectangle {
         on: root.active;
     }
 
-    Text {
+    // Where a stepper keeps its own, and as far from the words, so the
+    // marks and the labels down a page each stay in one column.
+    if root.iconic: Image {
+        source: root.icon;
         x: Rows.label-x;
-        width: parent.width - Rows.label-x - Rows.trail-x;
+        y: (parent.height - self.height) / 2;
+        width: 18px;
+        height: 18px;
+        image-fit: contain;
+        colorize: root.active || root.ring ? Paint.lit : Paint.body;
+    }
+
+    Text {
+        x: Rows.label-x + (root.iconic ? 26px : 0px);
+        width: parent.width - self.x - Rows.trail-x;
         height: 100%;
         text: root.label;
         color: root.active || root.ring ? Paint.lit : Paint.body;

@@ -799,6 +799,11 @@ the axes, which is exactly the part the eye catches.
   the panel edge, inside the wash so a row that is both current and focused
   wears both marks without them touching. A shape, because weight and alpha
   alone were close to invisible over moving video.
+- **Icon:** only on a row that is an action on a settings page — *Reset to
+  defaults* wears Reset, *Sync to speech* wears Speaking. 18px where a
+  stepper keeps its own, the words 8px after it, so marks and labels each
+  stay in one column down the page; it lights with the words. A choice in a
+  list has none.
 
 ### Playlist rows
 - **Shape:** a menu row with two more facts on it
@@ -996,9 +1001,10 @@ row already has, beside the fact that is already there.
   within a second, and a look tuned by eye cannot be typed back in. The ring
   stops at the ends of a page that has one rather than wrapping, and Up from a
   hidden ring lands on the last control, never on the reset.
-- **Sync to speech:** on the subtitles page, the row above its reset. With the
-  reset and not under Timing: the two are the page's actions, and a line of
-  words between two steppers would stand out of their column of marks. One
+- **Sync to speech:** on the subtitles page, the first row, above Timing: it
+  is the thing to try before setting the delay by hand, and what it settles
+  on shows in the row under it. It wears Speaking, so it keeps the steppers'
+  column of marks. One
   press and the row reads *Listening…* until the answer comes — seconds for an
   episode, a quarter of a minute for a film — and a press meanwhile does
   nothing. Then it is *Undo sync* until the page is left, the way a reset
@@ -1007,8 +1013,7 @@ row already has, beside the fact that is already there.
   as a notice, because two of them change nothing on screen — *Subtitles
   already in sync*, and *Could not match these subtitles to the speech*, which
   is the answer whenever no timing stands clear of the rest. A sync that is
-  not sure does nothing. Up from a hidden ring passes over this row as it does
-  the reset: one Enter starts it.
+  not sure does nothing.
 - **Shortcut rows:** Body label, keys at Quiet in Readout size, 12px apart. On
   the reference page they are inert — no wash and no pointer, because a wash
   under a row that does nothing when clicked is an offer the row cannot keep.

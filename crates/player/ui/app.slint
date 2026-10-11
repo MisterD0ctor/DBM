@@ -302,7 +302,7 @@ export component MainWindow inherits Window {
     property <bool> focus-has-reset: root.settings-open
         && root.settings-page >= 1 && root.settings-page <= 3;
     /// Per page: the rows, plus the way back, plus the reset that follows
-    /// them — and on the subtitles page the sync above the reset.
+    /// them — and on the subtitles page the sync that comes before them.
     /// Accessibility has no reset — its one switch is undone by
     /// pressing it again — and the shortcuts page offers only the way back:
     /// every row on it is a statement rather than a control.
@@ -1912,8 +1912,7 @@ export component MainWindow inherits Window {
             root.set-motion(!Motion.enabled);
             return true;
         }
-        if (root.settings-page == 3
-            && root.focus-row == root.settings-focus-count - 2) {
+        if (root.settings-page == 3 && root.focus-row == 1) {
             root.sync-row();
             return true;
         }
@@ -2088,15 +2087,16 @@ export component MainWindow inherits Window {
             return true;
         }
         if (root.settings-page == 3) {
-            if (root.focus-row == 1) {
+            // Row 1 is the sync, which has nothing to step.
+            if (root.focus-row == 2) {
                 root.step-sub-delay(delta);
                 return true;
             }
-            if (root.focus-row == 2) {
+            if (root.focus-row == 3) {
                 root.step-sub-scale(delta);
                 return true;
             }
-            if (root.focus-row == 3) {
+            if (root.focus-row == 4) {
                 root.step-sub-pos(delta);
                 return true;
             }
@@ -2151,12 +2151,9 @@ export component MainWindow inherits Window {
         if (text == Key.UpArrow) {
             if (!Chrome.focus-visible) {
                 // The bottom, but not a reset: one more Enter would be the
-                // first of its two presses from a row nobody looked at. Nor
-                // the sync above the subtitles' reset, which one Enter
-                // starts.
+                // first of its two presses from a row nobody looked at.
                 root.focus-show(root.focus-count - 1
-                    - (root.focus-has-reset ? 1 : 0)
-                    - (root.settings-open && root.settings-page == 3 ? 1 : 0));
+                    - (root.focus-has-reset ? 1 : 0));
                 return true;
             }
             root.focus-move(-1);
@@ -3234,6 +3231,7 @@ export component MainWindow inherits Window {
                         height: Rows.group-gap;
                     }
                     MenuRow {
+                        icon: @image-url("../../../public/icons/reset.svg");
                         label: root.reset-label(1);
                         focused: root.focus-row == root.leaf-focus-count - 1;
                         picked => {
@@ -3263,6 +3261,7 @@ export component MainWindow inherits Window {
                         height: Rows.group-gap;
                     }
                     MenuRow {
+                        icon: @image-url("../../../public/icons/reset.svg");
                         label: root.reset-label(2);
                         focused: root.focus-row == root.leaf-focus-count - 1;
                         picked => {
@@ -3283,10 +3282,23 @@ export component MainWindow inherits Window {
                             root.settings-page = 0;
                         }
                     }
+                    // First, above Timing: it is the thing to try before
+                    // setting the delay by hand, and what it settles on
+                    // shows in the row under it.
+                    MenuRow {
+                        // The page is the subtitles'; what this row brings
+                        // to it is the film's speech.
+                        icon: @image-url("../../../public/icons/speaking.svg");
+                        label: root.sync-label();
+                        focused: root.focus-row == 1;
+                        picked => {
+                            root.sync-row();
+                        }
+                    }
                     StepperRow {
                         icon: @image-url("../../../public/icons/clock.svg");
                         label: "Timing";
-                        focused: root.focus-row == 1;
+                        focused: root.focus-row == 2;
                         value: root.sub-delay-text;
                         stepped(dir) => {
                             root.step-sub-delay(dir);
@@ -3295,7 +3307,7 @@ export component MainWindow inherits Window {
                     StepperRow {
                         icon: @image-url("../../../public/icons/text-size.svg");
                         label: "Size";
-                        focused: root.focus-row == 2;
+                        focused: root.focus-row == 3;
                         value: root.sub-scale-text;
                         stepped(dir) => {
                             root.step-sub-scale(dir);
@@ -3304,7 +3316,7 @@ export component MainWindow inherits Window {
                     StepperRow {
                         icon: @image-url("../../../public/icons/arrows-up-down.svg");
                         label: "Position";
-                        focused: root.focus-row == 3;
+                        focused: root.focus-row == 4;
                         value: root.sub-pos-text;
                         stepped(dir) => {
                             root.step-sub-pos(dir);
@@ -3313,17 +3325,8 @@ export component MainWindow inherits Window {
                     Rectangle {
                         height: Rows.group-gap;
                     }
-                    // With the reset, not under Timing: these two are the
-                    // page's actions, and a line of words between two
-                    // steppers would stand out of their column of marks.
                     MenuRow {
-                        label: root.sync-label();
-                        focused: root.focus-row == root.leaf-focus-count - 2;
-                        picked => {
-                            root.sync-row();
-                        }
-                    }
-                    MenuRow {
+                        icon: @image-url("../../../public/icons/reset.svg");
                         label: root.reset-label(3);
                         focused: root.focus-row == root.leaf-focus-count - 1;
                         picked => {

@@ -182,8 +182,8 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                 6 => report(&ui, &mpv, "before"),
                 7 => chord(&ui, &[], "s"),
                 // S puts the ring on the first row; two more reach the
-                // subtitles page, and four inside it the row above the reset.
-                8 | 9 | 11..=14 => chord(&ui, &[], down.as_str()),
+                // subtitles page, and one inside it the row under its name.
+                8 | 9 | 11 => chord(&ui, &[], down.as_str()),
                 10 => chord(&ui, &[], enter.as_str()),
                 15 => {
                     eprintln!("dbm: sync enter on row {}", ui.get_focus_row());
