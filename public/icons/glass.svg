@@ -7,7 +7,7 @@
    viewBox="0 0 6.35 6.3500001"
    version="1.1"
    id="svg1"
-   inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
    sodipodi:docname="glass.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -23,13 +23,13 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#505050"
      inkscape:document-units="px"
-     inkscape:zoom="24.410977"
-     inkscape:cx="17.266822"
-     inkscape:cy="6.4520155"
+     inkscape:zoom="17.261167"
+     inkscape:cx="3.6208443"
+     inkscape:cy="20.131894"
      inkscape:window-width="3440"
-     inkscape:window-height="1417"
-     inkscape:window-x="1432"
-     inkscape:window-y="1008"
+     inkscape:window-height="1403"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:current-layer="layer1" />
   <defs
@@ -80,8 +80,8 @@
        height="5.2916665"
        x="0.5291667"
        y="0.52916682"
-       rx="1.5875"
-       ry="1.5875" />
+       rx="1.3229166"
+       ry="1.3229166" />
     <path
        style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:100;stroke-dasharray:none;stroke-opacity:1"
        d="M 2.6458334,1.5875 H 2.1179598 A 0.53045985,0.53045985 135 0 0 1.5875,2.1179599 v 0.5278735"

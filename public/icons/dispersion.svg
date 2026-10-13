@@ -1,8 +1,69 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg width="24" height="24" viewBox="0 0 6.35 6.35" version="1.1"
-   xmlns="http://www.w3.org/2000/svg">
-  <path style="fill:none;stroke:#ffffff;stroke-width:0.5292;stroke-linecap:round;stroke-linejoin:round" d="M 0.6615 5.0271 L 2.249 1.5875 L 3.8365 5.0271 Z" />
-  <path style="fill:none;stroke:#ffffff;stroke-width:0.5292;stroke-linecap:round;stroke-linejoin:round" d="M 3.8365 2.6458 L 5.6885 1.8521" />
-  <path style="fill:none;stroke:#ffffff;stroke-width:0.5292;stroke-linecap:round;stroke-linejoin:round" d="M 4.2333 3.5719 L 5.6885 3.5719" />
-  <path style="fill:none;stroke:#ffffff;stroke-width:0.5292;stroke-linecap:round;stroke-linejoin:round" d="M 4.6302 4.4979 L 5.6885 5.2917" />
+<svg
+   width="24"
+   height="24"
+   viewBox="0 0 6.35 6.35"
+   version="1.1"
+   id="svg4"
+   sodipodi:docname="dispersion.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="namedview4"
+     pagecolor="#505050"
+     bordercolor="#eeeeee"
+     borderopacity="1"
+     inkscape:showpageshadow="0"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#505050"
+     showgrid="true"
+     inkscape:zoom="3.0859375"
+     inkscape:cx="-81.498734"
+     inkscape:cy="146.95696"
+     inkscape:window-width="3440"
+     inkscape:window-height="1403"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg4">
+    <inkscape:grid
+       id="grid4"
+       units="px"
+       originx="0"
+       originy="0"
+       spacingx="0.26458333"
+       spacingy="0.26458333"
+       empcolor="#0099e5"
+       empopacity="0.30196078"
+       color="#0099e5"
+       opacity="0.14901961"
+       empspacing="5"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
+  <path
+     style="fill:none;stroke:#ffffff;stroke-width:0.5292;stroke-linecap:round;stroke-linejoin:round"
+     d="m 0.52916845,5.0271 1.58750005,-3.4396 1.5875,3.4396 z"
+     id="path1" />
+  <path
+     style="fill:none;stroke:#ffffff;stroke-width:0.5292;stroke-linecap:round;stroke-linejoin:round"
+     d="m 3.7041833,2.3812167 2.11665,-0.7937"
+     id="path2"
+     sodipodi:nodetypes="cc" />
+  <path
+     style="fill:none;stroke:#ffffff;stroke-width:0.5292;stroke-linecap:round;stroke-linejoin:round"
+     d="m 4.1009833,3.3073167 h 1.71985"
+     id="path3"
+     sodipodi:nodetypes="cc" />
+  <path
+     style="fill:none;stroke:#ffffff;stroke-width:0.5292;stroke-linecap:round;stroke-linejoin:round"
+     d="m 4.4978833,4.2333167 1.32295,0.7938"
+     id="path4"
+     sodipodi:nodetypes="cc" />
 </svg>

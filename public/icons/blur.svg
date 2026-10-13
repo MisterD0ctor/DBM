@@ -22,21 +22,37 @@
      inkscape:pageopacity="0"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#505050"
-     inkscape:zoom="4"
-     inkscape:cx="-50.875"
-     inkscape:cy="49.625"
+     inkscape:zoom="22.627417"
+     inkscape:cx="8.905126"
+     inkscape:cy="19.511728"
      inkscape:window-width="3440"
      inkscape:window-height="1403"
      inkscape:window-x="0"
      inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="svg2" />
+     inkscape:current-layer="svg2"
+     showgrid="true">
+    <inkscape:grid
+       id="grid1"
+       units="px"
+       originx="0"
+       originy="0"
+       spacingx="0.26458333"
+       spacingy="0.26458333"
+       empcolor="#0099e5"
+       empopacity="0.30196078"
+       color="#0099e5"
+       opacity="0.14901961"
+       empspacing="5"
+       enabled="true"
+       visible="true" />
+  </sodipodi:namedview>
   <circle
      style="fill:none;stroke:#ffffff;stroke-width:0.5292;stroke-linecap:round;stroke-linejoin:round"
      cx="3.175"
      cy="3.175"
      id="circle1"
-     r="1.0583333" />
+     r="1.190625" />
   <circle
      style="fill:none;stroke:#ffffff;stroke-width:0.5292;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:0,1.38507521;stroke-dashoffset:0"
      cx="3.175"
