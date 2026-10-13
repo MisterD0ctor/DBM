@@ -94,11 +94,13 @@ scripts/headless.sh env DBM_SHOWCASE=playlist DBM_CAPTURE=playlist.bmp \
 
 The interface is written in English. Every other language is one gettext
 file, `crates/player/lang/<code>/LC_MESSAGES/dbm-player.po`, compiled into the
-player; Swedish (`sv`) is there already. The player speaks the system's
+player. Seven are there already: `de`, `es`, `fr`, `it`, `nl`, `pt` and `sv`.
+Only the Swedish has been read by a native speaker. The other six have not
+been reviewed, and each file says so at its top; corrections are welcome. The player speaks the system's
 language where it has it, and *Settings → Language* can choose another.
 
 ```sh
-scripts/translations.py add de      # start a language, every entry empty
+scripts/translations.py add pl      # start a language, every entry empty
 scripts/translations.py check       # what each language is still missing
 scripts/translations.py update      # add entries for words new in the source
 ```

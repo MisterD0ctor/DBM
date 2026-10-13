@@ -1,0 +1,584 @@
+# Not yet reviewed by a native speaker. Written alongside the Swedish, which
+# has been; corrections are welcome. Remove this note once someone has read
+# the whole file.
+msgid ""
+msgstr ""
+"Language: nl\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgctxt "MainWindow"
+msgid "Open folder…"
+msgstr "Map openen…"
+
+msgctxt "MainWindow"
+msgid "Restart"
+msgstr "Opnieuw beginnen"
+
+msgctxt "MainWindow"
+msgid "Next"
+msgstr "Volgende"
+
+msgctxt "MainWindow"
+msgid "Skip intro"
+msgstr "Intro overslaan"
+
+msgctxt "MainWindow"
+msgid "Next episode"
+msgstr "Volgende aflevering"
+
+msgctxt "MainWindow"
+msgid "Subtitles off"
+msgstr "Ondertitels uit"
+
+msgctxt "MainWindow"
+msgid "No audio"
+msgstr "Geen geluid"
+
+msgctxt "MainWindow"
+msgid "PLAYBACK"
+msgstr "AFSPELEN"
+
+msgctxt "MainWindow"
+msgid "Play / pause"
+msgstr "Afspelen / pauzeren"
+
+msgctxt "MainWindow"
+msgid "Back / forward {} seconds"
+msgstr "{} seconden terug / vooruit"
+
+msgctxt "MainWindow"
+msgid "Back / forward {} second"
+msgstr "{} seconde terug / vooruit"
+
+msgctxt "MainWindow"
+msgid "Previous / next file"
+msgstr "Vorig / volgend bestand"
+
+msgctxt "MainWindow"
+msgid "Previous / next chapter"
+msgstr "Vorig / volgend hoofdstuk"
+
+msgctxt "MainWindow"
+msgid "Frame back / forward"
+msgstr "Beeld terug / vooruit"
+
+msgctxt "MainWindow"
+msgid "Comma / Period"
+msgstr "Komma / Punt"
+
+msgctxt "MainWindow"
+msgid "Slower / faster"
+msgstr "Langzamer / sneller"
+
+msgctxt "MainWindow"
+msgid "Normal speed"
+msgstr "Normale snelheid"
+
+msgctxt "MainWindow"
+msgid "AUDIO"
+msgstr "AUDIO"
+
+msgctxt "MainWindow"
+msgid "Volume"
+msgstr "Volume"
+
+msgctxt "MainWindow"
+msgid "Mute"
+msgstr "Dempen"
+
+msgctxt "MainWindow"
+msgid "Next audio track"
+msgstr "Volgend audiospoor"
+
+msgctxt "MainWindow"
+msgid "SUBTITLES"
+msgstr "ONDERTITELS"
+
+msgctxt "MainWindow"
+msgid "Subtitles on / off"
+msgstr "Ondertitels aan / uit"
+
+msgctxt "MainWindow"
+msgid "Subtitles earlier / later"
+msgstr "Ondertitels eerder / later"
+
+msgctxt "MainWindow"
+msgid "Next / previous subtitle track"
+msgstr "Volgend / vorig ondertitelspoor"
+
+msgctxt "MainWindow"
+msgid "PICTURE"
+msgstr "BEELD"
+
+msgctxt "MainWindow"
+msgid "Fill or fit the window"
+msgstr "Venster vullen of passend maken"
+
+msgctxt "MainWindow"
+msgid "Fullscreen"
+msgstr "Volledig scherm"
+
+msgctxt "MainWindow"
+msgid "Ambient border"
+msgstr "Sfeerlicht"
+
+msgctxt "MainWindow"
+msgid "PANELS"
+msgstr "PANELEN"
+
+msgctxt "MainWindow"
+msgid "Subtitles & audio"
+msgstr "Ondertitels en audio"
+
+msgctxt "MainWindow"
+msgid "Playlist"
+msgstr "Afspeellijst"
+
+msgctxt "MainWindow"
+msgid "Settings"
+msgstr "Instellingen"
+
+msgctxt "MainWindow"
+msgid "Shortcuts"
+msgstr "Sneltoetsen"
+
+msgctxt "MainWindow"
+msgid "NAVIGATION"
+msgstr "NAVIGATIE"
+
+msgctxt "MainWindow"
+msgid "Move in a panel"
+msgstr "In een paneel bewegen"
+
+msgctxt "MainWindow"
+msgid "First / last in a list"
+msgstr "Eerste / laatste in een lijst"
+
+msgctxt "MainWindow"
+msgid "A page up / down a list"
+msgstr "Pagina omhoog / omlaag"
+
+msgctxt "MainWindow"
+msgid "Move along the bar"
+msgstr "Langs de balk bewegen"
+
+msgctxt "MainWindow"
+msgid "Choose, or adjust"
+msgstr "Kiezen of aanpassen"
+
+msgctxt "MainWindow"
+msgid "Close, or leave fullscreen"
+msgstr "Sluiten of volledig scherm verlaten"
+
+msgctxt "MainWindow"
+msgid "FILES"
+msgstr "BESTANDEN"
+
+msgctxt "MainWindow"
+msgid "Open file"
+msgstr "Bestand openen"
+
+msgctxt "MainWindow"
+msgid "Open folder"
+msgstr "Map openen"
+
+msgctxt "MainWindow"
+msgid "POINTER"
+msgstr "AANWIJZER"
+
+msgctxt "MainWindow"
+msgid "Click the picture"
+msgstr "Op het beeld klikken"
+
+msgctxt "MainWindow"
+msgid "Double-click"
+msgstr "Dubbelklik"
+
+msgctxt "MainWindow"
+msgid "Wheel over its slider"
+msgstr "Scrollen boven de schuifregelaar"
+
+msgctxt "MainWindow"
+msgid "Seek a second"
+msgstr "Een seconde spoelen"
+
+msgctxt "MainWindow"
+msgid "Wheel over the timeline"
+msgstr "Scrollen boven de tijdlijn"
+
+msgctxt "MainWindow"
+msgid "Open"
+msgstr "Openen"
+
+msgctxt "MainWindow"
+msgid "Drop a file or folder"
+msgstr "Een bestand of map neerzetten"
+
+msgctxt "MainWindow"
+msgid "Listening…"
+msgstr "Luistert…"
+
+msgctxt "MainWindow"
+msgid "Undo sync"
+msgstr "Synchronisatie ongedaan maken"
+
+msgctxt "MainWindow"
+msgid "Sync to speech"
+msgstr "Synchroniseren met spraak"
+
+msgctxt "MainWindow"
+msgid "Undo reset"
+msgstr "Herstellen ongedaan maken"
+
+msgctxt "MainWindow"
+msgid "Press again to reset"
+msgstr "Druk nogmaals om te herstellen"
+
+msgctxt "MainWindow"
+msgid "Reset to defaults"
+msgstr "Standaardwaarden herstellen"
+
+msgctxt "MainWindow"
+msgid "EFFECTS"
+msgstr "EFFECTEN"
+
+msgctxt "MainWindow"
+msgid "Liquid glass"
+msgstr "Vloeibaar glas"
+
+msgctxt "MainWindow"
+msgid "Timing, size & position"
+msgstr "Vertraging, grootte en positie"
+
+msgctxt "MainWindow"
+msgid "INTERFACE"
+msgstr "INTERFACE"
+
+msgctxt "MainWindow"
+msgid "Accessibility"
+msgstr "Toegankelijkheid"
+
+msgctxt "MainWindow"
+msgid "Language"
+msgstr "Taal"
+
+msgctxt "MainWindow"
+msgid "LIQUID GLASS"
+msgstr "VLOEIBAAR GLAS"
+
+msgctxt "MainWindow"
+msgid "AMBIENT BORDER"
+msgstr "SFEERLICHT"
+
+msgctxt "MainWindow"
+msgid "Timing"
+msgstr "Vertraging"
+
+msgctxt "MainWindow"
+msgid "Size"
+msgstr "Grootte"
+
+msgctxt "MainWindow"
+msgid "Position"
+msgstr "Positie"
+
+msgctxt "MainWindow"
+msgid "ACCESSIBILITY"
+msgstr "TOEGANKELIJKHEID"
+
+msgctxt "MainWindow"
+msgid "Animations"
+msgstr "Animaties"
+
+msgctxt "MainWindow"
+msgid "LANGUAGE"
+msgstr "TAAL"
+
+msgctxt "MainWindow"
+msgid "System language"
+msgstr "Systeemtaal"
+
+msgctxt "MainWindow"
+msgid "SHORTCUTS"
+msgstr "SNELTOETSEN"
+
+msgctxt "MainWindow"
+msgid "No subtitle or audio tracks"
+msgstr "Geen ondertitel- of audiosporen"
+
+msgctxt "MainWindow"
+msgid "Off"
+msgstr "Uit"
+
+msgctxt "MainWindow"
+msgid "Open file…"
+msgstr "Bestand openen…"
+
+msgctxt "MainWindow"
+msgid "Autoplay next"
+msgstr "Volgende automatisch afspelen"
+
+msgctxt "MainWindow"
+msgid "{} of {}"
+msgstr "{} van {}"
+
+msgctxt "MainWindow"
+msgid "Copied"
+msgstr "Gekopieerd"
+
+msgctxt "MainWindow"
+msgid "Copy details"
+msgstr "Details kopiëren"
+
+msgctxt "MainWindow"
+msgid "Close the player"
+msgstr "Speler sluiten"
+
+msgctxt "MainWindow"
+msgid "Opening {}…"
+msgstr "{} wordt geopend…"
+
+msgctxt "MainWindow"
+msgid "Or drop a file or folder onto the window"
+msgstr "Of zet een bestand of map op het venster neer"
+
+msgctxt "MainWindow"
+msgid "Open a file or folder"
+msgstr "Een bestand of map openen"
+
+msgctxt "MainWindow"
+msgid "Back {} seconds"
+msgstr "{} seconden terug"
+
+msgctxt "MainWindow"
+msgid "No earlier file"
+msgstr "Geen eerder bestand"
+
+msgctxt "MainWindow"
+msgid "Previous file"
+msgstr "Vorig bestand"
+
+msgctxt "MainWindow"
+msgid "Play"
+msgstr "Afspelen"
+
+msgctxt "MainWindow"
+msgid "Pause"
+msgstr "Pauzeren"
+
+msgctxt "MainWindow"
+msgid "No later file"
+msgstr "Geen later bestand"
+
+msgctxt "MainWindow"
+msgid "Next file"
+msgstr "Volgend bestand"
+
+msgctxt "MainWindow"
+msgid "Forward {} seconds"
+msgstr "{} seconden vooruit"
+
+msgctxt "MainWindow"
+msgid "Unmute"
+msgstr "Dempen opheffen"
+
+msgctxt "MainWindow"
+msgid "Muted"
+msgstr "Gedempt"
+
+msgctxt "MainWindow"
+msgid "Volume {}%"
+msgstr "Volume {}%"
+
+msgctxt "MainWindow"
+msgid "Turn off the ambient border"
+msgstr "Sfeerlicht uitschakelen"
+
+msgctxt "MainWindow"
+msgid "Turn on the ambient border"
+msgstr "Sfeerlicht inschakelen"
+
+msgctxt "MainWindow"
+msgid "Fit the window"
+msgstr "Passend in venster"
+
+msgctxt "MainWindow"
+msgid "Fill the window"
+msgstr "Venster vullen"
+
+msgctxt "MainWindow"
+msgid "Leave fullscreen"
+msgstr "Volledig scherm verlaten"
+
+msgctxt "StepButton"
+msgid "Increase"
+msgstr "Verhogen"
+
+msgctxt "StepButton"
+msgid "Decrease"
+msgstr "Verlagen"
+
+msgctxt "PlaylistRow"
+msgid "{}, could not play"
+msgstr "{}, kon niet worden afgespeeld"
+
+msgctxt "PlaylistRow"
+msgid "{}, watched"
+msgstr "{}, bekeken"
+
+msgctxt "ResumeRow"
+msgid "Continue {}"
+msgstr "{} hervatten"
+
+msgctxt "BackRow"
+msgid "Back from {}"
+msgstr "Terug van {}"
+
+msgctxt "player"
+msgid "Subtitles already in sync"
+msgstr "Ondertitels lopen al synchroon"
+
+msgctxt "player"
+msgid "Subtitles moved {} s earlier"
+msgstr "Ondertitels {} s vervroegd"
+
+msgctxt "player"
+msgid "Subtitles moved {} s later"
+msgstr "Ondertitels {} s vertraagd"
+
+msgctxt "player"
+msgid "Subtitles matched to the film's speed"
+msgstr "Ondertitels aangepast aan de snelheid van de film"
+
+msgctxt "player"
+msgid "No subtitles to sync"
+msgstr "Geen ondertitels om te synchroniseren"
+
+msgctxt "player"
+msgid "Only text subtitles can be synced"
+msgstr "Alleen tekstondertitels kunnen worden gesynchroniseerd"
+
+msgctxt "player"
+msgid "Syncing subtitles needs ffmpeg"
+msgstr "Voor het synchroniseren van ondertitels is ffmpeg nodig"
+
+msgctxt "player"
+msgid "Could not read these subtitles"
+msgstr "Deze ondertitels konden niet worden gelezen"
+
+msgctxt "player"
+msgid "Could not read this film's audio"
+msgstr "Het geluid van deze film kon niet worden gelezen"
+
+msgctxt "player"
+msgid "Could not match these subtitles to the speech"
+msgstr "Deze ondertitels konden niet op de spraak worden afgestemd"
+
+msgctxt "player"
+msgid "{} — could not play {}"
+msgstr "{} — {} kon niet worden afgespeeld"
+
+msgctxt "player"
+msgid "{} — could not play that file"
+msgstr "{} — het bestand kon niet worden afgespeeld"
+
+msgctxt "player"
+msgid "under a minute left"
+msgstr "minder dan een minuut over"
+
+msgctxt "player"
+msgid "{} min left"
+msgstr "nog {} min"
+
+msgctxt "player"
+msgid "{} h left"
+msgstr "nog {} u"
+
+msgctxt "player"
+msgid "{} h {} min left"
+msgstr "nog {} u {} min"
+
+msgctxt "player"
+msgid "PLAYLIST"
+msgstr "AFSPEELLIJST"
+
+msgctxt "player"
+msgid "1 episode"
+msgstr "1 aflevering"
+
+msgctxt "player"
+msgid "{} episodes"
+msgstr "{} afleveringen"
+
+msgctxt "player"
+msgid "Forced"
+msgstr "Geforceerd"
+
+msgctxt "player"
+msgid "Commentary"
+msgstr "Commentaar"
+
+msgctxt "player"
+msgid "Track {}"
+msgstr "Spoor {}"
+
+msgctxt "player"
+msgid "Timed text"
+msgstr "Getimede tekst"
+
+msgctxt "player"
+msgid "Season {}"
+msgstr "Seizoen {}"
+
+msgctxt "player"
+msgid "There is nothing at {}"
+msgstr "Er staat niets op {}"
+
+msgctxt "player"
+msgid "Could not read {} — {}"
+msgstr "{} kon niet worden gelezen — {}"
+
+msgctxt "player"
+msgid "No video files in {}"
+msgstr "Geen videobestanden in {}"
+
+msgctxt "player"
+msgid "No video files under {}"
+msgstr "Geen videobestanden onder {}"
+
+msgctxt "player"
+msgid "Specials"
+msgstr "Specials"
+
+msgctxt "player"
+msgid "Episodes"
+msgstr "Afleveringen"
+
+msgctxt "player"
+msgid "Open video"
+msgstr "Video openen"
+
+msgctxt "player"
+msgid "Video"
+msgstr "Video"
+
+msgctxt "player"
+msgid "All files"
+msgstr "Alle bestanden"
+
+msgctxt "player"
+msgid "Open folder"
+msgstr "Map openen"
+
+msgctxt "player"
+msgid "Sound is back"
+msgstr "Het geluid is terug"
+
+msgctxt "player"
+msgid "Chapter {} of {}"
+msgstr "Hoofdstuk {} van {}"
+
+msgctxt "player"
+msgid "Settings could not be saved — {}"
+msgstr "Instellingen konden niet worden opgeslagen — {}"

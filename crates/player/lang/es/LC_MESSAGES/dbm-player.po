@@ -1,0 +1,584 @@
+# Not yet reviewed by a native speaker. Written alongside the Swedish, which
+# has been; corrections are welcome. Remove this note once someone has read
+# the whole file.
+msgid ""
+msgstr ""
+"Language: es\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgctxt "MainWindow"
+msgid "Open folder…"
+msgstr "Abrir carpeta…"
+
+msgctxt "MainWindow"
+msgid "Restart"
+msgstr "Reiniciar"
+
+msgctxt "MainWindow"
+msgid "Next"
+msgstr "Siguiente"
+
+msgctxt "MainWindow"
+msgid "Skip intro"
+msgstr "Saltar intro"
+
+msgctxt "MainWindow"
+msgid "Next episode"
+msgstr "Siguiente episodio"
+
+msgctxt "MainWindow"
+msgid "Subtitles off"
+msgstr "Subtítulos desactivados"
+
+msgctxt "MainWindow"
+msgid "No audio"
+msgstr "Sin audio"
+
+msgctxt "MainWindow"
+msgid "PLAYBACK"
+msgstr "REPRODUCCIÓN"
+
+msgctxt "MainWindow"
+msgid "Play / pause"
+msgstr "Reproducir / pausar"
+
+msgctxt "MainWindow"
+msgid "Back / forward {} seconds"
+msgstr "Atrás / adelante {} segundos"
+
+msgctxt "MainWindow"
+msgid "Back / forward {} second"
+msgstr "Atrás / adelante {} segundo"
+
+msgctxt "MainWindow"
+msgid "Previous / next file"
+msgstr "Archivo anterior / siguiente"
+
+msgctxt "MainWindow"
+msgid "Previous / next chapter"
+msgstr "Capítulo anterior / siguiente"
+
+msgctxt "MainWindow"
+msgid "Frame back / forward"
+msgstr "Fotograma atrás / adelante"
+
+msgctxt "MainWindow"
+msgid "Comma / Period"
+msgstr "Coma / Punto"
+
+msgctxt "MainWindow"
+msgid "Slower / faster"
+msgstr "Más lento / más rápido"
+
+msgctxt "MainWindow"
+msgid "Normal speed"
+msgstr "Velocidad normal"
+
+msgctxt "MainWindow"
+msgid "AUDIO"
+msgstr "AUDIO"
+
+msgctxt "MainWindow"
+msgid "Volume"
+msgstr "Volumen"
+
+msgctxt "MainWindow"
+msgid "Mute"
+msgstr "Silenciar"
+
+msgctxt "MainWindow"
+msgid "Next audio track"
+msgstr "Siguiente pista de audio"
+
+msgctxt "MainWindow"
+msgid "SUBTITLES"
+msgstr "SUBTÍTULOS"
+
+msgctxt "MainWindow"
+msgid "Subtitles on / off"
+msgstr "Subtítulos sí / no"
+
+msgctxt "MainWindow"
+msgid "Subtitles earlier / later"
+msgstr "Subtítulos antes / después"
+
+msgctxt "MainWindow"
+msgid "Next / previous subtitle track"
+msgstr "Subtítulos: siguiente / anterior"
+
+msgctxt "MainWindow"
+msgid "PICTURE"
+msgstr "IMAGEN"
+
+msgctxt "MainWindow"
+msgid "Fill or fit the window"
+msgstr "Llenar o ajustar a la ventana"
+
+msgctxt "MainWindow"
+msgid "Fullscreen"
+msgstr "Pantalla completa"
+
+msgctxt "MainWindow"
+msgid "Ambient border"
+msgstr "Luz ambiental"
+
+msgctxt "MainWindow"
+msgid "PANELS"
+msgstr "PANELES"
+
+msgctxt "MainWindow"
+msgid "Subtitles & audio"
+msgstr "Subtítulos y audio"
+
+msgctxt "MainWindow"
+msgid "Playlist"
+msgstr "Lista de reproducción"
+
+msgctxt "MainWindow"
+msgid "Settings"
+msgstr "Ajustes"
+
+msgctxt "MainWindow"
+msgid "Shortcuts"
+msgstr "Atajos"
+
+msgctxt "MainWindow"
+msgid "NAVIGATION"
+msgstr "NAVEGACIÓN"
+
+msgctxt "MainWindow"
+msgid "Move in a panel"
+msgstr "Moverse en un panel"
+
+msgctxt "MainWindow"
+msgid "First / last in a list"
+msgstr "Primero / último de una lista"
+
+msgctxt "MainWindow"
+msgid "A page up / down a list"
+msgstr "Página arriba / abajo"
+
+msgctxt "MainWindow"
+msgid "Move along the bar"
+msgstr "Moverse por la barra"
+
+msgctxt "MainWindow"
+msgid "Choose, or adjust"
+msgstr "Elegir o ajustar"
+
+msgctxt "MainWindow"
+msgid "Close, or leave fullscreen"
+msgstr "Cerrar o salir de pantalla completa"
+
+msgctxt "MainWindow"
+msgid "FILES"
+msgstr "ARCHIVOS"
+
+msgctxt "MainWindow"
+msgid "Open file"
+msgstr "Abrir archivo"
+
+msgctxt "MainWindow"
+msgid "Open folder"
+msgstr "Abrir carpeta"
+
+msgctxt "MainWindow"
+msgid "POINTER"
+msgstr "PUNTERO"
+
+msgctxt "MainWindow"
+msgid "Click the picture"
+msgstr "Clic en la imagen"
+
+msgctxt "MainWindow"
+msgid "Double-click"
+msgstr "Doble clic"
+
+msgctxt "MainWindow"
+msgid "Wheel over its slider"
+msgstr "Rueda sobre su control"
+
+msgctxt "MainWindow"
+msgid "Seek a second"
+msgstr "Saltar un segundo"
+
+msgctxt "MainWindow"
+msgid "Wheel over the timeline"
+msgstr "Rueda sobre la línea de tiempo"
+
+msgctxt "MainWindow"
+msgid "Open"
+msgstr "Abrir"
+
+msgctxt "MainWindow"
+msgid "Drop a file or folder"
+msgstr "Soltar un archivo o una carpeta"
+
+msgctxt "MainWindow"
+msgid "Listening…"
+msgstr "Escuchando…"
+
+msgctxt "MainWindow"
+msgid "Undo sync"
+msgstr "Deshacer sincronización"
+
+msgctxt "MainWindow"
+msgid "Sync to speech"
+msgstr "Sincronizar con la voz"
+
+msgctxt "MainWindow"
+msgid "Undo reset"
+msgstr "Deshacer restablecimiento"
+
+msgctxt "MainWindow"
+msgid "Press again to reset"
+msgstr "Pulsa de nuevo para restablecer"
+
+msgctxt "MainWindow"
+msgid "Reset to defaults"
+msgstr "Restablecer valores"
+
+msgctxt "MainWindow"
+msgid "EFFECTS"
+msgstr "EFECTOS"
+
+msgctxt "MainWindow"
+msgid "Liquid glass"
+msgstr "Cristal líquido"
+
+msgctxt "MainWindow"
+msgid "Timing, size & position"
+msgstr "Retardo, tamaño y posición"
+
+msgctxt "MainWindow"
+msgid "INTERFACE"
+msgstr "INTERFAZ"
+
+msgctxt "MainWindow"
+msgid "Accessibility"
+msgstr "Accesibilidad"
+
+msgctxt "MainWindow"
+msgid "Language"
+msgstr "Idioma"
+
+msgctxt "MainWindow"
+msgid "LIQUID GLASS"
+msgstr "CRISTAL LÍQUIDO"
+
+msgctxt "MainWindow"
+msgid "AMBIENT BORDER"
+msgstr "LUZ AMBIENTAL"
+
+msgctxt "MainWindow"
+msgid "Timing"
+msgstr "Retardo"
+
+msgctxt "MainWindow"
+msgid "Size"
+msgstr "Tamaño"
+
+msgctxt "MainWindow"
+msgid "Position"
+msgstr "Posición"
+
+msgctxt "MainWindow"
+msgid "ACCESSIBILITY"
+msgstr "ACCESIBILIDAD"
+
+msgctxt "MainWindow"
+msgid "Animations"
+msgstr "Animaciones"
+
+msgctxt "MainWindow"
+msgid "LANGUAGE"
+msgstr "IDIOMA"
+
+msgctxt "MainWindow"
+msgid "System language"
+msgstr "Idioma del sistema"
+
+msgctxt "MainWindow"
+msgid "SHORTCUTS"
+msgstr "ATAJOS"
+
+msgctxt "MainWindow"
+msgid "No subtitle or audio tracks"
+msgstr "Sin pistas de subtítulos ni de audio"
+
+msgctxt "MainWindow"
+msgid "Off"
+msgstr "Desactivados"
+
+msgctxt "MainWindow"
+msgid "Open file…"
+msgstr "Abrir archivo…"
+
+msgctxt "MainWindow"
+msgid "Autoplay next"
+msgstr "Reproducción automática"
+
+msgctxt "MainWindow"
+msgid "{} of {}"
+msgstr "{} de {}"
+
+msgctxt "MainWindow"
+msgid "Copied"
+msgstr "Copiado"
+
+msgctxt "MainWindow"
+msgid "Copy details"
+msgstr "Copiar detalles"
+
+msgctxt "MainWindow"
+msgid "Close the player"
+msgstr "Cerrar el reproductor"
+
+msgctxt "MainWindow"
+msgid "Opening {}…"
+msgstr "Abriendo {}…"
+
+msgctxt "MainWindow"
+msgid "Or drop a file or folder onto the window"
+msgstr "O suelta un archivo o una carpeta en la ventana"
+
+msgctxt "MainWindow"
+msgid "Open a file or folder"
+msgstr "Abrir un archivo o una carpeta"
+
+msgctxt "MainWindow"
+msgid "Back {} seconds"
+msgstr "Retroceder {} segundos"
+
+msgctxt "MainWindow"
+msgid "No earlier file"
+msgstr "No hay archivo anterior"
+
+msgctxt "MainWindow"
+msgid "Previous file"
+msgstr "Archivo anterior"
+
+msgctxt "MainWindow"
+msgid "Play"
+msgstr "Reproducir"
+
+msgctxt "MainWindow"
+msgid "Pause"
+msgstr "Pausar"
+
+msgctxt "MainWindow"
+msgid "No later file"
+msgstr "No hay archivo siguiente"
+
+msgctxt "MainWindow"
+msgid "Next file"
+msgstr "Siguiente archivo"
+
+msgctxt "MainWindow"
+msgid "Forward {} seconds"
+msgstr "Avanzar {} segundos"
+
+msgctxt "MainWindow"
+msgid "Unmute"
+msgstr "Activar sonido"
+
+msgctxt "MainWindow"
+msgid "Muted"
+msgstr "Silenciado"
+
+msgctxt "MainWindow"
+msgid "Volume {}%"
+msgstr "Volumen {} %"
+
+msgctxt "MainWindow"
+msgid "Turn off the ambient border"
+msgstr "Apagar la luz ambiental"
+
+msgctxt "MainWindow"
+msgid "Turn on the ambient border"
+msgstr "Encender la luz ambiental"
+
+msgctxt "MainWindow"
+msgid "Fit the window"
+msgstr "Ajustar a la ventana"
+
+msgctxt "MainWindow"
+msgid "Fill the window"
+msgstr "Llenar la ventana"
+
+msgctxt "MainWindow"
+msgid "Leave fullscreen"
+msgstr "Salir de pantalla completa"
+
+msgctxt "StepButton"
+msgid "Increase"
+msgstr "Aumentar"
+
+msgctxt "StepButton"
+msgid "Decrease"
+msgstr "Disminuir"
+
+msgctxt "PlaylistRow"
+msgid "{}, could not play"
+msgstr "{}, no se pudo reproducir"
+
+msgctxt "PlaylistRow"
+msgid "{}, watched"
+msgstr "{}, visto"
+
+msgctxt "ResumeRow"
+msgid "Continue {}"
+msgstr "Continuar {}"
+
+msgctxt "BackRow"
+msgid "Back from {}"
+msgstr "Volver desde {}"
+
+msgctxt "player"
+msgid "Subtitles already in sync"
+msgstr "Los subtítulos ya están sincronizados"
+
+msgctxt "player"
+msgid "Subtitles moved {} s earlier"
+msgstr "Subtítulos adelantados {} s"
+
+msgctxt "player"
+msgid "Subtitles moved {} s later"
+msgstr "Subtítulos retrasados {} s"
+
+msgctxt "player"
+msgid "Subtitles matched to the film's speed"
+msgstr "Subtítulos ajustados a la velocidad de la película"
+
+msgctxt "player"
+msgid "No subtitles to sync"
+msgstr "No hay subtítulos que sincronizar"
+
+msgctxt "player"
+msgid "Only text subtitles can be synced"
+msgstr "Solo se pueden sincronizar subtítulos de texto"
+
+msgctxt "player"
+msgid "Syncing subtitles needs ffmpeg"
+msgstr "Sincronizar subtítulos requiere ffmpeg"
+
+msgctxt "player"
+msgid "Could not read these subtitles"
+msgstr "No se pudieron leer estos subtítulos"
+
+msgctxt "player"
+msgid "Could not read this film's audio"
+msgstr "No se pudo leer el audio de esta película"
+
+msgctxt "player"
+msgid "Could not match these subtitles to the speech"
+msgstr "No se pudieron ajustar estos subtítulos a la voz"
+
+msgctxt "player"
+msgid "{} — could not play {}"
+msgstr "{} — no se pudo reproducir {}"
+
+msgctxt "player"
+msgid "{} — could not play that file"
+msgstr "{} — no se pudo reproducir ese archivo"
+
+msgctxt "player"
+msgid "under a minute left"
+msgstr "queda menos de un minuto"
+
+msgctxt "player"
+msgid "{} min left"
+msgstr "quedan {} min"
+
+msgctxt "player"
+msgid "{} h left"
+msgstr "quedan {} h"
+
+msgctxt "player"
+msgid "{} h {} min left"
+msgstr "quedan {} h {} min"
+
+msgctxt "player"
+msgid "PLAYLIST"
+msgstr "LISTA DE REPRODUCCIÓN"
+
+msgctxt "player"
+msgid "1 episode"
+msgstr "1 episodio"
+
+msgctxt "player"
+msgid "{} episodes"
+msgstr "{} episodios"
+
+msgctxt "player"
+msgid "Forced"
+msgstr "Forzados"
+
+msgctxt "player"
+msgid "Commentary"
+msgstr "Comentario"
+
+msgctxt "player"
+msgid "Track {}"
+msgstr "Pista {}"
+
+msgctxt "player"
+msgid "Timed text"
+msgstr "Texto temporizado"
+
+msgctxt "player"
+msgid "Season {}"
+msgstr "Temporada {}"
+
+msgctxt "player"
+msgid "There is nothing at {}"
+msgstr "No hay nada en {}"
+
+msgctxt "player"
+msgid "Could not read {} — {}"
+msgstr "No se pudo leer {} — {}"
+
+msgctxt "player"
+msgid "No video files in {}"
+msgstr "No hay archivos de vídeo en {}"
+
+msgctxt "player"
+msgid "No video files under {}"
+msgstr "No hay archivos de vídeo dentro de {}"
+
+msgctxt "player"
+msgid "Specials"
+msgstr "Especiales"
+
+msgctxt "player"
+msgid "Episodes"
+msgstr "Episodios"
+
+msgctxt "player"
+msgid "Open video"
+msgstr "Abrir vídeo"
+
+msgctxt "player"
+msgid "Video"
+msgstr "Vídeo"
+
+msgctxt "player"
+msgid "All files"
+msgstr "Todos los archivos"
+
+msgctxt "player"
+msgid "Open folder"
+msgstr "Abrir carpeta"
+
+msgctxt "player"
+msgid "Sound is back"
+msgstr "El sonido ha vuelto"
+
+msgctxt "player"
+msgid "Chapter {} of {}"
+msgstr "Capítulo {} de {}"
+
+msgctxt "player"
+msgid "Settings could not be saved — {}"
+msgstr "No se pudieron guardar los ajustes — {}"
