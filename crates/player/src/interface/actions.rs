@@ -294,6 +294,19 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
             app.settings.set_animations(on);
         });
     }
+
+    // The rows of the language page, as it numbers them: the system's, then
+    // English, then each language built in. The row is already lit by the
+    // time this runs; what is left is speaking it and saving it.
+    {
+        let app = app.clone();
+        ui.on_choose_language(move |row| {
+            app.activity.bump();
+            let code = language_of(row);
+            app.settings.set_language(&code);
+            crate::lang::speak(&code);
+        });
+    }
 }
 
 /// The subtitles page: timing, size and placement, and lining the timing up
@@ -476,6 +489,31 @@ fn wire_fullscreen(ui: &MainWindow) {
     }
 }
 
+/// The language a row of the language page stands for, by code: nothing for
+/// the system's, which is the first row, and English for the second.
+fn language_of(row: i32) -> String {
+    match row {
+        0 => String::new(),
+        1 => "en".into(),
+        n => crate::lang::codes()
+            .nth((n - 2).max(0) as usize)
+            .unwrap_or_default()
+            .to_string(),
+    }
+}
+
+/// The row that stands for a saved choice. A language this build no longer
+/// has is the system's row, which is also how it is spoken.
+fn row_of(code: &str) -> i32 {
+    match code {
+        "" => 0,
+        "en" => 1,
+        code => crate::lang::codes()
+            .position(|known| known == code)
+            .map_or(0, |place| place as i32 + 2),
+    }
+}
+
 /// Put what was saved where it acts: the switches on the settings page, and
 /// the preferences mpv has to be told about.
 fn restore_preferences(ui: &MainWindow, app: &App) {
@@ -483,6 +521,16 @@ fn restore_preferences(ui: &MainWindow, app: &App) {
     ui.set_ambience_on(settings.ambience_on());
     ui.set_autoplay(settings.autoplay());
     ui.global::<Motion>().set_enabled(settings.animations());
+    // Each language by its own name for itself, which is the one name for it
+    // that its speakers can read whatever the interface is in.
+    ui.set_language_names(slint::ModelRc::new(slint::VecModel::from(
+        crate::lang::codes()
+            .map(|code| crate::library::naming::language_name(code).into())
+            .collect::<Vec<slint::SharedString>>(),
+    )));
+    let language = settings.language();
+    ui.set_language_choice(row_of(&language));
+    crate::lang::speak(&language);
     commands::set_autoplay(&app.mpv, settings.autoplay());
     commands::set_sub_scale(&app.mpv, settings.sub_scale() as f64);
     app.subline.set(&app.mpv, settings.sub_pos() as f64);

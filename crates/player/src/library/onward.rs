@@ -9,6 +9,7 @@
 
 use std::path::Path;
 
+use crate::lang::{fill, tr};
 use crate::library::{playlist, resume};
 
 /// The way on from the end of a list.
@@ -40,7 +41,7 @@ fn next_season(path: &str) -> Option<Onward> {
     let (folder, season) = playlist::next_season(Path::new(path))?;
     Some(Onward {
         path: folder.to_string_lossy().into_owned(),
-        label: format!("Season {season}"),
+        label: fill(tr("Season {}"), &[&season]),
         season: true,
     })
 }

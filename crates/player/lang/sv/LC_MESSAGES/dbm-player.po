@@ -1,0 +1,581 @@
+msgid ""
+msgstr ""
+"Language: sv\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgctxt "MainWindow"
+msgid "Open folder…"
+msgstr "Öppna mapp…"
+
+msgctxt "MainWindow"
+msgid "Restart"
+msgstr "Börja om"
+
+msgctxt "MainWindow"
+msgid "Next"
+msgstr "Nästa"
+
+msgctxt "MainWindow"
+msgid "Skip intro"
+msgstr "Hoppa över intro"
+
+msgctxt "MainWindow"
+msgid "Next episode"
+msgstr "Nästa avsnitt"
+
+msgctxt "MainWindow"
+msgid "Subtitles off"
+msgstr "Undertexter av"
+
+msgctxt "MainWindow"
+msgid "No audio"
+msgstr "Inget ljud"
+
+msgctxt "MainWindow"
+msgid "Play / pause"
+msgstr "Spela / pausa"
+
+msgctxt "MainWindow"
+msgid "Back / forward {} seconds"
+msgstr "Bakåt / framåt {} sekunder"
+
+msgctxt "MainWindow"
+msgid "Back / forward {} second"
+msgstr "Bakåt / framåt {} sekund"
+
+msgctxt "MainWindow"
+msgid "Previous / next file"
+msgstr "Föregående / nästa fil"
+
+msgctxt "MainWindow"
+msgid "Previous / next chapter"
+msgstr "Föregående / nästa kapitel"
+
+msgctxt "MainWindow"
+msgid "Frame back / forward"
+msgstr "Bildruta bakåt / framåt"
+
+msgctxt "MainWindow"
+msgid "Comma / Period"
+msgstr "Komma / Punkt"
+
+msgctxt "MainWindow"
+msgid "Slower / faster"
+msgstr "Långsammare / snabbare"
+
+msgctxt "MainWindow"
+msgid "Normal speed"
+msgstr "Normal hastighet"
+
+msgctxt "MainWindow"
+msgid "AUDIO"
+msgstr "LJUD"
+
+msgctxt "MainWindow"
+msgid "Volume"
+msgstr "Volym"
+
+msgctxt "MainWindow"
+msgid "Mute"
+msgstr "Stäng av ljudet"
+
+msgctxt "MainWindow"
+msgid "Next audio track"
+msgstr "Nästa ljudspår"
+
+msgctxt "MainWindow"
+msgid "SUBTITLES"
+msgstr "UNDERTEXTER"
+
+msgctxt "MainWindow"
+msgid "Subtitles on / off"
+msgstr "Undertexter på / av"
+
+msgctxt "MainWindow"
+msgid "Subtitles earlier / later"
+msgstr "Undertexter tidigare / senare"
+
+msgctxt "MainWindow"
+msgid "Next / previous subtitle track"
+msgstr "Nästa / föregående undertextspår"
+
+msgctxt "MainWindow"
+msgid "Fill or fit the window"
+msgstr "Fyll eller anpassa till fönstret"
+
+msgctxt "MainWindow"
+msgid "Fullscreen"
+msgstr "Helskärm"
+
+msgctxt "MainWindow"
+msgid "Ambient border"
+msgstr "Omgivningsljus"
+
+msgctxt "MainWindow"
+msgid "Subtitles & audio"
+msgstr "Undertexter och ljud"
+
+msgctxt "MainWindow"
+msgid "Playlist"
+msgstr "Spellista"
+
+msgctxt "MainWindow"
+msgid "Settings"
+msgstr "Inställningar"
+
+msgctxt "MainWindow"
+msgid "Shortcuts"
+msgstr "Kortkommandon"
+
+msgctxt "MainWindow"
+msgid "Move in a panel"
+msgstr "Flytta i en panel"
+
+msgctxt "MainWindow"
+msgid "First / last in a list"
+msgstr "Första / sista i en lista"
+
+msgctxt "MainWindow"
+msgid "A page up / down a list"
+msgstr "En sida upp / ner i en lista"
+
+msgctxt "MainWindow"
+msgid "Move along the bar"
+msgstr "Flytta längs fältet"
+
+msgctxt "MainWindow"
+msgid "Choose, or adjust"
+msgstr "Välj eller justera"
+
+msgctxt "MainWindow"
+msgid "Close, or leave fullscreen"
+msgstr "Stäng eller lämna helskärm"
+
+msgctxt "MainWindow"
+msgid "Open file"
+msgstr "Öppna fil"
+
+msgctxt "MainWindow"
+msgid "Open folder"
+msgstr "Öppna mapp"
+
+msgctxt "MainWindow"
+msgid "Click the picture"
+msgstr "Klicka på bilden"
+
+msgctxt "MainWindow"
+msgid "Double-click"
+msgstr "Dubbelklick"
+
+msgctxt "MainWindow"
+msgid "Wheel over its slider"
+msgstr "Scrolla över reglaget"
+
+msgctxt "MainWindow"
+msgid "Seek a second"
+msgstr "Spola en sekund"
+
+msgctxt "MainWindow"
+msgid "Wheel over the timeline"
+msgstr "Scrolla över tidslinjen"
+
+msgctxt "MainWindow"
+msgid "Open"
+msgstr "Öppna"
+
+msgctxt "MainWindow"
+msgid "Drop a file or folder"
+msgstr "Släpp en fil eller mapp"
+
+msgctxt "MainWindow"
+msgid "Listening…"
+msgstr "Lyssnar…"
+
+msgctxt "MainWindow"
+msgid "Undo sync"
+msgstr "Ångra synkning"
+
+msgctxt "MainWindow"
+msgid "Sync to speech"
+msgstr "Synka mot tal"
+
+msgctxt "MainWindow"
+msgid "Undo reset"
+msgstr "Ångra återställning"
+
+msgctxt "MainWindow"
+msgid "Press again to reset"
+msgstr "Tryck igen för att återställa"
+
+msgctxt "MainWindow"
+msgid "Reset to defaults"
+msgstr "Återställ standardvärden"
+
+msgctxt "MainWindow"
+msgid "EFFECTS"
+msgstr "EFFEKTER"
+
+msgctxt "MainWindow"
+msgid "Liquid glass"
+msgstr "Flytande glas"
+
+msgctxt "MainWindow"
+msgid "Timing, size & position"
+msgstr "Fördröjning, storlek och position"
+
+msgctxt "MainWindow"
+msgid "INTERFACE"
+msgstr "GRÄNSSNITT"
+
+msgctxt "MainWindow"
+msgid "Accessibility"
+msgstr "Tillgänglighet"
+
+msgctxt "MainWindow"
+msgid "Language"
+msgstr "Språk"
+
+msgctxt "MainWindow"
+msgid "LIQUID GLASS"
+msgstr "FLYTANDE GLAS"
+
+msgctxt "MainWindow"
+msgid "AMBIENT BORDER"
+msgstr "OMGIVNINGSLJUS"
+
+msgctxt "MainWindow"
+msgid "Timing"
+msgstr "Fördröjning"
+
+msgctxt "MainWindow"
+msgid "Size"
+msgstr "Storlek"
+
+msgctxt "MainWindow"
+msgid "Position"
+msgstr "Position"
+
+msgctxt "MainWindow"
+msgid "ACCESSIBILITY"
+msgstr "TILLGÄNGLIGHET"
+
+msgctxt "MainWindow"
+msgid "Animations"
+msgstr "Animationer"
+
+msgctxt "MainWindow"
+msgid "LANGUAGE"
+msgstr "SPRÅK"
+
+msgctxt "MainWindow"
+msgid "System language"
+msgstr "Systemets språk"
+
+msgctxt "MainWindow"
+msgid "SHORTCUTS"
+msgstr "KORTKOMMANDON"
+
+msgctxt "MainWindow"
+msgid "No subtitle or audio tracks"
+msgstr "Inga undertext- eller ljudspår"
+
+msgctxt "MainWindow"
+msgid "Off"
+msgstr "Av"
+
+msgctxt "MainWindow"
+msgid "Open file…"
+msgstr "Öppna fil…"
+
+msgctxt "MainWindow"
+msgid "Autoplay next"
+msgstr "Spela nästa automatiskt"
+
+msgctxt "MainWindow"
+msgid "{} of {}"
+msgstr "{} av {}"
+
+msgctxt "MainWindow"
+msgid "Copied"
+msgstr "Kopierat"
+
+msgctxt "MainWindow"
+msgid "Copy details"
+msgstr "Kopiera detaljer"
+
+msgctxt "MainWindow"
+msgid "Close the player"
+msgstr "Stäng spelaren"
+
+msgctxt "MainWindow"
+msgid "Opening {}…"
+msgstr "Öppnar {}…"
+
+msgctxt "MainWindow"
+msgid "Or drop a file or folder onto the window"
+msgstr "Eller släpp en fil eller mapp på fönstret"
+
+msgctxt "MainWindow"
+msgid "Open a file or folder"
+msgstr "Öppna en fil eller mapp"
+
+msgctxt "MainWindow"
+msgid "Back {} seconds"
+msgstr "Bakåt {} sekunder"
+
+msgctxt "MainWindow"
+msgid "No earlier file"
+msgstr "Ingen tidigare fil"
+
+msgctxt "MainWindow"
+msgid "Previous file"
+msgstr "Föregående fil"
+
+msgctxt "MainWindow"
+msgid "Play"
+msgstr "Spela"
+
+msgctxt "MainWindow"
+msgid "Pause"
+msgstr "Pausa"
+
+msgctxt "MainWindow"
+msgid "No later file"
+msgstr "Ingen senare fil"
+
+msgctxt "MainWindow"
+msgid "Next file"
+msgstr "Nästa fil"
+
+msgctxt "MainWindow"
+msgid "Forward {} seconds"
+msgstr "Framåt {} sekunder"
+
+msgctxt "MainWindow"
+msgid "Unmute"
+msgstr "Slå på ljudet"
+
+msgctxt "MainWindow"
+msgid "Muted"
+msgstr "Ljud av"
+
+msgctxt "MainWindow"
+msgid "Volume {}%"
+msgstr "Volym {} %"
+
+msgctxt "MainWindow"
+msgid "Turn off the ambient border"
+msgstr "Stäng av omgivningsljuset"
+
+msgctxt "MainWindow"
+msgid "Turn on the ambient border"
+msgstr "Slå på omgivningsljuset"
+
+msgctxt "MainWindow"
+msgid "Fit the window"
+msgstr "Anpassa till fönstret"
+
+msgctxt "MainWindow"
+msgid "Fill the window"
+msgstr "Fyll fönstret"
+
+msgctxt "MainWindow"
+msgid "Leave fullscreen"
+msgstr "Lämna helskärm"
+
+msgctxt "StepButton"
+msgid "Increase"
+msgstr "Öka"
+
+msgctxt "StepButton"
+msgid "Decrease"
+msgstr "Minska"
+
+msgctxt "PlaylistRow"
+msgid "{}, could not play"
+msgstr "{}, kunde inte spelas"
+
+msgctxt "PlaylistRow"
+msgid "{}, watched"
+msgstr "{}, sedd"
+
+msgctxt "ResumeRow"
+msgid "Continue {}"
+msgstr "Fortsätt {}"
+
+msgctxt "BackRow"
+msgid "Back from {}"
+msgstr "Tillbaka från {}"
+
+msgctxt "player"
+msgid "Subtitles already in sync"
+msgstr "Undertexterna är redan synkade"
+
+msgctxt "player"
+msgid "Subtitles moved {} s earlier"
+msgstr "Undertexterna flyttades {} s tidigare"
+
+msgctxt "player"
+msgid "Subtitles moved {} s later"
+msgstr "Undertexterna flyttades {} s senare"
+
+msgctxt "player"
+msgid "Subtitles matched to the film's speed"
+msgstr "Undertexterna anpassades till filmens hastighet"
+
+msgctxt "player"
+msgid "No subtitles to sync"
+msgstr "Inga undertexter att synka"
+
+msgctxt "player"
+msgid "Only text subtitles can be synced"
+msgstr "Bara textundertexter kan synkas"
+
+msgctxt "player"
+msgid "Syncing subtitles needs ffmpeg"
+msgstr "Synkning av undertexter kräver ffmpeg"
+
+msgctxt "player"
+msgid "Could not read these subtitles"
+msgstr "Kunde inte läsa undertexterna"
+
+msgctxt "player"
+msgid "Could not read this film's audio"
+msgstr "Kunde inte läsa filmens ljud"
+
+msgctxt "player"
+msgid "Could not match these subtitles to the speech"
+msgstr "Kunde inte matcha undertexterna mot talet"
+
+msgctxt "player"
+msgid "{} — could not play {}"
+msgstr "{} — kunde inte spela {}"
+
+msgctxt "player"
+msgid "{} — could not play that file"
+msgstr "{} — kunde inte spela filen"
+
+msgctxt "player"
+msgid "under a minute left"
+msgstr "mindre än en minut kvar"
+
+msgctxt "player"
+msgid "{} min left"
+msgstr "{} min kvar"
+
+msgctxt "player"
+msgid "{} h left"
+msgstr "{} h kvar"
+
+msgctxt "player"
+msgid "{} h {} min left"
+msgstr "{} h {} min kvar"
+
+msgctxt "player"
+msgid "PLAYLIST"
+msgstr "SPELLISTA"
+
+msgctxt "player"
+msgid "1 episode"
+msgstr "1 avsnitt"
+
+msgctxt "player"
+msgid "{} episodes"
+msgstr "{} avsnitt"
+
+msgctxt "player"
+msgid "Forced"
+msgstr "Tvingad"
+
+msgctxt "player"
+msgid "Commentary"
+msgstr "Kommentarspår"
+
+msgctxt "player"
+msgid "Track {}"
+msgstr "Spår {}"
+
+msgctxt "player"
+msgid "Timed text"
+msgstr "Tidsatt text"
+
+msgctxt "player"
+msgid "Season {}"
+msgstr "Säsong {}"
+
+msgctxt "player"
+msgid "There is nothing at {}"
+msgstr "Det finns inget på {}"
+
+msgctxt "player"
+msgid "Could not read {} — {}"
+msgstr "Kunde inte läsa {} — {}"
+
+msgctxt "player"
+msgid "No video files in {}"
+msgstr "Inga videofiler i {}"
+
+msgctxt "player"
+msgid "No video files under {}"
+msgstr "Inga videofiler under {}"
+
+msgctxt "player"
+msgid "Specials"
+msgstr "Specialavsnitt"
+
+msgctxt "player"
+msgid "Episodes"
+msgstr "Avsnitt"
+
+msgctxt "player"
+msgid "Open video"
+msgstr "Öppna video"
+
+msgctxt "player"
+msgid "Video"
+msgstr "Video"
+
+msgctxt "player"
+msgid "All files"
+msgstr "Alla filer"
+
+msgctxt "player"
+msgid "Open folder"
+msgstr "Öppna mapp"
+
+msgctxt "player"
+msgid "Sound is back"
+msgstr "Ljudet är tillbaka"
+
+msgctxt "player"
+msgid "Chapter {} of {}"
+msgstr "Kapitel {} av {}"
+
+msgctxt "player"
+msgid "Settings could not be saved — {}"
+msgstr "Inställningarna kunde inte sparas — {}"
+
+msgctxt "MainWindow"
+msgid "PLAYBACK"
+msgstr "UPPSPELNING"
+
+msgctxt "MainWindow"
+msgid "PICTURE"
+msgstr "BILD"
+
+msgctxt "MainWindow"
+msgid "PANELS"
+msgstr "PANELER"
+
+msgctxt "MainWindow"
+msgid "NAVIGATION"
+msgstr "NAVIGERING"
+
+msgctxt "MainWindow"
+msgid "FILES"
+msgstr "FILER"
+
+msgctxt "MainWindow"
+msgid "POINTER"
+msgstr "PEKARE"

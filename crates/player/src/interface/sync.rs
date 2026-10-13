@@ -166,7 +166,7 @@ impl ListSync {
 
 /// Hand the tracks and chapters to the UI as models. The playlist goes by
 /// way of the worker — see `playlist_panel`.
-fn push_lists(ui: &MainWindow, player: &PlayerState) {
+pub fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_sub_tracks(track_model(player, TrackKind::Sub));
     ui.set_audio_tracks(track_model(player, TrackKind::Audio));
     ui.set_sub_current(selected_row(player, TrackKind::Sub));

@@ -14,6 +14,7 @@
 
 use std::path::Path;
 
+use crate::lang::{fill, tr};
 use crate::library::durations::Progress;
 use crate::library::naming::Media;
 use crate::worker::{Completion, Worker};
@@ -240,9 +241,9 @@ fn in_season(rows: Vec<String>, season: Option<u32>) -> Vec<String> {
 /// list is not all one show's.
 fn part_label(season: Option<u32>, show: Option<&str>, one_show: bool) -> (String, bool) {
     let part = match season {
-        Some(0) => "Specials".to_string(),
-        Some(n) => format!("Season {n}"),
-        None => "Episodes".to_string(),
+        Some(0) => tr("Specials").to_string(),
+        Some(n) => fill(tr("Season {}"), &[&n]),
+        None => tr("Episodes").to_string(),
     };
     match show.filter(|_| !one_show) {
         None => (part, false),

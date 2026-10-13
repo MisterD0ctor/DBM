@@ -15,6 +15,7 @@
 //! [`crate::library::playlist::prepare`] — which is why this module knows nothing
 //! about mpv, playlists or the worker.
 
+use crate::lang::tr;
 use crate::MainWindow;
 
 /// What the user is being asked for.
@@ -68,10 +69,10 @@ fn choose(want: Want, start: Option<std::path::PathBuf>) -> Option<std::path::Pa
     }
     match want {
         Want::File => dialog
-            .set_title("Open video")
-            .add_filter("Video", crate::library::playlist::VIDEO_EXTENSIONS)
-            .add_filter("All files", &["*"])
+            .set_title(tr("Open video"))
+            .add_filter(tr("Video"), crate::library::playlist::VIDEO_EXTENSIONS)
+            .add_filter(tr("All files"), &["*"])
             .pick_file(),
-        Want::Folder => dialog.set_title("Open folder").pick_folder(),
+        Want::Folder => dialog.set_title(tr("Open folder")).pick_folder(),
     }
 }

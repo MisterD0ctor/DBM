@@ -10,6 +10,7 @@
 //! and never on the frame path. Nothing here touches mpv or the UI; it
 //! produces a plain list, and the caller decides what to do with it.
 
+use crate::lang::{fill, tr};
 use std::cmp::Ordering;
 use std::fs;
 use std::io::{BufWriter, Write};
@@ -78,7 +79,7 @@ pub fn resolve(path: &Path) -> Result<Selection, String> {
         return Ok(Selection { videos, start: 0 });
     }
     if !path.is_file() {
-        return Err(format!("There is nothing at {}", folder_name(path)));
+        return Err(fill(tr("There is nothing at {}"), &[&folder_name(path)]));
     }
 
     let dir = path.parent().ok_or("file has no parent directory")?;
@@ -98,13 +99,13 @@ pub fn resolve(path: &Path) -> Result<Selection, String> {
 /// episode are its season, not the whole library.
 pub fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, String> {
     let videos: Vec<PathBuf> = fs::read_dir(dir)
-        .map_err(|e| format!("Could not read {} — {e}", folder_name(dir)))?
+        .map_err(|e| fill(tr("Could not read {} — {}"), &[&folder_name(dir), &e]))?
         .filter_map(Result::ok)
         .map(|e| e.path())
         .filter(|p| p.is_file() && is_video_file(p))
         .collect();
     if videos.is_empty() {
-        return Err(format!("No video files in {}", folder_name(dir)));
+        return Err(fill(tr("No video files in {}"), &[&folder_name(dir)]));
     }
     Ok(watching_order(videos))
 }
@@ -314,7 +315,7 @@ fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, String> {
     }
 
     if videos.is_empty() {
-        return Err(format!("No video files under {}", folder_name(dir)));
+        return Err(fill(tr("No video files under {}"), &[&folder_name(dir)]));
     }
     Ok(watching_order(videos))
 }

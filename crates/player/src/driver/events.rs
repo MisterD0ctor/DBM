@@ -8,6 +8,7 @@
 use std::rc::Rc;
 
 use crate::interface::format;
+use crate::lang::{fill, tr};
 use crate::playback::audio::Watchdog;
 use crate::playback::mpv::{Event, Mpv};
 use crate::playback::state::PlayerState;
@@ -62,11 +63,11 @@ pub fn drain(
                 .map(|e| e.filename.clone());
             let reason = format::sentence(reason);
             notices.push(match &path {
-                Some(path) => format!(
-                    "{reason} — could not play {}",
-                    crate::library::naming::titled(path, None)
+                Some(path) => fill(
+                    tr("{} — could not play {}"),
+                    &[&reason, &crate::library::naming::titled(path, None)],
                 ),
-                None => format!("{reason} — could not play that file"),
+                None => fill(tr("{} — could not play that file"), &[&reason]),
             });
             player.failed.insert(*entry);
         }

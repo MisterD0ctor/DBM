@@ -23,6 +23,7 @@ use std::collections::BTreeSet;
 use std::rc::Rc;
 use std::time::Duration;
 
+use crate::lang::tr;
 use crate::playback::mpv::{Event, Mpv, Value, FORMAT_STRING};
 use crate::playback::tracks::{self, TrackKind};
 use crate::worker::{Completion, Worker};
@@ -216,7 +217,7 @@ fn reopen(mpv: &Mpv, remembered: Option<&str>) -> Option<String> {
     eprintln!("dbm: audio recovery: reselected audio track {target}");
     // Names what happened rather than what was done to fix it: "reselected
     // audio track 1" is the log's business, not the viewer's.
-    was_silent.then(|| "Sound is back".to_string())
+    was_silent.then(|| tr("Sound is back").to_string())
 }
 
 /// Said once. A list that cannot be read means recovery will never fire, which

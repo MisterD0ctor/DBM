@@ -99,6 +99,10 @@ scope.
   synchronous command, no file I/O. Anything that can block goes to a worker or
   its own thread.
 - Settings always save.
+- The interface is written in English and translated from gettext files, one
+  per language, under `crates/player/lang/`. Swedish is the first. It speaks
+  the system's language where it has it, and the settings can name another.
+  A language is added by adding its file — see the README.
 - Systems stay compartmentalised, so each can be reasoned about on its own.
 - Icons are drawn for 24×24 and displayed at 24px or 18px, which scale their
   2px lines to 2px and 1.5px. The back row's 14px chevron is the one exception.
@@ -114,7 +118,7 @@ is told rides a drawn frame and a player with no film draws none.
 
 - Name: **Death by MPV** (DBM). Bundle identifier `com.kaspe.deathbympv`.
 - Logo: `public/death-by-mpv.svg`. Application icons: `crates/player/icons/`.
-- An icon set of 71 SVGs in `public/icons/`, drawn by the author at 24×24 and
+- An icon set of 72 SVGs in `public/icons/`, drawn by the author at 24×24 and
   wholly the project's own. Future work extends this set rather than
   substituting a library — the look depends on them being one family.
 

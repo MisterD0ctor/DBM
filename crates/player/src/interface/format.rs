@@ -5,6 +5,8 @@
 //! and under the seek preview, a running time on a playlist row, what is left
 //! of a film on the way in.
 
+use crate::lang::{fill, tr};
+
 /// `H:MM:SS`, dropping the hours field when it would be zero.
 pub fn time(seconds: f64) -> String {
     if !seconds.is_finite() || seconds < 0.0 {
@@ -24,13 +26,13 @@ pub fn time(seconds: f64) -> String {
 /// is left of something that has not ended.
 pub fn left(seconds: f64) -> String {
     if !seconds.is_finite() || seconds < 60.0 {
-        return "under a minute left".into();
+        return tr("under a minute left").into();
     }
     let minutes = (seconds / 60.0).ceil() as u64;
     match (minutes / 60, minutes % 60) {
-        (0, m) => format!("{m} min left"),
-        (h, 0) => format!("{h} h left"),
-        (h, m) => format!("{h} h {m} min left"),
+        (0, m) => fill(tr("{} min left"), &[&m]),
+        (h, 0) => fill(tr("{} h left"), &[&h]),
+        (h, m) => fill(tr("{} h {} min left"), &[&h, &m]),
     }
 }
 

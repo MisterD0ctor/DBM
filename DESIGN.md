@@ -1038,6 +1038,13 @@ row already has, beside the fact that is already there.
   J and Shift+J through the subtitle tracks, # through the audio, and `?`
   straight to this page, which is also a row on the way in. The bindings
   the player already had — the arrows' volume, S, T, A — stay where they were
+- **Language:** the last row of the settings' INTERFACE group opens a page of
+  menu rows, one lit: *System language* first, which is what the player speaks
+  until told otherwise, then English, then each language built in under its
+  own name for itself — *Svenska* — which is never translated, so a reader
+  can find their own language from inside one they cannot read. Choosing one
+  changes every word on screen in that frame, the rows of the page included.
+  Key names stay as the keys are marked: Space, Home, Esc
 
 ### The hover label
 

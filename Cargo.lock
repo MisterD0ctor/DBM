@@ -1045,6 +1045,7 @@ dependencies = [
  "serde_json",
  "slint",
  "slint-build",
+ "sys-locale",
  "windows 0.61.3",
  "winresource",
  "zbus",

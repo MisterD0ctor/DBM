@@ -90,6 +90,27 @@ scripts/headless.sh env DBM_SHOWCASE=playlist DBM_CAPTURE=playlist.bmp \
     ./target/release/dbm-player path/to/video.mkv
 ```
 
+## Translating
+
+The interface is written in English. Every other language is one gettext
+file, `crates/player/lang/<code>/LC_MESSAGES/dbm-player.po`, compiled into the
+player; Swedish (`sv`) is there already. The player speaks the system's
+language where it has it, and *Settings → Language* can choose another.
+
+```sh
+scripts/translations.py add de      # start a language, every entry empty
+scripts/translations.py check       # what each language is still missing
+scripts/translations.py update      # add entries for words new in the source
+```
+
+Fill in each `msgstr` and build; the language appears on the settings page
+under its own name. Keep every `{}` — each stands for a value put in at run
+time — and leave `msgctxt` as it is: it says where the words are used.
+
+In the source, a string is marked `@tr("…")` in the `.slint` files and
+`tr("…")` in Rust. Anything not marked stays as written, which is right for
+key names, file names and the player's own name.
+
 ## Platforms
 
 Windows and Linux both ship. The media keys and the desktop's own media

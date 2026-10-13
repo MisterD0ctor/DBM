@@ -73,6 +73,12 @@ pub struct Driver {
     lists: sync::ListSync,
     /// Has the playlist laid out on the worker, and shows what comes back.
     panel: playlist_panel::Panel,
+    /// `lang::changes` as of the last frame, so words already handed to the
+    /// interface are said again in a language just chosen.
+    language_seen: usize,
+    /// How much is left of the film the way in offers, kept so that line can
+    /// be said again too.
+    resume_left: Option<f64>,
     /// Keeps the duration cache the playlist reads from up to date.
     durations: crate::library::durations::Recorder,
     /// Describes the playlist's other files without playing them.
@@ -124,6 +130,8 @@ impl Driver {
             drops: crate::platform::dropped::Accepting::new(),
             lists: sync::ListSync::default(),
             panel: playlist_panel::Panel::default(),
+            language_seen: 0,
+            resume_left: None,
             durations: crate::library::durations::Recorder::default(),
             scan: crate::library::probe::Scan::default(),
             neighbours: crate::library::shelf::Neighbours::default(),
@@ -456,6 +464,25 @@ impl Driver {
 
         self.look_onward(ui);
         self.listen_for_the_titles();
+        self.say_it_again(ui);
+    }
+
+    /// Say everything the Rust side has handed the interface over again when
+    /// the language changes: track names, the chapter, the playlist's parts,
+    /// what is left of the film on the way in. The interface's own words
+    /// follow by themselves; these were sentences by the time it got them.
+    fn say_it_again(&mut self, ui: &MainWindow) {
+        let changes = crate::lang::changes();
+        if changes == self.language_seen {
+            return;
+        }
+        self.language_seen = changes;
+        sync::push_lists(ui, &self.player);
+        sync::push_scalars(ui, &self.player);
+        self.panel.request(&self.player, &self.app.worker);
+        if let Some(seconds) = self.resume_left {
+            ui.set_resume_left(format::left(seconds).into());
+        }
     }
 
     /// Ask for a thumbnail atlas when the playing file changes.

@@ -142,7 +142,7 @@ export component StepButton inherits Rectangle {
     callback clicked();
 
     accessible-role: button;
-    accessible-label: root.glyph == "+" ? "Increase" : "Decrease";
+    accessible-label: root.glyph == "+" ? @tr("Increase") : @tr("Decrease");
     accessible-action-default => {
         root.clicked();
     }

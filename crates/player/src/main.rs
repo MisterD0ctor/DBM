@@ -29,6 +29,7 @@
 //! | `platform`    | what each OS has to be asked for in its own way           |
 //! | `worker`      | a thread for anything that would block the frame path     |
 //! | `settings`    | what the person has set, kept between runs                |
+//! | `lang`        | the language it speaks, and the words in each             |
 //! | `paths`       | where the app keeps its own files                         |
 //! | `diagnostics` | opt-in instrumentation                                    |
 //! | `harness`     | opt-in automated exercises                                |
@@ -43,6 +44,7 @@ mod driver;
 mod gpu;
 mod harness;
 mod interface;
+mod lang;
 mod library;
 mod paths;
 mod platform;

@@ -14,7 +14,7 @@
 //! frame. A dirty flag rather than a callback, so a drag that moves a slider
 //! twenty times in a frame still costs one pipeline update.
 
-use std::cell::Cell;
+use std::cell::{Cell, RefCell};
 
 use crate::gpu::pipeline::{BorderParams, GlassParams};
 use crate::playback::commands;
@@ -23,6 +23,9 @@ const AMBIENCE_ON: &str = "ambience.enabled";
 const GLASS_ON: &str = "glass.enabled";
 const AUTOPLAY: &str = "playback.autoplay";
 const ANIMATIONS: &str = "accessibility.animations";
+/// What a chosen language is saved under, its code after the dot. The file is
+/// a list of numbers, so the choice is in the name and the number is a one.
+const LANGUAGE: &str = "language.";
 /// What `bevel` and `refract` were called while they were pixel widths.
 ///
 /// Both became ratios — of a panel's corner radius, and of the bevel — so a
@@ -149,6 +152,8 @@ pub struct Store {
     /// renderer. Two flags because they are drained at very different rates:
     /// the pipeline every frame, the disk once things settle.
     unsaved: Cell<bool>,
+    /// The language chosen, by code, or empty to follow the system's.
+    language: RefCell<String>,
 }
 
 impl Default for Store {
@@ -167,6 +172,7 @@ impl Default for Store {
             // ones.
             dirty: Cell::new(true),
             unsaved: Cell::new(false),
+            language: RefCell::new(String::new()),
         }
     }
 }
@@ -309,6 +315,16 @@ impl Store {
         self.touch();
     }
 
+    /// The language chosen, by code. Empty for the system's.
+    pub fn language(&self) -> String {
+        self.language.borrow().clone()
+    }
+
+    pub fn set_language(&self, code: &str) {
+        *self.language.borrow_mut() = code.to_string();
+        self.touch();
+    }
+
     pub fn sub_scale(&self) -> f32 {
         self.sub_scale.get()
     }
@@ -361,6 +377,10 @@ impl Store {
         out.push((ANIMATIONS.into(), self.animations.get() as u8 as f32));
         out.push((SUB_SCALE.into(), self.sub_scale.get()));
         out.push((SUB_POS.into(), self.sub_pos.get()));
+        let language = self.language.borrow();
+        if !language.is_empty() {
+            out.push((format!("{LANGUAGE}{language}"), 1.0));
+        }
         out
     }
 
@@ -390,7 +410,11 @@ impl Store {
                 GLASS_ON => self.glass_on.set(*value >= 0.5),
                 AUTOPLAY => self.autoplay.set(*value >= 0.5),
                 ANIMATIONS => self.animations.set(*value >= 0.5),
-                _ => {}
+                other => {
+                    if let Some(code) = other.strip_prefix(LANGUAGE) {
+                        *self.language.borrow_mut() = code.to_string();
+                    }
+                }
             }
         }
 
@@ -522,7 +546,7 @@ fn save(path: &std::path::Path, values: &[(String, f32)]) -> Result<(), String> 
     }
     std::fs::write(path, out).map_err(|e| {
         eprintln!("dbm: could not save settings: {e}");
-        format!("Settings could not be saved — {e}")
+        crate::lang::fill(crate::lang::tr("Settings could not be saved — {}"), &[&e])
     })
 }
 

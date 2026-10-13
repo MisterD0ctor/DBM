@@ -8,6 +8,7 @@
 //! provide the reactivity, and duplicating that here would mean two sources
 //! of truth for the same value.
 
+use crate::lang::{fill, tr};
 use crate::playback::mpv::{Event, Value, FORMAT_DOUBLE, FORMAT_FLAG, FORMAT_STRING};
 use crate::playback::tracks::{PlaylistEntry, Track};
 use std::ffi::c_int;
@@ -267,10 +268,12 @@ impl PlayerState {
         let Some(chapter) = self.chapters.get(index) else {
             return String::new();
         };
-        chapter
-            .title
-            .clone()
-            .unwrap_or_else(|| format!("Chapter {} of {}", index + 1, self.chapters.len()))
+        chapter.title.clone().unwrap_or_else(|| {
+            fill(
+                tr("Chapter {} of {}"),
+                &[&(index + 1), &self.chapters.len()],
+            )
+        })
     }
 
     /// Whether an episode's closing credits are playing: the chapter playing

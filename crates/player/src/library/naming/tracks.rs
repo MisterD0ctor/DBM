@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use super::clean::{clean_separators, strip_extension, strip_metadata, strip_path};
 use super::language::{base_code, language_name, same_language};
+use crate::lang::{fill, tr};
 
 /// A flag a subtitle track carries about itself, rather than a name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,9 +20,9 @@ pub enum Flag {
 impl Flag {
     fn label(self) -> &'static str {
         match self {
-            Self::Forced => "Forced",
+            Self::Forced => tr("Forced"),
             Self::Sdh => "SDH",
-            Self::Commentary => "Commentary",
+            Self::Commentary => tr("Commentary"),
         }
     }
 
@@ -162,7 +163,7 @@ pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
             // No language and no title: named by what it technically is.
             // "AAC 5.1" is true and tells two tracks apart; "Track 1" said
             // only that a track existed, and read the same in both lists.
-            (None, None) => by_format(t).unwrap_or_else(|| format!("Track {}", t.id)),
+            (None, None) => by_format(t).unwrap_or_else(|| fill(tr("Track {}"), &[&t.id])),
         };
 
         for flag in &parsed.flags {
@@ -194,7 +195,7 @@ fn codec_name(codec: &str) -> String {
         "subrip" => "SRT".into(),
         "hdmv_pgs_subtitle" => "PGS".into(),
         "dvd_subtitle" => "VobSub".into(),
-        "mov_text" => "Timed text".into(),
+        "mov_text" => tr("Timed text").into(),
         "webvtt" => "WebVTT".into(),
         "eac3" => "E-AC-3".into(),
         "ac3" => "AC-3".into(),

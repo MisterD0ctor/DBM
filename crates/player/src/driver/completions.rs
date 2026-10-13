@@ -6,6 +6,7 @@
 
 use super::{say, warn, Driver, Gpu};
 use crate::interface::format;
+use crate::lang::{fill, tr};
 use crate::library::preview::Atlas;
 use crate::library::resume::Resume;
 use crate::library::subsync::{Failure, Outcome};
@@ -168,7 +169,7 @@ impl Driver {
         let moved = fit.delay - was.0;
         let same_speed = (fit.speed - was.1).abs() < 1e-4;
         if same_speed && moved.abs() < 0.05 {
-            say(ui, "Subtitles already in sync".into());
+            say(ui, tr("Subtitles already in sync").into());
             return;
         }
         commands::set_sub_delay(&self.app.mpv, fit.delay);
@@ -184,16 +185,21 @@ impl Driver {
         say(
             ui,
             if same_speed {
-                format!(
-                    "Subtitles moved {:.1} s {}",
-                    moved.abs(),
-                    if moved < 0.0 { "earlier" } else { "later" }
+                // Two sentences rather than one with a word swapped in: the
+                // word does not sit in the same place in every language.
+                fill(
+                    if moved < 0.0 {
+                        tr("Subtitles moved {} s earlier")
+                    } else {
+                        tr("Subtitles moved {} s later")
+                    },
+                    &[&format!("{:.1}", moved.abs())],
                 )
             } else {
                 // The delay alone would be a number that means nothing: at
                 // another speed the subtitles have moved by a different
                 // amount at every point in the film.
-                "Subtitles matched to the film's speed".into()
+                tr("Subtitles matched to the film's speed").into()
             },
         );
     }
@@ -221,7 +227,7 @@ impl Driver {
     }
 
     /// Put the film left unfinished on the way in, and its frame behind it.
-    fn offer_resume(&self, ui: &MainWindow, gpu: &mut Gpu, resume: Resume) {
+    fn offer_resume(&mut self, ui: &MainWindow, gpu: &mut Gpu, resume: Resume) {
         eprintln!(
             "dbm: last unfinished {} at {:.0}%{}",
             resume.path,
@@ -237,6 +243,7 @@ impl Driver {
         ui.set_resume_title(resume.title.into());
         ui.set_resume_progress(resume.fraction);
         ui.set_resume_left(format::left(resume.seconds_left).into());
+        self.resume_left = Some(resume.seconds_left);
         match &resume.still {
             Some(still) => {
                 gpu.pipeline.set_backdrop(&gpu.gl, still);
@@ -254,12 +261,12 @@ impl Driver {
 /// Why a sync changed nothing, for the person who asked for it.
 fn unsynced(why: Failure) -> &'static str {
     match why {
-        Failure::NoSubtitles => "No subtitles to sync",
-        Failure::Pictures => "Only text subtitles can be synced",
-        Failure::NoFfmpeg => "Syncing subtitles needs ffmpeg",
-        Failure::Unread => "Could not read these subtitles",
-        Failure::Silent => "Could not read this film's audio",
-        Failure::Unsure => "Could not match these subtitles to the speech",
+        Failure::NoSubtitles => tr("No subtitles to sync"),
+        Failure::Pictures => tr("Only text subtitles can be synced"),
+        Failure::NoFfmpeg => tr("Syncing subtitles needs ffmpeg"),
+        Failure::Unread => tr("Could not read these subtitles"),
+        Failure::Silent => tr("Could not read this film's audio"),
+        Failure::Unsure => tr("Could not match these subtitles to the speech"),
     }
 }
 

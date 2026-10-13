@@ -9,6 +9,7 @@ use std::rc::Rc;
 use slint::{Model, ModelRc, VecModel};
 
 use crate::interface::format;
+use crate::lang::{fill, tr};
 use crate::library::durations::Progress;
 use crate::library::shelf::{self, Beside, Entry, Group, Shelf};
 use crate::playback::state::PlayerState;
@@ -93,7 +94,7 @@ impl Panel {
         ui.set_playlist_named(shelf.heading.is_some());
         ui.set_playlist_heading(match shelf.title() {
             Some(title) => title.into(),
-            None => slint::SharedString::from("PLAYLIST"),
+            None => slint::SharedString::from(tr("PLAYLIST")),
         });
         // Where the panel opens: the part holding the file playing, on its row.
         let current = shelf.groups.iter().position(|g| g.current().is_some());
@@ -250,9 +251,9 @@ fn group_item(group: &Group, page: &Rc<VecModel<PlaylistItem>>) -> PlaylistGroup
         .into(),
         titular: group.named,
         detail: if count == 1 {
-            "1 episode".into()
+            tr("1 episode").into()
         } else {
-            format!("{count} episodes").into()
+            fill(tr("{} episodes"), &[&count]).into()
         },
         current: group.current().is_some(),
         leaf: group.leaf,
