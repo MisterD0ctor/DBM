@@ -60,6 +60,9 @@ pub enum Completion {
     /// credits, found by listening or remembered from the last time.
     /// Reported from the run's own thread — see `titles`.
     Titles(crate::library::titles::Outcome),
+    /// The playlist laid out in its parts, for the panel to show — see
+    /// `playlist_panel`.
+    Shelved(crate::library::shelf::Shelf),
     /// Seasons of the playing show found in folders beside its own, for the
     /// playlist panel. `paths` is the list they were looked for beside, so an
     /// answer for a list since replaced is dropped.

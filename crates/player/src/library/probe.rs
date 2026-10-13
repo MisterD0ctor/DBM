@@ -9,8 +9,8 @@
 //! `ffmpeg -i` with no output reads the container header and exits. It is
 //! about 40ms for a local file, most of it process start, and it never
 //! decodes a frame — so a season is under a second, and a folder of two
-//! hundred episodes fills in over a few seconds while the rows it has not
-//! reached yet stay as they were.
+//! hundred episodes fills in over a few seconds, a second's worth of rows at
+//! a time, while the rows it has not reached yet stay as they were.
 //!
 //! Its own thread rather than the worker, for the reason the preview atlas
 //! has one: the worker is what keeps the track lists current, and a scan of a
@@ -31,6 +31,7 @@
 
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 
 use crate::library::cache::PathMap;
 use crate::library::ffmpeg;
@@ -51,6 +52,9 @@ pub struct Found {
 // ---------------------------------------------------------------------------
 
 static GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// How long a scan gathers what it has read before handing it over.
+const BATCH: Duration = Duration::from_secs(1);
 
 /// Keeps one scan running for whatever the playlist currently is.
 #[derive(Default)]
@@ -118,6 +122,12 @@ fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
     };
     ffmpeg::announce(&ffmpeg);
 
+    // Handed over a second's worth at a time rather than file by file. Each
+    // delivery is a frame in which the interface has rows to rewrite, and at
+    // one per file a folder seen for the first time kept it at that for as
+    // long as the scan ran.
+    let mut batch: Vec<Found> = Vec::new();
+    let mut handed = Instant::now();
     for path in unknown {
         if !current() {
             return;
@@ -129,9 +139,16 @@ fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
             crate::library::durations::record(&path, found.seconds);
         }
         record_title(&path, found.title.as_deref());
-        if !reporter.send(Completion::Probed(vec![found])) {
-            return;
+        batch.push(found);
+        if handed.elapsed() >= BATCH {
+            if !reporter.send(Completion::Probed(std::mem::take(&mut batch))) {
+                return;
+            }
+            handed = Instant::now();
         }
+    }
+    if !batch.is_empty() && current() {
+        reporter.send(Completion::Probed(batch));
     }
 }
 

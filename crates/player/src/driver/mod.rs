@@ -71,6 +71,8 @@ pub struct Driver {
     /// Installed the same way and for the same reason as the modal hook.
     drops: crate::platform::dropped::Accepting,
     lists: sync::ListSync,
+    /// Has the playlist laid out on the worker, and shows what comes back.
+    panel: playlist_panel::Panel,
     /// Keeps the duration cache the playlist reads from up to date.
     durations: crate::library::durations::Recorder,
     /// Describes the playlist's other files without playing them.
@@ -121,6 +123,7 @@ impl Driver {
             modal: modal_loop::Hook::new(),
             drops: crate::platform::dropped::Accepting::new(),
             lists: sync::ListSync::default(),
+            panel: playlist_panel::Panel::default(),
             durations: crate::library::durations::Recorder::default(),
             scan: crate::library::probe::Scan::default(),
             neighbours: crate::library::shelf::Neighbours::default(),
@@ -357,7 +360,7 @@ impl Driver {
         // A failure marks its playlist row, which the list otherwise only
         // hears about on the next read.
         if !self.notices.is_empty() {
-            playlist_panel::push(ui, &self.player);
+            self.panel.request(&self.player, &self.app.worker);
         }
         for notice in std::mem::take(&mut self.notices) {
             // A notice means something concluded, which is the backstop for
@@ -439,7 +442,7 @@ impl Driver {
         self.poll_preview(ui);
 
         // Several probe results can land in one drain, and seasons found
-        // beside the list with them; the playlist is rebuilt once for all.
+        // beside the list with them; the playlist is laid out once for all.
         // The worker's own handle, so the drain does not hold the driver
         // borrowed while each result is taken in.
         let worker = self.app.worker.clone();
@@ -448,7 +451,7 @@ impl Driver {
             playlist_moved |= self.receive(ui, gpu, completion);
         }
         if playlist_moved {
-            playlist_panel::push(ui, &self.player);
+            self.panel.request(&self.player, &self.app.worker);
         }
 
         self.look_onward(ui);

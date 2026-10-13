@@ -15,8 +15,8 @@ use crate::worker::{Completion, Worker};
 use crate::MainWindow;
 
 impl Driver {
-    /// Take delivery of one finished job. Returns whether the playlist panel
-    /// needs rebuilding, which the caller does once however many asked.
+    /// Take delivery of one finished job. Returns whether the playlist needs
+    /// laying out again, which the caller asks for once however many did.
     pub(super) fn receive(
         &mut self,
         ui: &MainWindow,
@@ -25,7 +25,7 @@ impl Driver {
     ) -> bool {
         match completion {
             Completion::Lists(lists) => {
-                self.lists.apply(ui, &mut self.player, lists);
+                let mut moved = self.lists.apply(ui, &mut self.player, lists);
                 // Here because this is where the playlist's paths become
                 // known. The scan compares them with the last request and
                 // does nothing when only the tracks moved.
@@ -42,8 +42,12 @@ impl Driver {
                     && !self.player.beside.is_empty()
                 {
                     self.player.beside.clear();
-                    return true;
+                    moved = true;
                 }
+                moved
+            }
+            Completion::Shelved(shelf) => {
+                self.panel.show(ui, shelf);
                 false
             }
             Completion::Opened(Ok(list)) => {

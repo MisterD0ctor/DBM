@@ -83,6 +83,7 @@ impl Group {
 }
 
 /// A playlist, in parts.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Shelf {
     /// The show every file belongs to, if there is one.
     pub heading: Option<String>,

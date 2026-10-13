@@ -14,7 +14,7 @@
 
 use slint::{ModelRc, VecModel};
 
-use crate::interface::{format, playlist_panel};
+use crate::interface::format;
 use crate::library::durations::Progress;
 use crate::playback::state::PlayerState;
 use crate::playback::tracks::{self, Chapter, PlaylistEntry, Track, TrackKind};
@@ -152,16 +152,20 @@ impl ListSync {
         });
     }
 
-    /// Take delivery of a finished read.
-    pub fn apply(&mut self, ui: &MainWindow, player: &mut PlayerState, lists: Lists) {
+    /// Take delivery of a finished read. Returns whether anything in it was
+    /// new, which is the caller's cue to have the playlist laid out again.
+    pub fn apply(&mut self, ui: &MainWindow, player: &mut PlayerState, lists: Lists) -> bool {
         self.in_flight = false;
-        if player.apply_lists(lists) {
+        let moved = player.apply_lists(lists);
+        if moved {
             push_lists(ui, player);
         }
+        moved
     }
 }
 
-/// Hand the current lists to the UI as models.
+/// Hand the tracks and chapters to the UI as models. The playlist goes by
+/// way of the worker — see `playlist_panel`.
 fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_sub_tracks(track_model(player, TrackKind::Sub));
     ui.set_audio_tracks(track_model(player, TrackKind::Audio));
@@ -179,7 +183,6 @@ fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_credits_rolling(player.credits_rolling());
     ui.set_intro_rolling(player.intro_rolling());
     ui.set_intro_end(player.intro().map_or(0.0, |(_, end)| end as f32));
-    playlist_panel::push(ui, player);
 }
 
 /// Which row of a track list is the selected one, or -1.

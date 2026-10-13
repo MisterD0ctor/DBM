@@ -4,62 +4,195 @@
 //! What the parts are is `shelf`'s business; this turns its answer into the
 //! structs the panel's rows bind to.
 
+use std::rc::Rc;
+
 use slint::{Model, ModelRc, VecModel};
 
 use crate::interface::format;
-use crate::library::shelf::{self, Entry, Group, Shelf};
+use crate::library::durations::Progress;
+use crate::library::shelf::{self, Beside, Entry, Group, Shelf};
 use crate::playback::state::PlayerState;
+use crate::worker::{Completion, Worker};
 use crate::{MainWindow, PlaylistGroup, PlaylistItem};
 
-/// Hand the playlist alone to the UI.
+/// A playlist row as the player had it when the panel was asked for, owned so
+/// it can cross to the worker.
+struct Row {
+    path: String,
+    title: Option<String>,
+    index: i64,
+    current: bool,
+    progress: Progress,
+    failed: bool,
+}
+
+/// The playlist panel: asks for its layout, and shows the answer.
 ///
-/// Separate so a scan result, which changes nothing about the tracks, does
-/// not rebuild the subtitle and audio menus as well — and so a row the
-/// pointer is resting on is recreated no more often than it has to be.
-pub fn push(ui: &MainWindow, player: &PlayerState) {
-    let items: Vec<shelf::Item> = player
-        .playlist
-        .iter()
-        .enumerate()
-        .map(|(row, e)| shelf::Item {
-            path: &e.filename,
-            title: player.known_title(row),
-            index: e.index,
-            current: e.current,
-            progress: player.known_progress(row),
-            failed: player.failed.contains(&e.filename),
-        })
-        .collect();
-    let shelf = shelf::arrange(&items, &player.beside);
+/// Laying a list out means reading every file's name for its show, season
+/// and episode, which is work about the files and none of the interface's
+/// business, so it is done on the worker and only the finished [`Shelf`]
+/// comes back to be shown. It is asked for whenever something a row says
+/// has moved; the answers come back in the order they were asked for, so
+/// the last one shown is always the newest.
+#[derive(Default)]
+pub struct Panel {
+    /// What the panel is showing, to tell what an answer changes.
+    shown: Option<Shelf>,
+    /// The models the rows are bound to, kept so an answer that only changes
+    /// what rows say can be written into them.
+    groups: Option<Rc<VecModel<PlaylistGroup>>>,
+    pages: Vec<Rc<VecModel<PlaylistItem>>>,
+}
 
-    ui.set_next_label(next_label(&shelf).into());
-    ui.set_playlist_named(shelf.heading.is_some());
-    ui.set_playlist_heading(match shelf.title() {
-        Some(title) => title.into(),
-        None => slint::SharedString::from("PLAYLIST"),
-    });
-    // Where the panel opens: the part holding the file playing, on its row.
-    let current = shelf.groups.iter().position(|g| g.current().is_some());
-    ui.set_playlist_current_group(current.map_or(-1, |g| g as i32));
-    ui.set_playlist_drills(shelf.groups.iter().any(|g| !g.leaf));
-
-    // The page on show is kept by its name, not its place. Seasons found
-    // beside this one arrive a moment after it and go in around it, and a
-    // page held by number would turn into another season under the reader.
-    let shown = usize::try_from(ui.get_playlist_page())
-        .ok()
-        .and_then(|page| ui.get_playlist_groups().row_data(page))
-        .map(|group| group.label);
-    let groups: Vec<PlaylistGroup> = shelf.groups.iter().map(group_item).collect();
-    if let Some(label) = shown {
-        ui.set_playlist_page(
-            groups
+impl Panel {
+    /// Have the playlist laid out as it stands now.
+    pub fn request(&self, player: &PlayerState, worker: &Worker) {
+        let rows: Vec<Row> = player
+            .playlist
+            .iter()
+            .enumerate()
+            .map(|(row, e)| Row {
+                path: e.filename.clone(),
+                title: player.known_title(row).map(str::to_owned),
+                index: e.index,
+                current: e.current,
+                progress: player.known_progress(row),
+                failed: player.failed.contains(&e.filename),
+            })
+            .collect();
+        let beside: Vec<Beside> = player.beside.clone();
+        worker.submit(move |_mpv| {
+            let items: Vec<shelf::Item> = rows
                 .iter()
-                .position(|g| g.label == label)
-                .map_or(-1, |page| page as i32),
-        );
+                .map(|row| shelf::Item {
+                    path: &row.path,
+                    title: row.title.as_deref(),
+                    index: row.index,
+                    current: row.current,
+                    progress: row.progress,
+                    failed: row.failed,
+                })
+                .collect();
+            Some(Completion::Shelved(shelf::arrange(&items, &beside)))
+        });
     }
-    ui.set_playlist_groups(ModelRc::new(VecModel::from(groups)));
+
+    /// Show a finished layout.
+    ///
+    /// The rows are written into where the list is the one already on show
+    /// and only what they say has moved — a length that has just been read,
+    /// the file playing. Replacing a model makes the panel tear down every
+    /// row and build it again, which starts whatever was moving over from the
+    /// beginning; a folder being described for the first time used to do that
+    /// some twenty times a second for as long as it took.
+    pub fn show(&mut self, ui: &MainWindow, shelf: Shelf) {
+        if self.shown.as_ref() == Some(&shelf) {
+            return;
+        }
+        ui.set_next_label(next_label(&shelf).into());
+        ui.set_playlist_named(shelf.heading.is_some());
+        ui.set_playlist_heading(match shelf.title() {
+            Some(title) => title.into(),
+            None => slint::SharedString::from("PLAYLIST"),
+        });
+        // Where the panel opens: the part holding the file playing, on its row.
+        let current = shelf.groups.iter().position(|g| g.current().is_some());
+        ui.set_playlist_current_group(current.map_or(-1, |g| g as i32));
+        ui.set_playlist_drills(shelf.groups.iter().any(|g| !g.leaf));
+
+        let rewritten = self.rewrite(&shelf);
+        if !rewritten {
+            self.replace(ui, &shelf);
+        }
+        if crate::diagnostics::trace() {
+            eprintln!(
+                "dbm: playlist {} in {} part(s)",
+                if rewritten { "rewritten" } else { "rebuilt" },
+                shelf.groups.len()
+            );
+        }
+        self.shown = Some(shelf);
+    }
+
+    /// Write what moved into the rows on show. `false` when the list is not
+    /// the one they were built for, and nothing was touched.
+    fn rewrite(&self, shelf: &Shelf) -> bool {
+        let (Some(shown), Some(groups)) = (&self.shown, &self.groups) else {
+            return false;
+        };
+        if !same_rows(shown, shelf) || self.pages.len() != shelf.groups.len() {
+            return false;
+        }
+        for (g, (was, now)) in shown.groups.iter().zip(&shelf.groups).enumerate() {
+            if was == now {
+                continue;
+            }
+            for (row, (old, new)) in was.entries.iter().zip(&now.entries).enumerate() {
+                if old != new {
+                    self.pages[g].set_row_data(row, entry_item(new));
+                }
+            }
+            if was.current().is_some() != now.current().is_some()
+                || was.open_row() != now.open_row()
+            {
+                groups.set_row_data(g, group_item(now, &self.pages[g]));
+            }
+        }
+        true
+    }
+
+    /// Build the rows afresh, for a list that is not the one on show.
+    fn replace(&mut self, ui: &MainWindow, shelf: &Shelf) {
+        // The page on show is kept by its name, not its place. Seasons found
+        // beside this one arrive a moment after it and go in around it, and a
+        // page held by number would turn into another season under the reader.
+        let shown = usize::try_from(ui.get_playlist_page())
+            .ok()
+            .and_then(|page| ui.get_playlist_groups().row_data(page))
+            .map(|group| group.label);
+        self.pages = shelf
+            .groups
+            .iter()
+            .map(|g| {
+                Rc::new(VecModel::from(
+                    g.entries.iter().map(entry_item).collect::<Vec<_>>(),
+                ))
+            })
+            .collect();
+        let groups: Vec<PlaylistGroup> = shelf
+            .groups
+            .iter()
+            .zip(&self.pages)
+            .map(|(group, page)| group_item(group, page))
+            .collect();
+        if let Some(label) = shown {
+            ui.set_playlist_page(
+                groups
+                    .iter()
+                    .position(|g| g.label == label)
+                    .map_or(-1, |page| page as i32),
+            );
+        }
+        let groups = Rc::new(VecModel::from(groups));
+        ui.set_playlist_groups(ModelRc::from(groups.clone()));
+        self.groups = Some(groups);
+    }
+}
+
+/// Whether two layouts are the same files in the same parts under the same
+/// names, whatever else about a row differs.
+fn same_rows(a: &Shelf, b: &Shelf) -> bool {
+    a.groups.len() == b.groups.len()
+        && a.groups.iter().zip(&b.groups).all(|(a, b)| {
+            a.label == b.label
+                && a.named == b.named
+                && a.leaf == b.leaf
+                && a.entries.len() == b.entries.len()
+                && a.entries
+                    .iter()
+                    .zip(&b.entries)
+                    .all(|(a, b)| a.path == b.path)
+        })
 }
 
 /// What the way on is called: the file after this one, as its row names it.
@@ -102,8 +235,8 @@ fn next_label(shelf: &Shelf) -> String {
     }
 }
 
-/// One part of the list, as the panel draws it.
-fn group_item(group: &Group) -> PlaylistGroup {
+/// One part of the list, as the panel draws it, over the rows of its page.
+fn group_item(group: &Group, page: &Rc<VecModel<PlaylistItem>>) -> PlaylistGroup {
     let count = group.entries.len();
     PlaylistGroup {
         label: group.label.as_str().into(),
@@ -124,9 +257,7 @@ fn group_item(group: &Group) -> PlaylistGroup {
         current: group.current().is_some(),
         leaf: group.leaf,
         open_row: group.open_row() as i32,
-        entries: ModelRc::new(VecModel::from(
-            group.entries.iter().map(entry_item).collect::<Vec<_>>(),
-        )),
+        entries: ModelRc::from(page.clone()),
     }
 }
 
@@ -153,7 +284,6 @@ fn entry_item(entry: &Entry) -> PlaylistItem {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::library::durations::Progress;
 
     fn item(path: &str, index: i64, current: bool) -> shelf::Item<'_> {
         shelf::Item {
