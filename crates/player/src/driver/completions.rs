@@ -4,7 +4,7 @@
 //! adding a kind of background job is a compile error until its result has
 //! somewhere to go — see `worker`.
 
-use super::{say, Driver, Gpu};
+use super::{say, warn, Driver, Gpu};
 use crate::interface::format;
 use crate::library::preview::Atlas;
 use crate::library::resume::Resume;
@@ -63,11 +63,15 @@ impl Driver {
                 eprintln!("dbm: cannot open: {e}");
                 // Nothing was found to load, so no file is coming.
                 ui.set_opening(false);
-                say(ui, e);
+                warn(ui, e);
                 false
             }
             Completion::Notice(text) => {
                 say(ui, text);
+                false
+            }
+            Completion::Warning(text) => {
+                warn(ui, text);
                 false
             }
             Completion::Probed(found) => self.player.apply_probed(found),
@@ -149,7 +153,7 @@ impl Driver {
         let fit = match outcome.result {
             Ok(fit) => fit,
             Err(why) => {
-                say(ui, unsynced(why).into());
+                warn(ui, unsynced(why).into());
                 return;
             }
         };

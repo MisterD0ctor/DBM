@@ -45,13 +45,21 @@ pub fn drain(
         // Reason first. The capsule elides at the width of the bar, and with
         // a scene release's name in front it was the reason — the one part
         // worth reading — that fell off the end. The name is the one the
-        // playlist shows, not the file's, and the path is remembered so the
+        // playlist shows, not the file's, and the entry is remembered so its
         // row can go on saying so after the notice has gone.
         if let Event::EndFile {
             failure: Some(reason),
+            entry,
         } = &event
         {
-            let path = player.path.clone().or_else(|| player.filename.clone());
+            // Which file it was is asked of the list, by the entry's id. The
+            // player's own `path` is the file before this one, or nothing,
+            // when a file fails before it has opened.
+            let path = player
+                .playlist
+                .iter()
+                .find(|e| e.id == *entry)
+                .map(|e| e.filename.clone());
             let reason = format::sentence(reason);
             notices.push(match &path {
                 Some(path) => format!(
@@ -60,9 +68,7 @@ pub fn drain(
                 ),
                 None => format!("{reason} — could not play that file"),
             });
-            if let Some(path) = path {
-                player.failed.insert(path);
-            }
+            player.failed.insert(*entry);
         }
         // Not everything mpv reports is state the interface shows. The
         // watchdog reads the same stream for the device list and the audio

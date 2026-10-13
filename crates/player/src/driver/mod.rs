@@ -369,7 +369,7 @@ impl Driver {
             // turns true, so without this the line would say "Opening…"
             // until the next successful one.
             ui.set_opening(false);
-            say(ui, notice);
+            warn(ui, notice);
         }
         if moved {
             sync::push_scalars(ui, &self.player);
@@ -629,6 +629,12 @@ impl Driver {
 /// from the player ignoring you.
 fn say(ui: &MainWindow, text: String) {
     ui.global::<crate::Flash>().invoke_notice(text.into());
+}
+
+/// Say that something did not happen: the same sentence, with the warning
+/// mark before it. For a failure, never for news.
+fn warn(ui: &MainWindow, text: String) {
+    ui.global::<crate::Flash>().invoke_warn(text.into());
 }
 
 /// Point a Slint image property at a target, but only when something actually

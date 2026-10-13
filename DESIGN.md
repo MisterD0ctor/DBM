@@ -800,7 +800,8 @@ the axes, which is exactly the part the eye catches.
   wears both marks without them touching. A shape, because weight and alpha
   alone were close to invisible over moving video.
 - **Icon:** only on a row that is an action on a settings page — *Reset to
-  defaults* wears Reset, *Sync to speech* wears Speaking. 18px where a
+  defaults* wears Reset, and Warning for as long as it says *Press again to
+  reset*; *Sync to speech* wears Speaking. 18px where a
   stepper keeps its own, the words 8px after it, so marks and labels each
   stay in one column down the page; it lights with the words. A choice in a
   list has none.
@@ -809,8 +810,9 @@ the axes, which is exactly the part the eye catches.
 - **Shape:** a menu row with two more facts on it
 - **Running time:** Quiet in Readout size, right-aligned so a column of them
   reads as a column; empty for a file never opened and not yet described.
-  A file that would not play says *Could not play* there instead, without the
-  measure, for the rest of the run
+  A file that would not play wears the 16px Warning mark there instead,
+  without the measure, for the rest of the run — the mark alone, since the
+  words were twice the column's width and came out of the title
 - **Order:** the order a person watches in. A show's files by season and
   episode, kept together where the first of them falls by name; everything
   else by name with digit runs read as numbers and case ignored. Two release
@@ -1123,6 +1125,21 @@ the capsule elides at the bar's width and the reason is the part worth
 keeping. It holds for 3200ms and then until the next key or pointer event, so
 a failure glanced away from is still there. No part of any of it takes the
 pointer: it sits where a click means play or pause.
+
+A notice that something did not happen — a file that would not play, a path
+with nothing at it, a sync that found no answer, settings that could not be
+saved — has the Warning mark before its words: 16px at Lit, 8px ahead of the
+sentence, inside the capsule. News has none: *Sound is back*, *Subtitles moved
+5.0 s earlier*. The mark is for failures and the armed reset alone, and is
+never on screen at rest.
+
+Raised while a panel is open, a notice is that panel's answer — *Sync to
+speech* saying what it found — and sits with it instead: to the panel's left,
+one offset away and in line with the row that asked, and to its right only
+where the panel is too far left for the words to fit before it. A notice no
+row is known to have asked for is level with the panel's top edge. It comes
+out sideways from the panel's edge rather than rising, and fades out with the
+panel when that closes.
 
 ### The end-of-file pill
 The bar's own 48px capsule, in the middle of the picture where the film

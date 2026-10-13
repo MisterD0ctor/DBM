@@ -102,10 +102,12 @@ export global Flash {
     /// A sentence, when the player has something to say rather than something
     /// to acknowledge. Empty for an ordinary action flash.
     ///
-    /// A notice shows the capsule alone, with no ring: the icon set has no
-    /// glyph for a failure, and a Unicode character standing in for one would
-    /// be the only borrowed mark in the interface.
+    /// A notice shows the capsule alone, with no ring. A failure has the
+    /// warning mark inside the capsule, before its words — see `warning`.
     in-out property <string> message: "";
+    /// Whether the sentence is a failure — something that did not happen —
+    /// rather than news. A failure wears the warning mark before its words.
+    in-out property <bool> warning: false;
     /// Where across the picture it appears, 0..1. A seek is thrown towards
     /// the side it seeks to; everything else sits in the middle.
     in-out property <float> at: 0.5;
@@ -138,9 +140,16 @@ export global Flash {
     /// with nothing in it, sound coming back after a device disappeared.
     public function notice(text: string) {
         Flash.message = text;
+        Flash.warning = false;
         Flash.figure = 0;
         Flash.at = 0.5;
         Flash.seq += 1;
+    }
+
+    /// Say that something went wrong: a notice, marked as one.
+    public function warn(text: string) {
+        Flash.notice(text);
+        Flash.warning = true;
     }
 }
 

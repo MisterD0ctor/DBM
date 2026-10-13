@@ -102,9 +102,11 @@ pub struct PlayerState {
     pub intro_heard: Option<(String, (f64, f64))>,
     /// Where its closing credits were heard to start, kept the same way.
     pub credits_heard: Option<(String, f64)>,
-    /// Files that would not play this run, by path, so their playlist rows
-    /// can say so after the notice has gone.
-    pub failed: std::collections::HashSet<String>,
+    /// Playlist entries that would not play, by mpv's id for them, so their
+    /// rows can say so after the notice has gone. By id rather than by path:
+    /// a file that fails at once has no path reported for it yet, and its
+    /// row may not have been read yet either.
+    pub failed: std::collections::HashSet<i64>,
     pub track_count: i64,
     pub sid: Option<String>,
     pub aid: Option<String>,

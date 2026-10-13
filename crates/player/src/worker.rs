@@ -33,6 +33,9 @@ pub enum Completion {
     /// silently, and silence is exactly what made the original fault so
     /// baffling.
     Notice(String),
+    /// Something that did not happen, raised from a background job: said the
+    /// same way, with the warning mark before it.
+    Warning(String),
     /// Playlist entries described by `probe` without being played: their
     /// lengths and titles. Several at once when they came from the cache.
     Probed(Vec<crate::library::probe::Found>),

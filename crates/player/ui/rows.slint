@@ -152,8 +152,8 @@ export component PlaylistRow inherits Rectangle {
     in property <string> length;
     in property <float> progress;
     in property <bool> active;
-    /// It would not play. The row says so where the running time goes, and
-    /// goes on saying it after the notice has gone.
+    /// It would not play. The row wears the warning where the running time
+    /// goes, and goes on wearing it after the notice has gone.
     in property <bool> failed;
     in property <bool> finished;
     /// Whether the measure is drawn: something started, or something done.
@@ -214,10 +214,24 @@ export component PlaylistRow inherits Rectangle {
     time := Text {
         x: parent.width - root.trail - self.width;
         height: 100%;
-        text: root.failed ? "Could not play" : root.length;
+        text: root.failed ? "" : root.length;
         color: Paint.quiet;
         font-size: Type.readout;
         vertical-alignment: center;
+    }
+
+    // The warning in the time's place, at the column's trailing edge. The
+    // words it replaced were twice the column's width and took that out of
+    // the title; why it would not play was said when it failed.
+    Image {
+        source: @image-url("../../../public/icons/warning.svg");
+        visible: root.failed;
+        x: parent.width - root.trail - self.width;
+        y: (parent.height - self.height) / 2;
+        width: 16px;
+        height: 16px;
+        image-fit: contain;
+        colorize: Paint.quiet;
     }
 
     // How far into this one you got. A hairline rather than a bar: it is

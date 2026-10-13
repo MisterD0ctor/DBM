@@ -57,7 +57,7 @@ impl Panel {
                 index: e.index,
                 current: e.current,
                 progress: player.known_progress(row),
-                failed: player.failed.contains(&e.filename),
+                failed: player.failed.contains(&e.id),
             })
             .collect();
         let beside: Vec<Beside> = player.beside.clone();

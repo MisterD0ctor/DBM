@@ -501,7 +501,7 @@ impl Persister {
         self.worker.submit(move |_mpv| {
             save(&path, &values)
                 .err()
-                .map(crate::worker::Completion::Notice)
+                .map(crate::worker::Completion::Warning)
         });
     }
 }

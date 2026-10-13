@@ -1040,21 +1040,68 @@ export component MainWindow inherits Window {
     /// name a path, and a capsule running off both edges of the window is a
     /// worse way to fail than the failure it is reporting.
     property <length> flash-text-w: min(
-        flash-measure.preferred-width + 2 * root.flash-text-pad,
+        flash-measure.preferred-width + 2 * root.flash-text-pad + root.flash-mark-w,
         root.bar-w);
+    /// A failure's warning mark and the gap after it; nothing otherwise.
+    property <bool> flash-warns: root.flash-is-notice && Flash.warning;
+    property <length> flash-mark: 16px;
+    property <length> flash-mark-w: root.flash-warns ? root.flash-mark + 8px : 0px;
     /// Centred on `Flash.at`, and never allowed off the edge of the window.
     function flash-x(w: length) -> length {
         return clamp(root.width * Flash.at - w / 2,
             root.panel-margin,
             max(root.panel-margin, root.width - w - root.panel-margin));
     }
+    /// The panel the notice on show answers, and so sits beside: 1 the
+    /// tracks menu, 2 the playlist, 3 the files, 4 the settings, 0 none.
+    ///
+    /// A notice raised with a panel open is nearly always that panel's
+    /// answer — *Sync to speech* saying what it found, a folder with nothing
+    /// in it — and in the middle of the picture it was half a window away
+    /// from the row that asked, where the eye was not. Settled when the
+    /// notice is raised and kept until the next one, by which panel rather
+    /// than by whether one is open: it fades out as its panel closes, and
+    /// has to stay beside it for as long as that takes.
+    property <int> flash-panel: 0;
+    property <length> flash-panel-x: root.flash-panel == 1 ? menu.x
+        : root.flash-panel == 2 ? playlist-panel.x
+        : root.flash-panel == 3 ? files-panel.x
+        : settings.x;
+    property <length> flash-panel-w: root.flash-panel == 1 ? menu.width
+        : root.flash-panel == 2 ? playlist-panel.width
+        : root.flash-panel == 3 ? files-panel.width
+        : settings.width;
+    property <length> flash-panel-h: root.flash-panel == 1 ? menu.height
+        : root.flash-panel == 2 ? playlist-panel.height
+        : root.flash-panel == 3 ? files-panel.height
+        : settings.height;
+    /// To the panel's left. To its right only for a panel so far left that
+    /// the words would not fit before it.
+    property <bool> flash-leftward: root.flash-panel-x - Rows.offset
+        - root.flash-text-w >= root.panel-margin;
+    property <length> flash-text-x: root.flash-panel == 0
+        ? root.flash-x(root.flash-text-w)
+        : root.flash-leftward
+            ? root.flash-panel-x - Rows.offset - root.flash-text-w
+            : root.flash-panel-x + root.flash-panel-w + Rows.offset;
+    /// How far down its panel the row that asked sits, to its middle, where
+    /// a row said so — see `asked-row`. Negative for a notice no row is
+    /// known to have asked for, which sits level with the panel's top edge.
+    property <length> flash-row: -1px;
+    /// A notice beside a panel comes out from it rather than up: it starts
+    /// against the panel's edge and travels the one offset it rests at.
+    property <length> flash-slide: root.flash-panel == 0 ? 0px
+        : (1.0 - root.flash-shown) * Rows.offset * (root.flash-leftward ? 1 : -1);
     property <length> flash-y: (root.height - root.flash-ring) / 2;
     /// Under the ring, or in its place when there is no ring — and under the
     /// way in when that is what is on screen. Both are centred, so a notice
     /// otherwise drew straight through the rows it was answering, at the one
     /// moment it most needs to be read: "There is nothing at that path" sits
     /// under the row that went looking for it.
-    property <length> flash-text-y: !root.flash-has-ring
+    property <length> flash-text-y: root.flash-panel != 0
+        ? root.timeline-y - root.flash-panel-h - Rows.offset
+            + (root.flash-row < 0 ? 0px : root.flash-row - root.flash-text-h / 2)
+        : !root.flash-has-ring
         ? (root.has-file
             ? (root.height - root.flash-text-h) / 2
             : root.invite-y + root.invite-h + Rows.offset)
@@ -1072,16 +1119,38 @@ export component MainWindow inherits Window {
         easing: ease-out;
     }
     property <length> flash-rise: (1.0 - root.flash-shown) * root.lift;
+    /// The caption's own: beside a panel it slides instead.
+    property <length> flash-text-rise: root.flash-panel == 0 ? root.flash-rise : 0px;
 
     // Watching the global through a local property: `changed` handlers
     // belong to the element that declares the property, and the raise has to
     // restart the dwell rather than extend it.
     property <int> flash-seq: Flash.seq;
     changed flash-seq => {
+        root.flash-panel = !root.flash-is-notice ? 0
+            : root.menu-open ? 1
+            : root.playlist-open ? 2
+            : root.files-open ? 3
+            : root.settings-open ? 4 : 0;
+        root.flash-row = root.flash-panel == 4 ? root.asked-row : -1px;
         root.flash-shown = 1.0;
         root.flash-waiting = false;
         flash-timer.stop();
         flash-timer.start();
+    }
+
+    /// A notice beside a panel goes when the panel does: it was that panel's
+    /// answer, and left standing beside nothing it reads as a new event.
+    property <bool> flash-panel-open: root.flash-panel == 1 ? root.menu-open
+        : root.flash-panel == 2 ? root.playlist-open
+        : root.flash-panel == 3 ? root.files-open
+        : root.flash-panel == 4 ? root.settings-open : true;
+    changed flash-panel-open => {
+        if (!root.flash-panel-open) {
+            flash-timer.stop();
+            root.flash-waiting = false;
+            root.flash-shown = 0.0;
+        }
     }
 
     flash-timer := Timer {
@@ -1671,8 +1740,8 @@ export component MainWindow inherits Window {
             tint: 1.0,
         },
         {
-            x: root.flash-x(root.flash-text-w),
-            y: root.flash-text-y + root.flash-rise,
+            x: root.flash-text-x + root.flash-slide,
+            y: root.flash-text-y + root.flash-text-rise,
             width: root.flash-shown > root.shown-epsilon && root.flash-text != ""
                 ? root.flash-text-w : 0,
             height: root.flash-shown > root.shown-epsilon && root.flash-text != ""
@@ -1979,7 +2048,14 @@ export component MainWindow inherits Window {
     // sync found is the player's reading of the film, not the hand's, and
     // the timing that stood before may have been set by ear.
 
+    /// Where on the settings panel the row that last asked for something
+    /// slow is, from the panel's top edge to the row's middle, so the answer
+    /// can be put beside it. Negative once the page is left.
+    property <length> asked-row: -1px;
+
     function sync-row() {
+        // Under the panel's padding and the heading row.
+        root.asked-row = Rows.panel-pad + root.row-h + root.row-h / 2;
         if (root.sync-state == 2) {
             root.undo-sync(root.sync-was-delay, root.sync-was-speed);
             root.sync-state = 0;
@@ -2048,6 +2124,14 @@ export component MainWindow inherits Window {
         return @image-url("../../../public/icons/curve-soft.svg");
     }
 
+    /// The warning while the row is armed: the next press is the one that
+    /// throws a page of settings away.
+    pure function reset-icon(page: int) -> image {
+        return root.reset-armed == page && root.reset-undoable != page
+            ? @image-url("../../../public/icons/warning.svg")
+            : @image-url("../../../public/icons/reset.svg");
+    }
+
     pure function reset-label(page: int) -> string {
         return root.reset-undoable == page ? "Undo reset"
             : root.reset-armed == page ? "Press again to reset"
@@ -2066,6 +2150,7 @@ export component MainWindow inherits Window {
     }
 
     changed settings-page => {
+        root.asked-row = -1px;
         root.reset-armed = 0;
         root.reset-undoable = 0;
         root.forget-sync();
@@ -2082,6 +2167,27 @@ export component MainWindow inherits Window {
         root.reset-undoable = 0;
         root.forget-sync();
         root.placing-subtitles = false;
+        if (root.settings-open) {
+            settings-rest.stop();
+        } else {
+            settings-rest.start();
+        }
+    }
+
+    /// Puts a closed panel back on its front page, once it has faded out.
+    ///
+    /// Not as it closes: the page went back to the front in the same frame
+    /// the fade began, so what faded away was the list of pages sliding in
+    /// over the page that had been open.
+    settings-rest := Timer {
+        interval: Motion.surface;
+        running: false;
+        triggered => {
+            settings-rest.stop();
+            if (!root.settings-open) {
+                root.settings-page = 0;
+            }
+        }
     }
 
     /// The subtitles page's three adjustments, as its rows and its keys both
@@ -2922,10 +3028,10 @@ export component MainWindow inherits Window {
 
     public function open-settings(open: bool) {
         root.settings-open = open;
-        root.settings-page = 0;
         if (open) {
             root.close-others();
             root.settings-open = true;
+            root.settings-page = 0;
         }
     }
 
@@ -3015,7 +3121,6 @@ export component MainWindow inherits Window {
             if (root.menu-open || root.playlist-open || root.settings-open
                 || root.files-open) {
                 root.close-others();
-                root.settings-page = 0;
             } else {
                 root.video-clicked();
             }
@@ -3269,7 +3374,7 @@ export component MainWindow inherits Window {
                         height: Rows.group-gap;
                     }
                     MenuRow {
-                        icon: @image-url("../../../public/icons/reset.svg");
+                        icon: root.reset-icon(1);
                         label: root.reset-label(1);
                         focused: root.focus-row == root.leaf-focus-count - 1;
                         picked => {
@@ -3300,7 +3405,7 @@ export component MainWindow inherits Window {
                         height: Rows.group-gap;
                     }
                     MenuRow {
-                        icon: @image-url("../../../public/icons/reset.svg");
+                        icon: root.reset-icon(2);
                         label: root.reset-label(2);
                         focused: root.focus-row == root.leaf-focus-count - 1;
                         picked => {
@@ -3365,7 +3470,7 @@ export component MainWindow inherits Window {
                         height: Rows.group-gap;
                     }
                     MenuRow {
-                        icon: @image-url("../../../public/icons/reset.svg");
+                        icon: root.reset-icon(3);
                         label: root.reset-label(3);
                         focused: root.focus-row == root.leaf-focus-count - 1;
                         picked => {
@@ -4263,17 +4368,28 @@ export component MainWindow inherits Window {
     }
 
     Rectangle {
-        x: root.flash-x(root.flash-text-w);
-        y: root.flash-text-y + root.flash-rise;
+        x: root.flash-text-x + root.flash-slide;
+        y: root.flash-text-y + root.flash-text-rise;
         width: root.flash-text-w;
         height: root.flash-text-h;
         visible: root.flash-shown > root.shown-epsilon && root.flash-text != "";
         opacity: root.flash-shown;
 
-        Text {
-            width: parent.width - 2 * root.flash-text-pad;
-            height: 100%;
+        Image {
+            source: @image-url("../../../public/icons/warning.svg");
+            visible: root.flash-warns;
             x: root.flash-text-pad;
+            y: (parent.height - self.height) / 2;
+            width: root.flash-mark;
+            height: root.flash-mark;
+            image-fit: contain;
+            colorize: Paint.lit;
+        }
+
+        Text {
+            width: parent.width - 2 * root.flash-text-pad - root.flash-mark-w;
+            height: 100%;
+            x: root.flash-text-pad + root.flash-mark-w;
             text: root.flash-text;
             color: Paint.lit;
             font-size: Type.title;

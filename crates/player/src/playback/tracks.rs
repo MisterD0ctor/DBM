@@ -79,6 +79,9 @@ pub fn labelled(tracks: &[Track], kind: TrackKind) -> Vec<(&Track, String)> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaylistEntry {
     pub index: i64,
+    /// mpv's own id for the entry, which stays with it however the list is
+    /// reordered, and is what an ended file is named by.
+    pub id: i64,
     pub filename: String,
     pub title: Option<String>,
     pub current: bool,
@@ -140,6 +143,7 @@ pub fn read_playlist(mpv: &Mpv) -> Vec<PlaylistEntry> {
     (0..count.max(0))
         .map(|i| PlaylistEntry {
             index: i,
+            id: mpv.get_f64(&format!("playlist/{i}/id")).unwrap_or(0.0) as i64,
             filename: mpv
                 .get_property(&format!("playlist/{i}/filename"))
                 .unwrap_or_default(),

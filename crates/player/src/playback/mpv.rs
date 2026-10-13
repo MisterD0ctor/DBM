@@ -97,13 +97,15 @@ struct RawEvent {
     data: *mut c_void,
 }
 
-/// `mpv_event_end_file`. Only the first two fields are read; the rest of the
-/// struct is longer and is never touched, which is safe because mpv owns the
-/// allocation and we only ever read a prefix of it.
+/// `mpv_event_end_file`. Only the first three fields are read; the rest of
+/// the struct is longer and is never touched, which is safe because mpv owns
+/// the allocation and we only ever read a prefix of it. The entry id has been
+/// there since mpv 0.33.
 #[repr(C)]
 struct RawEventEndFile {
     reason: c_int,
     error: c_int,
+    playlist_entry_id: i64,
 }
 
 /// `MPV_END_FILE_REASON_ERROR`. The other reasons — EOF, stop, quit, redirect
@@ -145,8 +147,14 @@ pub enum Event {
     /// stopped *because it could not be played*, and is `None` for every
     /// ordinary ending. Without this the interface cannot tell "the film
     /// finished" from "that file is not a video", and showed neither.
+    ///
+    /// `entry` is which playlist entry it was, by the id mpv gave it. The
+    /// path cannot say: a file that fails at once is over before `path` has
+    /// been reported for it, and what the player holds then is nothing, or
+    /// the file before.
     EndFile {
         failure: Option<String>,
+        entry: i64,
     },
     Seek,
     PlaybackRestart,
@@ -463,11 +471,15 @@ impl Mpv {
             EVENT_END_FILE => {
                 // Absent data means an ending with no detail, which is the
                 // ordinary case and not a failure.
-                let failure = (!ev.data.is_null())
-                    .then(|| unsafe { &*(ev.data as *const RawEventEndFile) })
+                let end =
+                    (!ev.data.is_null()).then(|| unsafe { &*(ev.data as *const RawEventEndFile) });
+                let failure = end
                     .filter(|end| end.reason == END_FILE_REASON_ERROR)
                     .map(|end| self.error_text(end.error));
-                Some(Event::EndFile { failure })
+                Some(Event::EndFile {
+                    failure,
+                    entry: end.map_or(0, |end| end.playlist_entry_id),
+                })
             }
             EVENT_SEEK => Some(Event::Seek),
             EVENT_PLAYBACK_RESTART => Some(Event::PlaybackRestart),
