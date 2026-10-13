@@ -103,10 +103,63 @@ fn current(generation: u64) -> bool {
 pub fn spawn(video: PathBuf, reporter: Reporter) {
     let generation = supersede();
     std::thread::spawn(move || {
-        if let Some(sprite) = build(&video, generation) {
-            reporter.send(Completion::Preview(sprite));
+        let Some(sprite) = build(&video, generation) else {
+            return;
+        };
+        // Decoded here rather than where it is shown. Reading the JPEG back
+        // on the UI thread was nine milliseconds in the frame the atlas
+        // arrived in, which is most of a frame and showed as a hitch.
+        let Some(pixels) = decode(&sprite) else {
+            return;
+        };
+        if current(generation) {
+            reporter.send(Completion::Preview(Atlas { sprite, pixels }));
         }
     });
+}
+
+/// A finished atlas with its picture already decoded, ready to be shown.
+pub struct Atlas {
+    pub sprite: Sprite,
+    pub pixels: slint::SharedPixelBuffer<slint::Rgba8Pixel>,
+}
+
+/// The whole atlas as pixels. **Blocking** — runs ffmpeg once.
+fn decode(sprite: &Sprite) -> Option<slint::SharedPixelBuffer<slint::Rgba8Pixel>> {
+    let ffmpeg = ffmpeg::path()?;
+    let (width, height) = (sprite.tile_w * sprite.grid, sprite.tile_h * sprite.grid);
+    let rgba = cut(&ffmpeg, sprite, (0, 0), (width, height))?;
+    Some(slint::SharedPixelBuffer::clone_from_slice(
+        &rgba, width, height,
+    ))
+}
+
+/// A rectangle of the atlas as RGBA, top row first. **Blocking** — runs
+/// ffmpeg once, to cut it out of the JPEG and hand it back undecorated on
+/// stdout.
+fn cut(ffmpeg: &Path, sprite: &Sprite, at: (u32, u32), size: (u32, u32)) -> Option<Vec<u8>> {
+    let ((x, y), (width, height)) = (at, size);
+    let mut cmd = ffmpeg::command(ffmpeg);
+    let out = cmd
+        .stdout(Stdio::piped())
+        .arg("-nostdin")
+        .arg("-loglevel")
+        .arg("error")
+        .arg("-i")
+        .arg(&sprite.path)
+        .arg("-vf")
+        .arg(format!("crop={width}:{height}:{x}:{y}"))
+        .arg("-frames:v")
+        .arg("1")
+        .arg("-f")
+        .arg("rawvideo")
+        .arg("-pix_fmt")
+        .arg("rgba")
+        .arg("-")
+        .output()
+        .ok()?;
+    let expected = (width * height * 4) as usize;
+    (out.status.success() && out.stdout.len() == expected).then_some(out.stdout)
 }
 
 /// Build, or find, the atlas for one video. Runs off the UI thread.
@@ -390,8 +443,7 @@ pub struct Still {
 
 /// The tile of an already-built atlas nearest `fraction` of the way in.
 ///
-/// **Blocking.** Worker thread only: it runs ffmpeg once, to cut the tile out
-/// of the JPEG and hand it back undecorated on stdout.
+/// **Blocking.** Worker thread only: it runs ffmpeg once — see [`cut`].
 ///
 /// Only from the cache, never by building. This answers the empty window with
 /// a frame of what you were watching, and a film that never had an atlas has
@@ -399,30 +451,10 @@ pub struct Still {
 pub fn still(video: &Path, fraction: f32) -> Option<Still> {
     let sprite = cached(video)?;
     let ffmpeg = ffmpeg::path()?;
-    let (x, y) = sprite.tile_at(fraction);
     let (width, height) = (sprite.tile_w, sprite.tile_h);
-    let mut cmd = ffmpeg::command(&ffmpeg);
-    let out = cmd
-        .stdout(Stdio::piped())
-        .arg("-nostdin")
-        .arg("-loglevel")
-        .arg("error")
-        .arg("-i")
-        .arg(&sprite.path)
-        .arg("-vf")
-        .arg(format!("crop={width}:{height}:{x}:{y}"))
-        .arg("-frames:v")
-        .arg("1")
-        .arg("-f")
-        .arg("rawvideo")
-        .arg("-pix_fmt")
-        .arg("rgba")
-        .arg("-")
-        .output()
-        .ok()?;
-    let expected = (width * height * 4) as usize;
-    (out.status.success() && out.stdout.len() == expected).then_some(Still {
-        rgba: out.stdout,
+    let rgba = cut(&ffmpeg, &sprite, sprite.tile_at(fraction), (width, height))?;
+    Some(Still {
+        rgba,
         width,
         height,
     })

@@ -6,7 +6,7 @@
 
 use super::{say, Driver, Gpu};
 use crate::interface::format;
-use crate::library::preview::Sprite;
+use crate::library::preview::Atlas;
 use crate::library::resume::Resume;
 use crate::library::subsync::{Failure, Outcome};
 use crate::library::titles::End;
@@ -90,8 +90,8 @@ impl Driver {
                 light_with_the_mark(&self.app.worker);
                 false
             }
-            Completion::Preview(sprite) => {
-                self.show_atlas(ui, sprite);
+            Completion::Preview(atlas) => {
+                self.show_atlas(ui, atlas);
                 false
             }
             Completion::Mark(still) => {
@@ -194,15 +194,11 @@ impl Driver {
         );
     }
 
-    /// Hand the seek preview a finished atlas.
-    fn show_atlas(&self, ui: &MainWindow, sprite: Sprite) {
-        let image = match slint::Image::load_from_path(&sprite.path) {
-            Ok(image) => image,
-            Err(e) => {
-                eprintln!("dbm: preview atlas unreadable: {e:?}");
-                return;
-            }
-        };
+    /// Hand the seek preview a finished atlas. Its picture comes decoded, so
+    /// this is the cost of wrapping it and nothing more.
+    fn show_atlas(&self, ui: &MainWindow, atlas: Atlas) {
+        let Atlas { sprite, pixels } = atlas;
+        let image = slint::Image::from_rgba8(pixels);
         eprintln!(
             "dbm: preview atlas {g}x{g} tiles of {}x{}",
             sprite.tile_w,

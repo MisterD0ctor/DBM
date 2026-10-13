@@ -39,9 +39,10 @@ pub enum Completion {
     /// What the empty window can offer to pick back up, looked for once at
     /// startup when nothing was named on the command line.
     Resume(Option<crate::library::resume::Resume>),
-    /// A seek-preview atlas, built or found for the file playing. Reported
+    /// A seek-preview atlas, built or found for the file playing, and
+    /// already decoded. Reported
     /// from the build's own thread rather than the worker's — see `preview`.
-    Preview(crate::library::preview::Sprite),
+    Preview(crate::library::preview::Atlas),
     /// The light behind the empty window when no film can give it one — see
     /// `mark`.
     Mark(crate::library::preview::Still),
