@@ -332,14 +332,14 @@
         "curve": "absorbed = 1 - (1 - absorb) / ((1 - absorb) + absorb * luma), then a saturation lift of 1 / (1 - 0.5 * absorbed) about the luma",
         "appliesTo": "the transmitted component only, never the rim, the rim light or the mirrored backdrop",
         "adjustable": true,
-        "control": "the glass page's Absorb slider, 0..1: the share of a white backdrop absorbed; 0 is a clear pane, 1 absorbs everything"
+        "control": "the glass page's Dimming slider, 0..1: the share of a white backdrop absorbed; 0 is a clear pane, 1 absorbs everything"
       },
       "border": {
         "edgeBlur": 0.007,
         "spread": 0.68,
         "falloff": 4.0,
         "softness": 0.2,
-        "grain": 124.0,
+        "grain": 64.0,
         "maxTaps": 256.0
       },
       "units": {

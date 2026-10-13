@@ -51,7 +51,7 @@ impl Default for BorderParams {
         Self {
             edge_blur: 0.007,
             spread: 0.68,
-            grain: 124.0,
+            grain: 64.0,
             falloff: 4.0,
             falloff_softness: 0.2,
             max_taps: 256.0,

@@ -114,7 +114,7 @@ is told rides a drawn frame and a player with no film draws none.
 
 - Name: **Death by MPV** (DBM). Bundle identifier `com.kaspe.deathbympv`.
 - Logo: `public/death-by-mpv.svg`. Application icons: `crates/player/icons/`.
-- An icon set of 63 SVGs in `public/icons/`, drawn by the author at 24×24 and
+- An icon set of 70 SVGs in `public/icons/`, drawn by the author at 24×24 and
   wholly the project's own. Future work extends this set rather than
   substituting a library — the look depends on them being one family.
 

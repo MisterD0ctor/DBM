@@ -567,7 +567,7 @@ smudge over a dark one.
 Every surface opts into the tint, and with it absorption: the transmitted part
 of the glass darkens as the frame behind it brightens, on a smooth curve rather
 than a threshold, so white text keeps a ground over a white scene. Both are
-settings: the pull toward the tint colour, and Absorb — how much of a white
+settings: the pull toward the tint colour, and Dimming — how much of a white
 backdrop the pane absorbs, a darker one losing less along a hyperbola and black
 losing nothing. Turned down, the pane clears and the ground under white text
 over a bright scene goes with it.
@@ -590,7 +590,7 @@ screen finds nothing to reflect, and fades out as it turns.
 function of wavelength (Cauchy's law, anchored so the index above is the one
 at the sodium d line), and the transmitted colour is integrated across the
 visible band under the CIE 1931 observer and D65 — the illuminant sRGB white
-already is. The Fringe slider is dispersive power, the reciprocal of an Abbe
+already is. The Dispersion slider is dispersive power, the reciprocal of an Abbe
 number. It used to scale one offset three ways, red up and blue down, which
 read as a coloured edge while subtle and as three coloured copies of the edge
 past a pixel or two; it also had the order backwards, since short wavelengths
@@ -598,7 +598,7 @@ bend more. Now the band is sampled as finely as the smear is wide — one
 wavelength across the flat middle of every panel, where the slope and so the
 spread are zero, up to twenty four at the rim — and each sample's weight is
 its exact share of the curve, so a flat backdrop comes through white at any
-count. At Fringe 0 it is the old single ray, to within 1/255.
+count. At Dispersion 0 it is the old single ray, to within 1/255.
 
 Fading a surface in fades its glass with it: opacity scales the shader's
 coverage, so a panel arriving at a third of its opacity refracts a third as
@@ -912,8 +912,8 @@ row already has, beside the fact that is already there.
   row.
 
 ### Sliders
-- **Row:** 30px; label 78px at Body in Readout size, value 46px right-aligned at
-  Dim
+- **Row:** 30px; an 18px icon at Quiet, as a stepper has, then the label 80px
+  at Body in Readout size 8px after it, value 46px right-aligned at Dim
 - **Track:** 4px at Rail, growing to 6px on hover or press (100ms ease-out) —
   a step lighter than the bar's 5px tracks, because these sit inside a panel of
   rows rather than alone on glass

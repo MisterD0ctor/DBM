@@ -61,7 +61,6 @@ pub enum Key {
     Spread,
     Falloff,
     Softness,
-    Grain,
 }
 
 /// Which panel page a parameter appears on. Also the unit a reset applies
@@ -95,20 +94,21 @@ pub struct Param {
     pub max: f32,
 }
 
+/// The order is also the order of `param-icon` in app.slint, which picks each
+/// row's icon by its index here.
 #[rustfmt::skip]
 pub const REGISTRY: &[Param] = &[
     Param { key: Key::Blur, name: "glass.blur", section: Section::Glass, label: "Blur", min: 0.0, max: 100.0 },
-    Param { key: Key::Refract, name: "glass.refract_ratio", section: Section::Glass, label: "Refract", min: 0.0, max: 4.0 },
-    Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: "Fringe", min: 0.0, max: 4.0 },
-    Param { key: Key::Rim, name: "glass.rim", section: Section::Glass, label: "Rim", min: 0.0, max: 1.0 },
+    Param { key: Key::Refract, name: "glass.refract_ratio", section: Section::Glass, label: "Refraction", min: 0.0, max: 4.0 },
+    Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: "Dispersion", min: 0.0, max: 4.0 },
+    Param { key: Key::Rim, name: "glass.rim", section: Section::Glass, label: "Edge light", min: 0.0, max: 1.0 },
     Param { key: Key::Tint, name: "glass.tint", section: Section::Glass, label: "Tint", min: 0.0, max: 1.0 },
-    Param { key: Key::Absorb, name: "glass.absorb", section: Section::Glass, label: "Absorb", min: 0.0, max: 1.0 },
+    Param { key: Key::Absorb, name: "glass.absorb", section: Section::Glass, label: "Dimming", min: 0.0, max: 1.0 },
     Param { key: Key::Shadow, name: "glass.shadow", section: Section::Glass, label: "Shadow", min: 0.0, max: 1.0 },
     Param { key: Key::EdgeBlur, name: "border.edge_blur", section: Section::Border, label: "Edge blur", min: 0.0, max: 0.1 },
     Param { key: Key::Spread, name: "border.spread", section: Section::Border, label: "Spread", min: 0.0, max: 5.0 },
     Param { key: Key::Falloff, name: "border.falloff", section: Section::Border, label: "Falloff", min: 0.0, max: 12.0 },
     Param { key: Key::Softness, name: "border.softness", section: Section::Border, label: "Softness", min: 0.0, max: 1.0 },
-    Param { key: Key::Grain, name: "border.grain", section: Section::Border, label: "Grain", min: 0.0, max: 1024.0 },
 ];
 
 /// What a settings page held just before it was reset.
@@ -191,7 +191,6 @@ impl Store {
             Key::Spread => border.spread,
             Key::Falloff => border.falloff,
             Key::Softness => border.falloff_softness,
-            Key::Grain => border.grain,
         }
     }
 
@@ -214,7 +213,6 @@ impl Store {
             Key::Spread => border.spread = v,
             Key::Falloff => border.falloff = v,
             Key::Softness => border.falloff_softness = v,
-            Key::Grain => border.grain = v,
         }
         self.glass.set(glass);
         self.border.set(border);

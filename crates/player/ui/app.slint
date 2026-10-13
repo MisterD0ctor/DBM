@@ -2011,6 +2011,43 @@ export component MainWindow inherits Window {
         root.set-animations(on);
     }
 
+    /// A slider's icon, by its place in `REGISTRY` in settings.rs — the two
+    /// have to be kept in step by hand, since an image cannot ride in the
+    /// model the rows are built from without being loaded at run time.
+    pure function param-icon(index: int) -> image {
+        if (index == 0) {
+            return @image-url("../../../public/icons/blur.svg");
+        }
+        if (index == 1) {
+            return @image-url("../../../public/icons/refraction.svg");
+        }
+        if (index == 2) {
+            return @image-url("../../../public/icons/dispersion.svg");
+        }
+        if (index == 3) {
+            return @image-url("../../../public/icons/edge-light.svg");
+        }
+        if (index == 4) {
+            return @image-url("../../../public/icons/tint.svg");
+        }
+        if (index == 5) {
+            return @image-url("../../../public/icons/dimming.svg");
+        }
+        if (index == 6) {
+            return @image-url("../../../public/icons/shadow.svg");
+        }
+        if (index == 7) {
+            return @image-url("../../../public/icons/edge-blur.svg");
+        }
+        if (index == 8) {
+            return @image-url("../../../public/icons/angle.svg");
+        }
+        if (index == 9) {
+            return @image-url("../../../public/icons/curve.svg");
+        }
+        return @image-url("../../../public/icons/curve-soft.svg");
+    }
+
     pure function reset-label(page: int) -> string {
         return root.reset-undoable == page ? "Undo reset"
             : root.reset-armed == page ? "Press again to reset"
@@ -3220,6 +3257,7 @@ export component MainWindow inherits Window {
                     }
                     for item[idx] in root.glass-params: ParamSlider {
                         label: item.label;
+                        icon: root.param-icon(item.index);
                         fraction: item.fraction;
                         readout: item.readout;
                         focused: root.focus-row == idx + 1;
@@ -3250,6 +3288,7 @@ export component MainWindow inherits Window {
                     }
                     for item[idx] in root.border-params: ParamSlider {
                         label: item.label;
+                        icon: root.param-icon(item.index);
                         fraction: item.fraction;
                         readout: item.readout;
                         focused: root.focus-row == idx + 1;

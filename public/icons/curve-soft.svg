@@ -5,7 +5,7 @@
    viewBox="0 0 24 24"
    version="1.1"
    sodipodi:docname="curve-soft.svg"
-   inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,12 +22,12 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#505050"
      inkscape:zoom="6.3072918"
-     inkscape:cx="-4.8356729"
-     inkscape:cy="23.227085"
+     inkscape:cx="-4.7563996"
+     inkscape:cy="23.385631"
      inkscape:window-width="3440"
-     inkscape:window-height="1417"
-     inkscape:window-x="1432"
-     inkscape:window-y="1008"
+     inkscape:window-height="1403"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
      inkscape:current-layer="Layer_1"
      showgrid="true">
@@ -49,7 +49,7 @@
        visible="true" />
   </sodipodi:namedview>
   <path
-     style="fill:none;stroke:#ffffff;stroke-width:2;stroke-linecap:square;stroke-linejoin:miter;stroke-miterlimit:100"
+     style="fill:none;stroke:#ffffff;stroke-width:2;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:100"
      d="M 2,2 C 7.9727018,2.044445 10.897517,4.0372142 12.406275,9.3146155 13.915033,14.592017 16.57857,19.126342 22,22"
      id="path2"
      sodipodi:nodetypes="czc" />
