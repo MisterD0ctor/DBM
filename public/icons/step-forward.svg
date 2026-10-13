@@ -25,7 +25,7 @@
      inkscape:document-units="px"
      inkscape:zoom="32"
      inkscape:cx="5.71875"
-     inkscape:cy="11.640625"
+     inkscape:cy="12.140625"
      inkscape:window-width="3440"
      inkscape:window-height="1403"
      inkscape:window-x="0"
@@ -80,7 +80,7 @@
        sodipodi:nodetypes="cccc"
        inkscape:path-effect="#path-effect2"
        inkscape:original-d="M 4.7624999,3.175 0.52916665,0.26458333 V 6.0854166 Z"
-       transform="matrix(1,0,0,0.90909091,1.2885821e-8,0.28863636)" />
+       transform="matrix(1,0,0,0.90909091,1.2885819e-8,0.28863636)" />
     <path
        style="fill:#ffffff;stroke:#ffffff;stroke-width:0.528902;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:100;stroke-dasharray:none"
        d="M 5.55625,1.0583333 V 5.2916666"
