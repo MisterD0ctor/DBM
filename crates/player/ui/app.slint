@@ -8,7 +8,9 @@
 // here and you are painting over the glass, not on it.
 
 import { Chrome, Flash, Tip } from "globals.slint";
-import { GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem } from "models.slint";
+import {
+    GlassRect, ParamItem, PlaylistGroup, PlaylistItem, ScrollFade, TrackItem
+} from "models.slint";
 import { Motion, Paint, Rows, Type } from "theme.slint";
 import { EndChoice, IconButton } from "controls.slint";
 import {
@@ -851,11 +853,19 @@ export component MainWindow inherits Window {
         root.pill-text-pad + 2 * root.btn + 2 * root.btn-gap + root.pill-pad
         + (root.speed-shown ? speed-measure.preferred-width + root.btn-gap : 0px);
     /// The title pill hugs its title, up to what the transport leaves room
-    /// for. Past that the title elides and the pill stops growing.
-    property <length> left-w: clamp(
+    /// for. Past that the title runs out and the pill stops growing.
+    property <length> left-w: root.left-target;
+    property <length> left-target: clamp(
         root.title-w + root.left-fixed,
         root.left-fixed,
         root.center-x - root.bar-x - root.pill-gap);
+    /// How far the pill is from the width it is headed for, and the same of
+    /// the settings panel's height: for the test that drags the window's
+    /// size about, which wants both nothing while it does.
+    out property <length> resize-lag: max(abs(root.left-w - root.left-target),
+        root.settings-open
+            ? abs(settings.height - min(root.panel-pad + settings.body, root.panel-max-h))
+            : 0px);
     /// Width the title wants. Measured off a `Text` that is never drawn -
     /// see `title-measure` at the bottom of the component - because the pill
     /// cannot ask the title it contains how wide to be without the question
@@ -866,8 +876,44 @@ export component MainWindow inherits Window {
     // moving there over a moment reads as deliberate. The glass follows
     // because it is drawn from this same property.
     animate left-w {
-        duration: Motion.title-width;
+        duration: root.resizing ? 0ms : Motion.title-width;
         easing: ease-in-out;
+    }
+
+    /// Whether the window is being resized: true from its size first
+    /// changing until it has kept still for a moment — and from the start,
+    /// until the window has first settled on a size.
+    ///
+    /// The pill eases to a new title, and the settings and playlist panels
+    /// to a new page's height, because those are changes of what is in them.
+    /// A window being dragged is not, and eased there the pill and panels
+    /// trailed the window's edge by the length of the move, each frame
+    /// starting the trail again. So while this is true they take the size
+    /// they are given, in the frame they are given it.
+    ///
+    /// A binding on the size itself rather than a flag a handler sets: the
+    /// handler runs after the frame that saw the size change, which then
+    /// eased toward it for that one frame — the first of a drag, and the
+    /// first after every pause in one.
+    property <bool> resizing: root.width != root.settled-width
+        || root.height != root.settled-height;
+    /// The window's size once it last kept still.
+    property <length> settled-width: -1px;
+    property <length> settled-height: -1px;
+    /// Called from the window's own size handlers, further down beside the
+    /// tip's, since a property can only have one.
+    function window-resized() {
+        resize-settle.stop();
+        resize-settle.start();
+    }
+    resize-settle := Timer {
+        interval: 200ms;
+        running: true;
+        triggered => {
+            resize-settle.stop();
+            root.settled-width = root.width;
+            root.settled-height = root.height;
+        }
     }
 
     // --- end of playback ---
@@ -1292,10 +1338,12 @@ export component MainWindow inherits Window {
     changed width => {
         root.tip-cut = true;
         Tip.clear();
+        root.window-resized();
     }
     changed height => {
         root.tip-cut = true;
         Tip.clear();
+        root.window-resized();
     }
 
     tip-timer := Timer {
@@ -1587,6 +1635,10 @@ export component MainWindow inherits Window {
     /// a small window and a reference that is cut off is not one.
     property <length> shortcuts-list-h:
         max(0px, settings.height - root.panel-pad - root.row-h);
+    /// The same once the panel has finished moving to the shortcuts page —
+    /// see `rest-height` on the list.
+    property <length> shortcuts-rest-h: min(root.shortcuts-natural,
+        max(0px, root.panel-max-h - root.panel-pad - root.row-h));
     property <length> panel-pad: 2 * Rows.panel-pad;
 
     // A heading with no rows under it is noise, and two of them over a file
@@ -1655,6 +1707,17 @@ export component MainWindow inherits Window {
     /// the same height, and untiered this is the only page there is.
     property <length> playlist-leaf-list-h: max(0px, root.playlist-pages-h
         - (root.playlist-tiered ? root.row-h : root.heading-h));
+    /// Each list's height once the panel has finished moving to its page:
+    /// all of its rows, or what the tallest panel leaves for them — see
+    /// `rest-height` on the list. Not the box's height this frame, which
+    /// in a drill is on its way from the other page's.
+    property <length> playlist-pages-rest-h: max(0px,
+        root.panel-max-h - root.panel-pad - Rows.group-gap - root.toggle-h);
+    property <length> playlist-top-rest-h: min(root.playlist-top-natural,
+        max(0px, root.playlist-pages-rest-h - root.heading-h));
+    property <length> playlist-leaf-rest-h: min(root.playlist-leaf-natural,
+        max(0px, root.playlist-pages-rest-h
+            - (root.playlist-tiered ? root.row-h : root.heading-h)));
     /// The list showing, for the keys that measure a page by it.
     out property <length> playlist-list-h: root.playlist-lead > 0
         ? root.playlist-leaf-list-h : root.playlist-top-list-h;
@@ -1684,6 +1747,68 @@ export component MainWindow inherits Window {
     // A closed menu publishes a zero-sized rect; the Rust side drops those
     // rather than the array changing length, which keeps this a plain
     // literal instead of something conditionally built.
+    /// The shortcuts list, which is built inside a condition and so cannot
+    /// be read from here: it leaves its own account of itself in this.
+    property <ScrollFade> shortcuts-fade;
+
+    /// A list's account of itself, inside the panel it belongs to. Nothing
+    /// for a panel that is not on show.
+    pure function fade-within(list: ScrollFade, shown: bool,
+        x: length, y: length, w: length, h: length) -> ScrollFade {
+        return {
+            x: list.x,
+            y: list.y,
+            width: shown ? list.width : 0px,
+            height: shown ? list.height : 0px,
+            top: list.top,
+            bottom: list.bottom,
+            right: 0,
+            clip-x: x,
+            clip-y: y,
+            clip-width: w,
+            clip-height: h,
+        };
+    }
+
+    /// Every scrolling list, for the soft edge on its ends — see `ScrollFade`.
+    out property <[ScrollFade]> scroll-fades: [
+        root.fade-within(subs-list.fade, root.menu-shown > root.shown-epsilon,
+            menu.x, menu.y, menu.width, menu.height),
+        root.fade-within(audio-list.fade, root.menu-shown > root.shown-epsilon,
+            menu.x, menu.y, menu.width, menu.height),
+        root.fade-within(playlist-top-list.fade,
+            root.playlist-shown > root.shown-epsilon,
+            playlist-panel.x, playlist-panel.y,
+            playlist-panel.width, playlist-panel.height),
+        root.fade-within(playlist-leaf-list.fade,
+            root.playlist-shown > root.shown-epsilon,
+            playlist-panel.x, playlist-panel.y,
+            playlist-panel.width, playlist-panel.height),
+        root.fade-within(root.shortcuts-fade,
+            root.settings-shown > root.shown-epsilon && root.leaf-page == 5
+                && root.drill > 0.0,
+            settings.x, settings.y, settings.width, settings.height),
+        // The title, which is not a list but runs out the same way: off the
+        // end of the room the pill has for it.
+        {
+            x: root.bar-x + root.pill-text-pad,
+            y: root.pills-y + root.bar-rise + root.pill-pad,
+            width: root.bar-shown > root.shown-epsilon ? root.title-room : 0px,
+            height: root.pill-h - 2 * root.pill-pad,
+            top: 0,
+            bottom: 0,
+            right: clamp((root.title-w - root.title-room) / Rows.fade, 0, 1),
+            clip-x: root.bar-x,
+            clip-y: root.pills-y + root.bar-rise,
+            clip-width: root.left-w,
+            clip-height: root.pill-h,
+        },
+    ];
+
+    /// The room the title pill has for its title: the pill, less everything
+    /// in it that is not the title.
+    property <length> title-room: max(0px, root.left-w - root.left-fixed);
+
     out property <[GlassRect]> glass-rects: [
         // The whole timeline row, times included, on one pane.
         //
@@ -3240,9 +3365,9 @@ export component MainWindow inherits Window {
         y: root.timeline-y - self.height - Rows.offset + root.settings-rise;
 
         // With `drill`, and by the same numbers: the box and the pages in it
-        // are one movement.
+        // are one movement. Not while the window is resized — see `resizing`.
         animate height {
-            duration: Motion.drill;
+            duration: root.resizing ? 0ms : Motion.drill;
             easing: ease-in-out;
         }
         visible: root.settings-shown > root.shown-epsilon;
@@ -3585,7 +3710,14 @@ export component MainWindow inherits Window {
                     }
                     ScrollList {
                         height: root.shortcuts-list-h;
+                        rest-height: root.shortcuts-rest-h;
                         content-height: root.shortcuts-natural;
+                        init => {
+                            root.shortcuts-fade = self.fade;
+                        }
+                        changed fade => {
+                            root.shortcuts-fade = self.fade;
+                        }
                         // The one list here the keyboard scrolls rather than
                         // walks; see `on-read`.
                         asked-by: root.read-by;
@@ -3761,9 +3893,10 @@ export component MainWindow inherits Window {
         // With `playlist-drill`, and by the same numbers the settings panel
         // uses: a part's page is not the height of the list of parts, and
         // the box snapping to the new size while the pages were still
-        // sliding under it would be two movements where there is one.
+        // sliding under it would be two movements where there is one. Not
+        // while the window is resized — see `resizing`.
         animate height {
-            duration: Motion.drill;
+            duration: root.resizing ? 0ms : Motion.drill;
             easing: ease-in-out;
         }
         x: root.anchored-x(root.playlist-anchor, self.width);
@@ -3821,6 +3954,7 @@ export component MainWindow inherits Window {
                         // standing in the list as itself.
                         playlist-top-list := ScrollList {
                             height: root.playlist-top-list-h;
+                            rest-height: root.playlist-top-rest-h;
                             content-height: root.playlist-top-natural;
 
                             VerticalLayout {
@@ -3896,6 +4030,7 @@ export component MainWindow inherits Window {
                         }
                         playlist-leaf-list := ScrollList {
                             height: root.playlist-leaf-list-h;
+                            rest-height: root.playlist-leaf-rest-h;
                             content-height: root.playlist-leaf-natural;
 
                             VerticalLayout {
@@ -4789,9 +4924,15 @@ export component MainWindow inherits Window {
                 color: Paint.strong;
                 font-size: Type.title;
                 font-weight: Type.weight-title;
-                // The pill is a fixed width, so a long title elides rather
-                // than pushing the playlist button out of the pill.
-                overflow: elide;
+                // The pill is a fixed width, so a long title is cut off
+                // rather than pushing the playlist button out of the pill —
+                // and where it is cut it blurs and thins away, as a list's
+                // rows do at its ends. See `scroll-fades`.
+                overflow: clip;
+                // Said outright: words that are cut rather than elided ask
+                // for their whole length, and the layout would give it to
+                // them out of the buttons' share.
+                min-width: 0px;
                 vertical-alignment: center;
                 horizontal-stretch: 1;
                 horizontal-alignment: left;

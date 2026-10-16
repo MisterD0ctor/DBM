@@ -208,7 +208,8 @@ panels that hold at most a heading and a list.
 **Key Characteristics:**
 - Real per-pixel refraction, not a translucent blur panel
 - No palette of its own; colour is the film's
-- Text on five alpha steps, 0x20 apart, from a floor that does not move
+- Text on five alpha steps, 0x20 apart, from a floor that does not move; the
+  ordinary run of it shares the second step from the top
 - One radius rule: every corner nests concentrically inside its parent
 - Motion is short, eased out, and never bounces
 - Uppercase for the interface's own labels, natural case for the user's content
@@ -240,18 +241,21 @@ keep it does:
   total times, the timestamp under a seek preview, a switch's label, a
   stepper's value and its minus and plus, a fatal headline, and the fill of a
   playlist row's resume measure.
-- **Body** (`#ffffffc0`): the ordinary run of the interface. Row labels and menu
-  items, a hover label's name, a slider's and a stepper's label, a driver's
-  error text; every section heading and its icon, and a show's name in the same
-  slot; back rows and drill rows; and every icon button's glyph at rest.
+- **Body** (`#ffffffe0`, Strong's step): the ordinary run of the interface. Row
+  labels and menu items, a hover label's name, a slider's and a stepper's
+  label, a driver's error text; every section heading and its icon, and a
+  show's name in the same slot; back rows and drill rows. It had a step of its
+  own at `0xc0` and read grey over a bright frame — it is the text there is
+  most of — so it moved up onto Strong's, which is how a role moves on this
+  ladder: onto an existing step, never between two. Leading text is told from
+  it by place, size and weight, as it always partly was.
 - **Quiet** (`#ffffffa0`): what sits beside or under something else. A
-  shortcut's keys, a playlist row's running time, the prose hints, a chevron at
-  rest, a stepper row's icon, a scroll thumb, the unity dot where it sits off
-  the volume fill, and text stating an absence.
-- **Dim** (`#ffffff80`): a slider's own value, which sits beside the name of the
-  thing it sets and must not compete with it; and the glyph of a bar button
-  with nowhere to go — Previous on the first file, Next on the last. **The
-  floor**: see below.
+  shortcut's keys, a playlist row's running time, the prose hints, a scroll
+  thumb, the unity dot where it sits off the volume fill, and text stating an
+  absence.
+- **Dim** (`#ffffff80`): the glyph of a bar button with nowhere to go —
+  Previous on the first file, Next on the last — and nothing else: the one
+  mark meant to look greyed out. **The floor**: see below.
 
 **Marks:**
 
@@ -298,7 +302,8 @@ satisfy a rule about the one gap nobody can widen.
 Closer than that and the hierarchy stops reading over moving video, where the
 backdrop changes faster than the eye can calibrate. Measured over the same
 glass, the steps land at 1.00, 0.79, 0.56 and 0.39 luminance — Lit, Strong,
-Body, Quiet — each one plainly apart from the next.
+the step Body had until it moved up onto Strong's, Quiet — each one plainly
+apart from the next.
 
 The ladder had ten text roles on eight values 0x0d apart before this, because
 each role had been tuned on its own, one careful nudge at a time. Five steps
@@ -455,9 +460,11 @@ padding; text sitting directly on a pill is inset 18px, clear of the capsule's
 curve.
 
 The title pill hugs its title, up to the room the transport leaves, and
-past that the title elides. It moves to a new width over 160ms ease-in-out
-rather than jumping: a pill that resized itself on every file change would be a
-flicker, and the glass follows because it is drawn from the same number.
+past that the title runs out at the end of its room, blurring and thinning
+away there as a list's rows do — see List edges — with no ellipsis. It moves
+to a new width over 160ms ease-in-out rather than jumping: a pill that resized
+itself on every file change would be a flicker, and the glass follows because
+it is drawn from the same number.
 
 The timeline row is one pane because it makes one statement: where you are, out
 of how much. It was three for a while — a pill around each time and the track
@@ -694,18 +701,17 @@ the axes, which is exactly the part the eye catches.
 
 ### Icon buttons
 - **Shape:** circle (40px, radius 20px), glyph drawn at 24px
-- **Default:** transparent, glyph at Body
-- **Hover:** Button wash, 45ms; glyph to Lit
-- **Active:** glyph to Lit, and every button that sets it swaps its own glyph as
-  well — muted for unmuted, slashed for unslashed. A wash behind an engaged
+- **Default:** transparent, glyph at Lit — full white, as is every glyph on the
+  bar that can be pressed. At Body the bar's controls read greyed out over a
+  bright frame.
+- **Hover:** Button wash, 45ms; the glyph is already Lit
+- **Active:** every button that sets a state swaps its own glyph — muted for
+  unmuted, slashed for unslashed — and that swap is the whole of the sign, now
+  that the glyph at rest is Lit too. A wash behind an engaged
   button was tried and taken back out: it made the state read as chrome.
-  **A button lights for a state you put it in, never for the state it came
-  in.** Mute is off until you mute it, so Mute earns the Lit glyph; the
-  ambient border is on to begin with, so lighting for that put the brightest
-  mark in the right pill on a control nobody had touched, and spent the
-  system's only emphasis on a default. It wears the swapped glyph alone,
-  which is the channel that carries this anyway, and its tip says which way
-  pressing goes.
+  **A button's state is its glyph, never its brightness**: every glyph on the
+  bar is Lit, and Mute muted or the ambient border off say so by the mark
+  they wear, which their tips name.
 - **Open:** a held Strong wash for as long as the panel it opened is showing — a
   separate channel from the lit glyph, so the two never share one highlight.
   A button that opens something does not also light for a state. The
@@ -913,9 +919,59 @@ row already has, beside the fact that is already there.
   list as before; the keyboard scrolls by the least that reveals the focused
   row.
 
+### Shadow under the words
+Every word and mark the interface draws has a thin dark rim under it: no
+offset, a 1.25px Gaussian, darkening the frame beneath by up to 85% where it
+is deepest. It is for contrast, not for depth — white text keeps an edge over
+a bright frame, where the glass alone could leave it nearly white on white —
+and it is darkest exactly there, because it takes away a share of what is
+underneath rather than laying a fixed grey over it. Over dark glass it is
+barely there.
+
+What casts it is what the interface laid down as white at more than about a
+fifth of full strength: text at every step from Dim up, glyphs, a track's
+filled length, a switch, the played timeline. A wash or a rail does not, so
+a highlighted row has no rim of its own. A picture the interface shows — the
+seek preview's frame — is left alone, shadow and all.
+
+Like the list edges it is drawn by the player on the finished frame — see
+`gpu::shadow` — since Slint can shadow a rectangle and nothing else. It runs
+only where there is glass, and with the chrome asleep it does nothing.
+
+### List edges
+Where a scrolling list's rows run on past its top or bottom, they are not cut
+by a line: over the last 28px they blur and thin away into the panel's own
+glass. The blur is a Gaussian that grows from nothing at the strip's inner
+edge to a 4px deviation at the list's, and the rows fade on an eased curve
+beside it, so neither end of the strip shows as an edge.
+
+An end with nothing past it is left sharp. The strip grows to its 28px over
+the first 28px of scrolling away from that end, only ever as deep as what has
+gone past, so the top row of a list at rest is whole. However shallow it is,
+its outer edge is where things are gone entirely: nothing is ever half cut. The scroll bar's
+margin is outside the strip; the thumb keeps its shape at the ends of its
+rail.
+
+The keyboard's ring keeps clear of it. Walking a list with the arrows
+scrolls a row early, so there is always one whole row between the ring and
+the end it is heading for, until the list itself runs out: the row the next
+press goes to can be read before it is pressed.
+
+The title in the bar runs out the same way, sideways: a title longer than its
+room is cut at the end of it with the same strip turned on its side, in place
+of an ellipsis. It comes on as the title outgrows the room, so one that fits
+is untouched.
+
+It is drawn by the player rather than by Slint, on the finished frame — see
+`gpu::fade` — which is why it is true blur and not a gradient laid over the
+rows: what they thin away to is the frame underneath, whatever the film is
+doing in it.
+
 ### Sliders
-- **Row:** 30px; an 18px icon at Quiet, as a stepper has, then the label 80px
-  at Body in Readout size 8px after it, value 46px right-aligned at Dim
+- **Row:** 30px; an 18px icon at Body, as a stepper has, then the label 80px
+  at Body in Readout size 8px after it, value 46px right-aligned at Body — the
+  step a stepper's value stands on too. It was Dim, kept a step under its name
+  so as not to compete with it, and read as greyed out
 - **Track:** 4px at Rail, growing to 6px on hover or press (100ms ease-out) —
   a step lighter than the bar's 5px tracks, because these sit inside a panel of
   rows rather than alone on glass
@@ -936,7 +992,7 @@ row already has, beside the fact that is already there.
   precision always shows
 
 ### Steppers
-- **Row:** 38px; an 18px icon at Quiet, the label at Body in Readout size, then
+- **Row:** 38px; an 18px icon and the label at Body in Readout size, then
   two 26px discs flanking a 62px value at Strong
 - **Discs:** Soft wash at rest, Strong wash on hover (45ms); `−` (U+2212, to match
   the digits) and `+` in Glyph size at Strong
@@ -960,7 +1016,7 @@ row already has, beside the fact that is already there.
 
 ### Drill rows
 - **Row:** 34px; an 18px icon and the label, both at Body, 10px apart, with a
-  chevron at the end — Quiet at rest, Lit on hover and under the ring. The ring
+  chevron at the end — Body at rest, Lit on hover and under the ring. The ring
   lights the icon with the words, since both name the same subject
 - **Use:** every row of the settings tree. An effect that can be turned off says
   so with its glyph rather than with a switch, because a switch beside a chevron
@@ -1346,7 +1402,10 @@ words on the clipboard and says *Copied* for two seconds, and *Close the player*
   no overshoot. Four things depart from that, each for a reason that is about
   what is moving rather than about how it looks:
   - the **title pill** resizing to a new title over 160ms ease-in-out, so a
-    file change is a movement rather than a flicker;
+    file change is a movement rather than a flicker — but never to a new
+    window: while the window is being resized, the pill and the panels' heights
+    take their new size in the frame they are given it, since eased they
+    trailed the window's edge for as long as the drag lasted;
   - the **backdrop's** 400ms arrival, the one motion that is not a response to
     anything — it is the window's light changing, not a control answering;
   - a **drill**, 220ms ease-in-out, moving the page sideways and the

@@ -93,12 +93,18 @@ export global Paint {
     /// Text that leads: the media title, times and values, a switch's label,
     /// a fatal headline.
     out property <color> strong: #ffffffe0;
-    /// Row labels, section headings and a show's name, glyphs at rest.
-    out property <color> body: #ffffffc0;
+    /// Row labels, section headings and a show's name, a row's icon.
+    ///
+    /// On Strong's step rather than one of its own. It was 0xc0, a step
+    /// down, and the ordinary run of the interface read grey over a bright
+    /// frame; it is the text there is most of, and it reads as white now.
+    /// Sharing a step is what the ladder asks of a role that needs moving —
+    /// see above — and it leaves a 0x40 gap down to Quiet rather than 0x20.
+    out property <color> body: #ffffffe0;
     /// Beside or under something else: a shortcut's keys, a row's running
-    /// time, prose hints, chevrons at rest, a scroll thumb.
+    /// time, prose hints, a scroll thumb.
     out property <color> quiet: #ffffffa0;
-    /// A slider's own value, beside the name of the thing it sets. The floor.
+    /// A bar button with nowhere to go. The floor.
     out property <color> dim: #ffffff80;
 
     // --- marks ------------------------------------------------------------------
@@ -268,6 +274,10 @@ export global Rows {
     /// caption under its ring, the seek preview clear of a panel. One idea,
     /// and it was thirteen bare twelves and three private properties for it.
     out property <length> offset: 12px;
+    /// How much of a scrolling list's end blurs and thins away where rows
+    /// run on past it. Most of a row: short enough that the row above it is
+    /// whole, long enough that the row in it is plainly leaving.
+    out property <length> fade: 28px;
 
     /// The rows themselves. Here rather than at the top of `MainWindow`
     /// because the components below are outside it and cannot see anything

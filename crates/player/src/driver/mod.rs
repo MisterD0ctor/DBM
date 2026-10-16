@@ -34,7 +34,7 @@ use slint::{
 use crate::app::App;
 use crate::gpu::gfx::Target;
 use crate::gpu::pipeline::{Frame, GlassPanel, Pipeline};
-use crate::interface::{format, glass, playlist_panel, sync};
+use crate::interface::{fades, format, glass, playlist_panel, sync};
 use crate::library::playlist;
 use crate::platform::modal_loop;
 use crate::playback::commands;
@@ -55,6 +55,13 @@ struct Gpu {
     ctx: mpv::RenderContext,
     gl: glow::Context,
     pipeline: Pipeline,
+    /// Softens the ends of scrolling lists, once Slint has drawn them.
+    /// Absent where its shader would not build: the lists are then cut by
+    /// their panel as they always were, which is not worth losing the
+    /// player over.
+    fader: Option<crate::gpu::fade::Fader>,
+    /// The shadow under the interface's words and marks, the same way.
+    shadow: Option<crate::gpu::shadow::Shadow>,
     published: Option<Published>,
     _mpv: Arc<Mpv>,
 }
@@ -67,6 +74,9 @@ pub struct Driver {
     gpu: Option<Gpu>,
     player: PlayerState,
     panels: Vec<GlassPanel>,
+    /// The ends of scrolling lists to soften this frame. Reused, like the
+    /// panels, to keep the frame path from allocating.
+    fades: Vec<crate::gpu::fade::Strip>,
     modal: modal_loop::Hook,
     /// Installed the same way and for the same reason as the modal hook.
     drops: crate::platform::dropped::Accepting,
@@ -126,6 +136,7 @@ impl Driver {
             gpu: None,
             player: PlayerState::default(),
             panels: Vec::new(),
+            fades: Vec::new(),
             modal: modal_loop::Hook::new(),
             drops: crate::platform::dropped::Accepting::new(),
             lists: sync::ListSync::default(),
@@ -154,7 +165,7 @@ impl Driver {
             RenderingState::RenderingSetup => self.setup(api),
             RenderingState::BeforeRendering => self.frame(),
             RenderingState::AfterRendering => {
-                if let Some(gpu) = self.gpu.as_ref() {
+                if let Some(gpu) = self.gpu.as_mut() {
                     // Tells mpv the frame reached the screen, which is what
                     // keeps its frame timing honest.
                     gpu.ctx.report_swap();
@@ -163,6 +174,29 @@ impl Driver {
                     // whole thing. Does nothing unless asked.
                     if let Some(ui) = self.ui.upgrade() {
                         let size = ui.window().size();
+                        // Before the picture is taken, so both are in it.
+                        // The shadow first: the soft edges then thin it away
+                        // with the rows that cast it.
+                        if let Some(shadow) = gpu.shadow.as_mut() {
+                            shadow.run(
+                                &gpu.gl,
+                                gpu.pipeline.output(),
+                                (size.width, size.height),
+                                &self.panels,
+                                ui.window().scale_factor(),
+                            );
+                        }
+                        // The ends of any list with rows past them, softened
+                        // on the frame Slint has just finished.
+                        if let Some(fader) = gpu.fader.as_mut() {
+                            fades::collect(&ui, &mut self.fades);
+                            fader.run(
+                                &gpu.gl,
+                                gpu.pipeline.output(),
+                                (size.width, size.height),
+                                &self.fades,
+                            );
+                        }
                         self.capture.maybe(&gpu.gl, size.width, size.height);
                         // Its fade is drawn here rather than by Slint, so
                         // nothing else knows to ask for the frames.
@@ -175,8 +209,20 @@ impl Driver {
             }
             RenderingState::RenderingTeardown => {
                 if let Some(mut gpu) = self.gpu.take() {
-                    let Gpu { gl, pipeline, .. } = &mut gpu;
+                    let Gpu {
+                        gl,
+                        pipeline,
+                        fader,
+                        shadow,
+                        ..
+                    } = &mut gpu;
                     pipeline.release(gl);
+                    if let Some(fader) = fader {
+                        fader.release(gl);
+                    }
+                    if let Some(shadow) = shadow {
+                        shadow.release(gl);
+                    }
                 }
             }
             _ => {}
@@ -269,10 +315,18 @@ impl Driver {
                         Some(Completion::Resume(crate::library::resume::last_watched()))
                     });
                 }
+                let fader = crate::gpu::fade::Fader::new(&gl)
+                    .inspect_err(|e| eprintln!("dbm: no soft edge on scrolling lists: {e}"))
+                    .ok();
+                let shadow = crate::gpu::shadow::Shadow::new(&gl)
+                    .inspect_err(|e| eprintln!("dbm: no shadow under the interface: {e}"))
+                    .ok();
                 self.gpu = Some(Gpu {
                     ctx,
                     gl,
                     pipeline,
+                    fader,
+                    shadow,
                     published: None,
                     _mpv: self.app.mpv.clone(),
                 });

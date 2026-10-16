@@ -372,6 +372,29 @@ impl ScreenQuad {
         }
     }
 
+    /// Draw into a rectangle of a framebuffer that is not one of ours — the
+    /// window's. `rect` is x, y, width and height as GL counts them, from
+    /// the bottom-left, and `v_uv` spans 0..1 across it.
+    pub fn draw_at(
+        &self,
+        gl: &glow::Context,
+        fbo: Option<glow::Framebuffer>,
+        rect: (i32, i32, i32, i32),
+    ) {
+        unsafe {
+            gl.bind_framebuffer(glow::FRAMEBUFFER, fbo);
+            gl.viewport(rect.0, rect.1, rect.2, rect.3);
+            gl.bind_vertex_array(Some(self.vao));
+            gl.disable(glow::BLEND);
+            gl.disable(glow::DEPTH_TEST);
+            gl.disable(glow::STENCIL_TEST);
+            gl.disable(glow::SCISSOR_TEST);
+            gl.color_mask(true, true, true, true);
+            gl.draw_arrays(glow::TRIANGLES, 0, 3);
+            gl.bind_vertex_array(None);
+        }
+    }
+
     pub fn release(&self, gl: &glow::Context) {
         unsafe { gl.delete_vertex_array(self.vao) };
     }

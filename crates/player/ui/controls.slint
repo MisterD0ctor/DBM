@@ -60,14 +60,14 @@ export component IconButton inherits Rectangle {
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
         image-fit: contain;
-        // Dim, the floor of the ladder, rather than a faded copy of Body: a
-        // disabled glyph takes an existing step like every other role.
-        // Lit under the pointer and under the ring as well as when on: the
-        // ring's wash is the same one an open panel holds, so the glyph is
-        // what says the keyboard is here.
-        colorize: !root.enabled ? Paint.dim
-            : root.active || root.ring || touch.has-hover ? Paint.lit
-            : Paint.body;
+        // Full white whenever it can be pressed: the bar's marks are its
+        // controls, and over a bright frame anything less read as greyed out.
+        // So the pointer and the ring are answered by the wash alone, and an
+        // engaged button by its own swapped glyph — muted, slashed, the other
+        // fullscreen arrows — which is what said it already. Dim, the floor,
+        // for a button with nowhere to go: the one glyph that should look
+        // greyed out, because it is.
+        colorize: !root.enabled ? Paint.dim : Paint.lit;
     }
 
     // The keyboard gets the label the pointer gets. It was only ever raised by

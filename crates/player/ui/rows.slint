@@ -353,7 +353,7 @@ export component GroupRow inherits Rectangle {
         width: root.chevron;
         height: root.chevron;
         image-fit: contain;
-        colorize: touch.has-hover || root.ring ? Paint.lit : Paint.quiet;
+        colorize: touch.has-hover || root.ring ? Paint.lit : Paint.body;
     }
 
     touch := TouchArea {
@@ -582,7 +582,7 @@ export component ParamSlider inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: Paint.quiet;
+                colorize: root.ring ? Paint.lit : Paint.body;
             }
         }
 
@@ -652,7 +652,7 @@ export component ParamSlider inherits Rectangle {
         Text {
             width: 46px;
             text: root.readout;
-            color: Paint.dim;
+            color: Paint.body;
             font-size: Type.readout;
             horizontal-alignment: right;
             vertical-alignment: center;
@@ -821,7 +821,7 @@ export component DrillRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: touch.has-hover || root.ring ? Paint.lit : Paint.quiet;
+                colorize: touch.has-hover || root.ring ? Paint.lit : Paint.body;
             }
         }
     }
@@ -889,7 +889,7 @@ export component StepperRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: Paint.quiet;
+                colorize: root.ring ? Paint.lit : Paint.body;
             }
         }
 

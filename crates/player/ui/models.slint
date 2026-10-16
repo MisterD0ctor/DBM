@@ -18,6 +18,31 @@ export struct GlassRect {
     opacity: float,
 }
 
+/// A scrolling list as it stands in the window — or a line of words that
+/// runs on past its place — for the soft edge the
+/// pipeline puts on whichever of its ends has rows past it — see `fade` on
+/// the Rust side. Lengths are logical pixels.
+export struct ScrollFade {
+    x: length,
+    y: length,
+    width: length,
+    height: length,
+    /// How far the list is from its top and from its bottom, each as a share
+    /// of the strip that fades: 0 at rest at that end, 1 once a strip's
+    /// worth of rows has gone past it.
+    top: float,
+    bottom: float,
+    /// The same for the right-hand end of a line of words too long for where
+    /// it is — the title in the bar. A list has none.
+    right: float,
+    /// The panel the list is in. A list sliding in or out of its panel is
+    /// partly outside it, and only what is inside is on screen.
+    clip-x: length,
+    clip-y: length,
+    clip-width: length,
+    clip-height: length,
+}
+
 export struct ParamItem {
     /// Index into the registry on the Rust side. Carried on the row because
     /// the sliders are split across pages now, so a repeater's position in

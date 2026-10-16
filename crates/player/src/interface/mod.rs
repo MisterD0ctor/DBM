@@ -6,7 +6,8 @@
 //! * `actions` binds every callback the interface declares.
 //! * `sync` pushes the mirrored state and the track lists out to it, and
 //!   `playlist_panel` and `sliders` build the models its two big panels show.
-//! * `glass` reads each surface's rect back out of the layout for the pipeline.
+//! * `glass` reads each surface's rect back out of the layout for the pipeline,
+//!   and `fades` the ends of each scrolling list.
 //! * `chrome` is the idle clock the bar and the pointer hide on.
 //! * `subline` places the subtitle line, which the person and the bar both get
 //!   a say in.
@@ -14,6 +15,7 @@
 
 pub mod actions;
 pub mod chrome;
+pub mod fades;
 pub mod format;
 pub mod glass;
 pub mod playlist_panel;

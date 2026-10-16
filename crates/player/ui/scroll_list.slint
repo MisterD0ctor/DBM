@@ -1,6 +1,7 @@
 // A list that scrolls, for the panels whose rows can outgrow the window.
 
 import { Chrome } from "globals.slint";
+import { ScrollFade } from "models.slint";
 import { Motion, Paint, Rows } from "theme.slint";
 
 /// A list that scrolls when it is handed less height than its content needs.
@@ -12,10 +13,41 @@ import { Motion, Paint, Rows } from "theme.slint";
 export component ScrollList inherits Rectangle {
     /// What the rows add up to, unconstrained.
     in property <length> content-height;
+    /// The height the list has once its panel has stopped moving.
+    ///
+    /// The same as its height except in a drill, where the panel eases to the
+    /// new page's height and the list takes whatever the box has this frame.
+    /// A page drilled into from a shorter one starts in a box too small for
+    /// it, and judged by that, a list that does not scroll at all put up its
+    /// scroll bar and its soft bottom edge for the length of the move.
+    /// Whether the list scrolls is a question about where it is going.
+    in property <length> rest-height: root.height;
+    /// Whether there is more of the list than it shows, once it has arrived.
+    property <bool> scrolls: root.content-height > root.rest-height + 0.5px;
     /// How far the list has been scrolled, as the negative offset Flickable
     /// keeps. Exposed so a test can confirm the wheel reaches it — there is
     /// otherwise nothing on screen a test can read.
     out property <length> offset: flick.viewport-y;
+
+    /// Where the list is and how far it is from each of its ends, for the
+    /// soft edge drawn over them. Its own place in the window is asked of
+    /// the layout, which the panels otherwise avoid: these lists sit inside
+    /// pages that slide, and the arithmetic for where each one is mid-slide
+    /// would be a second copy of the layout kept by hand. It is read only
+    /// while a list is on show. The scroll bar's margin is left out, so the
+    /// thumb stays whole at the ends of its rail.
+    out property <ScrollFade> fade: {
+        x: root.absolute-position.x,
+        y: root.absolute-position.y,
+        width: root.width - Rows.gap,
+        height: root.height,
+        top: root.scrolls ? clamp(-flick.viewport-y / Rows.fade, 0, 1) : 0,
+        bottom: root.scrolls
+            ? clamp((root.content-height - root.height + flick.viewport-y)
+                / Rows.fade, 0, 1)
+            : 0,
+        right: 0,
+    };
 
     clip: true;
 
@@ -26,12 +58,25 @@ export component ScrollList inherits Rectangle {
     /// `viewport-y` would take the flick and the wheel away from it. Scrolls
     /// by the least that works, so arrowing down a long list walks the
     /// bottom edge instead of jumping the row to the middle.
+    ///
+    /// Not right against the edge, though: a row's worth of the list is kept
+    /// between the ring and the end it is walking toward, until the list
+    /// itself runs out. The ends are where rows blur and thin away, so a
+    /// ring standing in one would be on a row half gone — and the row after
+    /// it, the one the next press goes to, could not be read at all.
     public function reveal(top: length, h: length) {
-        if (top < -flick.viewport-y) {
-            flick.viewport-y = -top;
-        } else if (top + h > -flick.viewport-y + root.height) {
-            flick.viewport-y = root.height - top - h;
+        if (top - root.lead(h) < -flick.viewport-y) {
+            flick.viewport-y = min(0px, root.lead(h) - top);
+        } else if (top + h + root.lead(h) > -flick.viewport-y + root.height) {
+            flick.viewport-y = max(min(0px, root.height - root.content-height),
+                root.height - top - h - root.lead(h));
         }
+    }
+
+    /// How much of the list is kept past a revealed row: one row, or less in
+    /// a list too short to spare one on both sides.
+    pure function lead(h: length) -> length {
+        return max(0px, min(h, (root.height - h) / 2));
     }
 
     /// Put one row in the middle, as far as the ends of the list allow.
@@ -128,7 +173,7 @@ export component ScrollList inherits Rectangle {
         height: root.rail-h;
         border-radius: self.width / 2;
         background: Paint.wash-soft;
-        visible: root.reach > 0;
+        visible: root.scrolls && root.reach > 0;
         animate width { duration: Motion.track-grow; easing: ease-out; }
 
         Rectangle {
@@ -146,7 +191,7 @@ export component ScrollList inherits Rectangle {
         x: parent.width - self.width;
         width: Rows.gap;
         height: 100%;
-        visible: root.reach > 0;
+        visible: root.scrolls && root.reach > 0;
         mouse-cursor: pointer;
         /// The pointer, in the rail's terms.
         property <length> at: self.mouse-y - root.rail-inset;
