@@ -582,3 +582,59 @@ msgstr "Hoofdstuk {} van {}"
 msgctxt "player"
 msgid "Settings could not be saved — {}"
 msgstr "Instellingen konden niet worden opgeslagen — {}"
+
+msgctxt "MainWindow"
+msgid "Find subtitles…"
+msgstr "Ondertitels zoeken…"
+
+msgctxt "MainWindow"
+msgid "FIND SUBTITLES"
+msgstr "ONDERTITELS ZOEKEN"
+
+msgctxt "MainWindow"
+msgid "Searching OpenSubtitles…"
+msgstr "OpenSubtitles doorzoeken…"
+
+msgctxt "MainWindow"
+msgid "No subtitles found"
+msgstr "Geen ondertitels gevonden"
+
+msgctxt "FoundRow"
+msgid "Downloading…"
+msgstr "Downloaden…"
+
+msgctxt "player"
+msgid "Exact"
+msgstr "Exact"
+
+msgctxt "player"
+msgid "Machine"
+msgstr "Machinaal"
+
+msgctxt "player"
+msgid "Could not reach OpenSubtitles"
+msgstr "OpenSubtitles is niet bereikbaar"
+
+msgctxt "player"
+msgid "OpenSubtitles refused the player's key"
+msgstr "OpenSubtitles heeft de sleutel van de speler geweigerd"
+
+msgctxt "player"
+msgid "Today's subtitle downloads are used up"
+msgstr "De ondertiteldownloads van vandaag zijn op"
+
+msgctxt "MainWindow"
+msgid "No subtitles"
+msgstr "Geen ondertitels"
+
+msgctxt "MainWindow"
+msgid "Remove an added track"
+msgstr "Toegevoegd spoor verwijderen"
+
+msgctxt "MenuRow"
+msgid "Remove"
+msgstr "Verwijderen"
+
+msgctxt "player"
+msgid "external"
+msgstr "extern"

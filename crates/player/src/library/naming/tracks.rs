@@ -171,7 +171,8 @@ pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
             label.push_str(flag.label());
         }
         if t.external {
-            label.push_str(" · external");
+            label.push_str(" · ");
+            label.push_str(tr("external"));
         }
         out.push(label);
     }

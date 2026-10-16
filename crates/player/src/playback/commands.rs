@@ -187,6 +187,44 @@ pub fn toggle_subtitles(mpv: &Mpv) {
     set_prop(mpv, "sub-visibility", "yes");
 }
 
+/// Load a subtitle file into the film playing, named as fetched from
+/// OpenSubtitles and in `language`. Selected and shown when `show` is set;
+/// otherwise only added to the list, as the film's own tracks are.
+pub fn add_subtitle(mpv: &Mpv, file: &std::path::Path, language: &str, show: bool) {
+    let file = file.to_string_lossy();
+    let flag = if show { "select" } else { "auto" };
+    run(mpv, &["sub-add", &file, flag, "OpenSubtitles", language]);
+    if show {
+        set_prop(mpv, "sub-visibility", "yes");
+    }
+}
+
+/// Take a track that came from a file of its own back out of the film.
+/// Returns the file it came from, so a caller can forget it too.
+///
+/// **Blocking** — reads the track list. Worker thread only.
+pub fn remove_track(mpv: &Mpv, id: i64, subtitle: bool) -> Option<String> {
+    let count = mpv.get_f64("track-list/count").unwrap_or(0.0) as i64;
+    let kind = if subtitle { "sub" } else { "audio" };
+    let file = (0..count.max(0)).find_map(|i| {
+        let here = |name: &str| format!("track-list/{i}/{name}");
+        let matches = mpv.get_f64(&here("id")).map(|n| n as i64) == Some(id)
+            && mpv.get_property(&here("type")).as_deref() == Some(kind)
+            && mpv.get_bool(&here("external"));
+        matches.then(|| {
+            mpv.get_property(&here("external-filename"))
+                .unwrap_or_default()
+        })
+    })?;
+    let command = if subtitle {
+        "sub-remove"
+    } else {
+        "audio-remove"
+    };
+    run(mpv, &[command, &id.to_string()]);
+    Some(file)
+}
+
 /// Select a subtitle track, or `None` to turn them off.
 pub fn set_subtitle_track(mpv: &Mpv, id: Option<i64>) {
     match id {

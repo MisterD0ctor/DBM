@@ -7,13 +7,15 @@
 use super::{say, warn, Driver, Gpu};
 use crate::interface::format;
 use crate::lang::{fill, tr};
+use crate::library::opensubtitles::{Fetched, Found, Hit};
 use crate::library::preview::Atlas;
 use crate::library::resume::Resume;
 use crate::library::subsync::{Failure, Outcome};
 use crate::library::titles::End;
 use crate::playback::commands;
 use crate::worker::{Completion, Worker};
-use crate::MainWindow;
+use crate::{FoundItem, MainWindow};
+use slint::{ModelRc, VecModel};
 
 impl Driver {
     /// Take delivery of one finished job. Returns whether the playlist needs
@@ -122,6 +124,24 @@ impl Driver {
                 self.synced(ui, outcome);
                 false
             }
+            Completion::Found(found) => {
+                self.found(ui, found);
+                false
+            }
+            Completion::Fetched(fetched) => {
+                self.fetched(ui, fetched);
+                false
+            }
+            Completion::Kept { path, files } => {
+                // Back in the list as the film's own tracks are, without
+                // taking the place of whichever one it opened on.
+                if self.player.path.as_deref() == Some(path.as_str()) {
+                    for (file, language) in files {
+                        commands::add_subtitle(&self.app.mpv, &file, &language, false);
+                    }
+                }
+                false
+            }
             Completion::Onward { from, to } => {
                 // An answer for a file that has since been replaced is dropped.
                 if self.player.path.as_deref() == Some(from.as_str()) {
@@ -204,6 +224,43 @@ impl Driver {
         );
     }
 
+    /// Fill the search's page with what OpenSubtitles found, or say why not.
+    fn found(&self, ui: &MainWindow, found: Found) {
+        // For the film it was asked about, or for nothing.
+        if self.player.path.as_deref() != Some(found.path.as_str()) {
+            return;
+        }
+        match found.hits {
+            Ok(hits) => {
+                let rows: Vec<FoundItem> = hits.iter().map(found_row).collect();
+                ui.set_find_hits(ModelRc::new(VecModel::from(rows)));
+                ui.set_find_state(if hits.is_empty() { 3 } else { 2 });
+                *self.app.found.borrow_mut() = hits;
+            }
+            Err(why) => {
+                ui.set_find_said(why.sentence().into());
+                ui.set_find_state(4);
+            }
+        }
+    }
+
+    /// Load a fetched subtitle and show it, or say why there is none.
+    fn fetched(&self, ui: &MainWindow, fetched: Fetched) {
+        ui.set_find_fetching(-1);
+        if self.player.path.as_deref() != Some(fetched.path.as_str()) {
+            return;
+        }
+        match fetched.result {
+            Ok((file, language)) => {
+                commands::add_subtitle(&self.app.mpv, &file, &language, true);
+                // Back to the tracks, where it now stands lit: the answer
+                // is the row it arrived as.
+                ui.set_find_open(false);
+            }
+            Err(why) => warn(ui, why.sentence()),
+        }
+    }
+
     /// Hand the seek preview a finished atlas. Its picture comes decoded, so
     /// this is the cost of wrapping it and nothing more.
     fn show_atlas(&self, ui: &MainWindow, atlas: Atlas) {
@@ -255,6 +312,26 @@ impl Driver {
             }
             None => light_with_the_mark(&self.app.worker),
         }
+    }
+}
+
+/// One result of a search, as its row says it: the release it was timed
+/// against, and beside it the language and whatever sets it apart.
+fn found_row(hit: &Hit) -> FoundItem {
+    let mut detail = vec![crate::library::naming::language_name(&hit.language)];
+    if hit.exact {
+        detail.push(tr("Exact").to_string());
+    }
+    if hit.hearing_impaired {
+        detail.push("SDH".into());
+    }
+    if hit.machine {
+        detail.push(tr("Machine").to_string());
+    }
+    FoundItem {
+        label: hit.release.as_str().into(),
+        detail: detail.join(" · ").into(),
+        exact: hit.exact,
     }
 }
 

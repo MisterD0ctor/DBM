@@ -56,6 +56,13 @@ latter only for seek-preview thumbnails — are checked in under
 asked of the machine the player runs on; see that directory's README for how
 they are found and for the licensing that shipping them implies.
 
+Finding subtitles on OpenSubtitles needs an API key, registered free for the
+player at [opensubtitles.com/consumers](https://www.opensubtitles.com/consumers).
+Put it in `crates/player/keys/opensubtitles`, which Git ignores, or in the
+environment as `DBM_OPENSUBTITLES_KEY` when building; see
+[`crates/player/keys/`](crates/player/keys/README.md). A build without one is
+the same player with no *Find subtitles* row.
+
 On Linux, `cargo build` also needs the development packages for fontconfig,
 freetype, Wayland, xkbcommon and OpenGL. Running the result needs a
 `libmpv.so.2` whose FFmpeg can decode HEVC — Fedora's stock FFmpeg cannot, and

@@ -583,3 +583,59 @@ msgstr "Capítulo {} de {}"
 msgctxt "player"
 msgid "Settings could not be saved — {}"
 msgstr "Não foi possível salvar as configurações — {}"
+
+msgctxt "MainWindow"
+msgid "Find subtitles…"
+msgstr "Procurar legendas…"
+
+msgctxt "MainWindow"
+msgid "FIND SUBTITLES"
+msgstr "PROCURAR LEGENDAS"
+
+msgctxt "MainWindow"
+msgid "Searching OpenSubtitles…"
+msgstr "Procurando no OpenSubtitles…"
+
+msgctxt "MainWindow"
+msgid "No subtitles found"
+msgstr "Nenhuma legenda encontrada"
+
+msgctxt "FoundRow"
+msgid "Downloading…"
+msgstr "Baixando…"
+
+msgctxt "player"
+msgid "Exact"
+msgstr "Exato"
+
+msgctxt "player"
+msgid "Machine"
+msgstr "Automático"
+
+msgctxt "player"
+msgid "Could not reach OpenSubtitles"
+msgstr "Não foi possível acessar o OpenSubtitles"
+
+msgctxt "player"
+msgid "OpenSubtitles refused the player's key"
+msgstr "O OpenSubtitles recusou a chave do reprodutor"
+
+msgctxt "player"
+msgid "Today's subtitle downloads are used up"
+msgstr "Os downloads de legendas de hoje acabaram"
+
+msgctxt "MainWindow"
+msgid "No subtitles"
+msgstr "Sem legendas"
+
+msgctxt "MainWindow"
+msgid "Remove an added track"
+msgstr "Remover uma faixa adicionada"
+
+msgctxt "MenuRow"
+msgid "Remove"
+msgstr "Remover"
+
+msgctxt "player"
+msgid "external"
+msgstr "externo"

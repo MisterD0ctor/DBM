@@ -9,13 +9,13 @@
 
 import { Chrome, Flash, Tip } from "globals.slint";
 import {
-    GlassRect, ParamItem, PlaylistGroup, PlaylistItem, ScrollFade, TrackItem
+    FoundItem, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, ScrollFade, TrackItem
 } from "models.slint";
 import { Motion, Paint, Rows, Type } from "theme.slint";
 import { EndChoice, IconButton } from "controls.slint";
 import {
-    BackRow, DrillRow, EmptyRow, GroupRow, MenuHeading, MenuRow, ParamSlider, PlaylistRow,
-    ResumeRow, ShortcutRow, StepperRow, ToggleRow,
+    BackRow, DrillRow, EmptyRow, FoundRow, GroupRow, MenuHeading, MenuRow, ParamSlider,
+    PlaylistRow, ResumeRow, ShortcutRow, StepperRow, ToggleRow,
 } from "rows.slint";
 import { ScrollList } from "scroll_list.slint";
 
@@ -158,6 +158,99 @@ export component MainWindow inherits Window {
     in property <string> sub-pos-text: "100%";
     in property <[TrackItem]> sub-tracks;
     in property <[TrackItem]> audio-tracks;
+
+    // --- finding subtitles on OpenSubtitles --------------------------------
+    //
+    // The last row of the subtitle list, where a player built with a key
+    // offers it, opens a page of the tracks menu listing what OpenSubtitles
+    // holds for the film; a row of that fetches it, loads it, and goes back
+    // to the tracks with it lit. Both are network round trips on the Rust
+    // side — see `opensubtitles`.
+
+    /// Whether there is any searching to be done: a key, and a film.
+    in property <bool> find-offered;
+    /// The search's page is the one the tracks menu shows.
+    in-out property <bool> find-open: false;
+    /// 0 nothing asked yet, 1 searching, 2 results, 3 none found, 4 failed.
+    in-out property <int> find-state: 0;
+    /// Why a search failed, in words.
+    in property <string> find-said;
+    in property <[FoundItem]> find-hits;
+    /// The row being fetched, or -1. One at a time.
+    in-out property <int> find-fetching: -1;
+    callback find-subtitles();
+    callback fetch-subtitle(int);
+    /// Take a track that came from a file of its own back out: a subtitle
+    /// when the flag is set, an audio track otherwise.
+    callback remove-track(int, bool);
+
+    /// Delete on the tracks menu: the track the ring is on, if it is one
+    /// that can be taken out. Whether anything was.
+    function remove-focused-track() -> bool {
+        if (root.find-open) {
+            return false;
+        }
+        if (root.focus-row >= 1 && root.focus-row <= root.sub-tracks.length
+                && root.has-subs) {
+            if (root.sub-tracks[root.focus-row - 1].external) {
+                root.remove-track(root.sub-tracks[root.focus-row - 1].id, true);
+                return true;
+            }
+            return false;
+        }
+        if (root.focus-row >= root.subs-focus-count
+                && root.focus-row - root.subs-focus-count < root.audio-tracks.length) {
+            if (root.audio-tracks[root.focus-row - root.subs-focus-count].external) {
+                root.remove-track(
+                    root.audio-tracks[root.focus-row - root.subs-focus-count].id, false);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /// Show the search's page, searching unless it already has an answer to
+    /// show: a list found a moment ago is still the list. Public for the test
+    /// that walks it.
+    public function open-find() {
+        root.find-open = true;
+        root.focus-row = 0;
+        if (root.find-state != 1 && root.find-state != 2) {
+            root.find-subtitles();
+        }
+    }
+
+    /// Back to the tracks, on the row that opened the search.
+    function close-find() {
+        root.find-open = false;
+        root.focus-row = root.subs-focus-count - 1;
+    }
+
+    function fetch-row(row: int) {
+        if (root.find-fetching < 0 && row >= 0 && row < root.find-hits.length) {
+            root.fetch-subtitle(row);
+        }
+    }
+
+    /// The search's page: its way back, then its results — or one line
+    /// saying it is searching, or found nothing, or why it could not.
+    property <int> find-focus-count: 1 + (root.find-state == 2 ? root.find-hits.length : 0);
+    property <length> find-natural: root.find-state == 2
+        ? root.find-hits.length * root.row-h : root.row-h;
+    property <length> find-h: min(root.panel-pad + root.row-h + root.find-natural,
+        root.panel-max-h);
+    property <length> find-list-h: root.find-state == 2
+        ? max(0px, menu.height - root.panel-pad - root.row-h) : 0px;
+    property <length> find-rest-h: min(root.find-natural,
+        max(0px, root.panel-max-h - root.panel-pad - root.row-h));
+    /// The tracks menu's height: whichever of its two pages is showing.
+    property <length> menu-h: root.find-open ? root.find-h : root.tracks-h;
+    /// The search's page sliding over the tracks, as a settings page does.
+    property <float> menu-drill: root.find-open ? 1.0 : 0.0;
+    animate menu-drill {
+        duration: root.resizing ? 0ms : Motion.drill;
+        easing: ease-in-out;
+    }
     /// The playlist, in the parts the panel shows it in: its seasons, or the
     /// shows and films of a folder holding several — worked out by `shelf` on
     /// the Rust side. One part is the list shown as it always was; several
@@ -277,12 +370,15 @@ export component MainWindow inherits Window {
     /// The subtitle half of the tracks menu, which the audio half is indexed
     /// after. `Off` counts as a row: it is the one people reach for.
     property <int> subs-focus-count:
-        root.has-subs ? 1 + root.sub-tracks.length : 0;
+        (root.has-subs ? 1 + root.sub-tracks.length : 0)
+        // The search, after the tracks.
+        + (root.find-offered ? 1 : 0);
     /// How many rows the thing on screen offers the keyboard. Zero means the
     /// keys below never look at any of this, which is the case whenever a
     /// film is playing and nothing is open.
     property <int> focus-count:
-        root.menu-open ? root.subs-focus-count + root.audio-tracks.length
+        root.menu-open ? (root.find-open ? root.find-focus-count
+            : root.subs-focus-count + root.audio-tracks.length)
         : root.playlist-open ? root.playlist-lead + root.playlist-rows + 1
         : root.files-open ? 2
         : root.settings-open ? root.settings-focus-count
@@ -546,7 +642,11 @@ export component MainWindow inherits Window {
     // ring. Only the two lists that scroll need this; the settings pages are
     // sized to their contents.
     function focus-scroll() {
-        if (root.menu-open) {
+        if (root.menu-open && root.find-open) {
+            if (root.focus-row > 0) {
+                find-list.reveal((root.focus-row - 1) * root.row-h, root.row-h);
+            }
+        } else if (root.menu-open) {
             if (root.focus-row < root.subs-focus-count) {
                 subs-list.reveal(root.focus-row * root.row-h, root.row-h);
             } else {
@@ -588,7 +688,8 @@ export component MainWindow inherits Window {
     /// in use, or on Off when none is showing.
     property <int> tracks-open-row: root.has-subs
         ? (root.subs-visible && root.sub-current >= 0 ? root.sub-current + 1 : 0)
-        : max(0, root.audio-current);
+        : root.has-audio ? root.subs-focus-count + max(0, root.audio-current)
+        : 0;
 
     // A ring left up by the way in would otherwise land on the bar the moment
     // a film arrives, on a button nobody chose.
@@ -1600,6 +1701,7 @@ export component MainWindow inherits Window {
         { label: @tr("Move along the bar"), keys: "Tab" },
         { label: @tr("Choose, or adjust"), keys: "Enter / ← →" },
         { label: @tr("Close, or leave fullscreen"), keys: "Esc" },
+        { label: @tr("Remove an added track"), keys: "Delete" },
 
         { heading: @tr("FILES"), icon: @image-url("../../../public/icons/folder-open.svg"),
           label: @tr("Open file"), keys: "Ctrl+O" },
@@ -1647,18 +1749,27 @@ export component MainWindow inherits Window {
     // file with neither says so in one line.
     property <bool> has-subs: root.sub-tracks.length > 0;
     property <bool> has-audio: root.audio-tracks.length > 0;
-    property <bool> no-tracks: !root.has-subs && !root.has-audio;
+    /// The subtitle section shows whenever the menu has anything to show: for
+    /// its tracks, for the search alone on a film with none — which is when
+    /// it is most wanted — or to say there are none. It used to go missing
+    /// on a film with no subtitles, and a menu called Subtitles & audio with
+    /// no subtitles in it read as one that had not finished opening.
+    property <bool> show-subs: root.has-subs || root.find-offered || root.has-audio;
+    /// No tracks and nothing to search with: the section says so in a line.
+    property <bool> subs-empty: !root.has-subs && !root.find-offered;
+    property <bool> no-tracks: !root.show-subs && !root.has-audio;
 
     /// The "Off" row belongs to the subtitle list, so it counts with it.
     out property <length> subs-natural:
-        root.has-subs ? (1 + root.sub-tracks.length) * root.row-h : 0px;
+        (root.has-subs ? (1 + root.sub-tracks.length) * root.row-h : 0px)
+        + (root.find-offered || root.subs-empty ? root.row-h : 0px);
     out property <length> audio-natural:
         root.has-audio ? root.audio-tracks.length * root.row-h : 0px;
     property <length> tracks-fixed: root.panel-pad
-        + (root.has-subs ? root.heading-h : 0px)
+        + (root.show-subs ? root.heading-h : 0px)
         + (root.has-audio ? root.heading-h : 0px)
         // AUDIO takes the gap above it only when SUBTITLES came first.
-        + (root.has-subs && root.has-audio ? Rows.group-gap : 0px)
+        + (root.show-subs && root.has-audio ? Rows.group-gap : 0px)
         + (root.no-tracks ? root.row-h : 0px);
     out property <length> tracks-h: min(
         root.tracks-fixed + root.subs-natural + root.audio-natural,
@@ -1775,6 +1886,8 @@ export component MainWindow inherits Window {
         root.fade-within(subs-list.fade, root.menu-shown > root.shown-epsilon,
             menu.x, menu.y, menu.width, menu.height),
         root.fade-within(audio-list.fade, root.menu-shown > root.shown-epsilon,
+            menu.x, menu.y, menu.width, menu.height),
+        root.fade-within(find-list.fade, root.menu-shown > root.shown-epsilon,
             menu.x, menu.y, menu.width, menu.height),
         root.fade-within(playlist-top-list.fade,
             root.playlist-shown > root.shown-epsilon,
@@ -1946,7 +2059,7 @@ export component MainWindow inherits Window {
             x: menu.x,
             y: menu.y + root.menu-rise,
             width: root.menu-shown > root.shown-epsilon ? menu.width : 0,
-            height: root.menu-shown > root.shown-epsilon ? root.tracks-h : 0,
+            height: root.menu-shown > root.shown-epsilon ? menu.height : 0,
             opacity: root.menu-shown,
             radius: root.panel-radius,
             // Opt in to tinting; the strength is the global slider.
@@ -2048,7 +2161,15 @@ export component MainWindow inherits Window {
             root.focus-row = 0;
         }
         if (root.menu-open) {
-            if (root.focus-row < root.subs-focus-count) {
+            if (root.find-open) {
+                if (root.focus-row == 0) {
+                    root.close-find();
+                } else {
+                    root.fetch-row(root.focus-row - 1);
+                }
+            } else if (root.find-offered && root.focus-row == root.subs-focus-count - 1) {
+                root.open-find();
+            } else if (root.focus-row < root.subs-focus-count) {
                 root.select-subtitle(root.focus-row == 0
                     ? -1
                     : root.sub-tracks[root.focus-row - 1].id);
@@ -2514,7 +2635,8 @@ export component MainWindow inherits Window {
 
     /// The list's own rows: not the way back above a part's page, nor the
     /// autoplay switch under the playlist.
-    property <int> list-first: root.playlist-open ? root.playlist-lead : 0;
+    property <int> list-first: root.playlist-open ? root.playlist-lead
+        : root.menu-open && root.find-open ? 1 : 0;
     property <int> list-last: root.playlist-open
         ? root.playlist-lead + root.playlist-rows - 1
         : root.focus-count - 1;
@@ -2522,6 +2644,7 @@ export component MainWindow inherits Window {
     /// from is still on screen to be read against.
     property <int> list-page: max(1, Math.floor((root.playlist-open
         ? root.playlist-list-h
+        : root.find-open ? root.find-list-h
         : max(root.subs-list-h, root.audio-list-h)) / root.row-h) - 1);
 
     /// The same page, as a distance, for the one list that is scrolled rather
@@ -3063,6 +3186,9 @@ export component MainWindow inherits Window {
             root.set-ambience(root.ambience-on);
             return true;
         }
+        if (text == Key.Delete && root.menu-open && Chrome.focus-visible) {
+            return root.remove-focused-track();
+        }
         // One Escape dismisses one thing, innermost first: a settings or
         // playlist page, then a panel, then fullscreen.
         if (text == Key.Escape) {
@@ -3077,6 +3203,8 @@ export component MainWindow inherits Window {
                 root.playlist-open = false;
             } else if (root.files-open) {
                 root.files-open = false;
+            } else if (root.menu-open && root.find-open) {
+                root.close-find();
             } else if (root.menu-open) {
                 root.menu-open = false;
             } else {
@@ -3102,11 +3230,13 @@ export component MainWindow inherits Window {
         if (open) {
             root.close-others();
             root.menu-open = true;
+            root.find-open = false;
             root.focus-row = root.tracks-open-row;
-            if (root.has-subs) {
+            if (root.focus-row < root.subs-focus-count) {
                 subs-list.centre(root.focus-row * root.row-h, root.row-h);
             } else {
-                audio-list.centre(root.focus-row * root.row-h, root.row-h);
+                audio-list.centre(
+                    (root.focus-row - root.subs-focus-count) * root.row-h, root.row-h);
             }
         }
     }
@@ -3756,8 +3886,13 @@ export component MainWindow inherits Window {
     // arithmetic rather than a layout query.
     menu := Rectangle {
         width: 380px;
-        height: root.tracks-h;
+        height: root.menu-h;
         clip: true;
+        // With `menu-drill`, as a settings page's height is with its slide.
+        animate height {
+            duration: root.resizing ? 0ms : Motion.drill;
+            easing: ease-in-out;
+        }
         x: root.anchored-x(root.subs-anchor, self.width);
         y: root.timeline-y - self.height - Rows.offset + root.menu-rise;
         visible: root.menu-shown > root.shown-epsilon;
@@ -3772,6 +3907,14 @@ export component MainWindow inherits Window {
             }
         }
 
+        // The tracks, the menu's own page.
+        Rectangle {
+        x: -root.menu-drill * parent.width;
+        width: parent.width;
+        height: root.tracks-h;
+        y: 0;
+        visible: root.menu-drill < 1.0;
+
         VerticalLayout {
             padding-top: Rows.panel-pad;
             padding-bottom: Rows.panel-pad;
@@ -3780,7 +3923,7 @@ export component MainWindow inherits Window {
                 label: @tr("No subtitle or audio tracks");
             }
 
-            if root.has-subs: MenuHeading {
+            if root.show-subs: MenuHeading {
                 text: @tr("SUBTITLES");
                 icon: @image-url("../../../public/icons/subtitles.svg");
             }
@@ -3788,6 +3931,9 @@ export component MainWindow inherits Window {
                 height: root.subs-list-h;
                 content-height: root.subs-natural;
 
+                if root.show-subs && root.subs-empty: EmptyRow {
+                    label: @tr("No subtitles");
+                }
                 if root.has-subs: MenuRow {
                     label: @tr("Off");
                     active: !root.subs-visible;
@@ -3812,8 +3958,23 @@ export component MainWindow inherits Window {
                     // lights again the moment it is showing.
                     active: track.selected && root.subs-visible;
                     focused: root.menu-open && root.focus-row == idx + 1;
+                    removable: track.external;
                     picked => {
                         root.select-subtitle(track.id);
+                    }
+                    removed => {
+                        root.remove-track(track.id, true);
+                    }
+                }
+                // An action among choices, so it wears an icon where they
+                // wear none — see `MenuRow`.
+                if root.find-offered: MenuRow {
+                    icon: @image-url("../../../public/icons/search.svg");
+                    label: @tr("Find subtitles…");
+                    focused: root.menu-open && !root.find-open
+                        && root.focus-row == root.subs-focus-count - 1;
+                    picked => {
+                        root.open-find();
                     }
                 }
             }
@@ -3821,7 +3982,7 @@ export component MainWindow inherits Window {
             if root.has-audio: MenuHeading {
                 text: @tr("AUDIO");
                 icon: @image-url("../../../public/icons/speaking.svg");
-                after-content: root.has-subs;
+                after-content: root.show-subs;
             }
             audio-list := ScrollList {
                 height: root.audio-list-h;
@@ -3832,8 +3993,57 @@ export component MainWindow inherits Window {
                     active: track.selected;
                     focused: root.menu-open
                         && root.focus-row == root.subs-focus-count + idx;
+                    removable: track.external;
                     picked => {
                         root.select-audio(track.id);
+                    }
+                    removed => {
+                        root.remove-track(track.id, false);
+                    }
+                }
+            }
+        }
+        }
+
+        // The search's page, sliding in over the tracks.
+        Rectangle {
+            x: (1.0 - root.menu-drill) * parent.width;
+            width: parent.width;
+            height: parent.height;
+            visible: root.menu-drill > 0.0;
+
+            VerticalLayout {
+                padding-top: Rows.panel-pad;
+                padding-bottom: Rows.panel-pad;
+                alignment: start;
+
+                BackRow {
+                    label: @tr("FIND SUBTITLES");
+                    focused: root.menu-open && root.find-open && root.focus-row == 0;
+                    back => {
+                        root.close-find();
+                    }
+                }
+                if root.find-state != 2: EmptyRow {
+                    label: root.find-state == 1 ? @tr("Searching OpenSubtitles…")
+                        : root.find-state == 3 ? @tr("No subtitles found")
+                        : root.find-said;
+                }
+                find-list := ScrollList {
+                    height: root.find-list-h;
+                    rest-height: root.find-rest-h;
+                    content-height: root.find-state == 2
+                        ? root.find-hits.length * root.row-h : 0px;
+
+                    for hit[idx] in root.find-hits: FoundRow {
+                        label: hit.label;
+                        detail: hit.detail;
+                        busy: root.find-fetching == idx;
+                        focused: root.menu-open && root.find-open
+                            && root.focus-row == idx + 1;
+                        picked => {
+                            root.fetch-row(idx);
+                        }
                     }
                 }
             }

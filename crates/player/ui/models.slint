@@ -43,6 +43,17 @@ export struct ScrollFade {
     clip-height: length,
 }
 
+/// One subtitle OpenSubtitles holds for the film, as its row in the
+/// search's page says it.
+export struct FoundItem {
+    /// The release it was timed against.
+    label: string,
+    /// Its language, and what sets it apart: timed for this very file, for
+    /// the hard of hearing, made by a machine.
+    detail: string,
+    exact: bool,
+}
+
 export struct ParamItem {
     /// Index into the registry on the Rust side. Carried on the row because
     /// the sliders are split across pages now, so a repeater's position in
@@ -59,6 +70,9 @@ export struct TrackItem {
     id: int,
     label: string,
     selected: bool,
+    /// Loaded from a file of its own rather than carried in the film's:
+    /// fetched, dropped, or found beside it. Only these can be taken out.
+    external: bool,
 }
 
 export struct PlaylistItem {

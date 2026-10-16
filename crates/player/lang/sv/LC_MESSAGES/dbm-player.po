@@ -579,3 +579,59 @@ msgstr "FILER"
 msgctxt "MainWindow"
 msgid "POINTER"
 msgstr "PEKARE"
+
+msgctxt "MainWindow"
+msgid "Find subtitles…"
+msgstr "Hitta undertexter…"
+
+msgctxt "MainWindow"
+msgid "FIND SUBTITLES"
+msgstr "HITTA UNDERTEXTER"
+
+msgctxt "MainWindow"
+msgid "Searching OpenSubtitles…"
+msgstr "Söker på OpenSubtitles…"
+
+msgctxt "MainWindow"
+msgid "No subtitles found"
+msgstr "Inga undertexter hittades"
+
+msgctxt "FoundRow"
+msgid "Downloading…"
+msgstr "Laddar ner…"
+
+msgctxt "player"
+msgid "Exact"
+msgstr "Exakt"
+
+msgctxt "player"
+msgid "Machine"
+msgstr "Maskin"
+
+msgctxt "player"
+msgid "Could not reach OpenSubtitles"
+msgstr "Kunde inte nå OpenSubtitles"
+
+msgctxt "player"
+msgid "OpenSubtitles refused the player's key"
+msgstr "OpenSubtitles godkände inte spelarens nyckel"
+
+msgctxt "player"
+msgid "Today's subtitle downloads are used up"
+msgstr "Dagens nedladdningar av undertexter är slut"
+
+msgctxt "MainWindow"
+msgid "No subtitles"
+msgstr "Inga undertexter"
+
+msgctxt "MainWindow"
+msgid "Remove an added track"
+msgstr "Ta bort ett tillagt spår"
+
+msgctxt "MenuRow"
+msgid "Remove"
+msgstr "Ta bort"
+
+msgctxt "player"
+msgid "external"
+msgstr "extern"

@@ -140,6 +140,89 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
 /// The row is reached with real keys: S, down to the subtitles page, in, and
 /// down to the row above the reset. That is the path `focus-activate-settings`
 /// answers and a click never touches. Then Enter again takes the sync back.
+/// Open the tracks menu, open its search, take the first result with the
+/// keyboard, take it back out with Delete, and report what the menu holds at
+/// each step. With
+/// `DBM_FIND_FAKE` set the search answers from a fixed list and the download
+/// is a subtitle written on the spot, so no key or connection is needed.
+pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
+    use super::drive::chord;
+    use slint::platform::Key;
+    use slint::Model;
+
+    let report = move |ui: &MainWindow, mpv: &Mpv, label: &str| {
+        let subs: Vec<String> = ui
+            .get_sub_tracks()
+            .iter()
+            .map(|t| format!("{}{}", if t.selected { "*" } else { "" }, t.label))
+            .collect();
+        let hits: Vec<String> = ui
+            .get_find_hits()
+            .iter()
+            .map(|h| format!("{} [{}]", h.label, h.detail))
+            .collect();
+        eprintln!(
+            "dbm: find {label:<14} offered={} open={} state={} row={} fetching={} said={:?}",
+            ui.get_find_offered(),
+            ui.get_find_open(),
+            ui.get_find_state(),
+            ui.get_focus_row(),
+            ui.get_find_fetching(),
+            ui.get_find_said(),
+        );
+        eprintln!("dbm: find {label:<14} tracks {subs:?}");
+        if !hits.is_empty() {
+            eprintln!("dbm: find {label:<14} hits {hits:?}");
+        }
+        eprintln!(
+            "dbm: find {label:<14} line={:?}",
+            mpv.get_property("sub-text").unwrap_or_default()
+        );
+    };
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut step = 0usize;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(500),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            let down = slint::SharedString::from(Key::DownArrow);
+            let enter = slint::SharedString::from(Key::Return);
+            match step {
+                0..=3 => {}
+                4 => {
+                    let _ = mpv.set_property("pause", "yes");
+                    let _ = mpv.command_async(0, &["seek", "5", "absolute+exact"]);
+                    ui.invoke_open_menu(true);
+                }
+                5 => report(&ui, &mpv, "menu"),
+                6 => ui.invoke_open_find(),
+                8 => report(&ui, &mpv, "searched"),
+                // The ring onto the first result, and Enter on it.
+                9 => chord(&ui, &[], down.as_str()),
+                10 => chord(&ui, &[], down.as_str()),
+                11 => {
+                    eprintln!("dbm: find enter on row {}", ui.get_focus_row());
+                    chord(&ui, &[], enter.as_str());
+                }
+                14 => report(&ui, &mpv, "fetched"),
+                // The ring is on the fetched track: take it back out.
+                16 => {
+                    eprintln!("dbm: find delete on row {}", ui.get_focus_row());
+                    let delete = slint::SharedString::from(Key::Delete);
+                    chord(&ui, &[], delete.as_str());
+                }
+                18 => report(&ui, &mpv, "removed"),
+                19 => eprintln!("dbm: --- find test done ---"),
+                _ => {}
+            }
+            step += 1;
+        },
+    );
+    timer
+}
+
 pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
     use super::drive::chord;
     use slint::platform::Key;

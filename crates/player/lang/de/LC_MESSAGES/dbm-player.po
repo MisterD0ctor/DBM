@@ -582,3 +582,59 @@ msgstr "Kapitel {} von {}"
 msgctxt "player"
 msgid "Settings could not be saved — {}"
 msgstr "Einstellungen konnten nicht gespeichert werden — {}"
+
+msgctxt "MainWindow"
+msgid "Find subtitles…"
+msgstr "Untertitel suchen…"
+
+msgctxt "MainWindow"
+msgid "FIND SUBTITLES"
+msgstr "UNTERTITEL SUCHEN"
+
+msgctxt "MainWindow"
+msgid "Searching OpenSubtitles…"
+msgstr "OpenSubtitles wird durchsucht…"
+
+msgctxt "MainWindow"
+msgid "No subtitles found"
+msgstr "Keine Untertitel gefunden"
+
+msgctxt "FoundRow"
+msgid "Downloading…"
+msgstr "Wird geladen…"
+
+msgctxt "player"
+msgid "Exact"
+msgstr "Exakt"
+
+msgctxt "player"
+msgid "Machine"
+msgstr "Maschinell"
+
+msgctxt "player"
+msgid "Could not reach OpenSubtitles"
+msgstr "OpenSubtitles ist nicht erreichbar"
+
+msgctxt "player"
+msgid "OpenSubtitles refused the player's key"
+msgstr "OpenSubtitles hat den Schlüssel des Players abgelehnt"
+
+msgctxt "player"
+msgid "Today's subtitle downloads are used up"
+msgstr "Die heutigen Untertitel-Downloads sind aufgebraucht"
+
+msgctxt "MainWindow"
+msgid "No subtitles"
+msgstr "Keine Untertitel"
+
+msgctxt "MainWindow"
+msgid "Remove an added track"
+msgstr "Hinzugefügte Spur entfernen"
+
+msgctxt "MenuRow"
+msgid "Remove"
+msgstr "Entfernen"
+
+msgctxt "player"
+msgid "external"
+msgstr "extern"

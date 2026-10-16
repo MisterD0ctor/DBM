@@ -812,6 +812,46 @@ the axes, which is exactly the part the eye catches.
   stay in one column down the page; it lights with the words. A choice in a
   list has none.
 
+### Finding subtitles
+- **Where:** the last row of the tracks menu's subtitle list, *Find
+  subtitles…*, with the Search icon — an action among choices, so it wears
+  the mark they do not. On a film with no subtitle tracks the SUBTITLES
+  section is that one row, which is when it is most wanted. Absent from a
+  build without an OpenSubtitles key, where a film with no subtitle tracks
+  has the section anyway, holding one Quiet line: *No subtitles*. A menu
+  called Subtitles & audio does not lose its first half
+- **The page:** pressed, it slides a page of the tracks menu over the tracks
+  with the drill's movement, headed by its way back, FIND SUBTITLES. Under
+  that, one line while it searches — *Searching OpenSubtitles…* — then either
+  the results or what came of it: *No subtitles found*, or why it could not
+  ask, in a quiet line rather than a notice, since the page that asked is the
+  one on screen
+- **A result:** the release it was timed against at Body, eliding, and beside
+  it at Quiet in Readout size its language by its own name and what sets it
+  apart: *Exact* for one found by the file's hash, timed for this very copy,
+  which all come first; SDH; *Machine* for a machine translation. Pressed, the
+  second column says *Downloading…* and the row wears the active mark until it
+  arrives; then the menu slides back to the tracks, where it stands lit as the
+  subtitle showing. A failure there is a notice, beside the panel
+- **Afterwards:** a fetched subtitle is the film's from then on, loaded with
+  it every time it opens, in the list beside its own tracks — until it is
+  taken out with its row's Trash button, which forgets it and deletes it
+
+### Removing a track
+- **Which:** any track that came from a file of its own — fetched, dropped,
+  or found beside the film — subtitle or audio. A film's own tracks have none
+- **The button:** Trash at the row's trailing edge, in a 28px disc: 18px at
+  Body, Lit with a Strong wash under the pointer. What takes the click is the
+  row's full height from 12px before the disc to the row's end, since a click
+  just off a small disc would choose the track instead — the one miss that
+  does the opposite. It sits over the row's own press, so taking a track out
+  never chooses it first; the label elides short of it
+- **Keyboard:** Delete on the row the ring is on. Listed with the shortcuts
+- **What it does:** takes the track out of the film. A fetched subtitle is
+  also forgotten and its file deleted, so it does not come back on the next
+  open; a file beside the film is the person's and is left where it is, so
+  that one returns with the film
+
 ### Playlist rows
 - **Shape:** a menu row with two more facts on it
 - **Running time:** Quiet in Readout size, right-aligned so a column of them
@@ -936,7 +976,9 @@ seek preview's frame — is left alone, shadow and all.
 
 Like the list edges it is drawn by the player on the finished frame — see
 `gpu::shadow` — since Slint can shadow a rectangle and nothing else. It runs
-only where there is glass, and with the chrome asleep it does nothing.
+only where there is glass, and with the chrome asleep it does nothing. It is
+drawn after the list edges, from what they left: drawn before, the rows
+thinning away at an edge left their shadows behind them as a dark smear.
 
 ### List edges
 Where a scrolling list's rows run on past its top or bottom, they are not cut

@@ -55,6 +55,16 @@ truthfully claim any of this.
   from the file's chapters, or by listening for the stretch it shares with
   the episode beside it — and where they were heard is kept in `intros.json`
   and `outros.json`, for that episode and the one it was compared with.
+- Subtitles can be fetched from OpenSubtitles for the film playing: a search
+  by the file's own hash and by its name, in the interface's language and
+  English, and a pick from the list. This is the **only** thing the player
+  ever sends over the network, and only when the row is pressed: the file's
+  hash, its show or title, and the languages. Downloads are kept under
+  `subtitles/` and listed in `downloaded-subtitles.json`, and load again
+  whenever the film is opened, until they are taken out of it again — which
+  forgets and deletes them. It needs an API key the build is given — see
+  the README — and has no login, so it lives on the key's small anonymous
+  daily allowance. A build without a key has no search.
 - Interface settings persist to `%APPDATA%/Death by MPV/settings.conf` as plain
   text, editable by hand while tuning.
 - Seek-preview thumbnails are cached per file under `previews/`, keyed on path
@@ -120,7 +130,7 @@ is told rides a drawn frame and a player with no film draws none.
 
 - Name: **Death by MPV** (DBM). Bundle identifier `com.kaspe.deathbympv`.
 - Logo: `public/death-by-mpv.svg`. Application icons: `crates/player/icons/`.
-- An icon set of 72 SVGs in `public/icons/`, drawn by the author at 24×24 and
+- An icon set of 74 SVGs in `public/icons/`, drawn by the author at 24×24 and
   wholly the project's own. Future work extends this set rather than
   substituting a library — the look depends on them being one family.
 

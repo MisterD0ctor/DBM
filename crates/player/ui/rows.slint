@@ -79,7 +79,11 @@ export component MenuRow inherits Rectangle {
     /// the one that says it is chosen.
     in property <image> icon;
     private property <bool> iconic: root.icon.width > 0;
+    /// A track that came from a file of its own, which can be taken back
+    /// out: the row ends in a button that does it — see `removed`.
+    in property <bool> removable;
     callback picked();
+    callback removed();
 
     height: Rows.row;
 
@@ -114,7 +118,8 @@ export component MenuRow inherits Rectangle {
 
     Text {
         x: Rows.label-x + (root.iconic ? 26px : 0px);
-        width: parent.width - self.x - Rows.trail-x;
+        width: parent.width - self.x - Rows.trail-x
+            - (root.removable ? root.bin + Rows.group-gap : 0px);
         height: 100%;
         text: root.label;
         color: root.active || root.ring ? Paint.lit : Paint.body;
@@ -122,6 +127,130 @@ export component MenuRow inherits Rectangle {
         font-weight: root.active ? Type.weight-current : Type.weight-plain;
         vertical-alignment: center;
         overflow: elide;
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed-at(event.kind == PointerEventKind.down,
+                event.kind == PointerEventKind.move, root.focused);
+        }
+        clicked => {
+            root.picked();
+        }
+    }
+
+    // The way a track came in, taken back out. A disc at the row's trailing
+    // edge, where a drill row keeps its chevron, and over the row's own
+    // press: a click on it removes the track and does not choose it first.
+    // Delete does the same from the keyboard on the row the ring is on.
+    //
+    // What takes the click is more than the disc: the row's whole height,
+    // from a little before the disc to the row's end. The disc alone was a
+    // 26px target at the end of a 34px row, and a click just off it chose
+    // the track instead of removing it — the one miss that does the opposite.
+    private property <length> bin: 28px;
+    private property <length> bin-x: root.width - Rows.trail-x - root.bin + 6px;
+    if root.removable: Rectangle {
+        x: root.bin-x - 12px;
+        width: parent.width - self.x;
+        height: parent.height;
+
+        accessible-role: button;
+        accessible-label: @tr("Remove");
+        accessible-action-default => {
+            root.removed();
+        }
+
+        Rectangle {
+            x: 12px;
+            y: (parent.height - self.height) / 2;
+            width: root.bin;
+            height: root.bin;
+            border-radius: self.width / 2;
+            background: bin-touch.has-hover ? Paint.wash-strong : transparent;
+            animate background { duration: Motion.highlight; easing: ease-out; }
+
+            Image {
+                source: @image-url("../../../public/icons/trash.svg");
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+                width: 18px;
+                height: 18px;
+                image-fit: contain;
+                colorize: bin-touch.has-hover ? Paint.lit : Paint.body;
+            }
+        }
+
+        bin-touch := TouchArea {
+            mouse-cursor: pointer;
+            pointer-event(event) => {
+                Chrome.pointed-at(event.kind == PointerEventKind.down,
+                    event.kind == PointerEventKind.move, root.focused);
+            }
+            clicked => {
+                root.removed();
+            }
+        }
+    }
+}
+
+/// One subtitle a search found: the release it was timed against, and beside
+/// it, quieter, its language and what sets it apart. While it is being
+/// fetched the second column says so instead.
+export component FoundRow inherits Rectangle {
+    in property <string> label;
+    in property <string> detail;
+    /// Being fetched now.
+    in property <bool> busy;
+    in property <bool> focused;
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    callback picked();
+
+    height: Rows.row;
+
+    accessible-role: button;
+    accessible-label: root.label;
+    accessible-description: root.detail;
+    accessible-action-default => {
+        root.picked();
+    }
+
+    RowHighlight {
+        lit: touch.has-hover || root.ring;
+        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+    }
+
+    ActiveMark {
+        on: root.busy;
+    }
+
+    // The detail takes what it needs and the release name what is left,
+    // since the name is the part that is long and the detail the part that
+    // decides between two of them.
+    HorizontalLayout {
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+        spacing: Rows.group-gap;
+
+        Text {
+            text: root.label;
+            color: root.busy || root.ring ? Paint.lit : Paint.body;
+            font-size: Type.body;
+            vertical-alignment: center;
+            overflow: elide;
+            min-width: 0px;
+            horizontal-stretch: 1;
+        }
+
+        Text {
+            text: root.busy ? @tr("Downloading…") : root.detail;
+            color: Paint.quiet;
+            font-size: Type.readout;
+            vertical-alignment: center;
+            horizontal-alignment: right;
+            horizontal-stretch: 0;
+        }
     }
 
     touch := TouchArea {

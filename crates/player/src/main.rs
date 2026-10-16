@@ -102,6 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Watches for audio devices coming and going.
         audio: playback::audio::Watchdog::new(worker.clone()),
         subline: Rc::new(interface::subline::Subline::new(settings.clone())),
+        found: Rc::default(),
     };
     // Observing the device list is what starts mpv's hotplug monitor, so this
     // has to be armed whether or not anything ever disappears.

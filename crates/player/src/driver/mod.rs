@@ -102,6 +102,9 @@ pub struct Driver {
     /// The file whose title sequence and credits were last looked for, so
     /// each is looked for once.
     titles_asked: Option<String>,
+    /// The file subtitles fetched before were last put back for, and the
+    /// search's page last closed for: both once a file.
+    kept_asked: Option<String>,
     /// Reply ids seen this frame, routed below. Reused to avoid allocating
     /// on the frame path.
     replies: Vec<u64>,
@@ -149,6 +152,7 @@ impl Driver {
             playlist_open: false,
             onward_asked: None,
             titles_asked: None,
+            kept_asked: None,
             replies: Vec::new(),
             notices: Vec::new(),
             loading_list: false,
@@ -175,19 +179,8 @@ impl Driver {
                     if let Some(ui) = self.ui.upgrade() {
                         let size = ui.window().size();
                         // Before the picture is taken, so both are in it.
-                        // The shadow first: the soft edges then thin it away
-                        // with the rows that cast it.
-                        if let Some(shadow) = gpu.shadow.as_mut() {
-                            shadow.run(
-                                &gpu.gl,
-                                gpu.pipeline.output(),
-                                (size.width, size.height),
-                                &self.panels,
-                                ui.window().scale_factor(),
-                            );
-                        }
-                        // The ends of any list with rows past them, softened
-                        // on the frame Slint has just finished.
+                        // The ends of any list with rows past them first,
+                        // softened on the frame Slint has just finished...
                         if let Some(fader) = gpu.fader.as_mut() {
                             fades::collect(&ui, &mut self.fades);
                             fader.run(
@@ -195,6 +188,20 @@ impl Driver {
                                 gpu.pipeline.output(),
                                 (size.width, size.height),
                                 &self.fades,
+                            );
+                        }
+                        // ...and then the shadow, cast by what is left. The
+                        // other way round, a row cut off at a list's edge
+                        // cast its shadow past the edge, where no strip
+                        // reaches, and the row thinned away above a dark
+                        // smudge that stayed.
+                        if let Some(shadow) = gpu.shadow.as_mut() {
+                            shadow.run(
+                                &gpu.gl,
+                                gpu.pipeline.output(),
+                                (size.width, size.height),
+                                &self.panels,
+                                ui.window().scale_factor(),
                             );
                         }
                         self.capture.maybe(&gpu.gl, size.width, size.height);
@@ -518,7 +525,34 @@ impl Driver {
 
         self.look_onward(ui);
         self.listen_for_the_titles();
+        self.put_back_downloads(ui);
         self.say_it_again(ui);
+    }
+
+    /// Put back the subtitles fetched for this file on an earlier visit,
+    /// once it has opened, and close a search still open for the last one.
+    fn put_back_downloads(&mut self, ui: &MainWindow) {
+        if self.player.path == self.kept_asked {
+            return;
+        }
+        ui.set_find_open(false);
+        ui.set_find_state(0);
+        ui.set_find_fetching(-1);
+        // Not until it has opened: a track added before then is lost with
+        // the load it raced.
+        let Some(path) = self
+            .player
+            .path
+            .clone()
+            .filter(|_| self.player.duration > 0.0)
+        else {
+            return;
+        };
+        self.kept_asked = Some(path.clone());
+        self.app.worker.submit(move |_mpv| {
+            let files = crate::library::opensubtitles::kept(&path);
+            (!files.is_empty()).then_some(Completion::Kept { path, files })
+        });
     }
 
     /// Say everything the Rust side has handed the interface over again when

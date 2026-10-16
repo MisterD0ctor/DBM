@@ -64,6 +64,15 @@ pub fn codes() -> impl Iterator<Item = &'static str> {
     CATALOGUES.iter().map(|(code, _)| *code)
 }
 
+/// The code of the language being spoken: `en`, or one built in.
+pub fn spoken() -> &'static str {
+    let spoken = CURRENT.load(Ordering::Relaxed);
+    spoken
+        .checked_sub(1)
+        .and_then(|i| CATALOGUES.get(i))
+        .map_or("en", |(code, _)| code)
+}
+
 /// How many times the language has been set. See `CHANGES`.
 pub fn changes() -> usize {
     CHANGES.load(Ordering::Relaxed)

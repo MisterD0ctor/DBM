@@ -200,6 +200,79 @@ fn wire_tracks(ui: &MainWindow, app: &App) {
     on!(ui, app, on_cycle_track, |m, subtitles, direction| {
         commands::cycle_track(m, subtitles, direction)
     });
+    // A track out, and a fetched one forgotten with it, so it does not come
+    // back the next time the film opens. Reads the track list for the file
+    // it came from, so on the worker.
+    {
+        let app = app.clone();
+        ui.on_remove_track(move |id, subtitle| {
+            app.activity.bump();
+            app.worker.run(move |mpv| {
+                let Some(file) = commands::remove_track(mpv, id as i64, subtitle) else {
+                    return;
+                };
+                if let Some(path) = mpv.get_property("path") {
+                    crate::library::opensubtitles::forget(&path, &file);
+                }
+            });
+        });
+    }
+    wire_finding(ui, app);
+}
+
+/// Subtitles from OpenSubtitles: the search the menu's last subtitle row
+/// starts, and the result a row of its answer fetches. Both are network
+/// round trips on threads of their own; the answers come back as
+/// completions, which is where the rows are filled and the file loaded.
+fn wire_finding(ui: &MainWindow, app: &App) {
+    use crate::library::opensubtitles;
+    {
+        let app = app.clone();
+        let weak = ui.as_weak();
+        ui.on_find_subtitles(move || {
+            app.activity.bump();
+            let Some(ui) = weak.upgrade() else { return };
+            let path = ui.get_current_path().to_string();
+            if path.is_empty() {
+                return;
+            }
+            app.found.borrow_mut().clear();
+            ui.set_find_hits(Default::default());
+            ui.set_find_state(1);
+            opensubtitles::search(path, search_languages(), app.worker.reporter());
+        });
+    }
+    {
+        let app = app.clone();
+        let weak = ui.as_weak();
+        ui.on_fetch_subtitle(move |row| {
+            app.activity.bump();
+            let Some(ui) = weak.upgrade() else { return };
+            let hit = usize::try_from(row)
+                .ok()
+                .and_then(|row| app.found.borrow().get(row).cloned());
+            let path = ui.get_current_path().to_string();
+            let Some(hit) = hit.filter(|_| !path.is_empty()) else {
+                return;
+            };
+            ui.set_find_fetching(row);
+            opensubtitles::fetch(path, hit, app.worker.reporter());
+        });
+    }
+}
+
+/// The languages a search asks for: the one the player speaks, and English
+/// beside it, which more films have than any other. In OpenSubtitles' own
+/// codes, which split Portuguese in two where the player has one.
+fn search_languages() -> Vec<String> {
+    let mut codes: Vec<String> = match crate::lang::spoken() {
+        "pt" => vec!["pt-br".into(), "pt-pt".into()],
+        code => vec![code.to_string()],
+    };
+    codes.push("en".into());
+    codes.sort();
+    codes.dedup();
+    codes
 }
 
 /// The glass and ambient border pages: sliders, resets and their undo, and

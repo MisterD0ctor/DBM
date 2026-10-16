@@ -16,6 +16,7 @@ use std::sync::Arc;
 
 use crate::interface::chrome::Activity;
 use crate::interface::subline::Subline;
+use crate::library::opensubtitles::Hit;
 use crate::library::preview::Preview;
 use crate::playback::audio::Watchdog;
 use crate::playback::mpv::Mpv;
@@ -48,4 +49,7 @@ pub struct App {
     /// Where subtitles sit. The callbacks move the line when the person
     /// does, the frame loop when the bar does, and both go through here.
     pub subline: Rc<Subline>,
+    /// What the last search on OpenSubtitles found, in the order its rows
+    /// are drawn: the frame loop puts it here, a pressed row reads it back.
+    pub found: Rc<std::cell::RefCell<Vec<Hit>>>,
 }

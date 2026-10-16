@@ -67,6 +67,18 @@ pub enum Completion {
     /// The playlist laid out in its parts, for the panel to show — see
     /// `playlist_panel`.
     Shelved(crate::library::shelf::Shelf),
+    /// What OpenSubtitles holds for a file, or why it could not say. From
+    /// the search's own thread — see `opensubtitles`.
+    Found(crate::library::opensubtitles::Found),
+    /// A subtitle fetched from there and kept, or why it was not.
+    Fetched(crate::library::opensubtitles::Fetched),
+    /// Subtitles fetched for a file on an earlier day, to put back as it
+    /// opens. `path` is the file, so an answer for one since replaced is
+    /// dropped.
+    Kept {
+        path: String,
+        files: Vec<(std::path::PathBuf, String)>,
+    },
     /// Seasons of the playing show found in folders beside its own, for the
     /// playlist panel. `paths` is the list they were looked for beside, so an
     /// answer for a list since replaced is dropped.

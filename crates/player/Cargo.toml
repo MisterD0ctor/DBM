@@ -35,6 +35,11 @@ resvg = { version = "0.47", default-features = false }
 # no unstable API at all. The feature is additive — the winit backend is
 # already the default here — so this only widens what is reachable.
 [target.'cfg(not(windows))'.dependencies]
+# Talking to OpenSubtitles — see `opensubtitles`. Blocking, which is what a
+# thread of its own wants. TLS through rustls with Mozilla's roots compiled
+# in, so a Flatpak with no host certificates reaches it the same as anything
+# else; on Windows the system's own TLS instead, below.
+ureq = { version = "2", default-features = false, features = ["tls", "json"] }
 slint = { version = "1.17", features = ["unstable-winit-030"] }
 # The media keys and the desktop's media widget, which here means MPRIS over
 # D-Bus - see `mpris`. Default features: that is the blocking API over
@@ -46,6 +51,10 @@ zbus = "5"
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
+# The same client, over Windows' own TLS: rustls's cryptography is C that a
+# Windows build would need a C compiler for, and Windows has TLS already.
+ureq = { version = "2", default-features = false, features = ["native-tls", "json"] }
+native-tls = "0.2"
 windows = { version = "0.61", features = [
     # The media overlay and the transport buttons on a headset — see `smtc`.
     "Media",

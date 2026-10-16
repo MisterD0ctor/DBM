@@ -79,6 +79,9 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     // Where the dialogs open: beside this file, or on the shelf above its
     // folder.
     ui.set_current_path(player.path.clone().unwrap_or_default().into());
+    // Searching needs a key the player was built with, and a film to look
+    // for.
+    ui.set_find_offered(crate::library::opensubtitles::available() && player.path.is_some());
 }
 
 /// Track, chapter and playlist contents, read together because they are
@@ -205,6 +208,7 @@ fn track_model(player: &PlayerState, kind: TrackKind) -> ModelRc<TrackItem> {
                 id: t.id as i32,
                 label: label.into(),
                 selected: t.selected,
+                external: t.external,
             })
             .collect::<Vec<_>>(),
     ))
