@@ -646,3 +646,7 @@ msgstr "Tooltips"
 msgctxt "MainWindow"
 msgid "Shortcuts in tooltips"
 msgstr "Tastenkürzel in Tooltips"
+
+msgctxt "WayToCurrent"
+msgid "Scroll to the current one"
+msgstr "Zum aktuellen Eintrag scrollen"

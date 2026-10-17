@@ -646,3 +646,7 @@ msgstr "Ayuda emergente"
 msgctxt "MainWindow"
 msgid "Shortcuts in tooltips"
 msgstr "Atajos en la ayuda emergente"
+
+msgctxt "WayToCurrent"
+msgid "Scroll to the current one"
+msgstr "Desplazarse hasta el actual"

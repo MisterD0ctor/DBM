@@ -60,6 +60,10 @@ struct Gpu {
     /// their panel as they always were, which is not worth losing the
     /// player over.
     fader: Option<crate::gpu::fade::Fader>,
+    /// The angle in a list's end pointing back to its current row, drawn
+    /// over the soft edge it sits in. Absent the same way: the lists still
+    /// scroll, and nothing points back.
+    way: Option<crate::gpu::way::Ways>,
     /// The shadow under the interface's words and marks, the same way.
     shadow: Option<crate::gpu::shadow::Shadow>,
     published: Option<Published>,
@@ -77,6 +81,8 @@ pub struct Driver {
     /// The ends of scrolling lists to soften this frame. Reused, like the
     /// panels, to keep the frame path from allocating.
     fades: Vec<crate::gpu::fade::Strip>,
+    /// The angles pointing lists back to their current rows, reused the same way.
+    ways: Vec<crate::gpu::way::Way>,
     modal: modal_loop::Hook,
     /// Installed the same way and for the same reason as the modal hook.
     drops: crate::platform::dropped::Accepting,
@@ -140,6 +146,7 @@ impl Driver {
             player: PlayerState::default(),
             panels: Vec::new(),
             fades: Vec::new(),
+            ways: Vec::new(),
             modal: modal_loop::Hook::new(),
             drops: crate::platform::dropped::Accepting::new(),
             lists: sync::ListSync::default(),
@@ -178,17 +185,27 @@ impl Driver {
                     // whole thing. Does nothing unless asked.
                     if let Some(ui) = self.ui.upgrade() {
                         let size = ui.window().size();
-                        // Before the picture is taken, so both are in it.
+                        // Before the picture is taken, so all of it is in it.
                         // The ends of any list with rows past them first,
                         // softened on the frame Slint has just finished...
+                        fades::collect(&ui, &mut self.fades, &mut self.ways);
                         if let Some(fader) = gpu.fader.as_mut() {
-                            fades::collect(&ui, &mut self.fades);
                             fader.run(
                                 &gpu.gl,
                                 gpu.pipeline.output(),
                                 (size.width, size.height),
                                 &self.fades,
                             );
+                        }
+                        // ...then the angle pointing back to a list's current
+                        // row, whole over the edge it sits in. Its circle
+                        // eases in under the pointer, and nothing Slint draws
+                        // moves with it to ask for the frames.
+                        if let Some(way) = gpu.way.as_mut() {
+                            way.run(&gpu.gl, (size.width, size.height), &self.ways);
+                            if self.ways.iter().any(|w| w.lit > 0.0 && w.lit < 1.0) {
+                                ui.window().request_redraw();
+                            }
                         }
                         // ...and then the shadow, cast by what is left. The
                         // other way round, a row cut off at a list's edge
@@ -220,12 +237,16 @@ impl Driver {
                         gl,
                         pipeline,
                         fader,
+                        way,
                         shadow,
                         ..
                     } = &mut gpu;
                     pipeline.release(gl);
                     if let Some(fader) = fader {
                         fader.release(gl);
+                    }
+                    if let Some(way) = way {
+                        way.release(gl);
                     }
                     if let Some(shadow) = shadow {
                         shadow.release(gl);
@@ -325,6 +346,9 @@ impl Driver {
                 let fader = crate::gpu::fade::Fader::new(&gl)
                     .inspect_err(|e| eprintln!("dbm: no soft edge on scrolling lists: {e}"))
                     .ok();
+                let way = crate::gpu::way::Ways::new(&gl)
+                    .inspect_err(|e| eprintln!("dbm: no way back to a list's current row: {e}"))
+                    .ok();
                 let shadow = crate::gpu::shadow::Shadow::new(&gl)
                     .inspect_err(|e| eprintln!("dbm: no shadow under the interface: {e}"))
                     .ok();
@@ -333,6 +357,7 @@ impl Driver {
                     gl,
                     pipeline,
                     fader,
+                    way,
                     shadow,
                     published: None,
                     _mpv: self.app.mpv.clone(),

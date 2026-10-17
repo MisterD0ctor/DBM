@@ -395,6 +395,36 @@ impl ScreenQuad {
         }
     }
 
+    /// The same, laid over what is already there as premultiplied colour
+    /// rather than written in its place, and cut to `clip`: x, y, width and
+    /// height, as GL counts them.
+    pub fn blend_at(
+        &self,
+        gl: &glow::Context,
+        fbo: Option<glow::Framebuffer>,
+        rect: (i32, i32, i32, i32),
+        clip: (i32, i32, i32, i32),
+    ) {
+        unsafe {
+            gl.bind_framebuffer(glow::FRAMEBUFFER, fbo);
+            gl.viewport(rect.0, rect.1, rect.2, rect.3);
+            gl.bind_vertex_array(Some(self.vao));
+            gl.disable(glow::DEPTH_TEST);
+            gl.disable(glow::STENCIL_TEST);
+            gl.enable(glow::SCISSOR_TEST);
+            gl.scissor(clip.0, clip.1, clip.2.max(0), clip.3.max(0));
+            gl.enable(glow::BLEND);
+            gl.blend_equation(glow::FUNC_ADD);
+            // The window's alpha is left as it is.
+            gl.blend_func_separate(glow::ONE, glow::ONE_MINUS_SRC_ALPHA, glow::ZERO, glow::ONE);
+            gl.color_mask(true, true, true, true);
+            gl.draw_arrays(glow::TRIANGLES, 0, 3);
+            gl.disable(glow::BLEND);
+            gl.disable(glow::SCISSOR_TEST);
+            gl.bind_vertex_array(None);
+        }
+    }
+
     pub fn release(&self, gl: &glow::Context) {
         unsafe { gl.delete_vertex_array(self.vao) };
     }

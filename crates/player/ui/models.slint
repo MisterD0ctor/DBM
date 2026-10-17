@@ -41,6 +41,16 @@ export struct ScrollFade {
     clip-y: length,
     clip-width: length,
     clip-height: length,
+    /// The angle pointing back to the list's current row while that row is
+    /// out of sight — see `WayToCurrent`. Drawn by the pipeline too, after
+    /// the soft edge it sits in, which would otherwise thin it away with the
+    /// rows. How much of it is on, its panel's own fade included; its
+    /// centre; which way it points; and how far its hover circle is in.
+    way: float,
+    way-x: length,
+    way-y: length,
+    way-up: bool,
+    way-lit: float,
 }
 
 /// One subtitle OpenSubtitles holds for the film, as its row in the

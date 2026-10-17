@@ -45,6 +45,15 @@
 //!   label is the level.
 //! * `DBM_SHOWCASE=scroll-bar` opens the playlist and rests the pointer on its
 //!   scroll bar, which is the only time the bar is drawn at its grown width.
+//! * `DBM_SHOWCASE=current-above`, `current-below` and `current-half` open the
+//!   playlist and turn the wheel until the file playing is past the top or
+//!   the bottom, or its lower edge is halfway into the top's soft edge,
+//!   which is the only time the angle pointing back to it is drawn. Open a
+//!   file from the middle of a season.
+//!   `current-back` turns it away and then presses the angle, which should
+//!   carry that row back to the middle and play nothing; it prints where the
+//!   list is every 20ms of the glide.
+//!   `current-hover` rests the pointer on the angle, for its circle.
 //! * `DBM_SHOWCASE=drill` — flips the playlist between its list of parts and a
 //!   part's page on every tick, so a capture lands inside the 220ms move rather
 //!   than on whichever end it settled at. The same trick as `flash`: a movement

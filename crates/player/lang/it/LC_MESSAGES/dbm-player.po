@@ -646,3 +646,7 @@ msgstr "Suggerimenti"
 msgctxt "MainWindow"
 msgid "Shortcuts in tooltips"
 msgstr "Scorciatoie nei suggerimenti"
+
+msgctxt "WayToCurrent"
+msgid "Scroll to the current one"
+msgstr "Scorri fino all’elemento attuale"

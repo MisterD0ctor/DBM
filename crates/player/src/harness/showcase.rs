@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use slint::{ComponentHandle, Model};
 
-use super::drive::hover;
+use super::drive::{click, hover, wheel};
 use crate::MainWindow;
 
 /// Hold one surface open, with the chrome kept awake, for a photograph.
@@ -48,6 +48,12 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 ),
                 // The volume track, whose label is a reading, not a name.
                 "tip-volume" => (ui.get_vol_cx(), ui.get_vol_cy()),
+                // The angle at the top of a list turned away from the file
+                // playing, for the circle that comes up under the pointer.
+                "current-hover" => (
+                    (ui.get_panel_left() + ui.get_panel_right()) / 2.0,
+                    ui.get_playlist_list_top() + 17.0,
+                ),
                 _ => (40.0, 40.0),
             };
             // Everything else here keeps hovering so the chrome stays up.
@@ -80,6 +86,52 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     .invoke_show(ui.global::<crate::Flash>().get_delay(), 0.5);
             }
 
+            // The playlist turned away from the file playing, which is the
+            // only time the angle pointing back to it is drawn: by a whole
+            // list either way, or by enough to leave that row's lower edge
+            // halfway into the 28px soft edge at the top — half a list, and
+            // the difference between a 34px row and the edge, halved — which
+            // is halfway through the angle's fade. The file has to be
+            // mid-season for the list to open centred on it.
+            if tick == 6 {
+                let list = ui.get_playlist_list_h();
+                let by = match surface.as_str() {
+                    "current-above" | "current-back" | "current-hover" => -list,
+                    "current-below" => list,
+                    "current-half" => -(list / 2.0 + (34.0 - 28.0) / 2.0),
+                    _ => 0.0,
+                };
+                if by != 0.0 {
+                    let (x, y) = (
+                        ui.get_panel_right() - 150.0,
+                        ui.get_playlist_list_top() + 40.0,
+                    );
+                    wheel(&ui, x, y, by);
+                }
+            }
+            // And the angle pressed, which should bring the row back to the
+            // middle — and play nothing: a press that reached the row under
+            // it would start another episode, and the title would say so.
+            if surface == "current-back" && tick == 10 {
+                let x = (ui.get_panel_left() + ui.get_panel_right()) / 2.0;
+                let y = ui.get_playlist_list_top() + 17.0;
+                click(&ui, x, y);
+                // The glide, sampled: where the list is every 20ms for the
+                // length of it and a little after.
+                for i in 0..=20u64 {
+                    let weak = ui.as_weak();
+                    slint::Timer::single_shot(Duration::from_millis(i * 20), move || {
+                        if let Some(ui) = weak.upgrade() {
+                            eprintln!(
+                                "dbm: glide {:>3}ms offset {:.1}",
+                                i * 20,
+                                ui.get_playlist_scroll()
+                            );
+                        }
+                    });
+                }
+            }
+
             if tick != 4 {
                 return;
             }
@@ -106,7 +158,10 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     }
                     ui.invoke_select_subtitle(-1);
                 }
-                "playlist" | "drill" | "scroll-bar" => ui.invoke_open_playlist(true),
+                "playlist" | "drill" | "scroll-bar" | "current-above" | "current-below"
+                | "current-half" | "current-back" | "current-hover" => {
+                    ui.invoke_open_playlist(true)
+                }
                 // The list of parts rather than the page the panel opens on.
                 "seasons" => {
                     ui.invoke_open_playlist(true);

@@ -990,9 +990,30 @@ beside it, so neither end of the strip shows as an edge.
 An end with nothing past it is left sharp. The strip grows to its 28px over
 the first 28px of scrolling away from that end, only ever as deep as what has
 gone past, so the top row of a list at rest is whole. However shallow it is,
-its outer edge is where things are gone entirely: nothing is ever half cut. The scroll bar's
-margin is outside the strip; the thumb keeps its shape at the ends of its
-rail.
+its outer edge is where things are gone entirely: nothing is ever half cut. The
+strip spans the rows' washes and no more; the margins either side are outside
+it, since no row draws in them, and the scroll bar's thumb keeps its shape at
+the ends of its rail.
+
+**The way to the current row.** A list opens on its current row — the file
+playing, the season holding it, the track in use — but the wheel takes it
+away, and then nothing on the panel says which way it went. So while it is
+out of sight an angle points to it: 18px, centred across the list and level
+with the row at that end, at Body, and Lit with a 28px circle of Button wash
+behind it under the pointer, eased in at the highlight's 45ms. It fades by
+where the row is, not on a clock: it starts going as the row's nearer edge
+comes into sight, and is gone once that edge is clear of the soft edge, so
+the list moving is the whole of the movement. Pressing it glides the list
+back until the row is in the middle, as the list opened. It has to take the
+press: an angle that took no pointer would hand it to the row under it, and
+play an episode nobody chose.
+
+It is drawn by the player rather than by Slint, over the finished frame once
+the soft edge is done — see `gpu::way`. Drawn by Slint it would stand in that
+edge and thin away with the rows; with the edge cut around it, the rows
+passing under it would show there whole and cut off. The angle is the
+icon itself, rendered by resvg, so there is still one drawing of it. The
+shadow comes after both and gives it its rim.
 
 The keyboard's ring keeps clear of it. Walking a list with the arrows
 scrolls a row early, so there is always one whole row between the ring and
@@ -1478,6 +1499,10 @@ words on the clipboard and says *Copied* for two seconds, and *Close the player*
     levels that changes which one it shows in a single frame leaves no
     account of what happened, and that is as true of a season as of a page of
     sliders;
+  - a **glide**, 300ms ease-in-out, carrying a list back to its current row
+    when the angle pointing to it is pressed. Longer than a drill, because
+    the distance is anything up to a whole season and at a drill's length the
+    rows went past as a smear;
   - the **seek preview's** fade, 60ms — half the shared duration, and the one
     surface with a number of its own. It is not announcing itself; it is
     following a pointer, and at 120ms it read as trailing the hand rather than
@@ -1492,7 +1517,7 @@ words on the clipboard and says *Copied* for two seconds, and *Close the player*
   confirmation, the idle clock — because a wait is not motion. A new
   animation takes its duration from `Motion`, never a number of its own, or
   it is the one thing left moving for someone who asked for nothing to.
-- **Don't** substitute an icon library. The set is 61 SVGs drawn at 24×24 as
+- **Don't** substitute an icon library. The set is 76 SVGs drawn at 24×24 as
   one family; extend it rather than replacing it.
 - **Don't** show an icon at a size other than 24px or 18px. Scaled from the
   24×24 drawings, those give a 2px and a 1.5px line and both stay legible; at

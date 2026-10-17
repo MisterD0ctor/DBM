@@ -4,6 +4,52 @@ import { Chrome } from "globals.slint";
 import { ScrollFade } from "models.slint";
 import { Motion, Paint, Rows } from "theme.slint";
 
+/// Where the angle pointing past one end of a list to its current row is
+/// pressed: a row's height square, centred across the list at that end.
+///
+/// Only the press. The angle and the circle that comes up under the pointer
+/// are drawn by the pipeline, after the soft edge — see `ScrollFade.way`.
+/// Drawn here they would be in that edge, and thin away with the rows.
+///
+/// It can be pressed, and carries the list back to its current row. Not
+/// merely because an arrow is pressed: one that took no pointer would hand
+/// the press to the row under it, and play an episode nobody chose.
+component WayToCurrent inherits Rectangle {
+    /// How much of the angle is on, 0..1. Off, there is nothing to press.
+    in property <float> shown;
+    /// Under the pointer, and on.
+    out property <bool> lit: root.visible && touch.has-hover;
+    callback go();
+    /// The wheel, turned over it: the list's to take.
+    callback turned(length);
+
+    width: Rows.row;
+    height: Rows.row;
+    visible: root.shown > 0.004;
+
+    accessible-role: button;
+    accessible-label: @tr("Scroll to the current one");
+    accessible-action-default => {
+        root.go();
+    }
+
+    touch := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(event) => {
+            Chrome.pointed(event.kind == PointerEventKind.down);
+        }
+        clicked => {
+            root.go();
+        }
+        // Taken rather than let through, as the scroll bar's is: a refused
+        // wheel takes the hover with it.
+        scroll-event(event) => {
+            root.turned(-event.delta-y);
+            return EventResult.accept;
+        }
+    }
+}
+
 /// A list that scrolls when it is handed less height than its content needs.
 ///
 /// The height comes from the caller and the content height is arithmetic on
@@ -34,22 +80,66 @@ export component ScrollList inherits Rectangle {
     /// the layout, which the panels otherwise avoid: these lists sit inside
     /// pages that slide, and the arithmetic for where each one is mid-slide
     /// would be a second copy of the layout kept by hand. It is read only
-    /// while a list is on show. The scroll bar's margin is left out, so the
-    /// thumb stays whole at the ends of its rail.
+    /// while a list is on show. The margins either side of the rows' washes
+    /// are left out, since no row draws in them, and the scroll bar in the
+    /// right one keeps its shape at the ends of its rail.
     out property <ScrollFade> fade: {
-        x: root.absolute-position.x,
+        x: root.absolute-position.x + Rows.gap,
         y: root.absolute-position.y,
-        width: root.width - Rows.gap,
+        width: root.width - 2 * Rows.gap,
         height: root.height,
-        top: root.scrolls ? clamp(-flick.viewport-y / Rows.fade, 0, 1) : 0,
-        bottom: root.scrolls
-            ? clamp((root.content-height - root.height + flick.viewport-y)
-                / Rows.fade, 0, 1)
-            : 0,
+        top: root.top-soft,
+        bottom: root.bottom-soft,
         right: 0,
+        way: max(root.current-above, root.current-below),
+        way-x: root.absolute-position.x + root.width / 2,
+        way-y: root.absolute-position.y + (root.current-above >= root.current-below
+            ? Rows.row / 2 : root.height - Rows.row / 2),
+        way-up: root.current-above >= root.current-below,
+        way-lit: root.way-lit,
     };
+    /// How far the soft edge at each end has come on, 0..1: as far as the
+    /// list has moved from that end, up to a strip's worth.
+    property <float> top-soft: root.scrolls
+        ? clamp(-flick.viewport-y / Rows.fade, 0, 1) : 0;
+    property <float> bottom-soft: root.scrolls
+        ? clamp((root.content-height - root.height + flick.viewport-y) / Rows.fade, 0, 1)
+        : 0;
 
     clip: true;
+
+    /// The current row — the file playing, the track in use — by its top and
+    /// height inside the list, as `reveal` and `centre` take a row. A list
+    /// with none leaves the height at zero.
+    in property <length> current-top;
+    in property <length> current-h;
+
+    /// The angle's fade, by where the current row's nearer edge is — the
+    /// bottom of a row above, the top of a row below — counted inward from
+    /// that end of the list. It begins once the edge has come this far in:
+    /// at nothing, the moment the first of the row shows...
+    property <length> way-fade-from: 0px;
+    /// ...and is done once the edge is this far past the inner side of the
+    /// soft edge: at nothing, the moment the edge is clear of the blur.
+    property <length> way-fade-past: 0px;
+    /// How far in from each end the current row's nearer edge has come.
+    /// The bottom is where the list will rest, as `scrolls` is, so a page
+    /// mid-drill does not point at a row only the move is hiding.
+    property <length> current-in-top: root.current-top + root.current-h + flick.viewport-y;
+    property <length> current-in-bottom:
+        root.rest-height - flick.viewport-y - root.current-top;
+    /// How much of the angle is on at each end, by those two.
+    property <float> current-above: root.scrolls && root.current-h > 0
+        ? 1 - clamp((root.current-in-top - root.way-fade-from)
+            / max(1px, Rows.fade * root.top-soft + root.way-fade-past - root.way-fade-from),
+            0, 1)
+        : 0;
+    property <float> current-below: root.scrolls && root.current-h > 0
+        ? 1 - clamp((root.current-in-bottom - root.way-fade-from)
+            / max(1px, Rows.fade * root.bottom-soft + root.way-fade-past
+                - root.way-fade-from),
+            0, 1)
+        : 0;
 
     /// Bring one row into view, by its top and height inside the list.
     ///
@@ -86,8 +176,58 @@ export component ScrollList inherits Rectangle {
     /// wrong for an arrival: the episode you are on belongs with the ones
     /// either side of it in view.
     public function centre(top: length, h: length) {
-        flick.viewport-y = min(0px,
-            max(root.height - root.content-height, (root.height - h) / 2 - top));
+        flick.viewport-y = root.centred(top, h);
+    }
+
+    /// Where `centre` puts the list for a row.
+    pure function centred(top: length, h: length) -> length {
+        return min(0px, max(root.height - root.content-height, (root.height - h) / 2 - top));
+    }
+
+    /// Carry the list to an offset, eased, rather than putting it there.
+    ///
+    /// A binding on `viewport-y` would take the list from the wheel and the
+    /// flick for good, so the list follows `glide-y` a step at a time in
+    /// `changed`, and only while the glide has it: anything else found there
+    /// means a hand took the list on the way, and the glide lets go.
+    function glide-to(y: length) {
+        // With the interface still, it is simply there. Left to the glide,
+        // nothing moved at all: the list follows a change in `glide-y`, and
+        // with no time to change in, a second press asked for the offset the
+        // first had already left there — which is no change.
+        if (Motion.glide == 0ms) {
+            root.gliding = false;
+            flick.viewport-y = y;
+            return;
+        }
+        // Put where the list is first, so it eases from there rather than
+        // from wherever the last glide left it.
+        root.glide-placing = true;
+        root.glide-y = flick.viewport-y;
+        root.glide-placing = false;
+        root.glided = flick.viewport-y;
+        root.gliding = true;
+        root.glide-y = y;
+    }
+    property <length> glide-y;
+    property <bool> glide-placing;
+    property <bool> gliding;
+    /// Where the glide last put the list.
+    property <length> glided;
+    animate glide-y {
+        duration: root.glide-placing ? 0ms : Motion.glide;
+        easing: ease-in-out;
+    }
+    changed glide-y => {
+        if (!root.gliding) {
+            return;
+        }
+        if (flick.viewport-y != root.glided) {
+            root.gliding = false;
+            return;
+        }
+        flick.viewport-y = root.glide-y;
+        root.glided = root.glide-y;
     }
 
     /// Move the list by a distance, stopping at its ends.
@@ -223,5 +363,42 @@ export component ScrollList inherits Rectangle {
             root.scroll-by(-event.delta-y);
             return EventResult.accept;
         }
+    }
+
+    // --- the way to the current row ---
+    //
+    // A list opens on its current row, but the wheel takes it away, and
+    // then nothing on the panel says which way it went. So while it is out
+    // of sight an angle at that end points to it, and fades as the row comes
+    // back into view: by where the row is, not on a clock, so the list
+    // moving is the whole of the movement. Pressed, it carries the list back.
+
+    up-way := WayToCurrent {
+        x: (root.width - self.width) / 2;
+        y: 0;
+        shown: root.current-above;
+        go => {
+            root.glide-to(root.centred(root.current-top, root.current-h));
+        }
+        turned(dy) => {
+            root.scroll-by(dy);
+        }
+    }
+    down-way := WayToCurrent {
+        x: (root.width - self.width) / 2;
+        y: root.height - self.height;
+        shown: root.current-below;
+        go => {
+            root.glide-to(root.centred(root.current-top, root.current-h));
+        }
+        turned(dy) => {
+            root.scroll-by(dy);
+        }
+    }
+    /// The hover circle under the angle, eased in and out as a row's wash is.
+    property <float> way-lit: up-way.lit || down-way.lit ? 1 : 0;
+    animate way-lit {
+        duration: Motion.highlight;
+        easing: ease-out;
     }
 }

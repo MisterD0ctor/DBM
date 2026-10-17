@@ -643,3 +643,7 @@ msgstr "Verktygstips"
 msgctxt "MainWindow"
 msgid "Shortcuts in tooltips"
 msgstr "Kortkommandon i verktygstips"
+
+msgctxt "WayToCurrent"
+msgid "Scroll to the current one"
+msgstr "Rulla till den aktuella"

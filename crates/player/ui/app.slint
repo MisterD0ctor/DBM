@@ -21,7 +21,7 @@ import { ScrollList } from "scroll_list.slint";
 
 // What the Rust side reaches besides the window: the globals it drives and
 // the structs it fills in.
-export { Chrome, Flash, Tip, Motion, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem }
+export { Chrome, Flash, Tip, Motion, Paint, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem }
 
 export component MainWindow inherits Window {
     // The title bar and the task bar: 256px, since window managers scale
@@ -293,9 +293,10 @@ export component MainWindow inherits Window {
             root.playlist-leaf = root.playlist-page;
         }
     }
-    /// The files on the drilled-in page.
+    /// The part on the drilled-in page, and its files.
+    property <int> playlist-shown-group: root.playlist-tiered ? root.playlist-leaf : 0;
     property <[PlaylistItem]> playlist-entries:
-        root.playlist-groups[root.playlist-tiered ? root.playlist-leaf : 0].entries;
+        root.playlist-groups[root.playlist-shown-group].entries;
     /// The rows the list scrolls through, and whether a way back leads them
     /// as the focus's row 0.
     property <int> playlist-rows: root.playlist-top
@@ -1603,6 +1604,9 @@ export component MainWindow inherits Window {
         : settings.width;
     /// The open panel's right edge, for the test that drags a list's thumb.
     out property <length> panel-right: root.panel-x + root.panel-w;
+    /// And its left, for the one that presses the way back to a list's
+    /// current row.
+    out property <length> panel-left: root.panel-x;
 
     /// The preview landing on that panel, which is the one place it must not
     /// be: glass on glass, and the panel is the surface that was asked for
@@ -1866,15 +1870,16 @@ export component MainWindow inherits Window {
     /// be read from here: it leaves its own account of itself in this.
     property <ScrollFade> shortcuts-fade;
 
-    /// A list's account of itself, inside the panel it belongs to. Nothing
-    /// for a panel that is not on show.
-    pure function fade-within(list: ScrollFade, shown: bool,
+    /// A list's account of itself, inside the panel it belongs to, by how
+    /// far that panel is on show. Nothing for one that is not; and the angle
+    /// back to its current row, which the pipeline draws, fades with it.
+    pure function fade-within(list: ScrollFade, shown: float,
         x: length, y: length, w: length, h: length) -> ScrollFade {
         return {
             x: list.x,
             y: list.y,
-            width: shown ? list.width : 0px,
-            height: shown ? list.height : 0px,
+            width: shown > root.shown-epsilon ? list.width : 0px,
+            height: shown > root.shown-epsilon ? list.height : 0px,
             top: list.top,
             bottom: list.bottom,
             right: 0,
@@ -1882,28 +1887,30 @@ export component MainWindow inherits Window {
             clip-y: y,
             clip-width: w,
             clip-height: h,
+            way: shown > root.shown-epsilon ? list.way * shown : 0,
+            way-x: list.way-x,
+            way-y: list.way-y,
+            way-up: list.way-up,
+            way-lit: list.way-lit,
         };
     }
 
     /// Every scrolling list, for the soft edge on its ends — see `ScrollFade`.
     out property <[ScrollFade]> scroll-fades: [
-        root.fade-within(subs-list.fade, root.menu-shown > root.shown-epsilon,
+        root.fade-within(subs-list.fade, root.menu-shown,
             menu.x, menu.y, menu.width, menu.height),
-        root.fade-within(audio-list.fade, root.menu-shown > root.shown-epsilon,
+        root.fade-within(audio-list.fade, root.menu-shown,
             menu.x, menu.y, menu.width, menu.height),
-        root.fade-within(find-list.fade, root.menu-shown > root.shown-epsilon,
+        root.fade-within(find-list.fade, root.menu-shown,
             menu.x, menu.y, menu.width, menu.height),
-        root.fade-within(playlist-top-list.fade,
-            root.playlist-shown > root.shown-epsilon,
+        root.fade-within(playlist-top-list.fade, root.playlist-shown,
             playlist-panel.x, playlist-panel.y,
             playlist-panel.width, playlist-panel.height),
-        root.fade-within(playlist-leaf-list.fade,
-            root.playlist-shown > root.shown-epsilon,
+        root.fade-within(playlist-leaf-list.fade, root.playlist-shown,
             playlist-panel.x, playlist-panel.y,
             playlist-panel.width, playlist-panel.height),
         root.fade-within(root.shortcuts-fade,
-            root.settings-shown > root.shown-epsilon && root.leaf-page == 5
-                && root.drill > 0.0,
+            root.leaf-page == 5 && root.drill > 0.0 ? root.settings-shown : 0,
             settings.x, settings.y, settings.width, settings.height),
         // The title, which is not a list but runs out the same way: off the
         // end of the room the pill has for it.
@@ -3980,6 +3987,10 @@ export component MainWindow inherits Window {
             subs-list := ScrollList {
                 height: root.subs-list-h;
                 content-height: root.subs-natural;
+                // Off while none is showing, as the rows below light it.
+                current-top: (root.subs-visible ? root.sub-current + 1 : 0) * root.row-h;
+                current-h: root.has-subs && (!root.subs-visible || root.sub-current >= 0)
+                    ? root.row-h : 0px;
 
                 if root.show-subs && root.subs-empty: EmptyRow {
                     label: @tr("No subtitles");
@@ -4037,6 +4048,8 @@ export component MainWindow inherits Window {
             audio-list := ScrollList {
                 height: root.audio-list-h;
                 content-height: root.audio-natural;
+                current-top: root.audio-current * root.row-h;
+                current-h: root.audio-current >= 0 ? root.row-h : 0px;
 
                 for track[idx] in root.audio-tracks: MenuRow {
                     label: track.label;
@@ -4216,6 +4229,8 @@ export component MainWindow inherits Window {
                             height: root.playlist-top-list-h;
                             rest-height: root.playlist-top-rest-h;
                             content-height: root.playlist-top-natural;
+                            current-top: root.playlist-current-group * root.row-h;
+                            current-h: root.playlist-current-group >= 0 ? root.row-h : 0px;
 
                             VerticalLayout {
                                 alignment: start;
@@ -4292,6 +4307,13 @@ export component MainWindow inherits Window {
                             height: root.playlist-leaf-list-h;
                             rest-height: root.playlist-leaf-rest-h;
                             content-height: root.playlist-leaf-natural;
+                            // A part's page opens on the file playing when
+                            // it holds it, so that is its row then.
+                            current-top: root.playlist-groups[root.playlist-shown-group].open-row
+                                * root.row-h;
+                            current-h: root.playlist-current-group >= 0
+                                && root.playlist-current-group == root.playlist-shown-group
+                                ? root.row-h : 0px;
 
                             VerticalLayout {
                                 alignment: start;

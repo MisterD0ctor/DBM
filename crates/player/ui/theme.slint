@@ -47,6 +47,10 @@ export global Motion {
     /// settings and in the playlist. Longer than a surface because it is a
     /// journey rather than an arrival.
     out property <duration> drill: Motion.enabled ? 220ms : 0ms;
+    /// A list carried to a row: the angle pointing back to its current one,
+    /// pressed. Longer than a drill because the distance is anything up to a
+    /// whole season, and at a drill's length the rows went past as a smear.
+    out property <duration> glide: Motion.enabled ? 300ms : 0ms;
 
     /// How long the pointer has to rest on a control before it says its name.
     ///

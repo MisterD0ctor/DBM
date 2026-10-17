@@ -646,3 +646,7 @@ msgstr "Infobulles"
 msgctxt "MainWindow"
 msgid "Shortcuts in tooltips"
 msgstr "Raccourcis dans les infobulles"
+
+msgctxt "WayToCurrent"
+msgid "Scroll to the current one"
+msgstr "Faire défiler jusqu’à l’élément actuel"

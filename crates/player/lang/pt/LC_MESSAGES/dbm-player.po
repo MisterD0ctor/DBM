@@ -647,3 +647,7 @@ msgstr "Dicas"
 msgctxt "MainWindow"
 msgid "Shortcuts in tooltips"
 msgstr "Atalhos nas dicas"
+
+msgctxt "WayToCurrent"
+msgid "Scroll to the current one"
+msgstr "Rolar até o atual"

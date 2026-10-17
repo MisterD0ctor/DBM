@@ -646,3 +646,7 @@ msgstr "Tooltips"
 msgctxt "MainWindow"
 msgid "Shortcuts in tooltips"
 msgstr "Sneltoetsen in tooltips"
+
+msgctxt "WayToCurrent"
+msgid "Scroll to the current one"
+msgstr "Naar het huidige item scrollen"
