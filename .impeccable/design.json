@@ -312,7 +312,7 @@
     "material": {
       "note": "The glass and ambient-border values as the code ships them (gpu/pipeline.rs). Not expressible as Stitch tokens: they are shader uniforms. Most are sliders on the settings panel's glass and ambient-border pages; bevel, ior and specular are constants and deliberately not adjustable — see `fixed` below.",
       "glass": {
-        "blurSigma": 4.0,
+        "blurSigma": 3.0,
         "bevel": 1.0,
         "refract": 1.0,
         "ior": 2.0,
@@ -320,7 +320,7 @@
         "specular": 1.0,
         "rim": 0.1,
         "tint": 0.0,
-        "absorb": 0.5,
+        "absorb": 0.33,
         "shadow": 0.2,
         "tintColor": [
           0.0,

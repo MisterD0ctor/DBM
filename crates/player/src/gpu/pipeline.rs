@@ -158,14 +158,14 @@ pub const SPECULAR: f32 = 1.0;
 impl Default for GlassParams {
     fn default() -> Self {
         Self {
-            blur_sigma: 4.0,
+            blur_sigma: 3.0,
             // The glass is as thick as the rim is wide; see `BEVEL`.
             refract: 1.0,
             aberration: 0.2,
             rim: 0.1,
             tint: [0.0, 0.0, 0.0],
             tint_amount: 0.0,
-            absorb: 0.5,
+            absorb: 0.33,
             shadow: 0.2,
         }
     }
