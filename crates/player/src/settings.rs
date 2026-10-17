@@ -6,8 +6,8 @@
 //! knob is a single entry here: it appears in the panel, gets a slider with
 //! the right range, and reaches the shader, without touching the UI file or
 //! the render code. Beside them sit the preferences that are not sliders:
-//! whether each effect runs, autoplay, whether the interface animates, and
-//! the subtitles' size and place.
+//! whether each effect runs, autoplay, whether the interface animates and
+//! shows its tooltips, and the subtitles' size and place.
 //!
 //! Values live in a shared store because the two ends run at different
 //! times — the UI writes whenever a slider moves, the pipeline reads once a
@@ -23,6 +23,8 @@ const AMBIENCE_ON: &str = "ambience.enabled";
 const GLASS_ON: &str = "glass.enabled";
 const AUTOPLAY: &str = "playback.autoplay";
 const ANIMATIONS: &str = "accessibility.animations";
+const TIPS: &str = "accessibility.tooltips";
+const TIP_KEYS: &str = "accessibility.tooltip-keys";
 /// What a chosen language is saved under, its code after the dot. The file is
 /// a list of numbers, so the choice is in the name and the number is a one.
 const LANGUAGE: &str = "language.";
@@ -142,6 +144,10 @@ pub struct Store {
     /// highlight arrives in the frame it was asked for — see `Motion` in
     /// theme.slint — and so does the backdrop the pipeline fades up.
     animations: Cell<bool>,
+    /// Whether the bar's controls name themselves under the pointer, and
+    /// whether those names come with their keys — see `Tip` in globals.slint.
+    tips: Cell<bool>,
+    tip_keys: Cell<bool>,
     /// Subtitle size and vertical placement. Preferences rather than
     /// per-file state, which is why they are here and the delay is not: a
     /// size that suits your eyes suits every file, a delay never does.
@@ -165,6 +171,8 @@ impl Default for Store {
             glass_on: Cell::new(true),
             autoplay: Cell::new(true),
             animations: Cell::new(true),
+            tips: Cell::new(true),
+            tip_keys: Cell::new(true),
             sub_scale: Cell::new(commands::SUB_SCALE_DEFAULT as f32),
             sub_pos: Cell::new(commands::SUB_POS_DEFAULT as f32),
             // Set so the first frame pushes the defaults through, rather
@@ -315,6 +323,24 @@ impl Store {
         self.touch();
     }
 
+    pub fn tips(&self) -> bool {
+        self.tips.get()
+    }
+
+    pub fn set_tips(&self, on: bool) {
+        self.tips.set(on);
+        self.touch();
+    }
+
+    pub fn tip_keys(&self) -> bool {
+        self.tip_keys.get()
+    }
+
+    pub fn set_tip_keys(&self, on: bool) {
+        self.tip_keys.set(on);
+        self.touch();
+    }
+
     /// The language chosen, by code. Empty for the system's.
     pub fn language(&self) -> String {
         self.language.borrow().clone()
@@ -375,6 +401,8 @@ impl Store {
         out.push((GLASS_ON.into(), self.glass_on.get() as u8 as f32));
         out.push((AUTOPLAY.into(), self.autoplay.get() as u8 as f32));
         out.push((ANIMATIONS.into(), self.animations.get() as u8 as f32));
+        out.push((TIPS.into(), self.tips.get() as u8 as f32));
+        out.push((TIP_KEYS.into(), self.tip_keys.get() as u8 as f32));
         out.push((SUB_SCALE.into(), self.sub_scale.get()));
         out.push((SUB_POS.into(), self.sub_pos.get()));
         let language = self.language.borrow();
@@ -410,6 +438,8 @@ impl Store {
                 GLASS_ON => self.glass_on.set(*value >= 0.5),
                 AUTOPLAY => self.autoplay.set(*value >= 0.5),
                 ANIMATIONS => self.animations.set(*value >= 0.5),
+                TIPS => self.tips.set(*value >= 0.5),
+                TIP_KEYS => self.tip_keys.set(*value >= 0.5),
                 other => {
                     if let Some(code) = other.strip_prefix(LANGUAGE) {
                         *self.language.borrow_mut() = code.to_string();
@@ -572,5 +602,27 @@ mod tests {
         let store = Store::default();
         store.apply_saved(&[(AUTOPLAY.to_string(), 0.0)]);
         assert!(store.animations());
+    }
+
+    #[test]
+    fn tooltips_survive_a_save_and_a_load() {
+        let store = Store::default();
+        assert!(
+            store.tips() && store.tip_keys(),
+            "tips name the key until told not to"
+        );
+        store.set_tips(false);
+        store.set_tip_keys(false);
+        let saved = store.to_saved();
+
+        let loaded = Store::default();
+        loaded.apply_saved(&saved);
+        assert!(!loaded.tips());
+        assert!(!loaded.tip_keys());
+
+        // A file from before the switches keeps both.
+        let older = Store::default();
+        older.apply_saved(&[(ANIMATIONS.to_string(), 0.0)]);
+        assert!(older.tips() && older.tip_keys());
     }
 }

@@ -811,20 +811,29 @@ export component ToggleRow inherits Rectangle {
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
     in property <bool> checked;
+    /// Whether it does anything now: a switch about something another switch
+    /// has turned off. Faded as a row that has stopped answering is, and it
+    /// keeps its position, since that is what it will do when it answers again.
+    in property <bool> enabled: true;
     /// The value the row wants; the owner of the state applies it.
     callback toggled(bool);
 
     height: 40px;
+    opacity: root.enabled ? 1.0 : 0.5;
+    animate opacity { duration: Motion.surface; easing: ease-out; }
 
     accessible-role: switch;
     accessible-label: root.label;
     accessible-checked: root.checked;
+    accessible-enabled: root.enabled;
     accessible-action-default => {
-        root.toggled(!root.checked);
+        if (root.enabled) {
+            root.toggled(!root.checked);
+        }
     }
 
     RowHighlight {
-        lit: switch-touch.has-hover || root.ring;
+        lit: root.enabled && (switch-touch.has-hover || root.ring);
         shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
     }
 
@@ -873,13 +882,15 @@ export component ToggleRow inherits Rectangle {
     }
 
     switch-touch := TouchArea {
-        mouse-cursor: pointer;
+        mouse-cursor: root.enabled ? pointer : default;
         pointer-event(event) => {
             Chrome.pointed-at(event.kind == PointerEventKind.down,
                 event.kind == PointerEventKind.move, root.focused);
         }
         clicked => {
-            root.toggled(!root.checked);
+            if (root.enabled) {
+                root.toggled(!root.checked);
+            }
         }
     }
 }

@@ -18,7 +18,7 @@ use crate::interface::sliders;
 use crate::platform::dialog;
 use crate::playback::commands;
 use crate::settings::{Before, Section, REGISTRY};
-use crate::{MainWindow, Motion};
+use crate::{MainWindow, Motion, Tip};
 
 /// A click on the video is held this long so a double-click can cancel it.
 /// Without the delay, double-clicking to go fullscreen pauses and unpauses on
@@ -367,6 +367,21 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
             app.settings.set_animations(on);
         });
     }
+    // The tooltips' two switches, likewise already acted on by `Tip`.
+    {
+        let app = app.clone();
+        ui.on_set_tips(move |on| {
+            app.activity.bump();
+            app.settings.set_tips(on);
+        });
+    }
+    {
+        let app = app.clone();
+        ui.on_set_tip_keys(move |on| {
+            app.activity.bump();
+            app.settings.set_tip_keys(on);
+        });
+    }
 
     // The rows of the language page, as it numbers them: the system's, then
     // English, then each language built in. The row is already lit by the
@@ -594,6 +609,9 @@ fn restore_preferences(ui: &MainWindow, app: &App) {
     ui.set_ambience_on(settings.ambience_on());
     ui.set_autoplay(settings.autoplay());
     ui.global::<Motion>().set_enabled(settings.animations());
+    let tip = ui.global::<Tip>();
+    tip.set_enabled(settings.tips());
+    tip.set_with_keys(settings.tip_keys());
     // Each language by its own name for itself, which is the one name for it
     // that its speakers can read whatever the interface is in.
     ui.set_language_names(slint::ModelRc::new(slint::VecModel::from(

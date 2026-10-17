@@ -1052,9 +1052,12 @@ doing in it.
   punched through it either way
 - **Motion:** 120ms ease-out on the knob, 120ms on the track colour
 - **Hover:** Soft wash; one target for the whole row
-- **Use:** Autoplay under the playlist, and Animations on the accessibility
-  page — a page of one switch and no reset, because the switch is its own
-  undo
+- **Use:** Autoplay under the playlist, and Animations, Tooltips and
+  Shortcuts in tooltips on the accessibility page — a page of switches and no
+  reset, because each switch is its own undo
+- **Unavailable:** a switch about something another switch has turned off
+  fades to half, takes no pointer and no wash, and keeps its position —
+  Shortcuts in tooltips while Tooltips is off
 
 ### Drill rows
 - **Row:** 34px; an 18px icon and the label, both at Body, 10px apart, with a
@@ -1180,6 +1183,12 @@ question was asked.
 - **One surface for the whole bar.** Only one is ever up, and thirteen would be
   thirteen more rects published to the renderer for a thing that is never in
   two places.
+- **Both halves can be turned off**, on the accessibility page: *Tooltips*
+  for the whole label, the volume's reading included, and *Shortcuts in
+  tooltips* for the key alone. Someone who knows the bar has learned what the
+  tips teach, and from then on a pill rising over the film wherever the
+  pointer rests is in the way. The controls keep their names for a screen
+  reader either way.
 
 ### Named Rules
 

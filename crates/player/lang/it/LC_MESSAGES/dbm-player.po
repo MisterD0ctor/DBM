@@ -638,3 +638,11 @@ msgstr "Rimuovi"
 msgctxt "player"
 msgid "external"
 msgstr "esterno"
+
+msgctxt "MainWindow"
+msgid "Tooltips"
+msgstr "Suggerimenti"
+
+msgctxt "MainWindow"
+msgid "Shortcuts in tooltips"
+msgstr "Scorciatoie nei suggerimenti"

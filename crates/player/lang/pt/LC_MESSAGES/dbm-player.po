@@ -639,3 +639,11 @@ msgstr "Remover"
 msgctxt "player"
 msgid "external"
 msgstr "externo"
+
+msgctxt "MainWindow"
+msgid "Tooltips"
+msgstr "Dicas"
+
+msgctxt "MainWindow"
+msgid "Shortcuts in tooltips"
+msgstr "Atalhos nas dicas"

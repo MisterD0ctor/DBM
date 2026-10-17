@@ -635,3 +635,11 @@ msgstr "Ta bort"
 msgctxt "player"
 msgid "external"
 msgstr "extern"
+
+msgctxt "MainWindow"
+msgid "Tooltips"
+msgstr "Verktygstips"
+
+msgctxt "MainWindow"
+msgid "Shortcuts in tooltips"
+msgstr "Kortkommandon i verktygstips"

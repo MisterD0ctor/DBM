@@ -638,3 +638,11 @@ msgstr "Quitar"
 msgctxt "player"
 msgid "external"
 msgstr "externo"
+
+msgctxt "MainWindow"
+msgid "Tooltips"
+msgstr "Ayuda emergente"
+
+msgctxt "MainWindow"
+msgid "Shortcuts in tooltips"
+msgstr "Atajos en la ayuda emergente"

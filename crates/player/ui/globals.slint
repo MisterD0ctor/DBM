@@ -168,7 +168,17 @@ export global Flash {
 /// The key rides along because that is the part worth learning. A tooltip
 /// that only repeats the glyph is a label; one that names the key is the
 /// reference card arriving where the question was asked.
+///
+/// Both can be turned off, on the accessibility page: someone who knows the
+/// bar has learned what the tips teach, and from then on they are a pill
+/// rising over the film wherever the pointer rests. The controls keep their
+/// names for a screen reader either way, since those never came from here.
 export global Tip {
+    /// Whether tips go up at all. Off, `point` and `show` put nothing up and
+    /// hand back a claim that is never the one up.
+    in-out property <bool> enabled: true;
+    /// Whether a tip names the key as well as the control.
+    in-out property <bool> with-keys: true;
     in-out property <string> label;
     in-out property <string> keys;
     /// Centre of the control it belongs to, in window coordinates.
@@ -184,8 +194,11 @@ export global Tip {
 
     /// Puts a tip up and returns the claim on it, for `release`.
     public function point(label: string, keys: string, cx: length) -> int {
+        if (!Tip.enabled) {
+            return -1;
+        }
         Tip.label = label;
-        Tip.keys = keys;
+        Tip.keys = Tip.with-keys ? keys : "";
         Tip.cx = cx;
         Tip.now = false;
         Tip.seq += 1;
@@ -200,8 +213,11 @@ export global Tip {
     /// not crossed. Each notch of a wheel would also start the wait again,
     /// so a reading that waited would never arrive while it was wanted.
     public function show(label: string, keys: string, cx: length) -> int {
+        if (!Tip.enabled) {
+            return -1;
+        }
         Tip.label = label;
-        Tip.keys = keys;
+        Tip.keys = Tip.with-keys ? keys : "";
         Tip.cx = cx;
         Tip.now = true;
         Tip.seq += 1;

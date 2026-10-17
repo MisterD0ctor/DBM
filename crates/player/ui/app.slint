@@ -401,7 +401,7 @@ export component MainWindow inherits Window {
         && root.settings-page >= 1 && root.settings-page <= 3;
     /// Per page: the rows, plus the way back, plus the reset that follows
     /// them — and on the subtitles page the sync that comes before them.
-    /// Accessibility has no reset — its one switch is undone by
+    /// Accessibility has no reset — each of its switches is undone by
     /// pressing it again — and the shortcuts page offers only the way back:
     /// every row on it is a statement rather than a control.
     property <int> settings-focus-count:
@@ -409,7 +409,7 @@ export component MainWindow inherits Window {
         : root.settings-page == 1 ? 2 + root.glass-params.length
         : root.settings-page == 2 ? 2 + root.border-params.length
         : root.settings-page == 3 ? 6
-        : root.settings-page == 4 ? 2
+        : root.settings-page == 4 ? 4
         : root.settings-page == 6 ? 1 + root.language-count
         : 1;
     /// The same count for `leaf-page`, which on the way back out is not the
@@ -467,6 +467,10 @@ export component MainWindow inherits Window {
     /// this runs; it is for saving the choice, and for the backdrop's fade,
     /// which the pipeline draws rather than Slint.
     callback set-animations(bool);
+    /// The same, for its two tooltip switches: `Tip` is already set, and this
+    /// is for saving the choice.
+    callback set-tips(bool);
+    callback set-tip-keys(bool);
 
     // --- actions, executed on the Rust side ---
     // Key handling lives here rather than in Rust because the `Key.*`
@@ -2241,7 +2245,13 @@ export component MainWindow inherits Window {
             return true;
         }
         if (root.settings-page == 4) {
-            root.set-motion(!Motion.enabled);
+            if (root.focus-row == 1) {
+                root.set-motion(!Motion.enabled);
+            } else if (root.focus-row == 2) {
+                root.set-tips-shown(!Tip.enabled);
+            } else if (Tip.enabled) {
+                root.set-tip-keys-shown(!Tip.with-keys);
+            }
             return true;
         }
         if (root.settings-page == 6) {
@@ -2352,6 +2362,22 @@ export component MainWindow inherits Window {
     function set-motion(on: bool) {
         Motion.enabled = on;
         root.set-animations(on);
+    }
+
+    /// Turn the tooltips on or off, the same way. A tip cannot be up while
+    /// this page is open, but one can be held under it, waiting for the
+    /// panel to go: turning them off takes that one down too.
+    function set-tips-shown(on: bool) {
+        Tip.enabled = on;
+        if (!on) {
+            Tip.clear();
+        }
+        root.set-tips(on);
+    }
+
+    function set-tip-keys-shown(on: bool) {
+        Tip.with-keys = on;
+        root.set-tip-keys(on);
     }
 
     /// A slider's icon, by its place in `REGISTRY` in settings.rs — the two
@@ -3470,7 +3496,7 @@ export component MainWindow inherits Window {
             : root.settings-page == 3
                 ? root.row-h + 3 * Rows.stepper-row + Rows.group-gap + 2 * root.row-h
             : root.settings-page == 4
-                ? root.row-h + root.toggle-h
+                ? root.row-h + 3 * root.toggle-h
             // The shortcuts are a list rather than a page of controls: it is
             // handed whatever is left and scrolls inside it.
             : root.settings-page == 5
@@ -3767,9 +3793,10 @@ export component MainWindow inherits Window {
                     }
                 }
 
-                // One switch for now. A page rather than a row on the front
+                // How much the interface does on its own: moving, and
+                // explaining itself. A page rather than rows on the front
                 // because what belongs here is a kind of setting, not one of
-                // them, and the next one should have somewhere to go.
+                // them.
                 if root.leaf-page == 4: VerticalLayout {
                     BackRow {
                         label: @tr("ACCESSIBILITY");
@@ -3788,6 +3815,29 @@ export component MainWindow inherits Window {
                         focused: root.focus-row == 1;
                         toggled(on) => {
                             root.set-motion(on);
+                        }
+                    }
+                    // The names the bar's controls show under the pointer.
+                    // For a bar already learned they are a pill rising over
+                    // the film wherever the hand rests.
+                    ToggleRow {
+                        label: @tr("Tooltips");
+                        checked: Tip.enabled;
+                        focused: root.focus-row == 2;
+                        toggled(on) => {
+                            root.set-tips-shown(on);
+                        }
+                    }
+                    // Its own switch, for someone who still wants the names
+                    // but has the keys by heart. Under the one it depends on,
+                    // and faded while that one is off.
+                    ToggleRow {
+                        label: @tr("Shortcuts in tooltips");
+                        checked: Tip.with-keys;
+                        enabled: Tip.enabled;
+                        focused: root.focus-row == 3;
+                        toggled(on) => {
+                            root.set-tip-keys-shown(on);
                         }
                     }
                 }

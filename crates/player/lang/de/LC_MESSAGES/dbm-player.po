@@ -638,3 +638,11 @@ msgstr "Entfernen"
 msgctxt "player"
 msgid "external"
 msgstr "extern"
+
+msgctxt "MainWindow"
+msgid "Tooltips"
+msgstr "Tooltips"
+
+msgctxt "MainWindow"
+msgid "Shortcuts in tooltips"
+msgstr "Tastenkürzel in Tooltips"
