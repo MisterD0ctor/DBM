@@ -421,7 +421,7 @@ export component MainWindow inherits Window {
         root.leaf-page == 1 ? 2 + root.glass-params.length
         : root.leaf-page == 2 ? 2 + root.border-params.length
         : root.leaf-page == 3 ? 6
-        : root.leaf-page == 4 ? 2
+        : root.leaf-page == 4 ? 4
         : root.leaf-page == 6 ? 1 + root.language-count
         : 1;
 
@@ -644,8 +644,7 @@ export component MainWindow inherits Window {
     }
 
     // A ring that has walked off the bottom of a list is no better than no
-    // ring. Only the two lists that scroll need this; the settings pages are
-    // sized to their contents.
+    // ring.
     function focus-scroll() {
         if (root.menu-open && root.find-open) {
             if (root.focus-row > 0) {
@@ -667,6 +666,13 @@ export component MainWindow inherits Window {
                 playlist-leaf-list.reveal(
                     (root.focus-row - root.playlist-lead) * root.row-h, root.row-h);
             }
+        } else if (root.settings-open && root.settings-page != 5
+                && (root.settings-page == 0 || root.focus-row > 0)) {
+            root.settings-reveal-top =
+                root.settings-row-top(root.settings-page, root.focus-row);
+            root.settings-reveal-h =
+                root.settings-row-h(root.settings-page, root.focus-row);
+            root.settings-reveal-tick += 1;
         }
     }
 
@@ -1627,9 +1633,11 @@ export component MainWindow inherits Window {
         && root.preview-x + root.preview-w + Rows.offset > root.panel-x
         && root.preview-x < root.panel-x + root.panel-w + Rows.offset;
 
-    /// Room for a panel between the top margin and the bar.
+    /// Room for a panel between the top margin and the bar: the same margin
+    /// a panel keeps from the window's sides. It was twice that, and a panel
+    /// at its tallest stood 48px from the top and 24px from the side.
     property <length> panel-max-h:
-        root.timeline-y - Rows.offset - 2 * root.panel-margin;
+        root.timeline-y - Rows.offset - root.panel-margin;
 
     // --- list panels ---
     //
@@ -1740,15 +1748,111 @@ export component MainWindow inherits Window {
         // Less the drop row where it is not drawn. Counted off rather than
         // taken out of the list, so the rows stay one literal to read.
         - (root.drop-supported ? 0px : root.row-h);
-    /// What is left of the panel once the back row has had its share. The
-    /// list scrolls into it, because twenty rows do not fit above the bar on
-    /// a small window and a reference that is cut off is not one.
-    property <length> shortcuts-list-h:
-        max(0px, settings.height - root.panel-pad - root.row-h);
-    /// The same once the panel has finished moving to the shortcuts page —
-    /// see `rest-height` on the list.
-    property <length> shortcuts-rest-h: min(root.shortcuts-natural,
+
+    // --- the settings pages' lists ---
+    //
+    // Every page of the settings is a list under its way back, and the
+    // first page is one list: a panel is capped at what fits above the bar,
+    // and on a small window the pages with the most in them did not fit —
+    // a cut-off page has controls on it nobody can reach. A page that fits
+    // is a list that does not scroll, and looks as it always did.
+
+    /// What a page holds under its way back, unconstrained. From row counts
+    /// and constants, never from the layout's own `preferred-height`:
+    /// `glass-rects` samples the panel geometry every frame, and depending
+    /// on a layout there forces a full layout pass per frame — enough on its
+    /// own to drag a resize to 4fps.
+    pure function page-natural(page: int) -> length {
+        // The controls, the gap, and the reset that follows them.
+        if (page == 1) {
+            return root.glass-params.length * Rows.slider-row + Rows.group-gap + root.row-h;
+        }
+        if (page == 2) {
+            return root.border-params.length * Rows.slider-row + Rows.group-gap + root.row-h;
+        }
+        // The sync, the three steppers, the gap and the reset.
+        if (page == 3) {
+            return root.row-h + 3 * Rows.stepper-row + Rows.group-gap + root.row-h;
+        }
+        if (page == 4) {
+            return 3 * root.toggle-h;
+        }
+        if (page == 5) {
+            return root.shortcuts-natural;
+        }
+        if (page == 6) {
+            return root.language-count * root.row-h;
+        }
+        return 0px;
+    }
+    /// The first page: three headings and six rows that lead somewhere.
+    /// Named rather than arithmetic on bare numbers: the rows this page has
+    /// lost were invisible inside `2 * 40px`, and the panel stood six pixels
+    /// taller than its contents until someone looked at it. Two of the three
+    /// headings follow a group and take the gap.
+    property <length> front-natural: 3 * root.heading-h + 6 * root.row-h
+        + 2 * Rows.group-gap;
+    /// What is left of the panel for each list: all of it on the first page,
+    /// and what the way back leaves on the others. Twenty shortcuts do not
+    /// fit above the bar on a small window, nor nine languages, and a page
+    /// that is cut off is not one.
+    property <length> front-list-h: max(0px, settings.height - root.panel-pad);
+    property <length> leaf-list-h: max(0px, settings.height - root.panel-pad - root.row-h);
+    /// The same once the panel has finished moving — see `rest-height` on the
+    /// list.
+    property <length> front-rest-h: min(root.front-natural,
+        max(0px, root.panel-max-h - root.panel-pad));
+    property <length> leaf-rest-h: min(root.page-natural(root.leaf-page),
         max(0px, root.panel-max-h - root.panel-pad - root.row-h));
+    /// The row the keyboard is on, for the page's list to bring into view.
+    /// The pages are built inside conditions, out of reach of the key
+    /// handler, so it is left here with a tick, as the reading keys leave
+    /// theirs — see `ScrollList.reveal-tick`.
+    property <length> settings-reveal-top;
+    property <length> settings-reveal-h;
+    property <int> settings-reveal-tick;
+
+    /// Where a row of a settings page is in its list, and how tall it is.
+    /// Row 0 of every page but the first is the way back, which is not in
+    /// the list.
+    /// How many sliders a page of them has.
+    pure function sliders-on(page: int) -> int {
+        return page == 1 ? root.glass-params.length : root.border-params.length;
+    }
+    pure function settings-row-top(page: int, row: int) -> length {
+        if (page == 0) {
+            // A heading over rows 0, 2 and 3, the last two after a gap.
+            return row * root.row-h + root.heading-h
+                + (row >= 2 ? root.heading-h + Rows.group-gap : 0px)
+                + (row >= 3 ? root.heading-h + Rows.group-gap : 0px);
+        }
+        // The sliders, then the gap and the reset.
+        if (page == 1 || page == 2) {
+            return row <= root.sliders-on(page) ? (row - 1) * Rows.slider-row
+                : root.sliders-on(page) * Rows.slider-row + Rows.group-gap;
+        }
+        if (page == 3) {
+            return row == 1 ? 0px
+                : row <= 4 ? root.row-h + (row - 2) * Rows.stepper-row
+                : root.row-h + 3 * Rows.stepper-row + Rows.group-gap;
+        }
+        if (page == 4) {
+            return (row - 1) * root.toggle-h;
+        }
+        return (row - 1) * root.row-h;
+    }
+    pure function settings-row-h(page: int, row: int) -> length {
+        if ((page == 1 || page == 2) && row <= root.sliders-on(page)) {
+            return Rows.slider-row;
+        }
+        if (page == 3 && row >= 2 && row <= 4) {
+            return Rows.stepper-row;
+        }
+        if (page == 4) {
+            return root.toggle-h;
+        }
+        return root.row-h;
+    }
     property <length> panel-pad: 2 * Rows.panel-pad;
 
     // A heading with no rows under it is noise, and two of them over a file
@@ -1866,9 +1970,11 @@ export component MainWindow inherits Window {
     // A closed menu publishes a zero-sized rect; the Rust side drops those
     // rather than the array changing length, which keeps this a plain
     // literal instead of something conditionally built.
-    /// The shortcuts list, which is built inside a condition and so cannot
-    /// be read from here: it leaves its own account of itself in this.
-    property <ScrollFade> shortcuts-fade;
+    /// The settings' lists, which are built inside conditions and so cannot
+    /// be read from here: each leaves its own account of itself in one of
+    /// these — the first page's, and whichever page is behind it.
+    property <ScrollFade> front-fade;
+    property <ScrollFade> leaf-fade;
 
     /// A list's account of itself, inside the panel it belongs to, by how
     /// far that panel is on show. Nothing for one that is not; and the angle
@@ -1909,8 +2015,10 @@ export component MainWindow inherits Window {
         root.fade-within(playlist-leaf-list.fade, root.playlist-shown,
             playlist-panel.x, playlist-panel.y,
             playlist-panel.width, playlist-panel.height),
-        root.fade-within(root.shortcuts-fade,
-            root.leaf-page == 5 && root.drill > 0.0 ? root.settings-shown : 0,
+        root.fade-within(root.front-fade,
+            root.settings-page == 0 && root.drill < 1.0 ? root.settings-shown : 0,
+            settings.x, settings.y, settings.width, settings.height),
+        root.fade-within(root.leaf-fade, root.drill > 0.0 ? root.settings-shown : 0,
             settings.x, settings.y, settings.width, settings.height),
         // The title, which is not a list but runs out the same way: off the
         // end of the room the pill has for it.
@@ -2682,7 +2790,7 @@ export component MainWindow inherits Window {
 
     /// The same page, as a distance, for the one list that is scrolled rather
     /// than walked: a screenful less the row it left from.
-    property <length> read-page: max(root.row-h, root.shortcuts-list-h - root.row-h);
+    property <length> read-page: max(root.row-h, root.leaf-list-h - root.row-h);
 
     /// The reading keys on a page that has nothing to walk.
     ///
@@ -3492,32 +3600,10 @@ export component MainWindow inherits Window {
         // layout's own `preferred-height`: `glass-rects` samples the panel
         // geometry every frame, and depending on a layout there forces a full
         // layout pass per frame - enough on its own to drag a resize to 4fps.
-        /// Back row, the controls, the gap, and the reset that follows it.
-        property <length> body:
-            root.settings-page == 1
-                ? root.row-h + root.glass-params.length * Rows.slider-row
-                    + Rows.group-gap + root.row-h
-            : root.settings-page == 2
-                ? root.row-h + root.border-params.length * Rows.slider-row
-                    + Rows.group-gap + root.row-h
-            : root.settings-page == 3
-                ? root.row-h + 3 * Rows.stepper-row + Rows.group-gap + 2 * root.row-h
-            : root.settings-page == 4
-                ? root.row-h + 3 * root.toggle-h
-            // The shortcuts are a list rather than a page of controls: it is
-            // handed whatever is left and scrolls inside it.
-            : root.settings-page == 5
-                ? root.row-h + root.shortcuts-natural
-            : root.settings-page == 6
-                ? root.row-h + root.language-count * root.row-h
-            // Three headings and six rows that lead somewhere. Named
-            // rather than arithmetic on bare numbers: the rows this page has
-            // lost were invisible inside `2 * 40px`, and the panel stood six
-            // pixels taller than its contents until someone looked at it.
-            // The pages above were still writing 34, 30 and 38 out when
-            // that was written, which is the same mistake one line earlier.
-            // Two of the three headings follow a group and take the gap.
-            : 3 * root.heading-h + 6 * root.row-h + 2 * Rows.group-gap;
+        /// The page, unconstrained: the list of what can be adjusted, or a
+        /// page's way back and what is under it.
+        property <length> body: root.settings-page == 0 ? root.front-natural
+            : root.row-h + root.page-natural(root.settings-page);
 
         width: 340px;
         height: min(root.panel-pad + self.body, root.panel-max-h);
@@ -3568,7 +3654,20 @@ export component MainWindow inherits Window {
                 // the rows apart for the length of the move.
                 alignment: start;
 
-                if root.settings-page == 0: VerticalLayout {
+                if root.settings-page == 0: ScrollList {
+                    height: root.front-list-h;
+                    rest-height: root.front-rest-h;
+                    content-height: root.front-natural;
+                    init => {
+                        root.front-fade = self.fade;
+                    }
+                    changed fade => {
+                        root.front-fade = self.fade;
+                    }
+                    reveal-top: root.settings-reveal-top;
+                    reveal-h: root.settings-reveal-h;
+                    reveal-tick: root.settings-reveal-tick;
+
                     MenuHeading {
                         text: @tr("EFFECTS");
                     }
@@ -3681,25 +3780,40 @@ export component MainWindow inherits Window {
                             root.settings-page = 0;
                         }
                     }
-                    for item[idx] in root.glass-params: ParamSlider {
-                        label: item.label;
-                        icon: root.param-icon(item.index);
-                        fraction: item.fraction;
-                        readout: item.readout;
-                        focused: root.focus-row == idx + 1;
-                        moved(f) => {
-                            root.set-param(item.index, f);
+                    ScrollList {
+                        height: root.leaf-list-h;
+                        rest-height: root.leaf-rest-h;
+                        content-height: root.page-natural(1);
+                        init => {
+                            root.leaf-fade = self.fade;
                         }
-                    }
-                    Rectangle {
-                        height: Rows.group-gap;
-                    }
-                    MenuRow {
-                        icon: root.reset-icon(1);
-                        label: root.reset-label(1);
-                        focused: root.focus-row == root.leaf-focus-count - 1;
-                        picked => {
-                            root.reset-row(1);
+                        changed fade => {
+                            root.leaf-fade = self.fade;
+                        }
+                        reveal-top: root.settings-reveal-top;
+                        reveal-h: root.settings-reveal-h;
+                        reveal-tick: root.settings-reveal-tick;
+
+                        for item[idx] in root.glass-params: ParamSlider {
+                            label: item.label;
+                            icon: root.param-icon(item.index);
+                            fraction: item.fraction;
+                            readout: item.readout;
+                            focused: root.focus-row == idx + 1;
+                            moved(f) => {
+                                root.set-param(item.index, f);
+                            }
+                        }
+                        Rectangle {
+                            height: Rows.group-gap;
+                        }
+                        MenuRow {
+                            icon: root.reset-icon(1);
+                            label: root.reset-label(1);
+                            focused: root.focus-row == root.leaf-focus-count - 1;
+                            picked => {
+                                root.reset-row(1);
+                            }
                         }
                     }
                 }
@@ -3712,25 +3826,40 @@ export component MainWindow inherits Window {
                             root.settings-page = 0;
                         }
                     }
-                    for item[idx] in root.border-params: ParamSlider {
-                        label: item.label;
-                        icon: root.param-icon(item.index);
-                        fraction: item.fraction;
-                        readout: item.readout;
-                        focused: root.focus-row == idx + 1;
-                        moved(f) => {
-                            root.set-param(item.index, f);
+                    ScrollList {
+                        height: root.leaf-list-h;
+                        rest-height: root.leaf-rest-h;
+                        content-height: root.page-natural(2);
+                        init => {
+                            root.leaf-fade = self.fade;
                         }
-                    }
-                    Rectangle {
-                        height: Rows.group-gap;
-                    }
-                    MenuRow {
-                        icon: root.reset-icon(2);
-                        label: root.reset-label(2);
-                        focused: root.focus-row == root.leaf-focus-count - 1;
-                        picked => {
-                            root.reset-row(2);
+                        changed fade => {
+                            root.leaf-fade = self.fade;
+                        }
+                        reveal-top: root.settings-reveal-top;
+                        reveal-h: root.settings-reveal-h;
+                        reveal-tick: root.settings-reveal-tick;
+
+                        for item[idx] in root.border-params: ParamSlider {
+                            label: item.label;
+                            icon: root.param-icon(item.index);
+                            fraction: item.fraction;
+                            readout: item.readout;
+                            focused: root.focus-row == idx + 1;
+                            moved(f) => {
+                                root.set-param(item.index, f);
+                            }
+                        }
+                        Rectangle {
+                            height: Rows.group-gap;
+                        }
+                        MenuRow {
+                            icon: root.reset-icon(2);
+                            label: root.reset-label(2);
+                            focused: root.focus-row == root.leaf-focus-count - 1;
+                            picked => {
+                                root.reset-row(2);
+                            }
                         }
                     }
                 }
@@ -3747,55 +3876,70 @@ export component MainWindow inherits Window {
                             root.settings-page = 0;
                         }
                     }
-                    // First, above Timing: it is the thing to try before
-                    // setting the delay by hand, and what it settles on
-                    // shows in the row under it.
-                    MenuRow {
-                        // The page is the subtitles'; what this row brings
-                        // to it is the film's speech.
-                        icon: @image-url("../../../public/icons/speaking.svg");
-                        label: root.sync-label();
-                        focused: root.focus-row == 1;
-                        picked => {
-                            root.sync-row();
+                    ScrollList {
+                        height: root.leaf-list-h;
+                        rest-height: root.leaf-rest-h;
+                        content-height: root.page-natural(3);
+                        init => {
+                            root.leaf-fade = self.fade;
                         }
-                    }
-                    StepperRow {
-                        icon: @image-url("../../../public/icons/clock.svg");
-                        label: @tr("Timing");
-                        focused: root.focus-row == 2;
-                        value: root.sub-delay-text;
-                        stepped(dir) => {
-                            root.step-sub-delay(dir);
+                        changed fade => {
+                            root.leaf-fade = self.fade;
                         }
-                    }
-                    StepperRow {
-                        icon: @image-url("../../../public/icons/text-size.svg");
-                        label: @tr("Size");
-                        focused: root.focus-row == 3;
-                        value: root.sub-scale-text;
-                        stepped(dir) => {
-                            root.step-sub-scale(dir);
+                        reveal-top: root.settings-reveal-top;
+                        reveal-h: root.settings-reveal-h;
+                        reveal-tick: root.settings-reveal-tick;
+
+                        // First, above Timing: it is the thing to try before
+                        // setting the delay by hand, and what it settles on
+                        // shows in the row under it.
+                        MenuRow {
+                            // The page is the subtitles'; what this row brings
+                            // to it is the film's speech.
+                            icon: @image-url("../../../public/icons/speaking.svg");
+                            label: root.sync-label();
+                            focused: root.focus-row == 1;
+                            picked => {
+                                root.sync-row();
+                            }
                         }
-                    }
-                    StepperRow {
-                        icon: @image-url("../../../public/icons/arrows-up-down.svg");
-                        label: @tr("Position");
-                        focused: root.focus-row == 4;
-                        value: root.sub-pos-text;
-                        stepped(dir) => {
-                            root.step-sub-pos(dir);
+                        StepperRow {
+                            icon: @image-url("../../../public/icons/clock.svg");
+                            label: @tr("Timing");
+                            focused: root.focus-row == 2;
+                            value: root.sub-delay-text;
+                            stepped(dir) => {
+                                root.step-sub-delay(dir);
+                            }
                         }
-                    }
-                    Rectangle {
-                        height: Rows.group-gap;
-                    }
-                    MenuRow {
-                        icon: root.reset-icon(3);
-                        label: root.reset-label(3);
-                        focused: root.focus-row == root.leaf-focus-count - 1;
-                        picked => {
-                            root.reset-row(3);
+                        StepperRow {
+                            icon: @image-url("../../../public/icons/text-size.svg");
+                            label: @tr("Size");
+                            focused: root.focus-row == 3;
+                            value: root.sub-scale-text;
+                            stepped(dir) => {
+                                root.step-sub-scale(dir);
+                            }
+                        }
+                        StepperRow {
+                            icon: @image-url("../../../public/icons/arrows-up-down.svg");
+                            label: @tr("Position");
+                            focused: root.focus-row == 4;
+                            value: root.sub-pos-text;
+                            stepped(dir) => {
+                                root.step-sub-pos(dir);
+                            }
+                        }
+                        Rectangle {
+                            height: Rows.group-gap;
+                        }
+                        MenuRow {
+                            icon: root.reset-icon(3);
+                            label: root.reset-label(3);
+                            focused: root.focus-row == root.leaf-focus-count - 1;
+                            picked => {
+                                root.reset-row(3);
+                            }
                         }
                     }
                 }
@@ -3812,39 +3956,54 @@ export component MainWindow inherits Window {
                             root.settings-page = 0;
                         }
                     }
-                    // Everything that moves: surfaces fading and rising,
-                    // pages sliding, washes, tracks and switches easing, and
-                    // the backdrop coming up. Off, each arrives in the frame
-                    // it was asked for — see `Motion`.
-                    ToggleRow {
-                        label: @tr("Animations");
-                        checked: Motion.enabled;
-                        focused: root.focus-row == 1;
-                        toggled(on) => {
-                            root.set-motion(on);
+                    ScrollList {
+                        height: root.leaf-list-h;
+                        rest-height: root.leaf-rest-h;
+                        content-height: root.page-natural(4);
+                        init => {
+                            root.leaf-fade = self.fade;
                         }
-                    }
-                    // The names the bar's controls show under the pointer.
-                    // For a bar already learned they are a pill rising over
-                    // the film wherever the hand rests.
-                    ToggleRow {
-                        label: @tr("Tooltips");
-                        checked: Tip.enabled;
-                        focused: root.focus-row == 2;
-                        toggled(on) => {
-                            root.set-tips-shown(on);
+                        changed fade => {
+                            root.leaf-fade = self.fade;
                         }
-                    }
-                    // Its own switch, for someone who still wants the names
-                    // but has the keys by heart. Under the one it depends on,
-                    // and faded while that one is off.
-                    ToggleRow {
-                        label: @tr("Shortcuts in tooltips");
-                        checked: Tip.with-keys;
-                        enabled: Tip.enabled;
-                        focused: root.focus-row == 3;
-                        toggled(on) => {
-                            root.set-tip-keys-shown(on);
+                        reveal-top: root.settings-reveal-top;
+                        reveal-h: root.settings-reveal-h;
+                        reveal-tick: root.settings-reveal-tick;
+
+                        // Everything that moves: surfaces fading and rising,
+                        // pages sliding, washes, tracks and switches easing, and
+                        // the backdrop coming up. Off, each arrives in the frame
+                        // it was asked for — see `Motion`.
+                        ToggleRow {
+                            label: @tr("Animations");
+                            checked: Motion.enabled;
+                            focused: root.focus-row == 1;
+                            toggled(on) => {
+                                root.set-motion(on);
+                            }
+                        }
+                        // The names the bar's controls show under the pointer.
+                        // For a bar already learned they are a pill rising over
+                        // the film wherever the hand rests.
+                        ToggleRow {
+                            label: @tr("Tooltips");
+                            checked: Tip.enabled;
+                            focused: root.focus-row == 2;
+                            toggled(on) => {
+                                root.set-tips-shown(on);
+                            }
+                        }
+                        // Its own switch, for someone who still wants the names
+                        // but has the keys by heart. Under the one it depends on,
+                        // and faded while that one is off.
+                        ToggleRow {
+                            label: @tr("Shortcuts in tooltips");
+                            checked: Tip.with-keys;
+                            enabled: Tip.enabled;
+                            focused: root.focus-row == 3;
+                            toggled(on) => {
+                                root.set-tip-keys-shown(on);
+                            }
                         }
                     }
                 }
@@ -3861,28 +4020,47 @@ export component MainWindow inherits Window {
                             root.settings-page = 0;
                         }
                     }
-                    MenuRow {
-                        label: @tr("System language");
-                        active: root.language-choice == 0;
-                        focused: root.focus-row == 1;
-                        picked => {
-                            root.pick-language(0);
+                    ScrollList {
+                        height: root.leaf-list-h;
+                        rest-height: root.leaf-rest-h;
+                        content-height: root.page-natural(6);
+                        init => {
+                            root.leaf-fade = self.fade;
                         }
-                    }
-                    MenuRow {
-                        label: "English";
-                        active: root.language-choice == 1;
-                        focused: root.focus-row == 2;
-                        picked => {
-                            root.pick-language(1);
+                        changed fade => {
+                            root.leaf-fade = self.fade;
                         }
-                    }
-                    for name[idx] in root.language-names: MenuRow {
-                        label: name;
-                        active: root.language-choice == idx + 2;
-                        focused: root.focus-row == idx + 3;
-                        picked => {
-                            root.pick-language(idx + 2);
+                        reveal-top: root.settings-reveal-top;
+                        reveal-h: root.settings-reveal-h;
+                        reveal-tick: root.settings-reveal-tick;
+                        // The language spoken now, for the angle that points
+                        // back to it.
+                        current-top: root.language-choice * root.row-h;
+                        current-h: root.language-choice >= 0 ? root.row-h : 0px;
+
+                        MenuRow {
+                            label: @tr("System language");
+                            active: root.language-choice == 0;
+                            focused: root.focus-row == 1;
+                            picked => {
+                                root.pick-language(0);
+                            }
+                        }
+                        MenuRow {
+                            label: "English";
+                            active: root.language-choice == 1;
+                            focused: root.focus-row == 2;
+                            picked => {
+                                root.pick-language(1);
+                            }
+                        }
+                        for name[idx] in root.language-names: MenuRow {
+                            label: name;
+                            active: root.language-choice == idx + 2;
+                            focused: root.focus-row == idx + 3;
+                            picked => {
+                                root.pick-language(idx + 2);
+                            }
                         }
                     }
                 }
@@ -3896,14 +4074,14 @@ export component MainWindow inherits Window {
                         }
                     }
                     ScrollList {
-                        height: root.shortcuts-list-h;
-                        rest-height: root.shortcuts-rest-h;
-                        content-height: root.shortcuts-natural;
+                        height: root.leaf-list-h;
+                        rest-height: root.leaf-rest-h;
+                        content-height: root.page-natural(5);
                         init => {
-                            root.shortcuts-fade = self.fade;
+                            root.leaf-fade = self.fade;
                         }
                         changed fade => {
-                            root.shortcuts-fade = self.fade;
+                            root.leaf-fade = self.fade;
                         }
                         // The one list here the keyboard scrolls rather than
                         // walks; see `on-read`.

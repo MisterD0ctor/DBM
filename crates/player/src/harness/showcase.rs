@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use slint::{ComponentHandle, Model};
 
-use super::drive::{click, hover, wheel};
+use super::drive::{arrow, click, hover, wheel};
 use crate::MainWindow;
 
 /// Hold one surface open, with the chrome kept awake, for a photograph.
@@ -132,6 +132,13 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 }
             }
 
+            // The language page walked with the keyboard to its last row,
+            // which on a small window is past the bottom of what the panel
+            // shows: the list has to follow the ring down.
+            if surface == "language-walk" && (6..=14).contains(&tick) {
+                arrow(&ui, slint::platform::Key::DownArrow);
+            }
+
             if tick != 4 {
                 return;
             }
@@ -220,7 +227,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 "subs" => ui.invoke_open_settings_page(3),
                 "accessibility" => ui.invoke_open_settings_page(4),
                 "shortcuts" => ui.invoke_open_settings_page(5),
-                "language" => ui.invoke_open_settings_page(6),
+                "language" | "language-walk" => ui.invoke_open_settings_page(6),
                 _ => {}
             }
             eprintln!("dbm: showcase ready ({surface})");

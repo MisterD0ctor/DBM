@@ -241,6 +241,18 @@ export component ScrollList inherits Rectangle {
             min(0px, root.height - root.content-height), 0px);
     }
 
+    /// A row brought into view, as `reveal` brings it, asked for by a caller
+    /// that cannot reach this list: the settings pages, built inside
+    /// conditions. The tick is what makes the same row asked for again — the
+    /// ring coming back up where the wheel has since moved the list — a
+    /// second request rather than no change.
+    in property <length> reveal-top;
+    in property <length> reveal-h;
+    in property <int> reveal-tick;
+    changed reveal-tick => {
+        root.reveal(root.reveal-top, root.reveal-h);
+    }
+
     /// The same movement, asked for by a caller that cannot reach this list.
     ///
     /// The settings pages are built inside a conditional so the drill can

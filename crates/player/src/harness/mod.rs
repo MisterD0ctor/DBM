@@ -54,6 +54,9 @@
 //!   carry that row back to the middle and play nothing; it prints where the
 //!   list is every 20ms of the glide.
 //!   `current-hover` rests the pointer on the angle, for its circle.
+//! * `DBM_SHOWCASE=language-walk` opens the language page and walks the ring
+//!   down to its last row, which on a small window (`DBM_WINDOW=900x480`) is
+//!   past the bottom of what the panel shows, so the list has to follow it.
 //! * `DBM_SHOWCASE=drill` — flips the playlist between its list of parts and a
 //!   part's page on every tick, so a capture lands inside the 220ms move rather
 //!   than on whichever end it settled at. The same trick as `flash`: a movement

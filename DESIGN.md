@@ -481,12 +481,18 @@ by what is written in it.**
 **Panels** open 12px above the timeline row, anchored to the button that opened
 them and clamped inside the same 24px margins: the tracks panel and the
 playlist at 380px, settings at 340px, the open menu at 260px. Only one is ever
-open. Each is capped at the space between the top margin and the bar, and any
-list inside it scrolls within that cap; where two lists share a panel they take
-a fair share each, except that a list which fits keeps its full height and hands
-the remainder to the other. A list opens on its current row, centred as far as
+open. Each is capped at the space between the bar and the window's top, less
+the same 24px it keeps from the window's sides — so a panel at its tallest is
+framed evenly, where it once stood twice as far from the top. Any list inside
+it scrolls within that cap; where two lists share a panel they take a fair share
+each, except that a list which fits keeps its full height and hands the
+remainder to the other. Every page of the settings is such a list — the first
+page whole, the others under their way back — so on a small window nothing on
+any of them is out of reach; a page that fits does not scroll and looks as it
+always did. A list opens on its current row, centred as far as
 its ends allow — the playlist on the episode playing, the tracks on the
-subtitle in use — however it was opened. The hover label opens on that same
+subtitle in use — however it was opened. The language page has a current row
+too, and the angle that points back to it. The hover label opens on that same
 line, 12px above the timeline; the seek preview floats 10px above it.
 
 **The middle of the picture** belongs to things that are about the film rather
