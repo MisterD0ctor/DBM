@@ -122,6 +122,13 @@ scripts/headless.sh env DBM_SHOWCASE=playlist DBM_CAPTURE=playlist.bmp \
     ./target/release/dbm-player path/to/video.mkv
 ```
 
+If your change affects something the player caches (file lengths, title
+tags, where intros and credits are, timeline previews), bump that cache's
+version where it's declared, with a line saying what changed. Everything
+saved under the old version is then thrown away and worked out again. How
+it works is explained at the top of
+[`library/cache.rs`](crates/player/src/library/cache.rs).
+
 ## Translating
 
 The interface is written in English. Each translation is a single gettext

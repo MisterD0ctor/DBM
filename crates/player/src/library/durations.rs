@@ -20,10 +20,11 @@ use md5::Digest;
 
 use crate::library::cache::PathMap;
 
-/// The cache, as the Tauri build wrote it: a flat object of path to seconds.
+/// Path to seconds.
 pub type Cache = HashMap<String, f64>;
 
-static LENGTHS: PathMap<f64> = PathMap::new("durations.json");
+/// Versioned as caches are — see `cache`. 1: the container's own duration.
+static LENGTHS: PathMap<f64> = PathMap::cache("durations.json", 1);
 
 /// Every length known. **Blocking.** Worker thread only.
 pub fn load() -> Cache {
@@ -132,7 +133,7 @@ pub fn watch_later_name(path: &str) -> String {
 /// credits, or its length when it simply ran out.
 pub type Finished = HashMap<String, f64>;
 
-static FINISHED: PathMap<f64> = PathMap::new("finished.json");
+static FINISHED: PathMap<f64> = PathMap::record("finished.json");
 
 /// mpv checkpoints the position every ten seconds, so a file left in its
 /// credits can hold a resume point a little before the moment they were

@@ -196,7 +196,9 @@ pub fn parse_title(report: &str) -> Option<String> {
 ///
 /// One scan writes at a time in practice, but a superseded one can still be
 /// finishing its last file as the next starts.
-static TITLES: PathMap<String> = PathMap::new("titles.json");
+///
+/// Versioned as caches are — see `cache`. 1: the container's `title` tag.
+static TITLES: PathMap<String> = PathMap::cache("titles.json", 1);
 
 /// **Blocking.**
 fn record_title(path: &str, title: Option<&str>) {

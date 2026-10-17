@@ -28,6 +28,7 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::library::cache::Folder;
 use crate::library::ffmpeg;
 use crate::worker::{Completion, Reporter};
 
@@ -380,6 +381,13 @@ fn assemble(ffmpeg: &Path, tiles: &Path, sprite: &Path, tile_w: u32, generation:
 // Cache
 // ---------------------------------------------------------------------------
 
+/// Every atlas built. Versioned as caches are — see `cache` — and bumped
+/// whenever an atlas would come out differently: its grid, its tiles' size,
+/// the frames it picks.
+///
+/// 1. `GRID`×`GRID` frames, `TILE_H` high, each the middle of its share.
+static PREVIEWS: Folder = Folder::cache("previews", 1);
+
 /// Where a video's atlas lives. Named for the path so the same file found
 /// twice is built once, and checked against its modification time so an
 /// edited file is not shown yesterday's frames.
@@ -389,9 +397,7 @@ fn sprite_path(video: &Path) -> PathBuf {
         hash ^= *byte as u64;
         hash = hash.wrapping_mul(0x1000_0000_01b3);
     }
-    crate::paths::app_data_dir()
-        .join("previews")
-        .join(format!("{hash:016x}.jpg"))
+    PREVIEWS.path().join(format!("{hash:016x}.jpg"))
 }
 
 fn meta_path(sprite: &Path) -> PathBuf {

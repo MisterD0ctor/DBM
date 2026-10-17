@@ -74,8 +74,8 @@ impl End {
     /// as one with, and without the entry it would be heard again every
     /// time it was played.
     fn heard(self) -> &'static PathMap<Option<Span>> {
-        static OPENINGS: PathMap<Option<Span>> = PathMap::new("intros.json");
-        static CLOSINGS: PathMap<Option<Span>> = PathMap::new("outros.json");
+        static OPENINGS: PathMap<Option<Span>> = PathMap::cache("intros.json", HEARD);
+        static CLOSINGS: PathMap<Option<Span>> = PathMap::cache("outros.json", HEARD);
         match self {
             End::Opening => &OPENINGS,
             End::Closing => &CLOSINGS,
@@ -85,6 +85,14 @@ impl End {
 
 /// Where a sequence starts and ends, in seconds.
 pub type Span = (f64, f64);
+
+/// The version of the way a sequence is heard, which what was heard is kept
+/// under — see `cache`. Bumped whenever a change would hear one differently,
+/// so what the old way heard is heard again.
+///
+/// 1. Compared with the two episodes either side; titles and credits both
+///    fifteen seconds or more.
+const HEARD: u32 = 1;
 
 /// A run's answer: the file it listened to, which end of it, and what it
 /// found there.
