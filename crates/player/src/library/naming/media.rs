@@ -400,17 +400,41 @@ fn match_marker(chars: &[char], i: usize) -> Option<(u32, u32, Option<u32>, usiz
     }
     j = next;
 
-    // A second episode number, with or without its own `E`.
-    let mut episode_end = None;
-    let mut k = skip_separators(chars, j);
-    if chars.get(k).is_some_and(|c| c.eq_ignore_ascii_case(&'e')) {
-        if let Some((end, next)) = take_number(chars, k + 1, 3) {
-            episode_end = Some(end);
-            k = next;
-            j = k;
-        }
-    }
+    let (episode_end, j) = match second_episode(chars, j, season, episode) {
+        Some((end, next)) => (Some(end), next),
+        None => (None, j),
+    };
     Some((season, episode, episode_end, j))
+}
+
+/// The second half of a double episode, starting at `j` right after the
+/// first episode's number, and where it ends.
+///
+/// Three ways of writing it: `S01E02-E03`, `S01E02-S01E03` with the season
+/// said again, and `S06.01-02` with a bare number hard against the dash.
+/// The bare number has to be against the dash, and later than the first,
+/// because `S01E01 - 2 Fast 2 Furious` is one episode with a title that
+/// starts with a number.
+fn second_episode(chars: &[char], j: usize, season: u32, episode: u32) -> Option<(u32, usize)> {
+    let whole = |next: usize| !chars.get(next).is_some_and(|c| c.is_alphanumeric());
+    let k = skip_separators(chars, j);
+    let e = |i: usize| chars.get(i).is_some_and(|c| c.eq_ignore_ascii_case(&'e'));
+    if e(k) {
+        return take_number(chars, k + 1, 3);
+    }
+    if chars.get(k).is_some_and(|c| c.eq_ignore_ascii_case(&'s')) {
+        let (again, next) = take_number(chars, k + 1, 2)?;
+        if again != season || !e(next) {
+            return None;
+        }
+        let (end, next) = take_number(chars, next + 1, 3)?;
+        return (end > episode && whole(next)).then_some((end, next));
+    }
+    if matches!(chars.get(j), Some('-' | '–')) {
+        let (end, next) = take_number(chars, j + 1, 3)?;
+        return (end > episode && whole(next)).then_some((end, next));
+    }
+    None
 }
 
 /// Up to `max` digits from `i`, and where they end.
@@ -496,6 +520,49 @@ mod tests {
         let (_, _, e, end, title) = episode("Show - S01E02-E03 - Two Parter.mkv");
         assert_eq!((e, end), (2, Some(3)));
         assert_eq!(title.as_deref(), Some("Two Parter"));
+    }
+    #[test]
+    fn a_double_episode_that_says_its_season_twice() {
+        let (show, s, e, end, title) =
+            episode("Adventure.Time.S07E14-S07E15 The More You Moe (1) (2).mp4");
+        assert_eq!(show, "Adventure Time");
+        assert_eq!((s, e, end), (Some(7), 14, Some(15)));
+        assert_eq!(title.as_deref(), Some("The More You Moe (1) (2)"));
+    }
+    #[test]
+    fn a_double_episode_numbered_without_an_e() {
+        let (show, s, e, end, title) =
+            episode("Adventure.Time.S06.01-02 Wake Up & Escape from the Citadel.mp4");
+        assert_eq!(show, "Adventure Time");
+        assert_eq!((s, e, end), (Some(6), 1, Some(2)));
+        assert_eq!(title.as_deref(), Some("Wake Up & Escape from the Citadel"));
+        // And the single one among them.
+        let (_, s, e, end, title) = episode("Adventure.Time.S06.41 On the Lam.mp4");
+        assert_eq!((s, e, end), (Some(6), 41, None));
+        assert_eq!(title.as_deref(), Some("On the Lam"));
+    }
+    #[test]
+    fn a_title_starting_with_a_number_is_not_a_second_episode() {
+        let (_, _, e, end, title) = episode("Show - S01E01 - 2 Fast 2 Furious.mkv");
+        assert_eq!((e, end), (1, None));
+        assert_eq!(title.as_deref(), Some("2 Fast 2 Furious"));
+        // Another season's marker is not this episode's other half.
+        let (_, _, _, end, _) = episode("Show.S01E01-S02E05.mkv");
+        assert_eq!(end, None);
+    }
+    #[test]
+    fn a_part_number_in_the_title_keeps_its_parenthesis() {
+        let (_, _, e, _, title) =
+            episode("Adventure.Time.S07E06-Marceline The Vampire Queen (1).mp4");
+        assert_eq!(e, 6);
+        assert_eq!(title.as_deref(), Some("Marceline The Vampire Queen (1)"));
+        assert_eq!(
+            titled(
+                "Adventure.Time.S07E14-S07E15 The More You Moe (1) (2).mp4",
+                None
+            ),
+            "Adventure Time \u{b7} S07E14-E15 \u{b7} The More You Moe (1) (2)"
+        );
     }
     #[test]
     fn alternate_marker() {

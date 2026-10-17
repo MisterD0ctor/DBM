@@ -211,9 +211,60 @@ pub fn strip_group(s: &str) -> &str {
 }
 
 /// Trim the punctuation a cut leaves dangling.
+///
+/// A bracket at either end goes only when it is half of nothing. Series name
+/// the parts of a story `Marceline The Vampire Queen (1)`, and taking the
+/// closing parenthesis off that because it happened to be last left
+/// `… Queen (1`. What a cut does leave is the half it cut away from:
+/// `Title (` or `) Title`.
 pub(super) fn trim_junk(s: &str) -> String {
-    const JUNK: [char; 12] = ['-', '–', '.', ',', '(', ')', '[', ']', '{', '}', '_', ' '];
-    s.trim().trim_matches(JUNK).trim().to_string()
+    const JUNK: [char; 6] = ['-', '–', '.', ',', '_', ' '];
+    let mut s = s.trim().trim_matches(JUNK);
+    loop {
+        let before = s.len();
+        // A closer first or an opener last pairs with nothing by position.
+        if s.starts_with([')', ']', '}']) || s.starts_with(['(', '[', '{']) && !closes(s) {
+            s = s[1..].trim_start_matches(JUNK);
+        }
+        if s.ends_with(['(', '[', '{']) || s.ends_with([')', ']', '}']) && !opens(s) {
+            s = s[..s.len() - 1].trim_end_matches(JUNK);
+        }
+        if s.len() == before {
+            return s.to_string();
+        }
+    }
+}
+
+/// Whether the bracket `s` opens with is closed somewhere in it.
+fn closes(s: &str) -> bool {
+    let mut depth = 0i32;
+    for c in s.chars() {
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            _ => {}
+        }
+        if depth == 0 {
+            return true;
+        }
+    }
+    false
+}
+
+/// Whether the bracket `s` closes with was opened somewhere in it.
+fn opens(s: &str) -> bool {
+    let mut depth = 0i32;
+    for c in s.chars().rev() {
+        match c {
+            ')' | ']' | '}' => depth += 1,
+            '(' | '[' | '{' => depth -= 1,
+            _ => {}
+        }
+        if depth == 0 {
+            return true;
+        }
+    }
+    false
 }
 
 #[cfg(test)]
@@ -230,6 +281,28 @@ mod tests {
         assert_eq!(strip_extension("show.mkv"), "show");
         assert_eq!(strip_extension("Movie.2019.WEB-DL"), "Movie.2019.WEB-DL");
         assert_eq!(strip_extension(".hidden"), ".hidden");
+    }
+    #[test]
+    fn a_bracket_that_closes_a_pair_stays() {
+        assert_eq!(
+            trim_junk("Marceline The Vampire Queen (1)"),
+            "Marceline The Vampire Queen (1)"
+        );
+        assert_eq!(
+            trim_junk("The More You Moe (1) (2) -"),
+            "The More You Moe (1) (2)"
+        );
+        assert_eq!(
+            trim_junk("(Director's Cut) Title"),
+            "(Director's Cut) Title"
+        );
+    }
+    #[test]
+    fn a_bracket_cut_from_its_pair_goes() {
+        assert_eq!(trim_junk("Title (- "), "Title");
+        assert_eq!(trim_junk(") Title"), "Title");
+        assert_eq!(trim_junk("[1080p]"), "[1080p]");
+        assert_eq!(trim_junk("((Title)"), "(Title)");
     }
     #[test]
     fn paths_are_stripped() {
