@@ -336,9 +336,9 @@
       },
       "border": {
         "edgeBlur": 0.007,
-        "spread": 0.68,
+        "spread": 0.7,
         "falloff": 4.0,
-        "softness": 0.2,
+        "softness": 0.5,
         "grain": 64.0,
         "maxTaps": 256.0
       },

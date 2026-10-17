@@ -50,10 +50,10 @@ impl Default for BorderParams {
     fn default() -> Self {
         Self {
             edge_blur: 0.007,
-            spread: 0.68,
+            spread: 0.7,
             grain: 64.0,
             falloff: 4.0,
-            falloff_softness: 0.2,
+            falloff_softness: 0.5,
             max_taps: 256.0,
         }
     }
