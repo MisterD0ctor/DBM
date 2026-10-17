@@ -53,8 +53,9 @@ truthfully claim any of this.
   mechanism. Timing is the file's alone: the next file starts without it.
 - An episode's title sequence and its closing credits are each found once —
   from the file's chapters, or by listening for the stretch it shares with
-  the episode beside it — and where they were heard is kept in `intros.json`
-  and `outros.json`, for that episode and the one it was compared with.
+  another episode of its season — and where they were heard is kept in
+  `intros.json` and `outros.json`, for that episode and the one it was
+  compared with.
 - Subtitles can be fetched from OpenSubtitles for the film playing: a search
   by the file's own hash and by its name, in the interface's language and
   English, and a pick from the list. This is the **only** thing the player

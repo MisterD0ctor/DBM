@@ -9,16 +9,17 @@
 //! service has no chapters at all, and nothing says where its credits
 //! start.
 //!
-//! What every episode of a season does have is the same titles and the
-//! same music under its credits, so this listens to one end of the episode
-//! playing and of one beside it in the playlist, and takes the stretch of
-//! sound the two share — see `fingerprint`. That answers for both of them,
-//! and both answers are kept: watching a season through, every other
-//! episode has already been heard by the time it starts.
+//! What the episodes of a season do have is the same titles and the same
+//! music under their credits, so this listens to one end of the episode
+//! playing and of another of its season, and takes the stretch of sound
+//! the two share — see `fingerprint`. That answers for both of them, and
+//! both answers are kept: watching a season through, every other episode
+//! has already been heard by the time it starts.
 //!
 //! Like the subtitle sync, a run has a thread of its own and an ffmpeg per
 //! file behind it, and the player goes on playing while it listens.
 
+use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
 use std::process::Stdio;
@@ -30,11 +31,30 @@ use crate::library::fingerprint::{self, Print};
 use crate::library::naming::{self, Media};
 use crate::worker::{Completion, Reporter};
 
-/// How many episodes beside this one are tried before it is taken to have
-/// nothing to find. More than one because a season has its odd episode — a
-/// special, a finale that opens cold and never stops for the titles, or
-/// ends on a song of its own.
-const TRIES: usize = 2;
+/// How many episodes of the season are tried before this one is taken to
+/// have nothing to find.
+///
+/// A season has its odd episodes — a special, a finale that opens cold and
+/// never stops for the titles, one that ends on a song of its own — and a
+/// show made in eleven-minute halves has a great many: only the first half
+/// of each broadcast carried the titles, so every other episode has none.
+/// Two tries, the episodes either side, found nothing for an episode between
+/// two such, which in that show was nearly all of them.
+const TRIES: usize = 4;
+/// How far either side of where an episode is already known to hold its
+/// sequence it is listened to, in seconds, when it is the one compared with.
+/// Only that much of it is needed, and the rest only offers the comparison
+/// something else to agree on.
+const AROUND: f64 = 5.0;
+/// The shortest title sequence, in seconds. A network's ident or a
+/// "previously on" spoken over the same sting is shorter, and so is
+/// anything it would be worth anybody's while to skip.
+const SHORTEST: f64 = 15.0;
+/// The shortest closing credits, in seconds. A short show's run under ten:
+/// one card and a few bars. That is short enough to be a cue that comes
+/// round in every episode, so credits this short have more to prove; see
+/// [`credits`].
+const SHORTEST_CREDITS: f64 = 8.0;
 /// A sequence found starting this close to the start of the file starts
 /// with it, in seconds: the first look has nothing before it to compare.
 const FROM_THE_TOP: f64 = 2.0;
@@ -44,6 +64,9 @@ const FROM_THE_TOP: f64 = 2.0;
 /// that is something else — a recurring cue, a "next time" sting — and the
 /// episode is not over when it plays.
 const NEAR_THE_END: f64 = 300.0;
+/// How near the end of a file what ends it has to end, in seconds: the few
+/// it takes to go dark.
+const AT_THE_END: f64 = 5.0;
 
 /// Which end of an episode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +87,14 @@ impl End {
         match self {
             End::Opening => 1200.0,
             End::Closing => 600.0,
+        }
+    }
+
+    /// The shortest stretch two episodes share that can be this end.
+    fn shortest(self) -> f64 {
+        match self {
+            End::Opening => SHORTEST,
+            End::Closing => SHORTEST_CREDITS,
         }
     }
 
@@ -92,7 +123,9 @@ pub type Span = (f64, f64);
 ///
 /// 1. Compared with the two episodes either side; titles and credits both
 ///    fifteen seconds or more.
-const HEARD: u32 = 1;
+/// 2. With up to four of the season, those known to hold the sequence
+///    first; credits from eight seconds, if they end an episode.
+const HEARD: u32 = 2;
 
 /// A run's answer: the file it listened to, which end of it, and what it
 /// found there.
@@ -109,13 +142,14 @@ fn current(generation: u64) -> bool {
     GENERATION.load(Ordering::SeqCst) == generation
 }
 
-/// The episodes worth comparing `path` with: others of the same show and
+/// The episodes `path` could be compared with: others of the same show and
 /// season in the playlist, nearest first, the one after before the one
 /// before. Empty for a film, which shares neither end with anything.
 ///
 /// The same season because a show's titles change between them, and
 /// nearest because they also change within one — a cast member gone, a
-/// second cut from the half-way point.
+/// second cut from the half-way point. Which of them are tried, and in what
+/// order, depends on what is already known of them; see [`worth_trying`].
 pub fn beside(path: &str, playlist: &[String]) -> Vec<String> {
     let Media::Episode { show, season, .. } = naming::parse(path) else {
         return Vec::new();
@@ -137,9 +171,39 @@ pub fn beside(path: &str, playlist: &[String]) -> Vec<String> {
         .map(|(at, other)| (at.abs_diff(here) * 2 + usize::from(at < here), other))
         .collect();
     near.sort();
-    near.into_iter()
+    near.into_iter().map(|(_, other)| other.clone()).collect()
+}
+
+/// Which of the episodes [`beside`] gave to compare with, in order, and what
+/// each was already heard to hold at this end.
+///
+/// Those known to hold a sequence go first. They have the season's usual
+/// one, and where it lies in them is known, so they are the likeliest
+/// matches and the cheapest to listen to. Then those not yet heard, and
+/// last those heard to hold none, which are only worth a try in case that
+/// was wrong. Nearest first within each.
+fn worth_trying<'a>(
+    beside: &'a [String],
+    known: &HashMap<String, Option<Span>>,
+) -> Vec<(&'a str, Option<Option<Span>>)> {
+    let mut ranked: Vec<(u8, usize, &str, Option<Option<Span>>)> = beside
+        .iter()
+        .enumerate()
+        .map(|(near, other)| {
+            let held = known.get(other).copied();
+            let rank = match held {
+                Some(Some(_)) => 0,
+                None => 1,
+                Some(None) => 2,
+            };
+            (rank, near, other.as_str(), held)
+        })
+        .collect();
+    ranked.sort_by_key(|&(rank, near, ..)| (rank, near));
+    ranked
+        .into_iter()
         .take(TRIES)
-        .map(|(_, other)| other.clone())
+        .map(|(_, _, other, held)| (other, held))
         .collect()
 }
 
@@ -187,8 +251,9 @@ fn find(
     generation: u64,
 ) -> Option<Option<Span>> {
     let heard = end.heard();
-    if let Some(known) = heard.load().remove(path) {
-        return Some(known);
+    let known = heard.load();
+    if let Some(found) = known.get(path) {
+        return Some(*found);
     }
     if beside.is_empty() || duration <= 0.0 {
         return None;
@@ -203,16 +268,32 @@ fn find(
     let ours = listen(&ffmpeg, Path::new(path), from(duration), reach, generation)?;
 
     let mut compared = false;
-    for other in beside {
-        // The other file's length is not known without asking, and its end
-        // cannot be found without it.
-        let theirs_from = match end {
-            End::Opening => Some(0.0),
-            End::Closing => length(&ffmpeg, Path::new(other)).map(from),
+    // A match shorter than a title sequence is held while the rest are
+    // tried, in case one shares more: credits that are a short cut of
+    // another episode's share only the cut, and an episode heard to hold
+    // only part of its credits offers only that part.
+    let mut short: Option<(Span, &str, Span)> = None;
+    for (other, held) in worth_trying(beside, &known) {
+        // Where in the other file to listen, and for how long: around what
+        // it is known to hold, or else the same end as this one's. Its
+        // length is not known without asking, and its end cannot be found
+        // without it.
+        let known = matches!(held, Some(Some(_)));
+        let (window, length_there) = match (held, end) {
+            (Some(Some((start, to))), _) => {
+                let at = (start - AROUND).max(0.0);
+                (Some((at, to + AROUND - at)), None)
+            }
+            (_, End::Opening) => (Some((0.0, reach)), None),
+            (_, End::Closing) => {
+                let length = length(&ffmpeg, Path::new(other));
+                (length.map(|l| (from(l), reach)), length)
+            }
         };
         // A file that will not decode is not an episode without titles.
-        let theirs = theirs_from
-            .and_then(|at| listen(&ffmpeg, Path::new(other), at, reach, generation).zip(Some(at)));
+        let theirs = window.and_then(|(at, long)| {
+            listen(&ffmpeg, Path::new(other), at, long, generation).zip(Some(at))
+        });
         let Some((theirs, theirs_from)) = theirs else {
             if !current(generation) {
                 return None;
@@ -220,20 +301,26 @@ fn find(
             continue;
         };
         compared = true;
-        let Some(shared) = fingerprint::shared(&ours, &theirs) else {
+        let Some(shared) = fingerprint::shared(&ours, &theirs, end.shortest()) else {
             continue;
         };
         let here = tidy(shared.first, from(duration));
         let there = tidy(shared.second, theirs_from);
-        if end == End::Closing && here.1 < duration - NEAR_THE_END {
+        if end == End::Closing && !credits(here, duration, there, length_there, known) {
             continue;
         }
-        heard.set(path, Some(here));
-        // The other half of the same answer. Not written over what that
-        // file was found to hold when it was the one playing.
-        if !heard.load().contains_key(other) {
-            heard.set(other, Some(there));
+        let lasts = |(start, to): Span| to - start;
+        if lasts(here) < SHORTEST {
+            if short.is_none_or(|(kept, ..)| lasts(here) > lasts(kept)) {
+                short = Some((here, other, there));
+            }
+            continue;
         }
+        keep(heard, path, here, other, there);
+        return Some(Some(here));
+    }
+    if let Some((here, other, there)) = short {
+        keep(heard, path, here, other, there);
         return Some(Some(here));
     }
     if !compared {
@@ -241,6 +328,41 @@ fn find(
     }
     heard.set(path, None);
     Some(None)
+}
+
+/// Remember where a stretch two files share lies in each: `here` in `path`,
+/// the one playing, and `there` in `other`.
+///
+/// The other half is not written over what that file was found to hold
+/// when it was the one playing — but over its having none, yes: this is
+/// what that run did not hear.
+fn keep(heard: &PathMap<Option<Span>>, path: &str, here: Span, other: &str, there: Span) {
+    heard.set(path, Some(here));
+    if !matches!(heard.load().get(other), Some(Some(_))) {
+        heard.set(other, Some(there));
+    }
+}
+
+/// Whether a stretch two episodes share near their ends is where this one's
+/// credits roll.
+///
+/// `here` and `there` are where it lies in each, `duration` how long this
+/// one is and `length_there` the other, where it was asked. One that stops
+/// well short of this episode's end is something else. One shorter than a
+/// title sequence has to be more plainly the credits as well: the very end
+/// of one of the two, or matched against what is already known to be the
+/// other's credits (`known`). Not necessarily of this one — where one
+/// episode's credits are a short cut of another's, they share only the
+/// short cut's length, and it ends the longer one's credits early.
+fn credits(here: Span, duration: f64, there: Span, length_there: Option<f64>, known: bool) -> bool {
+    if here.1 < duration - NEAR_THE_END {
+        return false;
+    }
+    if known || here.1 - here.0 >= SHORTEST {
+        return true;
+    }
+    let last = |(_, to): Span, length: f64| to >= length - AT_THE_END;
+    last(here, duration) || length_there.is_some_and(|length| last(there, length))
 }
 
 /// A stretch found in a recording that began `from` seconds into its file,
@@ -349,7 +471,7 @@ mod tests {
     }
 
     #[test]
-    fn the_episodes_either_side_are_the_ones_compared() {
+    fn the_nearest_episodes_come_first() {
         let season = list(&[
             "Show.S02E01.mkv",
             "Show.S02E02.mkv",
@@ -358,13 +480,80 @@ mod tests {
         ]);
         assert_eq!(
             beside("Show.S02E02.mkv", &season),
-            list(&["Show.S02E03.mkv", "Show.S02E01.mkv"])
+            list(&["Show.S02E03.mkv", "Show.S02E01.mkv", "Show.S02E04.mkv"])
         );
-        // The last has nothing after it, so the two before.
+        // The last has nothing after it, so those before, nearest first.
         assert_eq!(
             beside("Show.S02E04.mkv", &season),
-            list(&["Show.S02E03.mkv", "Show.S02E02.mkv"])
+            list(&["Show.S02E03.mkv", "Show.S02E02.mkv", "Show.S02E01.mkv"])
         );
+    }
+
+    #[test]
+    fn episodes_known_to_hold_the_titles_are_tried_first() {
+        // A show in eleven-minute halves: the titles on every other one.
+        let season: Vec<String> = (1..=9).map(|e| format!("Show.S07E{e:02}.mkv")).collect();
+        let near = beside("Show.S07E05.mkv", &season);
+        let mut known = HashMap::new();
+        known.insert("Show.S07E06.mkv".to_string(), None);
+        known.insert("Show.S07E04.mkv".to_string(), None);
+        known.insert("Show.S07E03.mkv".to_string(), Some((0.0, 25.0)));
+        known.insert("Show.S07E09.mkv".to_string(), Some((0.0, 25.0)));
+        let tried: Vec<&str> = worth_trying(&near, &known)
+            .into_iter()
+            .map(|(other, _)| other)
+            .collect();
+        // Both that hold them, nearest first; then the nearest not yet
+        // heard, the later of two as near. The two either side, heard to
+        // have none, are not reached.
+        assert_eq!(
+            tried,
+            [
+                "Show.S07E03.mkv",
+                "Show.S07E09.mkv",
+                "Show.S07E07.mkv",
+                "Show.S07E08.mkv"
+            ]
+        );
+    }
+
+    #[test]
+    fn short_credits_have_to_end_one_of_the_two() {
+        // Ten seconds of music that stops a second before this file does.
+        assert!(credits(
+            (675.4, 684.8),
+            686.0,
+            (658.0, 667.4),
+            Some(690.0),
+            false
+        ));
+        // Or before the other does: here it is the start of longer credits.
+        assert!(credits(
+            (649.9, 659.3),
+            669.2,
+            (673.3, 682.8),
+            Some(683.3),
+            false
+        ));
+        // The same ten seconds a minute short of both is a cue.
+        assert!(!credits(
+            (615.4, 624.8),
+            686.0,
+            (598.0, 607.4),
+            Some(669.2),
+            false
+        ));
+        // Unless what it matched is known to be the other's credits.
+        assert!(credits((649.9, 659.3), 669.2, (673.3, 682.8), None, true));
+        // Never far from the end, known or not.
+        assert!(!credits((100.0, 110.0), 686.0, (673.3, 682.8), None, true));
+    }
+
+    #[test]
+    fn credits_as_long_as_titles_may_be_followed_by_more() {
+        let far = (0.0, 0.0);
+        assert!(credits((2547.9, 2582.3), 2700.0, far, None, false));
+        assert!(!credits((1000.0, 1040.0), 2700.0, far, None, false));
     }
 
     #[test]

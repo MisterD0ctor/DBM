@@ -48,10 +48,6 @@ const NEAR: u32 = 9;
 /// earns it. At 1 a stretch survives being wrong as often as right, which
 /// is far more than the same sound ever is and far less than chance.
 const MISS: i32 = 1;
-/// The shortest stretch worth calling a sequence, in seconds. A network's
-/// ident or a "previously on" spoken over the same sting is shorter, and
-/// so is anything it would be worth anybody's while to skip.
-const SHORTEST: f64 = 15.0;
 /// The longest, in seconds. Two files that agree for longer than any title
 /// sequence runs are the same episode twice.
 const LONGEST: f64 = 300.0;
@@ -111,8 +107,10 @@ pub struct Shared {
     pub second: (f64, f64),
 }
 
-/// The longest stretch of the same sound in both, if there is one long and
-/// solid enough to be a title sequence.
+/// The longest stretch of the same sound in both, if there is one solid
+/// enough to believe and at least `shortest` seconds long — which is for the
+/// caller to say, since a title sequence and the music under a short show's
+/// credits are not the same length.
 ///
 /// Every way of laying one recording over the other is tried: the sequence
 /// follows a cold open of any length in either, so it can be anywhere in
@@ -120,17 +118,17 @@ pub struct Shared {
 /// for every one that does not, and never falls below nothing — so it
 /// starts over after anything that is not the same sound, and rides through
 /// the odd look an encoder smeared.
-pub fn shared(first: &Print, second: &Print) -> Option<Shared> {
+pub fn shared(first: &Print, second: &Print, shortest: f64) -> Option<Shared> {
     let (a, b) = (first, second);
-    let shortest = (SHORTEST * PER_SECOND) as usize;
-    if a.looks.len() < shortest || b.looks.len() < shortest {
+    let least = (shortest * PER_SECOND) as usize;
+    if a.looks.len() < least || b.looks.len() < least {
         return None;
     }
     // (score, where it starts in `a`, where it peaks in `a`, how far along
     // `b` is ahead of `a`)
     let mut best: (i32, usize, usize, isize) = (0, 0, 0, 0);
-    let lead = b.looks.len() as isize - shortest as isize;
-    let lag = a.looks.len() as isize - shortest as isize;
+    let lead = b.looks.len() as isize - least as isize;
+    let lag = a.looks.len() as isize - least as isize;
     for ahead in -lag..=lead {
         let from = (-ahead).max(0) as usize;
         let until = a.looks.len().min((b.looks.len() as isize - ahead) as usize);
@@ -158,7 +156,7 @@ pub fn shared(first: &Print, second: &Print) -> Option<Shared> {
     let (score, start, peak, ahead) = best;
     let looks = peak + 1 - start.min(peak);
     let seconds = looks as f64 / PER_SECOND;
-    if score == 0 || seconds < SHORTEST || seconds > LONGEST {
+    if score == 0 || seconds < shortest || seconds > LONGEST {
         return None;
     }
     if f64::from(score) < SOLID * looks as f64 {
@@ -241,6 +239,13 @@ impl Spectrum {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A title sequence's shortest, as `titles` asks for it.
+    const TITLES: f64 = 15.0;
+
+    fn shared(first: &Print, second: &Print) -> Option<Shared> {
+        super::shared(first, second, TITLES)
+    }
 
     /// Noise that is the same every time it is asked for, and different for
     /// every seed: a small generator, so the tests carry no recordings.

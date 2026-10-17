@@ -1305,8 +1305,12 @@ episodes split at their act breaks usually are — the last chapter is the
 credits if it runs three minutes or less. A file without chapters, or with
 chapters that say nothing either way, has its credits heard instead, as its
 title sequence is — see *Skipping the titles* below: the last ten minutes of
-this episode and of the one beside it are compared, and the stretch of music
-they share is the credits, provided it ends within five minutes of the end.
+this episode and of another of its season are compared, and the stretch of
+music they share is the credits, provided it ends within five minutes of the
+end. A short show's credits can run under ten seconds, and from eight seconds
+up they count — but one shorter than a title sequence has to be the very end
+of one of the two episodes, or match what is already known to be the other's
+credits, because a cue that comes round every episode is that short too.
 A film never gets one. It needs somewhere to go: a later file, or at the
 end of a season the next season found beside it.
 
@@ -1337,13 +1341,18 @@ The sequence is a chapter named for it — *Opening*, *Intro*, *OP*, *Main
 Titles*, *Theme Song* — in the file's first half, to the next mark, and no
 longer than five minutes. A *Recap*, *Previously On* or *Cold Open* is the
 episode and is never skipped. Most files name nothing, and then the sequence
-is heard: the first twenty minutes of this episode and of the one beside it
-in the playlist — same show, same season — are compared, and the longest
-stretch of the same sound in both, fifteen seconds or more, is the titles in
-each. The closing credits are heard the same way from the other end. That
-takes a few seconds the first time and is kept for both; an
-episode that shares nothing with two neighbours has no sequence and is not
-asked again. The player says nothing either way: a sequence that was not
+is heard: the first twenty minutes of this episode and of another in the
+playlist — same show, same season — are compared, and the longest stretch of
+the same sound in both, fifteen seconds or more, is the titles in each. The
+closing credits are heard the same way from the other end. Up to four
+episodes are tried: first those already known to hold the sequence, nearest
+first, listening only to where it lies in them; then the nearest not yet
+heard. Not just the two either side, because a season has its odd ones, and
+a show made in eleven-minute halves has titles on only every other episode —
+compared with its neighbours alone, every episode between two without found
+nothing. That takes a few seconds the first time and is kept for both; an
+episode that shares nothing with any of the four has no sequence and is not
+asked again, until another found to share it says otherwise. The player says nothing either way: a sequence that was not
 found is a pill that does not appear.
 
 ### The way in
