@@ -53,7 +53,7 @@ pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
             let phase = tick % 40;
             let (w, h) = if phase < 20 {
                 let d = if phase < 10 { phase } else { 20 - phase };
-                (900 + d * 45, 700)
+                (960 + d * 45, 700)
             } else {
                 let p = phase - 20;
                 let d = if p < 10 { p } else { 20 - p };
@@ -76,7 +76,7 @@ pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
 ///
 /// Every width worth looking at is one the default is not: 1060, where the
 /// transport stops being centred rather than crowd the right pill, and the
-/// 900×480 floor. Neither can be photographed by hand on a compositor that
+/// 960×540 floor. Neither can be photographed by hand on a compositor that
 /// will not be told where to put a window.
 ///
 /// Repeated rather than fired once, because the size does not always take on
@@ -196,7 +196,7 @@ pub(super) fn scroll_test(ui: &MainWindow) -> slint::Timer {
                 // Short enough that the panel cannot hold both lists, which
                 // is the only state where the split does anything.
                 0 => {
-                    ui.window().set_size(slint::LogicalSize::new(1280.0, 520.0));
+                    ui.window().set_size(slint::LogicalSize::new(1280.0, 540.0));
                     ui.invoke_open_menu(true);
                 }
                 1 => report_lists(&ui, "tracks, short"),

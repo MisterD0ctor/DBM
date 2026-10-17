@@ -2222,13 +2222,16 @@ export component MainWindow inherits Window {
     title: "Death by MPV";
     preferred-width: 1280px;
     preferred-height: 720px;
-    // Narrower than this and the title would have next to nothing left: the
-    // transport gives way to the right pill below 1060px, and the title gives
-    // way to the transport, keeping about a hundred pixels here. The old build
-    // reflowed buttons into a second row, driven by measuring element widths;
-    // a floor costs one line and no moving parts.
-    min-width: 900px;
-    min-height: 480px;
+    // The floor: 960×540, the window's own 16:9 at three quarters of the size
+    // it opens at. It is the picture's, not the window's: the title bar is
+    // the window system's, and winit adds it on top of this rather than
+    // taking it out of it, so it is not counted here. Narrower than 900 the
+    // title had next to nothing left — the transport gives way to the right
+    // pill below 1060px, and the title gives way to the transport. The old
+    // build reflowed buttons into a second row, driven by measuring element
+    // widths; a floor costs one line and no moving parts.
+    min-width: 960px;
+    min-height: 540px;
     background: Paint.ground;
     default-font-family: Type.face;
     // The plain weight, for all the text that names no weight of its own.

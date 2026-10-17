@@ -516,10 +516,12 @@ arithmetic that sizes a page used to write 34, 30 and 38 out by hand, one
 literal per page, under a comment warning against exactly that. So is the
 12px a surface keeps from the next one — a panel above the timeline, the
 hover label on that line, the flash's caption under its ring, the seek
-preview clear of an open panel. One idea, one name. The window opens at 1280×720 and floors at
-900×480, below which the title would have next to no room left; it never
-reflows. The floor was once where the pills met, and it stayed put while the
-right pill grew twice, until at 900px the volume track lay over Play.
+preview clear of an open panel. One idea, one name. The window opens at
+1280×720 and floors at 960×540 — the same 16:9 at three quarters of the size,
+and the picture's own: the title bar comes on top of it. It never reflows.
+Below 900px the title would have next to no room left. The floor was once
+where the pills met, and it stayed put while the right pill grew twice, until
+at 900px the volume track lay over Play.
 
 ### Named Rules
 

@@ -305,8 +305,8 @@
       },
       {
         "name": "min-window",
-        "value": "900x480",
-        "purpose": "The floor, below which the title would have next to no room left. Enforced as the window's minimum size rather than by reflowing. It was once where the pills met, and stayed put while the right pill grew twice, until at 900px the volume track lay over Play."
+        "value": "960x540",
+        "purpose": "The floor: the window's own 16:9 at three quarters of the size it opens at, measured as the picture, with the title bar on top. Enforced as the window's minimum size rather than by reflowing. Below 900px the title would have next to no room left. It was once where the pills met, and stayed put while the right pill grew twice, until at 900px the volume track lay over Play."
       }
     ],
     "material": {

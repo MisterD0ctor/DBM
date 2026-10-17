@@ -55,7 +55,7 @@
 //!   list is every 20ms of the glide.
 //!   `current-hover` rests the pointer on the angle, for its circle.
 //! * `DBM_SHOWCASE=language-walk` opens the language page and walks the ring
-//!   down to its last row, which on a small window (`DBM_WINDOW=900x480`) is
+//!   down to its last row, which on a small window (`DBM_WINDOW=960x540`) is
 //!   past the bottom of what the panel shows, so the list has to follow it.
 //! * `DBM_SHOWCASE=drill` — flips the playlist between its list of parts and a
 //!   part's page on every tick, so a capture lands inside the 220ms move rather
@@ -68,7 +68,7 @@
 //!   of its own: it goes with any of the others, and it exists because the
 //!   layout has two widths worth looking at that the default is neither of —
 //!   1060, where the transport gives way leftwards rather than crowd the right
-//!   pill, and the 900×480 floor. Pair it with `DBM_CAPTURE`.
+//!   pill, and the 960×540 floor. Pair it with `DBM_CAPTURE`.
 //! * `DBM_FADE_TEST=1` — samples how the bar fades out when the chrome goes
 //!   idle. Nothing asks for frames once the interface is gone, so the question
 //!   is whether the animation still gets any.
