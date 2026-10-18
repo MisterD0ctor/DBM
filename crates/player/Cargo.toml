@@ -11,7 +11,7 @@ license = "GPL-3.0-or-later"
 repository = "https://github.com/MisterD0ctor/DBM"
 
 [dependencies]
-slint = { version = "1.17", features = ["raw-window-handle-06"] }
+slint = { version = "1.18", features = ["raw-window-handle-06"] }
 glow = "0.16"
 libloading = "0.8"
 raw-window-handle = "0.6"
@@ -40,7 +40,7 @@ resvg = { version = "0.47", default-features = false }
 # in, so a Flatpak with no host certificates reaches it the same as anything
 # else; on Windows the system's own TLS instead, below.
 ureq = { version = "2", default-features = false, features = ["tls", "json"] }
-slint = { version = "1.17", features = ["unstable-winit-030"] }
+slint = { version = "1.18", features = ["unstable-winit-030"] }
 # The media keys and the desktop's media widget, which here means MPRIS over
 # D-Bus - see `mpris`. Default features: that is the blocking API over
 # `async-io`, so nothing drags in an async runtime the rest of the player
