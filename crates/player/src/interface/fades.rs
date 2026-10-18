@@ -20,7 +20,7 @@ const BAND: f32 = 28.0;
 /// Most blur, at the list's very edge: a standard deviation in logical
 /// pixels. Enough that a row's words are a smear before they are gone, and
 /// small enough that they are still a row's worth of smear.
-const SIGMA: f32 = 4.0;
+const SIGMA: f32 = 2.0;
 
 /// Read the strips and the angles out of the interface, into `out` and
 /// `ways`.

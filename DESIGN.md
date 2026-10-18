@@ -993,7 +993,7 @@ thinning away at an edge left their shadows behind them as a dark smear.
 Where a scrolling list's rows run on past its top or bottom, they are not cut
 by a line: over the last 28px they blur and thin away into the panel's own
 glass. The blur is a Gaussian that grows from nothing at the strip's inner
-edge to a 4px deviation at the list's, and the rows fade on an eased curve
+edge to a 2px deviation at the list's, and the rows fade on an eased curve
 beside it, so neither end of the strip shows as an edge.
 
 An end with nothing past it is left sharp. The strip grows to its 28px over
