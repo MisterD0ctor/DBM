@@ -74,7 +74,7 @@ windows = { version = "0.61", features = [
 ] }
 
 [build-dependencies]
-slint-build = "1.17"
+slint-build = "1.18"
 
 # The executable's own icon and version block — see `build.rs`.
 [target.'cfg(windows)'.build-dependencies]

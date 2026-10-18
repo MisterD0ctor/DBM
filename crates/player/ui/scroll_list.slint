@@ -73,7 +73,7 @@ export component ScrollList inherits Rectangle {
     /// How far the list has been scrolled, as the negative offset Flickable
     /// keeps. Exposed so a test can confirm the wheel reaches it — there is
     /// otherwise nothing on screen a test can read.
-    out property <length> offset: flick.viewport-y;
+    out property <length> offset: flick.content-y;
 
     /// Where the list is and how far it is from each of its ends, for the
     /// soft edge drawn over them. Its own place in the window is asked of
@@ -101,9 +101,9 @@ export component ScrollList inherits Rectangle {
     /// How far the soft edge at each end has come on, 0..1: as far as the
     /// list has moved from that end, up to a strip's worth.
     property <float> top-soft: root.scrolls
-        ? clamp(-flick.viewport-y / Rows.fade, 0, 1) : 0;
+        ? clamp(-flick.content-y / Rows.fade, 0, 1) : 0;
     property <float> bottom-soft: root.scrolls
-        ? clamp((root.content-height - root.height + flick.viewport-y) / Rows.fade, 0, 1)
+        ? clamp((root.content-height - root.height + flick.content-y) / Rows.fade, 0, 1)
         : 0;
 
     clip: true;
@@ -125,9 +125,9 @@ export component ScrollList inherits Rectangle {
     /// How far in from each end the current row's nearer edge has come.
     /// The bottom is where the list will rest, as `scrolls` is, so a page
     /// mid-drill does not point at a row only the move is hiding.
-    property <length> current-in-top: root.current-top + root.current-h + flick.viewport-y;
+    property <length> current-in-top: root.current-top + root.current-h + flick.content-y;
     property <length> current-in-bottom:
-        root.rest-height - flick.viewport-y - root.current-top;
+        root.rest-height - flick.content-y - root.current-top;
     /// How much of the angle is on at each end, by those two.
     property <float> current-above: root.scrolls && root.current-h > 0
         ? 1 - clamp((root.current-in-top - root.way-fade-from)
@@ -145,7 +145,7 @@ export component ScrollList inherits Rectangle {
     ///
     /// Called when the keyboard moves rather than bound to anything: the
     /// pointer owns this list the rest of the time, and a binding on
-    /// `viewport-y` would take the flick and the wheel away from it. Scrolls
+    /// `content-y` would take the flick and the wheel away from it. Scrolls
     /// by the least that works, so arrowing down a long list walks the
     /// bottom edge instead of jumping the row to the middle.
     ///
@@ -155,10 +155,10 @@ export component ScrollList inherits Rectangle {
     /// ring standing in one would be on a row half gone — and the row after
     /// it, the one the next press goes to, could not be read at all.
     public function reveal(top: length, h: length) {
-        if (top - root.lead(h) < -flick.viewport-y) {
-            flick.viewport-y = min(0px, root.lead(h) - top);
-        } else if (top + h + root.lead(h) > -flick.viewport-y + root.height) {
-            flick.viewport-y = max(min(0px, root.height - root.content-height),
+        if (top - root.lead(h) < -flick.content-y) {
+            flick.content-y = min(0px, root.lead(h) - top);
+        } else if (top + h + root.lead(h) > -flick.content-y + root.height) {
+            flick.content-y = max(min(0px, root.height - root.content-height),
                 root.height - top - h - root.lead(h));
         }
     }
@@ -176,7 +176,7 @@ export component ScrollList inherits Rectangle {
     /// wrong for an arrival: the episode you are on belongs with the ones
     /// either side of it in view.
     public function centre(top: length, h: length) {
-        flick.viewport-y = root.centred(top, h);
+        flick.content-y = root.centred(top, h);
     }
 
     /// Where `centre` puts the list for a row.
@@ -186,7 +186,7 @@ export component ScrollList inherits Rectangle {
 
     /// Carry the list to an offset, eased, rather than putting it there.
     ///
-    /// A binding on `viewport-y` would take the list from the wheel and the
+    /// A binding on `content-y` would take the list from the wheel and the
     /// flick for good, so the list follows `glide-y` a step at a time in
     /// `changed`, and only while the glide has it: anything else found there
     /// means a hand took the list on the way, and the glide lets go.
@@ -197,15 +197,15 @@ export component ScrollList inherits Rectangle {
         // first had already left there — which is no change.
         if (Motion.glide == 0ms) {
             root.gliding = false;
-            flick.viewport-y = y;
+            flick.content-y = y;
             return;
         }
         // Put where the list is first, so it eases from there rather than
         // from wherever the last glide left it.
         root.glide-placing = true;
-        root.glide-y = flick.viewport-y;
+        root.glide-y = flick.content-y;
         root.glide-placing = false;
-        root.glided = flick.viewport-y;
+        root.glided = flick.content-y;
         root.gliding = true;
         root.glide-y = y;
     }
@@ -222,11 +222,11 @@ export component ScrollList inherits Rectangle {
         if (!root.gliding) {
             return;
         }
-        if (flick.viewport-y != root.glided) {
+        if (flick.content-y != root.glided) {
             root.gliding = false;
             return;
         }
-        flick.viewport-y = root.glide-y;
+        flick.content-y = root.glide-y;
         root.glided = root.glide-y;
     }
 
@@ -237,7 +237,7 @@ export component ScrollList inherits Rectangle {
     /// on; the shortcuts page has none, so its keys move the list itself.
     /// Home and End are the same call asked for more than there is.
     public function scroll-by(dy: length) {
-        flick.viewport-y = clamp(flick.viewport-y - dy,
+        flick.content-y = clamp(flick.content-y - dy,
             min(0px, root.height - root.content-height), 0px);
     }
 
@@ -273,8 +273,8 @@ export component ScrollList inherits Rectangle {
     flick := Flickable {
         width: 100%;
         height: 100%;
-        viewport-width: self.width;
-        viewport-height: root.content-height;
+        content-width: self.width;
+        content-height: root.content-height;
 
         VerticalLayout {
             // Rows keep their own height instead of being stretched to fill,
@@ -304,14 +304,14 @@ export component ScrollList inherits Rectangle {
     /// How far the thumb's top can travel down the rail.
     property <length> thumb-run: max(0px, root.rail-h - root.thumb-h);
     property <length> thumb-y:
-        root.thumb-run * (-flick.viewport-y / max(1px, root.reach));
+        root.thumb-run * (-flick.content-y / max(1px, root.reach));
     /// Where on the thumb the pointer took hold, measured from its top.
     property <length> held;
 
     /// Put the held point of the thumb at `y` on the rail, and the list where
     /// that leaves it.
     function drag(y: length) {
-        flick.viewport-y = -root.reach
+        flick.content-y = -root.reach
             * (clamp(y - root.held, 0px, root.thumb-run)
                 / max(1px, root.thumb-run));
     }
