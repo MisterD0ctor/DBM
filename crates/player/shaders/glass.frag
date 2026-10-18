@@ -401,7 +401,7 @@ vec2 sd_round_box_normal(vec2 p, vec2 half_size, float r) {
 // ---------------------------------------------------------------------------------------
 
 #define SUPERBOX_ITERS 2
-const float CORNER_SOFTNESS = 2.0; 
+const float CORNER_SOFTNESS = 1.5; 
 
 // One half of the corner curve, written as a graph over its second coordinate:
 //     c(t) = ( A (1 - t^M)^(1/N),  B t ),   0 <= t <= T
