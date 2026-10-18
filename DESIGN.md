@@ -1075,7 +1075,12 @@ doing in it.
 - **Row:** 40px; switch first, label after it at Body, 12px apart — the rows'
   own step, because a switch sits under a list as a setting *about* it, and at
   Strong the autoplay row out-inked the episodes it governs
-- **Shape:** 34×18 capsule, 14px knob inset 2px
+- **Shape:** 34×18 capsule, 14px knob inset 2px. Both are drawn from shapes
+  (`ui/shapes/`) rather than as rounded rectangles: the renderer lays a rounded
+  corner down as a few straight chords that touch the curve only where they
+  meet, and on a capsule one of those meetings is the middle of each end, so at
+  18px the ends came to a point. A picture is rendered at the size it is shown,
+  curve and all
 - **On:** track at Fill, knob at Knob; **off:** track at Rail, knob at Fill —
   dark on the lit track, light on the dark one, so the knob reads as a hole
   punched through it either way
