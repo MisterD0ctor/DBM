@@ -29,6 +29,17 @@ impl Driver {
         match completion {
             Completion::Lists(lists) => {
                 let mut moved = self.lists.apply(ui, &mut self.player, lists);
+                // What is saved for each entry, for choosing one on purpose.
+                self.app.arrival.learn(
+                    (0..self.player.playlist.len())
+                        .map(|row| {
+                            (
+                                self.player.playlist[row].filename.clone(),
+                                self.player.known_progress(row),
+                            )
+                        })
+                        .collect(),
+                );
                 // Here because this is where the playlist's paths become
                 // known. The scan compares them with the last request and
                 // does nothing when only the tracks moved.
@@ -59,6 +70,11 @@ impl Driver {
                     list.count, list.start
                 );
                 self.loading_list = true;
+                if list.ask {
+                    self.app
+                        .arrival
+                        .open_list(&self.app.mpv, list.first.clone(), list.saved);
+                }
                 commands::load_list(&self.app.mpv, &list.m3u, list.start);
                 false
             }

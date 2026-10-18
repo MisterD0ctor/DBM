@@ -591,7 +591,7 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                         eprintln!("dbm: credits: mpv refused chapters-file: {e}");
                     }
                     eprintln!("dbm: credits from {credits_at:.0}s of {duration:.0}s");
-                    ui.invoke_open_path(ui.get_current_path());
+                    ui.invoke_open_path(ui.get_current_path(), true);
                 }
                 6 => {
                     let duration = f64::from(ui.get_duration()).max(1.0);

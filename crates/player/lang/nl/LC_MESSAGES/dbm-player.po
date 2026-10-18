@@ -650,3 +650,11 @@ msgstr "Sneltoetsen in tooltips"
 msgctxt "WayToCurrent"
 msgid "Scroll to the current one"
 msgstr "Naar het huidige item scrollen"
+
+msgctxt "MainWindow"
+msgid "From the beginning"
+msgstr "Vanaf het begin"
+
+msgctxt "MainWindow"
+msgid "Continue from {}"
+msgstr "Verder vanaf {}"

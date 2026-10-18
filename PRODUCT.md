@@ -51,6 +51,15 @@ truthfully claim any of this.
 - Position, track selection and subtitle timing — the delay, and the speed a
   sync may have set — are remembered per file through mpv's own watch-later
   mechanism. Timing is the file's alone: the next file starts without it.
+- A file opened on purpose — a playlist row, previous and next, the way on at
+  a file's end, a file or folder opened — that was left part way is held,
+  paused on that place, with the choice of going on from it or starting from
+  the beginning. One watched to its end or within its last minute (or
+  twentieth), or left in its first minute, starts from the beginning without
+  asking. The way in's Continue and the media keys resume as they always did.
+  A file autoplay brings in starts from the beginning, and for its first ten
+  seconds the corner pill offers to continue from where it was left. See
+  `playback/arrival.rs`.
 - An episode's title sequence and its closing credits are each found once —
   from the file's chapters, or by listening for the stretch it shares with
   another episode of its season — and where they were heard is kept in

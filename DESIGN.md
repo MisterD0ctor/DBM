@@ -496,8 +496,9 @@ too, and the angle that points back to it. The hover label opens on that same
 line, 12px above the timeline; the seek preview floats 10px above it.
 
 **The middle of the picture** belongs to things that are about the film rather
-than controls for it: the action flash, the end-of-file pill, and — with no film
-loaded — the panel that offers a way in.
+than controls for it: the action flash, the end-of-file pill and the choice at
+the start of a file left part way, and — with no film loaded — the panel that
+offers a way in.
 
 **Every length is arithmetic on constants and the window width** — never a
 question asked of a layout. The glass rects are sampled once per frame to tell
@@ -1329,6 +1330,31 @@ skip the credits into the next episode, and only another episode of the same
 show can honour that; another film is an honest thing to offer over a file that
 has ended and a dishonest thing to cut a film's credits short for.
 
+**At the start of a file left part way it asks.** A file chosen on purpose —
+a playlist row, previous or next, the way on, a file or folder opened — that
+was left part way is held, paused on the frame where it was left, and the same
+pill asks which: *Continue from 12:34*, with the play glyph, and *From the
+beginning*, with Restart's. By its time, because that is what the choice is
+made by: the middle of something, or near its end. It is the same surface as
+the end-of-file pill — a file's start and its end are never at once — so it
+has the same glass, the same type and the same stop on the bar: it takes the
+ring as it comes up, and whatever panel the file was chosen from goes, so
+choosing an episode and going on with it from the keyboard is Enter, Enter.
+Space goes on, Home starts over, and so does playing or seeking by any other
+means. The corner pill stands down while it asks.
+
+Not every saved place is a question. A file watched to its end, or left in
+its last minute or its last twentieth — whichever is longer — starts over: its
+credits are nothing to go back to. One left in its first minute starts over
+too: that is a file opened and closed, and seconds are nothing to ask about.
+The way in's *Continue* has already said which, and resumes. So do the media
+keys, pressed by someone who may not be looking.
+
+Autoplay cannot ask — nobody may be watching, and a pause held for an answer
+would end the evening — so a file it brings in starts from the beginning, and
+the place passed over is offered in the corner instead; see *Going back to
+where you were*, under the credits pill.
+
 Restart alone was the least likely thing anyone wanted there. With two,
 each choice is a 40px capsule of its own, set 4px inside the pill (24 − 4 = 20,
 concentric) with its words still 18px from the pill's edge, 6px apart, each
@@ -1379,6 +1405,19 @@ ring, Enter. It lands on the first frame after the sequence, exactly, and goes
 three seconds before that — an offer that is over before it is read is noise.
 It needs nowhere to go, so the last episode of a season has it too; a film
 never does, for the reason it has no credits pill.
+
+**Going back to where you were.** The same pill again, for a file autoplay
+brought in from the beginning though it had been left part way: for its first
+ten seconds it says *Continue from 12:34*, with the play glyph, and pressing it
+goes there. Autoplay got there because the file before played to its end, so
+the person is watching in order and the saved place is from an earlier
+viewing; starting there with nobody at the controls is the worse mistake, but
+the earlier viewing may be exactly what they rewatched the last episode to get
+back to, and this keeps it one press away. It is offered from the file's first
+frame and over *Skip intro*, which usually starts the file too — going on from
+the place is past the sequence as well — and after ten seconds the sequence has
+the corner back. Ten seconds of the file, not of the clock: paused, the offer
+waits.
 
 The sequence is a chapter named for it — *Opening*, *Intro*, *OP*, *Main
 Titles*, *Theme Song* — in the file's first half, to the next mark, and no

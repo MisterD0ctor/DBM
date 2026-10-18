@@ -3,10 +3,12 @@
 //! `mpv` is the binding itself, the one place this program calls into
 //! libmpv's C API. Everything else here is built on it: the mirror of the
 //! properties the interface shows, the list-shaped ones read on demand, the
-//! commands the interface sends, resuming where a film was left, putting
+//! commands the interface sends, resuming where a film was left — and
+//! asking whether to, on arriving at one on purpose — putting
 //! audio back when its device returns, and turning a timeline drag into
 //! seeks mpv can keep up with.
 
+pub mod arrival;
 pub mod audio;
 pub mod commands;
 pub mod mpv;

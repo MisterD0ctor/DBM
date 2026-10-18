@@ -51,6 +51,7 @@ pub fn drain(
         if let Event::EndFile {
             failure: Some(reason),
             entry,
+            ..
         } = &event
         {
             // Which file it was is asked of the list, by the entry's id. The

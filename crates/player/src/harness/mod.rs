@@ -54,6 +54,16 @@
 //!   carry that row back to the middle and play nothing; it prints where the
 //!   list is every 20ms of the glide.
 //!   `current-hover` rests the pointer on the angle, for its circle.
+//! * `DBM_SHOWCASE=arrival` opens a file with a place saved in it, which is
+//!   held there with the choice of going on or starting over; `arrival-step`
+//!   gets there by the Next button instead, and `arrival-answer` then answers
+//!   from the beginning. Each prints what it sees. Seed the watch-later
+//!   entries in a scratch `APPDATA` first.
+//! * `DBM_SHOWCASE=autoplay` sends the file to its last seconds and lets
+//!   autoplay carry on into the next, which should start from the top with
+//!   its saved place offered in the corner for ten seconds; `autoplay-take`
+//!   takes the offer. Each prints what it sees. Seed the next file's
+//!   watch-later entry in a scratch `APPDATA` first.
 //! * `DBM_SHOWCASE=language-walk` opens the language page and walks the ring
 //!   down to its last row, which on a small window (`DBM_WINDOW=960x540`) is
 //!   past the bottom of what the panel shows, so the list has to follow it.

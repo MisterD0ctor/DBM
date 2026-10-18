@@ -108,6 +108,9 @@ pub struct PlayerState {
     /// a file that fails at once has no path reported for it yet, and its
     /// row may not have been read yet either.
     pub failed: std::collections::HashSet<i64>,
+    /// The entry that last played to its end, by mpv's id for it, for the
+    /// frame to take: what autoplay is moving on from — see `arrival`.
+    pub played_out: Option<i64>,
     pub track_count: i64,
     pub sid: Option<String>,
     pub aid: Option<String>,
@@ -152,6 +155,12 @@ impl PlayerState {
             Event::FileLoaded => {
                 self.tracks_generation = self.tracks_generation.wrapping_add(1);
                 self.loads = self.loads.wrapping_add(1);
+                true
+            }
+            Event::EndFile {
+                eof: true, entry, ..
+            } => {
+                self.played_out = Some(*entry);
                 true
             }
             Event::StartFile | Event::EndFile { .. } | Event::Seek | Event::PlaybackRestart => true,

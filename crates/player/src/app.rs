@@ -18,6 +18,7 @@ use crate::interface::chrome::Activity;
 use crate::interface::subline::Subline;
 use crate::library::opensubtitles::Hit;
 use crate::library::preview::Preview;
+use crate::playback::arrival::Arrival;
 use crate::playback::audio::Watchdog;
 use crate::playback::mpv::Mpv;
 use crate::playback::scrub::Scrubber;
@@ -52,4 +53,8 @@ pub struct App {
     /// What the last search on OpenSubtitles found, in the order its rows
     /// are drawn: the frame loop puts it here, a pressed row reads it back.
     pub found: Rc<std::cell::RefCell<Vec<Hit>>>,
+    /// Arriving at a file with a place saved in it: the callbacks ask for
+    /// files through it, the frame loop tells it what the playlist knows and
+    /// when a file has loaded.
+    pub arrival: Rc<Arrival>,
 }

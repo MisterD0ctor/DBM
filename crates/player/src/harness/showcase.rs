@@ -139,6 +139,50 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 arrow(&ui, slint::platform::Key::DownArrow);
             }
 
+            // Autoplay into a file with a place saved in it: the file before
+            // it is sent to its last seconds and left to play out. The next
+            // one should start from the top with the place offered in the
+            // corner for ten seconds; `autoplay-take` takes the offer. Seed
+            // the next file's watch-later entry first. Prints what happens.
+            if surface.starts_with("autoplay") {
+                if tick == 4 {
+                    ui.invoke_seek_fraction(0.995);
+                }
+                if surface == "autoplay-take" && tick == 26 {
+                    ui.invoke_take_resume_offer();
+                }
+                if tick.is_multiple_of(2) && (14..=60).contains(&tick) {
+                    eprintln!(
+                        "dbm: autoplay t{tick:<2} {} at {} offer={:?} corner={:?}",
+                        ui.get_media_title(),
+                        ui.get_elapsed(),
+                        ui.get_resume_offer(),
+                        ui.get_credits_label(),
+                    );
+                }
+            }
+
+            // Arriving at a file with a place saved in it, by the Next
+            // button: held there, and then answered from the beginning. Seed
+            // the next file's watch-later entry first. Prints what happens.
+            if surface.starts_with("arrival") {
+                if tick == 6 && surface != "arrival" {
+                    ui.invoke_playlist_step(1);
+                }
+                if tick == 12 && surface == "arrival-answer" {
+                    ui.invoke_arrival_answer(true);
+                }
+                if tick.is_multiple_of(2) && (6..=16).contains(&tick) {
+                    eprintln!(
+                        "dbm: arrival t{tick:<2} arriving={} from={:?} paused={} at {}",
+                        ui.get_arriving(),
+                        ui.get_arrival_from(),
+                        ui.get_paused(),
+                        ui.get_elapsed(),
+                    );
+                }
+            }
+
             if tick != 4 {
                 return;
             }

@@ -650,3 +650,11 @@ msgstr "Atajos en la ayuda emergente"
 msgctxt "WayToCurrent"
 msgid "Scroll to the current one"
 msgstr "Desplazarse hasta el actual"
+
+msgctxt "MainWindow"
+msgid "From the beginning"
+msgstr "Desde el principio"
+
+msgctxt "MainWindow"
+msgid "Continue from {}"
+msgstr "Continuar desde {}"

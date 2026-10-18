@@ -650,3 +650,11 @@ msgstr "Tastenkürzel in Tooltips"
 msgctxt "WayToCurrent"
 msgid "Scroll to the current one"
 msgstr "Zum aktuellen Eintrag scrollen"
+
+msgctxt "MainWindow"
+msgid "From the beginning"
+msgstr "Von vorne"
+
+msgctxt "MainWindow"
+msgid "Continue from {}"
+msgstr "Fortsetzen ab {}"

@@ -525,8 +525,23 @@ export component MainWindow inherits Window {
     callback open-file();
     callback open-folder();
     /// A path to open, however it was arrived at. The dialog answers here,
-    /// and a future drag-and-drop would too.
-    callback open-path(string);
+    /// and a future drag-and-drop would too. The flag is whether arriving
+    /// at a file with a place saved in it asks which — see `arriving` —
+    /// which it does unless the opening already said: Continue.
+    callback open-path(string, bool);
+    /// The file just asked for was left part way, and is held paused on
+    /// that place until the centre pill is answered: on from there, or from
+    /// the beginning. Set by the Rust side — see `playback::arrival`.
+    in property <bool> arriving;
+    /// Where it was left, as the timeline writes a time.
+    in property <string> arrival-from;
+    /// The answer: true for from the beginning.
+    callback arrival-answer(bool);
+    /// Where a file autoplay started from the beginning had been left, as
+    /// the timeline writes a time, for its first ten seconds; empty
+    /// otherwise. The corner pill offers to go on from there.
+    in property <string> resume-offer;
+    callback take-resume-offer();
     /// Track id, or -1 to turn subtitles off.
     callback select-subtitle(int);
     callback select-audio(int);
@@ -726,7 +741,23 @@ export component MainWindow inherits Window {
                 root.bar-focus = 13;
                 Chrome.focus-visible = true;
             }
-        } else if (root.bar-focus >= 13 && !root.corner-offered) {
+        } else if (root.bar-focus >= 13 && !root.corner-offered && !root.arriving) {
+            Chrome.focus-visible = false;
+            root.bar-focus = 0;
+        }
+    }
+
+    // A file held on its saved place is a question, and the answer is in
+    // the middle of the picture: whatever panel the file was chosen from
+    // goes, and the ring goes to the pill, so the whole of choosing an
+    // episode and going on with it from the keyboard is Enter, Enter.
+    changed arriving => {
+        if (root.arriving) {
+            Chrome.bump();
+            root.close-others();
+            root.bar-focus = 13;
+            Chrome.focus-visible = true;
+        } else if (root.bar-focus >= 13 && !root.corner-offered && !root.at-end) {
             Chrome.focus-visible = false;
             root.bar-focus = 0;
         }
@@ -749,7 +780,7 @@ export component MainWindow inherits Window {
             Chrome.bump();
             root.bar-focus = 13;
             Chrome.focus-visible = true;
-        } else if (root.bar-focus >= 13 && !root.at-end) {
+        } else if (root.bar-focus >= 13 && !root.centre-up) {
             // At the end the end pill takes the same stop, and its first
             // choice is the same way on, so the ring stays for it.
             Chrome.focus-visible = false;
@@ -782,7 +813,11 @@ export component MainWindow inherits Window {
     property <float> settings-shown: root.settings-open ? 1.0 : 0.0;
     property <float> files-shown: root.files-open ? 1.0 : 0.0;
     property <float> preview-shown: root.preview-open ? 1.0 : 0.0;
-    property <float> end-shown: root.at-end && root.has-file ? 1.0 : 0.0;
+    property <float> end-shown: root.centre-up ? 1.0 : 0.0;
+    /// The centre pill is up: at the end of a file, or at the start of one
+    /// held on its saved place. Never both — one is a file's end and the
+    /// other its beginning — so it is one surface, one glass, one stop.
+    property <bool> centre-up: (root.at-end || root.arriving) && root.has-file;
     /// Stands aside for an open panel, and for the seek preview when the two
     /// would meet: glass is never laid on glass.
     property <float> credits-shown: root.corner-offered && !root.panel-open
@@ -1043,7 +1078,7 @@ export component MainWindow inherits Window {
     /// Restart on its own was the least wanted offer of all. The dialog opens
     /// on the shelf above the file's folder, which for a film is where the
     /// next one is.
-    property <bool> end-two: root.at-last;
+    property <bool> end-two: root.at-last || root.arriving;
     /// With two choices each is a capsule of its own, set in by the padding a
     /// bar button gets and concentric with the pill for the same reason: 24px
     /// outside, a 4px gap, 20px inside.
@@ -1085,8 +1120,15 @@ export component MainWindow inherits Window {
     /// stop at the end of a season, as if the player only knew what came next
     /// when there was nothing left in the list. The bare word is what is left
     /// when the list cannot say.
-    property <string> end-label: root.at-last ? @tr("Restart")
+    property <string> end-label: root.arriving ? @tr("From the beginning")
+        : root.at-last ? @tr("Restart")
         : root.next-label != "" ? root.next-label : @tr("Next");
+    /// What the first of two choices says: the way on, or, held on a saved
+    /// place, going on from it. By its time, because that is the thing to
+    /// decide by — whether it was the middle of something or near its end.
+    property <string> end-first-label: root.arriving
+        ? @tr("Continue from {}", root.arrival-from)
+        : root.end-onward-label;
 
     // --- the credits pill ---
     //
@@ -1102,41 +1144,61 @@ export component MainWindow inherits Window {
     /// one when this is the last.
     property <bool> credits-onward: !root.at-last || root.onward-season;
     property <bool> credits-offered: root.credits-rolling && root.has-file
-        && !root.at-end && root.credits-onward && root.fatal == "";
+        && !root.at-end && !root.arriving && root.credits-onward && root.fatal == "";
     /// The same pill at the other end of an episode: while its title
     /// sequence plays, the offer is to be past it. Same corner, same
     /// capsule, for the same reason — a sequence is something people watch,
     /// and the offer keeps out of its way. It needs nowhere to go but
     /// further into the file it is in.
     property <bool> intro-offered: root.intro-rolling && root.has-file
-        && !root.at-end && root.fatal == "";
-    /// Either. A title sequence is in an episode's first half and its
+        && !root.at-end && !root.arriving && root.fatal == "";
+    /// And at the very start of a file autoplay brought in from the top,
+    /// though it had been left part way: for its first ten seconds, the
+    /// offer is to go on from there instead. Autoplay cannot stop to ask,
+    /// and this is the asking it can do — see `playback::arrival`.
+    property <bool> resume-offered: root.resume-offer != "" && root.has-file
+        && !root.at-end && !root.arriving && root.fatal == "";
+    /// Any of them. A title sequence is in an episode's first half and its
     /// credits in the second, so they are never both; were a file to say
-    /// otherwise, the credits are the later word.
-    property <bool> corner-offered: root.credits-offered || root.intro-offered;
-    property <bool> corner-intro: root.intro-offered && !root.credits-offered;
-    /// Which of the two the pill is dressed as. Not `corner-intro` alone:
-    /// the offer ends the moment the pill is pressed and the pill takes
+    /// otherwise, the credits are the later word. The place autoplay passed
+    /// over is offered over the title sequence, which usually starts the
+    /// file too: going on from it is past the sequence as well, and it is
+    /// only offered for ten seconds before the sequence has the corner.
+    property <bool> corner-offered: root.credits-offered || root.intro-offered
+        || root.resume-offered;
+    /// Which: 0 the way on, 1 past the title sequence, 2 the place passed
+    /// over; -1 for none.
+    property <int> corner-offer: root.resume-offered ? 2
+        : root.credits-offered ? 0
+        : root.intro-offered ? 1
+        : -1;
+    property <bool> corner-intro: root.corner-offer == 1;
+    /// Which the pill is dressed as. Not `corner-offer` alone: the offer
+    /// ends the moment the pill is pressed and the pill takes
     /// `Motion.surface` to leave, and for that long it has to go on saying
     /// what it said — it used to turn into the name of the next episode on
-    /// its way out. So the last offer made is remembered until another is.
-    property <bool> corner-was-intro: false;
-    property <bool> corner-says-intro: root.corner-intro
-        || (!root.corner-offered && root.corner-was-intro);
-    changed corner-intro => {
-        if (root.corner-offered) {
-            root.corner-was-intro = root.corner-intro;
+    /// its way out. So the last offer made is remembered until another is,
+    /// and so is the place it named.
+    property <int> corner-was: 0;
+    property <int> corner-says: root.corner-offer >= 0 ? root.corner-offer : root.corner-was;
+    property <bool> corner-says-intro: root.corner-says == 1;
+    changed corner-offer => {
+        if (root.corner-offer >= 0) {
+            root.corner-was = root.corner-offer;
         }
     }
-    changed credits-offered => {
-        if (root.credits-offered) {
-            root.corner-was-intro = false;
+    property <string> resume-offer-said;
+    changed resume-offer => {
+        if (root.resume-offer != "") {
+            root.resume-offer-said = root.resume-offer;
         }
     }
     /// Named like the end pill's way on: the next file as its row says it,
     /// or at the end of a season the season after it. *Next episode* is what
     /// is left when neither can be said.
-    out property <string> credits-label: root.corner-says-intro ? @tr("Skip intro")
+    out property <string> credits-label: root.corner-says == 2
+        ? @tr("Continue from {}", root.resume-offer-said)
+        : root.corner-says-intro ? @tr("Skip intro")
         : !root.at-last && root.next-label != "" ? root.next-label
         : root.at-last && root.onward-path != "" ? root.onward-label
         : @tr("Next episode");
@@ -2331,7 +2393,7 @@ export component MainWindow inherits Window {
         if (!root.has-file && root.fatal == "") {
             if (root.focus-row < root.invite-first) {
                 if (!root.opening) {
-                    root.open-path(root.resume-path);
+                    root.open-path(root.resume-path, false);
                 }
             } else if (root.focus-row < root.invite-first + 2) {
                 root.request-open(root.focus-row == root.invite-first + 1);
@@ -2847,8 +2909,11 @@ export component MainWindow inherits Window {
     function on-playback(text: string) -> bool {
         if (text == " ") {
             // Same reasoning as the play button: at the end of a file there
-            // is nothing to un-pause.
-            if (root.at-end) {
+            // is nothing to un-pause. Held on a saved place, playing is
+            // going on from it.
+            if (root.arriving) {
+                root.arrival-answer(false);
+            } else if (root.at-end) {
                 root.replay();
             } else {
                 root.toggle-pause();
@@ -2860,6 +2925,10 @@ export component MainWindow inherits Window {
         // `on-read` in the one that is scrolled — and on a page that has no
         // use for it, doing nothing is the answer. A film thrown back to
         // 0:00 by a key pressed at a panel is nobody's press.
+        if (text == Key.Home && !root.panel-open && root.arriving) {
+            root.arrival-answer(true);
+            return true;
+        }
         if (text == Key.Home && !root.panel-open) {
             root.restart();
             Flash.show(Flash.restart, 0.5);
@@ -3090,7 +3159,9 @@ export component MainWindow inherits Window {
     /// The end pill's choices, from the keyboard. With two, the first is the
     /// way on and the second is Restart.
     function end-activate(choice: int) {
-        if (!root.end-two) {
+        if (root.arriving) {
+            root.arrival-answer(choice == 1);
+        } else if (!root.end-two) {
             root.play-next();
         } else if (choice == 0) {
             root.end-onward();
@@ -3102,7 +3173,9 @@ export component MainWindow inherits Window {
     /// On to the next episode: the next file, or the next season when this
     /// was the last of one. Or, from the title sequence, on to the episode.
     function credits-activate() {
-        if (root.corner-intro) {
+        if (root.corner-offer == 2) {
+            root.take-resume-offer();
+        } else if (root.corner-intro) {
             root.skip-intro(root.intro-end);
         } else if (!root.at-last) {
             root.play-next();
@@ -3114,7 +3187,7 @@ export component MainWindow inherits Window {
     function end-onward() {
         if (root.onward-path != "") {
             if (!root.opening) {
-                root.open-path(root.onward-path);
+                root.open-path(root.onward-path, true);
             }
         } else {
             root.request-open(true);
@@ -3140,7 +3213,7 @@ export component MainWindow inherits Window {
     /// Thirteen buttons, and the end pill's choices after them while it is
     /// up, or the credits pill's one. The two are never up together.
     property <int> bar-count: 13
-        + (root.at-end && root.has-file ? (root.end-two ? 2 : 1)
+        + (root.centre-up ? (root.end-two ? 2 : 1)
             : root.corner-offered ? 1 : 0);
     property <bool> bar-reach: root.has-file && !root.panel-open && root.fatal == "";
 
@@ -3213,7 +3286,7 @@ export component MainWindow inherits Window {
     /// the compiler, as the key handlers are.
     function bar-activate(index: int) {
         if (index >= 13) {
-            if (root.at-end) {
+            if (root.centre-up) {
                 root.end-activate(index - 13);
             } else {
                 root.credits-activate();
@@ -3444,7 +3517,7 @@ export component MainWindow inherits Window {
         if (entry.index >= 0) {
             root.play-index(entry.index);
         } else if (!root.opening) {
-            root.open-path(entry.path);
+            root.open-path(entry.path, true);
         }
     }
 
@@ -4919,7 +4992,7 @@ export component MainWindow inherits Window {
                 animate opacity { duration: Motion.surface; easing: ease-out; }
                 picked => {
                     if (!root.opening) {
-                        root.open-path(root.resume-path);
+                        root.open-path(root.resume-path, false);
                     }
                 }
             }
@@ -5110,10 +5183,11 @@ export component MainWindow inherits Window {
             pad: root.end-choice-pad;
             gap: root.end-gap;
             focused: root.bar-reach && root.bar-focus == 13;
-            icon: !root.end-two || root.onward-path != ""
+            icon: root.arriving ? @image-url("../../../public/icons/play.svg")
+                : !root.end-two || root.onward-path != ""
                 ? @image-url("../../../public/icons/step-forward.svg")
                 : @image-url("../../../public/icons/folder-open.svg");
-            label: root.end-two ? root.end-onward-label : root.end-label;
+            label: root.end-two ? root.end-first-label : root.end-label;
             picked => {
                 root.end-activate(0);
             }
@@ -5159,7 +5233,7 @@ export component MainWindow inherits Window {
     }
 
     end-measure := Text {
-        text: root.end-two ? root.end-onward-label : root.end-label;
+        text: root.end-two ? root.end-first-label : root.end-label;
         font-size: Type.prompt;
         font-weight: Type.weight-title;
         visible: false;
@@ -5193,12 +5267,12 @@ export component MainWindow inherits Window {
             height: parent.height;
             pad: root.pill-text-pad;
             gap: root.end-gap;
-            focused: root.bar-reach && root.bar-focus == 13 && !root.at-end;
+            focused: root.bar-reach && root.bar-focus == 13 && !root.centre-up;
             // Next's glyph for the next file, and Skip's for further into
             // this one. Not Forward's: that has its ten seconds drawn into
             // it, and this goes as far as the sequence runs.
-            icon: root.corner-says-intro
-                ? @image-url("../../../public/icons/skip.svg")
+            icon: root.corner-says == 2 ? @image-url("../../../public/icons/play.svg")
+                : root.corner-says-intro ? @image-url("../../../public/icons/skip.svg")
                 : @image-url("../../../public/icons/step-forward.svg");
             label: root.credits-label;
             picked => {

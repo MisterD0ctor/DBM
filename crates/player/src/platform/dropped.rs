@@ -158,7 +158,7 @@ fn open(path: String) {
         return;
     };
     eprintln!("dbm: dropped {path}");
-    let _ = weak.upgrade_in_event_loop(move |ui| ui.invoke_open_path(path.into()));
+    let _ = weak.upgrade_in_event_loop(move |ui| ui.invoke_open_path(path.into(), true));
 }
 
 // ---------------------------------------------------------------------------

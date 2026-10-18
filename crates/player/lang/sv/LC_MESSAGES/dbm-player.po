@@ -647,3 +647,11 @@ msgstr "Kortkommandon i verktygstips"
 msgctxt "WayToCurrent"
 msgid "Scroll to the current one"
 msgstr "Rulla till den aktuella"
+
+msgctxt "MainWindow"
+msgid "From the beginning"
+msgstr "Från början"
+
+msgctxt "MainWindow"
+msgid "Continue from {}"
+msgstr "Fortsätt från {}"

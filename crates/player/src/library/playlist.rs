@@ -11,6 +11,7 @@
 //! produces a plain list, and the caller decides what to do with it.
 
 use crate::lang::{fill, tr};
+use crate::playback::arrival::Saved;
 use std::cmp::Ordering;
 use std::fs;
 use std::io::{BufWriter, Write};
@@ -47,10 +48,22 @@ pub fn prepare(path: &Path) -> Result<Prepared, String> {
     let selection = resolve(path)?;
     let m3u = crate::paths::playlist_m3u();
     write_m3u(&selection.videos, &m3u)?;
+    // As mpv will be told it, which is what it will report and hash.
+    let first = selection
+        .videos
+        .get(selection.start)
+        .map(|video| video.display().to_string())
+        .unwrap_or_default();
+    let saved = crate::library::durations::of(std::slice::from_ref(&first))
+        .first()
+        .map_or(Saved::Nothing, Saved::of);
     Ok(Prepared {
         m3u,
         start: selection.start,
         count: selection.videos.len(),
+        first,
+        saved,
+        ask: true,
     })
 }
 
@@ -61,6 +74,12 @@ pub struct Prepared {
     /// Which entry to start on.
     pub start: usize,
     pub count: usize,
+    /// That entry's path, and what is saved for it — see `arrival`.
+    pub first: String,
+    pub saved: Saved,
+    /// Whether arriving at it with a place saved asks which. Not when the
+    /// opening already said: the way in's Continue.
+    pub ask: bool,
 }
 
 /// What to play, and where to start.

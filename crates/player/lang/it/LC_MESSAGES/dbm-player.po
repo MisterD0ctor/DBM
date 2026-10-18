@@ -650,3 +650,11 @@ msgstr "Scorciatoie nei suggerimenti"
 msgctxt "WayToCurrent"
 msgid "Scroll to the current one"
 msgstr "Scorri fino all’elemento attuale"
+
+msgctxt "MainWindow"
+msgid "From the beginning"
+msgstr "Dall’inizio"
+
+msgctxt "MainWindow"
+msgid "Continue from {}"
+msgstr "Riprendi da {}"

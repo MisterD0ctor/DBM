@@ -468,6 +468,42 @@ impl Driver {
         if moved {
             sync::push_scalars(ui, &self.player);
         }
+        // Autoplay moving on from a file that played to its end: the next
+        // one starts over, with its saved place offered for a while.
+        if let Some(entry) = self.player.played_out.take() {
+            let next = self
+                .player
+                .playlist
+                .iter()
+                .position(|e| e.id == entry)
+                .and_then(|row| self.player.playlist.get(row + 1))
+                .map(|e| e.filename.clone());
+            if let Some(next) = next {
+                self.app.arrival.played_out(&self.app.mpv, &next);
+            }
+        }
+        // A file held on its saved place, for the centre pill to ask about.
+        self.app.arrival.follow(
+            &self.app.mpv,
+            self.player.playlist_pos,
+            self.player.paused,
+            self.player.loads,
+            self.player.path.as_deref(),
+        );
+        let held = self.app.arrival.asking(
+            self.player.path.as_deref(),
+            self.player.time_pos,
+            self.player.paused,
+        );
+        ui.set_arriving(held.is_some());
+        if let Some(from) = held {
+            ui.set_arrival_from(format::time(from).into());
+        }
+        let offered = self
+            .app
+            .arrival
+            .offered(self.player.path.as_deref(), self.player.time_pos);
+        ui.set_resume_offer(offered.map(format::time).unwrap_or_default().into());
         // An open is over when mpv finishes opening a file — not when it has
         // one. This used to ask the second question, and with a film already
         // playing the answer was yes on the very next frame: "Opening …" over
@@ -486,9 +522,13 @@ impl Driver {
                 // The list exists now. Which entry plays was settled
                 // before it loaded — see `commands::load_list` — so all this
                 // has to do is make sure it is playing.
+                // Unless what loads is to be held on its saved place, or
+                // started over first: that is settled when it is in.
                 commands::REPLY_LOADLIST if self.loading_list => {
                     self.loading_list = false;
-                    commands::set_pause(&self.app.mpv, false);
+                    if !self.app.arrival.holding() {
+                        commands::set_pause(&self.app.mpv, false);
+                    }
                 }
                 _ => {}
             }

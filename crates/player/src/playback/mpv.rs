@@ -111,6 +111,10 @@ struct RawEventEndFile {
 /// `MPV_END_FILE_REASON_ERROR`. The other reasons — EOF, stop, quit, redirect
 /// — are ordinary endings and say nothing worth interrupting anyone about.
 const END_FILE_REASON_ERROR: c_int = 4;
+/// `MPV_END_FILE_REASON_EOF`: the file played to its end. With the window
+/// held open only at the end of the list, that is mpv moving on to the next
+/// one by itself — autoplay. Asked-for changes end a file with a stop.
+const END_FILE_REASON_EOF: c_int = 0;
 
 #[repr(C)]
 struct RawEventProperty {
@@ -155,6 +159,8 @@ pub enum Event {
     EndFile {
         failure: Option<String>,
         entry: i64,
+        /// Played to its end, rather than stopped or failed.
+        eof: bool,
     },
     Seek,
     PlaybackRestart,
@@ -479,6 +485,7 @@ impl Mpv {
                 Some(Event::EndFile {
                     failure,
                     entry: end.map_or(0, |end| end.playlist_entry_id),
+                    eof: end.is_some_and(|end| end.reason == END_FILE_REASON_EOF),
                 })
             }
             EVENT_SEEK => Some(Event::Seek),

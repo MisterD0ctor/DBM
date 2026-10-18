@@ -651,3 +651,11 @@ msgstr "Atalhos nas dicas"
 msgctxt "WayToCurrent"
 msgid "Scroll to the current one"
 msgstr "Rolar até o atual"
+
+msgctxt "MainWindow"
+msgid "From the beginning"
+msgstr "Desde o início"
+
+msgctxt "MainWindow"
+msgid "Continue from {}"
+msgstr "Continuar a partir de {}"

@@ -650,3 +650,11 @@ msgstr "Raccourcis dans les infobulles"
 msgctxt "WayToCurrent"
 msgid "Scroll to the current one"
 msgstr "Faire défiler jusqu’à l’élément actuel"
+
+msgctxt "MainWindow"
+msgid "From the beginning"
+msgstr "Depuis le début"
+
+msgctxt "MainWindow"
+msgid "Continue from {}"
+msgstr "Reprendre à {}"

@@ -24,7 +24,7 @@ pub(super) fn open_test(ui: &MainWindow, path: String) -> slint::Timer {
             match step {
                 0 => {
                     eprintln!("dbm: opening {path}");
-                    ui.invoke_open_path(path.as_str().into());
+                    ui.invoke_open_path(path.as_str().into(), true);
                     // Whether the interface goes on saying so. With a film
                     // already playing, the flag used to be cleared on the
                     // very next frame, because a file existed — so these

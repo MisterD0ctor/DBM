@@ -80,19 +80,51 @@ fn wire_transport(ui: &MainWindow, app: &App) {
     on!(ui, app, on_restart, |m| commands::restart(m));
     // What the end of a file offers: this one again, or the next one.
     on!(ui, app, on_replay, |m| commands::replay(m));
-    on!(ui, app, on_play_next, |m| commands::advance(m, 1));
+    // Every way of asking for another file on purpose goes through
+    // `arrival`, which holds one with a place saved in it for the choice.
+    {
+        let app = app.clone();
+        ui.on_play_next(move || {
+            app.activity.bump();
+            app.arrival.step(&app.mpv, 1, Some(true));
+        });
+    }
     on!(ui, app, on_nudge_volume, |m, d| commands::nudge_volume(
         m, d as f64
     ));
     on!(ui, app, on_set_volume, |m, v| commands::set_volume(
         m, v as f64
     ));
-    on!(ui, app, on_playlist_step, |m, d| commands::playlist_step(
-        m, d
-    ));
-    on!(ui, app, on_play_index, |m, i| commands::playlist_play(
-        m, i as i64
-    ));
+    {
+        let app = app.clone();
+        ui.on_playlist_step(move |delta| {
+            app.activity.bump();
+            app.arrival.step(&app.mpv, delta, None);
+        });
+    }
+    {
+        let app = app.clone();
+        ui.on_play_index(move |index| {
+            app.activity.bump();
+            app.arrival.play_index(&app.mpv, i64::from(index), None);
+        });
+    }
+    // The corner pill's offer, for a file autoplay started over.
+    {
+        let app = app.clone();
+        ui.on_take_resume_offer(move || {
+            app.activity.bump();
+            app.arrival.take_offer(&app.mpv);
+        });
+    }
+    // The centre pill's answer, for a file held on its saved place.
+    {
+        let app = app.clone();
+        ui.on_arrival_answer(move |from_the_start| {
+            app.activity.bump();
+            app.arrival.answer(&app.mpv, from_the_start);
+        });
+    }
 
     // Speed steps from the value the interface is showing, so the ladder is
     // decided here and mpv is only told where to land.
@@ -495,7 +527,7 @@ fn wire_opening(ui: &MainWindow, app: &App) {
     }
     {
         let (app, weak) = (app.clone(), ui.as_weak());
-        ui.on_open_path(move |path| {
+        ui.on_open_path(move |path, ask| {
             app.activity.bump();
             let path = std::path::PathBuf::from(path.as_str());
             // Say so before handing it over. Everything past this point is on
@@ -513,7 +545,8 @@ fn wire_opening(ui: &MainWindow, app: &App) {
             // Same job the command line goes through, scan and all.
             app.worker.submit(move |_mpv| {
                 Some(crate::worker::Completion::Opened(
-                    crate::library::playlist::prepare(&path),
+                    crate::library::playlist::prepare(&path)
+                        .map(|prepared| crate::library::playlist::Prepared { ask, ..prepared }),
                 ))
             });
         });
