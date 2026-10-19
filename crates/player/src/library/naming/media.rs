@@ -57,6 +57,11 @@ pub fn parse(path: &str) -> Media {
 /// container fills in the episode title, which is the one part someone
 /// actually typed. What arrives late then adds to the line rather than
 /// replacing it.
+///
+/// Where the name has a title of its own, the container's can only spell the
+/// same words better. A tag that says something else is not about this
+/// episode at all: a rip tags every episode on a disc `The Pacific Disc 1`,
+/// and the name's `Part One` is the one that says which it is.
 pub fn titled(path: &str, embedded: Option<&str>) -> String {
     match described(path, embedded) {
         (Some(show), rest) => format!("{show} · {rest}"),
@@ -88,15 +93,13 @@ pub fn described(path: &str, embedded: Option<&str>) -> (Option<String>, String)
             },
             Some(title),
         ) => {
-            let title = episode_title(title, episode);
+            let title = match (episode_title(title, episode), from_name) {
+                (Some(tag), Some(name)) if !same_words(&tag, &name) => Some(name),
+                (tag, name) => tag.or(name),
+            };
             (
                 Some(show),
-                episode_line(
-                    season,
-                    episode,
-                    episode_end,
-                    title.as_deref().or(from_name.as_deref()),
-                ),
+                episode_line(season, episode, episode_end, title.as_deref()),
             )
         }
         // A film's embedded title is the film's name, so it replaces rather
@@ -206,6 +209,19 @@ fn episode_title(embedded: &str, episode: u32) -> Option<String> {
     };
     let rest = trim_junk(&rest);
     (!rest.is_empty()).then_some(rest)
+}
+
+/// Whether two titles are the same words whatever their case and
+/// punctuation: `Somewhere She'd Like` and the `Somewhere Shed Like` a file
+/// name makes of it.
+fn same_words(a: &str, b: &str) -> bool {
+    let letters = |s: &str| {
+        s.chars()
+            .filter(|c| c.is_alphanumeric())
+            .flat_map(char::to_lowercase)
+            .collect::<String>()
+    };
+    letters(a) == letters(b)
 }
 
 fn episode_line(
@@ -754,6 +770,24 @@ mod tests {
         assert_eq!(
             titled(path, Some("some-tracker.org | Show.S01E02.The.Reckoning")),
             "Show \u{b7} S01E02 \u{b7} The Reckoning"
+        );
+    }
+    #[test]
+    fn a_title_tag_about_something_else_leaves_the_name_s_title() {
+        // Verbatim from a real folder, whose rip tagged every episode on a
+        // disc with the disc.
+        let path = "The Pacific (2010) - S01E01 - Part One (1080p BluRay x265 afm72).mp4";
+        assert_eq!(
+            titled(path, Some("The Pacific Disc 1")),
+            "The Pacific (2010) \u{b7} S01E01 \u{b7} Part One"
+        );
+    }
+    #[test]
+    fn a_title_tag_spells_the_name_s_title_better() {
+        let path = "Show.S02E03.Somewhere.Shed.Like.mkv";
+        assert_eq!(
+            titled(path, Some("Somewhere She'd Like")),
+            "Show \u{b7} S02E03 \u{b7} Somewhere She'd Like"
         );
     }
     #[test]
