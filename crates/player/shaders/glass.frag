@@ -87,6 +87,11 @@ uniform vec4 u_panel_style[MAX_PANELS];
 /// the same thing on every piece of glass — a small pane simply has a small
 /// rolled edge, which is also how real glass is made.
 uniform float u_bevel;
+/// How far the corners ease into the straight edges: the corner's curve runs
+/// this many radii along each, where 1 is a quarter of an ellipse and larger
+/// is squarer and smoother. See `sdg_superbox`, below, and `CORNER_SOFTNESS`
+/// in pipeline.rs, which the interface draws its highlights with too.
+uniform float u_corner_softness;
 /// Effective glass thickness for transmission, as a fraction of the bevel
 /// width above. How far the refracted ray descends before reaching the
 /// backdrop, and so how strongly the rim displaces what is behind it.
@@ -401,7 +406,6 @@ vec2 sd_round_box_normal(vec2 p, vec2 half_size, float r) {
 // ---------------------------------------------------------------------------------------
 
 #define SUPERBOX_ITERS 2
-const float CORNER_SOFTNESS = 1.5; 
 
 // One half of the corner curve, written as a graph over its second coordinate:
 //     c(t) = ( A (1 - t^M)^(1/N),  B t ),   0 <= t <= T
@@ -439,7 +443,7 @@ vec3 superbox_half(vec2 q, float A, float B, float N, float M, float T)
 
 vec3 sdg_superbox(vec2 p, vec2 wh, float r)
 {   
-    vec2 s = vec2(CORNER_SOFTNESS);
+    vec2 s = vec2(u_corner_softness);
     vec2 o = -1.5 * r * s * (pow(vec2(1.0) - pow(max(vec2(0.0), vec2(1.0) - wh.yx / (s * r)), vec2(2.0) * s), vec2(0.5) / s) - vec2(1.0));
 
     s = min(s, wh / r);

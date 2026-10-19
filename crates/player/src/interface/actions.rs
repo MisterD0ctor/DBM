@@ -14,11 +14,11 @@ use std::time::Duration;
 use slint::ComponentHandle;
 
 use crate::app::App;
-use crate::interface::sliders;
+use crate::interface::{sliders, squircle};
 use crate::platform::dialog;
 use crate::playback::commands;
 use crate::settings::{Before, Section, REGISTRY};
-use crate::{MainWindow, Motion, Tip};
+use crate::{MainWindow, Motion, Shapes, Tip};
 
 /// A click on the video is held this long so a double-click can cancel it.
 /// Without the delay, double-clicking to go fullscreen pauses and unpauses on
@@ -46,6 +46,7 @@ macro_rules! on {
 
 pub fn wire(ui: &MainWindow, app: &App) {
     push_constants(ui);
+    ui.global::<Shapes>().on_squircle(squircle::image);
     let undo: Undo = Rc::new(Cell::new(None));
 
     wire_transport(ui, app);

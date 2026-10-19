@@ -1,0 +1,38 @@
+// The glass's corner, for what Slint draws on the glass or in its place.
+
+/// Worked out on the Rust side — see `interface::squircle` — because the
+/// glass shader is where the corner is defined, and the two have to agree to
+/// the pixel.
+export global Shapes {
+    /// A `width` by `height` shape with the glass's corners of `radius`, in
+    /// white. `inset` is how far inside a glass surface it sits, so that it
+    /// keeps an even gap to that surface's edge round the corner.
+    pure callback squircle(width: length, height: length, radius: length, inset: length) -> image;
+}
+
+/// A box in one colour with the glass's corners.
+///
+/// For a highlight on the glass, or a fill where the glass is missing. A
+/// `border-radius` draws a circle's corner, which stands proud of the glass's:
+/// the glass eases out of its edges over several radii, and turns in further
+/// at the corner for it.
+///
+/// Circles stay `border-radius`: on a square box this corner is a circle drawn
+/// a little small and creased where its quarters meet.
+export component Squircle inherits Image {
+    /// The corner, as `border-radius` would take it.
+    in property <length> radius;
+    /// How far inside a glass surface this sits on every side, where it is
+    /// to follow that surface's corner rather than make its own.
+    in property <length> inset;
+    /// The colour it is drawn in. Animate this.
+    in property <color> fill;
+
+    width: 100%;
+    height: 100%;
+    source: Shapes.squircle(self.width, self.height, self.radius, self.inset);
+    image-fit: ImageFit.fill;
+    colorize: self.fill;
+    // A transparent colorize draws the image as it is, which is white.
+    visible: self.fill.alpha > 0;
+}

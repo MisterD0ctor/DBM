@@ -3,6 +3,7 @@
 
 import { Chrome, Tip } from "globals.slint";
 import { Motion, Paint, Type } from "theme.slint";
+import { Squircle } from "squircle.slint";
 
 export component IconButton inherits Rectangle {
     in property <image> icon;
@@ -188,19 +189,26 @@ export component EndChoice inherits Rectangle {
     /// Whether the keyboard is on this choice: it is part of the bar's Tab
     /// walk while the pill is up.
     in property <bool> focused;
+    /// How far in from the pill's glass it sits, so that its ends follow the
+    /// pill's: nothing where it fills the pill, the pill's padding where it
+    /// shares it with another.
+    in property <length> inset;
     private property <bool> ring: root.focused && Chrome.focus-visible;
     callback picked();
-
-    border-radius: self.height / 2;
-    background: root.ring ? Paint.wash-strong
-        : touch.has-hover ? Paint.wash-button
-        : transparent;
-    animate background { duration: Motion.highlight; easing: ease-out; }
 
     accessible-role: button;
     accessible-label: root.label;
     accessible-action-default => {
         root.picked();
+    }
+
+    Squircle {
+        radius: root.height / 2;
+        inset: root.inset;
+        fill: root.ring ? Paint.wash-strong
+            : touch.has-hover ? Paint.wash-button
+            : transparent;
+        animate fill { duration: Motion.highlight; easing: ease-out; }
     }
 
     HorizontalLayout {

@@ -696,6 +696,17 @@ end-of-file pill are true capsules (radius = half the height: 24px on 48px,
 56px. Every track, fill, measure and scroll thumb is a capsule too. The switch
 is a capsule with a circular knob inset 2px.
 
+The corners are the glass's own, and not a circle's: superelliptic, easing out
+of the straight edges over `CORNER_SOFTNESS` radii (in `gpu/pipeline.rs`) and
+turning in further at the diagonal for it. Everything drawn on the glass or
+in its place takes the same outline — a row's wash, the end and skip pills'
+highlights, the fill that stands in where there is no glass — through
+`Squircle`, which `interface::squircle` draws from the shader's own rule. A
+circle's corner at the same radius stands proud of the glass's: at a softness
+of 3.5, two pixels past each end of a 48px pill. Circles stay circles, and so do the thin capsules of
+tracks and fills, where the two differ by less than a pixel. The seek preview's
+thumbnail keeps a circle's corner too, since Slint clips only to that.
+
 There are no borders anywhere, and no hairlines. Where a state would
 conventionally be drawn as an outline — the keyboard's position — it is carried
 by a stronger wash instead.
@@ -704,7 +715,11 @@ by a stronger wash instead.
 
 **The Concentric Rule.** Inner radius = outer radius − the gap between them.
 Anything else pinches the curves together at 45° while still meeting cleanly on
-the axes, which is exactly the part the eye catches.
+the axes, which is exactly the part the eye catches. A superelliptic corner at
+the inner radius is not concentric with one at the outer, so a wash inside the
+glass is the glass's outline moved in by the gap (`Squircle`'s `inset`). At a
+softness of 3.5, a row corner of its own pinched the menu's 16px gap to 14.9 at
+the panel's corner; moved in, it held between 16 and 16.6.
 
 ## Components
 

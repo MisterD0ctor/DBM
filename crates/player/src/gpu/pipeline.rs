@@ -25,6 +25,16 @@ use glow::HasContext;
 use crate::gpu::gfx::{bind_texture, saved_draw_fbo, Program, ScreenQuad, Target};
 use crate::playback::mpv::RenderContext;
 
+/// How far the glass's corners ease into its straight edges: the corner's
+/// curve runs this many radii along each, where 1 is a quarter of an ellipse
+/// and anything larger squarer and smoother; see `sdg_superbox` in
+/// glass.frag.
+///
+/// Handed to the shader as `u_corner_softness` rather than written there,
+/// because the interface draws the same corner on its highlights
+/// (`interface::squircle`) and the two must not disagree.
+pub const CORNER_SOFTNESS: f64 = 1.5;
+
 /// Must match `MAX_PANELS` in glass.frag.
 ///
 /// More than the interface can put on screen at once. Of the fifteen surfaces
@@ -640,6 +650,8 @@ impl Pipeline {
             .set_vec4_array(gl, "u_panel_style[0]", &styles);
 
         self.prog_glass.set_f32(gl, "u_bevel", BEVEL);
+        self.prog_glass
+            .set_f32(gl, "u_corner_softness", CORNER_SOFTNESS as f32);
         self.prog_glass.set_f32(gl, "u_refract", g.refract);
         self.prog_glass.set_f32(gl, "u_ior", IOR);
         self.prog_glass.set_f32(gl, "u_aberration", g.aberration);

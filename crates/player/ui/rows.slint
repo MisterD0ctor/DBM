@@ -6,6 +6,7 @@
 import { Chrome } from "globals.slint";
 import { Motion, Paint, Rows, Type } from "theme.slint";
 import { StepButton } from "controls.slint";
+import { Squircle } from "squircle.slint";
 
 /// The mark on the row that is the current one — the subtitle track in use,
 /// the episode playing.
@@ -51,13 +52,17 @@ export component RowHighlight inherits Rectangle {
     // and so the first and last ones sit exactly `gap` from the panel edge —
     // the panel's padding being the same gap. That is the whole trick: no row
     // is a special case.
-    Rectangle {
+    //
+    // The glass's corner, and the panel's own moved in by the gap rather
+    // than one of the row's: that is what keeps the end rows concentric with
+    // a corner that is not a circle's.
+    Squircle {
         x: Rows.gap;
         width: parent.width - 2 * Rows.gap;
-        height: 100%;
-        border-radius: Rows.radius;
-        background: root.lit ? root.shade : transparent;
-        animate background { duration: Motion.highlight; easing: ease-out; }
+        radius: Rows.radius;
+        inset: Rows.gap;
+        fill: root.lit ? root.shade : transparent;
+        animate fill { duration: Motion.highlight; easing: ease-out; }
     }
 }
 

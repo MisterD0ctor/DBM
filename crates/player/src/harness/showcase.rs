@@ -48,6 +48,12 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 ),
                 // The volume track, whose label is a reading, not a name.
                 "tip-volume" => (ui.get_vol_cx(), ui.get_vol_cy()),
+                // The end pill, which sits in the middle of the window, under
+                // the pointer: its highlight against its glass.
+                "end-hover" => {
+                    let size = ui.window().size().to_logical(ui.window().scale_factor());
+                    (size.width / 2.0, size.height / 2.0)
+                }
                 // The angle at the top of a list turned away from the file
                 // playing, for the circle that comes up under the pointer.
                 "current-hover" => (
@@ -77,6 +83,12 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 } else {
                     -1
                 });
+            }
+
+            // Reaching the end puts the keyboard's ring on the pill; `end`
+            // takes it off again, for the pill as it is with nothing on it.
+            if surface == "end" && tick > 6 {
+                ui.global::<crate::Chrome>().set_focus_visible(false);
             }
 
             // The flash is a moment, not a surface: the only way to hold one
@@ -219,6 +231,9 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     ui.set_playlist_page(-1);
                 }
                 "files" => ui.invoke_open_files(true),
+                // Run to the end, with autoplay off, so the pill stays; `end`
+                // with the pointer away from it, to subtract.
+                "end" | "end-hover" => ui.invoke_seek_fraction(1.0),
                 // The three graphics failures all need a driver that does
                 // not work, which is not something a test can arrange. The
                 // wording is the part worth looking at anyway: it is the only

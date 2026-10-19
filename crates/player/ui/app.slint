@@ -18,10 +18,11 @@ import {
     PlaylistRow, ResumeRow, ShortcutRow, StepperRow, ToggleRow,
 } from "rows.slint";
 import { ScrollList } from "scroll_list.slint";
+import { Shapes, Squircle } from "squircle.slint";
 
 // What the Rust side reaches besides the window: the globals it drives and
 // the structs it fills in.
-export { Chrome, Flash, Tip, Motion, Paint, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem }
+export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem }
 
 export component MainWindow inherits Window {
     // The title bar and the task bar: 256px, since window managers scale
@@ -4839,11 +4840,16 @@ export component MainWindow inherits Window {
         // answer: a ground that is not glass, where there is no glass.
         // Everywhere else the material is real and a fill would cover it.
         property <bool> bare: root.fatal != "" || !root.backdrop;
-        background: self.bare ? Paint.wash-soft : transparent;
         border-radius: self.bare ? root.panel-radius : 0px;
         visible: root.invite-shown > root.shown-epsilon;
         opacity: root.invite-shown;
         clip: true;
+
+        // In the glass's own outline, which is the shape it stands in for.
+        Squircle {
+            radius: root.panel-radius;
+            fill: parent.bare ? Paint.wash-soft : transparent;
+        }
 
         // As on every panel: the padding is part of the surface, so a click
         // that misses a row must not reach the play/pause handler under it.
@@ -5180,6 +5186,7 @@ export component MainWindow inherits Window {
             y: root.end-inset;
             width: root.end-first-w;
             height: parent.height - 2 * root.end-inset;
+            inset: root.end-inset;
             pad: root.end-choice-pad;
             gap: root.end-gap;
             focused: root.bar-reach && root.bar-focus == 13;
@@ -5198,6 +5205,7 @@ export component MainWindow inherits Window {
             y: root.end-inset;
             width: root.end-second-w;
             height: parent.height - 2 * root.end-inset;
+            inset: root.end-inset;
             pad: root.end-choice-pad;
             gap: root.end-gap;
             focused: root.bar-reach && root.bar-focus == 14;
