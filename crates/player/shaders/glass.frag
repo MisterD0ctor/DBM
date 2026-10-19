@@ -657,10 +657,10 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     //    -box_normal * reflection_ratio * height * bevel / u_size;
     //vec3 reflected = base_at(uv + reflection_offset) * u_specular;
 
-    float rim = max(0.0, -mirror.y * (1.0 - mirror.x))
-              * max(0.0, 2.0 * abs(mirror3.y / mirror.x) - 1.0)
-              * 0.5 * (1.0 + cos(0.5 * 3.1459 * (rel.x / half_size.x - 0.25 * sign(box_normal.y))))
-              * u_rim;
+    float rim_strength = max(0.0, -mirror.y * (1.0 - mirror.x) * (1.0 - mirror.x))
+                         * u_rim;
+
+    float rim_color = max(0.0, (mirror3.y * mirror3.y) / (mirror.x * mirror.x));
 
     // Pointing up, the mirrored ray leaves the screen and finds nothing to
     // reflect, so the reflection fades out as it swings through horizontal —
@@ -669,7 +669,7 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     //vec3 specular = mix(reflected, vec3(1.0), rim) * (1.0 - smoothstep(-0.7, 0.0, mirror.y));
 
     // Fresnel decides how much of each the viewer gets.
-    return mix(refracted, vec3(1.0), rim * reflectance); // mix(refracted, specular, reflectance);
+    return mix(refracted, vec3(rim_color), rim_strength * reflectance);
 }
 
 void main() {
