@@ -227,6 +227,13 @@ pub struct Pipeline {
     prog_gauss: Program,
     /// Scratch for the horizontal half of the Gaussian.
     gauss_tmp: Target,
+    /// Glass over the interface rather than under it — see
+    /// [`Pipeline::glass_over`]: the region as Slint left it, its two blur
+    /// passes, and the region glassed.
+    over_base: Target,
+    over_tmp: Target,
+    over_blur: Target,
+    over_out: Target,
     panels: Vec<GlassPanel>,
     pub glass: GlassParams,
 
@@ -301,6 +308,10 @@ impl Pipeline {
             prog_gauss: Program::new(gl, vert, include_str!("../../shaders/blur_gauss.frag"))
                 .map_err(|e| format!("blur_gauss: {e}"))?,
             gauss_tmp: Target::new(),
+            over_base: Target::new(),
+            over_tmp: Target::new(),
+            over_blur: Target::new(),
+            over_out: Target::new(),
             panels: Vec::new(),
             glass: GlassParams::default(),
             timings: Default::default(),
@@ -592,14 +603,16 @@ impl Pipeline {
     /// smaller one shows its blocks under that magnification. It also makes
     /// a radius of 0 a true passthrough, which no downsampling chain can be.
     fn run_blur(&mut self, gl: &glow::Context) {
+        self.gauss(gl, &self.composite, &self.gauss_tmp, &self.blur_out);
+    }
+
+    /// The Gaussian of `run_blur` from `src` into `dst`, by way of `tmp`.
+    fn gauss(&self, gl: &glow::Context, src: &Target, tmp: &Target, dst: &Target) {
         let sigma = self.glass.blur_sigma.max(0.0);
         self.prog_gauss.bind(gl);
         self.prog_gauss.set_f32(gl, "u_sigma", sigma);
 
-        for (dir, src, dst) in [
-            ((1.0f32, 0.0f32), &self.composite, &self.gauss_tmp),
-            ((0.0, 1.0), &self.gauss_tmp, &self.blur_out),
-        ] {
+        for (dir, src, dst) in [((1.0f32, 0.0f32), src, tmp), ((0.0, 1.0), tmp, dst)] {
             let (sw, sh) = src.size();
             let scale = src.scale();
             self.prog_gauss.set_vec2(gl, "u_dir", dir.0, dir.1);
@@ -618,11 +631,38 @@ impl Pipeline {
 
     /// Composite the glass panels over the finished frame.
     fn run_glass(&mut self, gl: &glow::Context, w: u32, h: u32) {
+        let panels: &[GlassPanel] = if self.glass_enabled {
+            &self.panels
+        } else {
+            &[]
+        };
+        self.draw_glass(
+            gl,
+            (w, h),
+            &self.composite,
+            self.blur(),
+            panels,
+            &self.glassed,
+        );
+    }
+
+    /// The glass pass: `panels` over `base`, refracting `blur`, into `out`,
+    /// all of them `size` and the panels placed in it.
+    fn draw_glass(
+        &self,
+        gl: &glow::Context,
+        size: (u32, u32),
+        base: &Target,
+        blur: &Target,
+        panels: &[GlassPanel],
+        out: &Target,
+    ) {
         let g = self.glass;
         self.prog_glass.bind(gl);
-        self.prog_glass.set_vec2(gl, "u_size", w as f32, h as f32);
+        self.prog_glass
+            .set_vec2(gl, "u_size", size.0 as f32, size.1 as f32);
 
-        let (base_scale, blur_scale) = (self.composite.scale(), self.blur().scale());
+        let (base_scale, blur_scale) = (base.scale(), blur.scale());
         self.prog_glass
             .set_vec2(gl, "u_base_scale", base_scale.0, base_scale.1);
         self.prog_glass
@@ -630,14 +670,10 @@ impl Pipeline {
 
         // Uniform arrays are uploaded whole; unused slots are simply never
         // read, since the shader loop stops at `u_panel_count`.
-        let count = if self.glass_enabled {
-            self.panels.len().min(MAX_PANELS)
-        } else {
-            0
-        };
+        let count = panels.len().min(MAX_PANELS);
         let mut rects = [0.0f32; MAX_PANELS * 4];
         let mut styles = [0.0f32; MAX_PANELS * 4];
-        for (i, panel) in self.panels.iter().take(count).enumerate() {
+        for (i, panel) in panels.iter().take(count).enumerate() {
             rects[i * 4..i * 4 + 4].copy_from_slice(&panel.rect);
             styles[i * 4] = panel.radius;
             styles[i * 4 + 1] = panel.tint_alpha;
@@ -662,9 +698,145 @@ impl Pipeline {
         self.prog_glass.set_f32(gl, "u_absorb", g.absorb);
         self.prog_glass.set_f32(gl, "u_shadow", g.shadow);
 
-        bind_texture(gl, &self.prog_glass, "u_base", 0, self.composite.texture());
-        bind_texture(gl, &self.prog_glass, "u_blur", 1, self.blur().texture());
-        self.quad.draw_to(gl, &self.glassed);
+        bind_texture(gl, &self.prog_glass, "u_base", 0, base.texture());
+        bind_texture(gl, &self.prog_glass, "u_blur", 1, blur.texture());
+        self.quad.draw_to(gl, out);
+    }
+
+    /// Glass laid over the finished frame, interface and all, for a pane
+    /// that sits on what Slint drew rather than under it: the angle pointing
+    /// a list back to its current row (see `way`), over the rows going by.
+    ///
+    /// Each pane's surroundings are copied out of the window's framebuffer,
+    /// blurred and glassed exactly as the panes under the interface are, and
+    /// written back cut to `clip`, the panel it is in. A region is the pane
+    /// and enough round it for the blur, the rim and the shadow to read, so
+    /// it costs a few small draws. Physical pixels, from the window's
+    /// top-left, as `GlassPanel` takes them.
+    pub fn glass_over(
+        &mut self,
+        gl: &glow::Context,
+        window: (u32, u32),
+        panes: &[(GlassPanel, [i32; 4])],
+    ) {
+        if !self.glass_enabled || panes.is_empty() || window.0 == 0 || window.1 == 0 {
+            return;
+        }
+        let screen = saved_draw_fbo(gl);
+        let mut viewport = [0i32; 4];
+        unsafe { gl.get_parameter_i32_slice(glow::VIEWPORT, &mut viewport) };
+        for (pane, clip) in panes {
+            self.glass_one_over(gl, window, screen, pane, *clip);
+        }
+        // Slint starts the next frame from what it left.
+        unsafe {
+            gl.bind_framebuffer(glow::FRAMEBUFFER, screen);
+            gl.viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+            gl.active_texture(glow::TEXTURE0);
+            gl.bind_texture(glow::TEXTURE_2D, None);
+            gl.active_texture(glow::TEXTURE1);
+            gl.bind_texture(glow::TEXTURE_2D, None);
+            gl.active_texture(glow::TEXTURE0);
+            gl.use_program(None);
+        }
+    }
+
+    fn glass_one_over(
+        &mut self,
+        gl: &glow::Context,
+        window: (u32, u32),
+        screen: Option<glow::Framebuffer>,
+        pane: &GlassPanel,
+        clip: [i32; 4],
+    ) {
+        let (win_w, win_h) = (window.0 as i32, window.1 as i32);
+        // Three deviations of blur, and the shadow, which fades over the
+        // pane's radius and a few pixels more.
+        let margin = (3.0 * self.glass.blur_sigma.max(0.0) + pane.radius + 8.0).ceil() as i32;
+        let [x0, y0, x1, y1] = pane.rect;
+        let left = (x0.floor() as i32 - margin).max(0);
+        let top = (y0.floor() as i32 - margin).max(0);
+        let right = (x1.ceil() as i32 + margin).min(win_w);
+        let bottom = (y1.ceil() as i32 + margin).min(win_h);
+        let (width, height) = (right - left, bottom - top);
+        // What is written back: the region, inside the pane's panel.
+        let (w_left, w_top) = (left.max(clip[0]), top.max(clip[1]));
+        let (w_right, w_bottom) = (right.min(clip[2]), bottom.min(clip[3]));
+        if width <= 0 || height <= 0 || w_right <= w_left || w_bottom <= w_top {
+            return;
+        }
+        let size = (width as u32, height as u32);
+        for target in [
+            &mut self.over_base,
+            &mut self.over_tmp,
+            &mut self.over_blur,
+            &mut self.over_out,
+        ] {
+            if !target.ensure_size(gl, size.0, size.1) {
+                return;
+            }
+        }
+        let (Some(base_fbo), Some(out_fbo)) = (self.over_base.fbo(), self.over_out.fbo()) else {
+            return;
+        };
+
+        // Out of the window, turned top-down as the pipeline's own targets
+        // are: GL counts the window's rows up from its bottom.
+        unsafe {
+            gl.disable(glow::SCISSOR_TEST);
+            gl.bind_framebuffer(glow::READ_FRAMEBUFFER, screen);
+            gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER, Some(base_fbo));
+            gl.blit_framebuffer(
+                left,
+                win_h - bottom,
+                right,
+                win_h - top,
+                0,
+                height,
+                width,
+                0,
+                glow::COLOR_BUFFER_BIT,
+                glow::NEAREST,
+            );
+        }
+
+        self.gauss(gl, &self.over_base, &self.over_tmp, &self.over_blur);
+        let placed = GlassPanel {
+            rect: [
+                x0 - left as f32,
+                y0 - top as f32,
+                x1 - left as f32,
+                y1 - top as f32,
+            ],
+            ..*pane
+        };
+        self.draw_glass(
+            gl,
+            size,
+            &self.over_base,
+            &self.over_blur,
+            &[placed],
+            &self.over_out,
+        );
+
+        // And back, turned up again.
+        unsafe {
+            gl.bind_framebuffer(glow::READ_FRAMEBUFFER, Some(out_fbo));
+            gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER, screen);
+            gl.blit_framebuffer(
+                w_left - left,
+                w_top - top,
+                w_right - left,
+                w_bottom - top,
+                w_left,
+                win_h - w_top,
+                w_right,
+                win_h - w_bottom,
+                glow::COLOR_BUFFER_BIT,
+                glow::NEAREST,
+            );
+            gl.bind_framebuffer(glow::READ_FRAMEBUFFER, screen);
+        }
     }
 
     fn run_border(&mut self, gl: &glow::Context, w: u32, h: u32) {
@@ -717,6 +889,10 @@ impl Pipeline {
             &mut self.glassed,
             &mut self.gauss_tmp,
             &mut self.blur_out,
+            &mut self.over_base,
+            &mut self.over_tmp,
+            &mut self.over_blur,
+            &mut self.over_out,
         ] {
             target.release(gl);
         }

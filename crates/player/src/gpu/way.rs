@@ -15,6 +15,7 @@
 use glow::HasContext;
 
 use super::gfx::{bind_texture, saved_draw_fbo, Program, ScreenQuad};
+use super::pipeline::GlassPanel;
 
 const UP: &[u8] = include_bytes!("../../../../public/icons/angle-small-up.svg");
 const DOWN: &[u8] = include_bytes!("../../../../public/icons/angle-small-down.svg");
@@ -24,6 +25,12 @@ const ICON: f32 = 18.0;
 /// The circle's diameter, in logical pixels. Inside the row the angle stands
 /// level with, with a little of it to spare at either side.
 const CIRCLE: f32 = 28.0;
+
+/// Whether the angle stands on a disc of glass the size of its circle, laid
+/// over the rows going by rather than under them; see
+/// `Pipeline::glass_over`. An experiment: off, it is the angle alone, with
+/// its circle only under the pointer.
+pub const GLASS: bool = true;
 
 /// One angle, in physical pixels measured from the window's top-left.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -46,6 +53,26 @@ pub struct Way {
     pub wash: f32,
     pub rest: f32,
     pub bright: f32,
+}
+
+impl Way {
+    /// Its disc of glass, and the panel that cuts it; see [`GLASS`].
+    pub fn pane(&self) -> (GlassPanel, [i32; 4]) {
+        let radius = CIRCLE * self.scale / 2.0;
+        let pane = GlassPanel {
+            rect: [
+                self.x - radius,
+                self.y - radius,
+                self.x + radius,
+                self.y + radius,
+            ],
+            radius,
+            // Tinted, as every other piece of the interface's glass is.
+            tint_alpha: 1.0,
+            opacity: self.on.clamp(0.0, 1.0),
+        };
+        (pane, self.clip)
+    }
 }
 
 pub struct Ways {

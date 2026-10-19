@@ -198,9 +198,20 @@ impl Driver {
                             );
                         }
                         // ...then the angle pointing back to a list's current
-                        // row, whole over the edge it sits in. Its circle
-                        // eases in under the pointer, and nothing Slint draws
-                        // moves with it to ask for the frames.
+                        // row, whole over the edge it sits in, on its disc of
+                        // glass if it has one. Its circle eases in under the
+                        // pointer, and nothing Slint draws moves with it to
+                        // ask for the frames.
+                        if crate::gpu::way::GLASS {
+                            let panes: Vec<_> = self
+                                .ways
+                                .iter()
+                                .filter(|w| w.on > 0.004)
+                                .map(|w| w.pane())
+                                .collect();
+                            gpu.pipeline
+                                .glass_over(&gpu.gl, (size.width, size.height), &panes);
+                        }
                         if let Some(way) = gpu.way.as_mut() {
                             way.run(&gpu.gl, (size.width, size.height), &self.ways);
                             if self.ways.iter().any(|w| w.lit > 0.0 && w.lit < 1.0) {
