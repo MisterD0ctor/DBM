@@ -121,6 +121,9 @@ modules:
         done
       - install -Dm644 crates/player/icons/128x128@2x.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/${FLATPAK_ID}.png
       - install -Dm644 crates/player/icons/icon.png ${FLATPAK_DEST}/share/icons/hicolor/512x512/apps/${FLATPAK_ID}.png
+      # The one GNOME recolours to match the text around it, in notifications
+      # among other places, where without it the full icon is shown in grey.
+      - install -Dm644 crates/player/icons/symbolic.svg ${FLATPAK_DEST}/share/icons/hicolor/symbolic/apps/${FLATPAK_ID}-symbolic.svg
     sources:
       - type: dir
         path: ../..
