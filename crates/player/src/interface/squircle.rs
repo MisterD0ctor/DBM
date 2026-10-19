@@ -12,9 +12,9 @@
 //! That is how the switches are drawn, for the same reason: femtovg lays a
 //! curve of its own down as a few straight chords.
 //!
-//! Circles are left as circles. The rule below turns a square box with a
-//! radius of half its side into a circle drawn a little small and creased
-//! where the quarters meet, which is not what a round button is for.
+//! Circles are left as circles. On a square box with a radius of half its
+//! side the rule below draws a circle anyway, a few per cent small, and no
+//! round button sits on a glass circle it would have to match.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -100,9 +100,8 @@ fn outline(width: f64, height: f64, radius: f64, inset: f64) -> Vec<[f64; 2]> {
 /// The corner as `sdg_superbox` sets it up for a box of half size `half` and
 /// corner `radius`, about the box's centre.
 struct Corner {
-    /// Where the corner's curve is centred. Below zero on an axis where the
-    /// box is too short for the curve, which then meets its mirror image
-    /// there rather than a straight edge.
+    /// Where the corner's curve is centred: never below zero, since a box too
+    /// short for the full corner has it cut to fit.
     centre: [f64; 2],
     /// How far the curve runs from its centre along each axis.
     reach: [f64; 2],
@@ -110,26 +109,30 @@ struct Corner {
     power: [f64; 2],
 }
 
+/// How far a corner of softness `soft` has fallen below its edge, in radii,
+/// three quarters of a radius short of the other edge; `corner_drop` in
+/// glass.frag. Negative, and further the softer the corner.
+fn corner_drop(soft: f64) -> f64 {
+    soft * ((1.0 - (1.0 - 0.75 / soft).powf(2.0 * soft)).powf(0.5 / soft) - 1.0)
+}
+
 impl Corner {
-    /// Line for line `sdg_superbox`, the glass's own: a box shorter along
-    /// one axis than the corner reaches has that axis's exponent eased toward
-    /// an ellipse's, and is drawn in along the other, by more the shorter it
-    /// is.
+    /// Line for line `sdg_superbox`, the glass's own: each axis's softness is
+    /// cut to what the box can hold along it, and the box is drawn in along
+    /// the other axis by the difference the cut makes to how far the corner
+    /// has fallen, its corner there drawn as for a radius that much smaller.
     fn new(half: [f64; 2], radius: f64) -> Self {
-        let mut pull = [0.0; 2];
-        for (axis, pull) in pull.iter_mut().enumerate() {
-            let short = (1.0 - half[1 - axis] / (SOFTNESS * radius)).max(0.0);
-            *pull = -1.5
-                * radius
-                * SOFTNESS
-                * ((1.0 - short.powf(2.0 * SOFTNESS)).powf(0.5 / SOFTNESS) - 1.0);
-        }
-        let soft = half.map(|h| SOFTNESS.min(h / radius));
-        let reach = soft.map(|s| s * radius);
+        let fit = half.map(|h| SOFTNESS.min(h / radius));
+        let full = corner_drop(SOFTNESS);
+        let pull = [
+            radius * (corner_drop(fit[1]) - full),
+            radius * (corner_drop(fit[0]) - full),
+        ];
+        let reach = [fit[0] * (radius - pull[0]), fit[1] * (radius - pull[1])];
         Corner {
             centre: [half[0] - pull[0] - reach[0], half[1] - pull[1] - reach[1]],
             reach,
-            power: soft.map(|s| 2.0 * s),
+            power: fit.map(|s| 2.0 * s),
         }
     }
 
@@ -250,9 +253,8 @@ fn untangle(points: Vec<[f64; 2]>) -> Vec<[f64; 2]> {
     kept
 }
 
-/// Keep the quarter to its own quadrant. Where the box is too short for the
-/// full curve, the curve runs past the axis; its mirror image takes over
-/// exactly there.
+/// Keep the quarter to its own quadrant. The corner's centre is never below
+/// zero, so this only trims what rounding leaves a hair past an axis.
 fn clip(points: Vec<[f64; 2]>) -> Vec<[f64; 2]> {
     let mut out = Vec::with_capacity(points.len());
     let within = |p: [f64; 2]| p[0] >= 0.0 && p[1] >= 0.0;
@@ -313,8 +315,8 @@ mod tests {
 
     #[test]
     fn the_outline_is_the_glass_edge() {
-        // The skip pill, a menu panel, and a short pill whose curve meets its
-        // mirror image on the axis.
+        // The skip pill, a menu panel, and a pill short enough to have its
+        // corner cut to fit along both axes.
         for (w, h, r) in [
             (180.0, 48.0, 24.0),
             (380.0, 400.0, 32.0),

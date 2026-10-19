@@ -390,24 +390,27 @@ vec2 sd_round_box_normal(vec2 p, vec2 half_size, float r) {
 // ---------------------------------------------------------------------------------------
 // Signed distance + gradient for a box with superelliptic ("squircle") corners:
 //
-//   max(|x|/(sx r) - w/(sx r) + 1, 0)^(2 sx) + max(|y|/(sy r) - h/(sy r) + 1, 0)^(2 sy) = 1
+//   max((|x| - w)/a + 1, 0)^(2 sx) + max((|y| - h)/b + 1, 0)^(2 sy) = 1
 //
 //   p  : sample point (box centred at the origin)
 //   wh : vec2(w, h), half size of the box
 //   r  : corner radius
-//   s  : vec2(sx, sy), corner softness, `u_corner_softness` (1 = elliptical corner,
-//        larger = squarer/smoother); the exponents are 2s
+//   s  : corner softness, `u_corner_softness` (1 = elliptical corner, larger =
+//        squarer/smoother)
+//
+// (sx, sy) is the softness the box can hold along each axis, at most s, and (a, b)
+// how far the corner reaches along each; `sdg_superbox` works both out, and draws a
+// box too short for the full corner in by `pull`: a = sx (r - pull.x), b = sy
+// (r - pull.y).
 //
 // Returns vec3(d, n): d is the exact Euclidean signed distance (negative inside) and
 // n = grad(d) is the unit normal (outward on the surface, normal of the nearest
 // boundary point everywhere else).
 //
-// Assumes sx, sy >= 1. A box shorter along one axis than the corner reaches (s r) has
-// that axis's softness eased down to fit, toward an ellipse's, and is drawn in along
-// the other by `o`, by more the shorter it is.
+// Assumes s >= 1.
 //
 // Method: the corner curve, in coordinates relative to the corner centre, is
-// (a u, b v) with u^(2sx) + v^(2sy) = 1, a = sx r, b = sy r. It is split at the point
+// (a u, b v) with u^(2sx) + v^(2sy) = 1. It is split at the point
 // u^(2sx) = v^(2sy) = 1/2 into two halves, and each half is a well-conditioned graph
 // (slope <= ~1). On each half the closest point is found by a few curvature-aware
 // Newton steps: each step rotates about the centre of the osculating circle, which is
@@ -450,18 +453,37 @@ vec3 superbox_half(vec2 q, float A, float B, float N, float M, float T) {
     return vec3(dot(w, w), n);
 }
 
-vec3 sdg_superbox(vec2 p, vec2 wh, float r, float s) {
-    vec2 s2 = min(vec2(s), wh/r);
+// How far a corner of softness `s` has fallen below its edge, in radii, three
+// quarters of a radius short of the other edge: on the curve u^(2s) + v^(2s) = 1,
+// spanning s radii each way, how far v is below 1 at u = 1 - 0.75/s. Negative, and
+// further the softer the corner. Needs s >= 0.75, where the point reaches the
+// corner's centre.
+float corner_drop(float s) {
+    return s*(pow(1.0 - pow(1.0 - 0.75/s, 2.0*s), 0.5/s) - 1.0);
+}
 
-    // compensate for softness clamping
-    float k = s*(pow(1.0 - pow(1.0 - 0.75/s, 2.0*s), 0.5/s) - 1.0);
-    vec2 k2 = (s2*(pow(vec2(1.0) - pow(vec2(1.0) - 0.75/s2, 2.0*s2), 0.5/s2) - vec2(1.0))).yx;
-    vec2 o = r*(k2 - vec2(k));                      // compensation offset 
-    wh -= o;
+vec2 corner_drop(vec2 s) {
+    return vec2(corner_drop(s.x), corner_drop(s.y));
+}
+
+vec3 sdg_superbox(vec2 p, vec2 wh, float r, float s) {
+    // A box shorter along an axis than the corner would reach there (s r)
+    // cannot hold the full corner, so that axis's softness is cut to what fits.
+    vec2 fit = min(vec2(s), wh/r);
+
+    // The cut corner is fuller than the full one: three quarters of a radius
+    // from the side, it has fallen less far below its edge (`corner_drop`). To
+    // make up for it the box is drawn in by the difference, along the other
+    // axis, where the fuller corner stands out: a pill whose height cuts its
+    // softness is drawn in at its ends. The corner along that axis is drawn as
+    // for a radius `pull` smaller too, which keeps its centre inside the box,
+    // so a square box with a radius of half its side is still a circle.
+    vec2 pull = r*(corner_drop(fit).yx - corner_drop(s));
+    wh -= pull;
 
     vec2 sp = 2.0*step(0.0, p) - 1.0;               // sign(p), but +1 at 0
-    vec2 ab = s2*(vec2(r) - o);                     // corner patch size (a, b)
-    vec2 nm = 2.0*s2;                               // corner exponents
+    vec2 ab = fit*(vec2(r) - pull);                 // how far the corner reaches (a, b)
+    vec2 nm = 2.0*fit;                              // corner exponents
     vec2 q  = abs(p) - wh + ab;                     // relative to the corner centre
     vec2 e  = q - ab;                               // = abs(p) - wh: distance to the edge lines
 
