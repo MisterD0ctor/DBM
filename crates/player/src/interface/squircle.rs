@@ -41,9 +41,10 @@ thread_local! {
 /// `inset` is how far inside a glass surface it sits on every side. It is
 /// then that surface's outline moved in, rather than a corner of its own at
 /// the smaller radius, so the gap between the two stays even round the
-/// corner, as concentric circles' does. This corner is not a circle's: one
-/// of its own, at a softness of 3.5, pinched a menu's 16px gap to 14.9 at the
-/// panel's corner.
+/// corner, as concentric circles' does: this corner is not a circle's, and
+/// one of its own narrows the gap at the surface's corner. The end pill's
+/// two choices sit in it so. The rows do not, since a row is too short to
+/// carry a panel's corner moved in without drawing its ends out.
 pub fn image(width: f32, height: f32, radius: f32, inset: f32) -> slint::Image {
     let key = [width, height, radius, inset].map(|v| (f64::from(v) * 64.0).round() as i64);
     if let Some(known) = CACHE.with(|c| c.borrow().get(&key).cloned()) {
@@ -351,13 +352,12 @@ mod tests {
     }
 
     #[test]
-    fn a_row_stays_its_gap_from_the_panel_corner() {
-        // The top row of a 380 by 400 menu: 348 by 34, 16 in from the panel
-        // on the sides it shares with it, at the rows' 16px radius. Not quite
-        // even, because the row's box is too short for the panel's full
-        // corner, but nearer it than a corner of the row's own, whatever the
-        // softness: at 3.5 that one pinched the gap to 14.9, where this held
-        // between 16 and 16.6.
+    fn an_inset_keeps_nearer_an_even_gap_than_a_corner_of_its_own() {
+        // Where it is hardest: a box too short for the surface's full corner,
+        // as a 348 by 34 row 16 inside a 380 by 400 menu would be, at the
+        // rows' 16px radius. Not quite even, but nearer it than a corner of
+        // the row's own, whatever the softness: at 3.5 that one pinched the
+        // gap to 14.9, where this held between 16 and 16.6.
         let (w, h, inset) = (380.0, 400.0, 16.0);
         let panel = outline(w, h, 32.0, 0.0);
         let row_centre = h / 2.0 - inset - 17.0;

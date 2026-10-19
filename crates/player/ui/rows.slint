@@ -53,14 +53,15 @@ export component RowHighlight inherits Rectangle {
     // the panel's padding being the same gap. That is the whole trick: no row
     // is a special case.
     //
-    // The glass's corner, and the panel's own moved in by the gap rather
-    // than one of the row's: that is what keeps the end rows concentric with
-    // a corner that is not a circle's.
+    // The glass's corner, at the row's own radius. The panel's corner moved
+    // in by the gap kept the end rows exactly concentric with it, but a row
+    // is too short for that corner's long ease and its ends came out drawn
+    // out, curving over 26px of each where this curves over 20. The gap to
+    // the panel narrows by under a pixel at its corner instead.
     Squircle {
         x: Rows.gap;
         width: parent.width - 2 * Rows.gap;
         radius: Rows.radius;
-        inset: Rows.gap;
         fill: root.lit ? root.shade : transparent;
         animate fill { duration: Motion.highlight; easing: ease-out; }
     }
