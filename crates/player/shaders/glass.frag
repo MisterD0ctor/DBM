@@ -12,11 +12,11 @@
 // The model
 // ---------------------------------------------------------------------------
 //
-// Each panel is a rounded box with a domed surface: flat across the middle,
-// curving down to meet the screen at the rim. Everything is evaluated in a 2D
-// cross-section, because the dome is symmetric about the panel outline — the
-// rounded-box SDF gives the outward radial direction, and one (radial, up)
-// slice does the rest.
+// Each panel is a box with superelliptic corners and a domed surface: flat
+// across the middle, curving down to meet the screen at the rim. Everything is
+// evaluated in a 2D cross-section, because the dome is symmetric about the
+// panel outline — the box's signed distance gives the outward radial
+// direction, and one (radial, up) slice does the rest.
 //
 //     height
 //       ^            ________________              <- flat centre, slope 0
@@ -31,19 +31,19 @@
 //
 // The viewer looks straight down, so a fragment's colour is whatever a
 // vertical ray picks up at that surface. Three things happen at the
-// interface, and all three are computed rather than faked:
+// interface. Two are computed rather than faked, and the third is lit by hand:
 //
 //   * transmission — Snell's law bends the ray, so it lands somewhere else on
 //     the backdrop. This gives the panel apparent thickness, and is by far
 //     the strongest cue that it is an object rather than a hole.
-//   * reflection — the mirrored ray either tips over and sees the backdrop
-//     again, or escapes upward off the screen, where there is nothing to see.
-//   * Fresnel — how the two are weighted, from the exact unpolarised
-//     reflectance. Grazing angles at the rim go strongly reflective, which is
-//     why real glass edges look bright without any hand-placed highlight.
-//
-// One term is placed by hand on top of those: the rim light, a line of light
-// along the top and bottom of each pane's outermost edge — see `u_rim`.
+//   * reflection — the mirrored ray either escapes upward off the screen,
+//     where there is nothing to see, or tips over and comes back down. What
+//     it comes down to is not traced (the screen-space reflection that did
+//     is switched off, in `glass_at`) but lit by hand: the rim light, a ring
+//     round each pane's outermost edge — see `u_rim`.
+//   * Fresnel — how the transmitted ray and the rim light are weighted, from
+//     the exact unpolarised reflectance. Grazing angles at the rim go
+//     strongly reflective, so the rim light is strongest at the very edge.
 //
 // Wavelength enters on the transmitted ray, and enters properly: the index
 // of refraction is a function of it, so every wavelength lands somewhere
@@ -54,11 +54,12 @@
 in vec2 v_uv;
 out vec4 frag;
 
-/// Everything behind the glass, already composited (video + ambient border).
+/// Everything behind the glass, already composited: the video and its ambient
+/// border, or for a pane laid over the interface the finished frame (see
+/// `glass_over` in pipeline.rs). Drawn as it is wherever there is no glass.
 uniform sampler2D u_base;
-/// Blurred copy of the same. Both the refracted and the reflected ray sample
-/// this rather than `u_base`, so the backdrop blur radius doubles as the
-/// material's frostiness.
+/// Blurred copy of the same. The refracted ray samples this rather than
+/// `u_base`, so the backdrop blur radius doubles as the material's frostiness.
 uniform sampler2D u_blur;
 uniform vec2 u_base_scale;
 uniform vec2 u_blur_scale;
@@ -83,7 +84,7 @@ uniform vec4 u_panel_style[MAX_PANELS];
 ///
 /// A fraction rather than a count of pixels because the panels are not one
 /// size: the same absolute rim that looks right rolling around a 32px corner
-/// swallows a 15px pill whole. Tying it to the radius makes one slider mean
+/// swallows a 15px pill whole. Tying it to the radius makes one number mean
 /// the same thing on every piece of glass — a small pane simply has a small
 /// rolled edge, which is also how real glass is made.
 uniform float u_bevel;
@@ -112,11 +113,14 @@ uniform float u_ior;
 /// dense flint; this goes well past that, because here the fringe is a thing
 /// to be seen rather than a defect to be corrected out.
 uniform float u_aberration;
-/// Overall strength of the reflection, scaling the Fresnel weight.
+/// Overall strength of the reflection, scaling the Fresnel weight. Read only
+/// by the screen-space reflection in `glass_at`, which is switched off; the
+/// rim light is weighted by Fresnel alone.
 uniform float u_specular;
-/// Brightness of the rim light: a line along the top and bottom of each pane's
-/// outermost edge, where the surface has turned past 45 degrees and the
-/// mirrored ray points back down. Zero turns it off.
+/// How strongly the rim light shows: a ring round each pane's outermost edge,
+/// where the surface has turned past 45 degrees and the mirrored ray points
+/// back down, white along the top and bottom and darkening to black down the
+/// sides. Zero turns it off.
 uniform float u_rim;
 uniform vec3 u_tint;
 /// Global tint strength. The per-panel value in `u_panel_style` says whether
@@ -131,8 +135,9 @@ uniform float u_shadow;
 
 // --- shadow -------------------------------------------------------------------
 //
-// A pane standing off the picture casts a soft shadow onto it, darkest just
-// under its lower edge and fading out all round. It darkens the picture and
+// A pane standing off the picture casts a soft shadow onto it, darkest at its
+// edge and fading out all round, and lowered under the pane by `SHADOW_DROP`,
+// which is nothing at present. It darkens the picture and
 // nothing else: every pane's shadow is laid on the frame before any glass is,
 // so one pane's shadow never falls across another's glass — they stand at the
 // same height — and a pane's own glass, which refracts the frame as it was,
@@ -163,10 +168,10 @@ const float SHADOW_SOFTNESS_MIN = 4.0;
 // the backdrop. What is needed is absorption — a pane that transmits less the
 // more there is to transmit, which is what tinted glass physically does.
 //
-// Applied to the transmitted component only. Everything that makes the
-// material read as glass — the Fresnel rim, the rim light, the mirrored
-// backdrop — is added after this and is untouched, so a panel over a bright
-// scene goes deep and keeps its edge rather than turning into a flat card.
+// Applied to the transmitted component only. What makes the material read as
+// glass at its edge — the rim light, weighted by Fresnel — is added after this
+// and is untouched, so a panel over a bright scene goes deep and keeps its
+// edge rather than turning into a flat card.
 //
 // The glass page's Absorb slider, `u_absorb`, is how much of a white backdrop
 // the pane absorbs; a darker one loses less, along a hyperbola, and black loses
@@ -191,10 +196,10 @@ const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 // and counting samples in and out would only quantise it into steps.
 //
 // What does alias is the shading just inside it. The dome's slope runs to
-// infinity at the rim, so reflectance, the mirror direction and the reflection
-// fading as it swings upward all happen within the last pixel or two — a
-// single sample per pixel lands on whichever part of that it happens to hit,
-// and the bright edge crawls as a panel moves. So the shading, and only the
+// infinity at the rim, so reflectance, the mirror direction and the rim light
+// coming on as the mirror turns down all happen within the last pixel or two
+// — a single sample per pixel lands on whichever part of that it happens to
+// hit, and the bright edge crawls as a panel moves. So the shading, and only the
 // shading, is supersampled there. Across the flat middle it changes slowly and
 // one sample is exact enough.
 
@@ -211,8 +216,9 @@ const vec2 RIM_SAMPLES[8] = vec2[8](
     vec2( 7.0, -7.0) * 0.0625
 );
 /// How far in the supersampling reaches, as a fraction of the bevel: the
-/// stretch where the slope is past about 1, which contains the reflection's
-/// turn through horizontal (t near 0.87) as well as the rim itself.
+/// outer half, which holds the mirror's turn through horizontal, where the
+/// slope passes 1 and the rim light starts (t = 0.84), as well as the rim
+/// itself.
 const float RIM_BAND = 0.5;
 
 // --- dispersion ---------------------------------------------------------------
@@ -362,7 +368,8 @@ vec3 blur_at(vec2 p) {
     return texture(u_blur, clamp(p, vec2(0.0), vec2(1.0)) * u_blur_scale).rgb;
 }
 
-/// Signed distance to a rounded box. Negative inside.
+/// Signed distance to a rounded box. Negative inside. Unused since the panes
+/// took superelliptic corners; see `sdg_superbox`, below.
 float sd_round_box(vec2 p, vec2 half_size, float r) {
     vec2 q = abs(p) - half_size + r;
     return min(max(q.x, q.y), 0.0) + length(max(q, vec2(0.0))) - r;
@@ -388,13 +395,16 @@ vec2 sd_round_box_normal(vec2 p, vec2 half_size, float r) {
 //   p  : sample point (box centred at the origin)
 //   wh : vec2(w, h), half size of the box
 //   r  : corner radius
-//   s  : vec2(sx, sy), corner exponents (1 = elliptical corner, larger = squarer/smoother)
+//   s  : vec2(sx, sy), corner softness, `u_corner_softness` (1 = elliptical corner,
+//        larger = squarer/smoother); the exponents are 2s
 //
 // Returns vec3(d, n): d is the exact Euclidean signed distance (negative inside) and
 // n = grad(d) is the unit normal (outward on the surface, normal of the nearest
 // boundary point everywhere else).
 //
-// Assumes sx, sy > 1 and sx*r < w, sy*r < h.
+// Assumes sx, sy >= 1. A box shorter along one axis than the corner reaches (s r) has
+// that axis's softness eased down to fit, toward an ellipse's, and is drawn in along
+// the other by `o`, by more the shorter it is.
 //
 // Method: the corner curve, in coordinates relative to the corner centre, is
 // (a u, b v) with u^(2sx) + v^(2sy) = 1, a = sx r, b = sy r. It is split at the point
@@ -487,8 +497,9 @@ void panel_shape(int i, out vec2 centre, out vec2 half_size, out float radius) {
 }
 
 /// How much of one panel's shadow falls on pixel `px`, 0..1, before the
-/// strength: the panel's outline dropped by `SHADOW_DROP` and faded across
-/// `SHADOW_SOFTNESS` either side of its edge.
+/// strength: whole under the panel's outline, dropped by `SHADOW_DROP`, and
+/// fading out beyond its edge over `SHADOW_SOFTNESS` of its radius and
+/// `SHADOW_SOFTNESS_MIN` pixels more.
 float shadow_at(vec2 px, vec2 centre, vec2 half_size, float radius) {
     float soft = SHADOW_SOFTNESS * radius + SHADOW_SOFTNESS_MIN;
     vec2 drop = vec2(0.0, SHADOW_DROP * radius);
@@ -526,8 +537,8 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     //     height(t) = 0.5 + (1 - t^4)^(1/4)
     //     slope(t)  = d(height)/dt = -t^3 / (1 - t^4)^(3/4)
     //
-    // The sixth power keeps the centre flat and pushes the curvature 
-    // into the last stretch of the bevel, which is what makes the 
+    // The fourth power keeps the centre flat and pushes the curvature
+    // into the last stretch of the bevel, which is what makes the
     // lensing hug the rim. `slope` runs to -infinity as the surface
     // turns vertical at t = 1, so the root is floored; every term below
     // converges as |slope| grows, so a large finite value behaves.
@@ -549,13 +560,13 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     float D = sqrt(ior2 + (ior2 - 1.0) * slope2);
 
     // The vector form of Snell's law reduces, for a vertical incident
-    // ray, to a lateral-over-vertical ratio of slope*(D-1)/(slope^2+D).
-    // Multiplying by how far the ray descends gives the displacement.
-    // `slope` is negative on the bevel, so this pulls the sample inward:
-    // the rim shows magnified content from under the panel, exactly as a
-    // bevelled pane does.
-    // That ratio is `transmit_ratio`, above, because it is now wanted once
-    // per wavelength. This is the part every wavelength shares: the
+    // ray, to a lateral-over-vertical ratio of -slope*(D-1)/(slope^2+D),
+    // which is `transmit_ratio`, above, since dispersion wants it once per
+    // wavelength. Multiplied by how far the ray descends, it gives the
+    // displacement. `slope` is negative on the bevel, so the ratio is
+    // positive and the sample is pulled inward, along `reach`: the rim
+    // shows magnified content from under the panel, exactly as a bevelled
+    // pane does. `reach` is the part every wavelength shares: the
     // direction, and how far the ray descends, in pixels.
     vec2 reach = -box_normal * height * thickness;
 
@@ -622,7 +633,8 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     refracted *= 1.0 - absorbed;
     vec3 gray = vec3(dot(refracted, LUMA));
 
-    // Saturate darkened areas
+    // And give back the colour the darkening took, more where more was
+    // absorbed; see absorption, above.
     refracted = mix(gray, refracted, 1.0 / (1.0 - 0.5 * absorbed));
 
     // Exact unpolarised Fresnel reflectance, averaging s and p. Written
@@ -631,21 +643,25 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     //     Rs = ((D - 1) / (D + 1))^2
     //     Rp = ((D - ior^2) / (D + ior^2))^2
     //
-    // Both approach 1 as the surface turns vertical, which is what makes
-    // the rim read as a bright mirrored edge on its own.
+    // Both approach 1 as the surface turns vertical, which is why the rim
+    // light, weighted by this below, is strongest at the very edge.
     float rs = (D - 1.0) / (D + 1.0);
     float rp = (D - ior2) / (D + ior2);
     float reflectance = 0.5 * (rs * rs + rp * rp);
 
     // Mirror direction for the same vertical view ray:
     // reflect((0,-1), n) = (-2*slope, 1 - slope^2) / (1 + slope^2),
-    // which is exactly unit length at every slope.
+    // which is exactly unit length at every slope. `mirror.x` is how far
+    // it leans out across the screen, along the outward normal, and
+    // `mirror.y` how far it points up; `mirror3` is the same lifted into
+    // screen space.
     vec2 mirror = vec2(-2.0 * slope, 1.0 - slope2) / (1.0 + slope2);
     vec3 mirror3 = vec3(box_normal * mirror.x, mirror.y);
 
-    // Tipped over and pointing down, the mirrored ray sees the backdrop
-    // again — a screen-space reflection, displaced by the same lateral-over-
-    // vertical reasoning as the refracted ray.
+    // Switched off, with the reflection it fades below: the backdrop the
+    // mirrored ray finds once it has tipped over and points down, as a
+    // screen-space reflection displaced by the same lateral-over-vertical
+    // reasoning as the refracted ray. The rim light stands in for it.
     //
     // The denominator vanishes as the mirrored ray passes horizontal
     // (|slope| -> 1), where the true displacement really is unbounded.
@@ -657,18 +673,30 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     //    -box_normal * reflection_ratio * height * bevel / u_size;
     //vec3 reflected = base_at(uv + reflection_offset) * u_specular;
 
+    // The rim light, where the mirrored ray has tipped over and points back
+    // down. Nothing while the surface is under 45 degrees and the ray still
+    // points up, nor at 45, where it lies flat along the screen
+    // (`mirror.x` = 1); from there it rises steeply as the ray swings round
+    // to point straight down, to full where the surface stands vertical at
+    // the outermost edge.
     float rim_strength = max(0.0, -mirror.y * (1.0 - mirror.x) * (1.0 - mirror.x))
                          * u_rim;
 
+    // Its colour is how squarely the edge faces up or down the screen: the
+    // mirrored ray's screen-vertical part over all of its sideways part,
+    // squared, which comes to box_normal.y^2. White along the top and
+    // bottom, darkening to black down the sides, as an edge lit from above
+    // and below would be.
     float rim_color = max(0.0, (mirror3.y * mirror3.y) / (mirror.x * mirror.x));
 
     // Pointing up, the mirrored ray leaves the screen and finds nothing to
-    // reflect, so the reflection fades out as it swings through horizontal —
-    // which also hides the turn, where the screen-space offset above runs off
-    // to infinity.
+    // reflect, so the switched-off reflection above fades out as it swings
+    // through horizontal — which also hides the turn, where its screen-space
+    // offset runs off to infinity.
     //vec3 specular = mix(reflected, vec3(1.0), rim) * (1.0 - smoothstep(-0.7, 0.0, mirror.y));
 
-    // Fresnel decides how much of each the viewer gets.
+    // Fresnel decides how much of the rim light the viewer gets, over what
+    // the transmitted ray brought.
     return mix(refracted, vec3(rim_color), rim_strength * reflectance);
 }
 
@@ -701,8 +729,9 @@ void main() {
 
         float d = sd_superbox(px - centre, half_size, radius);
 
-        // One pixel of feather: the coverage mask, which is all the outline
-        // needs (see antialiasing, above).
+        // Two pixels of feather, centred half a pixel outside the outline:
+        // the coverage mask, which is all the outline needs (see
+        // antialiasing, above).
         float coverage = smoothstep(-1.5, 0.5, -d) * u_panel_style[i].z;
         if (coverage <= 0.0) {
             continue;

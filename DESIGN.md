@@ -598,9 +598,11 @@ it). They are constants in `gpu/pipeline.rs`, and none of them had a range where
 the result was a matter of taste rather than of whether the panes still read as
 one material. What is left on that page — blur, refraction depth, fringe, rim,
 tint, absorption, shadow — is how much of the material you want, which is the
-question worth a slider. The rim is the one hand-placed light: a line along the top and bottom
-of each pane's outermost edge. A reflection that escapes upward off the
-screen finds nothing to reflect, and fades out as it turns.
+question worth a slider. The rim light is the one hand-placed light, and with
+the traced reflection switched off it is all the reflection there is: a ring
+round each pane's outermost edge, where the surface has turned past 45° and the
+mirrored ray points back down, white along the top and bottom and darkening to
+black down the sides, weighted by Fresnel so it is strongest at the very edge.
 
 **The fringe is a spectrum, not three copies.** The index of refraction is a
 function of wavelength (Cauchy's law, anchored so the index above is the one
@@ -669,7 +671,7 @@ bevel; the glass was there and entirely invisible.
 
 **The Transmissive Middle Rule.** Absorption — the thing that keeps white text
 and white controls legible over a bright frame — is applied to the transmitted
-component only, never to the rim, the rim light or the mirrored backdrop.
+component only, never to the rim light.
 The rim is the full corner radius, so a capsule is rim the whole way through
 and has no transmitted component to darken. **A pane that exists to give
 something a ground must be tall enough to have a flat middle.** This is why the

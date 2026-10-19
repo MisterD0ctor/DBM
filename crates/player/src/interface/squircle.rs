@@ -111,9 +111,10 @@ struct Corner {
 }
 
 impl Corner {
-    /// Line for line `sdg_superbox`, the glass's own: a box too short for
-    /// the full curve has its exponent eased toward an ellipse's, and is
-    /// drawn in a little to make up for the corner that fills out.
+    /// Line for line `sdg_superbox`, the glass's own: a box shorter along
+    /// one axis than the corner reaches has that axis's exponent eased toward
+    /// an ellipse's, and is drawn in along the other, by more the shorter it
+    /// is.
     fn new(half: [f64; 2], radius: f64) -> Self {
         let mut pull = [0.0; 2];
         for (axis, pull) in pull.iter_mut().enumerate() {

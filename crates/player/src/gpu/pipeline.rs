@@ -102,9 +102,9 @@ pub struct GlassParams {
     /// with it, so this is the width of a spectrum rather than the gap
     /// between three copies of an edge: the prismatic fringe.
     pub aberration: f32,
-    /// Brightness of the rim light: a line along the top and bottom of each
-    /// pane's outermost edge, where the surface has turned past 45 degrees.
-    /// Zero turns it off.
+    /// How strongly the rim light shows: a ring round each pane's outermost
+    /// edge, where the surface has turned past 45 degrees, white along the top
+    /// and bottom and darkening to black down the sides. Zero turns it off.
     pub rim: f32,
     pub tint: [f32; 3],
     /// How far a panel pulls toward the tint colour, 0..1. Scales the
@@ -158,7 +158,8 @@ pub const BEVEL: f32 = 1.0;
 /// stopped short of.
 pub const IOR: f32 = 2.0;
 
-/// Overall reflection strength, scaling the Fresnel weight.
+/// Overall reflection strength, scaling the Fresnel weight. Read only by the
+/// screen-space reflection, which is switched off in glass.frag.
 ///
 /// Unity: the Fresnel term is already the physical answer to how much light
 /// a surface at that angle returns, so this exists to scale it and there is
