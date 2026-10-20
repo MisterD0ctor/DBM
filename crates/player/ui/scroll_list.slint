@@ -285,7 +285,7 @@ export component ScrollList inherits Rectangle {
 
     // Grows under the pointer or a drag like every track here, about its
     // centre line so it thickens rather than shifts.
-    Rectangle {
+    bar := Rectangle {
         x: parent.width - 5.5px - self.width / 2;
         y: root.rail-inset;
         width: grip.has-hover || grip.pressed ? 5px : 3px;

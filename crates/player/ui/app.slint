@@ -835,13 +835,15 @@ export component MainWindow inherits Window {
     property <length> timeline-h: 30px;
     /// Wide enough for the longest either time can read, which is the total.
     ///
-    /// 60px holds a time under an hour with air either side, and a longer one
-    /// widens it by exactly as much as it measures wider than "00:00". Measured
-    /// rather than assumed, since a figure's width is up to the font, and a
-    /// fixed 60px let "1:23:45" run into the capsule's curve. Set from the
-    /// total, so the row doesn't shift when the elapsed time passes the hour.
-    property <length> time-w: 60px
+    /// `minutes-w` holds a time under an hour with air either side, and a
+    /// longer one widens it by exactly as much as it measures wider than
+    /// "00:00". Measured rather than assumed, since a figure's width is up to
+    /// the font, and a fixed width let "1:23:45" run into the capsule's curve.
+    /// Set from the total, so the row doesn't shift when the elapsed time
+    /// passes the hour.
+    property <length> time-w: root.minutes-w
         + max(0px, time-measure.preferred-width - minutes-measure.preferred-width);
+    property <length> minutes-w: 60px;
 
     property <length> bar-x: root.panel-margin;
     property <length> bar-w: root.width - 2 * root.panel-margin;
@@ -4218,7 +4220,7 @@ export component MainWindow inherits Window {
             root.seek-relative(-root.seek-step);
         }
 
-        Rectangle {
+        timeline-rail := Rectangle {
             y: (parent.height - self.height) / 2;
             width: 100%;
             height: scrub.has-hover || scrub.pressed ? 7px : 5px;
@@ -5105,7 +5107,7 @@ export component MainWindow inherits Window {
                     root.nudge-volume(-root.volume-step);
                 }
 
-                Rectangle {
+                vol-rail := Rectangle {
                     y: (parent.height - self.height) / 2;
                     width: 100%;
                     height: vol.has-hover || vol.pressed ? 7px : 5px;

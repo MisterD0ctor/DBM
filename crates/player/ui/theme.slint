@@ -63,11 +63,13 @@ export global Paint {
     // Roles that already differ by place, case, size or tracking share a step
     // rather than get a near-copy of one.
 
-    /// The active state and nothing else: the current row, a control that is
-    /// on, the flash, the end-of-file prompt.
+    /// The active state, and where the pointer or the keyboard is: the current
+    /// row, a hovered chevron, the flash, the end-of-file prompt. Also every bar
+    /// glyph that can be pressed, which at a lower step reads as greyed out
+    /// over a bright frame.
     out property <color> lit: #ffffff;
-    /// Text that leads: the media title, times and values, a switch's label,
-    /// a fatal headline.
+    /// Text that leads: the media title, times and values, a fatal headline,
+    /// and a resume measure's fill.
     out property <color> strong: #ffffffe0;
     /// Row labels, section headings, a show's name, a row's icon. On Strong's
     /// step because it is the text there is most of, and a step lower read

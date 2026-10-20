@@ -1,0 +1,467 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "",
+  "title": "Design System: Death by MPV",
+  "extensions": {
+    "colorMeta": {
+      "lit": {
+        "role": "primary",
+        "displayName": "Lit",
+        "canonical": "{{ Paint.lit }}",
+        "tonalRamp": [
+          "{{ Paint.dim }}",
+          "{{ Paint.quiet }}",
+          "{{ Paint.strong }}",
+          "{{ Paint.lit }}"
+        ],
+        "rampNote": "The text ladder as used, floor first: Dim, Quiet, Strong, Lit. Body shares Strong's step, and the ladder's 0xc0 step is held empty rather than spent on a near-copy.",
+        "purpose": "The active state and where the hand or the keyboard is: the current row, a hovered chevron, the flash, the end-of-file prompt. Also every bar glyph that can be pressed, since anything less reads as greyed out over a bright frame."
+      },
+      "strong": {
+        "role": "neutral",
+        "displayName": "Strong",
+        "canonical": "{{ Paint.strong }}",
+        "tonalRamp": [
+          "{{ Paint.dim }}",
+          "{{ Paint.quiet }}",
+          "{{ Paint.strong }}",
+          "{{ Paint.lit }}"
+        ],
+        "rampNote": "The text ladder as used, floor first: Dim, Quiet, Strong, Lit. Body shares Strong's step, and the ladder's 0xc0 step is held empty rather than spent on a near-copy.",
+        "purpose": "Text that leads: the media title, the timeline's times, a stepper's value, a fatal headline, the title on the way in's Continue row, the resume measure's fill."
+      },
+      "body": {
+        "role": "neutral",
+        "displayName": "Body",
+        "canonical": "{{ Paint.body }}",
+        "tonalRamp": [
+          "{{ Paint.dim }}",
+          "{{ Paint.quiet }}",
+          "{{ Paint.strong }}",
+          "{{ Paint.lit }}"
+        ],
+        "rampNote": "The text ladder as used, floor first: Dim, Quiet, Strong, Lit. Body shares Strong's step, and the ladder's 0xc0 step is held empty rather than spent on a near-copy.",
+        "purpose": "The ordinary run of the interface: row labels and menu items, section headings and their icons, back rows, drill rows, switch labels, a slider's value. On Strong's step, because it is the text there is most of, and a step lower read grey over a bright frame."
+      },
+      "quiet": {
+        "role": "neutral",
+        "displayName": "Quiet",
+        "canonical": "{{ Paint.quiet }}",
+        "tonalRamp": [
+          "{{ Paint.dim }}",
+          "{{ Paint.quiet }}",
+          "{{ Paint.strong }}",
+          "{{ Paint.lit }}"
+        ],
+        "rampNote": "The text ladder as used, floor first: Dim, Quiet, Strong, Lit. Body shares Strong's step, and the ladder's 0xc0 step is held empty rather than spent on a near-copy.",
+        "purpose": "Beside or under something else: a shortcut's keys, a playlist row's running time, prose hints, a scroll thumb, text stating an absence."
+      },
+      "dim": {
+        "role": "neutral",
+        "displayName": "Dim",
+        "canonical": "{{ Paint.dim }}",
+        "tonalRamp": [
+          "{{ Paint.dim }}",
+          "{{ Paint.quiet }}",
+          "{{ Paint.strong }}",
+          "{{ Paint.lit }}"
+        ],
+        "rampNote": "The text ladder as used, floor first: Dim, Quiet, Strong, Lit. Body shares Strong's step, and the ladder's 0xc0 step is held empty rather than spent on a near-copy.",
+        "purpose": "The glyph of a bar button with nowhere to go. The floor: the ladder is built upward from here and this step does not move."
+      },
+      "played": {
+        "role": "neutral",
+        "displayName": "Played",
+        "canonical": "{{ Paint.played }}",
+        "tonalRamp": [
+          "{{ Paint.rail }}",
+          "{{ Paint.fill }}",
+          "{{ Paint.played }}",
+          "{{ Paint.lit }}"
+        ],
+        "rampNote": "The marks, dark to light: rail, fill, played, lit. Every value is a token the build uses; nothing is interpolated.",
+        "purpose": "The played length of the timeline: the one near-solid white, so it reads as a measurement rather than as text."
+      },
+      "fill": {
+        "role": "neutral",
+        "displayName": "Fill",
+        "canonical": "{{ Paint.fill }}",
+        "tonalRamp": [
+          "{{ Paint.rail }}",
+          "{{ Paint.fill }}",
+          "{{ Paint.played }}",
+          "{{ Paint.lit }}"
+        ],
+        "rampNote": "The marks, dark to light: rail, fill, played, lit. Every value is a token the build uses; nothing is interpolated.",
+        "purpose": "The filled length of the volume track and every settings slider, a lit switch track, and an unlit switch's knob."
+      },
+      "rail": {
+        "role": "neutral",
+        "displayName": "Rail",
+        "canonical": "{{ Paint.rail }}",
+        "tonalRamp": [
+          "{{ Paint.wash-soft }}",
+          "{{ Paint.wash-button }}",
+          "{{ Paint.rail }}",
+          "{{ Paint.wash-strong }}"
+        ],
+        "rampNote": "The three washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fourth wash would have to be told apart from the two either side of it.",
+        "purpose": "The unfilled length of every track, switch and measure."
+      },
+      "knob": {
+        "role": "neutral",
+        "displayName": "Knob",
+        "canonical": "{{ Paint.knob }}",
+        "tonalRamp": [
+          "{{ Paint.knob }}"
+        ],
+        "rampNote": "A ramp of one. This is the whole of the value the system owns here, and a synthesised scale would be steps no surface is allowed to draw.",
+        "purpose": "The only non-white in the system: dark on a lit switch track, so the knob reads as a hole punched through it; the unity dot where it sits on the fill."
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "{{ Paint.ground }}",
+        "tonalRamp": [
+          "{{ Paint.ground }}"
+        ],
+        "rampNote": "A ramp of one. This is the whole of the value the system owns here, and a synthesised scale would be steps no surface is allowed to draw.",
+        "purpose": "The window before a frame exists, and a fresh install's backdrop before the player's own mark lights it."
+      },
+      "wash-strong": {
+        "role": "neutral",
+        "displayName": "Strong wash",
+        "canonical": "{{ Paint.wash-strong }}",
+        "tonalRamp": [
+          "{{ Paint.wash-soft }}",
+          "{{ Paint.wash-button }}",
+          "{{ Paint.rail }}",
+          "{{ Paint.wash-strong }}"
+        ],
+        "rampNote": "The three washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fourth wash would have to be told apart from the two either side of it.",
+        "purpose": "Where the keyboard is, on a row or a bar button; the held background of a button whose panel is open; a hovered stepper disc. 0x20 above the Soft wash, by the Two-Step Rule."
+      },
+      "wash-button": {
+        "role": "neutral",
+        "displayName": "Button wash",
+        "canonical": "{{ Paint.wash-button }}",
+        "tonalRamp": [
+          "{{ Paint.wash-soft }}",
+          "{{ Paint.wash-button }}",
+          "{{ Paint.rail }}",
+          "{{ Paint.wash-strong }}"
+        ],
+        "rampNote": "The three washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fourth wash would have to be told apart from the two either side of it.",
+        "purpose": "A hovered icon button, and a hovered choice on the end-of-file pill. Never on a row."
+      },
+      "wash-soft": {
+        "role": "neutral",
+        "displayName": "Soft wash",
+        "canonical": "{{ Paint.wash-soft }}",
+        "tonalRamp": [
+          "{{ Paint.wash-soft }}",
+          "{{ Paint.wash-button }}",
+          "{{ Paint.rail }}",
+          "{{ Paint.wash-strong }}"
+        ],
+        "rampNote": "The three washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fourth wash would have to be told apart from the two either side of it.",
+        "purpose": "The inset highlight behind a hovered row of any kind; a stepper disc at rest; a scroll bar's rail; and the way in's fill in the two states where there is no glass to paint over."
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "{{ Type.weight-title }}/{{ Type.title }}. The media title in the bar, the flash's caption, a fatal headline."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "{{ Type.weight-plain }}/{{ Type.body }}. Row labels, menu items, switch labels: the name of anything you can press. The current row in a list takes Lit at {{ Type.weight-current }} instead."
+      },
+      "named": {
+        "displayName": "Named",
+        "purpose": "{{ Type.weight-plain }}/{{ Type.named }}, natural case, no tracking. A playlist heading that is a show's name rather than a section label: the Label role's weight and alpha and none of its other habits."
+      },
+      "readout": {
+        "displayName": "Readout",
+        "purpose": "{{ Type.weight-plain }}/{{ Type.readout }}. Figures (slider and stepper values, a row's running time, a shortcut's keys) and the labels of the dense rows those sit in."
+      },
+      "timecode": {
+        "displayName": "Timecode",
+        "purpose": "{{ Type.weight-plain }}/{{ Type.readout }}, {{ Type.numerals }}. A readout that ticks: the two ends of the timeline and the time over the seek preview. Monospaced so a counting figure keeps its width."
+      },
+      "hint": {
+        "displayName": "Hint",
+        "purpose": "{{ Type.weight-plain }}/{{ Type.hint }}. Prose added underneath something else: the drop hint, the line under a failure saying what usually fixes it, a driver's own error text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "{{ Type.weight-plain }}/{{ Type.label }}, tracked {{ Type.label-track }}, capitals. Section headings and back rows: the interface's own words only. The floor of the scale, and capitals are the only thing allowed on it."
+      },
+      "glyph": {
+        "displayName": "Glyph",
+        "purpose": "{{ Type.weight-plain }}/{{ Type.glyph }}. A character standing in for an icon: the stepper's minus (U+2212) and plus, sized against the {{ StepButton.width }} disc rather than against the text."
+      },
+      "prompt": {
+        "displayName": "Prompt",
+        "purpose": "{{ Type.weight-title }}/{{ Type.prompt }}. The one thing the interface says louder than the rest: the words on the end-of-file pill, sized against the {{ EndChoice.glyph.width }} glyph beside them."
+      }
+    },
+    "shadows": [
+      {
+        "name": "pane",
+        "value": "{{ pipeline.GlassParams.shadow }}",
+        "purpose": "The shadow each glass pane casts on the picture behind it, at its darkest, at the pane's edge. The same on every side, falling off steeply, and gone within the pane's corner radius plus {{ glass.SHADOW_SOFTNESS_MIN }} pixels, so it scales with the pane as the rim does. Laid on the frame before any glass, so it never falls on another pane. The glass page's Shadow slider, 0..1."
+      },
+      {
+        "name": "words",
+        "value": "{{ shadow.DEPTH }}",
+        "purpose": "The thin dark rim under the interface's words and marks, with no offset: a Gaussian of {{ shadow.SIGMA }} logical pixels that takes this share of the ground away at its darkest. Only what is drawn in white casts it, not the washes."
+      }
+    ],
+    "shadowNote": "Two shadows, both drawn by the pipeline: the one each glass pane casts on the picture, and the thin rim under the interface's words. Depth is carried by the material first: a domed bevel whose width follows each panel's corner radius, a Fresnel term that turns the edge mirror-like as it curves away, and a rim light where the surface turns past 45 degrees.",
+    "motion": [
+      {
+        "name": "highlight",
+        "value": "{{ Motion.highlight }} ease-out",
+        "purpose": "Every hover wash and the active mark. One value for every hover, because they are the same gesture."
+      },
+      {
+        "name": "track-grow",
+        "value": "{{ Motion.track-grow }} ease-out",
+        "purpose": "A track thickening under the pointer: {{ MainWindow.timeline-rail.height@else }} to {{ MainWindow.timeline-rail.height@then }} on the timeline and volume, {{ ParamSlider.rail.height@else }} to {{ ParamSlider.rail.height@then }} on a settings slider, {{ ScrollList.bar.width@else }} to {{ ScrollList.bar.width@then }} on a scroll bar."
+      },
+      {
+        "name": "surface",
+        "value": "{{ Motion.surface }} ease-out",
+        "purpose": "Any surface fading in or out, paired with the lift. The glass fades with it: opacity scales the shader's coverage."
+      },
+      {
+        "name": "lift",
+        "value": "{{ MainWindow.lift }}",
+        "purpose": "How far a surface sits below its place before it arrives."
+      },
+      {
+        "name": "switch",
+        "value": "{{ Motion.switch }} ease-out",
+        "purpose": "A switch's knob crossing its track, and the track's colour with it."
+      },
+      {
+        "name": "title-width",
+        "value": "{{ Motion.title-width }} ease-in-out",
+        "purpose": "The title pill resizing to a new title, and the glass with it, because it is drawn from the same number. A pill that jumped on every file change would be a flicker."
+      },
+      {
+        "name": "drill",
+        "value": "{{ Motion.drill }} ease-in-out",
+        "purpose": "A page moving sideways in a panel and the panel's height with it, on one number so the box and what is in it arrive together. Also the end-of-file pill sliding aside for a panel. Longer than a surface because it is a journey rather than an arrival, eased at both ends because it starts and stops in place."
+      },
+      {
+        "name": "glide",
+        "value": "{{ Motion.glide }} ease-in-out",
+        "purpose": "A list carried back to its current row by the angle pointing to it. Longer than a drill because the distance can be a whole season."
+      },
+      {
+        "name": "preview-fade",
+        "value": "{{ Motion.surface / 2 }} ease-out",
+        "purpose": "The seek preview's fade, half a surface's: it follows a pointer rather than announcing itself, and at the full duration it trailed the hand."
+      },
+      {
+        "name": "backdrop-arrival",
+        "value": "{{ pipeline.BACKDROP_ARRIVAL }}",
+        "purpose": "The backdrop coming up behind an empty window: the window's light changing rather than a control answering. Drawn by the pipeline, not Slint."
+      },
+      {
+        "name": "tip-delay",
+        "value": "{{ Motion.tip-delay }}",
+        "purpose": "How long the pointer rests on a control before its hover label opens. Long enough that crossing the bar raises nothing."
+      },
+      {
+        "name": "tip-grace",
+        "value": "{{ Motion.tip-grace }}",
+        "purpose": "How long after a tip goes down the next one comes up with no delay, so reading along the bar is not a stutter."
+      },
+      {
+        "name": "flash-dwell",
+        "value": "{{ MainWindow.flash-dwell@else@else }} / {{ MainWindow.flash-dwell@else@then }} / {{ MainWindow.flash-dwell@then }}",
+        "purpose": "How long the action flash stays: a glyph, a figure alone, or a sentence from the player, which then holds until the next key or pointer event."
+      },
+      {
+        "name": "reset-confirm",
+        "value": "{{ MainWindow.reset-timer.interval }}",
+        "purpose": "How long a reset row reads 'Press again to reset' before it goes back to being a reset."
+      },
+      {
+        "name": "idle-hide",
+        "value": "{{ chrome.HIDE_AFTER }}",
+        "purpose": "How long the bar waits on stillness before it goes, while a film plays, and never while it is paused."
+      }
+    ],
+    "motionNote": "All of it stops with one switch: Animations, on the settings panel's accessibility page. Every duration that moves something lives in the Motion global in theme.slint and is zero with the switch off, so surfaces, pages, washes, tracks and switches arrive in the frame they were asked for; the backdrop, which the pipeline fades rather than Slint, is drawn at full strength the frame it arrives. The tip delays, the flash's dwell, the reset's confirmation and the idle clock stay as they are: they are waits, not motion. Saved as accessibility.animations, on by default.",
+    "breakpoints": [
+      {
+        "name": "opening",
+        "value": "{{ MainWindow.preferred-width | n }}x{{ MainWindow.preferred-height | n }}",
+        "purpose": "The size the window opens at. It never reflows; these are window sizes, not media queries."
+      },
+      {
+        "name": "transport-give-way",
+        "value": "{{ 2 * MainWindow.panel-margin + 2 * MainWindow.right-w + 2 * MainWindow.pill-gap + MainWindow.center-w }}",
+        "purpose": "Below this, centring the transport pill would bring it within the pill gap of the right pill, so it keeps the gap and moves left, and the title pill gives up the width."
+      },
+      {
+        "name": "min-window",
+        "value": "{{ MainWindow.min-width | n }}x{{ MainWindow.min-height | n }}",
+        "purpose": "The floor: 16:9 at three quarters of the opening size, measured as the picture, with the title bar on top. Enforced as the window's minimum size rather than by reflowing. At this width the room beside any panel still holds the widest end-of-file pill."
+      }
+    ],
+    "material": {
+      "note": "The glass and ambient-border values as the code ships them (gpu/pipeline.rs). Not expressible as Stitch tokens: they are shader uniforms. Most are sliders on the settings panel's glass and ambient-border pages; bevel, ior and specular are constants and deliberately not adjustable (see `fixed` below).",
+      "glass": {
+        "blurSigma": "{{ pipeline.GlassParams.blur_sigma }}",
+        "bevel": "{{ pipeline.BEVEL }}",
+        "cornerSoftness": "{{ pipeline.CORNER_SOFTNESS }}",
+        "refract": "{{ pipeline.GlassParams.refract }}",
+        "ior": "{{ pipeline.IOR }}",
+        "aberration": "{{ pipeline.GlassParams.aberration }}",
+        "specular": "{{ pipeline.SPECULAR }}",
+        "rim": "{{ pipeline.GlassParams.rim }}",
+        "tint": "{{ pipeline.GlassParams.tint_amount }}",
+        "absorb": "{{ pipeline.GlassParams.absorb }}",
+        "shadow": "{{ pipeline.GlassParams.shadow }}",
+        "tintColor": "{{ pipeline.GlassParams.tint }}"
+      },
+      "absorption": {
+        "curve": "absorbed = 1 - (1 - absorb) / ((1 - absorb) + absorb * luma), then a saturation lift of 1 / (1 - 0.5 * absorbed) about the luma",
+        "appliesTo": "the transmitted light only, never the rim light",
+        "adjustable": true,
+        "control": "the glass page's Dimming slider, 0..1: the share of a white backdrop absorbed; 0 is a clear pane, 1 absorbs everything"
+      },
+      "border": {
+        "edgeBlur": "{{ pipeline.BorderParams.edge_blur }}",
+        "spread": "{{ pipeline.BorderParams.spread }}",
+        "falloff": "{{ pipeline.BorderParams.falloff }}",
+        "softness": "{{ pipeline.BorderParams.falloff_softness }}",
+        "grain": "{{ pipeline.BorderParams.grain }}",
+        "maxTaps": "{{ pipeline.BorderParams.max_taps }}"
+      },
+      "units": {
+        "bevel": "fraction of each panel's own corner radius",
+        "cornerSoftness": "how many radii a corner's curve runs along each edge; 1 is a quarter ellipse, larger is squarer and smoother",
+        "refract": "fraction of the bevel width",
+        "others": "see crates/player/src/settings.rs for ranges"
+      },
+      "backdrop": {
+        "source": "one seek-preview tile of the last film left unfinished, taken at the point you stopped, or the player's own mark on a fresh install",
+        "treatment": "covered across the window, softened past the point where its pixels read, dimmed to {{ backdrop.DIM }} of its brightness and falling away toward the corners",
+        "arrival": "{{ pipeline.BACKDROP_ARRIVAL }}",
+        "purpose": "The glass needs something to be glass over. Over a black frame refraction has nothing to bend and the rim nothing to catch."
+      },
+      "fixed": {
+        "values": [
+          "bevel",
+          "ior",
+          "specular"
+        ],
+        "why": "What the material is, rather than how much of it you want. Changing any of them stops the panes reading as one material, so all three are constants in pipeline.rs and the glass page has no slider for any of them."
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "icon-button",
+      "description": "Every control in the bar: a {{ MainWindow.btn }} circle with a {{ IconButton.glyph }} glyph in Lit, and the Strong wash held while its panel is open. A state the button controls shows by its glyph swapping, never by a wash. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-icon-row\"><button class=\"ds-icon-btn\" aria-label=\"Settings\"><svg viewBox=\"0 0 24 24\" width=\"{{ IconButton.glyph | n }}\" height=\"{{ IconButton.glyph | n }}\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.36.44.63.8.76H21a2 2 0 1 1 0 4h-.09c-.36.13-.66.4-.8.76z\"/></svg></button><button class=\"ds-icon-btn ds-icon-btn-open\" aria-label=\"Subtitles &amp; audio\" aria-expanded=\"true\"><svg viewBox=\"0 0 24 24\" width=\"{{ IconButton.glyph | n }}\" height=\"{{ IconButton.glyph | n }}\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\"/><path d=\"M7 14h4M13 14h4M7 10h10\"/></svg></button><button class=\"ds-icon-btn\" aria-label=\"No earlier file\" disabled><svg viewBox=\"0 0 24 24\" width=\"{{ IconButton.glyph | n }}\" height=\"{{ IconButton.glyph | n }}\" fill=\"currentColor\"><path d=\"M18 5v14l-10-7z\"/><rect x=\"5\" y=\"5\" width=\"2.5\" height=\"14\" rx=\"1\"/></svg></button></div>",
+      "css": ".ds-icon-row { display: inline-flex; gap: {{ MainWindow.btn-gap }}; padding: {{ MainWindow.pill-pad }}; } .ds-icon-btn { width: {{ MainWindow.btn }}; height: {{ MainWindow.btn }}; display: grid; place-items: center; border: none; border-radius: {{ MainWindow.btn / 2 }}; background: transparent; color: {{ Paint.lit }}; cursor: pointer; transition: background {{ Motion.highlight }} ease-out; } .ds-icon-btn:hover { background: {{ Paint.wash-button }}; } .ds-icon-btn:focus-visible { outline: none; background: {{ Paint.wash-strong }}; } .ds-icon-btn-open { background: {{ Paint.wash-strong }}; } .ds-icon-btn:disabled { color: {{ Paint.dim }}; background: transparent; cursor: default; }"
+    },
+    {
+      "name": "Menu Row",
+      "kind": "list item",
+      "refersTo": "menu-row",
+      "description": "One selectable line in a panel, {{ Rows.row }} tall, its text in Body starting {{ Rows.label-x }} from the panel edge. The wash insets {{ Rows.gap }} at a {{ Rows.radius }} corner so it never runs past the panel's. Hover is the Soft wash, the keyboard's position the Strong wash. The current row wears Lit at {{ Type.weight-current }} and a {{ ActiveMark.mark.width | n }}x{{ ActiveMark.mark.height | n }} capsule mark. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-rows\"><div class=\"ds-row ds-row-active\" tabindex=\"0\">English</div><div class=\"ds-row\" tabindex=\"0\">日本語</div><div class=\"ds-row\" tabindex=\"0\">Français</div></div>",
+      "css": ".ds-rows { display: flex; flex-direction: column; padding: {{ Rows.panel-pad }} 0; width: {{ MainWindow.menu.width }}; } .ds-row { height: {{ Rows.row }}; display: flex; align-items: center; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; position: relative; cursor: pointer; outline: none; } .ds-row::before { content: \"\"; position: absolute; inset: 0 {{ Rows.gap }}; border-radius: {{ Rows.radius }}; background: transparent; transition: background {{ Motion.highlight }} ease-out; z-index: -1; } .ds-row:hover::before { background: {{ Paint.wash-soft }}; } .ds-row:focus-visible::before { background: {{ Paint.wash-strong }}; } .ds-row:focus-visible { color: {{ Paint.lit }}; } .ds-row-active { color: {{ Paint.lit }}; font-weight: {{ Type.weight-current }}; } .ds-row-active::after { content: \"\"; position: absolute; left: {{ ActiveMark.mark.x }}; top: {{ (Rows.row - ActiveMark.mark.height) / 2 }}; width: {{ ActiveMark.mark.width }}; height: {{ ActiveMark.mark.height }}; border-radius: {{ ActiveMark.mark.width / 2 }}; background: {{ Paint.lit }}; }"
+    },
+    {
+      "name": "Section Heading",
+      "kind": "custom",
+      "refersTo": "section-label",
+      "description": "Names a part of the application in tracked capitals in the Label role, at the rows' own alpha, with a {{ MenuHeading.icon-size }} icon {{ MenuHeading.icon-gap }} before the words where the rows below carry none. Icons are drawn at {{ IconButton.glyph }} or {{ MenuHeading.icon-size }} and nothing between. A show's name takes the Named role instead: its own case, no tracking, the same weight and alpha. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-headings\"><div class=\"ds-kicker\"><svg viewBox=\"0 0 24 24\" width=\"{{ MenuHeading.icon-size | n }}\" height=\"{{ MenuHeading.icon-size | n }}\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\"/><path d=\"M7 14h4M13 14h4M7 10h10\"/></svg>SUBTITLES</div><div class=\"ds-kicker ds-kicker-named\"><svg viewBox=\"0 0 24 24\" width=\"{{ MenuHeading.icon-size | n }}\" height=\"{{ MenuHeading.icon-size | n }}\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M9 6h12M9 12h12M9 18h12M3 5l3 2-3 2z\"/></svg>Wandering Road</div></div>",
+      "css": ".ds-headings { display: flex; flex-direction: column; width: {{ MainWindow.menu.width }}; font-family: \"{{ Type.face }}\"; } .ds-kicker { height: {{ Rows.heading }}; display: flex; align-items: center; gap: {{ MenuHeading.icon-gap }}; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-size: {{ Type.label }}; font-weight: {{ Type.weight-plain }}; letter-spacing: {{ Type.label-track }}; color: {{ Paint.body }}; } .ds-kicker-named { font-size: {{ Type.named }}; letter-spacing: 0; }"
+    },
+    {
+      "name": "Back Row",
+      "kind": "nav",
+      "refersTo": "section-label",
+      "description": "A page's heading and the way out of it at once: {{ Rows.row }} tall, the Label role in Body, with a {{ MenuHeading.icon-size }} chevron laid out as a drill row lays out its icon, {{ BackRow.layout.spacing }} before the words. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-back\" tabindex=\"0\"><svg viewBox=\"0 0 24 24\" width=\"{{ MenuHeading.icon-size | n }}\" height=\"{{ MenuHeading.icon-size | n }}\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M15 5l-7 7 7 7\"/></svg><span>SEASON 7</span></div>",
+      "css": ".ds-back { height: {{ Rows.row }}; width: {{ MainWindow.menu.width }}; box-sizing: border-box; display: flex; align-items: center; gap: {{ BackRow.layout.spacing }}; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.label }}; font-weight: {{ Type.weight-plain }}; letter-spacing: {{ Type.label-track }}; color: {{ Paint.body }}; position: relative; cursor: pointer; outline: none; } .ds-back::before { content: \"\"; position: absolute; inset: 0 {{ Rows.gap }}; border-radius: {{ Rows.radius }}; background: transparent; transition: background {{ Motion.highlight }} ease-out; z-index: -1; } .ds-back:hover { color: {{ Paint.lit }}; } .ds-back:hover::before { background: {{ Paint.wash-soft }}; } .ds-back:focus-visible { color: {{ Paint.lit }}; } .ds-back:focus-visible::before { background: {{ Paint.wash-strong }}; }"
+    },
+    {
+      "name": "Parameter Slider",
+      "kind": "input",
+      "refersTo": "slider-row",
+      "description": "A material parameter on the glass and ambient-border pages: a {{ Rows.slider-row }} row, a {{ ParamSlider.name-text.width }} label in Body at Readout size, and a {{ ParamSlider.value-text.width }} value right-aligned in Body. The track grows from {{ ParamSlider.rail.height@else }} to {{ ParamSlider.rail.height@then }} under the pointer; there is no hover wash, since the growing track already answers. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-slider\"><span class=\"ds-slider-label\">Refraction</span><span class=\"ds-track\"><span class=\"ds-fill\"></span></span><span class=\"ds-slider-value\">1.00</span></div>",
+      "css": ".ds-slider { height: {{ Rows.slider-row }}; width: {{ MainWindow.settings.width }}; box-sizing: border-box; display: flex; align-items: center; gap: {{ ParamSlider.layout.spacing }}; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-slider-label { width: {{ ParamSlider.name-text.width }}; } .ds-track { flex: 1; height: {{ ParamSlider.rail.height@else }}; border-radius: {{ ParamSlider.rail.height@then / 2 }}; background: {{ Paint.rail }}; transition: height {{ Motion.track-grow }} ease-out; } .ds-slider:hover .ds-track { height: {{ ParamSlider.rail.height@then }}; } .ds-fill { display: block; width: 50%; height: 100%; border-radius: inherit; background: {{ Paint.fill }}; } .ds-slider-value { width: {{ ParamSlider.value-text.width }}; text-align: right; color: {{ Paint.body }}; }"
+    },
+    {
+      "name": "Stepper Row",
+      "kind": "input",
+      "refersTo": "stepper-button",
+      "description": "For quantities read as numbers rather than positions, like a subtitle delay, where the useful move is one step: a {{ Rows.stepper-row }} row, the label in Body at Readout size, then two {{ StepButton.width }} discs (the Soft wash at rest, the Strong wash under the pointer) either side of a {{ StepperRow.value-text.width }} value in Strong. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-stepper\"><span class=\"ds-stepper-label\">Timing</span><button class=\"ds-step\">−</button><span class=\"ds-stepper-value\">+0.30 s</span><button class=\"ds-step\">+</button></div>",
+      "css": ".ds-stepper { height: {{ Rows.stepper-row }}; width: {{ MainWindow.settings.width }}; box-sizing: border-box; display: flex; align-items: center; gap: {{ StepperRow.layout.spacing }}; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-stepper-label { flex: 1; } .ds-step { width: {{ StepButton.width }}; height: {{ StepButton.width }}; border: none; border-radius: {{ StepButton.width / 2 }}; background: {{ Paint.wash-soft }}; color: {{ Paint.strong }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.glyph }}; font-weight: {{ Type.weight-plain }}; line-height: 1; cursor: pointer; transition: background {{ Motion.highlight }} ease-out; } .ds-step:hover { background: {{ Paint.wash-strong }}; } .ds-step:focus-visible { outline: none; background: {{ Paint.wash-strong }}; } .ds-stepper-value { width: {{ StepperRow.value-text.width }}; text-align: center; color: {{ Paint.strong }}; }"
+    },
+    {
+      "name": "Switch Row",
+      "kind": "input",
+      "refersTo": "toggle-track-on",
+      "description": "A setting that is on or off: a {{ Rows.toggle-row }} row, the switch first and the label after it in Body, {{ ToggleRow.layout.spacing }} apart. The knob is dark on a lit track and light on a dark one, so it reads as a hole punched through either way. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-switch-row\"><span class=\"ds-switch ds-switch-on\"><span class=\"ds-knob\"></span></span><span class=\"ds-switch-label\">Autoplay next</span></div>",
+      "css": ".ds-switch-row { height: {{ Rows.toggle-row }}; width: {{ MainWindow.playlist-panel.width }}; box-sizing: border-box; display: flex; align-items: center; gap: {{ ToggleRow.layout.spacing }}; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; position: relative; cursor: pointer; } .ds-switch-row::before { content: \"\"; position: absolute; inset: 0 {{ Rows.gap }}; border-radius: {{ Rows.radius }}; background: transparent; transition: background {{ Motion.highlight }} ease-out; z-index: -1; } .ds-switch-row:hover::before { background: {{ Paint.wash-soft }}; } .ds-switch { width: {{ ToggleRow.toggle.width }}; height: {{ ToggleRow.track.height }}; border-radius: {{ ToggleRow.track.height / 2 }}; background: {{ Paint.rail }}; position: relative; transition: background {{ Motion.switch }} ease-out; } .ds-switch-on { background: {{ Paint.fill }}; } .ds-knob { position: absolute; top: {{ (ToggleRow.track.height - ToggleRow.knob.width) / 2 }}; left: {{ (ToggleRow.track.height - ToggleRow.knob.width) / 2 }}; width: {{ ToggleRow.knob.width }}; height: {{ ToggleRow.knob.width }}; border-radius: {{ ToggleRow.knob.width / 2 }}; background: {{ Paint.fill }}; transition: left {{ Motion.switch }} ease-out; } .ds-switch-on .ds-knob { left: {{ ToggleRow.toggle.width - ToggleRow.knob.width - (ToggleRow.track.height - ToggleRow.knob.width) / 2 }}; background: {{ Paint.knob }}; }"
+    },
+    {
+      "name": "Timeline Row",
+      "kind": "custom",
+      "refersTo": "timeline-row",
+      "description": "One {{ MainWindow.timeline-h }} capsule of glass across the bar's width: elapsed time, track, total, each time centred in a column at least {{ MainWindow.minutes-w }} wide and set from the total, so the row doesn't shift when a film passes the hour. The track is {{ MainWindow.timeline-rail.height@else }} in Rail, growing to {{ MainWindow.timeline-rail.height@then }}; the hit area is the whole row. The dark fill here stands in for refraction. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-timeline\"><span class=\"ds-time\">0:24:10</span><span class=\"ds-scrub\"><span class=\"ds-played\"></span></span><span class=\"ds-time\">1:23:45</span></div>",
+      "css": ".ds-timeline { display: flex; align-items: center; gap: {{ MainWindow.pill-gap }}; width: {{ demo 640px }}; height: {{ MainWindow.timeline-h }}; border-radius: {{ MainWindow.timeline-h / 2 }}; background: rgba(16,18,24,0.55); backdrop-filter: blur({{ demo 12px }}); } .ds-time { width: {{ MainWindow.minutes-w }}; text-align: center; font-family: \"{{ Type.numerals }}\"; font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.strong }}; } .ds-scrub { flex: 1; height: {{ MainWindow.timeline-rail.height@else }}; border-radius: {{ MainWindow.timeline-rail.height@then / 2 }}; background: {{ Paint.rail }}; transition: height {{ Motion.track-grow }} ease-out; } .ds-timeline:hover .ds-scrub { height: {{ MainWindow.timeline-rail.height@then }}; } .ds-played { display: block; width: 30%; height: 100%; border-radius: inherit; background: {{ Paint.played }}; }"
+    },
+    {
+      "name": "Hover Label",
+      "kind": "custom",
+      "refersTo": "hover-label",
+      "description": "A {{ MainWindow.tip-h }} capsule of glass naming the control under the pointer and the key that does the same thing, {{ Motion.tip-delay }} after the pointer settles, then a fade and a {{ MainWindow.lift }} rise. The name in Body, the key in Quiet at Readout size, {{ MainWindow.tip-gap }} apart inside {{ MainWindow.tip-pad }} of padding. It says what pressing will do, not what the glyph already shows. The volume track's is a reading instead (Volume 84%, or Muted), which opens at once when the level moves under the pointer and stays up through a press. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<span class=\"ds-tip\"><span class=\"ds-tip-name\">Unmute</span><span class=\"ds-tip-keys\">M</span></span>",
+      "css": ".ds-tip { display: inline-flex; align-items: center; gap: {{ MainWindow.tip-gap }}; height: {{ MainWindow.tip-h }}; padding: 0 {{ MainWindow.tip-pad }}; border-radius: {{ MainWindow.tip-h / 2 }}; background: rgba(16,18,24,0.55); backdrop-filter: blur({{ demo 12px }}); font-family: \"{{ Type.face }}\"; } .ds-tip-name { font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-tip-keys { font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.quiet }}; }"
+    },
+    {
+      "name": "End-of-File Pill",
+      "kind": "button",
+      "refersTo": "end-pill",
+      "description": "The bar's own {{ MainWindow.end-h }} capsule, in the middle of the picture where the film stopped: a {{ EndChoice.glyph.width }} glyph and the way on by name (the next season, else the newest other unfinished film, else Open folder…) in Prompt at Lit, {{ MainWindow.end-gap }} apart, the words {{ MainWindow.end-pad }} from the pill's edge. With two choices each is a capsule of its own, inset {{ MainWindow.pill-pad }}. The Button wash on hover, the Strong wash under the keyboard. Not tied to the idle clock, and it moves aside for a panel or a seek preview in its way. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-end\"><button class=\"ds-end-choice\"><svg viewBox=\"0 0 24 24\" width=\"{{ EndChoice.glyph.width | n }}\" height=\"{{ EndChoice.glyph.width | n }}\" fill=\"currentColor\"><path d=\"M6 5l10 7-10 7z\"/><rect x=\"17\" y=\"5\" width=\"2.5\" height=\"14\" rx=\"1\"/></svg>Season 8</button><button class=\"ds-end-choice\"><svg viewBox=\"0 0 24 24\" width=\"{{ EndChoice.glyph.width | n }}\" height=\"{{ EndChoice.glyph.width | n }}\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4\"/></svg>Restart</button></div>",
+      "css": ".ds-end { display: inline-flex; align-items: center; gap: {{ MainWindow.btn-gap }}; height: {{ MainWindow.end-h }}; padding: {{ MainWindow.pill-pad }}; box-sizing: border-box; border-radius: {{ MainWindow.pill-radius }}; background: rgba(16,18,24,0.55); backdrop-filter: blur({{ demo 12px }}); } .ds-end-choice { display: inline-flex; align-items: center; gap: {{ MainWindow.end-gap }}; height: {{ MainWindow.end-h - 2 * MainWindow.pill-pad }}; padding: 0 {{ MainWindow.end-pad - MainWindow.pill-pad }}; border: none; border-radius: {{ (MainWindow.end-h - 2 * MainWindow.pill-pad) / 2 }}; background: transparent; color: {{ Paint.lit }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.prompt }}; font-weight: {{ Type.weight-title }}; cursor: pointer; transition: background {{ Motion.highlight }} ease-out; } .ds-end-choice:hover { background: {{ Paint.wash-button }}; } .ds-end-choice:focus-visible { outline: none; background: {{ Paint.wash-strong }}; }"
+    },
+    {
+      "name": "Seek Preview",
+      "kind": "card",
+      "refersTo": "seek-preview",
+      "description": "The signature component: one tile of a {{ preview.GRID }}x{{ preview.GRID }} ffmpeg sprite atlas inside a glass panel with a {{ MainWindow.preview-radius }} corner and {{ MainWindow.preview-pad }} of padding, wider than the bevel so the material has room to render, and the tile's corner concentric with it. The timestamp beneath in Strong, in a {{ MainWindow.preview-caption }} caption. Its fade is half a surface's, {{ Motion.surface / 2 }}. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<figure class=\"ds-preview\"><span class=\"ds-preview-tile\"></span><figcaption class=\"ds-preview-time\">0:24:10</figcaption></figure>",
+      "css": ".ds-preview { margin: 0; padding: {{ MainWindow.preview-pad }} {{ MainWindow.preview-pad }} 0; border-radius: {{ MainWindow.preview-radius }}; background: rgba(16,18,24,0.55); backdrop-filter: blur({{ demo 12px }}); display: inline-block; transition: opacity {{ Motion.surface / 2 }} ease-out; } .ds-preview-tile { display: block; width: {{ preview.TILE_W_FALLBACK }}px; height: {{ preview.TILE_H }}px; border-radius: {{ MainWindow.preview-tile-radius }}; background: linear-gradient(135deg, {{ demo #6d2f3a }}, {{ demo #0e3a4a }} 55%, {{ demo #0b1020 }}); } .ds-preview-time { height: {{ MainWindow.preview-caption }}; padding-bottom: {{ MainWindow.preview-pad }}; display: grid; place-items: center; font-family: \"{{ Type.numerals }}\"; font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.strong }}; }"
+    },
+    {
+      "name": "The Way In",
+      "kind": "card",
+      "refersTo": "resume-row",
+      "description": "With no film loaded, a panel of glass centred over the backdrop: Continue first when there is a film to continue (a play glyph in Body, the film's name in Strong at Body size, the resume measure and what is left in Quiet, with the show on a Named heading line above it), then a group gap, then the open rows as shortcut rows with their keys. The drop line shows only where the platform has a drop target, and takes its gap with it. This is the one surface with a fill (the Soft wash at the panel corner), and only where there is no glass to paint over: a fatal error, and no film with no backdrop. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-invite\"><div class=\"ds-invite-show\">Game of Thrones</div><div class=\"ds-invite-row\"><svg viewBox=\"0 0 24 24\" width=\"{{ ResumeRow.icon-size | n }}\" height=\"{{ ResumeRow.icon-size | n }}\" fill=\"currentColor\"><path d=\"M7 5l12 7-12 7z\"/></svg><span class=\"ds-invite-name\">S07E06 · Beyond the Wall</span><span class=\"ds-measure\"><span class=\"ds-measure-fill\"></span></span><span class=\"ds-invite-left\">43 min left</span></div><div class=\"ds-invite-gap\"></div><div class=\"ds-invite-key\"><span>Open file…</span><span class=\"ds-keys\">Ctrl+O</span></div><div class=\"ds-invite-key\"><span>Shortcuts</span><span class=\"ds-keys\">?</span></div></div>",
+      "css": ".ds-invite { width: {{ MainWindow.invite-w@then }}; box-sizing: border-box; padding: {{ Rows.panel-pad }}; border-radius: {{ Rows.panel-radius }}; background: {{ Paint.wash-soft }}; font-family: \"{{ Type.face }}\"; } .ds-invite-show { height: {{ Rows.heading }}; display: flex; align-items: center; padding: 0 {{ Rows.label-x - Rows.gap }}; font-size: {{ Type.named }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-invite-row { height: {{ Rows.row }}; display: flex; align-items: center; gap: {{ ResumeRow.icon-gap }}; padding: 0 {{ Rows.trail-x - Rows.gap }} 0 {{ Rows.label-x - Rows.gap }}; border-radius: {{ Rows.radius }}; color: {{ Paint.body }}; cursor: pointer; transition: background {{ Motion.highlight }} ease-out; } .ds-invite-row:hover { background: {{ Paint.wash-soft }}; } .ds-invite-name { flex: 1; font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.strong }}; } .ds-measure { width: {{ ResumeRow.measure-w }}; height: {{ ResumeRow.measure.height }}; border-radius: {{ ResumeRow.measure.height / 2 }}; background: {{ Paint.rail }}; } .ds-measure-fill { display: block; width: 62%; height: 100%; border-radius: inherit; background: {{ Paint.strong }}; } .ds-invite-left { text-align: right; font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.quiet }}; } .ds-invite-gap { height: {{ Rows.group-gap }}; } .ds-invite-key { height: {{ Rows.row }}; display: flex; align-items: center; justify-content: space-between; padding: 0 {{ Rows.trail-x - Rows.gap }} 0 {{ Rows.label-x - Rows.gap }}; font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-keys { font-size: {{ Type.readout }}; color: {{ Paint.quiet }}; }"
+    }
+  ]
+}

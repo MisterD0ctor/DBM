@@ -21,7 +21,7 @@ export component ActiveMark inherits Rectangle {
     width: 100%;
     height: 100%;
 
-    Rectangle {
+    mark := Rectangle {
         x: Rows.gap + 4px;
         y: (parent.height - self.height) / 2;
         width: 3px;
@@ -486,6 +486,7 @@ export component ResumeRow inherits Rectangle {
     in property <string> left;
     private property <length> measure-w: 44px;
     private property <length> icon-size: 18px;
+    private property <length> icon-gap: 10px;
     callback picked();
 
     height: Rows.row;
@@ -512,7 +513,7 @@ export component ResumeRow inherits Rectangle {
     }
 
     Text {
-        x: Rows.label-x + root.icon-size + 10px;
+        x: Rows.label-x + root.icon-size + root.icon-gap;
         width: left-text.x - Rows.group-gap - root.measure-w - Rows.group-gap - self.x;
         height: 100%;
         text: root.label;
@@ -535,7 +536,7 @@ export component ResumeRow inherits Rectangle {
     }
 
     // The same resume measure as a playlist row's.
-    Rectangle {
+    measure := Rectangle {
         x: left-text.x - Rows.group-gap - root.measure-w;
         y: (parent.height - self.height) / 2;
         width: root.measure-w;
@@ -663,7 +664,7 @@ export component ParamSlider inherits Rectangle {
         shade: Paint.wash-strong;
     }
 
-    HorizontalLayout {
+    layout := HorizontalLayout {
         spacing: 8px;
         padding-left: Rows.label-x;
         padding-right: Rows.trail-x;
@@ -684,7 +685,7 @@ export component ParamSlider inherits Rectangle {
 
         // 2px wider than the longest label, so with the layout's 8px spacing
         // the track sits 10px off the words.
-        Text {
+        name-text := Text {
             width: 80px;
             text: root.label;
             color: root.ring ? Paint.lit : Paint.body;
@@ -695,7 +696,7 @@ export component ParamSlider inherits Rectangle {
         Rectangle {
             horizontal-stretch: 1;
 
-            Rectangle {
+            rail := Rectangle {
                 y: (parent.height - self.height) / 2;
                 width: 100%;
                 height: drag.has-hover || drag.pressed ? 6px : 4px;
@@ -737,7 +738,7 @@ export component ParamSlider inherits Rectangle {
             }
         }
 
-        Text {
+        value-text := Text {
             width: 46px;
             text: root.readout;
             color: Paint.body;
@@ -786,7 +787,7 @@ export component ToggleRow inherits Rectangle {
         shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
     }
 
-    HorizontalLayout {
+    layout := HorizontalLayout {
         padding-left: Rows.label-x;
         padding-right: Rows.trail-x;
         spacing: 12px;
@@ -795,10 +796,10 @@ export component ToggleRow inherits Rectangle {
         // a rounded corner as a few straight chords, and at 18px a capsule's
         // ends came to a point. A picture is rendered at the size it is shown,
         // curve and all.
-        Rectangle {
+        toggle := Rectangle {
             width: 34px;
 
-            Rectangle {
+            track := Rectangle {
                 y: (parent.height - self.height) / 2;
                 width: 100%;
                 height: 18px;
@@ -810,7 +811,7 @@ export component ToggleRow inherits Rectangle {
                     colorize: root.checked ? Paint.fill : Paint.rail;
                     animate colorize { duration: Motion.switch; easing: ease-out; }
                 }
-                Image {
+                knob := Image {
                     x: root.checked ? parent.width - self.width - 2px : 2px;
                     y: 2px;
                     width: 14px;
@@ -964,7 +965,7 @@ export component StepperRow inherits Rectangle {
         shade: Paint.wash-strong;
     }
 
-    HorizontalLayout {
+    layout := HorizontalLayout {
         padding-left: Rows.label-x;
         padding-right: Rows.trail-x;
         spacing: 8px;
@@ -1004,7 +1005,7 @@ export component StepperRow inherits Rectangle {
             }
         }
 
-        Text {
+        value-text := Text {
             width: 62px;
             text: root.value;
             color: Paint.strong;
@@ -1056,7 +1057,7 @@ export component BackRow inherits Rectangle {
     // way out of a page of those, and the two read as one movement only if
     // they match. Hung in the margin, it lined the label up with the headings
     // but pinched the arrow between the panel edge and the first letter.
-    HorizontalLayout {
+    layout := HorizontalLayout {
         padding-left: Rows.label-x;
         padding-right: Rows.trail-x;
         spacing: 10px;

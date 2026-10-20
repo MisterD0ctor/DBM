@@ -51,6 +51,12 @@ jobs:
               with:
                   workspaces: .
 
+            # DESIGN.md's front matter and .impeccable/design.json are made
+            # from the code, so a token changed without rerunning
+            # `scripts/design.py write` fails here rather than drifting.
+            - name: Design files
+              run: python3 scripts/design.py check
+
             - name: Format
               run: cargo fmt --check
 

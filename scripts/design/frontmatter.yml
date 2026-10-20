@@ -1,0 +1,176 @@
+name: Death by MPV
+description: A video player whose interface is panes of real glass laid over the film.
+colors:
+  lit: "{{ Paint.lit }}"
+  strong: "{{ Paint.strong }}"
+  body: "{{ Paint.body }}"
+  quiet: "{{ Paint.quiet }}"
+  dim: "{{ Paint.dim }}"
+  played: "{{ Paint.played }}"
+  fill: "{{ Paint.fill }}"
+  rail: "{{ Paint.rail }}"
+  knob: "{{ Paint.knob }}"
+  ground: "{{ Paint.ground }}"
+  wash-strong: "{{ Paint.wash-strong }}"
+  wash-button: "{{ Paint.wash-button }}"
+  wash-soft: "{{ Paint.wash-soft }}"
+typography:
+  title:
+    fontFamily: "{{ Type.face }}"
+    fontSize: "{{ Type.title }}"
+    fontWeight: {{ Type.weight-title }}
+  body:
+    fontFamily: "{{ Type.face }}"
+    fontSize: "{{ Type.body }}"
+    fontWeight: {{ Type.weight-plain }}
+  named:
+    fontFamily: "{{ Type.face }}"
+    fontSize: "{{ Type.named }}"
+    fontWeight: {{ Type.weight-plain }}
+  readout:
+    fontFamily: "{{ Type.face }}"
+    fontSize: "{{ Type.readout }}"
+    fontWeight: {{ Type.weight-plain }}
+  hint:
+    fontFamily: "{{ Type.face }}"
+    fontSize: "{{ Type.hint }}"
+    fontWeight: {{ Type.weight-plain }}
+  timecode:
+    fontFamily: "{{ Type.numerals }}"
+    fontSize: "{{ Type.readout }}"
+    fontWeight: {{ Type.weight-plain }}
+  label:
+    fontFamily: "{{ Type.face }}"
+    fontSize: "{{ Type.label }}"
+    fontWeight: {{ Type.weight-plain }}
+    letterSpacing: "{{ Type.label-track }}"
+  glyph:
+    fontFamily: "{{ Type.face }}"
+    fontSize: "{{ Type.glyph }}"
+    fontWeight: {{ Type.weight-plain }}
+  prompt:
+    fontFamily: "{{ Type.face }}"
+    fontSize: "{{ Type.prompt }}"
+    fontWeight: {{ Type.weight-title }}
+rounded:
+  row: "{{ Rows.radius }}"
+  panel: "{{ Rows.panel-radius }}"
+  pill: "{{ MainWindow.pill-radius }}"
+  button: "{{ MainWindow.btn / 2 }}"
+  timeline: "{{ MainWindow.timeline-h / 2 }}"
+  preview: "{{ MainWindow.preview-radius }}"
+  preview-tile: "{{ MainWindow.preview-tile-radius }}"
+spacing:
+  hair: "{{ MainWindow.pill-pad }}"
+  tight: "{{ MainWindow.btn-gap }}"
+  group: "{{ Rows.group-gap }}"
+  offset: "{{ Rows.offset }}"
+  gap: "{{ Rows.gap }}"
+  margin: "{{ MainWindow.panel-margin }}"
+  trail-x: "{{ Rows.trail-x }}"
+  label-x: "{{ Rows.label-x }}"
+components:
+  icon-button:
+    size: "{{ MainWindow.btn }}"
+    rounded: "{rounded.button}"
+    textColor: "{colors.lit}"
+    backgroundColor: "transparent"
+  icon-button-hover:
+    backgroundColor: "{colors.wash-button}"
+  icon-button-open:
+    backgroundColor: "{colors.wash-strong}"
+  icon-button-focus:
+    backgroundColor: "{colors.wash-strong}"
+  icon-button-disabled:
+    textColor: "{colors.dim}"
+  control-pill:
+    height: "{{ MainWindow.pill-h }}"
+    rounded: "{rounded.pill}"
+    padding: "{{ MainWindow.pill-pad }}"
+    backgroundColor: "transparent"
+  timeline-row:
+    height: "{{ MainWindow.timeline-h }}"
+    rounded: "{rounded.timeline}"
+    textColor: "{colors.strong}"
+    typography: "{typography.timecode}"
+    backgroundColor: "transparent"
+  timeline-time:
+    width: "{{ MainWindow.minutes-w }}"
+    textColor: "{colors.strong}"
+    typography: "{typography.timecode}"
+  menu-row:
+    height: "{{ Rows.row }}"
+    padding: "0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}"
+    textColor: "{colors.body}"
+    typography: "{typography.body}"
+    backgroundColor: "transparent"
+  menu-row-hover:
+    backgroundColor: "{colors.wash-soft}"
+    rounded: "{rounded.row}"
+  menu-row-focus:
+    backgroundColor: "{colors.wash-strong}"
+    rounded: "{rounded.row}"
+  menu-row-active:
+    textColor: "{colors.lit}"
+  section-label:
+    height: "{{ Rows.heading }}"
+    padding: "0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}"
+    textColor: "{colors.body}"
+    typography: "{typography.label}"
+  section-label-named:
+    height: "{{ Rows.heading }}"
+    padding: "0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}"
+    textColor: "{colors.body}"
+    typography: "{typography.named}"
+  slider-row:
+    height: "{{ Rows.slider-row }}"
+    padding: "0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}"
+    textColor: "{colors.body}"
+    typography: "{typography.readout}"
+  stepper-button:
+    size: "{{ StepButton.width }}"
+    rounded: "{{ StepButton.width / 2 }}"
+    backgroundColor: "{colors.wash-soft}"
+    textColor: "{colors.strong}"
+  stepper-button-hover:
+    backgroundColor: "{colors.wash-strong}"
+  toggle-track-on:
+    width: "{{ ToggleRow.toggle.width }}"
+    height: "{{ ToggleRow.track.height }}"
+    rounded: "{{ ToggleRow.track.height / 2 }}"
+    backgroundColor: "{colors.fill}"
+  toggle-track-off:
+    width: "{{ ToggleRow.toggle.width }}"
+    height: "{{ ToggleRow.track.height }}"
+    rounded: "{{ ToggleRow.track.height / 2 }}"
+    backgroundColor: "{colors.rail}"
+  hover-label:
+    height: "{{ MainWindow.tip-h }}"
+    rounded: "{{ MainWindow.tip-h / 2 }}"
+    padding: "0 {{ MainWindow.tip-pad }}"
+    textColor: "{colors.body}"
+    typography: "{typography.body}"
+  end-pill:
+    height: "{{ MainWindow.end-h }}"
+    rounded: "{rounded.pill}"
+    padding: "0 {{ MainWindow.end-pad }}"
+    textColor: "{colors.lit}"
+    typography: "{typography.prompt}"
+  end-pill-hover:
+    backgroundColor: "{colors.wash-button}"
+  end-choice:
+    height: "{{ MainWindow.end-h - 2 * MainWindow.pill-pad }}"
+    rounded: "{{ (MainWindow.end-h - 2 * MainWindow.pill-pad) / 2 }}"
+    padding: "0 {{ MainWindow.end-pad - MainWindow.pill-pad }}"
+    textColor: "{colors.lit}"
+    typography: "{typography.prompt}"
+  resume-row:
+    height: "{{ Rows.row }}"
+    padding: "0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}"
+    textColor: "{colors.strong}"
+    typography: "{typography.body}"
+  seek-preview:
+    rounded: "{rounded.preview}"
+    padding: "{{ MainWindow.preview-pad }}"
+    textColor: "{colors.strong}"
+    typography: "{typography.timecode}"
