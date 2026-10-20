@@ -1,19 +1,15 @@
 //! Asking the desktop for a path.
 //!
-//! A native file dialog runs its own modal message loop, so calling one from
-//! the UI thread stops the player dead for as long as it is open — no frames,
-//! no events, a black window until the user picks something. So the dialog
-//! gets its own thread and the answer comes back through the event loop.
+//! A native file dialog runs its own modal message loop, so on the UI thread
+//! it would stop the player dead while open. So the dialog gets its own
+//! thread, and the answer comes back through the event loop.
 //!
-//! Deliberately *not* the worker thread. The worker serialises jobs, and a
-//! dialog sitting open for a minute would hold up every track-list read
-//! behind it. A dialog is not work to be queued; it is a conversation with
-//! the user that happens to take a while.
+//! Not the worker, which serialises jobs: a dialog open for a minute would
+//! hold up every track-list read behind it.
 //!
-//! What comes back is a path and nothing more. Turning that into a playlist
-//! is the same job the command line already goes through — see
-//! [`crate::library::playlist::prepare`] — which is why this module knows nothing
-//! about mpv, playlists or the worker.
+//! What comes back is only a path, which becomes a playlist the way the
+//! command line's does (see [`crate::library::playlist::prepare`]), so this
+//! module knows nothing about mpv, playlists or the worker.
 
 use crate::lang::tr;
 use crate::MainWindow;
@@ -29,17 +25,14 @@ pub enum Want {
 
 /// Open a dialog and hand whatever is chosen to `open-path` on the UI thread.
 ///
-/// Returns immediately. A cancelled dialog is silent: it is not an error, and
-/// there is nothing to report.
+/// Returns immediately. A cancelled dialog is silent, since it isn't an error.
 ///
 /// `start` is where the dialog opens, when there is somewhere better than
-/// wherever the system last left it: beside the file playing, for a file, and
-/// the folder above its season, for a folder — which at the end of a season
-/// is the shelf the next one is on.
+/// where the system last left it: beside the file playing for a file, and the
+/// folder above its season for a folder, where the next season is.
 pub fn pick(want: Want, start: Option<std::path::PathBuf>, ui: slint::Weak<MainWindow>) {
-    // A fresh thread per invocation rather than a kept one: dialogs are rare,
-    // and a thread that exists only while one is open cannot be a place where
-    // state accumulates.
+    // A fresh thread per dialog rather than a kept one, since dialogs are rare
+    // and a short-lived thread can't accumulate state.
     eprintln!(
         "dbm: file dialog requested ({})",
         match want {

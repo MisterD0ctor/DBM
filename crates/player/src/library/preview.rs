@@ -6,23 +6,20 @@
 //! nothing about how either was produced.
 //!
 //! Built by ffmpeg; with none on the machine there are no thumbnails, and
-//! the preview falls back to the timestamp alone — see `ffmpeg`.
+//! the preview falls back to the timestamp alone (see `ffmpeg`).
 //!
 //! Every frame is extracted by its own `-ss` seek rather than by scanning.
 //! A linear pass over a two-hour film to collect 64 frames costs minutes; 64
 //! seeks into the container index cost seconds, and they parallelise.
 //!
-//! Each build gets its own thread, not the shared worker. A feature-length
-//! film is 64 ffmpeg spawns and takes as long as it takes; the worker is also
-//! what keeps the track lists current, and a menu that stays empty until the
-//! thumbnails finish would be a worse bug than having no thumbnails at all.
-//! Its ffmpeg runs behind the player, too — see `ffmpeg::spawn_behind` — as
-//! the build mostly happens while a film is starting, when the player is
-//! busiest.
+//! Each build gets its own thread rather than the shared worker, since it is
+//! 64 ffmpeg spawns and the worker also keeps the track lists current, which
+//! must not wait for thumbnails. Its ffmpeg runs behind the player (see
+//! `ffmpeg::spawn_behind`), as builds mostly happen while a film is starting,
+//! when the player is busiest.
 //!
-//! A generation counter, bumped on every request, is what stops an abandoned
-//! file's ffmpeg processes from outliving it — the same coalescing shape as
-//! the scrubber and the list reads.
+//! A generation counter, bumped on every request, stops an abandoned file's
+//! ffmpeg processes from outliving it.
 
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
@@ -33,7 +30,7 @@ use crate::library::ffmpeg;
 use crate::worker::{Completion, Reporter};
 
 /// Tiles across and down. 64 frames is roughly one per two minutes of a
-/// feature — close enough to land on the right scene, cheap enough to build
+/// feature: close enough to land on the right scene, cheap enough to build
 /// while the film is starting.
 const GRID: u32 = 8;
 /// Tile height in pixels; the width follows the video's aspect. Even, for
@@ -47,18 +44,15 @@ const PARALLEL: usize = 8;
 /// From this much film per tile up, a tile is the keyframe nearest its time
 /// rather than the exact frame.
 ///
-/// An exact frame costs a decode of everything from the keyframe before it,
-/// which in a long-GOP encode is hundreds of frames a tile. Built for a
-/// 43-minute episode as it started, that held a 16-thread machine at 85-90%
-/// for eight seconds, and the player drew short of 60 frames a second for
-/// all of them — as few as 39. A keyframe is one decoded frame: the same
-/// atlas now takes two seconds, and the drawing does not notice it.
+/// An exact frame decodes everything from the keyframe before it, hundreds
+/// of frames a tile in a long-GOP encode, which held a 16-thread machine near
+/// 90% for eight seconds and made the player drop frames. A keyframe is one
+/// decoded frame, and the atlas takes two seconds.
 ///
-/// Twenty seconds because encoders put a keyframe at least every ten or so —
-/// x264 and x265 default to 250 frames — so with a slice this long the
-/// keyframe at or before its midpoint is still inside it, and the tile shows
-/// the scene its slice covers. That is a film of 21 minutes or more; shorter
-/// clips are where ten seconds early would show, and they keep exact frames.
+/// Twenty seconds because encoders put a keyframe at least every ten or so
+/// (x264 and x265 default to 250 frames), so the keyframe at or before a
+/// slice's midpoint is still inside it. That is a film of 21 minutes or more;
+/// shorter clips, where ten seconds early would show, keep exact frames.
 const KEYFRAME_SLICE: f64 = 20.0;
 
 /// A finished atlas.
@@ -107,9 +101,8 @@ pub fn spawn(video: PathBuf, reporter: Reporter) {
         let Some(sprite) = build(&video, generation) else {
             return;
         };
-        // Decoded here rather than where it is shown. Reading the JPEG back
-        // on the UI thread was nine milliseconds in the frame the atlas
-        // arrived in, which is most of a frame and showed as a hitch.
+        // Decoded here rather than on the UI thread, where it costs most of
+        // a frame and shows as a hitch.
         let Some(pixels) = decode(&sprite) else {
             return;
         };
@@ -125,7 +118,7 @@ pub struct Atlas {
     pub pixels: slint::SharedPixelBuffer<slint::Rgba8Pixel>,
 }
 
-/// The whole atlas as pixels. **Blocking** — runs ffmpeg once.
+/// The whole atlas as pixels. **Blocking**: runs ffmpeg once.
 fn decode(sprite: &Sprite) -> Option<slint::SharedPixelBuffer<slint::Rgba8Pixel>> {
     let ffmpeg = ffmpeg::path()?;
     let (width, height) = (sprite.tile_w * sprite.grid, sprite.tile_h * sprite.grid);
@@ -135,9 +128,8 @@ fn decode(sprite: &Sprite) -> Option<slint::SharedPixelBuffer<slint::Rgba8Pixel>
     ))
 }
 
-/// A rectangle of the atlas as RGBA, top row first. **Blocking** — runs
-/// ffmpeg once, to cut it out of the JPEG and hand it back undecorated on
-/// stdout.
+/// A rectangle of the atlas as RGBA, top row first. **Blocking**: runs
+/// ffmpeg once, to cut it out of the JPEG onto stdout.
 fn cut(ffmpeg: &Path, sprite: &Sprite, at: (u32, u32), size: (u32, u32)) -> Option<Vec<u8>> {
     let ((x, y), (width, height)) = (at, size);
     let mut cmd = ffmpeg::command(ffmpeg);
@@ -165,9 +157,9 @@ fn cut(ffmpeg: &Path, sprite: &Sprite, at: (u32, u32), size: (u32, u32)) -> Opti
 
 /// Build, or find, the atlas for one video. Runs off the UI thread.
 ///
-/// Returns `None` for every ordinary reason a thumbnail might not exist —
-/// no ffmpeg, an unreadable file, a superseded request — because none of
-/// them is worth interrupting playback over.
+/// Returns `None` for every ordinary reason a thumbnail might not exist (no
+/// ffmpeg, an unreadable file, a superseded request), since none is worth
+/// interrupting playback over.
 pub fn build(video: &Path, generation: u64) -> Option<Sprite> {
     if let Some(cached) = cached(video) {
         return Some(cached);
@@ -287,9 +279,8 @@ fn extract(
         command
             .arg("-nostdin")
             .arg("-y")
-            // One thread each. A decoder's default is a pool the size of
-            // the machine, and eight of those at once is every core twice
-            // over, with the player's own drawing waiting behind them.
+            // One thread each, since a decoder's default is a pool the size
+            // of the machine, and eight at once would starve the player.
             .arg("-threads")
             .arg("1")
             .arg("-filter_threads")
@@ -335,8 +326,8 @@ fn extract(
 /// Stitch the tiles into one atlas.
 ///
 /// A frame missing from the middle would shift every later tile into the
-/// wrong slot, so any gap is filled with its predecessor before stitching:
-/// a repeated thumbnail is a far smaller lie than an atlas offset by one.
+/// wrong slot, so a gap is filled with its predecessor: a repeated thumbnail
+/// is a smaller lie than an atlas offset by one.
 fn assemble(ffmpeg: &Path, tiles: &Path, sprite: &Path, tile_w: u32, generation: u64) -> bool {
     let mut last: Option<PathBuf> = None;
     for index in 0..GRID * GRID {
@@ -381,7 +372,7 @@ fn assemble(ffmpeg: &Path, tiles: &Path, sprite: &Path, tile_w: u32, generation:
 // Cache
 // ---------------------------------------------------------------------------
 
-/// Every atlas built. Versioned as caches are — see `cache` — and bumped
+/// Every atlas built. Versioned as caches are (see `cache`), and bumped
 /// whenever an atlas would come out differently: its grid, its tiles' size,
 /// the frames it picks.
 ///
@@ -409,8 +400,8 @@ fn modified(path: &Path) -> Option<u64> {
     Some(stamp.duration_since(std::time::UNIX_EPOCH).ok()?.as_secs())
 }
 
-/// `<mtime> <tile_w> <tile_h> <grid>` — four numbers, so reading it back
-/// needs no parser worth the name.
+/// `<mtime> <tile_w> <tile_h> <grid>`: four numbers, so reading it back
+/// needs no real parser.
 fn write_meta(sprite: &Sprite, video: &Path) {
     let Some(mtime) = modified(video) else { return };
     let text = format!(
@@ -449,11 +440,10 @@ pub struct Still {
 
 /// The tile of an already-built atlas nearest `fraction` of the way in.
 ///
-/// **Blocking.** Worker thread only: it runs ffmpeg once — see [`cut`].
+/// **Blocking.** Worker thread only: it runs ffmpeg once (see [`cut`]).
 ///
-/// Only from the cache, never by building. This answers the empty window with
-/// a frame of what you were watching, and a film that never had an atlas has
-/// nothing worth spending 64 ffmpeg spawns on at startup.
+/// Only from the cache, never by building, since a frame for the empty window
+/// isn't worth 64 ffmpeg spawns at startup.
 pub fn still(video: &Path, fraction: f32) -> Option<Still> {
     let sprite = cached(video)?;
     let ffmpeg = ffmpeg::path()?;
@@ -473,9 +463,8 @@ pub fn still(video: &Path, fraction: f32) -> Option<Still> {
 /// What answering a hover needs, shared between the render loop that learns
 /// it and the action that uses it.
 ///
-/// A hover must not reach mpv: the pointer moves at whatever rate the mouse
-/// reports, and a blocking property read on that path is the mistake this
-/// codebase keeps having to unlearn. Everything here is already known.
+/// A hover must not reach mpv, since the pointer moves at whatever rate the
+/// mouse reports, and a blocking read there would stall the frame.
 #[derive(Default)]
 pub struct Preview {
     duration: std::cell::Cell<f64>,

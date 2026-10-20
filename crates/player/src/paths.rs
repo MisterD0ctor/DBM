@@ -12,10 +12,8 @@ const APP_DIR: &str = "Death by MPV";
 /// Falls back to the temp directory rather than failing: a missing config
 /// directory should cost a saved position, not the ability to play a file.
 pub fn app_data_dir() -> PathBuf {
-    // `APPDATA` wins outright on every platform, not just Windows — the
-    // `durations` test redirects it to a scratch directory, and that has to
-    // work the same way wherever the suite runs or the test quietly starts
-    // reading and writing the real one.
+    // `APPDATA` wins on every platform, not just Windows, so the `durations`
+    // test can redirect it to a scratch directory wherever the suite runs.
     let base = std::env::var_os("APPDATA").map(PathBuf::from).or_else(|| {
         if cfg!(windows) {
             None
@@ -43,10 +41,9 @@ pub fn watch_later_dir() -> PathBuf {
 /// The first of `names` that exists beside the executable or in the crate's
 /// `vendor` directory.
 ///
-/// Both are checked because both happen: a shipped build puts its binaries
-/// next to the `.exe`, and `cargo run` puts them nowhere at all — it never
-/// copies anything, so a checkout has to reach into the source tree. Returning
-/// `None` is a normal answer; the callers fall back to the system.
+/// Both, because a shipped build puts its binaries next to the executable,
+/// while `cargo run` copies nothing, so a checkout reaches into the source
+/// tree. `None` is a normal answer; the callers fall back to the system.
 pub fn vendored(names: &[&str]) -> Option<PathBuf> {
     let mut roots: Vec<PathBuf> = Vec::new();
     if let Some(dir) = std::env::current_exe()
@@ -63,16 +60,13 @@ pub fn vendored(names: &[&str]) -> Option<PathBuf> {
         .find(|candidate| candidate.is_file())
 }
 
-/// The saved settings — see `settings`.
+/// The saved settings (see `settings`).
 ///
 /// Plain text on purpose: it is a short list of numbers, and being able to
 /// open it in an editor while tuning is worth more than a compact format.
 pub fn settings_file() -> PathBuf {
-    // A harness that moves settings writes to its own file. Relying on the
-    // caller to redirect `APPDATA` was the arrangement before, and it cost a
-    // real settings file: one run without the prefix is all it takes, and
-    // nothing about the run says it happened. A test run has no business in
-    // the real file whatever it thinks it is doing.
+    // A harness writes to its own file, so a test run never touches the real
+    // settings, however it was started.
     let name = if crate::harness::armed() {
         eprintln!("dbm: harness armed - settings go to settings.test.conf");
         "settings.test.conf"

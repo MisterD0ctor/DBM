@@ -1,27 +1,19 @@
 //! Where the subtitle line sits.
 //!
 //! Two things decide it, and mpv can only be told one number. The person's
-//! own Position — the stepper on the subtitles page, saved with the settings —
-//! is where the line rests. The bar, while it is up, is a floor the line may
-//! not sit under: it covers the bottom 110-odd pixels of the window, and the
-//! bottom of the window is where subtitles live.
+//! Position (the stepper on the subtitles page, saved with the settings) is
+//! where the line rests. The bar, while it is up, is a floor the line may not
+//! sit under, which matters most when paused: a paused film holds the bar up,
+//! and reading a line is the commonest reason to pause.
 //!
-//! The case that made this necessary is pausing. A paused film holds the bar
-//! up, because pausing is stopping to look at where you are, and stopping to
-//! read a line is the commonest reason to pause there is. The line was under
-//! the timeline and behind the transport for exactly as long as somebody was
-//! trying to read it.
+//! So this is the one writer of mpv's `sub-pos`. The Position comes in through
+//! [`Subline::set`] and the bar through [`Subline::follow`], every frame, and
+//! mpv is told the higher of the two places, eased by the bar's fade. Two
+//! writers would fight: a step would put the line back under a bar still up.
 //!
-//! So this is the one writer of mpv's `sub-pos`. The Position goes in through
-//! [`Subline::set`] and the bar through [`Subline::follow`], every frame; what
-//! mpv is told is the lower of the two places, eased between them by the
-//! bar's own fade. Two writers would fight: a step on the stepper would put
-//! the line back under a bar that was still up, and nothing would lift it
-//! again until the bar moved.
-//!
-//! The readout on the subtitles page shows the Position, not what mpv holds.
-//! While the bar is up those differ, and the number belongs to the person: it
-//! is what they set and what is saved, and it is where the line goes back to.
+//! The readout on the subtitles page shows the Position, not what mpv holds,
+//! since that is what the person set, what is saved, and where the line goes
+//! back to.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -30,15 +22,15 @@ use crate::playback::commands;
 use crate::playback::mpv::Mpv;
 use crate::settings::Store;
 
-/// Smaller moves than this are not worth a command. A hundredth of a percent
-/// of the window is a tenth of a pixel at 1080 — under it the line cannot
-/// move, and above it every frame of the bar's fade is still a step.
+/// Smaller moves aren't worth a command: a hundredth of a percent of the
+/// window is a tenth of a pixel at 1080, while every frame of the bar's fade
+/// is still a bigger step.
 const SETTLED: f64 = 0.01;
 
 pub struct Subline {
     params: Rc<Store>,
     /// The highest the line may sit while the bar is up, in `sub-pos` units,
-    /// and how far the bar has faded in — both as of the last frame.
+    /// and how far the bar has faded in, both as of the last frame.
     floor: Cell<(f64, f64)>,
     /// What mpv was last told, so a still bar costs nothing.
     sent: Cell<Option<f64>>,
@@ -92,12 +84,11 @@ impl Subline {
     fn place(&self, mpv: &Mpv) {
         let own = self.params.sub_pos() as f64;
         let (ceiling, lift) = self.floor.get();
-        // Only as far as the bar needs. A line the person already placed
-        // above the timeline stays exactly where they put it; one resting in
-        // the letterbox — `sub-pos` past 100, which is what the range runs
-        // to 150 for — comes all the way up. Subtracting the bar's height
-        // instead would move the first for nothing and leave the second
-        // still underneath.
+        // Only as far as the bar needs: a line already above the timeline
+        // stays put, and one resting in the letterbox (`sub-pos` past 100,
+        // which the range allows up to 150) comes all the way up. Subtracting
+        // the bar's height instead would move the first and not clear the
+        // second.
         let at = own - lift * (own - ceiling).max(0.0);
         if self
             .sent

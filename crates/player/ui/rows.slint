@@ -1,26 +1,20 @@
-// Every kind of row a panel is made of, and the two marks they share: the
-// wash under a hovered or focused row, and the bar beside the current one.
-// A row fills its panel's width and insets its own wash, so no row is a
-// special case at either end of a list — see `Rows` for the arithmetic.
+// The rows panels are made of, and the two marks they share: the wash under
+// a hovered or focused row, and the bar beside the current one. Each row
+// fills its panel's width and insets its own wash, so the rows at the ends of
+// a list are no special case (see `Rows`).
 
 import { Chrome } from "globals.slint";
 import { Motion, Paint, Rows, Type } from "theme.slint";
 import { StepButton } from "controls.slint";
 import { Squircle } from "squircle.slint";
 
-/// The mark on the row that is the current one — the subtitle track in use,
-/// the episode playing.
+/// The mark beside the current row: the subtitle track in use, the episode
+/// playing.
 ///
-/// A shape, because a text style was not enough. Weight and alpha were
-/// carrying this alone, and in a list of names that differ by two characters,
-/// read at a glance, over moving video, they were close to invisible — and
-/// once a focus wash could land on any row, the one row that mattered was the
-/// hardest of all to find.
-///
-/// It sits inside the wash rather than at the row's edge, so a row that is
-/// both current and focused wears both marks without them touching. That is
-/// the whole point of using a shape here: the wash and the bar are different
-/// channels, and neither has to give way to the other.
+/// A shape, because weight and alpha alone are close to invisible over moving
+/// video in a list of names that differ by two characters. It sits inside the
+/// wash, so a row that is both current and focused wears both marks without
+/// them touching.
 export component ActiveMark inherits Rectangle {
     in property <bool> on;
 
@@ -39,8 +33,8 @@ export component ActiveMark inherits Rectangle {
     }
 }
 
-/// The wash behind a hovered row. Fills the row it is placed in and insets
-/// itself; the row says only whether it is lit.
+/// The wash behind a hovered or focused row. It fills the row and insets
+/// itself, so the row only says whether it is lit.
 export component RowHighlight inherits Rectangle {
     in property <bool> lit;
     in property <color> shade: Paint.wash-soft;
@@ -48,16 +42,13 @@ export component RowHighlight inherits Rectangle {
     width: 100%;
     height: 100%;
 
-    // Full row height, so adjacent washes meet rather than leaving a seam,
-    // and so the first and last ones sit exactly `gap` from the panel edge —
-    // the panel's padding being the same gap. That is the whole trick: no row
-    // is a special case.
+    // Full row height, so adjacent washes meet without a seam and the end
+    // ones sit `gap` from the panel edge, which is the panel's padding.
     //
-    // The glass's corner, at the row's own radius. The panel's corner moved
-    // in by the gap kept the end rows exactly concentric with it, but a row
-    // is too short for that corner's long ease and its ends came out drawn
-    // out, curving over 26px of each where this curves over 20. The gap to
-    // the panel narrows by under a pixel at its corner instead.
+    // At the row's own radius rather than the panel's corner moved in by the
+    // gap: a row is too short for that corner's long ease, and its ends came
+    // out drawn out. The gap to the panel narrows by under a pixel at the
+    // corner instead.
     Squircle {
         x: Rows.gap;
         width: parent.width - 2 * Rows.gap;
@@ -67,26 +58,22 @@ export component RowHighlight inherits Rectangle {
     }
 }
 
-/// One selectable line in the menu. Note it has no opaque background: the
-/// glass beneath comes from the pipeline, and only the hover state adds a
-/// wash on top of it.
+/// One selectable line in a panel. It has no background, because the glass
+/// under it comes from the pipeline; only the wash is drawn on top.
 export component MenuRow inherits Rectangle {
     in property <string> label;
     in property <bool> active;
     /// Whether the keyboard is on this row.
     in property <bool> focused;
-    /// ...and whether the ring is being shown at all. A row is never lit for
-    /// a keyboard nobody is using.
     private property <bool> ring: root.focused && Chrome.focus-visible;
-    /// What the row does, drawn before the words. For a row that is an
-    /// action among rows that carry icons — a settings page's reset, under
-    /// its steppers and sliders — where a line of bare words would stand out
-    /// of their column of marks. A choice in a list has none: its mark is
-    /// the one that says it is chosen.
+    /// What the row does, drawn before the words. For an action among rows
+    /// that carry icons, like a settings page's reset under its sliders, so
+    /// it keeps their column of marks. A choice in a list has none: its mark
+    /// is the one that says it is chosen.
     in property <image> icon;
     private property <bool> iconic: root.icon.width > 0;
-    /// A track that came from a file of its own, which can be taken back
-    /// out: the row ends in a button that does it — see `removed`.
+    /// A track loaded from its own file, which can be removed. The row ends
+    /// in a button for it (see `removed`).
     in property <bool> removable;
     callback picked();
     callback removed();
@@ -110,8 +97,8 @@ export component MenuRow inherits Rectangle {
         on: root.active;
     }
 
-    // Where a stepper keeps its own, and as far from the words, so the
-    // marks and the labels down a page each stay in one column.
+    // Placed and spaced like a stepper's icon, so the marks and the labels
+    // down a page each stay in one column.
     if root.iconic: Image {
         source: root.icon;
         x: Rows.label-x;
@@ -146,15 +133,13 @@ export component MenuRow inherits Rectangle {
         }
     }
 
-    // The way a track came in, taken back out. A disc at the row's trailing
-    // edge, where a drill row keeps its chevron, and over the row's own
-    // press: a click on it removes the track and does not choose it first.
-    // Delete does the same from the keyboard on the row the ring is on.
+    // The remove button, at the trailing edge where a drill row keeps its
+    // chevron. It sits over the row's own press, so a click removes the track
+    // without choosing it first; Delete does the same from the keyboard.
     //
-    // What takes the click is more than the disc: the row's whole height,
-    // from a little before the disc to the row's end. The disc alone was a
-    // 26px target at the end of a 34px row, and a click just off it chose
-    // the track instead of removing it — the one miss that does the opposite.
+    // It takes clicks over the row's full height from just before the disc,
+    // because a click just off the disc would choose the track instead, the
+    // one miss that does the opposite.
     private property <length> bin: 28px;
     private property <length> bin-x: root.width - Rows.trail-x - root.bin + 6px;
     if root.removable: Rectangle {
@@ -203,7 +188,7 @@ export component MenuRow inherits Rectangle {
 
 /// One subtitle a search found: the release it was timed against, and beside
 /// it, quieter, its language and what sets it apart. While it is being
-/// fetched the second column says so instead.
+/// fetched, the second column says so instead.
 export component FoundRow inherits Rectangle {
     in property <string> label;
     in property <string> detail;
@@ -231,9 +216,8 @@ export component FoundRow inherits Rectangle {
         on: root.busy;
     }
 
-    // The detail takes what it needs and the release name what is left,
-    // since the name is the part that is long and the detail the part that
-    // decides between two of them.
+    // The detail takes what it needs and the release name the rest, because
+    // the name is what runs long and the detail is what tells two apart.
     HorizontalLayout {
         padding-left: Rows.label-x;
         padding-right: Rows.trail-x;
@@ -273,40 +257,34 @@ export component FoundRow inherits Rectangle {
 
 /// A playlist line: what it is, how long it is, and how far into it you got.
 ///
-/// A `MenuRow` with two more facts on it, rather than a parameterised
-/// `MenuRow`: the label has to make room for the time, which means the two
-/// know about each other, and a row that is sometimes a plain menu row and
-/// sometimes this would carry that arithmetic everywhere it is used.
+/// Its own component rather than an option on `MenuRow`, because the label
+/// has to make room for the time and the measure, and every menu row would
+/// otherwise carry that arithmetic.
 export component PlaylistRow inherits Rectangle {
     /// Whether the keyboard is on this row.
     in property <bool> focused;
-    /// ...and whether the ring is being shown at all. A row is never lit for
-    /// a keyboard nobody is using.
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
     in property <string> length;
     in property <float> progress;
     in property <bool> active;
-    /// It would not play. The row wears the warning where the running time
-    /// goes, and goes on wearing it after the notice has gone.
+    /// It failed to play. The row shows the warning where its running time
+    /// goes, and keeps it after the notice has gone.
     in property <bool> failed;
     in property <bool> finished;
     /// Whether the measure is drawn: something started, or something done.
     private property <bool> measured: (root.progress > 0.001 || root.finished) && !root.failed;
-    /// Length of the resume measure. Fixed rather than a share of the row,
-    /// so it reads the same however wide the panel is and can never grow
-    /// into the width that would make it a rule. Shorter than the shortest
-    /// title the list is likely to hold, which is what keeps it from reading
-    /// as anything belonging to the words.
+    /// Fixed rather than a share of the row, so the measure reads the same at
+    /// any panel width and never grows into a rule. Shorter than any likely
+    /// title, so it doesn't read as part of the words.
     private property <length> measure-w: 44px;
-    /// The running time's column, as wide as an hour-long time. Measured
-    /// from each row's own time, the measures stepped in and out with the
-    /// digits — invisible while one row in a season wore one, and a zigzag
-    /// once finished episodes gave most of them one.
+    /// The running time's column, at least as wide as an hour-long time. A
+    /// column sized to each row's own time would step the measures in and out
+    /// with the digits, a zigzag down a season.
     private property <length> time-col: max(48px, time.width);
-    /// Where the row's trailing column ends. Further in on a page where
-    /// other rows carry a chevron, so this row's time and measure stand in
-    /// the same columns as theirs.
+    /// Where the row's trailing column ends: further in on a page whose
+    /// other rows carry a chevron, so the time and the measure line up with
+    /// theirs.
     in property <length> trail: Rows.trail-x;
     callback picked();
 
@@ -355,9 +333,8 @@ export component PlaylistRow inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // The warning in the time's place, at the column's trailing edge. The
-    // words it replaced were twice the column's width and took that out of
-    // the title; why it would not play was said when it failed.
+    // The warning in the time's place. Why the file wouldn't play was said
+    // when it failed, and words here would take width from the title.
     Image {
         source: @image-url("../../../public/icons/warning.svg");
         visible: root.failed;
@@ -369,21 +346,14 @@ export component PlaylistRow inherits Rectangle {
         colorize: Paint.quiet;
     }
 
-    // How far into this one you got. A hairline rather than a bar: it is
-    // something the row knows, not something to operate. The unfilled part
-    // stays visible along its whole length, because that is what makes it a
-    // measure rather than a mark - a lone bright segment says only that
-    // something happened, and the same segment on a track says how much.
+    // How far into it you got. A hairline rather than a bar, since it is
+    // something the row knows, not a control. The unfilled part stays
+    // visible, because that is what makes it a measure: a lone bright
+    // segment only says that something happened.
     //
-    // On the row's own line, beside the running time, and neither of the two
-    // places it was tried first. Under the title and the width of the column
-    // it is a divider: a 2px rule across a list row is one whichever way it
-    // is filled, and at the end of an episode the fill covers the track and
-    // leaves nothing but a rule between two titles. Under the title and
-    // short, it lands at about the width of the words above it and becomes
-    // an underline instead. Here it is neither, because it is not under
-    // anything - it sits where the row's other fact sits, and the row reads
-    // as one line: this episode, this far in, this long.
+    // Beside the running time on the row's own line, because under the
+    // title it read as a divider at the column's width, or as an underline
+    // at the words' width.
     Rectangle {
         x: parent.width - root.trail - root.time-col - Rows.group-gap - root.measure-w;
         y: (parent.height - self.height) / 2;
@@ -395,11 +365,9 @@ export component PlaylistRow inherits Rectangle {
 
         Rectangle {
             x: 0;
-            // Never a sliver: a file barely started still has to show that
-            // it was started at all, and one pixel of white does not. Full
-            // for one finished: seen through is the whole measure, and a
-            // position left somewhere in the credits is no reason to draw
-            // it short.
+            // Never a sliver, since a file barely started still has to show
+            // it was started. Full when finished, since a position left in
+            // the credits is no reason to draw it short.
             width: root.finished ? parent.width
                 : max(self.height, parent.width * root.progress);
             height: 100%;
@@ -420,14 +388,13 @@ export component PlaylistRow inherits Rectangle {
     }
 }
 
-/// One part of a playlist made of several: a season, or a show's worth of a
-/// folder that holds more than one.
+/// One part of a playlist made of several: a season, or one show's files in
+/// a folder that holds several.
 ///
-/// A drill row with a count on it: how many files. The figure stands in the
-/// running times' column and the chevron in a column of its own, which the
-/// file rows on the same page leave empty so the columns still line up. It
-/// once wore a measure of how much of the part had been watched, summed from
-/// its files; that said nothing the page it opens onto does not say better.
+/// A drill row with a count of its files. The figure stands in the running
+/// times' column and the chevron in its own, which the file rows on the same
+/// page leave empty so the columns line up. It has no watched measure: the
+/// page it opens says that better.
 export component GroupRow inherits Rectangle {
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
@@ -438,7 +405,7 @@ export component GroupRow inherits Rectangle {
     in property <bool> active;
     private property <length> chevron: 18px;
     /// Where the figure's column ends: clear of the chevron by a drill row's
-    /// own spacing. A file row beside this one is given the same end.
+    /// spacing. A file row beside this one is given the same end.
     private property <length> column-end: root.width - Rows.trail-x - root.chevron - 10px;
     private property <length> time-col: max(48px, detail-text.width);
     callback opened();
@@ -506,12 +473,10 @@ export component GroupRow inherits Rectangle {
 /// The way in's offer to pick up where you stopped: the last film left
 /// unfinished, and how far into it you got.
 ///
-/// A playlist row without the running time and with a play mark in front.
-/// The time is the part that stops mattering here — the question on an empty
-/// window is which thing and how far, not how long — and the mark is what
-/// says this row starts something, where every other row in the panel names
-/// a dialog. The title leads, at Strong: it is the one line on the window
-/// that is about a film rather than about the player.
+/// A playlist row with a play mark in front, which says this row starts
+/// something where every other row in the panel opens a dialog. The title is
+/// at Strong, as the one line on the window about a film rather than the
+/// player.
 export component ResumeRow inherits Rectangle {
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
@@ -557,9 +522,9 @@ export component ResumeRow inherits Rectangle {
         overflow: elide;
     }
 
-    // What is left, where a playlist row keeps its running time: the question
-    // on an empty window is not how long a film is but how long finishing it
-    // takes.
+    // What is left, where a playlist row keeps its running time: on an empty
+    // window the question is how long finishing takes, not how long the film
+    // is.
     left-text := Text {
         x: parent.width - Rows.trail-x - self.width;
         height: 100%;
@@ -569,7 +534,7 @@ export component ResumeRow inherits Rectangle {
         vertical-alignment: center;
     }
 
-    // The resume measure, exactly as a playlist row wears it.
+    // The same resume measure as a playlist row's.
     Rectangle {
         x: left-text.x - Rows.group-gap - root.measure-w;
         y: (parent.height - self.height) / 2;
@@ -599,26 +564,24 @@ export component ResumeRow inherits Rectangle {
     }
 }
 
-/// A menu row with its keyboard shortcut on the right. Where a row has one,
-/// showing it is how the shortcut gets learned.
+/// A menu row with its keyboard shortcut on the right, since seeing it there
+/// is how a shortcut gets learned.
 export component ShortcutRow inherits Rectangle {
     /// Whether the keyboard is on this row.
     in property <bool> focused;
-    /// ...and whether the ring is being shown at all. A row is never lit for
-    /// a keyboard nobody is using.
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
     in property <string> shortcut;
     /// A row that states a binding rather than performing one. It takes no
-    /// pointer and lights up for nobody: a wash under a row that does
-    /// nothing when clicked is an offer the row cannot keep.
+    /// pointer and never lights, since a wash would offer a press that does
+    /// nothing.
     in property <bool> inert: false;
     callback picked();
 
     height: Rows.row;
 
-    // A constant role, as Slint requires; a reference row says it is not a
-    // button by being one that is not enabled.
+    // Slint requires a constant role, so an inert row says it isn't a button
+    // by being a disabled one.
     accessible-role: button;
     accessible-enabled: !root.inert;
     accessible-label: root.shortcut == "" ? root.label : root.label + ", " + root.shortcut;
@@ -674,7 +637,6 @@ export component ShortcutRow inherits Rectangle {
 export component ParamSlider inherits Rectangle {
     /// Whether the keyboard is on this row. Left and right move it.
     in property <bool> focused;
-    /// ...and whether the ring is being shown at all.
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
     in property <image> icon;
@@ -694,9 +656,8 @@ export component ParamSlider inherits Rectangle {
         root.moved(clamp(root.fraction - 0.01, 0.0, 1.0));
     }
 
-    // The sliders never had a hover wash: the track grows instead, which says
-    // enough for a pointer already on it. The keyboard has no such thing to
-    // stand on, so the row lights like every other row under the ring.
+    // No hover wash, because the growing track answers a pointer; the
+    // keyboard has nothing like that, so the row lights under the ring.
     RowHighlight {
         lit: root.ring;
         shade: Paint.wash-strong;
@@ -721,8 +682,8 @@ export component ParamSlider inherits Rectangle {
             }
         }
 
-        // Two wider than the longest label needs, which with the layout's 8px
-        // keeps the track the 10px off the words it always was.
+        // 2px wider than the longest label, so with the layout's 8px spacing
+        // the track sits 10px off the words.
         Text {
             width: 80px;
             text: root.label;
@@ -740,23 +701,15 @@ export component ParamSlider inherits Rectangle {
                 height: drag.has-hover || drag.pressed ? 6px : 4px;
                 border-radius: self.height / 2;
                 background: Paint.rail;
-                // The same `track-grow` the timeline and volume tracks grow
-                // at, with the same easing. It was 90ms with no easing, which
-                // matched nothing in the file and was documented nowhere —
-                // one gesture, one speed.
                 animate height { duration: Motion.track-grow; easing: ease-out; }
 
-                // A capsule, like the rail, and so never taller than it is
-                // long: below the track's own height it is a circle the width
-                // of the value, growing out of the rail's tip until it fills
-                // the track and then running along it. Held at full height it
-                // had no room for its round ends there, and at one or two per
-                // cent stood in the rail's end as a sliver wider than the
-                // curve it was meant to be inside.
+                // A capsule never taller than it is long: below the track's
+                // height it is a circle as wide as the value, growing out of
+                // the rail's tip. At full height, a small value would stand in
+                // the rail's round end as a sliver wider than the curve.
                 //
-                // Under two pixels there is nothing left to round, and the
-                // renderer made a cross of the attempt, so the smallest are
-                // drawn square.
+                // Under 2px there is nothing to round, and the renderer draws
+                // the attempt as a cross, so the smallest are square.
                 Rectangle {
                     x: 0;
                     y: (parent.height - self.height) / 2;
@@ -795,36 +748,26 @@ export component ParamSlider inherits Rectangle {
     }
 }
 
-/// A row that is a switch and nothing else.
+/// A row that is a switch and nothing else. A row that also led somewhere
+/// would have two targets with no visible boundary between them.
 ///
-/// It used to be able to lead somewhere as well, which divided it into two hit
-/// zones — the left four fifths toggling, the right 48px navigating — with
-/// nothing on screen to say where the boundary was, and one wash across both
-/// because lighting half a row reads as the row being cut in two. A click
-/// aimed at the chevron that landed short turned off the effect it was
-/// reaching past. The rows that drilled now look like the rows that drill, and
-/// this one has one target again.
-///
-/// Reports the value it wants rather than flipping `checked` itself. Assigning
-/// to a bound property in Slint drops the binding for good, which would leave
-/// the switch stuck the next time the same state changed from a key or from
-/// Rust.
+/// It reports the value it wants rather than flipping `checked`, because
+/// assigning to a bound property in Slint drops the binding for good, and the
+/// switch would stop following changes from a key or from Rust.
 export component ToggleRow inherits Rectangle {
     /// Whether the keyboard is on this row.
     in property <bool> focused;
-    /// ...and whether the ring is being shown at all. A row is never lit for
-    /// a keyboard nobody is using.
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
     in property <bool> checked;
-    /// Whether it does anything now: a switch about something another switch
-    /// has turned off. Faded as a row that has stopped answering is, and it
-    /// keeps its position, since that is what it will do when it answers again.
+    /// Whether it does anything now, which it doesn't when another switch has
+    /// turned its subject off. It fades but keeps its position, since that is
+    /// what it will do once it answers again.
     in property <bool> enabled: true;
     /// The value the row wants; the owner of the state applies it.
     callback toggled(bool);
 
-    height: 40px;
+    height: Rows.toggle-row;
     opacity: root.enabled ? 1.0 : 0.5;
     animate opacity { duration: Motion.surface; easing: ease-out; }
 
@@ -848,12 +791,10 @@ export component ToggleRow inherits Rectangle {
         padding-right: Rows.trail-x;
         spacing: 12px;
 
-        // Drawn as shapes rather than as rounded rectangles. The renderer
-        // lays a rounded corner down as a few straight chords, which sit
-        // inside the curve and touch it only where they meet — and on a
-        // capsule one of those meetings is the very middle of each end, so
-        // at 18px the ends came to a point. A picture is rendered at the size
-        // it is shown, curve and all.
+        // Pictures rather than rounded rectangles, because the renderer draws
+        // a rounded corner as a few straight chords, and at 18px a capsule's
+        // ends came to a point. A picture is rendered at the size it is shown,
+        // curve and all.
         Rectangle {
             width: 34px;
 
@@ -883,9 +824,9 @@ export component ToggleRow inherits Rectangle {
             }
         }
 
-        // Body, the rows' own step. A setting about a list is furniture
-        // beside it, and at Strong the one switch under the playlist out-inked
-        // the episodes it governs.
+        // Body, the rows' own step, because a setting about a list is
+        // furniture beside it; at Strong the switch under the playlist
+        // out-inked the episodes it governs.
         Text {
             text: root.label;
             color: root.ring ? Paint.lit : Paint.body;
@@ -912,14 +853,11 @@ export component ToggleRow inherits Rectangle {
 }
 
 /// A row that leads somewhere: an icon naming the subject, the label, and a
-/// chevron. Every row in the settings tree is one of these now — an effect
-/// that can be turned off says so with its glyph rather than with a switch,
-/// because a switch beside a chevron is two things to press in one row.
+/// chevron. An effect that can be off shows it with its glyph rather than a
+/// switch, because a switch beside a chevron is two things to press in one row.
 export component DrillRow inherits Rectangle {
     /// Whether the keyboard is on this row.
     in property <bool> focused;
-    /// ...and whether the ring is being shown at all. A row is never lit for
-    /// a keyboard nobody is using.
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <image> icon;
     in property <string> label;
@@ -994,16 +932,12 @@ export component DrillRow inherits Rectangle {
     }
 }
 
-/// An adjustment with no meaningful range to drag across.
-///
-/// A stepper rather than a slider because these are read as numbers, not as
-/// positions: a subtitle delay is +0.30 s, and the useful move is one step at
-/// a time. Sliders are for the material parameters, where the eye judges the
-/// result and the number is incidental.
+/// An adjustment read as a number rather than a position, such as a subtitle
+/// delay of +0.30 s, where the useful move is one step at a time. Sliders are
+/// for the material parameters, where the eye judges the result.
 export component StepperRow inherits Rectangle {
     /// Whether the keyboard is on this row. Left and right step it.
     in property <bool> focused;
-    /// ...and whether the ring is being shown at all.
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <image> icon;
     in property <string> label;
@@ -1023,8 +957,8 @@ export component StepperRow inherits Rectangle {
         root.stepped(-1);
     }
 
-    // Same as the sliders: its two buttons light on hover, and neither of
-    // them is where the keyboard is — the row is.
+    // As on the sliders: the two buttons light under the pointer, but the
+    // keyboard is on the row, not on either of them.
     RowHighlight {
         lit: root.ring;
         shade: Paint.wash-strong;
@@ -1093,17 +1027,15 @@ export component StepperRow inherits Rectangle {
     }
 }
 
-/// Header for a page that has one above it. Doubles as the way back, since a
-/// title bar is where the eye already is when leaving a page.
+/// The header of a page that has one above it, doubling as the way back,
+/// since a title bar is where the eye already is when leaving a page.
 export component BackRow inherits Rectangle {
     /// Whether the keyboard is on this row.
     in property <bool> focused;
-    /// ...and whether the ring is being shown at all. A row is never lit for
-    /// a keyboard nobody is using.
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
-    /// A name rather than a label: a show's, heading a page of its episodes.
-    /// Its own case and size and no tracking, as a panel heading holding one.
+    /// A name rather than a label, such as a show's over its episodes: its
+    /// own case and size and no tracking, as in a panel heading.
     in property <bool> titular;
     callback back();
 
@@ -1120,13 +1052,10 @@ export component BackRow inherits Rectangle {
         shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
     }
 
-    // The arrow is laid out as `DrillRow` lays out its icon, at the same
-    // size in the same column with the same air after it — a back row is the
-    // way out of a page of those, and the pair read as one movement only if
-    // they are built the same. Hanging it in the margin at 14px did line the
-    // label up with the headings, but it left the arrow pinched between the
-    // panel edge and the first letter, which is the cost the eye actually
-    // notices.
+    // The arrow is laid out like `DrillRow`'s icon, because a back row is the
+    // way out of a page of those, and the two read as one movement only if
+    // they match. Hung in the margin, it lined the label up with the headings
+    // but pinched the arrow between the panel edge and the first letter.
     HorizontalLayout {
         padding-left: Rows.label-x;
         padding-right: Rows.trail-x;
@@ -1189,51 +1118,39 @@ export component EmptyRow inherits Rectangle {
     }
 }
 
-/// A section label.
-///
-/// A box around the text rather than the text itself, so it can be given the
-/// panel's width and elide within it: a heading used to be a fixed word, and
-/// can now be a show's name of any length.
+/// A section label, as a box around the text so it can take the panel's
+/// width and elide, since a heading can be a show's name of any length.
 export component MenuHeading inherits Rectangle {
     in property <string> text;
-    /// A name rather than a label — the show a playlist is all of. Natural
-    /// case, its own size and no tracking, where a section kicker like
-    /// SUBTITLES or EFFECTS has capitals and air, because it is the user's
-    /// word and not the interface's. Everything else about it is the same,
-    /// including the weight and the alpha: the difference between the two is
-    /// what they are, and nothing else needs to say so.
+    /// A name rather than a label: the show a playlist holds. Natural case,
+    /// its own size and no tracking, unlike a kicker such as SUBTITLES,
+    /// because it is the user's word rather than the interface's. The weight
+    /// and alpha stay the same.
     in property <bool> titular;
-    /// Whether a group already ended above this one.
-    ///
-    /// If it did, the heading takes the group gap above it. Set level, a
-    /// kicker sits the same distance from the group it names as from the one
-    /// it follows — measured at 30px above and 32px below — and a label
-    /// equidistant between two things labels neither. The space belongs to
-    /// the heading rather than to the row above, because the row above does
-    /// not know it is last.
+    /// Whether a group already ended above this one, so the heading takes the
+    /// group gap above it. Without it, a kicker sits as far from the group it
+    /// names as from the one before, and labels neither. The heading owns the
+    /// space because the row above doesn't know it is last.
     in property <bool> after-content;
-    /// What the section is about, drawn before the words. Optional: a heading
-    /// over rows that carry icons of their own — the settings page — would
-    /// only be saying it twice.
+    /// What the section is about, drawn before the words. Optional, because
+    /// over rows with icons of their own, as on the settings page, it would
+    /// say it twice.
     in property <image> icon;
     private property <bool> iconic: root.icon.width > 0;
-    /// A row's 18px. It was 16px, smaller because the words beside it are
-    /// 12px capitals rather than 14px lowercase, but icons are shown at 24px
-    /// or 18px only: those are the sizes the 24×24 drawings are checked at,
-    /// and at 16px their 2px lines fell to 1.33px, a width no pixel can hold.
+    /// A row's 18px, although the words beside it are smaller: the 24×24
+    /// drawings are only checked at 24px and 18px, and at 16px their 2px lines
+    /// fall to 1.33px, which no pixel can hold.
     private property <length> icon-size: 18px;
     private property <length> icon-gap: 8px;
 
-    height: 28px + (root.after-content ? Rows.group-gap : 0px);
+    height: Rows.heading + (root.after-content ? Rows.group-gap : 0px);
 
-    // Starts where the row labels start, and the words move over for it.
-    // It cannot hang in the margin the way the back row's arrow does: that
-    // margin is 14px to the edge of the wash, which a 14px chevron fits and
-    // an 18px mark with space after it does not.
+    // Where the row labels start, with the words moved over for it, because
+    // the 14px margin to the wash's edge can't hold an 18px mark.
     if root.iconic: Image {
         source: root.icon;
         x: Rows.label-x;
-        y: parent.height - 28px + (28px - self.height) / 2;
+        y: parent.height - Rows.heading + (Rows.heading - self.height) / 2;
         width: root.icon-size;
         height: root.icon-size;
         image-fit: contain;
@@ -1245,24 +1162,16 @@ export component MenuHeading inherits Rectangle {
         // Aligned with the row labels below it, not with the panel edge.
         x: Rows.label-x + (root.iconic ? root.icon-size + root.icon-gap : 0px);
         width: parent.width - self.x - Rows.trail-x;
-        // Held to the bottom 28px, so the gap above stays above.
+        // Held to the bottom, so the gap above stays above.
         y: parent.height - self.height;
-        height: 28px;
+        height: Rows.heading;
         text: root.text;
         color: Paint.body;
         font-size: root.titular ? Type.named : Type.label;
-        // A kicker is lighter than the rows it labels, not heavier. What
-        // tells it from them is case, size and the tracking — it wears the
-        // rows' own alpha — and not stroke weight, the one axis a label must
-        // not beat its own content on.
-        //
-        // The same weight for a show's name, which is the other thing this
-        // slot can hold. It was 600 while the kicker was 700 and the two
-        // read as one family; at 400 against 600 they stopped, and since 600
-        // is Bold here it had become a small copy of the playing row rather
-        // than a heading. A name is still not a label — it keeps its own
-        // case and its own size — but both are headings,
-        // and a panel should not look like it was designed twice.
+        // The rows' own weight: a kicker is told from its rows by case, size
+        // and tracking, and must not out-weigh its own content. A show's name
+        // takes the same weight, since both are headings; any heavier, it
+        // read as a small copy of the playing row.
         font-weight: Type.weight-plain;
         letter-spacing: root.titular ? 0 : Type.label-track;
         vertical-alignment: center;

@@ -2,9 +2,8 @@
 //!
 //! Keeping the display awake, hiding the pointer, a native file dialog, files
 //! dropped on the window, frames during a Windows resize, and the media keys
-//! — SMTC on Windows, MPRIS on Linux. Each module covers both platforms, even
-//! where one of them does nothing, so nothing outside this folder needs a
-//! `cfg` to call them.
+//! (SMTC on Windows, MPRIS on Linux). Each module covers both platforms, even
+//! where one does nothing, so nothing outside this folder needs a `cfg`.
 
 pub mod awake;
 pub mod cursor;

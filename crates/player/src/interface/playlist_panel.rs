@@ -30,11 +30,9 @@ struct Row {
 /// The playlist panel: asks for its layout, and shows the answer.
 ///
 /// Laying a list out means reading every file's name for its show, season
-/// and episode, which is work about the files and none of the interface's
-/// business, so it is done on the worker and only the finished [`Shelf`]
-/// comes back to be shown. It is asked for whenever something a row says
-/// has moved; the answers come back in the order they were asked for, so
-/// the last one shown is always the newest.
+/// and episode, so it is done on the worker and only the finished [`Shelf`]
+/// comes back. It is asked for whenever something a row says has moved, and
+/// answers arrive in order, so the last one shown is the newest.
 #[derive(Default)]
 pub struct Panel {
     /// What the panel is showing, to tell what an answer changes.
@@ -80,12 +78,10 @@ impl Panel {
 
     /// Show a finished layout.
     ///
-    /// The rows are written into where the list is the one already on show
-    /// and only what they say has moved — a length that has just been read,
-    /// the file playing. Replacing a model makes the panel tear down every
-    /// row and build it again, which starts whatever was moving over from the
-    /// beginning; a folder being described for the first time used to do that
-    /// some twenty times a second for as long as it took.
+    /// Rows are written in place when the list is the one on show and only
+    /// what they say has moved, such as a length just read. Replacing the
+    /// model would rebuild every row and restart whatever was moving, many
+    /// times a second while a folder is first described.
     pub fn show(&mut self, ui: &MainWindow, shelf: Shelf) {
         if self.shown.as_ref() == Some(&shelf) {
             return;
@@ -144,9 +140,8 @@ impl Panel {
 
     /// Build the rows afresh, for a list that is not the one on show.
     fn replace(&mut self, ui: &MainWindow, shelf: &Shelf) {
-        // The page on show is kept by its name, not its place. Seasons found
-        // beside this one arrive a moment after it and go in around it, and a
-        // page held by number would turn into another season under the reader.
+        // The page on show is kept by its name, not its place, since seasons
+        // found beside this one arrive later and go in around it.
         let shown = usize::try_from(ui.get_playlist_page())
             .ok()
             .and_then(|page| ui.get_playlist_groups().row_data(page))
@@ -198,17 +193,14 @@ fn same_rows(a: &Shelf, b: &Shelf) -> bool {
 
 /// What the way on is called: the file after this one, as its row names it.
 ///
-/// The row's own words rather than the file's title, because they are
-/// already in the form the panel says them — "E04 · Slabtown", with the show
-/// and season said once in the heading over the rows. The end pill has no
-/// heading over it, but it has the film that just ended, which is the same
-/// show and season, so the row's words still read whole there. Across the
-/// boundary into another part they would not: an E01 could be anybody's, so
-/// the part goes first — "Season 6 · E01 · No Way Out". A part that is one
-/// film is named by the film, and its row would only say it again.
+/// The row's own words ("E04 · Slabtown") rather than the file's title. They
+/// still read whole on the end pill, over the film that just ended, which is
+/// the same show and season. Across into another part an E01 could be
+/// anybody's, so the part goes first: "Season 6 · E01 · No Way Out". A part
+/// that is one film is named by the film.
 ///
-/// Empty at the end of the list, and for a file playing that the list does
-/// not hold; the pills fall back to their own words.
+/// Empty at the end of the list, or for a file the list doesn't hold, and the
+/// pills fall back to their own words.
 fn next_label(shelf: &Shelf) -> String {
     let rows = || {
         shelf
@@ -241,8 +233,8 @@ fn group_item(group: &Group, page: &Rc<VecModel<PlaylistItem>>) -> PlaylistGroup
     let count = group.entries.len();
     PlaylistGroup {
         label: group.label.as_str().into(),
-        // A heading shouts the interface's own words and never the user's:
-        // SEASON 7, but a show's name in its own case.
+        // Capitals for the interface's own words, never the user's: SEASON 7,
+        // but a show's name in its own case.
         heading: (if group.named {
             group.label.clone()
         } else {
@@ -268,9 +260,8 @@ fn entry_item(entry: &Entry) -> PlaylistItem {
         path: entry.path.as_str().into(),
         label: entry.label.as_str().into(),
         current: entry.current,
-        // A file never played here has no length to show and no progress to
-        // draw; an empty string and a zero say so, and the row leaves both
-        // out rather than printing "0:00".
+        // A file never played here has no length or progress, so the row
+        // leaves both out rather than printing "0:00".
         length: if entry.progress.seconds > 0.0 {
             format::time(entry.progress.seconds).into()
         } else {

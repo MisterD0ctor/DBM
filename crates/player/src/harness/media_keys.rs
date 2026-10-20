@@ -9,14 +9,12 @@ use crate::MainWindow;
 
 /// Drive the OS media overlay from both ends.
 ///
-/// The outbound half is read back out of Windows rather than out of our own
-/// copy of it: `GlobalSystemMediaTransportControlsSessionManager` is the same
-/// API the lock screen uses, so whatever it reports is what the machine
-/// believes. The inbound half asks Windows to deliver a transport
-/// button to this player's own session, which is the route a headset button
-/// takes — Windows calling our `ButtonPressed` — aimed rather than broadcast.
-/// Every report also names the session Windows has in front, because that is
-/// who a real key press would have reached instead.
+/// The outbound half is read back out of Windows rather than our own copy:
+/// `GlobalSystemMediaTransportControlsSessionManager` is the API the lock
+/// screen uses, so it reports what the machine believes. The inbound half
+/// asks Windows to deliver a transport button to this player's session, the
+/// route a headset button takes. Every report also names the session Windows
+/// has in front, which a real key press would reach instead.
 #[cfg(windows)]
 pub(super) fn smtc_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
     let timer = slint::Timer::default();
@@ -46,13 +44,9 @@ pub(super) fn smtc_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
 
 /// Ask Windows to deliver one transport button to *this* player's session.
 ///
-/// A real media key is the same route — Windows decides which session gets it
-/// and calls that application's `ButtonPressed` — with the aiming done for us.
-/// `SendInput` with `VK_MEDIA_PLAY_PAUSE` was the first version of this and had
-/// to be abandoned: the session Windows has in front is usually somebody
-/// else's, so the press either went to another application's music or the test
-/// declined to happen at all. Naming the session removes both problems and
-/// covers strictly more of the path.
+/// A real media key takes the same route, with Windows choosing the session.
+/// Not `SendInput` with `VK_MEDIA_PLAY_PAUSE`, because the session in front
+/// is usually somebody else's, and the press would go to their music.
 #[cfg(windows)]
 fn ask(button: Button) {
     let Some(session) = our_session() else {
@@ -66,7 +60,7 @@ fn ask(button: Button) {
     };
     match asked {
         // The bool says Windows accepted the request, not that anything came
-        // of it — that is what the next report is for.
+        // of it, which the next report shows.
         Ok(true) => {}
         Ok(false) => eprintln!("dbm: smtc test: Windows refused {button:?}"),
         Err(e) => eprintln!("dbm: smtc test: {button:?} failed: {e}"),
@@ -97,8 +91,7 @@ fn our_session() -> Option<windows::Media::Control::GlobalSystemMediaTransportCo
     })
 }
 
-/// What the player thinks, and what Windows thinks, side by side. They are the
-/// two ends of the same claim and only worth reading together.
+/// What the player thinks, and what Windows thinks, side by side.
 #[cfg(windows)]
 fn report_smtc(ui: &MainWindow, mpv: &Mpv, label: &str) {
     let (app, title, status) =
@@ -112,9 +105,9 @@ fn report_smtc(ui: &MainWindow, mpv: &Mpv, label: &str) {
     );
 }
 
-/// The session Windows would send a media key to: who owns it, what it says is
-/// playing, and whether it is playing. Not necessarily us — that is the point
-/// of reporting it.
+/// The session Windows would send a media key to: who owns it, what it says
+/// is playing, and whether it is playing. Not necessarily us, which is why it
+/// is reported.
 #[cfg(windows)]
 fn current_session() -> Option<(String, String, String)> {
     use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager as Manager;
@@ -155,16 +148,13 @@ fn current_session() -> Option<(String, String, String)> {
 /// Drive the player's own MPRIS object from outside, the way a desktop
 /// widget does.
 ///
-/// Over a client connection of its own, not the one the player serves on: a
-/// media key arrives as a method call from another process, and anything
-/// short of that would be reading our own copy of what we published back to
-/// ourselves. Every report puts the two ends of the same claim side by side
-/// — what the player believes, and what a client asking the bus is told.
+/// Over a client connection of its own rather than the one the player serves
+/// on, since a media key arrives as a method call from another process. Every
+/// report puts what the player believes beside what the bus tells a client.
 ///
-/// The presses run in the order that leaves each one's effect visible to the
-/// next report: pause, play, a seek far enough that playing could not have
-/// carried the film there between two reports, the next file, and a stop —
-/// which pauses, for the reason `mpris::Player::stop` sets out.
+/// The presses run so each one's effect shows in the next report: pause,
+/// play, a seek further than playing could carry the film between reports,
+/// the next file, and a stop, which pauses (see `mpris::Player::stop`).
 #[cfg(not(windows))]
 pub(super) fn mpris_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
     let timer = slint::Timer::default();
@@ -193,8 +183,7 @@ pub(super) fn mpris_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Ti
                 2 => report_mpris(&ui, &mpv, &bus, &heard, "pause button"),
                 3 => press(&bus, "Play", None),
                 4 => report_mpris(&ui, &mpv, &bus, &heard, "play button"),
-                // Thirty seconds on, which is far enough that no amount of
-                // playing could have got there in the tick between reports.
+                // Thirty seconds on, further than playing gets in a tick.
                 5 => press(&bus, "Seek", Some(30_000_000)),
                 6 => report_mpris(&ui, &mpv, &bus, &heard, "seek"),
                 7 => press(&bus, "Next", None),
@@ -213,10 +202,9 @@ pub(super) fn mpris_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Ti
 /// What the player has been overheard saying, rather than what it answers
 /// when asked.
 ///
-/// Reading properties back proves the answers are right; it does not prove
-/// anyone was told. A widget subscribes once and then believes what it
-/// hears, so a player whose signals never fire reads as correct here and
-/// sits stale on the desktop. These two counts are the difference.
+/// Reading properties back proves the answers are right, not that anyone was
+/// told. A widget subscribes once and believes what it hears, so a player
+/// whose signals never fire reads as correct but sits stale on the desktop.
 #[cfg(not(windows))]
 #[derive(Default)]
 struct Heard {
@@ -230,9 +218,8 @@ fn listen(bus: &zbus::blocking::Connection, heard: std::sync::Arc<Heard>) {
         eprintln!("dbm: mpris test: nothing of ours on the bus to listen to");
         return;
     };
-    // By sender as well as path: every other player on the machine puts its
-    // signals on this same object path, and counting theirs would be a pass
-    // for having a neighbour.
+    // By sender as well as path, since every player puts its signals on this
+    // same object path.
     let rule = zbus::MatchRule::builder()
         .msg_type(zbus::message::Type::Signal)
         .sender(name)
@@ -247,8 +234,8 @@ fn listen(bus: &zbus::blocking::Connection, heard: std::sync::Arc<Heard>) {
             return;
         }
     };
-    // Detached, and ends with the process: the iterator holds its own share
-    // of the connection, and there is nothing after the run to tidy.
+    // Detached; it ends with the process, holding its own share of the
+    // connection.
     std::thread::spawn(move || {
         use std::sync::atomic::Ordering;
         for message in signals.flatten() {
@@ -264,8 +251,8 @@ fn listen(bus: &zbus::blocking::Connection, heard: std::sync::Arc<Heard>) {
 
 /// Every media player registered on the bus, this one among them.
 ///
-/// The counterpart to naming the session Windows has in front: a media key
-/// reaches exactly one of these, and which one is the desktop's choice.
+/// A media key reaches exactly one of these, and which is the desktop's
+/// choice.
 #[cfg(not(windows))]
 fn neighbours(bus: &zbus::blocking::Connection) {
     // Two error types, one question: the proxy fails with zbus's own error
@@ -298,9 +285,8 @@ fn neighbours(bus: &zbus::blocking::Connection) {
 
 /// Ask the bus to deliver one transport button to *this* player.
 ///
-/// The same route a media key takes — a client calls the player the desktop
-/// has in front — with the choosing done for us, so the test covers the path
-/// rather than the desktop's taste in players.
+/// The route a media key takes, with the player chosen for us, so the test
+/// covers the path rather than which player the desktop prefers.
 ///
 /// `offset` is for `Seek`, the only one of these with anything to say.
 #[cfg(not(windows))]
@@ -329,8 +315,7 @@ fn ours(bus: &zbus::blocking::Connection) -> Option<zbus::blocking::Proxy<'stati
     .ok()
 }
 
-/// What the player thinks, and what the bus says it said. The two ends of
-/// the same claim, and only worth reading together.
+/// What the player thinks, and what the bus says it said, side by side.
 #[cfg(not(windows))]
 fn report_mpris(
     ui: &MainWindow,

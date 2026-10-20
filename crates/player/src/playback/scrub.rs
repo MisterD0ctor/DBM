@@ -3,25 +3,22 @@
 //! Dragging produces position updates far faster than mpv can service seeks,
 //! so this sits between the two and does three things:
 //!
-//! 1. **Never blocks.** Seeks go out through `mpv_command_async`. The
-//!    synchronous call takes ~195ms for an exact seek, which on a drag means
-//!    the interface locks up for a fifth of a second per mouse move.
+//! 1. **Never blocks.** Seeks go out through `mpv_command_async`, since a
+//!    synchronous exact seek takes about 200ms, which on a drag would lock
+//!    the interface on every mouse move.
 //! 2. **Coalesces.** At most one seek is in flight. Updates arriving while
 //!    one is outstanding overwrite a single pending slot rather than queueing,
 //!    so the player always converges on where the pointer actually *is*
 //!    instead of replaying where it has been. Without this, 120 drag updates
 //!    become 120 seeks and the file scrubs for half a minute after release.
 //! 3. **Seeks as exactly as the hand is moving.** A keyframe seek is cheap
-//!    and lands up to a whole group of pictures early — ten seconds, in an
-//!    ordinary encode. An exact one decodes forward from that keyframe to
-//!    the frame asked for, which is most of what makes it slow. While the
-//!    pointer is covering minutes a second the difference is invisible and
-//!    the cheap one keeps up; once it slows to look for something, every
-//!    keyframe seek shows the same picture until the pointer has crossed
-//!    into the next group, and the scrub that most wants a frame is the one
-//!    that cannot have it. So a slow drag is given exact seeks, a fast one
-//!    keyframes, and a pointer that stops with the button down the exact
-//!    frame it stopped on.
+//!    and lands up to a group of pictures early (ten seconds in an ordinary
+//!    encode); an exact one decodes forward from that keyframe, which is what
+//!    makes it slow. While the pointer covers minutes a second the difference
+//!    is invisible, but a slow drag looking for something would see the same
+//!    keyframe until it crossed into the next group. So a slow drag gets
+//!    exact seeks, a fast one keyframes, and a pointer that stops with the
+//!    button down the exact frame it stopped on.
 
 use std::cell::Cell;
 use std::time::Instant;
@@ -30,20 +27,17 @@ use crate::playback::commands;
 use crate::playback::mpv::Mpv;
 
 /// Film covered per second of dragging, below which the drag is slow and
-/// above which it is fast. In seconds of film, not in pixels: what decides
-/// whether a keyframe is good enough is how far the picture is from the one
-/// asked for, and a pixel of timeline is a third of a second of a music
-/// video and seven of a feature.
+/// above which it is fast. In seconds of film rather than pixels, since what
+/// matters is how far the picture is from the one asked for, and a pixel of
+/// timeline is a third of a second of a music video and seven of a feature.
 ///
-/// An exact seek takes around a sixth of a second, and a keyframe is up to
-/// ten seconds early. Past a minute of film a second the exact frame is
-/// that far out of date by the time it is drawn, and exactness has bought
-/// nothing; well under it, exact is the only one of the two that follows
-/// the pointer at all.
+/// An exact seek takes around a sixth of a second and a keyframe is up to ten
+/// seconds early. Past a minute of film a second the exact frame is that out
+/// of date by the time it is drawn; well under it, only exact seeks follow
+/// the pointer.
 ///
-/// Two numbers so a hand moving at about the boundary does not flicker
-/// between a keyframe and the frame after it: between them the drag stays
-/// as it was.
+/// Two numbers, so a hand moving at about the boundary doesn't flicker
+/// between the two: between them the drag stays as it was.
 const SLOW: f64 = 40.0;
 const FAST: f64 = 60.0;
 /// The shortest stretch a speed is taken over. Pointer moves arrive every
@@ -91,9 +85,9 @@ impl Scrubber {
     /// afterwards; `duration` is the film's length, which is what turns a
     /// distance along the track into a speed through the film.
     ///
-    /// Playback pauses for the duration: a moving picture fights the one the
-    /// user is trying to find, and mpv has less to do if it is not also
-    /// decoding forward.
+    /// Playback pauses for the drag, since a moving picture fights the one
+    /// being looked for, and mpv has less to do if it isn't also decoding
+    /// forward.
     pub fn drag_to(&self, mpv: &Mpv, fraction: f32, paused: bool, duration: f64) {
         let now = Instant::now();
         if !self.dragging.replace(true) {
@@ -101,9 +95,9 @@ impl Scrubber {
             if !paused {
                 commands::set_pause(mpv, true);
             }
-            // A press that has only just moved is the slowest scrub there
-            // is. Starting fast would open every careful drag with a jump
-            // back to a keyframe and then forward again to the frame.
+            // A press that has only just moved is the slowest scrub there is,
+            // and starting fast would open every careful drag with a jump to a
+            // keyframe and back.
             self.slow.set(true);
             self.mark.set(Some((now, fraction)));
             self.sent.set(None);
@@ -118,11 +112,10 @@ impl Scrubber {
     /// The button is still down, and this is where the pointer is. Called a
     /// few times a second for as long as it is held.
     ///
-    /// Stopping is not a move, so nothing else here hears of it: a drag that
-    /// was fast until the moment it stopped would leave its last keyframe on
-    /// screen, up to ten seconds from the pointer, for exactly as long as
-    /// someone was looking at it. Once the pointer has been still for a
-    /// moment this lands on the frame instead — once, since asking again for
+    /// Stopping isn't a move, so nothing else here hears of it, and a drag
+    /// that was fast until it stopped would leave its last keyframe on screen,
+    /// up to ten seconds from the pointer. Once the pointer has been still for
+    /// a moment this lands on the frame instead, once, since asking again for
     /// the frame already there sends nothing.
     pub fn held_at(&self, mpv: &Mpv, fraction: f32) {
         let still = self
@@ -149,9 +142,8 @@ impl Scrubber {
 
     /// The drag ended: land exactly on the final position.
     ///
-    /// Any coalesced update is dropped — it is superseded by this one, and
-    /// letting it through afterwards would seek away from where the user let
-    /// go.
+    /// Any coalesced update is dropped, or it would seek away from where the
+    /// user let go.
     pub fn release(&self, mpv: &Mpv, fraction: f32) {
         if crate::diagnostics::trace() && self.requested.get() > 0 {
             eprintln!(
@@ -185,10 +177,9 @@ impl Scrubber {
         };
         let elapsed = now.duration_since(then).as_secs_f64();
         let covered = f64::from((fraction - from).abs()) * duration;
-        // Too soon to take a speed — unless the pointer has already gone
-        // further than a fast drag would in the whole stretch, and then it
-        // is fast whatever the rest of the stretch holds. Without this a
-        // flick spends its first tenth of a second on exact seeks.
+        // Too soon to take a speed, unless the pointer has already gone
+        // further than a fast drag would in the whole stretch, so a flick
+        // doesn't spend its first tenth of a second on exact seeks.
         if elapsed < WINDOW && covered <= FAST * WINDOW {
             return;
         }
@@ -226,7 +217,7 @@ impl Scrubber {
 }
 
 /// What a speed, in seconds of film a second, says about a drag: slow, fast,
-/// or — between the two — whatever it already was.
+/// or, between the two, whatever it already was.
 fn pace(speed: f64) -> Option<bool> {
     if speed < SLOW {
         Some(true)

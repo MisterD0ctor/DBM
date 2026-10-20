@@ -13,9 +13,8 @@ pub(super) fn hover(ui: &MainWindow, x: f32, y: f32) {
 
 /// Click a point, the way a mouse would.
 ///
-/// A `Flickable` has to tell a drag from a tap, so a list that scrolls
-/// correctly can still be one whose rows have stopped responding. Nothing
-/// short of a real click finds that.
+/// A real click, because a `Flickable` has to tell a drag from a tap, and a
+/// list can scroll correctly while its rows have stopped responding.
 pub(super) fn click(ui: &MainWindow, x: f32, y: f32) {
     use slint::platform::{PointerEventButton, WindowEvent};
     let position = slint::LogicalPosition::new(x, y);

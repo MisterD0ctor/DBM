@@ -1,19 +1,17 @@
 //! Subtitles from OpenSubtitles, for a film that has none worth reading.
 //!
 //! Two calls to their REST API and a fetch. A search lists what they hold for
-//! the file — asked twice, once by the file's own hash, which finds the
-//! subtitles timed for this exact release, and once by its name — and the
-//! person picks one; the download call then hands back a link to it, good
-//! for a few hours, and the file at that link is the subtitle. It is kept in
-//! the player's own folder rather than beside the film, which may be on a
-//! disk the player only reads, and it is put back every time the film is
-//! opened again.
+//! the file, asked by its hash, which finds subtitles timed for this exact
+//! release, and by its name. The person picks one, and the download call
+//! hands back a link to it, good for a few hours. The file is kept in the
+//! player's own folder rather than beside the film, which may be on a disk
+//! the player only reads, and is put back whenever the film opens again.
 //!
-//! The API wants a key, which identifies the player rather than the person
-//! using it, and is registered by whoever builds it. It is read at build
-//! time — see `build.rs` — and a build without one simply has no search.
-//! There is no login: downloads come out of the small daily allowance the
-//! key gets without one, and the player says when it has run out.
+//! The API wants a key, which identifies the player rather than its user and
+//! is registered by whoever builds it. It is read at build time (see
+//! `build.rs`), and a build without one has no search. There is no login, so
+//! downloads come from the key's small daily allowance, and the player says
+//! when it has run out.
 //!
 //! Everything here blocks on the network, so each search and each download
 //! runs on a thread of its own and reports back like any other background
@@ -46,7 +44,7 @@ pub fn key() -> Option<&'static str> {
 }
 
 /// Whether there is any searching to be done at all: a key, or the harness
-/// standing in for the service — see `fake_hits`.
+/// standing in for the service (see `fake_hits`).
 pub fn available() -> bool {
     key().is_some() || std::env::var_os("DBM_FIND_FAKE").is_some()
 }
@@ -129,8 +127,8 @@ pub fn fetch(path: String, hit: Hit, reporter: Reporter) {
     });
 }
 
-/// Subtitles fetched for `path` before, that are still there, each with its
-/// language — which is in its name; see `keep_as`.
+/// Subtitles fetched for `path` before that are still there, each with its
+/// language, which is in its name (see `keep_as`).
 ///
 /// **Blocking.** Worker thread only.
 pub fn kept(path: &str) -> Vec<(PathBuf, String)> {
@@ -152,9 +150,9 @@ pub fn kept(path: &str) -> Vec<(PathBuf, String)> {
         .collect()
 }
 
-/// Forget a subtitle fetched for `path`, and delete it: it was taken out of
-/// the film, and would otherwise be put back the next time it opened. Only
-/// a file this module fetched — one beside the film is the person's own.
+/// Forget a subtitle fetched for `path` and delete it, or it would be put
+/// back the next time the film opens. Only a file this module fetched, since
+/// one beside the film is the person's own.
 ///
 /// **Blocking.** Worker thread only.
 pub fn forget(path: &str, file: &str) {
@@ -364,7 +362,7 @@ fn agent() -> ureq::Agent {
     let builder = ureq::AgentBuilder::new()
         .timeout(TIMEOUT)
         .user_agent(&format!("Death by MPV v{}", env!("CARGO_PKG_VERSION")));
-    // Windows' own TLS, which the client has to be handed — see Cargo.toml.
+    // Windows' own TLS, which the client has to be handed (see Cargo.toml).
     #[cfg(windows)]
     let builder = match native_tls::TlsConnector::new() {
         Ok(tls) => builder.tls_connector(std::sync::Arc::new(tls)),
@@ -404,7 +402,7 @@ fn said(body: &Value) -> Option<Failure> {
 
 /// OpenSubtitles' hash of a file: its size plus the first and last 64 KiB
 /// read as little-endian 64-bit words, all added with wrapping. Sixteen hex
-/// digits. Cheap — two reads — and the same for every copy of a release.
+/// digits. Cheap (two reads), and the same for every copy of a release.
 fn hash(path: &Path) -> Option<String> {
     const CHUNK: u64 = 64 * 1024;
     let mut file = File::open(path).ok()?;

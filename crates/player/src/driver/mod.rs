@@ -55,10 +55,9 @@ struct Gpu {
     ctx: mpv::RenderContext,
     gl: glow::Context,
     pipeline: Pipeline,
-    /// Softens the ends of scrolling lists, once Slint has drawn them.
-    /// Absent where its shader would not build: the lists are then cut by
-    /// their panel as they always were, which is not worth losing the
-    /// player over.
+    /// Softens the ends of scrolling lists once Slint has drawn them. Absent
+    /// where its shader wouldn't build, and the lists are then simply cut by
+    /// their panel.
     fader: Option<crate::gpu::fade::Fader>,
     /// The angle in a list's end pointing back to its current row, drawn
     /// over the soft edge it sits in. Absent the same way: the lists still
@@ -186,8 +185,8 @@ impl Driver {
                     if let Some(ui) = self.ui.upgrade() {
                         let size = ui.window().size();
                         // Before the picture is taken, so all of it is in it.
-                        // The ends of any list with rows past them first,
-                        // softened on the frame Slint has just finished...
+                        // First the soft ends of any list with rows past them,
+                        // on the frame Slint has just drawn...
                         fades::collect(&ui, &mut self.fades, &mut self.ways);
                         if let Some(fader) = gpu.fader.as_mut() {
                             fader.run(
@@ -197,11 +196,10 @@ impl Driver {
                                 &self.fades,
                             );
                         }
-                        // ...then the angle pointing back to a list's current
-                        // row, whole over the edge it sits in, on its disc of
-                        // glass if it has one. Its circle eases in under the
-                        // pointer, and nothing Slint draws moves with it to
-                        // ask for the frames.
+                        // ...then the angle back to a list's current row, whole
+                        // over the edge it sits in, on its glass disc if it has
+                        // one. Nothing Slint draws moves with its circle, so
+                        // this asks for the frames it eases in over.
                         if crate::gpu::way::GLASS {
                             let panes: Vec<_> = self
                                 .ways
@@ -218,11 +216,8 @@ impl Driver {
                                 ui.window().request_redraw();
                             }
                         }
-                        // ...and then the shadow, cast by what is left. The
-                        // other way round, a row cut off at a list's edge
-                        // cast its shadow past the edge, where no strip
-                        // reaches, and the row thinned away above a dark
-                        // smudge that stayed.
+                        // ...and then the shadow, cast by what is left, so a row
+                        // cut off at a list's edge casts nothing past it.
                         if let Some(shadow) = gpu.shadow.as_mut() {
                             shadow.run(
                                 &gpu.gl,
@@ -268,24 +263,17 @@ impl Driver {
         }
     }
 
-    /// Say, on screen, that there will be no video this run.
+    /// Say on screen that there will be no video this run.
     ///
-    /// All three callers leave the player without a render context, which
-    /// means no film, no glass, and — since the glass pass is what draws every
-    /// surface in the interface — no chrome either. `eprintln!` was the only
-    /// report any of them made, and a packaged build has no console to make it
-    /// to, so the window simply sat there black and a person could reasonably
-    /// conclude the player was broken rather than the driver.
+    /// Every caller leaves the player without a render context: no film, no
+    /// glass, and so no chrome, since the glass pass draws every surface. A
+    /// packaged build has no console, so without this the window would just
+    /// sit black. The way in says it, and drops its rows, which could only
+    /// open something that plays invisibly.
     ///
-    /// The way in says it, because the way in is what is on screen when no
-    /// file is loaded and no file can now be loaded. It drops its rows: they
-    /// offer to open something that could only play invisibly.
-    ///
-    /// `note` is what usually puts it right, and it is not the same for all
-    /// three. A context the driver would not give, or mpv could not use, is
-    /// the driver's; shaders it refused may be an old driver or a fault in the
-    /// player's own GLSL, and telling everyone to update a driver sends the
-    /// second kind looking in the wrong place.
+    /// `note` is what usually puts it right, and differs: a context the driver
+    /// wouldn't give, or mpv couldn't use, is the driver's, but refused
+    /// shaders may be a fault in the player's own GLSL.
     fn fatal(&self, reason: &str, detail: String, note: &str) {
         eprintln!("dbm: {reason} — {detail}");
         if let Some(ui) = self.ui.upgrade() {
@@ -384,22 +372,13 @@ impl Driver {
 
     /// Ask for another frame while a hand is on the controls.
     ///
-    /// Otherwise the only thing asking is mpv, and what follows the pointer
-    /// can only move as often as the film does — a hover, a slider, the seek
-    /// preview tracking the timeline, all of them stepping at 24 or 30 to a
-    /// second on a display capable of five times that.
-    ///
-    /// Tied to the hand rather than to the chrome, and the difference is most
-    /// of the player's CPU. Slint asks for its own frames: an animation runs
-    /// at the display's rate with nothing here helping it, measured at 160
-    /// draws a second against 165 with this on. What it cannot ask for is a
-    /// frame for something that moved *between* pointer events, which is the
-    /// whole of the list above and nothing else. So the question worth asking
-    /// is whether the pointer is live this quarter-second, not whether the bar
-    /// is up — the bar is up for three seconds after the hand stops, and every
-    /// frame in that window was a full composite of a picture that had not
-    /// changed. At 165Hz with a panel open that was half the CPU the player
-    /// used, spent on nothing: 21% of a core against 10% with it gone.
+    /// Otherwise only mpv asks, and whatever follows the pointer (a hover, a
+    /// slider, the seek preview) steps at the film's frame rate. Slint asks
+    /// for its own animation frames, but not for something that moved between
+    /// pointer events. So this follows whether the pointer moved this
+    /// quarter-second rather than whether the bar is up: the bar stays three
+    /// seconds after the hand stops, and redrawing all of that cost half the
+    /// player's CPU at 165Hz.
     fn keep_the_interface_moving(&self) {
         // No second test against `Chrome::idle`: a hand that moved within the
         // quarter-second cannot also have been still for three, so the chrome
@@ -515,14 +494,10 @@ impl Driver {
             .arrival
             .offered(self.player.path.as_deref(), self.player.time_pos);
         ui.set_resume_offer(offered.map(format::time).unwrap_or_default().into());
-        // An open is over when mpv finishes opening a file — not when it has
-        // one. This used to ask the second question, and with a film already
-        // playing the answer was yes on the very next frame: "Opening …" over
-        // a playing film was cleared before it was ever drawn, so the slow
-        // case it exists for showed nothing at all. The failures end it by
-        // their own routes: a scan that found nothing clears it where the
-        // scan reports back, and a file mpv could not play raises a notice,
-        // which clears it above.
+        // An open is over when mpv finishes opening a file, not when it has
+        // one, which is already true while a film plays. Failures end it their
+        // own ways: a scan that found nothing where the scan reports back, and
+        // a file mpv couldn't play by its notice, above.
         if self.player.loads != self.loads_seen {
             self.loads_seen = self.player.loads;
             ui.set_opening(false);
@@ -530,11 +505,10 @@ impl Driver {
         for id in std::mem::take(&mut self.replies) {
             match id {
                 commands::REPLY_SCRUB => self.app.scrubber.on_reply(&self.app.mpv),
-                // The list exists now. Which entry plays was settled
-                // before it loaded — see `commands::load_list` — so all this
-                // has to do is make sure it is playing.
-                // Unless what loads is to be held on its saved place, or
-                // started over first: that is settled when it is in.
+                // The list exists now, and which entry plays was settled
+                // before it loaded (see `commands::load_list`), so this only
+                // makes sure it plays. Unless it is to be held on its saved
+                // place or started over, which is settled once it is in.
                 commands::REPLY_LOADLIST if self.loading_list => {
                     self.loading_list = false;
                     if !self.app.arrival.holding() {
@@ -813,11 +787,8 @@ impl Driver {
     }
 }
 
-/// Put one sentence on screen, in the capsule the action flash already uses.
-///
-/// The alternative this replaces was `eprintln!` — which in a packaged build
-/// goes to a console that does not exist, so every failure was indistinguishable
-/// from the player ignoring you.
+/// Put one sentence on screen, in the action flash's capsule, since a packaged
+/// build has no console for `eprintln!`.
 fn say(ui: &MainWindow, text: String) {
     ui.global::<crate::Flash>().invoke_notice(text.into());
 }

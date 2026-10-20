@@ -1,12 +1,10 @@
 //! Mirror of the mpv properties the UI cares about.
 //!
-//! There is no boundary to cross: mpv's typed event queue is drained on the
-//! UI thread and written straight into this struct, which is then pushed into
-//! Slint properties.
+//! mpv's typed event queue is drained on the UI thread straight into this
+//! struct, which is then pushed into Slint properties.
 //!
-//! Everything is a plain field rather than a signal. Slint's own properties
-//! provide the reactivity, and duplicating that here would mean two sources
-//! of truth for the same value.
+//! Plain fields rather than signals, since Slint's properties provide the
+//! reactivity, and duplicating it here would make two sources of truth.
 
 use crate::lang::{fill, tr};
 use crate::playback::mpv::{Event, Value, FORMAT_DOUBLE, FORMAT_FLAG, FORMAT_STRING};
@@ -15,10 +13,9 @@ use std::ffi::c_int;
 
 /// Properties to observe, and the format to receive each in.
 ///
-/// List-shaped properties (`track-list`, `playlist`) are deliberately absent:
-/// observing them as nodes would mean marshalling a tree across FFI on every
-/// change. Their counts are observed instead, and the list itself is pulled
-/// on demand when a count moves.
+/// List-shaped properties (`track-list`, `playlist`) are absent, since
+/// observing them as nodes would marshal a tree across FFI on every change.
+/// Their counts are observed instead, and the list is pulled when one moves.
 pub const OBSERVED: &[(&str, c_int)] = &[
     ("filename", FORMAT_STRING),
     ("media-title", FORMAT_STRING),
@@ -49,10 +46,9 @@ pub const OBSERVED: &[(&str, c_int)] = &[
     // to work out where a frame will land without waiting to be told.
     ("dwidth", FORMAT_DOUBLE),
     ("dheight", FORMAT_DOUBLE),
-    // Where mpv actually laid the video out. Observed rather than polled:
-    // `mpv_get_property_string` blocks on mpv's core lock, and six of them
-    // per frame on the render path cost 220ms each frame during a resize,
-    // when that lock is contended. Off the event stream they are free.
+    // Where mpv actually laid the video out. Observed rather than polled,
+    // since a blocking read on the render path cost 220ms a frame during a
+    // resize, when mpv's core lock is contended.
     ("osd-dimensions/w", FORMAT_DOUBLE),
     ("osd-dimensions/h", FORMAT_DOUBLE),
     ("osd-dimensions/ml", FORMAT_DOUBLE),
@@ -80,13 +76,11 @@ pub struct PlayerState {
     /// The speed subtitles run at against the film. Zero until mpv first
     /// reports it, which reads as 1.
     pub sub_speed: f64,
-    /// Size multiplier. Mirrored rather than read from the saved settings so
-    /// the readout shows what mpv settled on, including any clamping it did
-    /// of its own.
+    /// Size multiplier. Mirrored rather than read from the saved settings, so
+    /// the readout shows what mpv settled on, including its own clamping.
     ///
-    /// Placement is not mirrored: while the bar is up mpv holds a line lifted
-    /// clear of it, and the readout shows where the person put the line, not
-    /// where the bar has moved it — see `subline`.
+    /// Placement isn't mirrored, since while the bar is up mpv holds a lifted
+    /// line, and the readout shows where the person put it (see `subline`).
     pub sub_scale: f64,
     /// 0 letterboxes to fit, 1 crops to fill.
     pub panscan: f64,
@@ -95,21 +89,20 @@ pub struct PlayerState {
     /// The chapter playing, from 0, or -1 before the first mark.
     pub chapter: i64,
     pub chapter_count: i64,
-    /// Read on the worker with the tracks — see `worker`.
+    /// Read on the worker with the tracks (see `worker`).
     pub chapters: Vec<crate::playback::tracks::Chapter>,
-    /// Where an episode's title sequence was heard to be, in seconds, and
-    /// the file that is true of — see `titles`. Kept with its path so a new
-    /// file needs nothing cleared: the answer is simply not about it.
+    /// Where an episode's title sequence was heard to be, in seconds, and the
+    /// file that is true of (see `titles`). Kept with its path, so a new file
+    /// needs nothing cleared.
     pub intro_heard: Option<(String, (f64, f64))>,
     /// Where its closing credits were heard to start, kept the same way.
     pub credits_heard: Option<(String, f64)>,
-    /// Playlist entries that would not play, by mpv's id for them, so their
-    /// rows can say so after the notice has gone. By id rather than by path:
-    /// a file that fails at once has no path reported for it yet, and its
-    /// row may not have been read yet either.
+    /// Playlist entries that wouldn't play, by mpv's id, so their rows can
+    /// say so after the notice has gone. By id rather than path, since a file
+    /// that fails at once has no path reported yet.
     pub failed: std::collections::HashSet<i64>,
-    /// The entry that last played to its end, by mpv's id for it, for the
-    /// frame to take: what autoplay is moving on from — see `arrival`.
+    /// The entry that last played to its end, by mpv's id, for the frame to
+    /// take: what autoplay is moving on from (see `arrival`).
     pub played_out: Option<i64>,
     pub track_count: i64,
     pub sid: Option<String>,
@@ -118,9 +111,8 @@ pub struct PlayerState {
     /// know to re-pull. Covers both the list mutating and the selection
     /// moving within it.
     pub tracks_generation: u64,
-    /// How many files mpv has finished opening this run. Read by the render
-    /// driver to tell when an open is over: the moment one loads, not the
-    /// moment one exists — a film already playing is a file that exists.
+    /// How many files mpv has finished opening this run, which tells the
+    /// driver when an open is over: when one loads, not when one exists.
     pub loads: u64,
     /// mpv's own layout: OSD size and the margins around the video.
     pub osd: [f64; 6],
@@ -128,7 +120,7 @@ pub struct PlayerState {
     pub dwidth: f64,
     pub dheight: f64,
 
-    /// Read on the worker thread — see `worker`. Not written by `apply`.
+    /// Read on the worker thread (see `worker`). Not written by `apply`.
     pub tracks: Vec<Track>,
     pub playlist: Vec<PlaylistEntry>,
     /// Parallel to `playlist`, and only as long as it: read in the same job,
@@ -136,13 +128,13 @@ pub struct PlayerState {
     pub progress: Vec<crate::library::durations::Progress>,
     /// What `probe` found, by path.
     ///
-    /// Only ever added to, and read *over* `playlist` and `progress` rather
-    /// than written into them: those are replaced wholesale by every list
-    /// read, and a read that left the worker before a probe landed would
-    /// otherwise put the row back the way it was.
+    /// Only added to, and read over `playlist` and `progress` rather than
+    /// written into them, since those are replaced by every list read, and a
+    /// read begun before a probe landed would undo it.
     pub probed: std::collections::HashMap<String, crate::library::probe::Found>,
-    /// Seasons of the show found beside a playlist that is one season of it —
-    /// see [`crate::library::shelf`]. Not queued: shown, and opened when picked.
+    /// Seasons of the show found beside a playlist that is one season of it
+    /// (see [`crate::library::shelf`]). Shown rather than queued, and opened
+    /// when picked.
     pub beside: Vec<crate::library::shelf::Beside>,
 }
 
@@ -171,9 +163,8 @@ impl PlayerState {
     }
 
     fn apply_property(&mut self, name: &str, value: &Value) -> bool {
-        // `Unset` is normal rather than exceptional - `time-pos` has no value
-        // until something is playing - so it clears the field instead of
-        // being treated as an error.
+        // `Unset` is normal (`time-pos` has no value until something plays),
+        // so it clears the field rather than being an error.
         let num = match value {
             Value::Double(d) if d.is_finite() => Some(*d),
             _ => None,
@@ -253,9 +244,9 @@ impl PlayerState {
 
     /// Fold in lists read on the worker thread.
     ///
-    /// A result is discarded if the lists moved again while it was being
-    /// read — the newer request is already on its way, and applying a stale
-    /// snapshot would flicker the menu.
+    /// A result is discarded if the lists moved again while it was read,
+    /// since the newer request is on its way, and a stale snapshot would
+    /// flicker the menu.
     pub fn apply_lists(&mut self, lists: crate::interface::sync::Lists) -> bool {
         if lists.generation != self.tracks_generation {
             return false;
@@ -286,9 +277,9 @@ impl PlayerState {
     }
 
     /// Whether an episode's closing credits are playing: the chapter playing
-    /// is the one they start at — see [`credits_chapter`](Self::credits_chapter)
-    /// — or one after it. Where the chapters do not say, the credits are
-    /// where they were heard to start, if they were.
+    /// is the one they start at (see [`credits_chapter`](Self::credits_chapter))
+    /// or one after it. Where the chapters don't say, the credits are where
+    /// they were heard to start, if they were.
     pub fn credits_rolling(&self) -> bool {
         let rolling = match self.credits_chapter() {
             Some(start) => usize::try_from(self.chapter).is_ok_and(|current| current >= start),
@@ -331,11 +322,10 @@ impl PlayerState {
     /// something like `End Credits`. The half keeps a cold open's `Credits`
     /// from counting.
     ///
-    /// Plenty of releases name nothing — every chapter titled with its own
-    /// start time, or not at all — and a broadcast episode is split at its
-    /// act breaks, the last of which is the credits. So where no chapter has
-    /// a real name, the last one is the credits if it is short: a final act
-    /// runs minutes, and a closing sequence well under `CREDITS_TAIL`.
+    /// Plenty of releases name nothing, and a broadcast episode is split at
+    /// its act breaks, the last of which is the credits. So where no chapter
+    /// has a real name, the last is the credits if it is short: a final act
+    /// runs minutes, a closing sequence well under `CREDITS_TAIL`.
     fn credits_chapter(&self) -> Option<usize> {
         if self.duration <= 0.0 {
             return None;
@@ -362,8 +352,8 @@ impl PlayerState {
     /// Where the playing episode's title sequence starts and ends, in
     /// seconds: as its chapters name it, and otherwise as it was heard.
     ///
-    /// An episode's only. A film's opening titles are the film, as its
-    /// credits are — see [`credits_rolling`](Self::credits_rolling).
+    /// An episode's only, since a film's opening titles are part of the film,
+    /// as its credits are (see [`credits_rolling`](Self::credits_rolling)).
     pub fn intro(&self) -> Option<(f64, f64)> {
         let path = self.path.as_deref()?;
         let span = self.intro_named().or_else(|| {
@@ -383,11 +373,10 @@ impl PlayerState {
     /// The title sequence where a chapter is named for it: from that
     /// chapter's mark to the next one.
     ///
-    /// In the file's first half, which keeps an `Ending Theme` nobody
-    /// thought to call an ending out of it, and no longer than
-    /// `INTRO_LONGEST`: a chapter called `Intro` that runs ten minutes is
-    /// an introduction, not a title sequence. The last chapter has no next
-    /// mark to end at and is not one either.
+    /// In the file's first half, which keeps an oddly named `Ending Theme`
+    /// out, and no longer than `INTRO_LONGEST`, since an `Intro` that runs
+    /// ten minutes is an introduction, not a title sequence. The last chapter
+    /// has no next mark to end at, so isn't one either.
     pub fn intro_named(&self) -> Option<(f64, f64)> {
         if self.duration <= 0.0 {
             return None;
@@ -412,26 +401,17 @@ impl PlayerState {
     /// Where the video sits inside a window of this size, normalised
     /// (x0, y0, x1, y1).
     ///
-    /// mpv's own margins wherever they describe *this* size, because they
-    /// account for everything mpv does — panscan, zoom, alignment, crop — and
-    /// a locally derived fit is only right for the cases this player knows
-    /// about.
+    /// mpv's own margins wherever they describe this size, since they account
+    /// for everything mpv does (panscan, zoom, alignment, crop).
     ///
-    /// But they arrive asynchronously, and `osd-dimensions` carries the size
-    /// it was measured at, which is how a stale one is recognised. During a
-    /// resize every frame is rendered at a size mpv has not reported on yet,
-    /// so the margins on hand describe the *previous* window. Using them
-    /// anyway is what darkens the border: they put the video's edge somewhere
-    /// the video is not, and the border pass spreads whatever it finds there,
-    /// which after a fresh allocation is black.
+    /// They arrive asynchronously, with the size they were measured at. During
+    /// a resize the margins on hand describe the previous window, and would
+    /// put the video's edge where the video isn't, darkening the border. So
+    /// when they are a size behind, the fit is worked out here from the
+    /// video's dimensions and the panscan, wrong only for a zoom set in mpv's
+    /// own config.
     ///
-    /// So when they are a size behind, the fit is worked out here instead,
-    /// from the video's own dimensions and the panscan — the only two things
-    /// this player lets anyone change. Wrong for a zoom set in mpv's own
-    /// config; right every frame of a resize, which is the one that shows.
-    ///
-    /// A full-window rect is the right degenerate answer before anything has
-    /// been laid out: it reads as no border.
+    /// Before anything is laid out, a full-window rect reads as no border.
     pub fn video_rect(&self, width: u32, height: u32) -> [f32; 4] {
         let [ow, oh, ml, mt, mr, mb] = self.osd;
         if ow > 0.0 && oh > 0.0 && ow as u32 == width && oh as u32 == height {
@@ -468,10 +448,9 @@ impl PlayerState {
 
     /// What the bar shows.
     ///
-    /// mpv's `media-title` is the container's own title where one exists, and
-    /// the filename where it does not — and a filename straight out of a
-    /// release is mostly not a title. So anything that looks like it came off
-    /// a disk gets read properly; a real embedded title is left alone.
+    /// mpv's `media-title` is the container's title where one exists, and the
+    /// filename otherwise, which out of a release is mostly not a title. So a
+    /// filename is read properly, and a real embedded title left alone.
     pub fn display_title(&self) -> String {
         let path = self
             .path
@@ -483,9 +462,8 @@ impl PlayerState {
 
     /// The container's own title, where it has one.
     ///
-    /// mpv reports the file name in `media-title` when the container carries
-    /// no title of its own, and that fallback is not a title — passing it on
-    /// would mean parsing a name that has already been parsed.
+    /// mpv reports the file name in `media-title` when the container has no
+    /// title of its own, and that fallback isn't a title.
     fn embedded_title(&self) -> Option<&str> {
         let title = self.media_title.as_deref()?;
         let name = crate::library::naming::strip_path(self.path.as_deref().unwrap_or(""));
@@ -495,9 +473,9 @@ impl PlayerState {
 
     /// What is known about one playlist row.
     ///
-    /// Defaults rather than an `Option`: a row whose file has never been
-    /// played here is the ordinary case, not a missing value, and the answer
-    /// it wants — no length, no progress — is exactly the default.
+    /// Defaults rather than an `Option`, since a file never played here is
+    /// the ordinary case, and its answer (no length, no progress) is the
+    /// default.
     pub fn progress_of(&self, row: usize) -> crate::library::durations::Progress {
         self.progress.get(row).copied().unwrap_or_default()
     }
@@ -535,8 +513,7 @@ impl PlayerState {
     }
 
     /// A row's embedded title: mpv's where mpv has opened the file, the
-    /// probe's otherwise. mpv's wins because it is the same tag read by the
-    /// thing actually playing it.
+    /// probe's otherwise, since mpv's is read by what is actually playing it.
     pub fn known_title(&self, row: usize) -> Option<&str> {
         let entry = self.playlist.get(row)?;
         entry

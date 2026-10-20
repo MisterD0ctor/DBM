@@ -7,23 +7,16 @@
 //! only sets an internal flag, and its `PeekMessageW` pump is simply blocked
 //! for the duration.
 //!
-//! The consequence for us is total. mpv signals new frames from its own thread
-//! by waking the event loop (`upgrade_in_event_loop`), and that wakeup sits
-//! unserviced. Nothing renders, so the video freezes. Dragging looked less
-//! broken only because `WM_SIZE` kept arriving; holding still produces no
-//! messages at all and the picture stops dead.
+//! mpv signals new frames by waking the event loop (`upgrade_in_event_loop`),
+//! and that wakeup sits unserviced, so the video freezes; holding an edge
+//! still produces no messages at all.
 //!
-//! The saving grace is that winit dispatches `WM_PAINT` straight into the
-//! application from inside the window procedure — `send_event` calls the
-//! handler synchronously for `RedrawRequested` — and window procedures *are*
-//! called during the modal loop. So a message is all that is needed, and
-//! `WM_TIMER` is the classic way to manufacture one: the modal pump dispatches
-//! timer messages just like any other.
-//!
-//! So: subclass the window, start a timer when the modal loop begins, and turn
-//! each tick into a paint. The old Tauri build never needed this because mpv
-//! owned a separate HWND and presented from its own thread, entirely
-//! independent of this thread's message pump.
+//! But winit dispatches `WM_PAINT` straight into the application from inside
+//! the window procedure (`send_event` calls the handler synchronously for
+//! `RedrawRequested`), and window procedures are called during the modal
+//! loop. So a message is all that is needed, and the modal pump dispatches
+//! `WM_TIMER` like any other: subclass the window, start a timer when the
+//! modal loop begins, and turn each tick into a paint.
 
 use crate::platform::window::{Attempt, UntilWindow};
 
@@ -47,8 +40,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(windows)]
 static TICKS: AtomicU64 = AtomicU64::new(0);
 
-/// Installs the hook, retrying from the frame path until the window exists —
-/// see [`UntilWindow`]. `DBM_NO_MODAL_HOOK` leaves it out, to see what
+/// Installs the hook, retrying from the frame path until the window exists
+/// (see [`UntilWindow`]). `DBM_NO_MODAL_HOOK` leaves it out, to see what
 /// happens without it.
 pub struct Hook {
     until: UntilWindow,
@@ -135,11 +128,9 @@ unsafe extern "system" fn subclass_proc(
         },
         WM_TIMER if wparam.0 == TIMER_ID => {
             TICKS.fetch_add(1, Ordering::Relaxed);
-            // `RDW_INTERNALPAINT` posts a WM_PAINT without needing an invalid
-            // region, which is what we want: nothing is actually dirty in
-            // Windows' eyes, we just need winit to be handed a message so it
-            // dispatches RedrawRequested and Slint renders the frame mpv has
-            // been sitting on.
+            // `RDW_INTERNALPAINT` posts a WM_PAINT without an invalid region,
+            // since nothing is dirty in Windows' eyes; it only hands winit a
+            // message, so it dispatches RedrawRequested and Slint renders.
             let _ = unsafe { RedrawWindow(Some(hwnd), None, None, RDW_INTERNALPAINT) };
             return LRESULT(0);
         }
@@ -148,11 +139,9 @@ unsafe extern "system" fn subclass_proc(
     unsafe { DefSubclassProc(hwnd, msg, wparam, lparam) }
 }
 
-/// Put the window into the modal size loop from code, the same state a user
-/// creates by grabbing an edge. The only way to test this path without a hand
-/// on the mouse — a programmatic `set_size` does *not* reproduce it, which is
-/// exactly why the earlier resize measurements looked healthy while the real
-/// thing froze.
+/// Put the window into the modal size loop from code, the state a user
+/// creates by grabbing an edge, to test this path without a hand on the
+/// mouse, since a programmatic `set_size` doesn't reproduce it.
 #[cfg(windows)]
 pub fn enter_modal_size_loop_for_test(window: &slint::Window) {
     use windows::Win32::Foundation::{LPARAM, WPARAM};

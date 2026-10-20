@@ -1,33 +1,25 @@
 //! What a file says about itself before anyone plays it.
 //!
-//! mpv learns a file's length and its embedded title only by opening it, so a
-//! playlist used to know both for the one episode playing and for whatever
-//! had been played before, and nothing for the rest: `S02E04` with no running
-//! time, beside `S02E01 · The Chosen One  0:24:10`. This asks ffmpeg instead,
-//! which will describe a file without playing it.
+//! mpv learns a file's length and its embedded title only by opening it, so
+//! this asks ffmpeg, which describes a file without playing it, for the rest
+//! of the playlist.
 //!
-//! `ffmpeg -i` with no output reads the container header and exits. It is
-//! about 40ms for a local file, most of it process start, and it never
-//! decodes a frame — so a season is under a second, and a folder of two
-//! hundred episodes fills in over a few seconds, a second's worth of rows at
-//! a time, while the rows it has not reached yet stay as they were.
+//! `ffmpeg -i` with no output reads the container header and exits, in about
+//! 40ms for a local file, so a season takes under a second and a folder of
+//! two hundred episodes fills in over a few seconds.
 //!
-//! Its own thread rather than the worker, for the reason the preview atlas
-//! has one: the worker is what keeps the track lists current, and a scan of a
-//! large folder behind it would hold the subtitle menu empty until it was
-//! done. One file at a time, in playlist order, so the rows near the top —
-//! the ones on screen when the panel opens — are the first to arrive.
+//! Its own thread rather than the worker, as the preview's is, so a large
+//! folder doesn't hold the track menu empty. One file at a time in playlist
+//! order, so the rows on screen when the panel opens arrive first.
 //!
-//! Results are kept, so a folder is scanned once. Lengths go into the same
-//! `durations.json` the player already records into as files play, and titles
-//! into `titles.json` beside it, where an empty string means "looked, and
-//! there is none" — without that, every untitled file would be asked again on
-//! every launch.
+//! Results are kept, so a folder is scanned once: lengths in `durations.json`
+//! beside those recorded as files play, and titles in `titles.json`, where an
+//! empty string means "looked, and there is none", so untitled files aren't
+//! asked again every launch.
 //!
-//! A generation counter stops a superseded scan the same way it stops a
-//! superseded atlas: opening another folder abandons the old one between
-//! files. A file ffmpeg is already reading is finished first, since a probe
-//! is short and cannot be interrupted anyway.
+//! A generation counter stops a superseded scan between files, as it stops a
+//! superseded atlas. A file ffmpeg is already reading is finished first,
+//! since a probe is short.
 
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -94,9 +86,8 @@ fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
     let lengths = crate::library::durations::load();
     let titles = TITLES.load();
 
-    // Everything already known goes back in one delivery, before any ffmpeg
-    // starts: a folder opened for the second time is complete the moment its
-    // list is, rather than filling in row by row out of a cache.
+    // Everything already known goes back in one delivery before any ffmpeg
+    // starts, so a folder opened again is complete as soon as its list is.
     let (known, unknown): (Vec<String>, Vec<String>) = paths
         .into_iter()
         .partition(|path| lengths.get(path).is_some_and(|s| *s > 0.0) && titles.contains_key(path));
@@ -115,17 +106,14 @@ fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
     if unknown.is_empty() || !current() {
         return;
     }
-    // No ffmpeg is the same answer the preview gets: the feature is not
-    // there, and the rows stay as mpv alone can fill them.
+    // Without ffmpeg the rows stay as mpv alone can fill them.
     let Some(ffmpeg) = ffmpeg::path() else {
         return;
     };
     ffmpeg::announce(&ffmpeg);
 
-    // Handed over a second's worth at a time rather than file by file. Each
-    // delivery is a frame in which the interface has rows to rewrite, and at
-    // one per file a folder seen for the first time kept it at that for as
-    // long as the scan ran.
+    // Handed over a second's worth at a time rather than file by file, since
+    // each delivery means rows to rewrite in the interface.
     let mut batch: Vec<Found> = Vec::new();
     let mut handed = Instant::now();
     for path in unknown {
@@ -152,11 +140,10 @@ fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
     }
 }
 
-/// Ask ffmpeg about one file. **Blocking** — spawns a process and waits.
+/// Ask ffmpeg about one file. **Blocking**: spawns a process and waits.
 ///
-/// `None` for anything that is not a file on disk: a stream URL would be a
-/// network request to find out how long something is, which is not this
-/// module's business, and mpv reports those itself once they play.
+/// `None` for anything that isn't a file on disk, since a stream URL would
+/// mean a network request, and mpv reports those once they play.
 fn probe(ffmpeg: &Path, path: &str) -> Option<Found> {
     if !Path::new(path).is_file() {
         return None;
@@ -171,10 +158,9 @@ fn probe(ffmpeg: &Path, path: &str) -> Option<Found> {
 
 /// The container's `title` tag, from ffmpeg's description of a file.
 ///
-/// Only the container's. Streams carry metadata blocks of their own, and a
-/// subtitle stream titled `English` would otherwise name the episode. ffmpeg
-/// prints the container block before `Duration:` and every stream block
-/// after it, which is the whole of the distinction.
+/// Only the container's, or a subtitle stream titled `English` would name the
+/// episode. ffmpeg prints the container block before `Duration:` and every
+/// stream block after it.
 pub fn parse_title(report: &str) -> Option<String> {
     let header = report.split("Duration:").next()?;
     header
@@ -197,7 +183,7 @@ pub fn parse_title(report: &str) -> Option<String> {
 /// One scan writes at a time in practice, but a superseded one can still be
 /// finishing its last file as the next starts.
 ///
-/// Versioned as caches are — see `cache`. 1: the container's `title` tag.
+/// Versioned as caches are (see `cache`). 1: the container's `title` tag.
 static TITLES: PathMap<String> = PathMap::cache("titles.json", 1);
 
 /// **Blocking.**

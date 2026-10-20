@@ -1,9 +1,9 @@
 //! The first step of every frame: draining mpv's event queue.
 //!
-//! Draining here rather than on a thread of its own keeps `mpv_wait_event`
-//! single-threaded — it is not safe to call concurrently — and means events
-//! still flow while Windows owns the loop during a resize drag, since the
-//! modal hook keeps frames coming.
+//! Draining here rather than on a thread of its own keeps `mpv_wait_event`,
+//! which isn't safe to call concurrently, on one thread, and events still
+//! flow while Windows owns the loop during a resize drag, since the modal
+//! hook keeps frames coming.
 
 use std::rc::Rc;
 
@@ -35,19 +35,14 @@ pub fn drain(
             replies.push(id);
             continue;
         }
-        // A file that stopped because it could not be played. mpv knows why
-        // and says so in its own words, which are better than any wording
-        // invented here — "Unrecognized file format" beats "playback error".
+        // A file that stopped because it couldn't be played, said in mpv's own
+        // words, which beat anything invented here.
         //
-        // Named by the file's own name, not its path. A path fills the
-        // capsule with the drive and folders, and elision takes the end —
-        // exactly the part that says which file in a season it was.
-        //
-        // Reason first. The capsule elides at the width of the bar, and with
-        // a scene release's name in front it was the reason — the one part
-        // worth reading — that fell off the end. The name is the one the
-        // playlist shows, not the file's, and the entry is remembered so its
-        // row can go on saying so after the notice has gone.
+        // Reason first, because the capsule elides at the bar's width and the
+        // reason is the part worth reading. Then the name the playlist shows,
+        // not the path, whose end, where the file's name is, would be cut.
+        // The entry is remembered so its row keeps saying so after the notice
+        // has gone.
         if let Event::EndFile {
             failure: Some(reason),
             entry,

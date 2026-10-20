@@ -1,27 +1,27 @@
 //! Lining subtitles up with the speech they belong to.
 //!
-//! Subtitles that came from somewhere else — a download, or a track muxed in
-//! from another release — run early or late by a fixed amount, and sometimes
-//! at the speed of another frame rate. Nothing in the subtitles says so. The
-//! audio does: people talk while lines are on screen and mostly not between
-//! them, so the right timing is the one that puts the lines over the talking.
+//! Subtitles that came from somewhere else (a download, or a track muxed in
+//! from another release) run early or late by a fixed amount, and sometimes
+//! at another frame rate's speed. The audio says so: people talk while lines
+//! are on screen and mostly not between them, so the right timing puts the
+//! lines over the talking.
 //!
-//! No speech is recognised, and the language of either side does not matter.
-//! The audio is reduced to one number every hundredth of a second — how much
-//! sound there is against what surrounds it — and the subtitles to the spans
-//! they are on screen for. Every delay within a minute either way is then
-//! tried, at each of the speeds a frame-rate mismatch produces, and scored by
-//! how much of the sound falls inside the spans.
+//! No speech is recognised, so the language doesn't matter. The audio is
+//! reduced to one number every hundredth of a second (how much sound there is
+//! against its surroundings), and the subtitles to the spans they are on
+//! screen. Every delay within a minute either way is tried, at each speed a
+//! frame-rate mismatch produces, and scored by how much sound falls inside
+//! the spans.
 //!
-//! ffmpeg does the decoding, so with none on the machine there is no sync —
-//! see `ffmpeg`. It reads the film once: the audio comes back down a pipe,
-//! and a subtitle track inside the same file is written out beside it in the
-//! same pass, since getting at either means reading the whole container.
+//! ffmpeg does the decoding, so without it there is no sync (see `ffmpeg`).
+//! It reads the film once: the audio comes back down a pipe, and a subtitle
+//! track inside the same file is written out in the same pass, since getting
+//! at either means reading the whole container.
 //!
-//! Its own thread, like the seek preview and for its reason: a feature is a
-//! quarter of a minute of decoding, and the shared worker is what keeps the
-//! track lists current. A generation counter abandons a run whose film has
-//! been replaced or which has been asked for again.
+//! Its own thread, like the seek preview's, since a feature is a quarter of a
+//! minute of decoding and the shared worker keeps the track lists current. A
+//! generation counter abandons a run whose film was replaced or which was
+//! asked for again.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -105,8 +105,8 @@ pub struct Fit {
 pub enum Failure {
     /// Nothing is selected to sync.
     NoSubtitles,
-    /// The track is pictures — a disc's own subtitles — and has no text to
-    /// take timings from. Those are cut with the film and are in step.
+    /// The track is pictures (a disc's own subtitles), with no text to take
+    /// timings from. Those are cut with the film and are in step.
     Pictures,
     NoFfmpeg,
     /// The subtitles gave no timings.
@@ -118,8 +118,8 @@ pub enum Failure {
     Unsure,
 }
 
-/// A finished run, and what it was a run for — so an answer that arrives
-/// after the film or the track has changed can be dropped.
+/// A finished run, and what it was for, so an answer that arrives after the
+/// film or the track has changed can be dropped.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Outcome {
     pub path: String,
@@ -150,8 +150,8 @@ fn current(generation: u64) -> bool {
 pub fn spawn(mpv: Arc<Mpv>, reporter: Reporter) {
     let generation = supersede();
     std::thread::spawn(move || {
-        // Read here rather than handed over: these block on mpv's core
-        // lock, which is exactly what the UI thread may not do.
+        // Read here rather than handed over, since these block on mpv's core
+        // lock, which the UI thread must not.
         let path = mpv.get_property("path").unwrap_or_default();
         let sid = mpv.get_property("sid");
         let result = ask(&mpv, &path).and_then(|asked| run(&asked, generation));
@@ -240,9 +240,9 @@ fn is_pictures(codec: &str) -> bool {
 
 /// Whether a track with this many channels can be relied on to have a centre.
 ///
-/// Five and up always do — 5.0, 5.1, 6.1, 7.1. Three and four may not: 2.1
-/// and quad are both real layouts, and asking ffmpeg for a channel that is
-/// not there gets silence rather than an error.
+/// Five and up always do (5.0, 5.1, 6.1, 7.1). Three and four may not, since
+/// 2.1 and quad are real layouts, and asking ffmpeg for a missing channel
+/// gets silence rather than an error.
 fn has_centre(channels: i64) -> bool {
     channels >= 5
 }
@@ -284,8 +284,8 @@ fn run(asked: &Asked, generation: u64) -> Result<Fit, Failure> {
         return Err(Failure::Unread);
     }
     let best = search(&speech(&loudness), &cues).ok_or(Failure::Unsure)?;
-    // Said whether or not it is believed: "it would not sync" is otherwise a
-    // report with nothing in it to go on.
+    // Logged whether or not it is believed, so "it would not sync" has
+    // something to go on.
     eprintln!(
         "dbm: {} subtitle spans against {:.0} s of audio: best at {:+.2} s, \
          speed {:.4}, {:.1} clear of the rest",
@@ -486,10 +486,10 @@ fn speech(loudness: &[f32]) -> Vec<f32> {
 
 /// Read a subtitle file as text, whatever it was saved as.
 ///
-/// Only the timings are wanted and they are digits and punctuation, which
-/// every eight-bit encoding agrees with UTF-8 about — so a Latin-1 file
-/// reads correctly here with its accents mangled, and nothing needs to know
-/// which encoding it was. UTF-16 is the exception, and says so up front.
+/// Only the timings are wanted, which are digits and punctuation that every
+/// eight-bit encoding shares with UTF-8, so a Latin-1 file reads correctly
+/// here with its accents mangled. UTF-16 is the exception, and says so up
+/// front.
 fn read_text(file: &Path) -> Option<String> {
     let bytes = std::fs::read(file).ok()?;
     let wide = |unit: fn([u8; 2]) -> u16| {
@@ -595,13 +595,12 @@ impl Best {
 
 /// Try every timing and return the best, or `None` with too little to try.
 ///
-/// The score for one timing is the speech inside the spans less the speech
-/// that would be there by chance — which, with the film's average taken off
-/// every frame first, is simply the sum inside them. A running total of the
-/// frames makes that two lookups a span, so a timing costs as many steps as
-/// there are lines and not as many as there are frames: the whole search is
-/// a hundred million lookups, where sliding one signal along the other would
-/// be tens of billions of multiplications.
+/// The score for one timing is the speech inside the spans less what chance
+/// would put there, which, with the film's average taken off every frame, is
+/// the sum inside them. A running total makes that two lookups a span, so a
+/// timing costs a step per line rather than per frame: the search is a
+/// hundred million lookups, where a cross-correlation would be tens of
+/// billions of multiplications.
 fn search(speech: &[f32], cues: &[Cue]) -> Option<Best> {
     if cues.len() < FEWEST || speech.is_empty() {
         return None;

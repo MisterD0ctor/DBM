@@ -1,27 +1,22 @@
 //! Small JSON maps from a path to something known about it, kept in the
 //! app's data directory — and folders of files kept the same way.
 //!
-//! Six of these maps exist — how long each file is, its title tag, where
-//! each finished file's ending began, where each episode's title sequence
-//! and closing credits were heard to be, and the subtitles downloaded for
-//! each film — and they share their whole life: read whole, changed one
-//! entry at a time, from more than one thread, and written whole. So that
-//! life is written once, here.
+//! The maps (lengths, title tags, endings, title sequences and credits,
+//! downloaded subtitles) share their whole life: read whole, changed one
+//! entry at a time from more than one thread, and written whole. So that is
+//! written once, here.
 //!
-//! Every write re-reads the file first rather than holding the map in
-//! memory. The files are a few tens of kilobytes at worst, and reading first
-//! means a file edited by hand, or by another copy of the player, is merged
-//! rather than clobbered.
+//! Every write re-reads the file first rather than holding the map in memory.
+//! The files are a few tens of kilobytes at worst, and reading first merges a
+//! file edited by hand, or by another copy of the player, rather than
+//! clobbering it.
 //!
-//! Most of them are caches: what the player worked out once so it need not
-//! work it out again. When the way it works something out changes, what it
-//! kept the old way is the old answer, and nothing about an entry says
-//! which way it was reached. So each cache carries a version, written into
-//! its file, and whoever changes how its entries are reached bumps the
-//! number where the cache is declared. Entries kept under any other number
-//! are forgotten, and worked out again as they are next asked for. A
-//! record — something that happened, which cannot be worked out again — has
-//! no version and is never forgotten.
+//! Most are caches of what the player worked out, and an entry doesn't say
+//! how it was reached. So each cache carries a version, written into its
+//! file, and whoever changes how its entries are worked out bumps the number
+//! where it is declared. Entries under any other number are forgotten and
+//! worked out again when next asked for. A record, of something that happened
+//! and can't be worked out again, has no version and is never forgotten.
 
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -43,8 +38,8 @@ pub struct PathMap<V> {
     /// Serialises read-modify-write. Each writer rewrites the whole file from
     /// what it just read, so two overlapping writes would lose one of them.
     write: Mutex<()>,
-    /// `fn() -> V` rather than `V`, so the map is `Sync` — and can be a
-    /// `static` — whatever `V` is.
+    /// `fn() -> V` rather than `V`, so the map is `Sync`, and can be a
+    /// `static`, whatever `V` is.
     value: PhantomData<fn() -> V>,
 }
 
@@ -74,10 +69,9 @@ impl<V> PathMap<V> {
 impl<V: Serialize + DeserializeOwned + PartialEq> PathMap<V> {
     /// The whole map.
     ///
-    /// **Blocking.** Worker thread only. A missing or unreadable file is an
-    /// empty map, not an error: the first run of the player has none, and
-    /// neither does one whose file somebody deleted. Both mean the same thing
-    /// — nothing is known yet. So does a file kept at another version.
+    /// **Blocking.** Worker thread only. A missing or unreadable file, or one
+    /// kept at another version, is an empty map rather than an error: nothing
+    /// is known yet.
     pub fn load(&self) -> HashMap<String, V> {
         read(&self.file(), self.version)
     }
@@ -138,9 +132,9 @@ fn update<V: Serialize + DeserializeOwned + PartialEq>(
 /// A folder of files worked out from others, in the app's data directory,
 /// versioned as a cache map is.
 ///
-/// The version is a file of its own in the folder. The first time the
-/// folder is asked for in a run, a different one there — or none, where the
-/// cache is past its first — empties it of everything else.
+/// The version is a file of its own in the folder. The first time the folder
+/// is asked for in a run, a different version there (or none, where the cache
+/// is past its first) empties it of everything else.
 pub struct Folder {
     name: &'static str,
     version: u32,
@@ -214,7 +208,7 @@ mod tests {
     #[test]
     fn an_entry_is_merged_into_what_is_on_disk() {
         let file = scratch("merge.json");
-        // Written by someone else — a hand edit, another copy of the player.
+        // Written by someone else: a hand edit, another copy of the player.
         std::fs::write(
             &file,
             r#"{"version":3,"entries":{"C:/films/a.mkv":1200.0}}"#,

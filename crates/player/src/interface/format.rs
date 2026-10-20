@@ -45,10 +45,9 @@ pub fn speed(speed: f64) -> String {
     format!("{text}×")
 }
 
-/// A subtitle delay. Signed, because the sign is the whole point: a delay
-/// says whether the subtitles are running early or late. Zero is written
-/// without one, so the untouched case does not read as a setting someone
-/// made.
+/// A subtitle delay. Signed, because the sign says whether the subtitles run
+/// early or late. Zero has none, so the untouched case doesn't read as a
+/// setting someone made.
 pub fn delay(seconds: f64) -> String {
     if seconds.abs() < 0.005 {
         "0.00 s".into()
@@ -70,10 +69,9 @@ pub fn position(percent: f64) -> String {
 /// A slider's value, with enough precision to tune by and without a column
 /// of noise.
 ///
-/// From the parameter's range rather than its current value, which is what
-/// the value alone cannot tell you: 5.000 is three meaningless digits on a
-/// blur that runs to 40, and 0.010 is the whole story on an edge blur that
-/// runs to 0.1. Same number, opposite needs.
+/// From the parameter's range rather than its value: 5.000 is three
+/// meaningless digits on a blur that runs to 40, and 0.010 is the whole story
+/// on an edge blur that runs to 0.1.
 pub fn readout(value: f32, min: f32, max: f32) -> String {
     let span = (max - min).abs();
     let decimals = if span >= 100.0 {
@@ -88,8 +86,8 @@ pub fn readout(value: f32, min: f32, max: f32) -> String {
     format!("{value:.decimals$}")
 }
 
-/// A fragment as the start of a sentence. mpv's reasons are lower-case —
-/// "unrecognized file format" — and a notice opens with one.
+/// A fragment as the start of a sentence, since mpv's reasons are lower-case
+/// ("unrecognized file format") and a notice opens with one.
 pub fn sentence(text: &str) -> String {
     let mut chars = text.chars();
     match chars.next() {

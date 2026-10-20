@@ -1,8 +1,7 @@
 //! Automated exercises for paths a keyboard and mouse would normally drive.
 //!
-//! These exist because the interesting failures were all in states that are
-//! awkward to reach by hand and impossible to reach from a test that does not
-//! own a window:
+//! For states that are awkward to reach by hand and impossible from a test
+//! that doesn't own a window:
 //!
 //! * `DBM_INPUT_TEST=1` — drives the action callbacks in sequence and prints
 //!   the mirrored state after each, so the whole chain can be checked without a
@@ -12,17 +11,16 @@
 //!   resumed after it; pair it with `DBM_TRACE=1` for how many updates the
 //!   scrubber coalesced into how many seeks. `=slow` drags it at ten pixels a
 //!   second instead, stopping three times, and reports how far the picture
-//!   is from the pointer at each rest — then once more after a fast drag.
-//!   Exact seeks are what every one of those depends on.
+//!   is from the pointer at each rest, then once more after a fast drag.
 //! * `DBM_REACH_TEST=1` — opens the playlist with P and walks twelve rows down
 //!   with the arrow keys, reporting the ring's row and the list's scroll at
 //!   each. `=glass` walks into the glass page and steps a slider with Left
 //!   instead; `=up` opens the playlist without a key, so the first Up has to
 //!   both show the ring and land on the bottom row; `=accessibility` walks to
 //!   the accessibility page and presses Enter on its switch twice.
-//! * `DBM_RESIZE_TEST=1` — sweeps the window width like a drag. Note this does
-//!   *not* enter Windows' modal resize loop, which is why it once reported
-//!   healthy while the real thing froze.
+//! * `DBM_RESIZE_TEST=1` — sweeps the window width like a drag. It does *not*
+//!   enter Windows' modal resize loop, so it can pass while a real drag
+//!   freezes; that is `DBM_MODAL_TEST`.
 //! * `DBM_MODAL_TEST=1` — posts `WM_SYSCOMMAND`/`SC_SIZE` to enter that modal
 //!   loop for real.
 //! * `DBM_TOGGLE_TEST=1` — flips each effect switch, autoplay and the
@@ -37,19 +35,18 @@
 //! * `DBM_OPEN_TEST=<path>` — opens that path the way the dialog does, and
 //!   reports the playlist it produced.
 //! * `DBM_DIALOG_TEST=1` — puts a real file dialog on screen. Pair it with
-//!   `DBM_TRACE=1`: the point is that draws carry on while it is open, which is
-//!   the whole reason the dialog does not run on this thread.
+//!   `DBM_TRACE=1` to see that draws carry on while it is open, which is why
+//!   the dialog doesn't run on this thread.
 //! * `DBM_SHOWCASE=tip` and `tip-edge` rest the pointer on a button in the
-//!   right-hand pill instead of in the corner, which is the only way the hover
-//!   label is ever on screen. `tip-volume` rests it on the volume track, whose
-//!   label is the level.
+//!   right-hand pill instead of in the corner, so the hover label shows.
+//!   `tip-volume` rests it on the volume track, whose label is the level.
 //! * `DBM_SHOWCASE=scroll-bar` opens the playlist and rests the pointer on its
-//!   scroll bar, which is the only time the bar is drawn at its grown width.
+//!   scroll bar, to draw the bar at its grown width.
 //! * `DBM_SHOWCASE=current-above`, `current-below` and `current-half` open the
 //!   playlist and turn the wheel until the file playing is past the top or
-//!   the bottom, or its lower edge is halfway into the top's soft edge,
-//!   which is the only time the angle pointing back to it is drawn. Open a
-//!   file from the middle of a season.
+//!   the bottom, or its lower edge is halfway into the top's soft edge, so
+//!   the angle pointing back to it is drawn. Open a file from the middle of a
+//!   season.
 //!   `current-back` turns it away and then presses the angle, which should
 //!   carry that row back to the middle and play nothing; it prints where the
 //!   list is every 20ms of the glide.
@@ -69,16 +66,14 @@
 //!   past the bottom of what the panel shows, so the list has to follow it.
 //! * `DBM_SHOWCASE=drill` — flips the playlist between its list of parts and a
 //!   part's page on every tick, so a capture lands inside the 220ms move rather
-//!   than on whichever end it settled at. The same trick as `flash`: a movement
-//!   cannot be held still, so it is started again instead.
+//!   than at either end. Like `flash`, a movement can't be held, so it is
+//!   restarted instead.
 //! * `DBM_SHOWCASE=<surface>` — holds one surface open with the chrome awake,
-//!   so the window can be photographed. The only way to actually look at this
-//!   interface: everything else here reports numbers.
-//! * `DBM_WINDOW=<w>x<h>` — opens at that size instead of 1280×720. Not a test
-//!   of its own: it goes with any of the others, and it exists because the
-//!   layout has two widths worth looking at that the default is neither of —
-//!   1060, where the transport gives way leftwards rather than crowd the right
-//!   pill, and the 960×540 floor. Pair it with `DBM_CAPTURE`.
+//!   so the window can be captured. Everything else here reports numbers.
+//! * `DBM_WINDOW=<w>x<h>` — opens at that size instead of 1280×720, with any
+//!   of the others. The widths worth looking at are 1060, where the transport
+//!   starts giving way to the right pill, and the 960×540 floor. Pair it with
+//!   `DBM_CAPTURE`.
 //! * `DBM_FADE_TEST=1` — samples how the bar fades out when the chrome goes
 //!   idle. Nothing asks for frames once the interface is gone, so the question
 //!   is whether the animation still gets any.
@@ -99,21 +94,17 @@
 //! * `DBM_KEY_TEST=1` — dispatches real key events into the window, for
 //!   shortcuts whose effect is otherwise off-screen.
 //! * `DBM_READ_TEST=1` — opens the shortcuts page and presses the keys that
-//!   read it, with a film playing. The page is the only list here with no row
-//!   the ring can stand on, so its keys scroll rather than walk — and before
-//!   they did, every one of them fell through to the film: Home restarted it,
-//!   PgUp and PgDn jumped its chapters, with the page that documents those keys
-//!   open on top of them. `time-pos` either side is the whole of the check; the
-//!   scroll itself is inside a conditional and has nothing to read.
+//!   read it, with a film playing. They should scroll the page, not reach the
+//!   film, so `time-pos` either side is the check; the scroll itself is inside
+//!   a conditional and has nothing to read.
 //! * `DBM_SCAN_TEST=1` — prints every playlist row's name and length as the
 //!   background scan fills them in. Point `APPDATA` at an empty directory to
 //!   watch it do a first scan, and run it again to see a second one come from
 //!   the cache all at once.
 //! * `DBM_CURSOR_TEST=1` — waits out the idle clock with a film playing and
 //!   asks Windows whether a cursor is on screen, then moves the pointer and
-//!   asks again. The interface's own `pointer-hidden` is not evidence: the
-//!   binding this replaced set that property correctly for months and the
-//!   pointer never went anywhere.
+//!   asks again, since the interface's own `pointer-hidden` doesn't prove the
+//!   pointer went.
 //! * `DBM_PANEL_TEST=1` — opens each panel in turn and counts the glass rects
 //!   the UI publishes. All three share a corner, so two open at once would
 //!   stack.
@@ -127,37 +118,33 @@
 //!   the sync back and reports again, unless `DBM_SYNC_KEEP` is set.
 //! * `DBM_FIND_TEST=1` — opens the tracks menu and its search for subtitles,
 //!   takes the first result with the keyboard, removes it again with Delete,
-//!   and reports the menu and the line on screen at each step. Pair it with `DBM_FIND_FAKE=1`, which has
-//!   the search answer from a fixed list and the download write a subtitle
-//!   on the spot, so it needs no key and no connection.
+//!   and reports the menu and the line on screen at each step. Pair it with
+//!   `DBM_FIND_FAKE=1`, which answers the search from a fixed list and writes
+//!   the download on the spot, so it needs no key and no connection.
 //! * `DBM_AUDIO_TEST=1` — stages the Bluetooth failure: drops the audio track
 //!   the way mpv does when a device dies, then feeds the watchdog a device
 //!   appearing, and reads `aid` back to see whether anything came of it. Then
-//!   the case that must *not* recover — audio the user turned off — because a
-//!   watchdog that overrides a choice is worse than one that sleeps. It also
-//!   prints every real device list, which is the only way to confirm the
-//!   payload parses on a given mpv build. Needs a file with an audio track, or
-//!   every branch declines for want of one.
+//!   the case that must *not* recover, audio the user turned off. It also
+//!   prints every real device list, to confirm the payload parses on a given
+//!   mpv build. Needs a file with an audio track.
 //! * `DBM_FLASH_TEST=1` — presses the keys that raise the action flash and
-//!   reports what the interface published for each: a flash only exists for
-//!   about a second, so the one thing worth checking is that it was there, in
-//!   the right place, and gone again afterwards.
+//!   reports what the interface published for each: that it was there, in the
+//!   right place, and gone again afterwards.
 //! * `DBM_PROGRESS_TEST=1` — plays, asks mpv to write its resume file, then
-//!   looks for that file where the playlist rows look for it. The length and
-//!   progress on each row come from two files on disk, and a wrong guess about
-//!   either is silent.
+//!   looks for that file where the playlist rows look for it, since a wrong
+//!   guess about where it is fails silently.
 //! * `DBM_DROP_TEST=<path>` — posts that path at the window as a file drop,
 //!   exactly as the shell would, and reports what the player made of it.
 //!   Windows only.
 //! * `DBM_END_TEST=1` — turns autoplay off and seeks to the last moment of the
 //!   file, so the end-of-playback button appears for real, then holds it there
-//!   to be photographed. `DBM_END_TEST=enter` presses Enter instead, which the
-//!   ring the pill took must answer. Point `APPDATA` at a scratch directory:
+//!   to be captured. `DBM_END_TEST=enter` presses Enter instead, which the
+//!   pill's ring must answer. Point `APPDATA` at a scratch directory, since
 //!   autoplay is a saved preference.
 //! * `DBM_CREDITS_TEST=1` — gives the file a credits chapter over its last two
 //!   minutes and plays into it, so the credits pill comes up for real. It
 //!   reports as the bar arrives and again after it has gone, which the pill
-//!   must not, then presses Enter - which the pill's ring must answer - and
+//!   must outlast, then presses Enter, which the pill's ring must answer, and
 //!   reports the file that follows. Needs an episode, and a later file beside
 //!   it. `DBM_CREDITS_TEST=own` keeps the file's own chapters and plays into
 //!   the last of them. `=heard` gives it nothing and plays into its last
@@ -167,32 +154,27 @@
 //! * `DBM_INTRO_TEST=1` — waits for the episode's title sequence to be found,
 //!   by its chapters or by listening, and seeks into it so the pill offers to
 //!   skip it. Reports as it arrives and after the bar has gone, then presses
-//!   Enter and reports where that landed — and what the pill says, which
-//!   has to be the same after it as before: the pill fades out for a moment
-//!   after the offer has ended. Needs an episode with another of
-//!   its season beside it; point `APPDATA` at a scratch directory to watch
-//!   it listen, since what it hears is kept. `=hold` pauses inside the
-//!   sequence instead of pressing anything, to be photographed.
+//!   Enter and reports where that landed, and what the pill says, which must
+//!   not change while it fades out. Needs an episode with another of its season
+//!   beside it; point `APPDATA` at a scratch directory to watch it listen,
+//!   since what it hears is kept. `=hold` pauses inside the sequence instead
+//!   of pressing anything, to be captured.
 //! * `DBM_SMTC_TEST=1` — presses the real media keys and reads the OS media
-//!   session back, so both directions of the overlay are checked against
-//!   Windows rather than against our own copy of what it was told. Windows
-//!   only.
+//!   session back, checking both directions against Windows rather than our
+//!   own copy of what it was told. Windows only.
 //! * `DBM_MPRIS_TEST=1` — the same exercise on the Linux side, as a client on
-//!   the session bus: it presses each transport method on the player's own
-//!   MPRIS object and reads the properties back off the bus, which is the only
-//!   way to see what a desktop widget would see rather than what we believe we
-//!   published. It also names every other player registered, because a media
-//!   key goes to one of them. Not Windows.
+//!   the session bus: it presses each transport method on the player's MPRIS
+//!   object and reads the properties back off the bus, as a desktop widget
+//!   would see them. It also names every other player registered, since a
+//!   media key goes to one of them. Not Windows.
 //!
 //! Each returns a `Timer` that must be kept alive for the duration of the
 //! run; dropping it stops the exercise.
 //!
-//! On a desktop, run them through `scripts/headless.sh`. A window the harness
-//! opens takes focus as it maps and sits under whatever the hand was about to
-//! click, and on Wayland nothing the window asks for can stop that; the script
-//! gives the run a headless compositor of its own, which nobody can see.
-//! Every run plays its film silently whatever it is run under — see
-//! [`configure`].
+//! On a desktop, run them through `scripts/headless.sh`: a harness window takes
+//! focus as it maps, and on Wayland nothing it asks can stop that, so the
+//! script gives the run a headless compositor of its own. Every run plays its
+//! film silently (see [`configure`]).
 
 mod drive;
 mod keys;
@@ -211,9 +193,8 @@ use crate::{MainWindow, TrackItem};
 
 /// Whether any exercise is armed: a `DBM_*_TEST` switch of any kind.
 ///
-/// Any at all, rather than a list of the ones believed to matter to whoever is
-/// asking: such a list was wrong within a day of being written once, because
-/// `DBM_KEY_TEST` presses B and B is the ambience switch.
+/// Any at all, rather than a list of the ones that seem to matter, which goes
+/// wrong: `DBM_KEY_TEST` presses B, and B is the ambience switch.
 pub fn armed() -> bool {
     std::env::vars_os().any(|(k, _)| {
         let k = k.to_string_lossy();
@@ -233,13 +214,10 @@ pub fn unattended() -> bool {
 /// Options for a run nobody is watching. Before `mpv_initialize`, like the
 /// rest of mpv's configuration.
 ///
-/// The film plays silently. Not by muting it or turning it down: mute and
-/// volume are what several exercises press and read back, and the interface
-/// shows both, so either would change what is being tested. A filter at the
-/// end of the audio chain that takes the gain to zero silences what reaches
-/// the device and nothing else — the levels, the selected track and the
-/// device list are all as they would be, which the audio watchdog's exercise
-/// depends on.
+/// The film plays silently, through a zero-gain filter at the end of the
+/// audio chain rather than by muting or turning it down, which several
+/// exercises press and read back. The levels, the selected track and the
+/// device list all stay as they would be.
 pub fn configure(mpv: &Mpv) {
     if !unattended() {
         return;
@@ -259,10 +237,9 @@ pub struct Harnesses {
 pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
     let (mpv, audio) = (&app.mpv, &app.audio);
     let mut timers = Vec::new();
-    // First, so a showcase or a test that follows is already at the size
-    // being asked about rather than resizing under itself. It still has to
-    // wait for a frame: asked for here, before the window exists, the height
-    // took and the width did not.
+    // First, so what follows starts at the size asked about. It waits for a
+    // frame, because asked for before the window exists, the height took and
+    // the width didn't.
     if let Some(size) = std::env::var("DBM_WINDOW").ok().and_then(|s| {
         let (w, h) = s.split_once(['x', 'X'])?;
         Some(slint::LogicalSize::new(

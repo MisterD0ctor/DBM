@@ -2,9 +2,7 @@
 //
 // Drawn into the video target in place of mpv's picture while nothing is
 // loaded, so everything downstream treats it as the frame: the glass refracts
-// it, the blur frosts it, and the empty window's panel has something to be
-// glass over. Over black it had nothing to bend, and with the tint at zero it
-// was not there at all.
+// it and the blur frosts it, where over black the glass has nothing to bend.
 //
 // The source is one seek-preview tile, about 192x108, so it is spread across
 // the window rather than shown: covered, softened past the point where its
@@ -30,13 +28,11 @@ const float DIM = 0.42;
 /// The tile at `uv`, reconstructed with a cubic B-spline rather than
 /// bilinearly.
 ///
-/// Bilinear magnification is continuous but has a crease at every source
-/// texel, and at six or seven times the tile's size those creases are a
-/// lattice across the whole window — which survived a Gaussian laid over it,
-/// because blurring a creased surface blurs the creases in place. The
-/// B-spline is smooth through every texel, so there is nothing periodic left
-/// to find. Four bilinear taps, weighted and offset so the hardware filter
-/// does the rest.
+/// Bilinear magnification has a crease at every source texel, and at six or
+/// seven times the tile's size the creases form a lattice across the window,
+/// which a Gaussian only blurs in place. The B-spline is smooth through every
+/// texel. Four bilinear taps, weighted and offset so the hardware filter does
+/// the rest.
 vec3 smooth_at(vec2 uv) {
     vec2 st = uv * u_image_size - 0.5;
     vec2 i = floor(st);

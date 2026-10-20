@@ -25,12 +25,9 @@ pub(super) fn open_test(ui: &MainWindow, path: String) -> slint::Timer {
                 0 => {
                     eprintln!("dbm: opening {path}");
                     ui.invoke_open_path(path.as_str().into(), true);
-                    // Whether the interface goes on saying so. With a film
-                    // already playing, the flag used to be cleared on the
-                    // very next frame, because a file existed — so these
-                    // read false at once and "Opening …" never reached the
-                    // screen. Now they should read true until mpv loads the
-                    // new file, then false.
+                    // Whether the interface goes on saying so: true until mpv
+                    // has loaded the new file, then false, even with a film
+                    // already playing.
                     for ms in [30u64, 150, 600, 1400] {
                         let weak = weak.clone();
                         slint::Timer::single_shot(Duration::from_millis(ms), move || {
@@ -71,9 +68,8 @@ fn report_open(ui: &MainWindow, label: &str) {
 
 /// Put a real dialog on screen and leave it there.
 ///
-/// There is nothing to assert from here — a native dialog cannot be driven
-/// by a timer — but the trace alongside it answers the only question that
-/// matters: whether the player keeps drawing while it is up.
+/// Nothing to assert, since a timer can't drive a native dialog, but the
+/// trace shows whether the player keeps drawing while it is up.
 pub(super) fn dialog_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -92,11 +88,9 @@ pub(super) fn dialog_test(ui: &MainWindow) -> slint::Timer {
 
 /// Drop a file on the window without a mouse.
 ///
-/// Everything from the `WM_DROPFILES` message inward is the real path: the
-/// same block the shell builds, posted to the same window, read by the same
-/// handler. What it cannot cover is the drag itself — whether Explorer's drop
-/// lands on our target or on the one winit registered — so a real drag is
-/// still worth doing once by hand.
+/// Everything from the `WM_DROPFILES` message inward is the real path. It
+/// can't cover the drag itself, whether Explorer's drop lands on our target
+/// or winit's, so a real drag is still worth doing once by hand.
 #[cfg(windows)]
 pub(super) fn drop_test(ui: &MainWindow, path: String) -> slint::Timer {
     let timer = slint::Timer::default();
@@ -135,9 +129,8 @@ fn report_drop(ui: &MainWindow, label: &str) {
 
 /// Watch the playlist describe files nobody has played.
 ///
-/// Reported early and often, because *when* is the point: rows that are right
-/// eventually would also be the old behaviour, given long enough to play
-/// every episode.
+/// Reported early and often, because when the rows fill in is the point,
+/// not only that they do.
 pub(super) fn scan_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();

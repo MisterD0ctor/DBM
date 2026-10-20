@@ -60,10 +60,9 @@ pub(super) fn input_test(ui: &MainWindow) -> slint::Timer {
                 22 => eprintln!("dbm: panscan now {}", ui.get_panscan()),
                 23 => ui.invoke_toggle_panscan(),
                 24 => eprintln!("dbm: panscan back to {}", ui.get_panscan()),
-                // The mute from step 11 is still on — nothing since has
-                // touched it, and the reports above say so at every step. Now
-                // the bar is used. The level has to arrive *and* the mute has
-                // to go: either alone is a volume nobody can hear.
+                // The mute from step 11 is still on. Now the bar is used: the
+                // level has to arrive and the mute has to go, since either
+                // alone is a volume nobody can hear.
                 25 => report(&ui, "still muted, about to use the bar"),
                 26 => ui.invoke_set_volume(120.0),
                 27 => report(&ui, "after the bar was used while muted"),
@@ -75,10 +74,8 @@ pub(super) fn input_test(ui: &MainWindow) -> slint::Timer {
     timer
 }
 
-/// Drag the timeline the way a hand does: many small position updates in
-/// quick succession. A single seek says nothing about scrubbing; the whole
-/// question is what happens when they arrive faster than mpv can service
-/// them.
+/// Drag the timeline the way a hand does: many small position updates,
+/// arriving faster than mpv can service them.
 pub(super) fn scrub_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -111,11 +108,9 @@ pub(super) fn scrub_test(ui: &MainWindow) -> slint::Timer {
             if step == 60 {
                 eprintln!("dbm: mid-drag paused={}", ui.get_paused());
             }
-            // Sweep 10% -> 90%. Several updates per tick, because a real
-            // drag delivers pointer moves faster than a 16ms timer and the
-            // whole question is what happens when they outpace mpv.
-            // Stop feeding drag updates once released, or the next tick
-            // starts a fresh drag and pauses all over again.
+            // Sweep 10% -> 90%, several updates per tick, as a real drag
+            // delivers moves faster than a 16ms timer. Stop once released, or
+            // the next tick starts a fresh drag.
             #[allow(unused_assignments)]
             let mut f = 0.0;
             if step < 120 {
@@ -145,19 +140,16 @@ pub(super) fn scrub_test(ui: &MainWindow) -> slint::Timer {
 /// Drag the timeline slowly, stop, and see what picture is on screen; then
 /// drag it fast and stop.
 ///
-/// A slow drag is given exact seeks and a fast one keyframes — see `scrub` —
-/// and the difference only shows in the picture. So this reads the position
-/// mpv reports against where the pointer is, each time the pointer has
-/// stopped: three times along a slow drag and once after a fast one.
-/// Keyframes alone leave a stopped pointer as far from its frame as the last
-/// keyframe happens to be, which is anything up to ten seconds.
+/// A slow drag gets exact seeks and a fast one keyframes (see `scrub`), and
+/// the difference only shows in the picture. So this compares the position
+/// mpv reports with the pointer each time the pointer has stopped, three
+/// times along a slow drag and once after a fast one; keyframes alone can
+/// leave a stopped pointer up to ten seconds from its frame. Only at rest,
+/// since mid-seek mpv reports where it is going.
 ///
-/// Only at rest, because that is the only time the position means the
-/// picture: while a seek is under way mpv reports where it is going.
-///
-/// Real pointer events, because the half that notices a stopped pointer is a
-/// timer on the Slint side that only a held button runs. Pair it with
-/// `DBM_TRACE=1` for how many of each drag's seeks were exact.
+/// Real pointer events, because a stopped pointer is noticed by a Slint timer
+/// that only a held button runs. Pair it with `DBM_TRACE=1` for how many of
+/// each drag's seeks were exact.
 pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
     use super::drive::{press, release};
 
@@ -223,8 +215,8 @@ pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
                     report("let go off the track", 0.31);
                     eprintln!("dbm: scrub after it paused={}", ui.get_paused());
                 }
-                // And no drag at all: a click still has to seek, now that
-                // it is the button coming up that does it.
+                // And no drag at all: a click still has to seek, since the
+                // button coming up is what seeks.
                 (570, _) => {
                     press(&ui, x(0.70), y);
                     release(&ui, x(0.70), y);
@@ -243,10 +235,10 @@ pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
 /// Watch the bar fade out, in the value the pipeline is actually given.
 ///
 /// Every surface publishes how far it has faded in, so a fade is readable
-/// without a screenshot: a run of values between 1 and 0 is an animation, and
-/// a jump straight to nothing is a cut. Worth checking because the interface
-/// only asks for frames while it is on screen — if Slint did not drive its
-/// own animation, the fade out is precisely what would vanish.
+/// without a capture: a run of values between 1 and 0 is an animation, and a
+/// jump to nothing is a cut. Worth checking because the interface only asks
+/// for frames while it is on screen, so the fade-out depends on Slint driving
+/// its own animation.
 pub(super) fn fade_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -284,10 +276,9 @@ pub(super) fn fade_test(ui: &MainWindow) -> slint::Timer {
 
 /// Walk the pointer along the timeline and read the preview off the far end.
 ///
-/// A real pointer move, not just the callback: the overlay only appears while
-/// the track is hovered, and its rect is what tells the pipeline where to put
-/// glass. So this checks both halves — that hovering raises it, and that the
-/// timestamp and the tile under the pointer are the right ones.
+/// A real pointer move, not just the callback, because the preview only
+/// appears while the track is hovered. Checks that hovering raises it, and
+/// that the timestamp and the tile under the pointer are right.
 pub(super) fn preview_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -298,8 +289,8 @@ pub(super) fn preview_test(ui: &MainWindow) -> slint::Timer {
         move || {
             let Some(ui) = weak.upgrade() else { return };
             let fractions = [0.0f32, 0.25, 0.5, 0.99];
-            // Report first, then move: a value read in the same tick as the
-            // move that produced it is the one the *next* label describes.
+            // Report first, then move, since a value read in the same tick as
+            // its move belongs to the next label.
             if step == 0 {
                 report_preview(&ui, "before hovering");
             } else if step <= fractions.len() {
@@ -320,15 +311,10 @@ pub(super) fn preview_test(ui: &MainWindow) -> slint::Timer {
 
 /// Set the subtitles' timing on one file, go to the next, and come back.
 ///
-/// Timing belongs to the file it was set on: the next one should start
-/// untimed, and the first should have its own back when it is returned to.
-/// Both halves, because either can fail alone — a timing that follows the
-/// playlist is the first failing, and one that is simply dropped at the end
-/// of the file would pass the first check and fail the second.
-///
-/// The watch-later file is written by hand before leaving. The player does
-/// that every ten seconds while something plays, and waiting it out would
-/// only be testing the clock.
+/// Timing belongs to the file it was set on: the next should start untimed,
+/// and the first should get its own back. Both halves, since either can fail
+/// alone. The watch-later file is written by hand before leaving rather than
+/// waiting for the ten-second checkpoint.
 pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
     let report = |ui: &MainWindow, mpv: &Mpv, label: &str| {
         eprintln!(
@@ -373,12 +359,10 @@ pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
 
 /// Turn the wheel over the picture, then over the volume track.
 ///
-/// The wheel was the volume from anywhere in the window once, and is now the
-/// volume only on its own track. Both halves are worth reading back: that the
-/// picture no longer answers, and that the track still does — with the level
-/// said in the hover label at once, not after the wait a name gets. The steps
-/// are shorter than that wait so a label that is up by the next one cannot
-/// have got there by waiting.
+/// The wheel sets the volume only over its own track, so the picture must not
+/// answer and the track must, with the level in the hover label at once
+/// rather than after a name's wait. The steps are shorter than that wait, so
+/// a label up by the next one can't have waited.
 pub(super) fn wheel_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -460,20 +444,16 @@ fn report_preview(ui: &MainWindow, label: &str) {
 /// Sit at the end of a file, where the only thing left on screen is the offer
 /// of another one.
 ///
-/// The end is reached honestly rather than by setting the flag: `at-end` comes
-/// from mpv's own `eof-reached`, and anything that wrote it from this side
-/// would be testing the harness instead of the player. So: autoplay off, so
-/// mpv holds the last frame instead of moving on, then a seek to the final
-/// moment and a wait.
-///
-/// It then stays there, deliberately, so the window can be photographed both
-/// while the bar is still up and after it has gone.
+/// The end is reached for real rather than by setting the flag, since
+/// `at-end` comes from mpv's `eof-reached`: autoplay off, so mpv holds the
+/// last frame, then a seek to the final moment and a wait. It then stays, so
+/// the window can be captured with the bar up and after it has gone.
 pub(super) fn end_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
     let mut step = 0usize;
-    // `DBM_END_TEST=enter` goes on past the pill with the one key the ring
-    // put on it; anything else holds the pill up to be photographed.
+    // `DBM_END_TEST=enter` goes on past the pill with Enter; anything else
+    // holds the pill up to be captured.
     let enter = std::env::var("DBM_END_TEST").is_ok_and(|v| v == "enter");
     timer.start(
         slint::TimerMode::Repeated,

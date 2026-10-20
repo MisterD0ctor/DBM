@@ -1,18 +1,16 @@
 //! What the person has set, kept between runs.
 //!
-//! Two kinds of thing, saved to one file. The material parameters — the glass
-//! and the ambient border — are a registry: both the UI and the pipeline read
-//! from it rather than each keeping its own copy of what exists, so adding a
-//! knob is a single entry here: it appears in the panel, gets a slider with
-//! the right range, and reaches the shader, without touching the UI file or
-//! the render code. Beside them sit the preferences that are not sliders:
-//! whether each effect runs, autoplay, whether the interface animates and
-//! shows its tooltips, and the subtitles' size and place.
+//! Two kinds of thing, in one file. The material parameters (the glass and
+//! the ambient border) are a registry that both the UI and the pipeline read,
+//! so adding a knob is one entry here: it gets a slider with the right range
+//! and reaches the shader without touching the UI or the render code. Beside
+//! them sit the preferences that aren't sliders: whether each effect runs,
+//! autoplay, animations and tips, and the subtitles' size and place.
 //!
 //! Values live in a shared store because the two ends run at different
-//! times — the UI writes whenever a slider moves, the pipeline reads once a
+//! times: the UI writes whenever a slider moves, the pipeline reads once a
 //! frame. A dirty flag rather than a callback, so a drag that moves a slider
-//! twenty times in a frame still costs one pipeline update.
+//! twenty times in a frame costs one pipeline update.
 
 use std::cell::{Cell, RefCell};
 
@@ -28,22 +26,17 @@ const TIP_KEYS: &str = "accessibility.tooltip-keys";
 /// What a chosen language is saved under, its code after the dot. The file is
 /// a list of numbers, so the choice is in the name and the number is a one.
 const LANGUAGE: &str = "language.";
-/// What `bevel` and `refract` were called while they were pixel widths.
+/// What `bevel` and `refract` were called in files from when they were pixel
+/// widths. They are ratios (of the corner radius, and of the bevel) under new
+/// names, so an old pixel value is never read as a ratio; `apply_saved`
+/// converts it instead, so a look tuned by eye survives.
 ///
-/// Both became ratios — of a panel's corner radius, and of the bevel — so a
-/// saved number means something different than it did. Rather than let an old
-/// 39.5 arrive as a ratio of 39.5, the names changed, which makes the old keys
-/// unknown and therefore skipped; the conversion below handles them instead,
-/// so a look tuned by eye survives the change rather than silently snapping
-/// back to default.
-///
-/// Only `refract` is still a setting. The old bevel is read anyway, because
-/// it is the width the old refract was measured against and there is no way
-/// to convert one without the other.
+/// Only `refract` is still a setting, but the old bevel is read too, because
+/// the old refract was measured against it.
 const LEGACY_BEVEL: &str = "glass.bevel";
 const LEGACY_REFRACT: &str = "glass.refract";
-/// The corner radius those pixel values were tuned against: every panel had
-/// one, before the pills arrived with radii of their own.
+/// The corner radius those pixel values were tuned against, which every panel
+/// had then.
 const LEGACY_RADIUS: f32 = 32.0;
 
 const SUB_SCALE: &str = "subtitles.scale";
@@ -51,9 +44,9 @@ const SUB_POS: &str = "subtitles.pos";
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Key {
-    // Glass. Bevel, IOR and Reflect were here and are constants in
-    // `pipeline` now: they are what the material is rather than how much of
-    // it you want, and none of them has a range where the answer is taste.
+    // Glass. Bevel, IOR and Reflect are constants in `pipeline` instead,
+    // because they are what the material is rather than how much of it you
+    // want.
     Blur,
     Refract,
     Aberration,
@@ -68,8 +61,7 @@ pub enum Key {
     Softness,
 }
 
-/// Which panel page a parameter appears on. Also the unit a reset applies
-/// to, so "reset" always means something a user can point at.
+/// Which panel page a parameter appears on, and so what a reset applies to.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Section {
     Glass,
@@ -89,9 +81,8 @@ impl Section {
 pub struct Param {
     pub key: Key,
     pub section: Section,
-    /// Stable identifier used in the saved file. Distinct from `label`,
-    /// which is display text and free to change without orphaning anyone's
-    /// saved settings.
+    /// Stable identifier used in the saved file. Distinct from `label`, so
+    /// the display text can change without orphaning saved settings.
     pub name: &'static str,
     /// Shown in the panel. Grouped by the headings below.
     pub label: &'static str,
@@ -118,9 +109,8 @@ pub const REGISTRY: &[Param] = &[
 
 /// What a settings page held just before it was reset.
 ///
-/// Kept because settings always save: a reset lands on disk within a second,
-/// and the thing it throws away is a look tuned by eye over an evening, which
-/// no one can type back in.
+/// Kept for undo, because settings save at once and a look tuned by eye
+/// can't be typed back in.
 #[derive(Clone, Copy)]
 pub struct Before {
     glass: GlassParams,
@@ -133,30 +123,27 @@ pub struct Before {
 pub struct Store {
     glass: Cell<GlassParams>,
     border: Cell<BorderParams>,
-    /// Whether each effect runs at all. Kept beside the parameters because
-    /// they are saved and restored together, and because turning an effect
-    /// off should not lose the tuning behind it.
+    /// Whether each effect runs at all, kept apart from the parameters so
+    /// turning an effect off doesn't lose its tuning.
     ambience_on: Cell<bool>,
     glass_on: Cell<bool>,
     /// Autoplay: advance through the playlist at the end of a file.
     autoplay: Cell<bool>,
-    /// Whether anything in the interface moves. Off, every surface, page and
-    /// highlight arrives in the frame it was asked for — see `Motion` in
-    /// theme.slint — and so does the backdrop the pipeline fades up.
+    /// Whether anything in the interface moves (see `Motion` in theme.slint),
+    /// including the backdrop the pipeline fades up.
     animations: Cell<bool>,
     /// Whether the bar's controls name themselves under the pointer, and
-    /// whether those names come with their keys — see `Tip` in globals.slint.
+    /// whether the names come with their keys (see `Tip` in globals.slint).
     tips: Cell<bool>,
     tip_keys: Cell<bool>,
-    /// Subtitle size and vertical placement. Preferences rather than
-    /// per-file state, which is why they are here and the delay is not: a
-    /// size that suits your eyes suits every file, a delay never does.
+    /// Subtitle size and vertical placement. Preferences rather than per-file
+    /// state, unlike the delay: a size that suits your eyes suits every file,
+    /// and a delay never does.
     sub_scale: Cell<f32>,
     sub_pos: Cell<f32>,
     dirty: Cell<bool>,
-    /// Set alongside `dirty`, but consumed by the saver rather than the
-    /// renderer. Two flags because they are drained at very different rates:
-    /// the pipeline every frame, the disk once things settle.
+    /// Set alongside `dirty`, but drained by the saver once things settle,
+    /// where the pipeline drains `dirty` every frame.
     unsaved: Cell<bool>,
     /// The language chosen, by code, or empty to follow the system's.
     language: RefCell<String>,
@@ -175,9 +162,8 @@ impl Default for Store {
             tip_keys: Cell::new(true),
             sub_scale: Cell::new(commands::SUB_SCALE_DEFAULT as f32),
             sub_pos: Cell::new(commands::SUB_POS_DEFAULT as f32),
-            // Set so the first frame pushes the defaults through, rather
-            // than relying on the pipeline having been built with the same
-            // ones.
+            // So the first frame pushes the defaults through, rather than
+            // trusting the pipeline to have been built with the same ones.
             dirty: Cell::new(true),
             unsaved: Cell::new(false),
             language: RefCell::new(String::new()),
@@ -234,9 +220,6 @@ impl Store {
     }
 
     /// Take the current values if anything moved since the last call.
-    ///
-    /// Coalescing on a flag rather than reacting per change means a slider
-    /// dragged across twenty pixels in one frame costs one pipeline update.
     pub fn take_changes(&self) -> Option<(GlassParams, BorderParams)> {
         self.dirty
             .replace(false)
@@ -244,9 +227,6 @@ impl Store {
     }
 
     /// Restore one section to the built-in defaults.
-    ///
-    /// The defaults are the reset target now that the saved file is the
-    /// source of truth — see `Persister`.
     pub fn reset(&self, section: Section) {
         let (glass, border) = (GlassParams::default(), BorderParams::default());
         match section {
@@ -291,11 +271,9 @@ impl Store {
         self.ambience_on.get()
     }
 
-    /// Read on every parameter change and never written from the interface:
-    /// there is no switch any more, because turning the glass off erased the
-    /// panel the switch was printed on. The flag survives in the settings
-    /// file, which is plain text, for anyone working on the shader who wants
-    /// the unrefracted picture back for a minute.
+    /// Never set from the interface, since a switch for it would erase the
+    /// panel it sits on. The flag is in the plain-text settings file, for
+    /// work on the shader.
     pub fn glass_on(&self) -> bool {
         self.glass_on.get()
     }
@@ -367,8 +345,8 @@ impl Store {
     }
 
     /// Record where the person put the line. Only `subline` calls this, with
-    /// a value it has already clamped — see there for why placement is the
-    /// one setting not taken back from what mpv was sent.
+    /// a value it has already clamped (see there for why placement isn't read
+    /// back from what mpv was sent).
     pub fn set_sub_pos(&self, value: f32) {
         self.sub_pos.set(value);
         self.touch();
@@ -382,15 +360,14 @@ impl Store {
 impl Store {
     /// Whether anything changed since the last call, clearing the flag.
     ///
-    /// Only the fact matters, not the values: the saver re-reads them when it
-    /// finally writes, which is always the newest state. Separate from
-    /// `take_changes` because the two are drained at very different rates.
+    /// Only the fact matters: the saver reads the values when it writes, so
+    /// it always writes the newest.
     pub fn take_unsaved(&self) -> bool {
         self.unsaved.replace(false)
     }
 
-    /// Current values, keyed for the saved file. Booleans ride along as
-    /// 0/1 so the file stays one flat list of numbers.
+    /// Current values, keyed for the saved file. Booleans are 0/1, so the
+    /// file stays one flat list of numbers.
     pub fn to_saved(&self) -> Vec<(String, f32)> {
         let mut out: Vec<(String, f32)> = REGISTRY
             .iter()
@@ -414,9 +391,8 @@ impl Store {
 
     /// Apply saved values, ignoring anything unrecognised.
     ///
-    /// Unknown keys are skipped rather than rejected: a file written by a
-    /// later version, or one hand-edited with a typo, should cost the
-    /// setting it names and nothing else.
+    /// Unknown keys are skipped rather than rejected, so a file from a later
+    /// version, or one with a typo, costs only the setting it names.
     pub fn apply_saved(&self, saved: &[(String, f32)]) {
         let (mut legacy_bevel, mut legacy_refract) = (None, None);
         let mut saw_refract = false;
@@ -448,8 +424,8 @@ impl Store {
             }
         }
 
-        // Only where the file has not already been written in the new terms;
-        // a real value never loses to a converted one.
+        // Only where the file has no value in the current terms, which never
+        // loses to a converted one.
         let index_of = |key: Key| REGISTRY.iter().position(|p| p.key == key);
         if !saw_refract {
             // Against the bevel it was tuned beside, which is what the new
@@ -469,8 +445,8 @@ impl Store {
     }
 }
 
-/// Read the saved settings. A missing or unreadable file is not an error —
-/// it just means the defaults stand.
+/// Read the saved settings. A missing or unreadable file isn't an error; the
+/// defaults stand.
 fn load(path: &std::path::Path) -> Vec<(String, f32)> {
     let Ok(text) = std::fs::read_to_string(path) else {
         return Vec::new();
@@ -489,11 +465,9 @@ fn load(path: &std::path::Path) -> Vec<(String, f32)> {
 
 /// Writes settings out shortly after they stop changing.
 ///
-/// Debounced rather than immediate: a slider drag produces dozens of changes
-/// a second, and each one is a whole-file rewrite. Waiting for a quiet moment
-/// turns a drag into one write. The write itself goes to the worker, because
-/// touching the disk on the frame path is exactly the mistake this codebase
-/// keeps having to unlearn.
+/// Debounced, because a slider drag makes dozens of changes a second and each
+/// would rewrite the whole file. The write goes to the worker, since the
+/// frame path must not touch the disk.
 pub struct Persister {
     store: std::rc::Rc<Store>,
     worker: std::rc::Rc<crate::worker::Worker>,
@@ -549,9 +523,8 @@ impl Persister {
         self.since.set(None);
         let values = self.store.to_saved();
         let path = path.to_path_buf();
-        // `submit` rather than `run`: a failure here is the one the person
-        // tuning most needs to hear about, because everything they have just
-        // adjusted is in it.
+        // `submit` rather than `run`, so a failure reaches the person tuning,
+        // whose adjustments are in it.
         self.worker.submit(move |_mpv| {
             save(&path, &values)
                 .err()
@@ -560,11 +533,9 @@ impl Persister {
     }
 }
 
-/// Write settings out. Runs on the worker, and returns what to say if it
-/// fails rather than failing loudly: losing a saved slider must not take the
-/// player down, but it must not pass in silence either. Every material
-/// parameter the person has just tuned is in this file, and the first they
-/// knew of it not being written was the next time they started the player.
+/// Write settings out. Runs on the worker, and returns what to say on failure
+/// rather than panicking: losing a saved slider must not take the player
+/// down, nor pass in silence.
 fn save(path: &std::path::Path, values: &[(String, f32)]) -> Result<(), String> {
     use std::fmt::Write as _;
     let mut out = String::from("# Death by MPV settings\n");

@@ -2,9 +2,9 @@
 //!
 //! Only the handful of entry points this player calls: options and properties
 //! as strings, async commands, the event queue, and the render context that
-//! draws into Slint's own GL context. The render API is the reason they are
-//! bound here rather than taken from a wrapper — it is the part the whole
-//! architecture rests on, and the part a wrapper is likeliest to leave out.
+//! draws into Slint's own GL context. Bound here rather than through a
+//! wrapper because the render API, which the architecture rests on, is what
+//! a wrapper is likeliest to leave out.
 //!
 //! Loaded at runtime with `libloading` rather than linked, which keeps the
 //! build free of an import library and lets the library be swapped without
@@ -59,11 +59,9 @@ struct OpenglFbo {
     h: c_int,
     /// The attachment's GL internal format, or 0 for "unknown".
     ///
-    /// This is not cosmetic: it is how mpv learns the target can hold alpha.
-    /// Left at 0, mpv treats the surface as opaque and fills the letterbox
-    /// with black no matter what `--background` says — which erases the
-    /// ambient border, since the border pass uses the video's own alpha as
-    /// its mask.
+    /// How mpv learns the target can hold alpha. Left at 0, mpv treats the
+    /// surface as opaque and fills the letterbox with black whatever
+    /// `--background` says, erasing the ambient border.
     internal_format: c_int,
 }
 
@@ -108,12 +106,12 @@ struct RawEventEndFile {
     playlist_entry_id: i64,
 }
 
-/// `MPV_END_FILE_REASON_ERROR`. The other reasons — EOF, stop, quit, redirect
-/// — are ordinary endings and say nothing worth interrupting anyone about.
+/// `MPV_END_FILE_REASON_ERROR`. The other reasons (EOF, stop, quit,
+/// redirect) are ordinary endings.
 const END_FILE_REASON_ERROR: c_int = 4;
 /// `MPV_END_FILE_REASON_EOF`: the file played to its end. With the window
-/// held open only at the end of the list, that is mpv moving on to the next
-/// one by itself — autoplay. Asked-for changes end a file with a stop.
+/// held open only at the end of the list, that is autoplay moving on.
+/// Asked-for changes end a file with a stop.
 const END_FILE_REASON_EOF: c_int = 0;
 
 #[repr(C)]
@@ -129,8 +127,8 @@ pub enum Value {
     Flag(bool),
     Double(f64),
     Str(String),
-    /// The property exists but currently has no value - `time-pos` before
-    /// anything is loaded, for instance. Distinct from "unchanged".
+    /// The property exists but has no value, like `time-pos` before anything
+    /// is loaded. Distinct from "unchanged".
     Unset,
 }
 
@@ -148,14 +146,12 @@ pub enum Event {
     StartFile,
     FileLoaded,
     /// A file stopped playing. `failure` carries mpv's own description when it
-    /// stopped *because it could not be played*, and is `None` for every
-    /// ordinary ending. Without this the interface cannot tell "the film
-    /// finished" from "that file is not a video", and showed neither.
+    /// stopped because it couldn't be played, and is `None` for every ordinary
+    /// ending, so the interface can tell "the film finished" from "that file
+    /// isn't a video".
     ///
-    /// `entry` is which playlist entry it was, by the id mpv gave it. The
-    /// path cannot say: a file that fails at once is over before `path` has
-    /// been reported for it, and what the player holds then is nothing, or
-    /// the file before.
+    /// `entry` is which playlist entry it was, by mpv's id, since a file that
+    /// fails at once is over before `path` has been reported for it.
     EndFile {
         failure: Option<String>,
         entry: i64,
@@ -221,9 +217,8 @@ struct Lib {
         unsafe extern "C" fn(*mut MpvHandle, *const c_char, *const c_char) -> c_int,
     mpv_get_property_string: unsafe extern "C" fn(*mut MpvHandle, *const c_char) -> *mut c_char,
     mpv_free: unsafe extern "C" fn(*mut c_void),
-    /// Turns an mpv error code into a sentence. mpv's own wording is better
-    /// than anything invented here — "Unrecognized file format" rather than
-    /// "error -13".
+    /// Turns an mpv error code into a sentence, "Unrecognized file format"
+    /// rather than "error -13".
     mpv_error_string: unsafe extern "C" fn(c_int) -> *const c_char,
     mpv_command_async: unsafe extern "C" fn(*mut MpvHandle, u64, *mut *const c_char) -> c_int,
     mpv_observe_property: unsafe extern "C" fn(*mut MpvHandle, u64, *const c_char, c_int) -> c_int,
@@ -320,22 +315,21 @@ pub struct Mpv {
 //   * the render context (`RenderContext`) belongs to the GL thread, and is
 //     not reachable from here.
 //
-// Anything else — `get_property`, `set_property`, `command`, `command_async`
-// — is safe to call from the worker thread.
+// Anything else (`get_property`, `set_property`, `command`, `command_async`)
+// is safe to call from the worker thread.
 unsafe impl Send for Mpv {}
 unsafe impl Sync for Mpv {}
 
 impl Mpv {
     /// Create and initialize a player configured for render-API output.
     ///
-    /// `vo=libmpv` is mandatory: it is what makes mpv defer presentation to
-    /// the render context instead of creating a window of its own. That is
-    /// the whole point of this path - no second window, so no compositor
-    /// boundary between the video and the UI, so the UI can sample the video.
+    /// `vo=libmpv` is mandatory: it makes mpv present through the render
+    /// context instead of a window of its own, so there is no compositor
+    /// boundary between the video and the UI, and the UI can sample it.
     ///
     /// `configure` runs after the built-in options and before
-    /// `mpv_initialize`, which is the only window in which some options —
-    /// `watch-later-directory` among them — can still be set.
+    /// `mpv_initialize`, the only window in which some options, like
+    /// `watch-later-directory`, can be set.
     pub fn new(configure: impl FnOnce(&Self)) -> Result<Self> {
         let lib = unsafe { Lib::load(&libmpv_path()) }?;
         let handle = unsafe { (lib.mpv_create)() };
@@ -344,11 +338,10 @@ impl Mpv {
         }
         let mpv = Self { lib, handle };
 
-        // `vo=libmpv` is the one option that must land — without it mpv opens
-        // a window of its own and the whole point is lost. The rest are
-        // tuning, and which of them exist varies across mpv versions (the
-        // transparent-padding option in particular was renamed), so a
-        // rejected one is reported and stepped over rather than fatal.
+        // `vo=libmpv` is the one option that must land. The rest are tuning,
+        // and which exist varies across mpv versions (the transparent-padding
+        // option was renamed), so a rejected one is reported and stepped
+        // over.
         mpv.set_option("vo", "libmpv")?;
         for (k, v) in [
             ("hwdec", "auto-safe"),
@@ -363,12 +356,10 @@ impl Mpv {
             }
         }
 
-        // Note on the letterbox: mpv fills it opaquely regardless of
-        // `--background`/`--alpha`, so the border pass cannot use the video's
-        // alpha as its mask. It masks on mpv's reported video rectangle
-        // instead, which is both version-independent and more correct — it
-        // follows panscan and zoom, which alpha would only have tracked by
-        // accident. Whatever mpv paints out there is simply discarded.
+        // mpv fills the letterbox opaquely regardless of `--background` and
+        // `--alpha`, so the border pass masks on mpv's reported video
+        // rectangle instead of alpha, which also follows panscan and zoom.
+        // Whatever mpv paints out there is discarded.
 
         configure(&mpv);
 
@@ -399,8 +390,8 @@ impl Mpv {
     /// Read a property as a string.
     ///
     /// **Blocking.** Waits on mpv's core, which under load costs tens to
-    /// hundreds of milliseconds. Call it from the worker thread, never from
-    /// the frame path — see `worker` for why.
+    /// hundreds of milliseconds, so call it from the worker thread, never the
+    /// frame path (see `worker`).
     ///
     /// `None` when mpv has no value for it yet, which is the normal state for
     /// anything video-shaped until a file is loaded and the first frame has
@@ -542,10 +533,9 @@ impl Mpv {
 
     /// Queue a command and return immediately.
     ///
-    /// There is deliberately no synchronous counterpart: `mpv_command` waits
-    /// for mpv's core to finish, which for an exact seek is around 200ms of
-    /// a locked UI thread. Completion arrives as [`Event::CommandReply`]
-    /// carrying `reply_id`.
+    /// No synchronous counterpart, since `mpv_command` waits for mpv's core,
+    /// which for an exact seek locks the UI thread for about 200ms. Completion
+    /// arrives as [`Event::CommandReply`] carrying `reply_id`.
     pub fn command_async(&self, reply_id: u64, args: &[&str]) -> Result<()> {
         let owned: Vec<CString> = args.iter().map(|a| cstr(a)).collect::<Result<_>>()?;
         let mut ptrs: Vec<*const c_char> = owned.iter().map(|c| c.as_ptr()).collect();
@@ -677,21 +667,17 @@ impl RenderContext {
             h,
             internal_format: GL_RGBA8,
         };
-        // Verified empirically against a red-on-top test clip: 0 leaves row 0
-        // of the texture holding the *top* of the image, which is the
-        // top-down convention Slint's `TopLeft` origin, the `osd-dimensions`
-        // margins and our own passes all already assume. Setting this to 1
-        // flips to GL's bottom-up order and the picture comes out inverted.
+        // 0 leaves row 0 of the texture holding the top of the image (checked
+        // against a red-on-top clip), the top-down convention Slint's
+        // `TopLeft` origin, the `osd-dimensions` margins and our passes
+        // assume. 1 would flip it to GL's bottom-up order.
         let mut flip: c_int = 0;
         // Do not sleep until the frame is due.
         //
-        // mpv's default is to block here until the frame's target display
-        // time, which suits a player whose thread has nothing else to do. On
-        // this one it is the UI thread: a 30fps film means a 33ms sleep in
-        // the middle of every frame, and nothing — no hover, no slider, no
-        // preview — can move faster than the film does. Presentation is the
-        // display's business here, and `report_swap` is what keeps mpv's
-        // timing informed of it.
+        // mpv's default blocks until the frame's display time, which on the
+        // UI thread would mean a 33ms sleep per frame for a 30fps film, and
+        // nothing could move faster than the film. `report_swap` keeps mpv's
+        // timing informed instead.
         let mut block: c_int = 0;
         let mut params = [
             RenderParam {

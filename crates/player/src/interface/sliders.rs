@@ -31,9 +31,8 @@ impl ParamModels {
 
     /// Refresh one row in place.
     ///
-    /// Deliberately not a rebuild: replacing a model makes the repeater tear
-    /// down and recreate every row, destroying the `TouchArea` the pointer is
-    /// holding — which is what once made the sliders click-only.
+    /// Not a rebuild, because replacing a model recreates every row,
+    /// destroying the `TouchArea` the pointer is holding mid-drag.
     pub fn update(&self, store: &Store, index: usize) {
         let Some(param) = settings::REGISTRY.get(index) else {
             return;

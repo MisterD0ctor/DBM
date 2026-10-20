@@ -1,11 +1,10 @@
 //! Audio-device recovery.
 //!
-//! When the device backing mpv's audio output disappears mid-playback — a
-//! Bluetooth headset going out of range, being switched off, or handed to
-//! another host — mpv cannot re-open it, drops the audio track and **plays on
-//! silently**. `aid` reads back as `no` afterwards. Nothing re-selects it when
-//! the device returns, so the player stays mute until it is restarted, and
-//! nothing on screen says why.
+//! When the device backing mpv's audio output disappears mid-playback (a
+//! Bluetooth headset out of range, switched off, or handed to another host),
+//! mpv can't re-open it, drops the audio track and **plays on silently**, with
+//! `aid` reading `no`. Nothing re-selects it when the device returns, so
+//! without this the player stays mute until restarted.
 //!
 //! mpv only refreshes `audio-device-list` while something is observing it —
 //! observing is what starts its hotplug monitor — so this observes it and
@@ -14,9 +13,9 @@
 //! made the system default, so re-opening is the right move even when the
 //! current output is still technically alive on something else.
 //!
-//! Everything here runs on the UI thread except the rebuild itself, which
-//! reads the track list and writes properties and therefore belongs on the
-//! worker — see [`crate::worker`].
+//! Everything here runs on the UI thread except the rebuild, which reads the
+//! track list and writes properties, so belongs on the worker (see
+//! [`crate::worker`]).
 
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
@@ -38,10 +37,9 @@ const SETTLE: Duration = Duration::from_millis(1200);
 
 /// Start mpv's hotplug monitor.
 ///
-/// Separate from [`crate::playback::state::OBSERVED`] on purpose: that list is the
-/// properties the interface binds to, and this one is never displayed. It is
-/// observed for the side effect — mpv does not track devices otherwise — and
-/// read only here.
+/// Separate from [`crate::playback::state::OBSERVED`], the properties the
+/// interface binds to: this one is never displayed, and is observed for the
+/// side effect, since mpv doesn't track devices otherwise.
 pub fn observe(mpv: &Mpv) {
     if let Err(e) = mpv.observe("audio-device-list", FORMAT_STRING) {
         eprintln!(
@@ -56,9 +54,8 @@ pub struct Watchdog {
     /// Device names from the last list seen. `None` until the first list
     /// arrives: that one is the baseline, never a reconnection.
     seen: RefCell<Option<BTreeSet<String>>>,
-    /// The last audio track mpv reported as genuinely selected. Once mpv has
-    /// given up on a device it reports `aid` as `no`, so by recovery time
-    /// there is nothing left to read out of mpv — it has to have been kept.
+    /// The last audio track mpv reported as genuinely selected, kept because
+    /// once mpv gives up on a device it reports `aid` as `no`.
     last_track: RefCell<Option<String>>,
     /// Set when the *user* turns audio off, so a device appearing does not
     /// helpfully turn it back on behind their back.
@@ -88,9 +85,8 @@ impl Watchdog {
             return;
         };
         match (name.as_str(), value) {
-            // Only real ids are worth keeping: `no` is either the failure
-            // being recovered from or the user's own choice, and neither is a
-            // useful thing to restore.
+            // Only real ids are worth keeping, since `no` is either the
+            // failure being recovered from or the user's own choice.
             ("aid", Value::Str(id)) if id.parse::<u32>().is_ok() => {
                 *self.last_track.borrow_mut() = Some(id.clone());
             }
@@ -127,8 +123,8 @@ impl Watchdog {
             Some(previous) => names.difference(&previous).cloned().collect(),
         };
         if appeared.is_empty() {
-            // Something went away. There is nothing to re-open — mpv has
-            // already lost it — so the reconnection is what gets acted on.
+            // Something went away, which mpv has already lost, so only a
+            // reconnection is acted on.
             return;
         }
         eprintln!("dbm: audio device appeared: {}", appeared.join(", "));
@@ -174,10 +170,9 @@ fn reopen(mpv: &Mpv, remembered: Option<&str>) -> Option<String> {
     }
 
     let current = mpv.get_property("aid");
-    // Whether the person watching actually lost sound. mpv drops the track
-    // when the device dies, and *that* is the case worth mentioning; a device
-    // appearing while audio played fine the whole time repairs the output
-    // underneath and nobody heard a thing, so nobody needs telling.
+    // Whether the person watching actually lost sound, which is when mpv
+    // dropped the track. A device appearing while audio played fine repairs
+    // the output unheard, and nobody needs telling.
     let was_silent = !current
         .as_deref()
         .is_some_and(|id| id.parse::<u32>().is_ok());
@@ -185,22 +180,18 @@ fn reopen(mpv: &Mpv, remembered: Option<&str>) -> Option<String> {
         // Still selected, so mpv kept the track and it is the output
         // underneath that needs re-opening.
         Some(id) if id.parse::<u32>().is_ok() => id.to_owned(),
-        // Dropped by mpv when the device died — put back what was playing,
-        // provided this file still has it.
-        //
-        // And nothing at all with no memory of a track playing and none
-        // selected. Choosing one here would turn audio on for someone who
-        // had turned it off — including off in an earlier session, which
-        // watch-later restores and `user_disabled` cannot know about.
-        // Silence that was asked for is not a fault to fix.
+        // Dropped by mpv when the device died: put back what was playing,
+        // provided this file still has it. With no track remembered and none
+        // selected, nothing, since the person may have turned audio off,
+        // perhaps in an earlier session that watch-later restores and
+        // `user_disabled` can't know about.
         _ => remembered
             .filter(|id| id.parse::<i64>().is_ok_and(|n| audio.contains(&n)))?
             .to_owned(),
     };
 
-    // Deselect first. Writing back the id mpv already holds is discarded as a
-    // no-op, and it is the write that reruns the chain and re-opens the
-    // output — which is the entire point of coming here.
+    // Deselect first, because writing back the id mpv holds is discarded as
+    // a no-op, and the write is what reopens the output.
     if let Err(e) = mpv.set_property("aid", "no") {
         eprintln!("dbm: audio recovery: could not drop the audio track: {e}");
         return None;
@@ -215,13 +206,12 @@ fn reopen(mpv: &Mpv, remembered: Option<&str>) -> Option<String> {
         return None;
     }
     eprintln!("dbm: audio recovery: reselected audio track {target}");
-    // Names what happened rather than what was done to fix it: "reselected
-    // audio track 1" is the log's business, not the viewer's.
+    // Names what happened rather than the fix, which is the log's business.
     was_silent.then(|| tr("Sound is back").to_string())
 }
 
-/// Said once. A list that cannot be read means recovery will never fire, which
-/// is worth knowing; saying so on every hotplug would bury everything else.
+/// Said once: an unreadable list means recovery will never fire, but saying
+/// so on every hotplug would bury everything else.
 fn unexpected_shape(payload: &str) {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
@@ -268,8 +258,8 @@ mod tests {
 
     #[test]
     fn a_description_that_says_name_is_not_a_device() {
-        // The word appears as a value, not a key, so it must not be taken for
-        // one — and the device whose description it is still has to be read.
+        // The word appears as a value, not a key, and the device it describes
+        // must still be read.
         let payload = r#"[{"description":"name","name":"auto"}]"#;
         assert_eq!(names(payload), vec!["auto".to_string()]);
     }

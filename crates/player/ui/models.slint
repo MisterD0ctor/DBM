@@ -2,8 +2,8 @@
 // glass each surface asks for, and the rows of the settings, track and
 // playlist panels.
 
-/// A panel the pipeline should render glass beneath. Lengths are logical
-/// pixels; the Rust side scales them by the window's scale factor.
+/// A surface the pipeline draws glass beneath. Lengths are logical pixels;
+/// the Rust side scales them by the window's scale factor.
 export struct GlassRect {
     x: length,
     y: length,
@@ -12,62 +12,62 @@ export struct GlassRect {
     radius: length,
     /// How much the glass pulls toward its tint colour, 0..1.
     tint: float,
-    /// How far the surface has faded in, 0..1. The glass is drawn under the
-    /// panel, so it has to arrive with it — glass at full strength beneath a
-    /// half-faded surface reads as a hole in the picture.
+    /// How far the surface has faded in, 0..1. The glass has to fade with
+    /// it: full-strength glass under a half-faded surface reads as a hole in
+    /// the picture.
     opacity: float,
 }
 
-/// A scrolling list as it stands in the window — or a line of words that
-/// runs on past its place — for the soft edge the
-/// pipeline puts on whichever of its ends has rows past it — see `fade` on
-/// the Rust side. Lengths are logical pixels.
+/// A scrolling list, or a line of words too long for its place, for the
+/// soft edge the pipeline puts on each end that has content past it (see
+/// `fade` on the Rust side). Lengths are logical pixels.
 export struct ScrollFade {
     x: length,
     y: length,
     width: length,
     height: length,
-    /// How far the list is from its top and from its bottom, each as a share
-    /// of the strip that fades: 0 at rest at that end, 1 once a strip's
-    /// worth of rows has gone past it.
+    /// How far the list is from its top and its bottom, as a share of the
+    /// strip that fades: 0 at rest at that end, 1 once a strip's worth of
+    /// rows has gone past it.
     top: float,
     bottom: float,
-    /// The same for the right-hand end of a line of words too long for where
-    /// it is — the title in the bar. A list has none.
+    /// The same for the right-hand end of a line of words, such as the title
+    /// in the bar. Zero for a list.
     right: float,
-    /// The panel the list is in. A list sliding in or out of its panel is
-    /// partly outside it, and only what is inside is on screen.
+    /// The panel the list is in, since a list sliding in or out of its panel
+    /// is partly outside it, and only the inside is on screen.
     clip-x: length,
     clip-y: length,
     clip-width: length,
     clip-height: length,
-    /// The angle pointing back to the list's current row while that row is
-    /// out of sight — see `WayToCurrent`. Drawn by the pipeline too, after
-    /// the soft edge it sits in, which would otherwise thin it away with the
-    /// rows. How much of it is on, its panel's own fade included; its
-    /// centre; which way it points; and how far its hover circle is in.
+    /// The way back to the list's current row while that row is out of sight
+    /// (see `WayToCurrent`): how much of it is on, its panel's fade included.
+    /// The pipeline draws it after the soft edge, which would otherwise thin
+    /// it away with the rows.
     way: float,
+    /// Its centre.
     way-x: length,
     way-y: length,
     way-up: bool,
+    /// How far its hover circle has come in, 0..1.
     way-lit: float,
 }
 
-/// One subtitle OpenSubtitles holds for the film, as its row in the
-/// search's page says it.
+/// One subtitle OpenSubtitles holds for the film, as a row on the search
+/// page.
 export struct FoundItem {
     /// The release it was timed against.
     label: string,
     /// Its language, and what sets it apart: timed for this very file, for
-    /// the hard of hearing, made by a machine.
+    /// the hard of hearing, or machine-made.
     detail: string,
     exact: bool,
 }
 
 export struct ParamItem {
     /// Index into the registry on the Rust side. Carried on the row because
-    /// the sliders are split across pages now, so a repeater's position in
-    /// its own list no longer identifies the parameter.
+    /// the sliders are split across pages, so a row's place in its page
+    /// doesn't identify the parameter.
     index: int,
     label: string,
     /// Normalised 0..1, so the slider needs no knowledge of the real range.
@@ -80,8 +80,8 @@ export struct TrackItem {
     id: int,
     label: string,
     selected: bool,
-    /// Loaded from a file of its own rather than carried in the film's:
-    /// fetched, dropped, or found beside it. Only these can be taken out.
+    /// Loaded from its own file rather than carried in the film's: fetched,
+    /// dropped, or found beside it. Only these can be removed.
     external: bool,
 }
 
@@ -93,33 +93,33 @@ export struct PlaylistItem {
     path: string,
     label: string,
     current: bool,
-    /// How long this file is, already formatted. Empty when the player has
-    /// never opened it and so has no idea.
+    /// How long this file is, already formatted. Empty for a file the player
+    /// has never opened.
     length: string,
     /// How far through it the resume point sits, 0..1. Zero for a file that
     /// was never started, and for one that was finished.
     progress: float,
-    /// Watched to its end or into its credits, and not started again since:
-    /// what tells a finished episode from one never started, which the
-    /// progress alone cannot.
+    /// Watched to its end or into its credits, and not started again since.
+    /// `progress` is zero for both, so this is what tells a finished episode
+    /// from one never started.
     finished: bool,
-    /// It would not play, this run.
+    /// It failed to play during this run.
     failed: bool,
 }
 
-/// One part of a playlist, as the panel shows it — see `playlist-groups`.
+/// One part of a playlist, as the panel shows it (see `playlist-groups`).
 export struct PlaylistGroup {
     /// How its row names it: Season 7, Specials, a show's name and season.
     label: string,
     /// How its page's way back names it: SEASON 7, or a show's name in its
-    /// own case, which `titular` says.
+    /// own case, which `titular` marks.
     heading: string,
     titular: bool,
     /// How many files, already worded: "10 episodes".
     detail: string,
     /// It holds the file playing.
     current: bool,
-    /// One file, which stands in the list of parts as itself.
+    /// A single file, listed among the parts as itself.
     leaf: bool,
     /// The row its page opens on: the file playing, or the first unfinished.
     open-row: int,

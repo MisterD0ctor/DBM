@@ -1,11 +1,10 @@
 //! Reading mpv's list-shaped properties.
 //!
 //! `track-list` and `playlist` are node trees, and observing them as nodes
-//! would mean marshalling the whole tree across FFI every time one changed.
-//! mpv also exposes every leaf as its own scalar property though —
-//! `track-list/2/lang`, `playlist/0/filename` — so these are read field by
-//! field instead. Slightly chattier, but each call is a plain string and no
-//! node decoding is needed anywhere in the app.
+//! would marshal the whole tree across FFI on every change. mpv also exposes
+//! every leaf as a scalar property (`track-list/2/lang`, `playlist/0/filename`),
+//! so these are read field by field: chattier, but no node decoding is needed
+//! anywhere.
 //!
 //! Both lists are pulled on demand rather than observed: the counts are
 //! observed, and a change there is what triggers a re-read.
@@ -102,8 +101,7 @@ pub fn read_tracks(mpv: &Mpv) -> Vec<Track> {
     let count = mpv.get_f64("track-list/count").unwrap_or(0.0) as i64;
     (0..count.max(0))
         .filter_map(|i| {
-            // Without an id there is nothing to select, so the entry is
-            // useless to us even if mpv listed it.
+            // Without an id there is nothing to select.
             let id = mpv.get_f64(&format!("track-list/{i}/id"))? as i64;
             Some(Track {
                 id,

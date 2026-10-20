@@ -4,23 +4,20 @@ import { Chrome } from "globals.slint";
 import { ScrollFade } from "models.slint";
 import { Motion, Paint, Rows } from "theme.slint";
 
-/// Where the angle pointing past one end of a list to its current row is
-/// pressed: a row's height square, centred across the list at that end.
+/// The press target for the angle at one end of a list that points to its
+/// current row: a row-sized square, centred across that end.
 ///
-/// Only the press. The angle and the circle that comes up under the pointer
-/// are drawn by the pipeline, after the soft edge — see `ScrollFade.way`.
-/// Drawn here they would be in that edge, and thin away with the rows.
-///
-/// It can be pressed, and carries the list back to its current row. Not
-/// merely because an arrow is pressed: one that took no pointer would hand
-/// the press to the row under it, and play an episode nobody chose.
+/// Only the press: the pipeline draws the angle and its hover circle after
+/// the soft edge (see `ScrollFade.way`), which would otherwise thin them away
+/// with the rows. Without this target, a press on the angle would go to the
+/// row under it and play an episode nobody chose.
 component WayToCurrent inherits Rectangle {
-    /// How much of the angle is on, 0..1. Off, there is nothing to press.
+    /// How much of the angle is on, 0..1. At zero there is nothing to press.
     in property <float> shown;
     /// Under the pointer, and on.
     out property <bool> lit: root.visible && touch.has-hover;
     callback go();
-    /// The wheel, turned over it: the list's to take.
+    /// The wheel turned over it, for the list to scroll by.
     callback turned(length);
 
     width: Rows.row;
@@ -41,8 +38,8 @@ component WayToCurrent inherits Rectangle {
         clicked => {
             root.go();
         }
-        // Taken rather than let through, as the scroll bar's is: a refused
-        // wheel takes the hover with it.
+        // Accepted rather than passed on, as the scroll bar's is, because a
+        // refused wheel event takes the hover with it.
         scroll-event(event) => {
             root.turned(-event.delta-y);
             return EventResult.accept;
@@ -50,39 +47,32 @@ component WayToCurrent inherits Rectangle {
     }
 }
 
-/// A list that scrolls when it is handed less height than its content needs.
+/// A list that scrolls when it is given less height than its content needs.
 ///
-/// The height comes from the caller and the content height is arithmetic on
-/// the row count, so nothing here has to measure anything — which keeps panel
-/// geometry a calculation rather than a layout query, for the reason given at
-/// the top of `MainWindow`.
+/// The caller supplies both heights, worked out from row counts, so nothing
+/// here measures the layout (see "bar geometry" in `MainWindow` for why).
 export component ScrollList inherits Rectangle {
     /// What the rows add up to, unconstrained.
     in property <length> content-height;
-    /// The height the list has once its panel has stopped moving.
-    ///
-    /// The same as its height except in a drill, where the panel eases to the
-    /// new page's height and the list takes whatever the box has this frame.
-    /// A page drilled into from a shorter one starts in a box too small for
-    /// it, and judged by that, a list that does not scroll at all put up its
-    /// scroll bar and its soft bottom edge for the length of the move.
-    /// Whether the list scrolls is a question about where it is going.
+    /// The height the list has once its panel stops moving, which differs
+    /// from its height only during a drill. Whether it scrolls is judged by
+    /// this, or a page drilled into from a shorter one would show a scroll
+    /// bar and a soft edge for the length of the move.
     in property <length> rest-height: root.height;
     /// Whether there is more of the list than it shows, once it has arrived.
     property <bool> scrolls: root.content-height > root.rest-height + 0.5px;
-    /// How far the list has been scrolled, as the negative offset Flickable
-    /// keeps. Exposed so a test can confirm the wheel reaches it — there is
-    /// otherwise nothing on screen a test can read.
+    /// How far the list has been scrolled, as Flickable's negative offset.
+    /// Exposed for the tests, which have nothing else on screen to read.
     out property <length> offset: flick.content-y;
 
-    /// Where the list is and how far it is from each of its ends, for the
-    /// soft edge drawn over them. Its own place in the window is asked of
-    /// the layout, which the panels otherwise avoid: these lists sit inside
-    /// pages that slide, and the arithmetic for where each one is mid-slide
-    /// would be a second copy of the layout kept by hand. It is read only
-    /// while a list is on show. The margins either side of the rows' washes
-    /// are left out, since no row draws in them, and the scroll bar in the
-    /// right one keeps its shape at the ends of its rail.
+    /// Where the list is and how far it is from each end, for the soft edge.
+    ///
+    /// Its place in the window comes from the layout, which the panels
+    /// otherwise avoid. These lists sit in sliding pages, and computing where
+    /// each is mid-slide would mean keeping a second copy of the layout by
+    /// hand; it is only read while a list is on show. The margins beside the
+    /// rows' washes are left out, so the scroll bar in the right one keeps
+    /// its shape at the ends of its rail.
     out property <ScrollFade> fade: {
         x: root.absolute-position.x + Rows.gap,
         y: root.absolute-position.y,
@@ -98,8 +88,8 @@ export component ScrollList inherits Rectangle {
         way-up: root.current-above >= root.current-below,
         way-lit: root.way-lit,
     };
-    /// How far the soft edge at each end has come on, 0..1: as far as the
-    /// list has moved from that end, up to a strip's worth.
+    /// How far the soft edge at each end has come on, 0..1: how far the list
+    /// has moved from that end, up to a strip's worth.
     property <float> top-soft: root.scrolls
         ? clamp(-flick.content-y / Rows.fade, 0, 1) : 0;
     property <float> bottom-soft: root.scrolls
@@ -108,27 +98,25 @@ export component ScrollList inherits Rectangle {
 
     clip: true;
 
-    /// The current row — the file playing, the track in use — by its top and
-    /// height inside the list, as `reveal` and `centre` take a row. A list
-    /// with none leaves the height at zero.
+    /// The current row (the file playing, the track in use) by its top and
+    /// height inside the list. A list with none leaves the height at zero.
     in property <length> current-top;
     in property <length> current-h;
 
-    /// The angle's fade, by where the current row's nearer edge is — the
-    /// bottom of a row above, the top of a row below — counted inward from
-    /// that end of the list. It begins once the edge has come this far in:
-    /// at nothing, the moment the first of the row shows...
+    /// The angle fades out as the current row comes into view, measured by
+    /// how far the row's nearer edge has come in from that end. The fade
+    /// starts at this distance: zero, as soon as any of the row shows.
     property <length> way-fade-from: 0px;
-    /// ...and is done once the edge is this far past the inner side of the
-    /// soft edge: at nothing, the moment the edge is clear of the blur.
+    /// It ends this far past the inner side of the soft edge: zero, once the
+    /// row's edge is clear of the blur.
     property <length> way-fade-past: 0px;
-    /// How far in from each end the current row's nearer edge has come.
-    /// The bottom is where the list will rest, as `scrolls` is, so a page
-    /// mid-drill does not point at a row only the move is hiding.
+    /// How far in from each end the current row's nearer edge has come. The
+    /// bottom is measured at rest, as `scrolls` is, so a page mid-drill
+    /// doesn't point at a row that only the move is hiding.
     property <length> current-in-top: root.current-top + root.current-h + flick.content-y;
     property <length> current-in-bottom:
         root.rest-height - flick.content-y - root.current-top;
-    /// How much of the angle is on at each end, by those two.
+    /// How much of the angle is on at each end.
     property <float> current-above: root.scrolls && root.current-h > 0
         ? 1 - clamp((root.current-in-top - root.way-fade-from)
             / max(1px, Rows.fade * root.top-soft + root.way-fade-past - root.way-fade-from),
@@ -141,19 +129,13 @@ export component ScrollList inherits Rectangle {
             0, 1)
         : 0;
 
-    /// Bring one row into view, by its top and height inside the list.
+    /// Bring a row into view, by its top and height inside the list.
     ///
-    /// Called when the keyboard moves rather than bound to anything: the
-    /// pointer owns this list the rest of the time, and a binding on
-    /// `content-y` would take the flick and the wheel away from it. Scrolls
-    /// by the least that works, so arrowing down a long list walks the
-    /// bottom edge instead of jumping the row to the middle.
-    ///
-    /// Not right against the edge, though: a row's worth of the list is kept
-    /// between the ring and the end it is walking toward, until the list
-    /// itself runs out. The ends are where rows blur and thin away, so a
-    /// ring standing in one would be on a row half gone — and the row after
-    /// it, the one the next press goes to, could not be read at all.
+    /// Called when the keyboard moves rather than bound, since a binding on
+    /// `content-y` would take the list from the wheel and the flick. It
+    /// scrolls by the least that works, so arrowing down walks the bottom
+    /// edge, but keeps a row's worth of list past the ring: the ends are where
+    /// rows blur away, and the next row has to be readable.
     public function reveal(top: length, h: length) {
         if (top - root.lead(h) < -flick.content-y) {
             flick.content-y = min(0px, root.lead(h) - top);
@@ -163,18 +145,16 @@ export component ScrollList inherits Rectangle {
         }
     }
 
-    /// How much of the list is kept past a revealed row: one row, or less in
-    /// a list too short to spare one on both sides.
+    /// How much list is kept past a revealed row: one row, or less in a list
+    /// too short to spare one on both sides.
     pure function lead(h: length) -> length {
         return max(0px, min(h, (root.height - h) / 2));
     }
 
-    /// Put one row in the middle, as far as the ends of the list allow.
+    /// Put a row in the middle, as far as the ends of the list allow.
     ///
-    /// For a panel opening, rather than a ring moving. The least scroll that
-    /// shows a row lands it on the bottom edge, which is right for a walk and
-    /// wrong for an arrival: the episode you are on belongs with the ones
-    /// either side of it in view.
+    /// For a panel opening, where `reveal` would leave the row on the bottom
+    /// edge: the current episode belongs with its neighbours in view.
     public function centre(top: length, h: length) {
         flick.content-y = root.centred(top, h);
     }
@@ -184,24 +164,22 @@ export component ScrollList inherits Rectangle {
         return min(0px, max(root.height - root.content-height, (root.height - h) / 2 - top));
     }
 
-    /// Carry the list to an offset, eased, rather than putting it there.
+    /// Ease the list to an offset.
     ///
     /// A binding on `content-y` would take the list from the wheel and the
-    /// flick for good, so the list follows `glide-y` a step at a time in
-    /// `changed`, and only while the glide has it: anything else found there
-    /// means a hand took the list on the way, and the glide lets go.
+    /// flick for good, so the list follows the animated `glide-y` step by step
+    /// in `changed`. Finding any other offset there means a hand took the
+    /// list on the way, and the glide lets go.
     function glide-to(y: length) {
-        // With the interface still, it is simply there. Left to the glide,
-        // nothing moved at all: the list follows a change in `glide-y`, and
-        // with no time to change in, a second press asked for the offset the
-        // first had already left there — which is no change.
+        // With animations off, jump. A zero-length glide would leave
+        // `glide-y` at the last target, so a second press to the same offset
+        // would be no change and move nothing.
         if (Motion.glide == 0ms) {
             root.gliding = false;
             flick.content-y = y;
             return;
         }
-        // Put where the list is first, so it eases from there rather than
-        // from wherever the last glide left it.
+        // Start from where the list is, not from where the last glide ended.
         root.glide-placing = true;
         root.glide-y = flick.content-y;
         root.glide-placing = false;
@@ -232,20 +210,16 @@ export component ScrollList inherits Rectangle {
 
     /// Move the list by a distance, stopping at its ends.
     ///
-    /// For a page that is read rather than walked. `reveal` and `centre` both
-    /// take a row, because every other list here has one the ring can stand
-    /// on; the shortcuts page has none, so its keys move the list itself.
-    /// Home and End are the same call asked for more than there is.
+    /// For the shortcuts page, which has no rows the ring can stand on, so its
+    /// keys move the list itself. Home and End pass more than there is.
     public function scroll-by(dy: length) {
         flick.content-y = clamp(flick.content-y - dy,
             min(0px, root.height - root.content-height), 0px);
     }
 
-    /// A row brought into view, as `reveal` brings it, asked for by a caller
-    /// that cannot reach this list: the settings pages, built inside
-    /// conditions. The tick is what makes the same row asked for again — the
-    /// ring coming back up where the wheel has since moved the list — a
-    /// second request rather than no change.
+    /// `reveal`, for a caller that can't reach this list: the settings pages,
+    /// built inside conditions. Bumping the tick makes asking for the same row
+    /// again a new request, for when the wheel has moved the list since.
     in property <length> reveal-top;
     in property <length> reveal-h;
     in property <int> reveal-tick;
@@ -253,17 +227,13 @@ export component ScrollList inherits Rectangle {
         root.reveal(root.reveal-top, root.reveal-h);
     }
 
-    /// The same movement, asked for by a caller that cannot reach this list.
+    /// `scroll-by`, for a caller that can't reach this list.
     ///
     /// The settings pages are built inside a conditional so the drill can
-    /// slide them, which puts every element on them out of reach of the key
-    /// handler at the window. So the keys leave the distance in `asked-by`
-    /// and bump `asked-tick`, and the list picks it up here. The tick is
-    /// what makes a second press of the same key a second movement.
-    ///
-    /// It still goes through `scroll-by`, which reads the live offset — so
-    /// the wheel and the flick keep the list between two presses instead of
-    /// being snapped back to wherever the keyboard last left it.
+    /// slide them, which puts them out of the window's key handler's reach.
+    /// So the keys set `asked-by` and bump `asked-tick`; the tick makes a
+    /// repeated press a new movement. `scroll-by` reads the live offset, so
+    /// the wheel's movement between presses is kept.
     in property <length> asked-by;
     in property <int> asked-tick;
     changed asked-tick => {
@@ -277,8 +247,8 @@ export component ScrollList inherits Rectangle {
         content-height: root.content-height;
 
         VerticalLayout {
-            // Rows keep their own height instead of being stretched to fill,
-            // so a short list sits at the top rather than spreading out.
+            // Rows keep their own height, so a short list sits at the top
+            // rather than spreading out.
             alignment: start;
             @children
         }
@@ -286,19 +256,16 @@ export component ScrollList inherits Rectangle {
 
     // --- the scroll bar ---
     //
-    // It says there is more below and roughly where you are, and it can be
-    // taken hold of. It was a hint only once, and a thumb that shows where a
-    // long list is but will not be moved there is the one thing on a panel
-    // that looks like a control and is not: a season of episodes was a
-    // wheel's worth of turning from one end to the other.
+    // Draggable as well as a hint, because a thumb looks like a control, and a
+    // season of episodes is a lot of wheel to turn.
 
     /// How far the list can go: what it holds, less what it shows.
     property <length> reach: max(0px, root.content-height - root.height);
     /// The rail, inset from the list's top and bottom.
     property <length> rail-inset: 2px;
     property <length> rail-h: root.height - 2 * root.rail-inset;
-    /// Proportional to how much of the list is on screen, with a floor so a
-    /// very long list still leaves something to see, and to take hold of.
+    /// In proportion to how much of the list is on screen, with a floor so a
+    /// very long list still leaves something to see and take hold of.
     property <length> thumb-h: max(24px,
         root.rail-h * (root.height / max(1px, root.content-height)));
     /// How far the thumb's top can travel down the rail.
@@ -316,8 +283,8 @@ export component ScrollList inherits Rectangle {
                 / max(1px, root.thumb-run));
     }
 
-    // Grows under the pointer or a drag the way every track here does, and
-    // about its own centre line, so it thickens rather than shifts.
+    // Grows under the pointer or a drag like every track here, about its
+    // centre line so it thickens rather than shifts.
     Rectangle {
         x: parent.width - 5.5px - self.width / 2;
         y: root.rail-inset;
@@ -337,8 +304,8 @@ export component ScrollList inherits Rectangle {
         }
     }
 
-    // The whole margin the rows' washes leave clear, not the 3px that is
-    // drawn: a target that thin is one nobody can take hold of.
+    // The whole margin beside the rows' washes, because the 3px that is
+    // drawn is too thin to take hold of.
     grip := TouchArea {
         x: parent.width - self.width;
         width: Rows.gap;
@@ -351,10 +318,9 @@ export component ScrollList inherits Rectangle {
             Chrome.pointed(event.kind == PointerEventKind.down);
             if (event.kind == PointerEventKind.down
                 && event.button == PointerEventButton.left) {
-                // On the thumb, it is held where it was taken, so it does not
-                // jump under the hand. On the rail, the thumb is brought to
-                // the pointer by its middle and the drag carries on from
-                // there, which is one press to anywhere in the list.
+                // On the thumb, hold it where it was taken so it doesn't jump.
+                // On the rail, bring its middle to the pointer and drag from
+                // there, so one press reaches anywhere in the list.
                 root.held = self.at >= root.thumb-y
                     && self.at <= root.thumb-y + root.thumb-h
                     ? self.at - root.thumb-y
@@ -367,10 +333,9 @@ export component ScrollList inherits Rectangle {
                 root.drag(self.at);
             }
         }
-        // The wheel still turns the list from here. Left to fall through to
-        // the list underneath it would, but a refused wheel takes this
-        // area's hover with it, and the bar would thin under a pointer that
-        // had not moved.
+        // Scrolled here rather than passed to the list, because a refused
+        // wheel event takes this area's hover with it, and the bar would thin
+        // under a pointer that hadn't moved.
         scroll-event(event) => {
             root.scroll-by(-event.delta-y);
             return EventResult.accept;
@@ -379,11 +344,10 @@ export component ScrollList inherits Rectangle {
 
     // --- the way to the current row ---
     //
-    // A list opens on its current row, but the wheel takes it away, and
-    // then nothing on the panel says which way it went. So while it is out
-    // of sight an angle at that end points to it, and fades as the row comes
-    // back into view: by where the row is, not on a clock, so the list
-    // moving is the whole of the movement. Pressed, it carries the list back.
+    // While the wheel has taken the current row out of sight, an angle at
+    // that end points to it, and pressing it carries the list back. It fades
+    // by where the row is rather than on a clock, so the only motion is the
+    // list's own.
 
     up-way := WayToCurrent {
         x: (root.width - self.width) / 2;
@@ -407,7 +371,7 @@ export component ScrollList inherits Rectangle {
             root.scroll-by(dy);
         }
     }
-    /// The hover circle under the angle, eased in and out as a row's wash is.
+    /// The hover circle under the angle, eased like a row's wash.
     property <float> way-lit: up-way.lit || down-way.lit ? 1 : 0;
     animate way-lit {
         duration: Motion.highlight;

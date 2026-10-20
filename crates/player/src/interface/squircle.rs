@@ -1,16 +1,14 @@
 //! The glass's corner, for the shapes Slint draws on the glass.
 //!
-//! The pipeline cuts every surface with superelliptic corners: a corner that
-//! eases out of the straight edges over `CORNER_SOFTNESS` times its radius,
-//! where a circle's turns off them all at once; see `sdg_superbox` in
-//! glass.frag. Slint's corners are circles, and a circle stands proud of that
-//! corner. At a softness of 3.5, a highlight filling the 48px skip pill ran
-//! two pixels past the glass at each end.
+//! The pipeline cuts every surface with superelliptic corners, which ease out
+//! of the straight edges over `CORNER_SOFTNESS` times their radius (see
+//! `sdg_superbox` in glass.frag). Slint's corners are circles, which stand
+//! proud of that corner, so a highlight filling a pill would run past the
+//! glass at its ends.
 //!
 //! So the shapes that sit on the glass, or stand in for it, take its outline
-//! from here, written as an SVG that Slint renders at the size it is shown.
-//! That is how the switches are drawn, for the same reason: femtovg lays a
-//! curve of its own down as a few straight chords.
+//! from here, as an SVG that Slint renders at the size it is shown; femtovg
+//! would draw a curve of its own as a few straight chords.
 //!
 //! Circles are left as circles. On a square box with a radius of half its
 //! side the rule below draws a circle anyway, a few per cent small, and no
@@ -38,13 +36,12 @@ thread_local! {
 /// A `width` by `height` shape with the glass's corners of `radius`, in white
 /// for Slint to colorize.
 ///
-/// `inset` is how far inside a glass surface it sits on every side. It is
-/// then that surface's outline moved in, rather than a corner of its own at
-/// the smaller radius, so the gap between the two stays even round the
-/// corner, as concentric circles' does: this corner is not a circle's, and
-/// one of its own narrows the gap at the surface's corner. The end pill's
-/// two choices sit in it so. The rows do not, since a row is too short to
-/// carry a panel's corner moved in without drawing its ends out.
+/// `inset` is how far inside a glass surface it sits on every side. The shape
+/// is then that surface's outline moved in, rather than a corner of its own
+/// at the smaller radius, so the gap between them stays even round the
+/// corner, which for this curve a smaller radius wouldn't give. The end
+/// pill's choices use it; the rows don't, since a row is too short to carry a
+/// panel's corner moved in without drawing its ends out.
 pub fn image(width: f32, height: f32, radius: f32, inset: f32) -> slint::Image {
     let key = [width, height, radius, inset].map(|v| (f64::from(v) * 64.0).round() as i64);
     if let Some(known) = CACHE.with(|c| c.borrow().get(&key).cloned()) {

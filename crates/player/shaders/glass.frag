@@ -1,12 +1,9 @@
-// Liquid glass — a physically-based lens over the finished frame.
+// Liquid glass: a physically based lens over the finished frame.
 //
-// This is the pass the whole architecture was for. Because the video is a
-// texture in our own pipeline rather than a sibling window, a panel can be a
-// real material instead of a CSS blur.
-//
-// Slint owns layout and content; this owns material. Panel rectangles come
-// straight out of Slint's own layout each frame, so nothing is mirrored by
-// hand and nothing can drift.
+// Because the video is a texture in our own pipeline rather than a sibling
+// window, a panel can be a real material instead of a blur. Slint owns layout
+// and content and this owns material: the panel rectangles come from Slint
+// each frame, so nothing is mirrored by hand.
 //
 // ---------------------------------------------------------------------------
 // The model
@@ -73,20 +70,17 @@ uniform int u_panel_count;
 uniform vec4 u_panel_rect[MAX_PANELS];
 /// (corner_radius, tint_alpha, opacity, unused)
 ///
-/// `opacity` is how far the panel has faded in. It scales coverage, so a
-/// panel arriving at a third of its opacity refracts a third as hard — the
-/// glass appears with the surface rather than under it.
+/// `opacity` is how far the panel has faded in. It scales coverage, so the
+/// glass arrives with its surface rather than ahead of it.
 uniform vec4 u_panel_style[MAX_PANELS];
 
 // --- Material parameters ---------------------------------------------------
 
 /// Width of the domed rim, as a fraction of the panel's own corner radius.
 ///
-/// A fraction rather than a count of pixels because the panels are not one
-/// size: the same absolute rim that looks right rolling around a 32px corner
-/// swallows a 15px pill whole. Tying it to the radius makes one number mean
-/// the same thing on every piece of glass — a small pane simply has a small
-/// rolled edge, which is also how real glass is made.
+/// A fraction rather than pixels because the panes aren't one size: a rim
+/// that suits a 32px corner swallows a 15px pill. Tied to the radius, a small
+/// pane has a small rolled edge, as real glass does.
 uniform float u_bevel;
 /// How far the corners ease into the straight edges: the corner's curve runs
 /// this many radii along each, where 1 is a quarter of an ellipse and larger
@@ -97,10 +91,9 @@ uniform float u_corner_softness;
 /// width above. How far the refracted ray descends before reaching the
 /// backdrop, and so how strongly the rim displaces what is behind it.
 ///
-/// Proportional to the bevel for the same reason the bevel is proportional to
-/// the radius: thickness and rim width are two dimensions of one piece of
-/// glass, and a rim that narrows without thinning stops looking like glass
-/// and starts looking like a painted edge.
+/// Proportional to the bevel for the same reason: thickness and rim width are
+/// two dimensions of one piece of glass, and a rim that narrows without
+/// thinning looks painted on.
 uniform float u_refract;
 /// Index of refraction. 1.0 bends nothing, 1.33 water, 1.5 window glass,
 /// 1.8 flint, 2.4 diamond. Higher bends harder and, through the Fresnel term,
@@ -109,9 +102,9 @@ uniform float u_ior;
 /// How strongly the index of refraction varies with wavelength, as dispersive
 /// power: the spread of the index between the F and C lines as a fraction of
 /// (n_d - 1). That is the reciprocal of the Abbe number, which is how glass
-/// is actually specified. Real glasses run about 1/70 for crown to 1/20 for
-/// dense flint; this goes well past that, because here the fringe is a thing
-/// to be seen rather than a defect to be corrected out.
+/// is actually specified. Real glasses run from about 1/70 for crown to 1/20
+/// for dense flint; this goes well past that, since here the fringe is meant
+/// to be seen.
 uniform float u_aberration;
 /// Overall strength of the reflection, scaling the Fresnel weight. Read only
 /// by the screen-space reflection in `glass_at`, which is switched off; the
@@ -135,17 +128,14 @@ uniform float u_shadow;
 
 // --- shadow -------------------------------------------------------------------
 //
-// A pane standing off the picture casts a soft shadow onto it, darkest at its
-// edge and fading out all round, and lowered under the pane by `SHADOW_DROP`,
-// which is nothing at present. It darkens the picture and
-// nothing else: every pane's shadow is laid on the frame before any glass is,
-// so one pane's shadow never falls across another's glass — they stand at the
-// same height — and a pane's own glass, which refracts the frame as it was,
-// is not dimmed by what it casts.
+// A pane casts a soft shadow onto the picture, darkest at its edge and fading
+// out all round, lowered by `SHADOW_DROP`. Every shadow is laid on the frame
+// before any glass, so one pane's shadow never falls on another's glass (they
+// stand at the same height), and a pane's glass, which refracts the frame as
+// it was, isn't dimmed by its own shadow.
 //
-// Sized from each pane's own corner radius, like the rim: a pill casts a
-// small shadow and a panel a larger one, without either value being a count
-// of pixels that suits one and swamps the other.
+// Sized from each pane's corner radius, like the rim, so a pill casts a small
+// shadow and a panel a larger one.
 
 /// How far the shadow falls below its pane, as a fraction of the radius.
 const float SHADOW_DROP = 0.0;
@@ -156,34 +146,22 @@ const float SHADOW_SOFTNESS_MIN = 4.0;
 
 // --- absorption -------------------------------------------------------------
 //
-// Every word in the interface sits on glass, and the glass shows whatever the
-// film is showing. Over a night scene that is free; over snow, a white room or
-// a title card the panel resolved to roughly 0.85 luminance and the body text
-// at 69% white resolved to nothing. The type was described as being sized and
-// weighted for legibility over arbitrary moving content, and nothing in this
-// shader was holding up that end of it.
+// Over snow, a white room or a title card, the glass shows a bright backdrop
+// and white text on it disappears. The tint can't fix that: it mixes toward a
+// fixed grey, so a pane still sits at that grey's luminance. Absorption does:
+// a pane that transmits less the more there is to transmit, as tinted glass
+// does.
 //
-// The tint above cannot fix it: it mixes toward a fixed mid grey, so at full
-// strength a panel still sits at that grey's luminance no matter how bright
-// the backdrop. What is needed is absorption — a pane that transmits less the
-// more there is to transmit, which is what tinted glass physically does.
+// It applies to the transmitted light only. The rim light is added after, so
+// a pane over a bright scene goes deep and keeps its edge.
 //
-// Applied to the transmitted component only. What makes the material read as
-// glass at its edge — the rim light, weighted by Fresnel — is added after this
-// and is untouched, so a panel over a bright scene goes deep and keeps its
-// edge rather than turning into a flat card.
-//
-// The glass page's Absorb slider, `u_absorb`, is how much of a white backdrop
-// the pane absorbs; a darker one loses less, along a hyperbola, and black loses
-// nothing:
+// `u_absorb` is how much of a white backdrop is absorbed; a darker one loses
+// less, along a hyperbola, and black loses nothing:
 //
 //     absorbed = 1 - (1 - a) / ((1 - a) + a * luma)
 //
-// So 0 is a clear pane and 1 absorbs everything that comes through. The
-// saturation lift that follows grows with what was absorbed, to give back the
-// colour the darkening takes. Lower, the floor gives way — white text over a
-// bright frame has less of a ground under it — which is what the slider
-// trades for a clearer pane.
+// The saturation lift after it grows with what was absorbed, to give back the
+// colour the darkening takes.
 
 /// Rec. 709, matching how the eye weights the three channels rather than
 /// averaging them: a saturated green frame is far brighter than its mean.
@@ -191,17 +169,15 @@ const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 
 // --- antialiasing -------------------------------------------------------------
 //
-// The outline needs nothing more than it has: `coverage` below is a smooth
-// function of distance, so the silhouette is already antialiased analytically,
-// and counting samples in and out would only quantise it into steps.
+// The outline needs nothing more: `coverage` is a smooth function of
+// distance, so the silhouette is antialiased analytically, and counting
+// samples would only quantise it into steps.
 //
-// What does alias is the shading just inside it. The dome's slope runs to
-// infinity at the rim, so reflectance, the mirror direction and the rim light
-// coming on as the mirror turns down all happen within the last pixel or two
-// — a single sample per pixel lands on whichever part of that it happens to
-// hit, and the bright edge crawls as a panel moves. So the shading, and only the
-// shading, is supersampled there. Across the flat middle it changes slowly and
-// one sample is exact enough.
+// What aliases is the shading just inside it. The dome's slope runs to
+// infinity at the rim, so the reflectance, the mirror direction and the rim
+// light all change within the last pixel or two, and one sample per pixel
+// makes the edge crawl as a panel moves. So the shading there, and only
+// there, is supersampled.
 
 /// MSAA 8x offsets, in pixels. Eight samples resolving both horizontal
 /// and vertical edges at eight distinct positions each.
@@ -223,41 +199,28 @@ const float RIM_BAND = 0.5;
 
 // --- dispersion ---------------------------------------------------------------
 //
-// The fringe used to be three taps: the same offset scaled up for red, left
-// alone for green, scaled down for blue. That is fine while it is subtle and
-// falls apart the moment it is not — past a pixel or two of spread the panel
-// stops having a coloured edge and starts having three coloured copies of
-// its edge, because three copies is all it ever was. It was also the wrong
-// way round. Shorter wavelengths bend *more*, so blue should land further
-// from where it entered than red, and it was doing the opposite.
-//
-// So the index is a function of wavelength and the transmitted colour is an
-// integral rather than three samples:
+// The index of refraction is a function of wavelength, and the transmitted
+// colour an integral over the band rather than one tap per channel, which
+// past a pixel or two of spread shows as three coloured copies of the edge:
 //
 //     C = integral over lambda of  backdrop(offset(n(lambda))) * w(lambda)
 //
-// `w` is the CIE 1931 2-degree observer under D65, carried through to linear
-// sRGB and normalised so the whole band sums to white. Its three lobes are
-// what turn a smooth sweep of sample positions into a smooth sweep of hue,
-// and they overlap the way the eye's cones do, which is why the result reads
-// as one edge seen through glass rather than as a stack of coloured copies.
+// `w` is the CIE 1931 2-degree observer under D65, in linear sRGB, normalised
+// so the band sums to white. Its three lobes overlap as the eye's cones do,
+// so a smooth sweep of sample positions becomes a smooth sweep of hue, and
+// reads as one edge seen through glass.
 //
-// The band is integrated in strata, and a stratum's weight is the exact
-// difference of the cumulative curve at its two ends rather than a point
-// sample of the curve. That matters more than it sounds: the weights then
-// add to exactly white at any number of strata, however few, so changing how
-// many are taken changes how finely the smear is resolved and never what
-// colour a flat backdrop comes out. A running normalisation would have had
-// to divide by a sum that includes the negative lobes, which is a small
-// number divided by a small number on the one channel that can least afford
-// it.
+// The band is integrated in strata, each weighted by the exact difference of
+// the cumulative curve at its two ends rather than by a point sample. The
+// weights then add to exactly white at any number of strata, so the count
+// changes how finely the smear resolves but never the colour of a flat
+// backdrop. A running normalisation would instead divide by a small sum that
+// includes the negative lobes.
 //
-// Linear sRGB cannot hold a spectral colour — its red weight goes negative
-// between about 470 and 600nm, which is the gamut saying so rather than an
-// error. Two things keep that from showing: what is sampled is the *blurred*
-// backdrop, so neighbouring wavelengths land on values close to each other
-// and the negative lobes have nothing sharp to ring against; and the result
-// is floored at zero before anything downstream divides by its luminance.
+// Linear sRGB can't hold a spectral colour: its red weight goes negative
+// between about 470 and 600nm. That doesn't show, because the sampled
+// backdrop is blurred, so neighbouring wavelengths land on similar values,
+// and the result is floored at zero before anything divides by its luminance.
 
 /// The visible band, in microns, as bin edges: 395nm to 705nm in 10nm steps.
 const float LAMBDA_MIN = 0.395;
@@ -348,12 +311,10 @@ float transmit_ratio(float slope, float slope2, float n) {
 
 /// A fixed per-pixel offset in [0,1), to break the strata out of lockstep.
 ///
-/// Stratified sampling of a band puts the samples at the same wavelengths in
-/// every pixel, which draws the bands it was meant to dissolve. Rotating the
-/// set by a per-pixel amount turns that structure into noise at the same
-/// amplitude, and the noise is far below what the blurred backdrop is doing
-/// anyway. Hashed from the pixel rather than from a clock, so it is the same
-/// every frame and a still panel does not crawl.
+/// Stratified samples at the same wavelengths in every pixel draw the bands
+/// they were meant to dissolve; a per-pixel rotation turns them into noise,
+/// far below what the blurred backdrop is doing anyway. Hashed from the pixel
+/// rather than a clock, so a still panel doesn't crawl.
 float dither_at(vec2 p) {
     vec3 q = fract(vec3(p.xyx) * 0.1031);
     q += dot(q, q.yzx + 33.33);
@@ -366,25 +327,6 @@ vec3 base_at(vec2 p) {
 
 vec3 blur_at(vec2 p) {
     return texture(u_blur, clamp(p, vec2(0.0), vec2(1.0)) * u_blur_scale).rgb;
-}
-
-/// Signed distance to a rounded box. Negative inside. Unused since the panes
-/// took superelliptic corners; see `sdg_superbox`, below.
-float sd_round_box(vec2 p, vec2 half_size, float r) {
-    vec2 q = abs(p) - half_size + r;
-    return min(max(q.x, q.y), 0.0) + length(max(q, vec2(0.0))) - r;
-}
-
-/// Outward unit normal of that SDF, analytically rather than by finite
-/// differences — the extra evaluations would cost more and be less stable
-/// right at the corners.
-vec2 sd_round_box_normal(vec2 p, vec2 half_size, float r) {
-    vec2 s = sign(p);
-    vec2 q = abs(p) - half_size + r;
-    if (max(q.x, q.y) > 0.0) {
-        return s * normalize(max(q, vec2(1e-6)));
-    }
-    return q.x > q.y ? vec2(s.x, 0.0) : vec2(0.0, s.y);
 }
 
 // ---------------------------------------------------------------------------------------
@@ -598,13 +540,11 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     float ratio_violet = transmit_ratio(slope, slope2, index_at(LAMBDA_MIN, ior, cauchy_b));
     float ratio_red = transmit_ratio(slope, slope2, index_at(LAMBDA_MAX, ior, cauchy_b));
 
-    // How far apart those two land, in pixels, is the whole of what decides
-    // how many wavelengths are worth taking. Under a pixel there is nothing
-    // to resolve and the d-line ray is the answer, which is every fragment
-    // across the flat middle of every panel, where the slope is zero and so
-    // is every offset. Past that, about one wavelength per pixel of smear:
-    // fewer and the sweep arrives as bands, which is the three-copy look
-    // again with more copies.
+    // How far apart those two land, in pixels, decides how many wavelengths
+    // are worth taking. Under a pixel there is nothing to resolve and the
+    // d-line ray is the answer, as across every flat middle, where the slope
+    // and every offset are zero. Past that, about one wavelength per pixel of
+    // smear, since fewer would show as bands.
     float spread = length(reach) * abs(ratio_violet - ratio_red);
     int bands = int(clamp(ceil(spread), 1.0, float(budget)));
 
@@ -637,16 +577,11 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // over dark video reads as a hole rather than a surface.
     refracted = mix(refracted, u_tint, clamp(tinted * u_tint_amount, 0.0, 1.0));
 
-    // Then absorb, by how bright what is left turned out to be. The
-    // sample is already blurred, so a small specular glint under a panel
-    // does not pull the whole surface down — only a genuinely bright area
-    // does, and it does so smoothly across the panel rather than in
-    // patches. Opted in per panel by the same flag as the tint.
-    // Floored, because the curve below divides by it: over a frame that is
-    // exactly black with the tint at zero it was 0/0, every pixel of every
-    // panel came out NaN, and the glass drew as nothing at all — the
-    // empty window and every credits roll. The floor is far below any
-    // real backdrop, and the curve's own limit at zero is where it lands.
+    // Then absorb, by how bright what is left is. The sample is already
+    // blurred, so a small glint doesn't pull the whole pane down, only a
+    // genuinely bright area does, and smoothly. Opted in per panel by the
+    // same flag as the tint. Floored because the curve divides by it, and an
+    // exactly black frame with no tint would otherwise make every pane NaN.
     float backdrop = max(dot(refracted, LUMA), 1e-4);
     float absorb = clamp(u_absorb, 0.0, 1.0);
     float absorbed = (1.0 - (1.0 - absorb) / (1.0 - absorb + absorb * backdrop))

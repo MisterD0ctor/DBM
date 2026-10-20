@@ -1,14 +1,12 @@
 //! Everything the UI can ask the player to do.
 //!
-//! Deliberately stateless. Each action is expressed as a command mpv resolves
-//! against its own state — `cycle pause`, `add volume 2`,
-//! `seek 50 absolute-percent` — rather than "read the current value, compute
-//! the new one, write it back". mpv stays the single source of truth, and a
-//! toggle can never disagree with the copy of state we happen to be mirroring
-//! at the time.
+//! Stateless: each action is a command mpv resolves against its own state
+//! (`cycle pause`, `add volume 2`, `seek 50 absolute-percent`) rather than a
+//! read, a computation and a write, so mpv stays the single source of truth
+//! and a toggle can't disagree with our mirror of it.
 //!
-//! Failures are logged rather than propagated: a rejected seek should not
-//! take the player down with it.
+//! Failures are logged rather than propagated, since a rejected seek
+//! shouldn't take the player down.
 
 use crate::playback::mpv::Mpv;
 
@@ -16,7 +14,7 @@ use crate::playback::mpv::Mpv;
 pub const SEEK_STEP: f64 = 10.0;
 /// Arrow-key volume step.
 pub const VOLUME_STEP: f64 = 2.0;
-/// Subtitle timing nudge — mpv's own step for `z` / `Z`.
+/// Subtitle timing nudge, mpv's own step for `z` / `Z`.
 pub const DELAY_STEP: f64 = 0.1;
 /// Highest volume mpv will accept here, and the span of the slider.
 pub const VOLUME_MAX: f64 = 200.0;
@@ -28,13 +26,13 @@ pub const FINE_SEEK_STEP: f64 = 1.0;
 /// The speeds `[` and `]` step through.
 ///
 /// A ladder rather than mpv's own multiply-by-1.1, which lands on 1.21 and
-/// 1.331 — numbers nobody asked for and nobody can get back from exactly.
-/// Stepping from wherever the speed stands, so a speed set some other way
-/// joins the ladder at the next rung rather than being snapped to one.
+/// 1.331, numbers nobody asked for or can get back from exactly. Steps go
+/// from wherever the speed stands, so a speed set another way joins the
+/// ladder at the next rung.
 const SPEEDS: &[f64] = &[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4.0];
 
 /// The ends of that ladder, for a caller that has to advertise a range
-/// rather than step through one — see `mpris`.
+/// rather than step through one (see `mpris`).
 // Only MPRIS asks for this; SMTC has no rate or position to set.
 #[cfg_attr(windows, allow(dead_code))]
 pub fn speed_limits() -> (f64, f64) {
@@ -67,8 +65,7 @@ pub fn reset_speed(mpv: &Mpv) {
 }
 
 /// One frame. Forward pauses on arrival, as mpv's own does; back always
-/// seeks, so it is slower on a long GOP and there is nothing to be done
-/// about that from here.
+/// seeks, so it is slower on a long GOP.
 pub fn frame_step(mpv: &Mpv, direction: i32) {
     run(
         mpv,
@@ -91,9 +88,8 @@ pub fn chapter_step(mpv: &Mpv, direction: i32) {
 
 /// The next subtitle or audio track, wrapping through "none".
 ///
-/// Subtitles are made visible with it: cycling onto a track that then stays
-/// hidden because they were switched off earlier would be a key that
-/// appeared to do nothing.
+/// Subtitles are made visible with it, or cycling onto a track hidden by an
+/// earlier switch-off would seem to do nothing.
 pub fn cycle_track(mpv: &Mpv, subtitles: bool, direction: i32) {
     let way = if direction >= 0 { "up" } else { "down" };
     if subtitles {
@@ -112,9 +108,8 @@ pub const REPLY_LOADLIST: u64 = 2;
 
 /// Queue a command. Never blocks.
 ///
-/// Measured before this was async: one exact seek held the UI thread for
-/// ~195ms, so a drag froze the interface for a fifth of a second per mouse
-/// move. Nothing on an interactive path may wait on mpv core.
+/// Nothing on an interactive path may wait on mpv's core: a synchronous
+/// exact seek holds the UI thread for about 200ms.
 fn run(mpv: &Mpv, args: &[&str]) {
     if let Err(e) = mpv.command_async(REPLY_IGNORED, args) {
         eprintln!("dbm: mpv command {args:?} failed: {e}");
@@ -136,7 +131,7 @@ pub fn toggle_pause(mpv: &Mpv) {
 /// letterboxing to fit.
 ///
 /// `cycle-values` rather than reading the current value and negating it, so
-/// this stays stateless like the rest — mpv walks the list itself.
+/// this stays stateless like the rest.
 pub fn toggle_panscan(mpv: &Mpv) {
     run(mpv, &["cycle-values", "panscan", "1.0", "0.0"]);
 }
@@ -147,19 +142,14 @@ pub fn toggle_mute(mpv: &Mpv) {
 
 /// Toggle caption visibility.
 ///
-/// The one action that cannot be a plain `cycle`. Turning captions *on* has
-/// to make sure a subtitle track is actually selected first: `sub-visibility`
-/// on its own renders nothing when `sid` is unset, which is where a file
-/// lands whenever mpv picked no subtitle track (none matching `slang`, none
-/// default) or watch-later restored `sid=no` from a session where they were
-/// off.
+/// The one action that can't be a plain `cycle`: turning captions on must
+/// first make sure a subtitle track is selected, since `sub-visibility`
+/// renders nothing with `sid` unset, as when mpv picked no track or
+/// watch-later restored `sid=no`. Turning them off leaves `sid` alone, so the
+/// next press brings that track back.
 ///
-/// Turning them off deliberately leaves `sid` alone, so it stays the
-/// "previously active" track for the next press.
-///
-/// Reads the track list, so this **blocks** and must run on the worker.
-/// Reading at the moment of the decision is guaranteed fresh in a way a
-/// mirrored copy is not, which is worth a thread hop.
+/// Reads the track list, so this **blocks** and must run on the worker,
+/// where the read is fresh in a way a mirrored copy isn't.
 pub fn toggle_subtitles(mpv: &Mpv) {
     let tracks = crate::playback::tracks::read_tracks(mpv);
     let subs = crate::playback::tracks::of_kind(&tracks, crate::playback::tracks::TrackKind::Sub);
@@ -167,11 +157,8 @@ pub fn toggle_subtitles(mpv: &Mpv) {
         return;
     }
 
-    // Showing, not merely visible. `sub-visibility` can be on for a file mpv
-    // selected no subtitle track for, which puts nothing on screen — and
-    // turning that off spent the press without changing anything anybody
-    // could see. The next press did the work, so the key took two goes the
-    // first time it was used on such a file.
+    // Showing, not merely visible, since `sub-visibility` can be on with no
+    // track selected, where turning it off would change nothing visible.
     let showing = mpv.get_bool("sub-visibility")
         && crate::playback::tracks::selected(&tracks, crate::playback::tracks::TrackKind::Sub)
             .is_some();
@@ -202,7 +189,7 @@ pub fn add_subtitle(mpv: &Mpv, file: &std::path::Path, language: &str, show: boo
 /// Take a track that came from a file of its own back out of the film.
 /// Returns the file it came from, so a caller can forget it too.
 ///
-/// **Blocking** — reads the track list. Worker thread only.
+/// **Blocking**: reads the track list. Worker thread only.
 pub fn remove_track(mpv: &Mpv, id: i64, subtitle: bool) -> Option<String> {
     let count = mpv.get_f64("track-list/count").unwrap_or(0.0) as i64;
     let kind = if subtitle { "sub" } else { "audio" };
@@ -245,20 +232,11 @@ pub fn set_audio_track(mpv: &Mpv, id: Option<i64>) {
 
 /// Load a scanned playlist and begin at one of its entries.
 ///
-/// The entry is chosen *before* the list is loaded, rather than selected
-/// after it. Selecting afterwards costs the first episode its resume
-/// position: `loadlist` starts playing entry 0 the moment it lands, and a
-/// file mpv opens and leaves a moment later is a file mpv considers stopped
-/// at the beginning — so it deletes that file's watch-later entry on the way
-/// out. Opening episode five of a folder quietly wiped episode one, every
-/// time, and nothing said so.
-///
-/// Measured, not assumed: staging resume positions for a folder and opening
-/// the second episode left the first one's file gone and the rest untouched.
-///
-/// `playlist-start` is mpv's own answer to this and applies to the next
-/// playlist it loads. Completion still arrives as [`REPLY_LOADLIST`], since
-/// there is other work waiting on the list existing.
+/// The entry is chosen before the list loads, with mpv's `playlist-start`,
+/// rather than selected after: `loadlist` starts entry 0 at once, and a file
+/// mpv opens and leaves a moment later counts as stopped at the beginning, so
+/// mpv would delete its watch-later entry. Completion still arrives as
+/// [`REPLY_LOADLIST`], since other work waits on the list.
 pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize) {
     set_prop(mpv, "playlist-start", &start.to_string());
     let args = ["loadlist", &*m3u.to_string_lossy(), "replace"];
@@ -295,11 +273,10 @@ pub fn seek_fraction(mpv: &Mpv, fraction: f32) {
     );
 }
 
-/// Seek for a drag in progress. To the keyframe before the target unless
-/// `exact`, so mpv can satisfy it without decoding up to the target — the
-/// scrubber asks for exactness only while the hand is slow enough to see
-/// it. Issued with a distinct reply id so the scrubber can tell its own
-/// completions apart.
+/// Seek for a drag in progress: to the keyframe before the target unless
+/// `exact`, so mpv needn't decode up to it. The scrubber asks for exactness
+/// only while the hand is slow enough to see it. Issued with a distinct reply
+/// id, so the scrubber can tell its own completions apart.
 pub fn seek_scrub(mpv: &Mpv, fraction: f32, exact: bool) {
     let how = if exact {
         "absolute-percent+exact"
@@ -316,23 +293,16 @@ fn percent_of(fraction: f32) -> f64 {
     f64::from(fraction.clamp(0.0, 1.0)) * 100.0
 }
 
-/// Put the volume at a level outright — what the bar does under a hand.
-/// Clamped to `VOLUME_MAX` so a drag to the far end cannot ask for something
-/// mpv will reject.
+/// Put the volume at a level outright, as the bar does under a hand. Clamped
+/// to `VOLUME_MAX`, so a drag to the far end can't ask for what mpv rejects.
 ///
-/// Unmutes. A hand that places the level has said what it wants to hear, and
-/// mute would answer with a number nobody can hear: the bar draws itself
-/// empty while muted, so the fill would not even move. Clicking a control and
-/// having nothing happen at all is how a control stops being believed.
-///
-/// Only here, not in `nudge_volume`. Placing a level is a statement; a nudge
-/// is two units from an arrow key or a notch of the wheel, and mute is the one
-/// setting people reach for because the room demands it. A key leaned on
-/// should not fill a room with sound.
+/// Unmutes, since a hand placing the level wants to hear it, and the bar is
+/// drawn empty while muted, so nothing would visibly happen. Only here, not
+/// in `nudge_volume`: a nudge is an arrow key or a wheel notch, and a key
+/// leaned on shouldn't unmute a quiet room.
 pub fn set_volume(mpv: &Mpv, value: f64) {
-    // Written rather than read and tested, like everything else here: mpv
-    // owns the state, setting a property to what it already holds costs
-    // nothing, and a read would block the gesture asking for it.
+    // Written rather than read and tested, like everything here, since
+    // setting what mpv already holds costs nothing and a read would block.
     set_prop(mpv, "mute", "no");
     set_prop(mpv, "volume", &fmt(value.clamp(0.0, VOLUME_MAX)));
 }
@@ -362,14 +332,13 @@ pub const SUB_POS_DEFAULT: f64 = 100.0;
 
 /// These two return what they actually set.
 ///
-/// The clamp has to happen somewhere, and here is the only place that knows
-/// both the range and that mpv is about to be told. Returning the value lets
-/// the caller record the same number that was sent, so a saved size can
-/// never drift from what the player is doing.
+/// The clamp is here, the one place that knows both the range and that mpv
+/// is about to be told, and returning the value lets the caller save the
+/// number that was sent.
 ///
-/// Placement is the exception, on purpose. It is only ever sent by
-/// `subline`, which saves where the person put the line and sends where the
-/// bar lets it sit — two numbers that differ for as long as the bar is up.
+/// Placement is the exception: only `subline` sends it, saving where the
+/// person put the line and sending where the bar lets it sit, which differ
+/// while the bar is up.
 pub fn set_sub_scale(mpv: &Mpv, value: f64) -> f64 {
     let value = value.clamp(SUB_SCALE_MIN, SUB_SCALE_MAX);
     set_prop(mpv, "sub-scale", &fmt(value));
@@ -382,17 +351,16 @@ pub fn set_sub_pos(mpv: &Mpv, value: f64) -> f64 {
     value
 }
 
-/// Timing is per file rather than a preference — a delay that fixes one set
-/// of subtitles is wrong for the next — so mpv's own watch-later file keeps
-/// it, the next file starts without it, and there is nothing here to
-/// remember. See `session::configure` for both halves.
+/// Timing is per file rather than a preference, since a delay that fixes one
+/// set of subtitles is wrong for the next, so mpv's watch-later file keeps it
+/// (see `session::configure`).
 pub fn set_sub_delay(mpv: &Mpv, seconds: f64) {
     set_prop(mpv, "sub-delay", &fmt(seconds));
 }
 
 /// The speed subtitles run at against the film: 1, unless they were timed
-/// for a transfer at another frame rate — see `subsync`. Per file, like the
-/// delay it goes with, and kept in the same place.
+/// for a transfer at another frame rate (see `subsync`). Per file, like the
+/// delay it goes with.
 ///
 /// Six places rather than `fmt`'s four. The fourth place of a speed is
 /// seven hundredths of a second by the end of a two-hour film, which is the
@@ -419,13 +387,12 @@ pub fn replay(mpv: &Mpv) {
     set_pause(mpv, false);
 }
 
-/// Move through the playlist and play what is there — the end-of-file
-/// button, the media keys on a headset, and anything else that means "go on"
-/// rather than merely "select".
+/// Move through the playlist and play what is there, for the end-of-file
+/// button, a headset's media keys, and anything else that means "go on"
+/// rather than "select".
 ///
-/// The unpause is queued behind the step rather than timed after it: mpv
-/// executes queued commands in order, so by the time the property is written
-/// the new file is the current one — no delay between the two is needed.
+/// The unpause is queued behind the step rather than timed after it, since
+/// mpv runs queued commands in order.
 pub fn advance(mpv: &Mpv, delta: i32) {
     playlist_step(mpv, delta);
     set_pause(mpv, false);

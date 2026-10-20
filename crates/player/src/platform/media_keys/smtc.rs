@@ -1,22 +1,19 @@
 //! Windows' System Media Transport Controls.
 //!
-//! The panel that appears when you press a volume key, the lock screen, and —
-//! the reason this matters — the play/pause and track buttons on a headset or
-//! a keyboard. Windows routes those to whichever application registered as
-//! playing something; without this the player is invisible to all of it and
-//! the buttons reach whatever else happens to be open.
+//! The panel that appears when you press a volume key, the lock screen, and
+//! above all the play/pause and track buttons on a headset or keyboard, which
+//! Windows routes to whichever application registered as playing.
 //!
 //! Two directions, both narrow:
 //!
 //! * buttons in, turned into ordinary mpv commands;
 //! * what is playing and whether it is paused, out.
 //!
-//! Registration needs the window handle, which does not exist until the window
-//! manager has made the window — the same problem the modal-loop hook has, and
-//! solved the same way: it is retried from the frame path until it takes.
+//! Registration needs the window handle, which doesn't exist until the window
+//! manager has made the window, so, like the modal-loop hook, it is retried
+//! from the frame path until it takes.
 //!
-//! The Linux counterpart is `mpris`, beside this — see the folder's `mod.rs`
-//! for why the two are separate implementations of one face.
+//! The Linux counterpart is `mpris`, beside this (see the folder's `mod.rs`).
 
 use std::cell::RefCell;
 use std::sync::Arc;
@@ -27,9 +24,8 @@ use crate::playback::state::PlayerState;
 /// What the overlay is currently showing, so it is only told about
 /// changes.
 ///
-/// Each update is a cross-process call into the shell. At sixty a second
-/// that would be absurd; nothing here changes more than a few times a
-/// minute.
+/// Each update is a cross-process call into the shell, too costly every frame
+/// for what changes a few times a minute.
 #[derive(PartialEq)]
 struct Shown {
     title: String,
@@ -89,11 +85,9 @@ impl Controls {
     /// Tell the overlay what is playing, registering first if that has not
     /// managed to happen yet.
     ///
-    /// Called every frame, because registration has to keep being retried
-    /// until the window exists. `moved` says whether any mpv property
-    /// actually changed: reading the state costs a title parse and an
-    /// allocation, which is not something to do sixty times a second for
-    /// an answer that changes a few times an hour.
+    /// Called every frame, because registration is retried until the window
+    /// exists. `moved` says whether any mpv property changed, since reading
+    /// the state costs a title parse and an allocation.
     pub fn publish(&self, window: &slint::Window, player: &PlayerState, moved: bool) {
         let mut state = self.state.borrow_mut();
         if let State::Pending { mpv, until } = &mut *state {
@@ -129,9 +123,8 @@ impl Controls {
             return;
         }
         if let Err(e) = update(controls, &now, shown.as_ref()) {
-            // One failed update is not a reason to stop trying; the next
-            // change will attempt it again. But do not record it as shown,
-            // or the overlay would stay wrong until something else moved.
+            // Not recorded as shown, so the next frame tries again rather
+            // than leaving the overlay wrong until something else moves.
             eprintln!("dbm: media overlay update failed: {e}");
             return;
         }
@@ -139,9 +132,9 @@ impl Controls {
     }
 }
 
-/// Push one change. Only what actually differs, since each setter is its
-/// own call into the shell — and the title in particular drags a
-/// `DisplayUpdater` round trip behind it.
+/// Push one change, only what differs, since each setter is its own call
+/// into the shell, and the title drags a `DisplayUpdater` round trip behind
+/// it.
 fn update(
     controls: &SystemMediaTransportControls,
     now: &Shown,
@@ -165,9 +158,8 @@ fn update(
     if before.map(|b| b.title.as_str()) != Some(now.title.as_str()) {
         let updater = controls.DisplayUpdater()?;
         updater.SetType(MediaPlaybackType::Video)?;
-        // The parsed name rather than the file name: the overlay is one
-        // line wide and `[Group] Show - 03 [1080p][AV1]` spends most of it
-        // on the encode. See `naming`.
+        // The parsed name rather than the file name, since the overlay is
+        // one line wide (see `naming`).
         updater
             .VideoProperties()?
             .SetTitle(&now.title.as_str().into())?;

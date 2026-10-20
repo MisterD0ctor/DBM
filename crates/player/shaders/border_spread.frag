@@ -7,10 +7,9 @@
 // fixed-count tap loop, the guarded normalize and the zero-weight fallback
 // are all load-bearing, not defensive noise.
 //
-// The one addition is the final composite: mpv now draws into a texture with
-// a transparent surround instead of owning the window, so the video is laid
-// over the ambient background here rather than by mpv's own compositor. That
-// is what removes the need for the forked BORDER hook entirely.
+// The one addition is the final composite: mpv draws into a texture with a
+// transparent surround rather than owning the window, so the video is laid
+// over the ambient background here instead of by mpv's compositor.
 
 in vec2 v_uv;
 out vec4 frag;
@@ -105,7 +104,7 @@ float spread_falloff(float x, float d) {
     return d / max(length(vec2(x, d * spread)), 1e-8);
 }
 
-// Wide usage friendly PRNG, shamelessly stolen from a GLSL tricks forum post
+// A common cheap PRNG, from a GLSL tricks forum post.
 float mod289(float x)  { return x - floor(x / 289.0) * 289.0; }
 float permute(float x) { return mod289((34.0 * x + 1.0) * x); }
 float rand(float x)    { return fract(x / 41.0); }
@@ -202,17 +201,13 @@ void main() {
                 * soft_distance_falloff(dist * falloff)
                 + (grain / 8192.0) * (noise - vec4(0.5));
 
-    // Lay the video over the ambient background it just drew. This is the
-    // step mpv's own compositor used to do, and the reason the forked BORDER
-    // hook existed at all.
+    // Lay the video over the ambient background it just drew.
     //
-    // Taken two texels inside the rect rather than at `pos`, for the same
-    // reason the extension pass does it. Only the seam reaches this line, and
-    // `pos` there is half outside the picture: out there mpv's surround is
-    // transparent black, and the outermost row it did draw is blended against
-    // that same transparency. Sampling at `pos` mixed both into the join and
-    // drew a dark line round the whole frame, on every file, which is not in
-    // any of them.
+    // Sampled two texels inside the rect rather than at `pos`, as in the
+    // extension pass. Only the seam reaches here, and at `pos` it is half
+    // outside the picture, where mpv's surround is transparent black and its
+    // outermost row is blended against it, which would draw a dark line round
+    // every frame.
     vec3 edge = vid(clamp(pos, r.xy + 2.0 * u_texel, r.zw - 2.0 * u_texel)).rgb;
     frag = vec4(mix(border.rgb, edge, in_video), 1.0);
 }

@@ -1,38 +1,30 @@
-// The globals the Rust side talks to. `Chrome` carries activity and the idle
-// clock, `Flash` the brief feedback and notices, `Tip` the hover label —
-// each a global because what raises it is buried inside components that
-// would otherwise need a callback threaded through every call site.
+// The globals the Rust side talks to. Each is a global because what raises it
+// is buried inside reusable components, which would otherwise need a callback
+// threaded through every call site.
 
-/// Chrome visibility. Every interactive element reports activity here; the
-/// Rust side owns the idle clock and pushes `idle` back.
-///
-/// A global rather than a callback on MainWindow because activity comes from
-/// deep inside reusable components (buttons, menu rows), and threading a
-/// callback through every one of them would be noise at each call site.
+/// Activity and the idle clock. Every interactive element reports activity
+/// here; the Rust side owns the clock and pushes `idle` back.
 export global Chrome {
-    /// Reports activity to the Rust side, which owns the idle clock.
+    /// Reports activity to the Rust side.
     callback activity();
-    /// Whether the keyboard's ring should be drawn at all.
+    /// Whether the keyboard's ring is drawn.
     ///
-    /// Off until the keyboard is actually steering: a panel opened with a
-    /// key, an arrow, Tab, or Enter. A ring drawn over a panel someone
-    /// reached for with the mouse is a second highlight competing with the
-    /// row that is actually playing, and it points at a row the hand is not
-    /// on. It goes away again the moment a mouse button goes down.
+    /// Only once the keyboard is steering: a panel opened with a key, an
+    /// arrow, Tab or Enter. Over a panel reached with the mouse, a ring would
+    /// compete with the playing row and point where the hand isn't. A mouse
+    /// button going down clears it.
     in-out property <bool> focus-visible: false;
     /// Whether nothing has happened for a while.
     ///
-    /// Cleared here rather than by the timer that sets it. The timer polls
-    /// only a few times a second, and waiting for it left the cursor and
-    /// chrome hidden for a visible moment after the mouse moved - the
-    /// pointer would blink out just as the interface came back.
+    /// Cleared here rather than by the timer that sets it: the timer polls a
+    /// few times a second, and waiting for it left the pointer hidden for a
+    /// visible moment after the mouse moved.
     in-out property <bool> idle: false;
-    /// Bumped by every key and pointer event — input, as distinct from the
+    /// Bumped by every key and pointer event: input, as distinct from the
     /// activity a film ending also raises. A notice waits for the next one.
     in-out property <int> input-seq: 0;
 
-    /// Call on any activity. Wakes the interface immediately and resets the
-    /// clock behind it.
+    /// Call on any activity. Wakes the interface at once and resets the clock.
     public function bump() {
         Chrome.idle = false;
         Chrome.activity();
@@ -40,17 +32,14 @@ export global Chrome {
 
     /// Ask for the pointer to leave the screen, or to come back.
     ///
-    /// A callback rather than a property the Rust side polls, because the two
-    /// directions are not equally urgent. Hiding can wait — it happens three
-    /// seconds after the hand stopped, and a fifth of a second either way is
-    /// not a thing anyone can see. Coming back cannot: the pointer has to be
-    /// under the hand the instant it moves, and a clock ticking five times a
-    /// second would leave it missing after the chrome was already up.
+    /// A callback rather than a property the Rust side polls, because coming
+    /// back is urgent and hiding is not: the pointer must be under the hand
+    /// the instant it moves, while hiding three seconds after it stopped can
+    /// be a fifth of a second late unnoticed.
     callback hide-pointer(hide: bool);
 
-    /// Pointer activity, and whether a button went down with it. The same
-    /// wake-up as `bump`, plus the ring standing down: the hand has taken
-    /// over, and two cursors on one panel is one too many.
+    /// Pointer activity, and whether a button went down with it. A press also
+    /// clears the ring, since the hand has taken over.
     public function pointed(down: bool) {
         Chrome.bump();
         Chrome.input-seq += 1;
@@ -61,11 +50,10 @@ export global Chrome {
 
     /// The same, from a row the keyboard can also stand on.
     ///
-    /// A pointer moving over a row the ring is not on stands the ring down.
-    /// Otherwise a hand resting in a panel lights one row while the keys light
-    /// another, and the two washes say nothing about which one Enter presses.
-    /// Only movement counts: a pointer that is merely still there raises no
-    /// events, so arrowing past it keeps the ring.
+    /// Moving onto a row the ring isn't on clears the ring, or the hand and
+    /// the keys would light different rows and nothing would say which one
+    /// Enter presses. Only movement counts: a still pointer raises no events,
+    /// so arrowing past it keeps the ring.
     public function pointed-at(down: bool, moved: bool, focused: bool) {
         Chrome.pointed(down);
         if (moved && !focused) {
@@ -76,21 +64,14 @@ export global Chrome {
 
 /// Brief feedback for an action whose effect is otherwise off screen.
 ///
-/// A global for the same reason `Chrome` is one: it is raised from the key
-/// handlers, which are functions rather than elements, and threading a
-/// callback down to each of them would be noise at every call site.
-///
-/// Only the actions the bar cannot speak for are here. Mute, volume and
-/// panscan all move a control that is already on screen — a key press wakes
-/// the chrome — and saying it twice is not saying it better. What is left is
-/// what nothing else shows: which way a seek went, that the file changed,
-/// what the subtitle delay landed on, and whether subtitles are on at all,
-/// which the subtitles button stopped saying when it stopped being a switch.
+/// Only for what nothing else shows: which way a seek went, that the file
+/// changed, where the subtitle delay landed, whether subtitles are on. Mute,
+/// volume and panscan move a control already on screen, since a key press
+/// wakes the bar.
 export global Flash {
-    // Which glyph, as an index into the window's own list: `@image-url`
-    // resolves at compile time, so the images cannot live here. Named rather
-    // than numbered at the call sites, since the order of that list is
-    // invisible from them.
+    // Indices into the window's own glyph list, because `@image-url` resolves
+    // at compile time and the images can't live here. Named so the call sites
+    // don't depend on an order they can't see.
     out property <int> seek-back: 0;
     out property <int> seek-forward: 1;
     out property <int> previous: 2;
@@ -99,25 +80,22 @@ export global Flash {
     out property <int> delay: 5;
 
     in-out property <int> icon: 0;
-    /// A sentence, when the player has something to say rather than something
-    /// to acknowledge. Empty for an ordinary action flash.
-    ///
-    /// A notice shows the capsule alone, with no ring. A failure has the
-    /// warning mark inside the capsule, before its words — see `warning`.
+    /// A sentence, when the player has something to say rather than an action
+    /// to acknowledge; empty otherwise. A notice is the capsule alone, with no
+    /// ring.
     in-out property <string> message: "";
-    /// Whether the sentence is a failure — something that did not happen —
-    /// rather than news. A failure wears the warning mark before its words.
+    /// Whether the sentence is a failure rather than news. A failure has the
+    /// warning mark before its words.
     in-out property <bool> warning: false;
     /// Where across the picture it appears, 0..1. A seek is thrown towards
     /// the side it seeks to; everything else sits in the middle.
     in-out property <float> at: 0.5;
-    /// Bumped on every raise, so the window can restart the dwell even when
-    /// the same action repeats — which is the common case, since these are
-    /// keys people hold.
+    /// Bumped on every raise, so the window restarts the dwell even when the
+    /// same action repeats, as it does for a held key.
     in-out property <int> seq: 0;
-    /// A figure to show on its own, with no ring: 1 the speed, 2 the chapter,
-    /// 3 the subtitle track, 4 the audio track. The icon set has no glyph for
-    /// any of them, and the figure is the whole answer anyway. 0 for none.
+    /// A figure shown on its own, with no ring: 1 the speed, 2 the chapter,
+    /// 3 the subtitle track, 4 the audio track, 0 none. The icon set has no
+    /// glyph for these, and the figure is the whole answer anyway.
     in-out property <int> figure: 0;
 
     public function show-figure(kind: int) {
@@ -135,9 +113,9 @@ export global Flash {
         Flash.seq += 1;
     }
 
-    /// Say something. Used where the alternative was a line on a console that
-    /// a packaged build does not have — a file that will not play, a folder
-    /// with nothing in it, sound coming back after a device disappeared.
+    /// Say something a packaged build would otherwise have no console for: a
+    /// file that won't play, a folder with nothing in it, sound coming back
+    /// after a device disappeared.
     public function notice(text: string) {
         Flash.message = text;
         Flash.warning = false;
@@ -155,27 +133,13 @@ export global Flash {
 
 /// What a control is called, and which key does the same thing.
 ///
-/// The bar is thirteen drawn marks and no words. They are the project's own
-/// icons and the set is the better for having no labels stamped under it, but
-/// a mark that is never explained anywhere teaches nobody: the only account
-/// of what they do lived on a panel you had to know to open in order to find
-/// out what the button that opens it does.
-///
-/// One surface for the whole bar rather than one per button. Only ever one
-/// tip is up, and thirteen labels would be thirteen more rects published to
-/// the renderer for a thing that is never in two places at once.
-///
-/// The key rides along because that is the part worth learning. A tooltip
-/// that only repeats the glyph is a label; one that names the key is the
-/// reference card arriving where the question was asked.
-///
-/// Both can be turned off, on the accessibility page: someone who knows the
-/// bar has learned what the tips teach, and from then on they are a pill
-/// rising over the film wherever the pointer rests. The controls keep their
-/// names for a screen reader either way, since those never came from here.
+/// The bar's glyphs have no labels, so this is where they are explained, and
+/// the key is the part worth learning. One surface for the whole bar, since
+/// only one tip is ever up. The accessibility page can turn tips and their
+/// keys off; screen readers get the controls' names either way.
 export global Tip {
     /// Whether tips go up at all. Off, `point` and `show` put nothing up and
-    /// hand back a claim that is never the one up.
+    /// return a claim that never matches.
     in-out property <bool> enabled: true;
     /// Whether a tip names the key as well as the control.
     in-out property <bool> with-keys: true;
@@ -183,13 +147,13 @@ export global Tip {
     in-out property <string> keys;
     /// Centre of the control it belongs to, in window coordinates.
     in-out property <length> cx;
-    /// Bumped on every arrival and departure, so the window can watch one
-    /// property rather than three - and so a control can tell whether the
-    /// tip is still the one it put up.
+    /// Bumped on every arrival and departure, so the window watches one
+    /// property rather than three, and a control can tell whether the tip is
+    /// still the one it put up.
     in-out property <int> seq;
 
-    /// Whether the tip is to go up without the wait. Set by `show`, cleared
-    /// by `point`.
+    /// Whether the tip goes up without the wait. Set by `show`, cleared by
+    /// `point`.
     in-out property <bool> now;
 
     /// Puts a tip up and returns the claim on it, for `release`.
@@ -205,13 +169,9 @@ export global Tip {
         return Tip.seq;
     }
 
-    /// The same, with no wait before it opens.
-    ///
-    /// For a tip that is a reading rather than a name: the volume's, which
-    /// changes under the hand that is turning it. The wait is there so that
-    /// crossing the bar raises nothing, and a level that has just moved was
-    /// not crossed. Each notch of a wheel would also start the wait again,
-    /// so a reading that waited would never arrive while it was wanted.
+    /// The same, with no wait: for a reading that changes under the hand,
+    /// like the volume's. Each notch of the wheel would restart the wait, so
+    /// a reading that waited would never arrive while it was wanted.
     public function show(label: string, keys: string, cx: length) -> int {
         if (!Tip.enabled) {
             return -1;
@@ -226,11 +186,9 @@ export global Tip {
 
     /// Takes the tip down, but only if `claim` is still the one up.
     ///
-    /// Ownership was once decided by position: a control cleared the tip if
-    /// it was centred where that control is. Anything that moves a control
-    /// while its tip is up broke that - fullscreen above all, which moves the
-    /// very button that was pressed - and the tip then stayed up for good,
-    /// since nothing else would ever claim it.
+    /// A claim rather than the control's position, because a control can move
+    /// while its tip is up (fullscreen moves the button just pressed), and a
+    /// tip matched by position would then never come down.
     public function release(claim: int) {
         if (Tip.seq == claim) {
             Tip.clear();

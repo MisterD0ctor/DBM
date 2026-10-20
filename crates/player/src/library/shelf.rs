@@ -1,12 +1,11 @@
 //! The shape a playlist is shown in.
 //!
 //! mpv plays one flat list, in the order [`crate::library::playlist::watching_order`]
-//! settles, and Next and autoplay walk that list as they always did. This is
-//! only how the panel lays it out. A season of one show is shown as it always
-//! was. A list spanning several seasons becomes a list of those seasons, each
-//! opening onto its own episodes; a folder of several shows becomes a list of
-//! each show's seasons, with anything that is one file on its own — a film, a
-//! stray episode — standing in that list as itself.
+//! settles, and Next and autoplay walk it; this is only how the panel lays it
+//! out. A season of one show is a plain list. A list spanning several seasons
+//! becomes a list of those seasons, each opening onto its episodes, and a
+//! folder of several shows a list of each show's seasons, with anything that
+//! is one file on its own (a film, a stray episode) standing in it as itself.
 //!
 //! Beside a single season sit the seasons around it on disk. Opening an
 //! episode means that season, so they are not queued; they are shown, and an
@@ -56,7 +55,7 @@ pub struct Group {
     /// How a row names it: *Season 7*, *Specials*, *Frieren · Season 2*, or a
     /// film's own name.
     pub label: String,
-    /// Whether that name has the user's words in it — a show's, a film's —
+    /// Whether that name has the user's words in it (a show's, a film's)
     /// rather than only the interface's, which decides whether a heading may
     /// set it in capitals.
     pub named: bool,
@@ -75,7 +74,7 @@ impl Group {
     }
 
     /// The row a page of it opens on: the file playing, or else the first not
-    /// yet finished — where watching it would carry on.
+    /// yet finished, where watching would carry on.
     pub fn open_row(&self) -> usize {
         self.current()
             .or_else(|| self.entries.iter().position(|e| !e.progress.finished))
@@ -260,9 +259,8 @@ fn part_label(season: Option<u32>, show: Option<&str>, one_show: bool) -> (Strin
 #[derive(Default)]
 pub struct Neighbours {
     asked: Vec<String>,
-    /// Ask again for the same list. How far into each file you got is written
-    /// to disk behind the player's back, and opening the panel is when that is
-    /// worth reading again.
+    /// Ask again for the same list, since progress is written to disk without
+    /// an event, and opening the panel is when it is worth reading again.
     stale: bool,
 }
 

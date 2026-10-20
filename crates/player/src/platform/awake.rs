@@ -1,14 +1,13 @@
 //! Keeping the display on while a video plays.
 //!
-//! mpv does this itself when it owns the window — `stop-screensaver` — but
-//! here it renders into ours through the render API and never learns there is
-//! a window at all, so nothing was asking and the monitors went to sleep in
-//! the middle of a film.
+//! mpv does this itself (`stop-screensaver`) when it owns the window, but
+//! here it renders into ours through the render API and never learns there
+//! is one.
 //!
-//! Only while playing: paused, finished or empty, the machine is allowed to
-//! idle as it would with anything else open. The request is per thread and
-//! lasts until changed, so it is made from the frame path — always the UI
-//! thread — and only when the answer changes, not sixty times a second.
+//! Only while playing: paused, finished or empty, the machine may idle as it
+//! would with anything else open. The request is per thread and lasts until
+//! changed, so it is made from the frame path, always the UI thread, and only
+//! when the answer changes.
 //!
 //! Linux would inhibit through the desktop's D-Bus screensaver interface,
 //! which is its own piece of work; everything here compiles away there.

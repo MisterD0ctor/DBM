@@ -3,9 +3,8 @@
 /// Endonyms: a language written the way it writes itself, which is what
 /// someone looking for their own language is scanning the list for.
 ///
-/// Keyed by ISO 639-1. Not every language — the long tail falls back to the
-/// raw code, and the point where that starts to matter is the point to bring
-/// in a real CLDR table rather than to keep extending this one.
+/// Keyed by ISO 639-1. Not every language: the long tail falls back to the
+/// raw code, and once that matters, a real CLDR table should replace this.
 const LANGUAGES: &[(&str, &str)] = &[
     ("ar", "العربية"),
     ("bg", "Български"),

@@ -46,20 +46,17 @@ pub struct TrackName {
 
 /// Read a track title.
 ///
-/// mpv uses the filename as the title of an external subtitle, so this has to
-/// cope with `Movie.2019.1080p.WEB-DL.forced.eng.srt` as readily as with
-/// `Director's commentary`. The flags are the part worth keeping: whether a
-/// subtitle is forced decides whether you want it, and no language code says
-/// so.
+/// mpv uses the filename as an external subtitle's title, so this copes with
+/// `Movie.2019.1080p.WEB-DL.forced.eng.srt` as well as `Director's
+/// commentary`. The flags are worth keeping, since whether a subtitle is
+/// forced decides whether you want it, and no language code says so.
 pub fn parse_track_name(title: &str, language: Option<&str>) -> TrackName {
     let stem = strip_extension(strip_path(title));
     let cleaned = clean_separators(stem);
 
-    // A title someone typed reads as a sentence; a filename reads as tokens.
-    // The difference matters: pulling "commentary" out of `Director's
-    // commentary` as a flag leaves "Director's", which is not a name for
-    // anything. So words are only taken out of something that arrived as a
-    // filename — dot- or underscore-separated, or a single token.
+    // Words are only taken out of something that arrived as a filename
+    // (dot- or underscore-separated, or a single token), since taking
+    // "commentary" out of `Director's commentary` would leave "Director's".
     let written = stem.contains(' ') && !stem.contains('.') && !stem.contains('_');
 
     let mut flags = Vec::new();
@@ -82,8 +79,8 @@ pub fn parse_track_name(title: &str, language: Option<&str>) -> TrackName {
                 continue;
             }
         }
-        // The language is already shown beside the name; repeating it in the
-        // name too is how you get "English — English".
+        // The language is already shown beside the name, so it isn't
+        // repeated in it.
         if language.is_some_and(|l| same_language(&bare, l)) || base_code(&bare).is_some() {
             continue;
         }
@@ -117,16 +114,12 @@ pub struct TrackInfo<'a> {
 
 /// What to call each track, given all the others it sits with.
 ///
-/// One list at a time — the subtitles, or the audio, not both. The right
-/// label depends on the company a track keeps: with one English track
-/// "English" is the whole label, and with three it is not a label at all. Two
-/// English subtitles and two English audio tracks are four tracks but two
-/// lists, and numbering them 1-4 would be answering a question nobody asked.
+/// One list at a time, the subtitles or the audio, since the right label
+/// depends on a track's company: with one English track "English" is the
+/// whole label, and with three it isn't a label at all.
 ///
-/// Returns labels positionally, in step with the input, for the same reason
-/// the id is only a fallback.
-///
-/// Mirrors what the Tauri build did, minus the region qualifiers — telling
+/// Returns labels positionally, in step with the input, since ids aren't
+/// unique across lists. Region qualifiers are left out, because telling
 /// `es-419` from `es-ES` needs a real locale database.
 pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
     let key = |t: &TrackInfo| t.language.map(|l| base_code(l).unwrap_or(l).to_string());
@@ -160,9 +153,8 @@ pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
                 }
             }
             (None, Some(text)) => text.clone(),
-            // No language and no title: named by what it technically is.
-            // "AAC 5.1" is true and tells two tracks apart; "Track 1" said
-            // only that a track existed, and read the same in both lists.
+            // No language and no title: named by its format, since "AAC 5.1"
+            // tells two tracks apart where "Track 1" wouldn't.
             (None, None) => by_format(t).unwrap_or_else(|| fill(tr("Track {}"), &[&t.id])),
         };
 

@@ -1,13 +1,11 @@
 //! The angle pointing a scrolling list back to its current row.
 //!
 //! While the file playing, or the track in use, is scrolled out of sight, an
-//! angle at that end of its list points to it, and a circle comes up under
-//! it with the pointer. Both sit in the middle of the list's end — which is
-//! where the soft edge is, and the soft edge thins away everything Slint drew
-//! there. So they are drawn here instead, over the finished frame once the
-//! edge is done: whole, over rows that are still going. Slint keeps only
-//! what is pressed, and says where it is through `ScrollFade` — see
-//! `WayToCurrent` in scroll_list.slint.
+//! angle at that end of its list points to it, with a circle under the
+//! pointer. Both sit in the list's soft edge, which thins away whatever Slint
+//! draws there, so they are drawn here, over the finished frame once the edge
+//! is done. Slint keeps only the press target, and says where it is through
+//! `ScrollFade` (see `WayToCurrent` in scroll_list.slint).
 //!
 //! The angle is the project's own icon, rendered by resvg rather than drawn
 //! a second time in the shader, so there is one drawing of it.
@@ -27,9 +25,8 @@ const ICON: f32 = 18.0;
 const CIRCLE: f32 = 28.0;
 
 /// Whether the angle stands on a disc of glass the size of its circle, laid
-/// over the rows going by rather than under them; see
-/// `Pipeline::glass_over`. An experiment: off, it is the angle alone, with
-/// its circle only under the pointer.
+/// over the rows going by (see `Pipeline::glass_over`). Off, it is the angle
+/// alone, with its circle only under the pointer.
 pub const GLASS: bool = true;
 
 /// One angle, in physical pixels measured from the window's top-left.
@@ -43,7 +40,7 @@ pub struct Way {
     pub on: f32,
     /// How far its circle is in, 0..1.
     pub lit: f32,
-    /// The panel it is in — left, top, right, bottom. A list sliding out of
+    /// The panel it is in: left, top, right, bottom. A list sliding out of
     /// its panel takes its angle with it, and only what is inside shows.
     pub clip: [i32; 4],
     /// Logical pixels to physical.
@@ -100,8 +97,8 @@ impl Ways {
         })
     }
 
-    /// Draw every angle that is on, over whatever framebuffer is bound — the
-    /// window's, in `AfterRendering`.
+    /// Draw every angle that is on, over whatever framebuffer is bound (the
+    /// window's, in `AfterRendering`).
     pub fn run(&mut self, gl: &glow::Context, window: (u32, u32), ways: &[Way]) {
         if window.0 == 0 || window.1 == 0 || !ways.iter().any(|w| w.on > 0.004) {
             return;
@@ -173,7 +170,7 @@ impl Ways {
     }
 
     /// Both angles at `px` pixels square, drawn again only when the size
-    /// has changed — a window moved to a screen of another scale.
+    /// changes, as when a window moves to a screen of another scale.
     fn ensure(&mut self, gl: &glow::Context, px: u32) -> bool {
         if self.px == px && self.up.is_some() && self.down.is_some() {
             return true;

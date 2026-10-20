@@ -43,21 +43,16 @@ void main() {
     vec2 pos = v_uv;
     vec4 r = u_rect;
 
-    // Two texels rather than one: the original relied on a separate `//!HOOK
-    // MAIN` pass that pre-clamped the video by 2 texels, and folding it in
-    // here keeps the outermost row — which mpv blends against the transparent
-    // surround — out of the average.
+    // Two texels in, which folds in the original's separate pre-clamp pass
+    // and keeps mpv's outermost row, blended against the transparent
+    // surround, out of the average.
     vec2 box_pos = clamp(pos, r.xy + 2.0 * u_texel, r.zw - 2.0 * u_texel);
     vec2 delta = box_pos - pos;
     vec2 dir = sign(delta);
 
     // Inside the picture the clamp changes nothing, so `dir` is zero and every
-    // tap below lands on the same texel — a weighted average of one colour with
-    // itself. The answer is that colour, and the loop is the long way round to
-    // it. Bailing here is not an approximation: it is the same result, and it
-    // is most of the frame. What the spread pass reads out of this target is
-    // the surround; inside the rect it takes the video directly and never looks
-    // at what was written here at all.
+    // tap would land on the same texel, whose colour is the exact answer. The
+    // spread pass never reads this target inside the rect anyway.
     if (dir == vec2(0.0)) {
         frag = vec4(src(box_pos).rgb, 1.0);
         return;

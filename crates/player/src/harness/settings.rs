@@ -18,12 +18,10 @@ pub(super) fn param_test(ui: &MainWindow) -> slint::Timer {
         move || {
             let Some(ui) = weak.upgrade() else { return };
             ui.set_settings_open(true);
-            // The glass tint amount, found by key: this was a bare index once,
-            // and it went on setting whatever the registry put there after
-            // three rows left the glass page. Tint runs 0..1, so the value
-            // from the variable is also the slider's fraction. A non-numeric
-            // value opens the panel without touching anything, which is how a
-            // loaded-from-disk value can be probed.
+            // The glass tint amount, found by key rather than index, so the
+            // registry can be reordered. Tint runs 0..1, so the value is also
+            // the slider's fraction. A non-numeric value opens the panel
+            // without touching anything, to probe a value loaded from disk.
             let tint_row = crate::settings::REGISTRY
                 .iter()
                 .position(|p| p.key == crate::settings::Key::Tint)
@@ -49,10 +47,10 @@ pub(super) fn param_test(ui: &MainWindow) -> slint::Timer {
 /// alone would not catch a readout that never updates, and the readout alone
 /// would not catch a value that never left the process.
 fn report_subs(ui: &MainWindow, mpv: &Mpv, label: &str) {
-    // Blocking reads, acceptable only because this is a one-shot diagnostic
-    // step rather than the frame path.
+    // Blocking reads, acceptable only off the frame path.
+    //
     // The two positions agree only while nothing lifts the line: the panel
-    // shows where the person put it, mpv holds where the bar lets it sit. The
+    // shows where the person put it, mpv where the bar lets it sit. The
     // subtitles page asks for no lift, so on it they should match.
     eprintln!(
         "dbm: {label:<20} mpv delay={:?} scale={:?} pos={:?} | panel {} {} {} \
@@ -70,10 +68,9 @@ fn report_subs(ui: &MainWindow, mpv: &Mpv, label: &str) {
 
 /// Step each subtitle adjustment, push one past its limit, then reset.
 ///
-/// The clamp is the part worth driving: it lives in `commands` so that the
-/// value recorded for saving is the one mpv was actually given, and a drift
-/// between those two would only show up as a setting that comes back wrong
-/// on the next run.
+/// The clamp is the part worth driving: it is in `commands` so the value
+/// saved is the one mpv was given, and a drift between the two would only
+/// show as a setting that comes back wrong next run.
 pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -128,23 +125,11 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
     timer
 }
 
-/// Sync the subtitles to the film's speech, from the keyboard, and read back
-/// what mpv then shows.
-///
-/// `DBM_SYNC_TEST` names the subtitle track, by mpv's `sid` or as a subtitle
-/// file to load, and `DBM_SYNC_AT` a moment in the film to read the line
-/// from afterwards — the only check that the timing went on the right way
-/// round, since a sync that moved the subtitles five seconds the wrong way
-/// reports the same number.
-///
-/// The row is reached with real keys: S, down to the subtitles page, in, and
-/// down to the row above the reset. That is the path `focus-activate-settings`
-/// answers and a click never touches. Then Enter again takes the sync back.
 /// Open the tracks menu, open its search, take the first result with the
 /// keyboard, take it back out with Delete, and report what the menu holds at
-/// each step. With
-/// `DBM_FIND_FAKE` set the search answers from a fixed list and the download
-/// is a subtitle written on the spot, so no key or connection is needed.
+/// each step. With `DBM_FIND_FAKE` set the search answers from a fixed list
+/// and the download is a subtitle written on the spot, so no key or
+/// connection is needed.
 pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
     use super::drive::chord;
     use slint::platform::Key;
@@ -223,6 +208,17 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
     timer
 }
 
+/// Sync the subtitles to the film's speech, from the keyboard, and read back
+/// what mpv then shows.
+///
+/// `DBM_SYNC_TEST` names the subtitle track, by mpv's `sid` or as a file to
+/// load, and `DBM_SYNC_AT` a moment to read the line from afterwards: the
+/// only check that the timing went the right way, since a sync five seconds
+/// the wrong way reports the same number.
+///
+/// The row is reached with real keys (S, down to the subtitles page, in, and
+/// down to the row above the reset), the path `focus-activate-settings`
+/// answers and a click never touches. Then Enter again takes the sync back.
 pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
     use super::drive::chord;
     use slint::platform::Key;
@@ -284,10 +280,9 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                 }
                 // A beat for mpv to redraw the line at its new timing.
                 18 => report(&ui, &mpv, "after the sync"),
-                // Only where there is a sync to take back: with none, Enter
-                // on this row would start another. `DBM_SYNC_KEEP` leaves
-                // it standing, for a run that goes on to look at what was
-                // saved.
+                // Only where there is a sync to take back, or Enter would
+                // start another. `DBM_SYNC_KEEP` leaves it standing, for a run
+                // that goes on to look at what was saved.
                 19 if ui.get_sync_state() == 2 && std::env::var_os("DBM_SYNC_KEEP").is_none() => {
                     chord(&ui, &[], enter.as_str())
                 }
@@ -301,9 +296,8 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
     timer
 }
 
-/// The glass slider rows, as the panel would show them. Named rather than
-/// indexed in the output, so a registry reordering does not silently change
-/// what the run is reporting on.
+/// The glass slider rows, as the panel would show them, named in the output
+/// so a reordered registry can't silently change what is reported.
 fn report_row(ui: &MainWindow, label: &str) {
     let rows: Vec<String> = ui
         .get_glass_params()
@@ -332,9 +326,9 @@ fn report_motion(ui: &MainWindow, label: &str) {
 /// one back where it started so a run does not quietly rewrite the saved
 /// settings.
 ///
-/// The interesting part is not the property afterwards — that only says the
-/// click landed — but what the probe reads out of the framebuffer between the
-/// steps, and what mpv says `keep-open` became.
+/// What matters is not the property afterwards, which only says the click
+/// landed, but what the probe reads from the framebuffer between steps, and
+/// what mpv says `keep-open` became.
 pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -348,10 +342,8 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
             let flip = |name: &str, on: bool| eprintln!("dbm: {name} -> {on}");
             match step {
                 0 => ui.set_settings_open(true),
-                // The glass no longer has a switch, so the ambient border is
-                // the only effect left to flip. What the probe reads between
-                // these steps is still the point: glass is sampled out of the
-                // framebuffer under the panel that is open.
+                // Only the ambient border has a switch. The probe still
+                // samples the glass under the open panel between steps.
                 1 => {
                     ui.set_ambience_on(false);
                     ui.invoke_set_ambience(false);
@@ -366,9 +358,8 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
                     ui.set_autoplay(false);
                     ui.invoke_set_autoplay(false);
                 }
-                // A blocking read, which is only acceptable here: this is a
-                // one-shot diagnostic step, not the frame path. Autoplay has
-                // no picture to check, so mpv itself is the witness.
+                // A blocking read, acceptable only off the frame path.
+                // Autoplay has no picture to check, so mpv is the witness.
                 4 => eprintln!(
                     "dbm: autoplay off -> keep-open={:?}",
                     mpv.get_property("keep-open")
@@ -382,10 +373,9 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
                     mpv.get_property("keep-open")
                 ),
                 // Animations, the way the switch turns them off: `Motion`
-                // first, then the callback that saves it. What to read is the
-                // tokens every `animate` in the interface takes its duration
-                // from — all of them zero with the switch off, and back to
-                // their lengths with it on.
+                // first, then the callback that saves it. The tokens every
+                // `animate` reads should be zero with it off, and back with it
+                // on.
                 7 => {
                     ui.global::<Motion>().set_enabled(false);
                     ui.invoke_set_animations(false);
@@ -396,17 +386,11 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
                     ui.invoke_set_animations(true);
                     report_motion(&ui, "animations on");
                 }
-                // Reset. Drive one slider somewhere it would never be by
-                // default, then put the section back and read the row again.
-                // The row is the thing to check: the value reaching the
-                // pipeline is already covered by `DBM_PARAM_TEST`, and what
-                // broke before was the model, which lost the drag when it
-                // was rebuilt instead of updated in place.
-                //
-                // Tint found by key, as `param_test` finds it. This was the
-                // bare index 7, which stopped being tint when three rows left
-                // the glass page and has driven the ambient border's edge blur
-                // ever since — a row this report never prints.
+                // Reset: drive one slider somewhere it never is by default,
+                // put the section back, and read the row again. The row is
+                // what to check, since `DBM_PARAM_TEST` covers the pipeline,
+                // and a model rebuilt rather than updated in place would lose
+                // the drag. Tint is found by key, as in `param_test`.
                 9 => {
                     let tint = crate::settings::REGISTRY
                         .iter()

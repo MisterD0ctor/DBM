@@ -1,44 +1,34 @@
 //! The desktop's media controls, over D-Bus.
 //!
 //! The Linux counterpart to `smtc`, doing the same two things: transport
-//! buttons in, what is playing out. Here both travel over MPRIS — a bus name
-//! under `org.mpris.MediaPlayer2.`, two interfaces on one object, and a
+//! buttons in, what is playing out. Both travel over MPRIS: a bus name under
+//! `org.mpris.MediaPlayer2.`, two interfaces on one object, and a
 //! `PropertiesChanged` signal whenever something moves. GNOME's media
-//! section, Plasma's media applet, `playerctl`, the play/pause key on a
-//! keyboard and the one on a headset are all clients of that.
+//! section, Plasma's media applet, `playerctl` and the media keys are all
+//! clients of it.
 //!
 //! Why this is a module of its own rather than a `cfg` arm of `smtc`:
 //!
-//! * Nothing has to be retried from the frame path. Windows registers
-//!   against a window handle that does not exist for the first few frames; a
-//!   bus name is claimed at startup and has nothing to wait for.
-//! * A D-Bus connection is a socket with an authentication handshake and
-//!   round trips over it, and nothing blocks the frame path. So the
-//!   connection lives on a thread of its own and hears about the player down
-//!   a channel. `publish` compares, and a few times a minute sends.
-//! * State is *pulled* here as well as pushed. Windows is told and
-//!   remembers; a client on the bus may ask for any property at any moment,
-//!   so the answers have to be sitting somewhere the bus thread can read
-//!   them — which is what the `Shown` inside the served object is.
+//! * Nothing has to be retried from the frame path: a bus name is claimed at
+//!   startup, with no window handle to wait for.
+//! * A D-Bus connection is a socket with a handshake and round trips, and
+//!   nothing may block the frame path, so the connection lives on a thread of
+//!   its own and hears about the player down a channel.
+//! * State is pulled as well as pushed: a client may ask for any property at
+//!   any moment, so the answers sit where the bus thread can read them, in
+//!   the `Shown` inside the served object.
 //!
-//! Position is the exception to the last of those, and the specification
-//! makes it one: it moves continuously, it is excluded from
-//! `PropertiesChanged`, and clients read it when they want it. It rides an
-//! atomic that the frame path stores into and the bus thread loads out of,
-//! so it costs one store a frame and needs no signal behind it.
+//! Position is the exception the specification makes: it moves continuously,
+//! is excluded from `PropertiesChanged`, and clients read it when they want
+//! it. It rides an atomic the frame path stores and the bus thread loads.
 //!
-//! What the whole outbound half rests on is a frame. `publish` is called from
-//! the render driver because that is where mpv's event stream is drained, and
-//! a frame happens only when there is something to draw. While a film plays,
-//! or is paused with the window on screen, there always is, and the bus keeps
-//! up — measured: one `PropertiesChanged` per real change, four in a run that
-//! paused, played, sought and changed file, and none in between. When nothing
-//! is drawn, the last thing said stands. Asking Slint for a frame does not
-//! change that: with no video arriving the request is swallowed, and only a
-//! window-system event — a resize, a pointer crossing the window — produces
-//! one. It is why `Player::stop` pauses rather than unloading, and it is the
-//! same limitation the Windows side lives with, since `publish` sits in the
-//! same place there.
+//! The outbound half rests on frames: `publish` is called from the render
+//! driver, where mpv's events are drained, and a frame happens only when
+//! there is something to draw. While a film plays, or is paused with the
+//! window on screen, there always is; when nothing is drawn the last thing
+//! said stands, and asking Slint for a frame doesn't change that. Hence
+//! `Player::stop` pauses rather than unloading. The Windows side has the
+//! same limitation.
 
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -58,11 +48,10 @@ use crate::playback::commands;
 use crate::playback::mpv::Mpv;
 use crate::playback::state::PlayerState;
 
-/// What this application is called on a Linux desktop: the name of its
-/// desktop entry, the Wayland app id the window is tagged with, and the tail
-/// of the bus name below. All three have to be the same string or the
-/// desktop cannot tell that the window, the icon and the media widget belong
-/// to one program.
+/// What this application is called on a Linux desktop: its desktop entry's
+/// name, the window's Wayland app id, and the tail of the bus name below. All
+/// three must match, or the desktop can't tell that the window, the icon and
+/// the media widget belong to one program.
 pub const APP_ID: &str = "io.github.MisterD0ctor.DBM";
 
 /// The object both interfaces sit on. Fixed by the specification: a client
@@ -70,43 +59,34 @@ pub const APP_ID: &str = "io.github.MisterD0ctor.DBM";
 const PATH: &str = "/org/mpris/MediaPlayer2";
 const PLAYER: &str = "org.mpris.MediaPlayer2.Player";
 
-/// The trackid prefix. `APP_ID` with its dots turned into path separators,
-/// spelled out because an object path is not a bus name and nothing should
-/// have to work that out at run time.
+/// The trackid prefix: `APP_ID` with its dots turned into path separators,
+/// spelled out rather than derived at run time.
 const TRACK: &str = "/io/github/MisterD0ctor/DBM/track/";
 
 /// How far the position may move, beyond what playing explains, before it is
 /// a seek.
 ///
-/// Half of the smallest seek the player offers, which is what the line has to
-/// catch: every seek anything here can ask for is a second or more. Drawn at
-/// half of it rather than just under it to leave room for the other thing
-/// that moves the clock without a seek — ending a pause, where mpv's position
-/// can step back by however much audio was buffered.
+/// Half of the smallest seek the player offers (every seek here is a second
+/// or more), leaving room for what moves the clock without a seek: ending a
+/// pause, where mpv's position can step back by the buffered audio.
 ///
-/// Being wrong either way is survivable, but not equally: a `Seeked` nobody
-/// needed carries the true position and costs a client one redraw, while a
-/// seek that goes unreported leaves every progress bar on the desktop wrong
-/// until something else happens. So when in doubt, say so.
+/// A needless `Seeked` costs a client one redraw, while a missed seek leaves
+/// every progress bar on the desktop wrong, so when in doubt, report.
 const JUMP: f64 = commands::FINE_SEEK_STEP / 2.0;
 
 /// The bus name this player owns while it runs.
 ///
-/// Suffixed with the whole app id rather than something shorter for the sake
-/// of the Flatpak, which is how most people will have this: its D-Bus filter
-/// only lets a sandboxed application own `org.mpris.MediaPlayer2.<app id>`
-/// and names underneath it. A prettier `org.mpris.MediaPlayer2.dbm` would be
-/// refused inside the sandbox and work everywhere else, which is the worst
-/// of both.
+/// Suffixed with the whole app id for the Flatpak, whose D-Bus filter only
+/// lets a sandboxed application own `org.mpris.MediaPlayer2.<app id>` and
+/// names under it.
 fn bus_name() -> String {
     format!("org.mpris.MediaPlayer2.{APP_ID}")
 }
 
 /// The name that was actually claimed, once the bus thread has claimed it.
 ///
-/// A process owns one of these or none, so a global is what it is. Read by
-/// `DBM_MPRIS_TEST`, which has to address the player from outside to be
-/// worth anything.
+/// A process owns one or none, so a global. Read by `DBM_MPRIS_TEST`, which
+/// addresses the player from outside.
 static CLAIMED: OnceLock<String> = OnceLock::new();
 
 pub fn claimed() -> Option<&'static str> {
@@ -119,8 +99,7 @@ pub fn claimed() -> Option<&'static str> {
 
 pub struct Controls {
     /// Where playback is, in microseconds. Written every frame, read by the
-    /// bus thread whenever a client asks — see the note about Position at
-    /// the top.
+    /// bus thread whenever a client asks (see the module's note on Position).
     position: Arc<AtomicI64>,
     sending: RefCell<Sending>,
 }
@@ -133,16 +112,14 @@ struct Sending {
     /// The last thing said, and what the served object therefore holds.
     shown: Shown,
     /// When the position was last looked at, what it was, and whether the
-    /// film was paused then. The three together are what makes a jump
-    /// recognisable.
+    /// film was paused then, which together make a jump recognisable.
     sampled: Option<(Instant, f64, bool)>,
 }
 
 /// Everything the frame path has to tell the bus thread.
 enum Word {
     State(Shown),
-    /// A jump, in microseconds — the one thing `PropertiesChanged` does not
-    /// carry.
+    /// A jump, in microseconds, which `PropertiesChanged` doesn't carry.
     Seeked(i64),
 }
 
@@ -152,8 +129,7 @@ impl Controls {
         let (words, heard) = mpsc::channel();
 
         // Detached: the thread ends when the sender above is dropped, and
-        // dropping the connection with it is what releases the bus name.
-        // There is nothing to join for and nothing to collect.
+        // dropping the connection with it releases the bus name.
         let spawned = std::thread::Builder::new().name("dbm-mpris".into()).spawn({
             let position = position.clone();
             move || serve(heard, mpv, position)
@@ -174,10 +150,9 @@ impl Controls {
 
     /// Tell the bus what is playing, if it has changed.
     ///
-    /// The window is unused and stays in the signature because the other
-    /// half of this — `smtc` — registers against it. `moved` says whether
-    /// any mpv property changed at all; without it this would compare a
-    /// dozen fields against a state that cannot have moved.
+    /// The window is unused, but in the signature because `smtc` registers
+    /// against it. `moved` says whether any mpv property changed, so a state
+    /// that can't have moved isn't compared field by field.
     pub fn publish(&self, _window: &slint::Window, player: &PlayerState, moved: bool) {
         self.position
             .store(micros(player.time_pos), Ordering::Relaxed);
@@ -186,10 +161,9 @@ impl Controls {
         if sending.words.is_none() {
             return;
         }
-        // Every frame, not only the ones that moved: the test is against the
-        // wall clock, so the sample has to be the frame before and not
-        // whenever something last changed. Unpausing after a minute would
-        // otherwise look like a minute of position appearing at once.
+        // Every frame, not only the ones that moved, since the test is against
+        // the wall clock and must sample the frame before, or unpausing after
+        // a minute would look like a minute of position appearing at once.
         if let Some(position) = sending.jumped(player) {
             sending.say(Word::Seeked(position));
         }
@@ -210,8 +184,8 @@ impl Sending {
             return;
         };
         if words.send(word).is_err() {
-            // The bus thread gave up on the connection. Nothing more will be
-            // heard, so stop composing things to say.
+            // The bus thread gave up on the connection, so stop composing
+            // things to say.
             self.words = None;
         }
     }
@@ -219,11 +193,10 @@ impl Sending {
     /// Where playback has landed, when it landed there by some other means
     /// than playing.
     ///
-    /// Worked out rather than reported, because nothing tells this module
-    /// that a seek happened: the frame path deals in positions, not the
-    /// commands that produced them. The test is against the wall clock and
-    /// the speed, so ordinary playing never trips it — see `JUMP` for where
-    /// the line sits and why it is not the same in both directions.
+    /// Worked out rather than reported, because the frame path deals in
+    /// positions, not the commands that produced them. The test is against
+    /// the wall clock and the speed, so ordinary playing never trips it (see
+    /// `JUMP`).
     fn jumped(&mut self, player: &PlayerState) -> Option<i64> {
         let now = Instant::now();
         let sample = (now, player.time_pos, player.paused);
@@ -232,26 +205,20 @@ impl Sending {
         if self.shown.switched(player) {
             return None;
         }
-        // Nothing plays while a film is paused, so the clock is given nothing
-        // to explain: a ten-second seek made during a thirty-second pause
-        // would otherwise sit well inside what thirty seconds of playing
-        // could have covered, and pass for playback. Either end paused is
-        // enough, because frames stop while a film is paused — the sample
-        // before can be from the far side of the whole pause.
+        // Nothing plays while paused, so the clock explains nothing, or a
+        // seek during a long pause would pass for playback. Either end paused
+        // counts, since frames stop while paused and the sample before can be
+        // from the far side of the pause.
         let played = if was_paused || player.paused {
             0.0
         } else {
             now.duration_since(then).as_secs_f64() * self.shown.rate
         };
-        // Asymmetric, because playback is: it can carry the position forward
-        // at most as fast as the clock, and it can never carry it back. So a
-        // seek is a position further on than playing could have reached, or
-        // anywhere behind where it started. Falling *short* of the clock is
-        // the third case and is not a seek — it is a stall, which is
-        // ordinary: a frame is only published when one is drawn, and when
-        // nothing is drawn mpv's own output blocks and the film waits with
-        // it. Measured before this was asymmetric: every stalled second
-        // produced a `Seeked` saying the film had jumped backwards by it.
+        // Asymmetric, because playback is: it carries the position forward at
+        // most as fast as the clock, and never back. So a seek is further on
+        // than playing could reach, or anywhere behind. Falling short of the
+        // clock is a stall, not a seek: while nothing is drawn, mpv's output
+        // blocks and the film waits with it.
         let moved = player.time_pos - before;
         (moved > played + JUMP || moved < -JUMP).then(|| micros(player.time_pos))
     }
@@ -263,20 +230,20 @@ impl Sending {
 
 /// The player as the bus sees it.
 ///
-/// Carries what the name was parsed *from* as well as the name itself, so
-/// that `describes` can answer without parsing it again — see there.
+/// Carries what the name was parsed from as well as the name, so
+/// `describes` can answer without parsing it again.
 #[derive(Clone)]
 struct Shown {
-    /// Which file this is, counted from the start of the run rather than
-    /// taken from the playlist position: the same position is a different
-    /// file once the list has been replaced, and `SetPosition` leans on this
-    /// to refuse a seek meant for the file before.
+    /// Which file this is, counted from the start of the run rather than the
+    /// playlist position, which is a different file once the list is
+    /// replaced. `SetPosition` uses it to refuse a seek meant for the file
+    /// before.
     track: u64,
     /// mpv's `path`, as it was given. Empty when nothing is loaded.
     path: String,
     /// mpv's `media-title`, which arrives after the path does.
     media_title: String,
-    /// The name as the bar shows it — `PlayerState::display_title`.
+    /// The name as the bar shows it (`PlayerState::display_title`).
     title: String,
     /// Length in microseconds, zero when it is not known yet.
     length: i64,
@@ -290,9 +257,9 @@ struct Shown {
 }
 
 impl Default for Shown {
-    /// Nothing playing — which is a true and complete answer, not a
-    /// placeholder, so it is what the object is served with and the first
-    /// real state is a change from it like any other.
+    /// Nothing playing, a true answer rather than a placeholder, so the
+    /// object is served with it and the first real state is a change like
+    /// any other.
     fn default() -> Self {
         Self {
             track: 0,
@@ -327,11 +294,9 @@ impl Shown {
 
     /// Whether the player still says what this was built from.
     ///
-    /// Deliberately not a comparison against a freshly built `Shown`:
-    /// building one parses a title out of a release name, which allocates,
-    /// and while a film plays every frame moves the position and so reaches
-    /// this line. So the test is against what the title is parsed *from*,
-    /// and the parse happens only when one of those has changed.
+    /// Not a comparison against a freshly built `Shown`, since building one
+    /// parses a title, which allocates, and while a film plays every frame
+    /// reaches here. So the test is against what the title is parsed from.
     fn describes(&self, player: &PlayerState) -> bool {
         self.path == player.path.as_deref().unwrap_or_default()
             && self.media_title == player.media_title.as_deref().unwrap_or_default()
@@ -372,8 +337,7 @@ impl Shown {
     fn metadata(&self) -> Meta {
         let mut meta = Meta::new();
         if !self.has_file() {
-            // Empty is what the specification asks for when there is no
-            // track. A trackid pointing at nothing is not.
+            // Empty, as the specification asks for when there is no track.
             return meta;
         }
         meta.insert("mpris:trackid", Value::from(self.trackid()));
@@ -381,10 +345,8 @@ impl Shown {
             meta.insert("mpris:length", Value::from(self.length));
         }
         meta.insert("xesam:title", Value::from(self.title.clone()));
-        // Only an absolute path can become a URI. mpv reports the path it
-        // was given, and the one route by which that can be relative is an
-        // argument on the command line; a client offered `file://film.mkv`
-        // would be worse off than one offered nothing.
+        // Only an absolute path can become a URI, and mpv reports the path it
+        // was given, which a command-line argument can leave relative.
         if self.path.starts_with('/') {
             meta.insert("xesam:url", Value::from(file_uri(&self.path)));
         }
@@ -398,9 +360,8 @@ type Meta = HashMap<&'static str, Value<'static>>;
 /// What moved, for one `PropertiesChanged`.
 ///
 /// One signal carrying everything rather than the generated per-property
-/// helpers, which emit one apiece: opening a file moves four of these at
-/// once, and a client redrawing on each would draw three states that were
-/// never true.
+/// helpers, which emit one apiece, so a client doesn't redraw through states
+/// that were never true.
 fn changes(before: &Shown, now: &Shown) -> HashMap<&'static str, Value<'static>> {
     let mut changed = HashMap::new();
     if before.status() != now.status() {
@@ -444,19 +405,16 @@ struct Root;
 impl Root {
     /// Bring the window forward.
     ///
-    /// Nothing, deliberately, and `can_raise` says so out loud. Wayland will
-    /// not let an application lift its own window without an activation
-    /// token from the click that asked for it, and there is no click here —
-    /// the request arrives from another process. A button that did nothing
-    /// would be worse than one the desktop knows not to draw.
+    /// Nothing, and `can_raise` says so: Wayland won't let an application
+    /// lift its own window without an activation token from the click that
+    /// asked, and this request comes from another process.
     fn raise(&self) {}
 
     /// Close the player.
     ///
-    /// Back through the event loop rather than straight out: this arrives on
-    /// a bus thread, and it ends up in exactly the call the window's own
-    /// close makes, which is what lets mpv write the resume position on the
-    /// way out.
+    /// Back through the event loop rather than straight out, since this
+    /// arrives on a bus thread, and the window's own close is what lets mpv
+    /// write the resume position.
     fn quit(&self) {
         let _ = slint::invoke_from_event_loop(|| {
             let _ = slint::quit_event_loop();
@@ -488,10 +446,9 @@ impl Root {
         APP_ID
     }
 
-    /// Empty, both of them, which is how a player says it will not open
-    /// things for you: `OpenUri` is not offered, because opening a file here
-    /// means scanning its folder into a playlist on the UI thread and is a
-    /// long way from handing a path to a decoder.
+    /// Both empty, which says the player won't open things for you: `OpenUri`
+    /// isn't offered, since opening a file here means scanning its folder
+    /// into a playlist, a long way from handing a path to a decoder.
     #[zbus(property)]
     fn supported_uri_schemes(&self) -> &'static [&'static str] {
         &[]
@@ -508,24 +465,20 @@ struct Player {
     mpv: Arc<Mpv>,
     position: Arc<AtomicI64>,
     /// The last thing the frame path said. Every property below is a view of
-    /// it; nothing here reads mpv, because a property may be asked for at
-    /// any moment and a read of mpv blocks on its core lock.
+    /// it, since a property may be asked for at any moment, and reading mpv
+    /// blocks on its core lock.
     shown: Shown,
 }
 
-/// Every method below **runs on a bus thread**, not the UI thread — the same
-/// arrangement as the Windows button handler, and for the same reason. mpv's
-/// commands are queued and thread-safe, so a press is handed over without
-/// touching anything of ours; marshalling it to the UI thread would add a
-/// hop, and a button pressed while the interface is asleep would wait for a
-/// frame that is not coming.
+/// Every method below **runs on a bus thread**, not the UI thread, as the
+/// Windows button handler does. mpv's commands are queued and thread-safe,
+/// and a press marshalled to the UI thread while the interface is asleep
+/// would wait for a frame that isn't coming.
 #[zbus::interface(name = "org.mpris.MediaPlayer2.Player")]
 impl Player {
-    /// Skipping is stepping *and* playing, the same as the button at the end
-    /// of a file. Guarded by the same answer `CanGoNext` gives: the
-    /// specification says a method whose `Can…` is false must do nothing,
-    /// and a widget with a live-looking button that restarts a single film
-    /// is exactly the confusion that rule exists to prevent.
+    /// Skipping is stepping and playing, as the button at the end of a file
+    /// does. Guarded by the same answer `CanGoNext` gives, since the
+    /// specification says a method whose `Can…` is false must do nothing.
     fn next(&self) {
         if self.shown.playlist {
             commands::advance(&self.mpv, 1);
@@ -552,32 +505,16 @@ impl Player {
         }
     }
 
-    /// Stop, which here means pause. The difference is deliberate and was
-    /// measured rather than assumed.
+    /// Stop, which here means pause.
     ///
-    /// MPRIS means "stop and rewind to the beginning" by it, and mpv has a
-    /// `stop` command that does exactly that. This called it for a while.
-    /// What that turned up: a player with no film loaded draws nothing, and
-    /// everything the bus is told rides a frame — so the state stayed where
-    /// the last frame left it. The film unloaded, mpv agreed that it had
-    /// (`playlist-pos` went to -1), and the bus went on saying `Playing`
-    /// with the old title. Asking Slint for a frame does not get one: with
-    /// no video arriving there is nothing for the compositor to present and
-    /// the request is swallowed. A one-pixel resize did get one, and the
-    /// state corrected itself in the same breath — which is how the cause
-    /// was pinned down, and no way to run a player.
-    ///
-    /// Rewinding without unloading is the other tempting answer and is
-    /// worse: the resume checkpoint would write that zero over the place the
-    /// person had got to, so a button pressed by accident on a headset would
-    /// lose their evening.
-    ///
-    /// So the choice is between a state that lies for as long as nobody
-    /// touches the window and one that does less than the specification asks
-    /// for. This is the second: the sound stops, which is what somebody
-    /// pressing it wants, and everything the bus reports afterwards is true.
-    /// Windows does not implement Stop at all — `smtc::pressed` lets it fall
-    /// through — so this is no less than the other side manages.
+    /// MPRIS means stop and rewind, and mpv's `stop` does that by unloading.
+    /// But a player with no film draws nothing, and everything the bus is
+    /// told rides a frame, so the bus would go on saying `Playing` with the
+    /// old title until the window was touched. Rewinding without unloading is
+    /// worse: the resume checkpoint would write the zero over the person's
+    /// place. Pausing stops the sound, which is what pressing it wants, and
+    /// keeps what the bus reports true. Windows doesn't implement Stop at all
+    /// (`smtc::pressed` lets it fall through).
     fn stop(&self) {
         commands::set_pause(&self.mpv, true);
     }
@@ -592,10 +529,9 @@ impl Player {
 
     /// Seek to a point in a named track.
     ///
-    /// The name is the point of it: a client that read the position, drew a
-    /// bar and had it clicked a moment after the file changed would
-    /// otherwise land the click in the new file at a point that meant
-    /// something in the old one.
+    /// The name matters: a bar clicked a moment after the file changed would
+    /// otherwise land in the new file at a point that meant something in the
+    /// old one.
     fn set_position(&self, track: ObjectPath<'_>, position: i64) {
         if self.shown.seekable && track == self.shown.trackid() {
             commands::seek_to(&self.mpv, position as f64 / 1e6);
@@ -614,10 +550,9 @@ impl Player {
 
     /// Where playback is, in microseconds.
     ///
-    /// The one property with no signal behind it. MPRIS excludes it from
-    /// `PropertiesChanged` because it moves with the film, so clients read
-    /// it when they need it and extrapolate in between — which is what
-    /// `Seeked` is for.
+    /// The one property with no signal: MPRIS excludes it from
+    /// `PropertiesChanged` because it moves with the film, so clients read it
+    /// when needed and extrapolate in between, with `Seeked` for the jumps.
     #[zbus(property(emits_changed_signal = "false"))]
     fn position(&self) -> i64 {
         self.position.load(Ordering::Relaxed)
@@ -632,8 +567,8 @@ impl Player {
         self.shown.volume
     }
 
-    /// Unmutes, because `commands::set_volume` does: a client that places a
-    /// level has said what it wants to hear.
+    /// Unmutes, as `commands::set_volume` does, since a client that places a
+    /// level wants to hear it.
     #[zbus(property)]
     fn set_volume(&self, volume: f64) {
         commands::set_volume(&self.mpv, volume.max(0.0) * 100.0);
@@ -693,9 +628,8 @@ impl Player {
         self.shown.seekable
     }
 
-    /// Whether the player takes orders at all. It does; the individual
-    /// `Can…` answers above are what say whether a given one makes sense
-    /// just now.
+    /// Whether the player takes orders at all. It does; the `Can…` answers
+    /// above say whether a given one makes sense now.
     #[zbus(property)]
     fn can_control(&self) -> bool {
         true
@@ -770,20 +704,18 @@ fn claim(mpv: Arc<Mpv>, position: Arc<AtomicI64>) -> zbus::Result<Connection> {
         )?
         .build()?;
 
-    // The name is asked for here rather than through the builder so that
-    // `DoNotQueue` can be set. Without it the bus parks a request for a name
-    // somebody else holds and reports success, and a second copy of the
-    // player would sit in a queue nobody ever looks at, believing itself
-    // registered. With it, a taken name is an error that can be answered.
+    // Asked for here rather than through the builder, so `DoNotQueue` can be
+    // set. Otherwise the bus queues a request for a held name and reports
+    // success, leaving a second copy believing itself registered.
     let mut name = bus_name();
     let mut asked = conn.request_name_with_flags(
         name.as_str(),
         zbus::fdo::RequestNameFlags::DoNotQueue.into(),
     );
     if matches!(asked, Err(zbus::Error::NameTaken)) {
-        // Another copy is already running. The specification's own answer:
-        // add the process id, which the desktop reads as a second instance
-        // of the same application rather than a different one.
+        // Another copy is already running, so, as the specification says,
+        // add the process id, which reads as a second instance of the same
+        // application.
         name = format!("{name}.instance{}", std::process::id());
         asked = conn.request_name_with_flags(
             name.as_str(),
@@ -804,10 +736,8 @@ fn claim(mpv: Arc<Mpv>, position: Arc<AtomicI64>) -> zbus::Result<Connection> {
 /// The four answers that are arithmetic on mpv's own numbers rather than a
 /// copy of one.
 ///
-/// Each is here rather than written out where it is wanted because it is
-/// wanted twice — once to build a `Shown` and once to ask whether an existing
-/// one still holds — and the second is only worth anything for as long as it
-/// asks exactly the question the first answered.
+/// Each is written once because it is wanted twice, to build a `Shown` and
+/// to ask whether one still holds, and the two must ask the same question.
 fn playlist(player: &PlayerState) -> bool {
     player.playlist_count > 1
 }
@@ -837,9 +767,8 @@ fn micros(seconds: f64) -> i64 {
 
 /// A path as the `file://` URI `xesam:url` has to be.
 ///
-/// Written out rather than taken from a crate: the rule is one line — every
-/// byte outside the unreserved set becomes a percent triple — and a
-/// dependency for it would be a dependency to audit and to vendor. Bytes
+/// Written out rather than taken from a crate, since the rule is one line:
+/// every byte outside the unreserved set becomes a percent triple. Bytes
 /// rather than characters, so a name in any encoding survives intact.
 fn file_uri(path: &str) -> String {
     let mut uri = String::from("file://");

@@ -5,10 +5,9 @@
 //! its directory's videos with the chosen one selected, and a directory
 //! becomes everything beneath it.
 //!
-//! All of this is filesystem work — `read_dir` on a network share or a
-//! directory of thousands can take seconds — so it runs on the worker thread
-//! and never on the frame path. Nothing here touches mpv or the UI; it
-//! produces a plain list, and the caller decides what to do with it.
+//! All of this is filesystem work (`read_dir` on a network share or a
+//! directory of thousands can take seconds), so it runs on the worker thread.
+//! Nothing here touches mpv or the UI; it produces a plain list.
 
 use crate::lang::{fill, tr};
 use crate::playback::arrival::Saved;
@@ -17,16 +16,15 @@ use std::fs;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
-/// Extensions treated as video. Matched case-insensitively. Public so the
-/// open dialog can offer the same set as a filter — one list, so a file the
-/// dialog shows is never one the scanner then ignores.
+/// Extensions treated as video, matched case-insensitively. Public so the
+/// open dialog filters by the same list, and never shows a file the scanner
+/// then ignores.
 pub const VIDEO_EXTENSIONS: &[&str] = &[
     "mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "mpg", "mpeg", "ts", "m2ts",
 ];
 
 /// A folder's own name, for a message that has to fit on one line. The full
-/// path goes to the log; a capsule in the middle of the picture gets the part
-/// that identifies it to the person who opened it.
+/// path goes to the log.
 fn folder_name(dir: &Path) -> String {
     dir.file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -41,9 +39,9 @@ pub fn is_video_file(path: &Path) -> bool {
 
 /// Scan a path into a playlist and write it out for mpv's `loadlist`.
 ///
-/// Runs on the worker: this is `read_dir` over a directory that may be huge
-/// or on a network share. The command line and the open dialog both arrive
-/// here, so there is one answer to what a path means.
+/// Runs on the worker, since it reads a directory that may be huge or on a
+/// network share. The command line and the open dialog both arrive here, so
+/// there is one answer to what a path means.
 pub fn prepare(path: &Path) -> Result<Prepared, String> {
     let selection = resolve(path)?;
     let m3u = crate::paths::playlist_m3u();
@@ -74,11 +72,11 @@ pub struct Prepared {
     /// Which entry to start on.
     pub start: usize,
     pub count: usize,
-    /// That entry's path, and what is saved for it — see `arrival`.
+    /// That entry's path, and what is saved for it (see `arrival`).
     pub first: String,
     pub saved: Saved,
-    /// Whether arriving at it with a place saved asks which. Not when the
-    /// opening already said: the way in's Continue.
+    /// Whether arriving at it with a place saved asks where to start, which
+    /// it doesn't after the way in's Continue.
     pub ask: bool,
 }
 
@@ -131,16 +129,14 @@ pub fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, String> {
 
 /// Put videos in the order a person watches them.
 ///
-/// Not the order their bytes sort in. `Show - 100` sorted before `Show - 11`,
-/// a recursive scan put `Season 10` between `Season 1` and `Season 2`, and an
-/// upper-case release group jumped the queue — and autoplay, Next, the dimmed
-/// ends of the bar and the end-of-season pill all trust this order.
+/// Not the order their bytes sort in, which puts `Show - 100` before
+/// `Show - 11` and `Season 10` between `Season 1` and `Season 2`; autoplay,
+/// Next and the end-of-season pill all trust this order.
 ///
 /// A show's files are kept together, where the first of them falls in name
-/// order, and go among themselves by the numbering their names carry: season,
-/// then episode. Everything else is compared the way Explorer compares names,
-/// digit runs as numbers and case ignored. Two release groups' names used to
-/// split one show around another, so autoplay played half of each in turn.
+/// order, and ordered by the season and episode their names carry, so two
+/// release groups can't split one show around another. Everything else is
+/// compared as Explorer compares names: digit runs as numbers, case ignored.
 pub fn watching_order(mut videos: Vec<PathBuf>) -> Vec<PathBuf> {
     videos.sort_by(|a, b| natural_path(a, b));
     let keys: Vec<Option<(String, u32, u32)>> = videos
@@ -310,10 +306,9 @@ pub fn next_season(current: &Path) -> Option<(PathBuf, u32)> {
 
 /// Videos in `dir` and everything beneath it, sorted.
 ///
-/// Iterative rather than recursive so a deep or symlink-looped tree cannot
-/// blow the stack, and unreadable subdirectories are skipped rather than
-/// failing the whole scan — one permission-denied folder should not stop a
-/// library from loading.
+/// Iterative rather than recursive, so a deep or symlink-looped tree can't
+/// blow the stack, and unreadable subdirectories are skipped, so one
+/// permission-denied folder doesn't stop a library loading.
 fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, String> {
     let mut videos = Vec::new();
     let mut stack = vec![dir.to_path_buf()];
@@ -341,9 +336,8 @@ fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, String> {
 
 /// Write the list as an M3U for mpv to `loadlist`.
 ///
-/// One command regardless of length. Appending a thousand files one
-/// `loadfile` at a time would work, but this is a single round trip and mpv
-/// parses it far faster than it would service a thousand commands.
+/// One command regardless of length, which mpv parses far faster than it
+/// would service a `loadfile` per file.
 pub fn write_m3u(videos: &[PathBuf], dest: &Path) -> Result<(), String> {
     if let Some(parent) = dest.parent() {
         let _ = fs::create_dir_all(parent);
@@ -364,10 +358,9 @@ mod tests {
 
     /// The installer offers to open these; the player has to mean it.
     ///
-    /// Two lists in two languages that must agree, so rather than generate
-    /// one from the other this reads the installer and compares. Adding a
-    /// format to the player and forgetting the installer is then a failing
-    /// test rather than a file type that opens a player which refuses it.
+    /// Two lists in two languages that must agree, so this reads the
+    /// installer and compares, and a format added to only one is a failing
+    /// test.
     #[test]
     fn the_installer_registers_exactly_what_the_player_opens() {
         let nsi = include_str!("../../../../packaging/death-by-mpv.nsi");

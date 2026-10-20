@@ -1,25 +1,20 @@
 //! When the on-screen chrome is visible.
 //!
-//! Split of responsibility: this owns the *clock* — how long since anything
-//! happened — and the UI owns the *policy* built on it, because whether a
-//! given panel should be up depends on things (an open menu, a hovered
-//! button) that Slint already knows and Rust would have to be told about.
+//! This owns the clock (how long since anything happened) and the UI owns the
+//! policy built on it, because whether the chrome should be up depends on
+//! things, like an open menu, that Slint already knows.
 //!
 //! Activity arrives through the `Chrome` global rather than a callback on the
 //! window, so a button or menu row buried inside a reusable component can
 //! report it without every call site threading a callback down.
 //!
-//! The pointer is hooked up here too. It is the same policy wearing another
-//! face — the cursor goes when the chrome does — and it is the same clock
-//! that decides, so the two cannot drift apart and disagree about whether
-//! anything has happened lately. What that takes on each platform lives in
-//! `cursor`.
+//! The pointer is hooked up here too: it goes when the chrome does, on the
+//! same clock, so the two can't disagree. What that takes on each platform is
+//! in `cursor`.
 //!
-//! The subtlety that makes this work at all: Slint's `TouchArea::moved` only
-//! fires while the pointer is *held down*. Plain hovering has to come through
-//! `pointer-event`, which is delivered for `PointerEventKind::Move`
-//! unconditionally. Using `moved` here means the chrome only ever wakes on a
-//! drag — which is exactly the bug this module was extracted to fix.
+//! Activity has to come through `pointer-event`, not `TouchArea::moved`,
+//! which only fires while a button is held, so the chrome would only wake on
+//! a drag.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -34,26 +29,18 @@ pub const HIDE_AFTER: Duration = Duration::from_millis(3000);
 
 /// How long a hand counts as still on the controls after it last moved.
 ///
-/// A second, much shorter clock off the same bump, and the two want very
-/// different lengths because they answer different questions. `HIDE_AFTER`
-/// asks whether to *show* the chrome, and three seconds is how long a person
-/// expects it to stay after they stop. This asks whether anything is moving
-/// under the pointer right now — see `driver::keep_the_interface_moving` —
-/// and there the honest answer is a quarter of a second, because that is how
-/// long after the last mouse event anything can still be following it.
-///
-/// Comfortably longer than the gap between mouse events at any report rate,
-/// so a drag or a hover never falls through the gap and stutters; short
-/// enough that a hand let go of the mouse stops costing frames almost at
-/// once.
+/// A second, much shorter clock off the same bump. `HIDE_AFTER` is how long
+/// a person expects the chrome to stay after they stop; this is whether
+/// anything is still following the pointer (see
+/// `driver::keep_the_interface_moving`). Longer than the gap between mouse
+/// events at any report rate, so a drag never stutters, and short enough that
+/// a hand off the mouse stops costing frames almost at once.
 pub const STIR_FOR: Duration = Duration::from_millis(250);
 
 /// How often the idle clock is checked.
 ///
-/// Polled rather than re-armed on each activity: activity arrives on every
-/// mouse move, and restarting a timer that often costs more than one cheap
-/// comparison. The cost of polling is a `Duration` subtraction four times a
-/// second.
+/// Polled rather than re-armed on each activity, which arrives on every
+/// mouse move, where restarting a timer costs more than a comparison.
 const POLL: Duration = Duration::from_millis(200);
 
 /// Shared "when did something last happen".
@@ -88,8 +75,8 @@ impl Default for Activity {
 
 /// Connect the activity global and start the idle clock.
 ///
-/// The returned timer must be kept alive; dropping it stops the clock and the
-/// chrome would never hide again.
+/// The returned timer must be kept alive, or the chrome would never hide
+/// again.
 #[must_use]
 pub fn install(ui: &MainWindow, activity: Activity) -> slint::Timer {
     {
@@ -99,9 +86,8 @@ pub fn install(ui: &MainWindow, activity: Activity) -> slint::Timer {
 
     {
         // The interface decides; this only carries it to the window. Held by
-        // the callback rather than by the timer below because the pointer has
-        // to come back the moment the hand moves, and the timer would make
-        // that up to a poll late.
+        // the callback rather than the timer below, which would bring the
+        // pointer back up to a poll late.
         let mut pointer = crate::platform::cursor::Pointer::new();
         // Weak, because this callback is owned by the window it asks about.
         let weak = ui.as_weak();

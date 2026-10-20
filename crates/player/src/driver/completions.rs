@@ -2,7 +2,7 @@
 //!
 //! Every variant of [`Completion`] is answered here, in one `match`, so
 //! adding a kind of background job is a compile error until its result has
-//! somewhere to go — see `worker`.
+//! somewhere to go (see `worker`).
 
 use super::{say, warn, Driver, Gpu};
 use crate::interface::format;
@@ -130,8 +130,8 @@ impl Driver {
                         End::Opening => self.player.intro_heard = Some((heard.path, span)),
                         End::Closing => self.player.credits_heard = Some((heard.path, span.0)),
                     }
-                    // Nothing else may have moved — a paused film reports
-                    // nothing — and the pill should not wait for it to.
+                    // Pushed here, since a paused film reports nothing else
+                    // that would.
                     crate::interface::sync::push_scalars(ui, &self.player);
                 }
                 false
@@ -174,10 +174,9 @@ impl Driver {
 
     /// Play the subtitles the way a sync found, and say what came of it.
     ///
-    /// Every outcome is said. The row that asked has been reading
-    /// "Listening" for some seconds, and the two answers that change nothing
-    /// on screen — already in step, and no answer at all — would otherwise
-    /// be indistinguishable from a button that did nothing.
+    /// Every outcome is said: the row has read "Listening" for seconds, and
+    /// the two answers that change nothing on screen (already in step, and no
+    /// answer) would otherwise look like a button that did nothing.
     fn synced(&self, ui: &MainWindow, outcome: Outcome) {
         ui.set_sync_state(0);
         // For the film and the track it listened to, or for nothing: the
@@ -210,9 +209,8 @@ impl Driver {
         }
         commands::set_sub_delay(&self.app.mpv, fit.delay);
         commands::set_sub_speed(&self.app.mpv, fit.speed);
-        // Kept now: the timing is this file's alone, and the next file
-        // along would otherwise take it away within the ten seconds before
-        // the position is next saved.
+        // Saved now, since the timing is this file's alone, and moving on
+        // before the next checkpoint would lose it.
         crate::playback::session::checkpoint(&self.app.mpv);
         // What stood before, for the row to offer back.
         ui.set_sync_was_delay(was.0 as f32);
@@ -221,8 +219,8 @@ impl Driver {
         say(
             ui,
             if same_speed {
-                // Two sentences rather than one with a word swapped in: the
-                // word does not sit in the same place in every language.
+                // Two sentences rather than one with a word swapped in, since
+                // the word doesn't sit in the same place in every language.
                 fill(
                     if moved < 0.0 {
                         tr("Subtitles moved {} s earlier")
@@ -232,9 +230,8 @@ impl Driver {
                     &[&format!("{:.1}", moved.abs())],
                 )
             } else {
-                // The delay alone would be a number that means nothing: at
-                // another speed the subtitles have moved by a different
-                // amount at every point in the film.
+                // No figure, since at another speed the subtitles have moved
+                // by a different amount at every point in the film.
                 tr("Subtitles matched to the film's speed").into()
             },
         );
@@ -320,10 +317,9 @@ impl Driver {
         match &resume.still {
             Some(still) => {
                 gpu.pipeline.set_backdrop(&gpu.gl, still);
-                // The interface needs to know, because with no backdrop and no
-                // film there is no picture for the way in's glass to bend and
-                // it gives itself a ground instead. Set only where one was
-                // actually drawn.
+                // With no backdrop the way in's glass has nothing to bend and
+                // gives itself a ground, so this is set only where one was
+                // drawn.
                 ui.set_backdrop(true);
             }
             None => light_with_the_mark(&self.app.worker),
@@ -365,9 +361,8 @@ fn unsynced(why: Failure) -> &'static str {
 
 /// Draw the mark for the backdrop, on the worker.
 ///
-/// Parsing an SVG and rasterising it is a millisecond of arithmetic rather
-/// than a wait, but the frame path's rule is that nothing it does can stall,
-/// and the cheapest way to keep a rule is not to argue about its edges.
+/// Parsing and rasterising an SVG only takes a millisecond, but the frame
+/// path must never stall, and the rule is easiest kept without exceptions.
 fn light_with_the_mark(worker: &Worker) {
     worker.submit(|_mpv| crate::gpu::mark::still().map(Completion::Mark));
 }

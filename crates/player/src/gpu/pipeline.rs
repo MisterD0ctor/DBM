@@ -7,18 +7,16 @@
 //!                                                              └─ blur ─┘
 //! ```
 //!
-//! `extend` and `spread` are the two halves of the ambient border, ported off
+//! `extend` and `spread` are the two halves of the ambient border, ported from
 //! the forked mpv `//!HOOK BORDER` stage. `spread` also lays the video over
-//! the border it just drew, which is the step mpv's own compositor used to do
-//! and the reason the fork existed.
+//! the border it just drew, where mpv's compositor would otherwise do it.
 //!
 //! The blur is a separable Gaussian at the window's own resolution, and feeds
 //! the glass pass as the backdrop the panels refract.
 //!
-//! The division of labour with the UI: Slint owns layout and content, this
-//! owns material. Panel rectangles are read out of Slint's own layout every
-//! frame, in-process and in the same frame, so the glass cannot drift from
-//! the widget it belongs to.
+//! Slint owns layout and content, and this owns material. Panel rectangles
+//! are read from Slint's layout in the same frame, so the glass can't drift
+//! from its widget.
 
 use glow::HasContext;
 
@@ -37,11 +35,9 @@ pub const CORNER_SOFTNESS: f64 = 1.5;
 
 /// Must match `MAX_PANELS` in glass.frag.
 ///
-/// More than the interface can put on screen at once. Of the fifteen surfaces
-/// it declares, the most that can be up together is ten: the bar's four panes,
-/// the flash's two, the hover label, the seek preview, one open panel and an
-/// end or credits pill. The shader loops to this bound whatever the count, so
-/// the headroom costs an early exit.
+/// More than the interface can put up at once: at most the bar's four panes,
+/// the flash's two, the tip, the seek preview, one panel and a pill. The
+/// shader stops at the real count, so the headroom costs nothing.
 pub const MAX_PANELS: usize = 14;
 
 /// Live parameters for the ambient border. Defaults match the `//!PARAM`
@@ -71,15 +67,14 @@ impl Default for BorderParams {
 
 /// One glass panel, in physical pixels, top-left origin.
 ///
-/// Filled from Slint's own layout every frame, so the material can never
-/// drift from the widget it belongs to.
+/// Filled from Slint's layout every frame, so the material can't drift from
+/// its widget.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct GlassPanel {
     pub rect: [f32; 4],
     pub radius: f32,
     pub tint_alpha: f32,
-    /// How far the panel has faded in, 0..1. Scales the glass with it, so a
-    /// surface arriving does not have fully-formed glass beneath it.
+    /// How far the panel has faded in, 0..1, so the glass fades with it.
     pub opacity: f32,
 }
 
@@ -96,11 +91,10 @@ pub struct GlassParams {
     /// backdrop, so it scales how strongly the rim displaces what is behind
     /// it.
     pub refract: f32,
-    /// Dispersive power — how far the index of refraction spreads across the
+    /// Dispersive power: how far the index of refraction spreads across the
     /// visible band, as (n_F - n_C) / (n_d - 1), the reciprocal of the Abbe
-    /// number. The shader integrates the transmitted ray over wavelength
-    /// with it, so this is the width of a spectrum rather than the gap
-    /// between three copies of an edge: the prismatic fringe.
+    /// number. The shader integrates the transmitted ray over wavelength with
+    /// it, so this is the width of the prismatic fringe.
     pub aberration: f32,
     /// How strongly the rim light shows: a ring round each pane's outermost
     /// edge, where the surface has turned past 45 degrees, white along the top
@@ -111,8 +105,8 @@ pub struct GlassParams {
     /// per-panel opt-in rather than replacing it.
     pub tint_amount: f32,
     /// How much of a white backdrop the glass absorbs, 0..1; darker backdrops
-    /// lose less, and 0 absorbs nothing. What keeps text legible over a bright
-    /// frame. See glass.frag.
+    /// lose less, and 0 absorbs nothing. Keeps text legible over a bright
+    /// frame (see glass.frag).
     pub absorb: f32,
     /// How dark the shadow each pane casts on the picture is, at its darkest,
     /// 0..1. Its size follows the pane's corner radius; see glass.frag.
@@ -121,49 +115,35 @@ pub struct GlassParams {
 
 // --- the material's fixed properties ----------------------------------------
 //
-// Three numbers that were sliders on the glass page and are settings no
-// longer. They are what the material *is* rather than how much of it you
-// want: the rim is the corner, the glass is flint, and a mirror reflects.
-// Turning any of them makes the panes stop being one material — and unlike
-// blur, fringe, rim or tint, none of them has a range where the answer is a
-// matter of taste rather than of whether the glass still reads as glass.
-//
-// They live here rather than in `GlassParams` because a value nobody can set
-// is not a parameter. Nothing carries them through the store, nothing writes
-// them to disk, and `settings.rs` has three fewer entries in its registry —
-// the panel's glass page follows the registry, so it simply has no row for
-// any of them.
-// An old settings file naming `glass.bevel_ratio`, `glass.ior` or
-// `glass.specular` is skipped the way any unknown key is.
+// What the material is, rather than how much of it you want: the rim is the
+// corner, the glass is flint, and a mirror reflects. Changing any of them
+// stops the panes reading as one material, so they are constants rather than
+// settings, and the glass page has no row for them. Old settings naming
+// `glass.bevel_ratio`, `glass.ior` or `glass.specular` are skipped like any
+// unknown key.
 
-/// Width of the domed rim, as a fraction of each panel's own corner radius —
-/// how far in from the edge the lensing and lighting reach.
+/// Width of the domed rim, as a fraction of each panel's corner radius: how
+/// far in from the edge the lensing and lighting reach.
 ///
-/// Relative rather than absolute so one value suits a 380px panel and a 60px
-/// pill alike; see `u_bevel` in glass.frag. At 1.0 the rim runs the full
-/// width of the corner, which is what makes a capsule rim the whole way
-/// through and gives a small pane a small rolled edge — the Proportional Rim
-/// Rule, and also how real glass is made.
+/// Relative, so one value suits a 380px panel and a 60px pill (see `u_bevel`
+/// in glass.frag). At 1.0 the rim runs the corner's full width, so a capsule
+/// is rim the whole way through and a small pane has a small rolled edge.
 pub const BEVEL: f32 = 1.0;
 
 /// Index of refraction: 1.0 bends nothing, 1.33 water, 1.5 window glass,
-/// 1.8 flint, 2.4 diamond. Drives both the bending and — through the Fresnel
-/// term — how mirror-like the rim becomes.
+/// 1.8 flint, 2.4 diamond. Drives both the bending and, through the Fresnel
+/// term, how mirror-like the rim becomes.
 ///
 /// Well past a window pane, so the rim bends and mirrors hard enough to read
-/// at UI scale. It sat at 1.7 while it was a slider and was tuned up from
-/// there by eye; 2.0 is what shipped configs actually hold. Higher is not
-/// better — at diamond the lensing pulls a dark patch of the backdrop into a
-/// black oval across the top of the way in, which is the wall this was
-/// stopped short of.
+/// at interface scale. No higher, because at diamond the lensing pulls a dark
+/// patch of the backdrop into a black oval across the top of the way in.
 pub const IOR: f32 = 2.0;
 
 /// Overall reflection strength, scaling the Fresnel weight. Read only by the
 /// screen-space reflection, which is switched off in glass.frag.
 ///
-/// Unity: the Fresnel term is already the physical answer to how much light
-/// a surface at that angle returns, so this exists to scale it and there is
-/// no reason to. It was a slider because everything beside it was one.
+/// Unity, since the Fresnel term is already the physical answer to how much
+/// light a surface returns at that angle.
 pub const SPECULAR: f32 = 1.0;
 
 impl Default for GlassParams {
@@ -191,11 +171,10 @@ pub struct Frame<'a> {
     /// mpv has a new picture to render.
     pub new_frame: bool,
     /// A material parameter changed, so the passes must run again even with
-    /// nothing else moving — otherwise a slider does nothing on a paused
-    /// frame.
+    /// nothing else moving, or a slider would do nothing on a paused frame.
     pub params_dirty: bool,
     /// The video's rect within the window, normalised. From observed state
-    /// rather than read from mpv here — see `state::OBSERVED`.
+    /// rather than read from mpv here (see `state::OBSERVED`).
     pub rect: [f32; 4],
     /// The surfaces that want glass under them.
     pub panels: &'a [GlassPanel],
@@ -214,12 +193,9 @@ pub struct Pipeline {
     composite: Target,
     /// The composite, blurred: what the glass refracts.
     ///
-    /// Single-buffered: this was double-buffered while Slint displayed the
-    /// blur directly, because a rounded-clip subtree gets cached into a layer
-    /// that only invalidates when a property changes — and a borrowed GL
-    /// texture compares by id, so republishing the same one was a no-op and
-    /// froze the panel. Now the glass pass consumes this and Slint only ever
-    /// sees the finished frame, so one buffer is enough.
+    /// Single-buffered, because only the glass pass reads it. Slint mustn't
+    /// show it directly: a rounded-clip subtree caches into a layer, and a
+    /// republished texture with the same id never invalidates it.
     blur_out: Target,
     /// Composite with the glass panels drawn into it. This is what Slint
     /// shows; the panels themselves contribute only their content.
@@ -228,8 +204,8 @@ pub struct Pipeline {
     prog_gauss: Program,
     /// Scratch for the horizontal half of the Gaussian.
     gauss_tmp: Target,
-    /// Glass over the interface rather than under it — see
-    /// [`Pipeline::glass_over`]: the region as Slint left it, its two blur
+    /// Glass over the interface rather than under it (see
+    /// [`Pipeline::glass_over`]): the region as Slint left it, its two blur
     /// passes, and the region glassed.
     over_base: Target,
     over_tmp: Target,
@@ -245,7 +221,7 @@ pub struct Pipeline {
         std::time::Duration,
         std::time::Duration,
     ),
-    /// (update_rect, border, blur) — the same frame as `timings`.
+    /// (update_rect, border, blur), for the same frame as `timings`.
     pub split: (
         std::time::Duration,
         std::time::Duration,
@@ -263,21 +239,19 @@ pub struct Pipeline {
     pub glass_enabled: bool,
 
     prog_backdrop: Program,
-    /// A frame of the last film left unfinished — see [`Pipeline::set_backdrop`].
+    /// A frame of the last film left unfinished (see [`Pipeline::set_backdrop`]).
     backdrop: Option<Backdrop>,
-    /// Whether that frame stands in for mpv's picture. The driver sets it
-    /// from whether a file is loaded; the moment one is, mpv's own frames
-    /// take the target back.
+    /// Whether that frame stands in for mpv's picture, which is while no file
+    /// is loaded.
     pub show_backdrop: bool,
-    /// Whether the backdrop fades up or is simply there. The interface's
-    /// Animations setting: everything Slint moves stops with `Motion`, and
-    /// this is the one movement the pipeline draws itself.
+    /// Whether the backdrop fades up or is simply there: the Animations
+    /// setting, for the one movement the pipeline draws itself.
     pub animate: bool,
 }
 
 /// How long the backdrop takes to come up. Longer than a surface's 120ms,
-/// because this is the window's light changing rather than a control
-/// answering, and a whole picture arriving in a tenth of a second is a flash.
+/// because it is the window's light changing, and a whole picture arriving
+/// that fast is a flash.
 const BACKDROP_ARRIVAL: std::time::Duration = std::time::Duration::from_millis(400);
 
 struct Backdrop {
@@ -374,9 +348,8 @@ impl Pipeline {
         });
     }
 
-    /// Whether the backdrop still has frames of its arrival to draw, and so
-    /// whether the driver should keep asking for them: nothing else is, with
-    /// no film playing and nobody touching anything.
+    /// Whether the backdrop still has frames of its arrival to draw, so the
+    /// driver keeps asking for them, since with no film nothing else does.
     pub fn backdrop_arriving(&self) -> bool {
         self.show_backdrop && self.backdrop.as_ref().is_some_and(|b| !b.settled)
     }
@@ -428,7 +401,7 @@ impl Pipeline {
     }
 
     /// Sample the centre of every stage of the blur, to find where a black
-    /// frame enters. Diagnostics only - stalls the GL pipeline.
+    /// frame enters. Diagnostics only; stalls the GL pipeline.
     pub fn blur_chain_debug(&self, gl: &glow::Context) -> String {
         let probe = |t: &Target| {
             let (w, h) = t.size();
@@ -506,16 +479,14 @@ impl Pipeline {
         };
         let t0 = mark(gl);
 
-        // Also on resize, not only on a new frame. The target was just
-        // reallocated and cleared, so without this a paused player shows
-        // black after a resize — and worse, the border pass samples that
-        // black and grows an ambient glow out of nothing. mpv is happy to
-        // re-render the frame it is already holding.
+        // Also on resize, not only on a new frame: the target was just
+        // cleared, so a paused player would show black and the border would
+        // grow out of it. mpv happily re-renders the frame it holds.
         //
         // With nothing loaded and a backdrop on hand, that stands in for the
-        // frame instead: drawn when it arrives, while it fades up, and after
-        // a resize cleared it. mpv's `new_frame` is ignored meanwhile — with
-        // no file it has nothing to render but black over the top of it.
+        // frame instead: drawn when it arrives, while it fades up, and after a
+        // resize. mpv's `new_frame` is ignored meanwhile, since with no file it
+        // would only render black over it.
         let mut drew_backdrop = false;
         if self.show_backdrop && self.backdrop.is_some() {
             if resized || self.backdrop_arriving() {
@@ -540,18 +511,14 @@ impl Pipeline {
 
         // Nothing downstream changes unless mpv produced a frame, the targets
         // were reallocated, or a panel moved. Slint redraws for its own
-        // reasons — a resize drag most of all — and re-running a
-        // 256-tap-per-pixel border pass on every one of those was most of the
-        // resize lag.
+        // reasons, a resize drag above all, and re-running a 256-tap border
+        // pass on each of those was most of the resize lag.
         let t1 = mark(gl);
         let panels_changed = self.panels != panels;
-        // The border is drawn from `rect`, so a change in it invalidates the
-        // border as surely as a new frame does — and it can change on its
-        // own. mpv reports `osd-dimensions` asynchronously, so the rect for a
-        // new window size often arrives a frame or two *after* the resize
-        // that caused it. While playing, the next frame redraws the border
-        // and nobody sees it; paused, there is no next frame, and the border
-        // keeps the previous window's geometry until playback resumes.
+        // The border is drawn from `rect`, which can change on its own: mpv
+        // reports `osd-dimensions` asynchronously, so the rect for a new size
+        // often arrives a frame or two after the resize. Paused, no next frame
+        // would redraw the border, which would keep the old geometry.
         let rect_changed = self.rect != rect;
         let full = new_frame || resized || params_dirty || rect_changed || drew_backdrop;
         if !full && !panels_changed {
@@ -575,9 +542,8 @@ impl Pipeline {
         }
         let t2 = mark(gl);
 
-        // A panel can move without a new video frame — a menu opening, a
-        // toolbar sliding — and only the glass pass depends on that, so the
-        // border and blur above are skipped in that case.
+        // A panel can move without a new video frame, and only the glass pass
+        // depends on that, so the border and blur above are skipped then.
         self.panels.clear();
         self.panels.extend_from_slice(panels);
         self.run_glass(gl, w, h);
@@ -599,10 +565,9 @@ impl Pipeline {
     /// Separable Gaussian at native resolution: horizontal into scratch,
     /// vertical into the blur output.
     ///
-    /// Native rather than downsampled because refraction magnifies the
-    /// backdrop with sub-pixel displacement, and a texture rebuilt from a
-    /// smaller one shows its blocks under that magnification. It also makes
-    /// a radius of 0 a true passthrough, which no downsampling chain can be.
+    /// Native rather than downsampled, because refraction magnifies the
+    /// backdrop with sub-pixel displacement, which shows a smaller texture's
+    /// blocks. It also makes a radius of 0 a true passthrough.
     fn run_blur(&mut self, gl: &glow::Context) {
         self.gauss(gl, &self.composite, &self.gauss_tmp, &self.blur_out);
     }
@@ -709,11 +674,10 @@ impl Pipeline {
     /// a list back to its current row (see `way`), over the rows going by.
     ///
     /// Each pane's surroundings are copied out of the window's framebuffer,
-    /// blurred and glassed exactly as the panes under the interface are, and
-    /// written back cut to `clip`, the panel it is in. A region is the pane
-    /// and enough round it for the blur, the rim and the shadow to read, so
-    /// it costs a few small draws. Physical pixels, from the window's
-    /// top-left, as `GlassPanel` takes them.
+    /// blurred and glassed as the panes under the interface are, and written
+    /// back cut to `clip`, the panel it is in. A region is the pane plus room
+    /// for the blur, rim and shadow, so it costs a few small draws. Physical
+    /// pixels from the window's top-left, as `GlassPanel` takes them.
     pub fn glass_over(
         &mut self,
         gl: &glow::Context,

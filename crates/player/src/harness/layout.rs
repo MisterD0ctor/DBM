@@ -17,39 +17,25 @@ pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
         slint::TimerMode::Repeated,
         Duration::from_millis(8),
         move || {
-            // Stop after a while and hold the last size, so the settling
-            // path gets exercised too — a drag that never ends would only
-            // ever test the moving case.
+            // Stop after a while and hold the last size, so the settling path
+            // is exercised too.
             if tick > 400 {
                 return;
             }
             let Some(ui) = weak.upgrade() else { return };
             tick += 1;
-            // Pause partway in. Resizing while paused is the case that used
-            // to show black: no new frame meant the reallocated target was
-            // never re-rendered, and the border pass then grew a glow out of
-            // the black it found.
+            // Pause partway in, since resizing while paused is where a
+            // reallocated target that wasn't re-rendered would show black.
             if tick == 60 {
                 ui.invoke_toggle_pause();
                 eprintln!("dbm: paused mid-resize-sweep");
             }
-            // Triangle wave, so the size is genuinely moving every tick.
-            //
-            // Both dimensions, not just width. Widening makes the video
-            // taller, so a video rect that lags by a frame lands inside the
-            // picture and nothing looks wrong; growing the *height* makes the
-            // letterbox taller, and a lagging rect then points above the top
-            // of the picture — at nothing — which is what darkens the border.
-            // Width and height in turn, in big steps.
-            //
-            // Width exercises the target allocation; height is what actually
-            // moves the letterbox, since a 2.4:1 film in a window growing on
-            // both axes keeps almost the same bars. And the steps are large
-            // because how far the edge moves in *one frame* is the whole
-            // question: a video rect one frame behind is wrong by however
-            // much changed in that frame, so a gentle sweep is wrong by a
-            // pixel and shows nothing. A dragged corner moves tens of pixels
-            // a frame, and that is what this has to be.
+            // A triangle wave in big steps, width and height in turn. Width
+            // exercises the target allocation; height moves the letterbox,
+            // where a video rect a frame behind points above the picture and
+            // darkens the border. Big steps, because a rect one frame behind
+            // is wrong by however much changed in that frame, and a dragged
+            // corner moves tens of pixels a frame.
             let phase = tick % 40;
             let (w, h) = if phase < 20 {
                 let d = if phase < 10 { phase } else { 20 - phase };
@@ -60,10 +46,9 @@ pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
                 (1200, 560 + d * 45)
             };
             ui.window().set_size(slint::PhysicalSize::new(w, h));
-            // How far the title pill, and the settings panel if it is open,
-            // trail the size they should be. Read a tick after the size was
-            // set, which is a frame or so: an eased resize trails by tens
-            // of pixels there, one that keeps up by none.
+            // How far the title pill, and the settings panel if open, trail
+            // their size, read a frame or so after it was set, where an eased
+            // resize would trail by tens of pixels.
             if tick % 10 == 5 {
                 eprintln!("dbm: resize lag {:.1}px", ui.get_resize_lag());
             }
@@ -74,14 +59,13 @@ pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
 
 /// Open at a size other than the one `main` asks for.
 ///
-/// Every width worth looking at is one the default is not: 1060, where the
-/// transport stops being centred rather than crowd the right pill, and the
-/// 960×540 floor. Neither can be photographed by hand on a compositor that
-/// will not be told where to put a window.
+/// For the sizes worth looking at besides the default (1060 wide, where the
+/// transport stops being centred, and the 960×540 floor), which a compositor
+/// that places windows itself won't let you set by hand.
 ///
-/// Repeated rather than fired once, because the size does not always take on
-/// the first frame and there is nothing to wait for that says when it has.
-/// It stops asking once the window agrees, so nothing fights a real drag.
+/// Repeated rather than fired once, because the size doesn't always take on
+/// the first frame and nothing says when it has. It stops once the window
+/// agrees, so nothing fights a real drag.
 pub(super) fn window_size(ui: &MainWindow, size: slint::LogicalSize) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -118,11 +102,10 @@ pub(super) fn window_size(ui: &MainWindow, size: slint::LogicalSize) -> slint::T
 
 /// Pause, resize, and then stop touching it.
 ///
-/// The interesting moment is the one *after* the resize. mpv reports the new
-/// video rect asynchronously, so it lands a frame or two late; while playing
-/// the next frame redraws the border from it and nobody is the wiser. Paused
-/// there is no next frame, so whatever redrew the border last has to have
-/// been triggered by the rect itself.
+/// The moment that matters is after the resize. mpv reports the new video
+/// rect a frame or two late; playing, the next frame redraws the border from
+/// it, but paused there is no next frame, so the rect itself has to trigger
+/// the redraw.
 pub(super) fn paused_resize_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -145,9 +128,8 @@ pub(super) fn paused_resize_test(ui: &MainWindow) -> slint::Timer {
                     ui.window().set_size(slint::LogicalSize::new(1000.0, 900.0));
                 }
                 4 => eprintln!("dbm: --- settled; the border must match ---"),
-                // Flipping the switch is what makes the probe take a fresh
-                // pixel reading, which is how the letterbox gets looked at
-                // with the new geometry rather than merely reasoned about.
+                // Flipping the switch makes the probe take a fresh pixel
+                // reading of the letterbox with the new geometry.
                 5 => {
                     ui.set_ambience_on(false);
                     ui.invoke_set_ambience(false);
@@ -179,10 +161,9 @@ fn report_lists(ui: &MainWindow, label: &str) {
 
 /// Check the height split and that the lists actually move.
 ///
-/// The split has four cases in it — both lists fitting, either one borrowing
-/// from the other, and both being capped — so it is worth reading back rather
-/// than trusting. The wheel is the other half: a list sized correctly but
-/// stuck at the top would look identical from here.
+/// The split has four cases (both lists fitting, either borrowing from the
+/// other, both capped), so it is worth reading back. The wheel is the other
+/// half, since a list sized correctly but stuck at the top looks the same.
 pub(super) fn scroll_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -296,9 +277,8 @@ fn playlist_bar(ui: &MainWindow) -> (f32, f32) {
 
 /// Open each panel in turn and count what reaches the pipeline.
 ///
-/// The count is the thing to watch rather than the three booleans: the
-/// panels all sit in the same corner now, so a second one opening would not
-/// just be untidy, it would stack a second sheet of glass on the first.
+/// The count is what to watch rather than the booleans: the panels share a
+/// corner, so two open at once would stack glass on glass.
 pub(super) fn panel_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -345,9 +325,8 @@ pub(super) fn panel_test(ui: &MainWindow) -> slint::Timer {
     timer
 }
 
-/// Which panels believe they are open, and how many rects that actually
-/// produces — a zero-sized rect is how a closed panel is expressed, and the
-/// Rust side drops those.
+/// Which panels believe they are open, and how many rects that produces. A
+/// closed panel publishes a zero-sized rect, which the Rust side drops.
 fn report_panels(ui: &MainWindow, label: &str) {
     let drawn: Vec<String> = ui
         .get_glass_rects()

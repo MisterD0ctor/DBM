@@ -1,4 +1,4 @@
-//! Holding one surface on screen, so the window can be photographed.
+//! Holding one surface on screen, so the window can be captured.
 
 use std::time::Duration;
 
@@ -7,11 +7,9 @@ use slint::{ComponentHandle, Model};
 use super::drive::{arrow, click, hover, wheel};
 use crate::MainWindow;
 
-/// Hold one surface open, with the chrome kept awake, for a photograph.
-///
-/// The interface hides itself after three seconds of stillness and half of it
-/// only exists while a pointer is somewhere particular, so a screenshot of the
-/// running player is otherwise a picture of a video with nothing on it.
+/// Hold one surface open, with the chrome kept awake, for a capture: the
+/// interface hides after three still seconds, and half of it only exists
+/// while the pointer is somewhere particular.
 pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -23,14 +21,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             let Some(ui) = weak.upgrade() else { return };
             tick += 1;
 
-            // Any pointer event resets the idle clock. For the preview the
-            // pointer also has to be *on* the track, so that one parks there
-            // and the rest stay clear of the controls.
-            // A hover label needs the pointer to stop on a button and stay
-            // there, which is the one thing the default corner hover cannot
-            // do. The coordinates are the right-hand pill's buttons at the
-            // window this harness opens; they are a photograph's aim, not
-            // geometry anything depends on.
+            // Any pointer event resets the idle clock. Most surfaces keep the
+            // pointer clear of the controls; the preview needs it on the
+            // track, and a tip needs it resting on a button. The coordinates
+            // are the right pill's buttons at the default size, aimed for a
+            // capture rather than geometry anything depends on.
             let (x, y) = match surface.as_str() {
                 "preview" => (
                     ui.get_scrub_x() + ui.get_scrub_w() * 0.62,
@@ -77,11 +72,9 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 hover(&ui, x, y);
             }
 
-            // A move between two pages is a moment too, and the same answer
-            // works: keep starting it. Flipping every tick against a 220ms
-            // drill leaves the panel in the middle of one for most of the
-            // time, so a capture at any moment lands inside the movement
-            // rather than on whichever end it happened to settle at.
+            // A move between two pages is held the same way, by restarting
+            // it: flipping every tick against a 220ms drill keeps the panel
+            // mid-move most of the time.
             if surface == "drill" && tick > 4 {
                 let page = ui.get_playlist_page();
                 ui.set_playlist_page(if page < 0 {
@@ -106,20 +99,18 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 ui.global::<crate::Chrome>().set_focus_visible(false);
             }
 
-            // The flash is a moment, not a surface: the only way to hold one
-            // still long enough to look at is to keep raising it.
+            // The flash is a moment, not a surface, so it is held by raising
+            // it again and again.
             if surface == "flash" {
                 ui.global::<crate::Flash>()
                     .invoke_show(ui.global::<crate::Flash>().get_delay(), 0.5);
             }
 
-            // The playlist turned away from the file playing, which is the
-            // only time the angle pointing back to it is drawn: by a whole
-            // list either way, or by enough to leave that row's lower edge
-            // halfway into the 28px soft edge at the top — half a list, and
-            // the difference between a 34px row and the edge, halved — which
-            // is halfway through the angle's fade. The file has to be
-            // mid-season for the list to open centred on it.
+            // The playlist turned away from the file playing, so the angle
+            // back to it is drawn: by a whole list either way, or just far
+            // enough to leave the row's lower edge halfway into the 28px soft
+            // edge at the top, which is halfway through the angle's fade. The
+            // file has to be mid-season for the list to open centred on it.
             if tick == 6 {
                 let list = ui.get_playlist_list_h();
                 let by = match surface.as_str() {
@@ -137,8 +128,8 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 }
             }
             // And the angle pressed, which should bring the row back to the
-            // middle — and play nothing: a press that reached the row under
-            // it would start another episode, and the title would say so.
+            // middle and play nothing; a press that reached the row under it
+            // would start another episode, and the title would say so.
             if surface == "current-back" && tick == 10 {
                 let x = (ui.get_panel_left() + ui.get_panel_right()) / 2.0;
                 let y = ui.get_playlist_list_top() + 17.0;
@@ -215,20 +206,18 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             }
             match surface.as_str() {
                 "tracks" => ui.invoke_open_menu(true),
-                // The same menu with a subtitle track chosen and then
-                // turned off, which is where Off and the track mpv still
-                // calls selected were both lit at once. Choosing first
-                // matters: a file whose subtitles were never on has nothing
-                // selected to contradict Off, so the state that was wrong is
-                // not the state a file arrives in.
-                // The positive case, for the same reason: a list that can
-                // show two answers can also show none.
+                // The menu with a subtitle track chosen, so exactly one row
+                // is lit.
                 "subs-on" => {
                     ui.invoke_open_menu(true);
                     if let Some(first) = ui.get_sub_tracks().row_data(0) {
                         ui.invoke_select_subtitle(first.id);
                     }
                 }
+                // A track chosen and then turned off, where mpv still calls
+                // the track selected but only Off should be lit. Choosing
+                // first matters, since a file whose subtitles were never on
+                // has nothing selected to contradict Off.
                 "subs-off" => {
                     ui.invoke_open_menu(true);
                     if let Some(first) = ui.get_sub_tracks().row_data(0) {
@@ -252,13 +241,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 "end" | "end-hover" | "end-playlist" | "end-settings" | "end-preview" => {
                     ui.invoke_seek_fraction(1.0)
                 }
-                // The three graphics failures all need a driver that does
-                // not work, which is not something a test can arrange. The
-                // wording is the part worth looking at anyway: it is the only
-                // account of the failure that ever reaches anyone, since the
-                // console it used to print to does not exist in a packaged
-                // build.
-                // The same pane, having been asked to copy itself, so the
+                // The fatal pane, having been asked to copy itself, so the
                 // clipboard can be read back from outside.
                 "fatal-copy" => {
                     ui.set_fatal("The player cannot show video on this computer.".into());
@@ -274,6 +257,10 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 "figure" => {
                     ui.global::<crate::Flash>().invoke_show_figure(1);
                 }
+                // The graphics failures need a driver that doesn't work, which
+                // a test can't arrange, so the pane is set by hand. Its wording
+                // is what matters, as the only account of the failure anyone
+                // sees.
                 "fatal" => {
                     ui.set_fatal("The player cannot show video on this computer.".into());
                     ui.set_fatal_detail(
@@ -286,17 +273,15 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                         "If the driver is current, this is a bug in the player.".into(),
                     );
                 }
-                // Held rather than provoked. A real open clears this the
-                // moment mpv reports a file, which on a local disk is too few
-                // frames to photograph — and the case worth looking at is the
-                // slow one, which needs a network share to reproduce.
+                // Held rather than provoked, since a local open clears it
+                // within a few frames; the slow case needs a network share.
                 "opening" => {
                     ui.set_opening_name("Game of Thrones Season 7".into());
                     ui.set_opening(true);
                 }
-                // A panel open under the pointer that is resting on the
-                // button which opened it. Tips stand down for any panel, so
-                // the right photograph here is of nothing at all.
+                // A panel open under the pointer resting on the button that
+                // opened it. Tips stand down for any panel, so the right
+                // capture shows no tip.
                 "tip-open" => ui.invoke_open_settings_page(0),
                 "settings" => ui.invoke_open_settings_page(0),
                 "glass" => ui.invoke_open_settings_page(1),

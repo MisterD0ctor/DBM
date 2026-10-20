@@ -1,20 +1,17 @@
 //! Finding an episode's title sequence and its closing credits by listening
 //! for them.
 //!
-//! Where a file's chapters mark them — `Opening`, `End Credits`, a short
-//! last chapter — nothing here is needed; see `PlayerState::intro` and
-//! `PlayerState::credits_rolling`. Most do not. A broadcast episode is
-//! split at its act breaks and the titles fall somewhere inside the first
-//! of them, after a cold open of any length; a download from a streaming
-//! service has no chapters at all, and nothing says where its credits
-//! start.
+//! Where a file's chapters mark them (`Opening`, `End Credits`, a short last
+//! chapter), nothing here is needed; see `PlayerState::intro` and
+//! `PlayerState::credits_rolling`. Most don't: a broadcast episode is split
+//! at act breaks, with the titles inside the first after a cold open of any
+//! length, and a streaming download has no chapters at all.
 //!
-//! What the episodes of a season do have is the same titles and the same
-//! music under their credits, so this listens to one end of the episode
-//! playing and of another of its season, and takes the stretch of sound
-//! the two share — see `fingerprint`. That answers for both of them, and
-//! both answers are kept: watching a season through, every other episode
-//! has already been heard by the time it starts.
+//! What a season's episodes do share is the same titles and the same music
+//! under their credits, so this listens to one end of the episode playing
+//! and of another of its season, and takes the stretch of sound the two share
+//! (see `fingerprint`). Both answers are kept, so watching a season through,
+//! every other episode has already been heard by the time it starts.
 //!
 //! Like the subtitle sync, a run has a thread of its own and an ffmpeg per
 //! file behind it, and the player goes on playing while it listens.
@@ -34,21 +31,17 @@ use crate::worker::{Completion, Reporter};
 /// How many episodes of the season are tried before this one is taken to
 /// have nothing to find.
 ///
-/// A season has its odd episodes — a special, a finale that opens cold and
-/// never stops for the titles, one that ends on a song of its own — and a
-/// show made in eleven-minute halves has a great many: only the first half
-/// of each broadcast carried the titles, so every other episode has none.
-/// Two tries, the episodes either side, found nothing for an episode between
-/// two such, which in that show was nearly all of them.
+/// A season has its odd episodes (a special, a finale that never stops for
+/// the titles, one that ends on a song of its own), and a show made in
+/// eleven-minute halves has titles on only every other episode, so the two
+/// either side may both have none.
 const TRIES: usize = 4;
-/// How far either side of where an episode is already known to hold its
-/// sequence it is listened to, in seconds, when it is the one compared with.
-/// Only that much of it is needed, and the rest only offers the comparison
-/// something else to agree on.
+/// How far either side of where an episode is known to hold its sequence it
+/// is listened to, in seconds, when it is the one compared with. More would
+/// only give the comparison something else to agree on.
 const AROUND: f64 = 5.0;
-/// The shortest title sequence, in seconds. A network's ident or a
-/// "previously on" spoken over the same sting is shorter, and so is
-/// anything it would be worth anybody's while to skip.
+/// The shortest title sequence, in seconds. A network's ident, or a
+/// "previously on" over the same sting, is shorter, and not worth skipping.
 const SHORTEST: f64 = 15.0;
 /// The shortest closing credits, in seconds. A short show's run under ten:
 /// one card and a few bars. That is short enough to be a cue that comes
@@ -58,11 +51,10 @@ const SHORTEST_CREDITS: f64 = 8.0;
 /// A sequence found starting this close to the start of the file starts
 /// with it, in seconds: the first look has nothing before it to compare.
 const FROM_THE_TOP: f64 = 2.0;
-/// How near the end of the file closing credits have to end, in seconds.
-/// The music under them is followed by a vanity card or two and at most a
-/// look at next week; a stretch two episodes share that stops well short of
-/// that is something else — a recurring cue, a "next time" sting — and the
-/// episode is not over when it plays.
+/// How near the end of the file closing credits have to end, in seconds,
+/// since after them come only a vanity card or two and at most a look at next
+/// week. A shared stretch well short of that is a recurring cue or a "next
+/// time" sting.
 const NEAR_THE_END: f64 = 300.0;
 /// How near the end of a file what ends it has to end, in seconds: the few
 /// it takes to go dark.
@@ -101,9 +93,8 @@ impl End {
     /// What listening for it found, by file: where it is, or that there is
     /// none.
     ///
-    /// Both are kept. An episode with no sequence is as much work to hear
-    /// as one with, and without the entry it would be heard again every
-    /// time it was played.
+    /// Both are kept, since an episode with no sequence is as much work to
+    /// hear as one with, and would otherwise be heard again every time.
     fn heard(self) -> &'static PathMap<Option<Span>> {
         static OPENINGS: PathMap<Option<Span>> = PathMap::cache("intros.json", HEARD);
         static CLOSINGS: PathMap<Option<Span>> = PathMap::cache("outros.json", HEARD);
@@ -117,9 +108,8 @@ impl End {
 /// Where a sequence starts and ends, in seconds.
 pub type Span = (f64, f64);
 
-/// The version of the way a sequence is heard, which what was heard is kept
-/// under — see `cache`. Bumped whenever a change would hear one differently,
-/// so what the old way heard is heard again.
+/// The version of how a sequence is heard, which what was heard is kept under
+/// (see `cache`). Bumped whenever a change would hear one differently.
 ///
 /// 1. Compared with the two episodes either side; titles and credits both
 ///    fifteen seconds or more.
@@ -146,10 +136,10 @@ fn current(generation: u64) -> bool {
 /// season in the playlist, nearest first, the one after before the one
 /// before. Empty for a film, which shares neither end with anything.
 ///
-/// The same season because a show's titles change between them, and
-/// nearest because they also change within one — a cast member gone, a
-/// second cut from the half-way point. Which of them are tried, and in what
-/// order, depends on what is already known of them; see [`worth_trying`].
+/// The same season because a show's titles change between seasons, and
+/// nearest because they also change within one (a cast member gone, a second
+/// cut from the halfway point). Which are tried, and in what order, depends
+/// on what is already known of them; see [`worth_trying`].
 pub fn beside(path: &str, playlist: &[String]) -> Vec<String> {
     let Media::Episode { show, season, .. } = naming::parse(path) else {
         return Vec::new();
@@ -212,10 +202,10 @@ fn worth_trying<'a>(
 /// `duration` is the file's length and `beside` what [`beside`] said to
 /// compare it with.
 ///
-/// Returns immediately, and supersedes any run still going: that one was
-/// for a file no longer playing. A superseded run reports nothing, and
-/// neither does one that could not listen at all — no ffmpeg, nothing
-/// beside it — because nothing is waiting on the answer.
+/// Returns immediately, superseding any run still going for a file no longer
+/// playing. A superseded run reports nothing, and neither does one that
+/// couldn't listen at all (no ffmpeg, nothing beside it), since nothing is
+/// waiting on the answer.
 pub fn spawn(path: String, ends: Vec<End>, beside: Vec<String>, duration: f64, reporter: Reporter) {
     let generation = GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
     std::thread::spawn(move || {
@@ -333,9 +323,9 @@ fn find(
 /// Remember where a stretch two files share lies in each: `here` in `path`,
 /// the one playing, and `there` in `other`.
 ///
-/// The other half is not written over what that file was found to hold
-/// when it was the one playing — but over its having none, yes: this is
-/// what that run did not hear.
+/// The other file's half doesn't replace what it was heard to hold when it
+/// was the one playing, only a finding of none, which that run must have
+/// missed.
 fn keep(heard: &PathMap<Option<Span>>, path: &str, here: Span, other: &str, there: Span) {
     heard.set(path, Some(here));
     if !matches!(heard.load().get(other), Some(Some(_))) {
@@ -346,14 +336,13 @@ fn keep(heard: &PathMap<Option<Span>>, path: &str, here: Span, other: &str, ther
 /// Whether a stretch two episodes share near their ends is where this one's
 /// credits roll.
 ///
-/// `here` and `there` are where it lies in each, `duration` how long this
-/// one is and `length_there` the other, where it was asked. One that stops
-/// well short of this episode's end is something else. One shorter than a
-/// title sequence has to be more plainly the credits as well: the very end
-/// of one of the two, or matched against what is already known to be the
-/// other's credits (`known`). Not necessarily of this one — where one
-/// episode's credits are a short cut of another's, they share only the
-/// short cut's length, and it ends the longer one's credits early.
+/// `here` and `there` are where it lies in each, `duration` how long this one
+/// is, and `length_there` the other, where it was asked. One that stops well
+/// short of this episode's end is something else. One shorter than a title
+/// sequence must also be plainly the credits: the very end of one of the two,
+/// or a match for what is known to be the other's credits (`known`). Not
+/// necessarily this one's end, since where one episode's credits are a short
+/// cut of another's, the shared stretch ends the longer one's early.
 fn credits(here: Span, duration: f64, there: Span, length_there: Option<f64>, known: bool) -> bool {
     if here.1 < duration - NEAR_THE_END {
         return false;
@@ -391,13 +380,13 @@ fn length(ffmpeg: &Path, file: &Path) -> Option<f64> {
 /// Decode `reach` seconds of a file's first audio track, starting `from`
 /// seconds in, and take their print.
 ///
-/// The first track whichever is playing: the music is the same under every
-/// dub, and the neighbour's tracks are not known without asking it. `None`
-/// for a run that was superseded, an ffmpeg that would not start, or a file
+/// The first track whichever is playing, since the music is the same under
+/// every dub and the neighbour's tracks aren't known without asking. `None`
+/// for a run that was superseded, an ffmpeg that wouldn't start, or a file
 /// with nothing to hear.
 fn listen(ffmpeg: &Path, file: &Path, from: f64, reach: f64, generation: u64) -> Option<Print> {
-    // A playlist can hold addresses as well as files, and those are not
-    // downloaded twice over for the sake of a pill.
+    // A playlist can hold addresses as well as files, which aren't worth
+    // downloading again for a pill.
     if !file.is_file() {
         return None;
     }

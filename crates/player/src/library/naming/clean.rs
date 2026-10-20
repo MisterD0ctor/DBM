@@ -1,8 +1,8 @@
 //! Cleaners: the separators, extensions, release tags and group signatures
 //! that wrap the part of a name a person wrote.
 //!
-//! Shared by everything else here — a filename and an external subtitle's
-//! title arrive wrapped in the same junk.
+//! Shared by everything else here, since a filename and an external
+//! subtitle's title arrive wrapped in the same junk.
 
 /// Strip leading directory components, for either platform's separator.
 pub fn strip_path(name: &str) -> &str {
@@ -44,18 +44,15 @@ pub fn clean_separators(s: &str) -> String {
                         .is_some_and(|c| c.is_ascii_digit())
                 };
                 match (before, after) {
-                    // 5.1, 7.1, 5.1.2 — a channel layout is single digits on
-                    // both sides. `2019.1080p` is digits either side too, and
-                    // the run length is the only thing that separates them.
+                    // 5.1, 7.1, 5.1.2: a channel layout is single digits on
+                    // both sides, where `2019.1080p` has longer runs.
                     (Some(a), Some(b)) if a.is_ascii_digit() && b.is_ascii_digit() => {
                         let lone_before = !digit_at(i.checked_sub(2));
                         let lone_after = !digit_at(Some(i + 2));
                         !(lone_before && lone_after)
                     }
-                    // H.264, x.265 — but only where the letter stands
-                    // alone. In `Movie.2019` the dot is a separator, and the
-                    // only thing telling the two apart is what precedes the
-                    // letter.
+                    // H.264, x.265, but only where the letter stands alone,
+                    // since in `Movie.2019` the dot is a separator.
                     (Some(a), Some(b)) if a.is_ascii_alphabetic() && b.is_ascii_digit() => {
                         let lone = i
                             .checked_sub(2)
@@ -98,8 +95,7 @@ const METADATA: &[&str] = &[
 /// Cut the name at the first release tag.
 ///
 /// Truncating rather than removing word by word, because everything after the
-/// first tag is metadata too — `1080p WEB-DL x264-GROUP` has no title hiding
-/// in the middle of it.
+/// first tag is metadata too: `1080p WEB-DL x264-GROUP` hides no title.
 pub fn strip_metadata(s: &str) -> String {
     let words: Vec<&str> = s.split(' ').collect();
     for (i, w) in words.iter().enumerate() {
@@ -129,12 +125,11 @@ fn is_metadata(word: &str) -> bool {
 
 /// Whether one word could only have come from a release name.
 ///
-/// Narrower than [`is_metadata`] on purpose. Most of `METADATA` is ordinary
-/// English — a film can be called *The Extended Cut*, a title can contain
-/// *Proper*, and *Stan* is a name — so that list is right for cutting a file
-/// name short and wrong for judging whether a person wrote something. What
-/// cannot appear in prose is a marker carrying a digit (`1080p`, `x265`,
-/// `10bit`, `6ch`) or one of the few spelled-out technical words below.
+/// Narrower than [`is_metadata`] on purpose, since much of `METADATA` is
+/// ordinary English (*The Extended Cut*, *Proper*, *Stan*): right for cutting
+/// a file name short, wrong for judging whether a person wrote something.
+/// What can't appear in prose is a marker carrying a digit (`1080p`, `x265`,
+/// `10bit`, `6ch`) or one of the few technical words below.
 fn is_release_token(word: &str) -> bool {
     #[rustfmt::skip]
     const NEVER_IN_PROSE: &[&str] = &[
@@ -157,22 +152,16 @@ fn is_release_token(word: &str) -> bool {
 
 /// Whether a container's title tag is a title, or the file name in disguise.
 ///
-/// mpv reports the container's `title` tag, and the rule used to be "if it is
-/// not exactly the file name, a person wrote it". Packers are not so tidy. One
-/// real file carries
+/// mpv reports the container's `title` tag, which packers often fill with
+/// the release name, sometimes with more bolted on:
 ///
 /// ```text
 /// PSArips.com | Game.of.Thrones.S07E01.Dragonstone.1080p.10bit.BluRay.6CH.x265.HEVC-PSA
 /// ```
 ///
-/// which is not equal to the file name, so it passed the old test and landed
-/// whole — advertisement included — in the slot meant for the one part of the
-/// name a human actually typed.
-///
-/// Two cheap tests catch it, and both have to pass for the title to be used.
-/// Nobody types `1080p` into an episode title; and a title that contains the
-/// file's own stem is the file name wearing a hat, however much has been
-/// bolted on either side of it.
+/// So two cheap tests both have to pass for the title to be used: it carries
+/// no release token, since nobody types `1080p` into an episode title, and it
+/// doesn't contain the file's own stem.
 pub(super) fn authored(embedded: &str, path: &str) -> bool {
     if clean_separators(embedded).split(' ').any(is_release_token) {
         return false;
@@ -181,9 +170,8 @@ pub(super) fn authored(embedded: &str, path: &str) -> bool {
     !stem.is_empty() && !comparable(embedded).contains(&stem)
 }
 
-/// Lower case, separators as spaces, runs of space collapsed — enough to
-/// compare a title against a file name without either's punctuation deciding
-/// the answer.
+/// Lower case, separators as spaces, runs of space collapsed: enough to
+/// compare a title with a file name without punctuation deciding.
 fn comparable(s: &str) -> String {
     clean_separators(s)
         .to_ascii_lowercase()
@@ -195,8 +183,7 @@ fn comparable(s: &str) -> String {
 /// Drop a bracketed tag from the front of a name.
 ///
 /// A name opening with `[Group]` or `(Group)` is a release group's signature,
-/// not part of the title — the convention is near-universal in fansubbing and
-/// nowhere does a film actually begin with a bracket.
+/// a near-universal fansub convention; no film's title begins with a bracket.
 pub fn strip_group(s: &str) -> &str {
     let s = s.trim_start();
     let close = match s.chars().next() {
@@ -212,11 +199,9 @@ pub fn strip_group(s: &str) -> &str {
 
 /// Trim the punctuation a cut leaves dangling.
 ///
-/// A bracket at either end goes only when it is half of nothing. Series name
-/// the parts of a story `Marceline The Vampire Queen (1)`, and taking the
-/// closing parenthesis off that because it happened to be last left
-/// `… Queen (1`. What a cut does leave is the half it cut away from:
-/// `Title (` or `) Title`.
+/// A bracket at either end goes only when it pairs with nothing, so
+/// `Marceline The Vampire Queen (1)` keeps its parenthesis. What a cut leaves
+/// is the half it cut away from: `Title (` or `) Title`.
 pub(super) fn trim_junk(s: &str) -> String {
     const JUNK: [char; 6] = ['-', '–', '.', ',', '_', ' '];
     let mut s = s.trim().trim_matches(JUNK);

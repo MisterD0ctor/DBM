@@ -14,9 +14,8 @@ use crate::MainWindow;
 /// playing: the run starts with a real move, so the clock starts from a known
 /// point rather than from whenever the window last saw the hand.
 ///
-/// Both halves matter and the second one more. A pointer that hides is only
-/// half a feature — one that does not come back the moment the hand moves is
-/// worse than one that never left.
+/// The second half matters more: a pointer that doesn't come back the
+/// moment the hand moves is worse than one that never left.
 pub(super) fn cursor_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -28,12 +27,9 @@ pub(super) fn cursor_test(ui: &MainWindow) -> slint::Timer {
             let Some(ui) = weak.upgrade() else { return };
             match step {
                 0 => {
-                    // The real one, not a dispatched event. `ShowCursor`
-                    // keeps its display count on this thread's input queue,
-                    // so it governs the pointer only while the pointer is
-                    // over this window — and a test that asked the system
-                    // about a pointer sitting on some other window would be
-                    // reading an answer about somebody else's cursor.
+                    // The real pointer, not a dispatched event: `ShowCursor`
+                    // only governs it while it is over this window, so asking
+                    // about one elsewhere would read another app's cursor.
                     park_pointer(&ui);
                     hover(&ui, 40.0, 40.0);
                     report_cursor(&ui, "hand just moved");
@@ -87,14 +83,11 @@ fn report_cursor(ui: &MainWindow, when: &str) {
 /// Stage the failure the audio watchdog exists for.
 ///
 /// The real one needs a Bluetooth device to walk out of range, so the two
-/// halves are faked separately and each honestly: mpv really does drop the
-/// audio track, which is what leaves the player silent, and the watchdog
-/// really is handed a device list with something in it that was not there
-/// before. Everything between — the diff, the settle, the rebuild on the
-/// worker — is the code under test.
-///
-/// The property writes here block the UI thread. That is fine in a harness and
-/// would not be anywhere else.
+/// halves are staged separately: mpv really drops the audio track, and the
+/// watchdog really is handed a device list with something new in it.
+/// Everything between, the diff, the settle and the rebuild on the worker, is
+/// the code under test. The property writes block the UI thread, which is
+/// fine only in a harness.
 pub(super) fn audio_test(
     mpv: std::sync::Arc<Mpv>,
     audio: std::rc::Rc<crate::playback::audio::Watchdog>,
@@ -129,9 +122,9 @@ pub(super) fn audio_test(
                 // trip, so the result lands somewhere in these two steps.
                 5 | 6 => {}
                 7 => report_audio(&mpv, "after recovery"),
-                // Second half: silence somebody asked for is not a fault.
-                // The interface's own "Off" row, then another device turning
-                // up, which must leave it alone.
+                // Second half: silence somebody asked for is not a fault. The
+                // "Off" row, then another device turning up, which must leave
+                // it alone.
                 8 => {
                     audio.note_user_selection(None);
                     if let Err(e) = mpv.set_property("aid", "no") {

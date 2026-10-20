@@ -1,11 +1,8 @@
 //! Somewhere to put work that must not touch the UI thread.
 //!
 //! The rule this exists to enforce: **nothing on the frame path may block.**
-//! Two separate incidents have come from breaking it — six
-//! `mpv_get_property_string` calls per frame cost 220ms each during a resize,
-//! and a synchronous exact seek cost 195ms per drag update. Reading the track
-//! list is the same shape (~80ms on load), and scanning a folder will be far
-//! worse.
+//! A blocking mpv property read can cost 200ms during a resize, an exact seek
+//! as much per drag update, and scanning a folder far more.
 //!
 //! So: one background thread, a queue of jobs in, a queue of completions out.
 //! Jobs get a `&Mpv` and may block as long as they like. Completions are
@@ -29,9 +26,7 @@ pub enum Completion {
     /// A path opened and scanned into a playlist, or why it could not be.
     Opened(Result<crate::library::playlist::Prepared, String>),
     /// Something the person watching should be told, raised from a background
-    /// job. The audio watchdog is the first caller: it repairs the audio chain
-    /// silently, and silence is exactly what made the original fault so
-    /// baffling.
+    /// job, such as the audio watchdog saying sound is back.
     Notice(String),
     /// Something that did not happen, raised from a background job: said the
     /// same way, with the warning mark before it.
@@ -42,12 +37,11 @@ pub enum Completion {
     /// What the empty window can offer to pick back up, looked for once at
     /// startup when nothing was named on the command line.
     Resume(Option<crate::library::resume::Resume>),
-    /// A seek-preview atlas, built or found for the file playing, and
-    /// already decoded. Reported
-    /// from the build's own thread rather than the worker's — see `preview`.
+    /// A seek-preview atlas, built or found for the file playing, and already
+    /// decoded. Reported from the build's own thread (see `preview`).
     Preview(crate::library::preview::Atlas),
-    /// The light behind the empty window when no film can give it one — see
-    /// `mark`.
+    /// The light behind the empty window when no film can give it one (see
+    /// `mark`).
     Mark(crate::library::preview::Still),
     /// Where the way on goes once a list has run out, already named. `from`
     /// is the file that asked, so an answer that arrives after something
@@ -57,18 +51,18 @@ pub enum Completion {
         to: Option<crate::library::onward::Onward>,
     },
     /// The timing that puts the selected subtitles over the film's speech,
-    /// or why there is none. Reported from the run's own thread — see
-    /// `subsync`.
+    /// or why there is none. Reported from the run's own thread (see
+    /// `subsync`).
     Synced(crate::library::subsync::Outcome),
     /// Where the playing episode's title sequence is, or its closing
     /// credits, found by listening or remembered from the last time.
-    /// Reported from the run's own thread — see `titles`.
+    /// Reported from the run's own thread (see `titles`).
     Titles(crate::library::titles::Outcome),
-    /// The playlist laid out in its parts, for the panel to show — see
-    /// `playlist_panel`.
+    /// The playlist laid out in its parts, for the panel to show (see
+    /// `playlist_panel`).
     Shelved(crate::library::shelf::Shelf),
-    /// What OpenSubtitles holds for a file, or why it could not say. From
-    /// the search's own thread — see `opensubtitles`.
+    /// What OpenSubtitles holds for a file, or why it couldn't say. From the
+    /// search's own thread (see `opensubtitles`).
     Found(crate::library::opensubtitles::Found),
     /// A subtitle fetched from there and kept, or why it was not.
     Fetched(crate::library::opensubtitles::Fetched),
@@ -94,18 +88,17 @@ pub struct Worker {
     jobs: Option<Sender<Job>>,
     results: Receiver<Completion>,
     thread: Option<JoinHandle<()>>,
-    /// Kept so threads that are not this one can report through the same
-    /// queue — see [`Reporter`].
+    /// Kept so other threads can report through the same queue (see
+    /// [`Reporter`]).
     reply: Sender<Completion>,
     waker: slint::Weak<MainWindow>,
 }
 
 /// A way for a thread of its own to hand results back as the worker does.
 ///
-/// Some background work should not queue behind the worker — a scan of a
-/// large folder would hold the track menu empty until it finished — but its
-/// results still belong in the one enum drained once a frame, where every
-/// kind of background work is handled in one place.
+/// Some background work shouldn't queue behind the worker (a large folder's
+/// scan would hold the track menu empty until it finished), but its results
+/// still belong in the one enum drained each frame.
 #[derive(Clone)]
 pub struct Reporter {
     reply: Sender<Completion>,
@@ -145,9 +138,8 @@ impl Worker {
                     if results_tx.send(completion).is_err() {
                         break;
                     }
-                    // Nudge the loop: while paused there are no frames, and
-                    // the completion would otherwise sit until something
-                    // else caused a redraw.
+                    // Nudge the loop, since while paused there are no frames
+                    // to drain the completion.
                     let _ = ui.upgrade_in_event_loop(|ui| {
                         slint::ComponentHandle::window(&ui).request_redraw()
                     });
@@ -164,8 +156,8 @@ impl Worker {
         }
     }
 
-    /// Queue work with no result to report — a blocking read followed by
-    /// commands, say. Convenience over `submit` returning `None`.
+    /// Queue work with no result to report, such as a blocking read followed
+    /// by commands.
     pub fn run(&self, job: impl FnOnce(&Mpv) + Send + 'static) -> bool {
         self.submit(move |mpv| {
             job(mpv);
@@ -173,8 +165,8 @@ impl Worker {
         })
     }
 
-    /// Queue work. Returns whether it was accepted — a `false` means the
-    /// worker is shutting down.
+    /// Queue work. Returns whether it was accepted; `false` means the worker
+    /// is shutting down.
     pub fn submit(&self, job: impl FnOnce(&Mpv) -> Option<Completion> + Send + 'static) -> bool {
         self.jobs
             .as_ref()

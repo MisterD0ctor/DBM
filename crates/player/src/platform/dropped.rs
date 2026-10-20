@@ -1,19 +1,16 @@
 //! Files dropped onto the window.
 //!
-//! Slint has no drag-and-drop API of its own, and winit — which owns the
-//! window underneath it — does register a drop target, turns a drop into a
-//! `DroppedFile` event, and then has nowhere to deliver it, because Slint does
-//! not surface that event. So the drop is handled at the window itself.
+//! Slint has no drag-and-drop API, and the `DroppedFile` events winit makes
+//! are never surfaced by Slint, so the drop is handled at the window itself.
 //!
-//! On Windows that means the shell's older and simpler route: revoke the OLE
-//! drop target winit registered, ask for `WM_DROPFILES` instead, and read the
-//! path out of the message. Revoking is not a hostile act — the handler being
-//! displaced discards what it receives.
+//! On Windows that means the shell's older, simpler route: revoke the OLE
+//! drop target winit registered (which discards what it receives anyway),
+//! ask for `WM_DROPFILES` instead, and read the path out of the message.
 //!
-//! One path is taken, the first, and handed to the same `open-path` the file
-//! dialog answers with. A dropped file adopts its folder's siblings as a
-//! playlist exactly as an opened one does, so dropping three files from one
-//! folder and dropping one of them are the same request.
+//! The first path is handed to the same `open-path` the file dialog answers
+//! with. A dropped file adopts its folder's siblings as a playlist, as an
+//! opened one does, so dropping three files from one folder is the same as
+//! dropping one.
 //!
 //! Linux would be a different implementation against a different protocol
 //! (XDND, or `wl_data_device`), and there is no honest `cfg` arm for it here,
@@ -21,11 +18,9 @@
 
 /// Whether a drop reaches this program at all on this platform.
 ///
-/// Published to the interface, which says in two places that a file can be
-/// dropped on the window. Where this is false it must not say so: an
-/// instruction that does nothing is exactly the kind of guess the player is
-/// not allowed to make. It is a constant because the answer is decided at
-/// compile time by the `cfg` above, not discovered at run time.
+/// Published to the interface, which mentions dropping in two places and
+/// mustn't where it does nothing. A constant, since the `cfg` above decides
+/// it at compile time.
 pub const SUPPORTED: bool = cfg!(windows);
 
 /// Distinct from the modal-loop hook's, which is on the same window.
@@ -35,16 +30,15 @@ const SUBCLASS_ID: usize = 0x00DB_3003;
 /// Where a dropped path is delivered. A static because the window procedure
 /// is a bare function with nowhere to keep anything.
 ///
-/// `Weak` rather than a handle: the drop arrives on the UI thread, but it
-/// arrives from inside a window procedure, and running application code there
-/// means re-entering the event loop from the middle of a message. Going back
-/// through `upgrade_in_event_loop` turns it into an ordinary event.
+/// `Weak` rather than a handle: the drop arrives on the UI thread but inside a
+/// window procedure, where application code would re-enter the event loop
+/// mid-message, so `upgrade_in_event_loop` turns it into an ordinary event.
 #[cfg(windows)]
 static TARGET: std::sync::Mutex<Option<slint::Weak<crate::MainWindow>>> =
     std::sync::Mutex::new(None);
 
-/// Installs the hook, retrying from the frame path until the window exists —
-/// see [`UntilWindow`](crate::platform::window::UntilWindow).
+/// Installs the hook, retrying from the frame path until the window exists
+/// (see [`UntilWindow`](crate::platform::window::UntilWindow)).
 #[cfg(windows)]
 #[derive(Default)]
 pub struct Accepting {
@@ -80,9 +74,8 @@ fn accept(ui: &crate::MainWindow) -> Result<(), String> {
 
     let hwnd = crate::platform::window::hwnd(ui.window())?;
 
-    // winit's own drop target, which would otherwise swallow every drop into
-    // an event Slint never delivers. An error here means there was none to
-    // revoke, which is just as good an outcome.
+    // winit's own drop target, which would swallow every drop into an event
+    // Slint never delivers. An error means there was none to revoke.
     let _ = unsafe { RevokeDragDrop(hwnd) };
     unsafe { DragAcceptFiles(hwnd, true) };
 
@@ -174,8 +167,7 @@ impl Accepting {
         Self
     }
 
-    /// Nothing yet: X11 and Wayland each want their own protocol, and
-    /// pretending otherwise here would only hide that.
+    /// Nothing yet: X11 and Wayland each want their own protocol.
     pub fn poll(&mut self, _ui: &crate::MainWindow) {}
 }
 
@@ -185,13 +177,12 @@ impl Accepting {
 
 /// Post a file drop at our own window, as the shell would.
 ///
-/// For `DBM_DROP_TEST`. It lives here rather than in `harness` because it is
-/// the exact inverse of [`first_path`] — the same `DROPFILES` block, written
-/// instead of read — and the two want to be wrong together or not at all.
+/// For `DBM_DROP_TEST`. Here rather than in `harness` because it is the
+/// inverse of [`first_path`], the same `DROPFILES` block written instead of
+/// read, and the two should change together.
 ///
-/// What it cannot test is whether a real drag ever reaches us: that depends on
-/// the drop target being ours rather than winit's, which only an actual drag
-/// from Explorer exercises.
+/// It can't test whether a real drag reaches us, which depends on the drop
+/// target being ours rather than winit's; only a drag from Explorer does.
 #[cfg(windows)]
 pub fn post_test_drop(ui: &crate::MainWindow, path: &str) -> Result<(), String> {
     use slint::ComponentHandle;
@@ -240,8 +231,7 @@ pub fn post_test_drop(ui: &crate::MainWindow, path: &str) -> Result<(), String> 
         let _ = GlobalUnlock(block);
     }
 
-    // Posted rather than sent: a real drop arrives as a queued message, and
-    // the handler frees the block through `DragFinish` either way.
+    // Posted rather than sent, as a real drop arrives as a queued message.
     unsafe {
         PostMessageW(
             Some(hwnd),

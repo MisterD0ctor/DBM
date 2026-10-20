@@ -2,14 +2,11 @@
 //!
 //! Four things shell out to it: the seek preview, which cuts a sheet of
 //! frames out of a film; the playlist scan, which asks each file how long it
-//! is and what it is called without playing it; the subtitle sync, which
-//! listens to a film's audio; and the search for an episode's title
-//! sequence and credits, which listens to two. If it is not on the machine
-//! none of them happens — the preview falls back to the timestamp alone, the
-//! rows to what mpv itself has said, the sync says it cannot, and titles and
-//! credits are only where the chapters mark them — which is a feature
-//! degrading, not a failure, and nothing reports it as one unasked after
-//! the first mention.
+//! is and what it is called; the subtitle sync, which listens to a film's
+//! audio; and the search for an episode's title sequence and credits, which
+//! listens to two. Without it each degrades rather than fails (the preview to
+//! the timestamp alone, the rows to what mpv has said, titles and credits to
+//! the chapters), so it is mentioned once.
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -17,9 +14,8 @@ use std::process::{Child, Command, Stdio};
 /// Where ffmpeg is, if anywhere.
 ///
 /// `DBM_FFMPEG` overrides; then the copy this app ships with; then whatever
-/// the `PATH` turns up. The shipped copy has to come before `PATH` or a
-/// machine with its own ffmpeg would quietly use that one instead — a
-/// different build, possibly a different decoder set, for no reason.
+/// the `PATH` turns up. The shipped copy comes before `PATH`, or a machine
+/// with its own ffmpeg would quietly use a different build.
 ///
 /// Two names because the vendored file keeps the target-triple suffix Tauri's
 /// sidecar mechanism requires, while a packaged build places it plainly.
@@ -46,9 +42,9 @@ pub fn path() -> Option<PathBuf> {
 
 /// Name the ffmpeg actually in use, once per run.
 ///
-/// Four things can supply it — the override, the copy beside the executable,
-/// this crate's vendor directory, the `PATH` — so "the thumbnails are missing"
-/// is otherwise a question with no way to answer it.
+/// Four places can supply it (the override, beside the executable, the
+/// vendor directory, the `PATH`), so "the thumbnails are missing" needs this
+/// to be answerable.
 pub fn announce(ffmpeg: &Path) {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| eprintln!("dbm: ffmpeg at {}", ffmpeg.display()));
@@ -82,15 +78,14 @@ pub fn command(ffmpeg: &Path) -> Command {
 /// same core the player gets it.
 ///
 /// For work nobody is watching: the seek preview's frames, and the audio a
-/// subtitle sync or the search for titles and credits listens to. The player draws at the display's rate and mpv
-/// decodes against the clock, so a moment's wait for a core shows on screen;
-/// a thumbnail sheet or an answer that arrives a little later does not.
+/// subtitle sync or the title search listens to. The player draws at the
+/// display's rate and mpv decodes against the clock, so a wait for a core
+/// shows on screen, while a thumbnail sheet arriving later doesn't.
 ///
-/// On Linux the niceness is set once the process has started, not before:
-/// that would take a `pre_exec` hook, which makes the standard library fork
-/// the whole player rather than spawn, and every page the renderer then
-/// writes is copied while the child gets as far as `exec`. The moments
-/// ffmpeg runs at full priority are spent loading itself.
+/// On Linux the niceness is set once the process has started, because
+/// setting it before takes a `pre_exec` hook, which makes the standard
+/// library fork the whole player rather than spawn. The moments ffmpeg runs
+/// at full priority are spent loading itself.
 pub fn spawn_behind(cmd: &mut Command) -> std::io::Result<Child> {
     #[cfg(windows)]
     {

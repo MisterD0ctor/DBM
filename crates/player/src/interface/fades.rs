@@ -1,5 +1,5 @@
 //! Where a scrolling list's rows run out, and the bar's title with them: the
-//! strips the pipeline softens — and the angle in a list's end that points
+//! strips the pipeline softens, and the angle in a list's end that points
 //! back to its current row, which the pipeline draws after them.
 //!
 //! Each list publishes where it is and how far it is from each of its ends
@@ -44,15 +44,13 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<Strip>, ways: &mut Vec<Way>) {
             continue;
         }
         let px = |logical: f32| (logical * dpi).round() as i32;
-        // Outward to whole pixels. A title mid-resize, or a page mid-slide,
-        // ends partway across a pixel; rounded to the nearest, the strip
-        // stopped short of that pixel half the time and left a sliver of
-        // unsoftened words standing at its edge.
+        // Outward to whole pixels, since a list mid-slide ends partway across
+        // a pixel, and rounding to the nearest could leave a sliver of
+        // unsoftened words at its edge.
         let before = |logical: f32| (logical * dpi).floor() as i32;
         let after = |logical: f32| (logical * dpi).ceil() as i32;
-        // Sideways and up and down, only what is inside the panel: a page
-        // sliding in is half outside it, and there is nothing of the list
-        // there to soften — only the film.
+        // Only what is inside the panel, since a page sliding in is half
+        // outside it, where there is only the film.
         let left = before(list.x).max(before(list.clip_x));
         let right = after(list.x + list.width).min(after(list.clip_x + list.clip_width));
         let top = before(list.y).max(before(list.clip_y));
@@ -81,10 +79,9 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<Strip>, ways: &mut Vec<Way>) {
         }
         let sigma = SIGMA * dpi;
         // How deep a strip is: all of `BAND` once that much has gone past the
-        // edge, and until then only as deep as what has. Its outer edge is
-        // always where things are gone entirely. Thinning the whole strip in
-        // instead left that edge half there while it arrived — the cut ends
-        // of the words standing in it as a bright sliver.
+        // edge, and until then only as deep as what has, so its outer edge is
+        // always fully gone. Fading the whole strip in instead would leave the
+        // cut ends of words there as a bright sliver.
         let deep = |strength: f32, most: i32| {
             ((px(BAND) as f32 * strength.clamp(0.0, 1.0)).ceil() as i32).min(most)
         };

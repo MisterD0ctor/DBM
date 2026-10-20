@@ -2,9 +2,9 @@
 
 /// Whether a chapter's title marks closing credits.
 ///
-/// Chapter names are structural rather than written — `End Credits`,
-/// `Outro`, `ED` — so whole words are matched, and a title about the start
-/// (`Opening Credits`, `Intro`, `OP`) is refused whatever else it says.
+/// Chapter names are structural rather than written (`End Credits`, `Outro`,
+/// `ED`), so whole words are matched, and a title about the start (`Opening
+/// Credits`, `Intro`, `OP`) is refused whatever else it says.
 pub fn is_credits(title: &str) -> bool {
     let words: Vec<String> = title
         .split(|c: char| !c.is_alphanumeric())
@@ -71,9 +71,8 @@ pub fn is_intro(title: &str) -> bool {
         || words == ["titles"]
 }
 
-/// Whether a chapter's title is only a placeholder — its own start time,
-/// `00:42:22.832`, or `Chapter 7` — which is what a muxer writes when nobody
-/// named anything.
+/// Whether a chapter's title is only a placeholder (its own start time,
+/// `00:42:22.832`, or `Chapter 7`), as a muxer writes when nobody named it.
 pub fn is_unnamed_chapter(title: &str) -> bool {
     let title = title.trim();
     if let Some(rest) = title

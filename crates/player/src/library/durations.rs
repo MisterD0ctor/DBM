@@ -1,16 +1,13 @@
 //! How long each file is, and how far into it you got.
 //!
-//! mpv knows a file's duration only once it has opened it, which is too late
-//! for a playlist that wants to say how long the other nine episodes are. So
-//! the duration of everything played is kept in `durations.json` — the same
-//! file, in the same place, as the Tauri build's, so a library's worth of
-//! accumulated lengths survives the rewrite.
+//! mpv knows a file's duration only once it has opened it, too late for a
+//! playlist that wants to say how long the other episodes are. So the length
+//! of everything played is kept in `durations.json`, the same file and place
+//! as the Tauri build's, so the lengths it gathered carry over.
 //!
-//! The position comes from mpv's own watch-later files rather than a copy of
-//! our own. That matters: the number a row shows is then *the* resume point,
-//! the one mpv will actually use, and not something that can quietly drift
-//! from it. The price is having to find those files, which mpv names by the
-//! MD5 of the path it was given — hence the one dependency this module has.
+//! The position comes from mpv's own watch-later files rather than a copy, so
+//! a row shows the resume point mpv will actually use. Finding them means the
+//! MD5 of the path mpv was given, hence this module's one dependency.
 //!
 //! Everything here touches the disk, so everything here runs on the worker.
 
@@ -23,7 +20,7 @@ use crate::library::cache::PathMap;
 /// Path to seconds.
 pub type Cache = HashMap<String, f64>;
 
-/// Versioned as caches are — see `cache`. 1: the container's own duration.
+/// Versioned as caches are (see `cache`). 1: the container's own duration.
 static LENGTHS: PathMap<f64> = PathMap::cache("durations.json", 1);
 
 /// Every length known. **Blocking.** Worker thread only.
@@ -52,28 +49,23 @@ pub struct Progress {
     pub fraction: f32,
     /// The resume point itself, in seconds, zero when there is none.
     ///
-    /// Kept because `fraction` cannot be worked out without a length, and a
-    /// length can now arrive after this was read — from a probe of a file
-    /// that has a resume point but was never played long enough here for mpv
-    /// to report how long it is.
+    /// Kept because `fraction` needs a length, which can arrive after this
+    /// was read, from a probe of a file never played long enough here for
+    /// mpv to report its length.
     pub start: f64,
     /// Watched to its end, or into its closing credits, and not started
     /// again since.
     ///
-    /// A record of the player's own, because nothing mpv keeps can say it:
-    /// mpv deletes a position once a file is watched through, and a scan
-    /// gives every file a length, so a finished episode and one never started
-    /// look exactly alike on disk.
+    /// A record of the player's own, because mpv deletes a position once a
+    /// file is watched through, and a scan gives every file a length, so a
+    /// finished episode and one never started look alike on disk.
     pub finished: bool,
 }
 
 /// Look up every entry in a playlist at once.
 ///
-/// **Blocking.** Worker thread only — it reads one small file per entry.
-///
-/// One pass over the cache for the whole list, because the caller already has
-/// the whole list and reading the cache ten times would be ten times the work
-/// for the same answer.
+/// **Blocking.** Worker thread only, since it reads one small file per entry.
+/// One pass over the cache for the whole list, rather than one per entry.
 pub fn of(paths: &[String]) -> Vec<Progress> {
     let cache = load();
     let finished = load_finished();
@@ -100,9 +92,8 @@ pub fn of(paths: &[String]) -> Vec<Progress> {
 /// Where mpv would resume this file, in seconds.
 ///
 /// mpv names each watch-later file by the uppercase MD5 of the path it was
-/// opened with, and writes `start=<seconds>` inside. Both halves are mpv's
-/// convention rather than ours, which is the point — this reads what mpv will
-/// read.
+/// opened with, and writes `start=<seconds>` inside. Both are mpv's
+/// convention, so this reads what mpv will read.
 pub fn resume_point(dir: &std::path::Path, path: &str) -> Option<f64> {
     let digest = md5::Md5::digest(path.as_bytes());
     let name: String = digest.iter().map(|b| format!("{b:02X}")).collect();
@@ -115,9 +106,9 @@ pub fn resume_point(dir: &std::path::Path, path: &str) -> Option<f64> {
 
 /// The name mpv gives this path's watch-later file.
 ///
-/// Exposed for the harness: whether our hashing agrees with mpv's is the one
-/// thing in this module that cannot be checked by reading the code, since it
-/// depends on the exact string mpv hashed.
+/// Exposed for the harness, since whether our hashing agrees with mpv's
+/// depends on the exact string mpv hashed, which reading the code can't
+/// check.
 pub fn watch_later_name(path: &str) -> String {
     md5::Md5::digest(path.as_bytes())
         .iter()
@@ -158,8 +149,7 @@ pub fn record_finished(path: &str, at: f64) {
 /// Whether a file counts as finished, given where mpv would resume it now.
 ///
 /// A resume point short of the ending is a viewing started again since, and
-/// the row should say how far into that one you are rather than that it was
-/// once seen through.
+/// the row should say how far into that one you are.
 pub fn is_finished(finished: &Finished, path: &str, start: f64) -> bool {
     finished
         .get(path)
@@ -176,9 +166,8 @@ pub fn is_finished(finished: &Finished, path: &str, start: f64) -> bool {
 /// write itself goes to the worker, because it reads and rewrites a file.
 #[derive(Default)]
 pub struct Recorder {
-    /// What was last handed to the worker, so the same fact is not written
-    /// twice — which for a file playing at 60 frames a second would be a
-    /// rewrite per frame.
+    /// What was last handed to the worker, so the same fact isn't rewritten
+    /// every frame.
     last: Option<(String, f64)>,
     /// The file playing, its length, and whether it was within a moment of
     /// its end. Autoplay moves straight past the end of a file and mpv never
@@ -236,9 +225,9 @@ impl Recorder {
         let Some(path) = player.path.as_deref() else {
             return;
         };
-        // Both halves of the file's own numbers, and the second half of it:
-        // for a frame after a new file opens, the flags and the position can
-        // still be the last one's.
+        // The file's own numbers, and past its halfway point, since for a
+        // frame after a new file opens the flags and position can still be
+        // the last one's.
         let into_it = player.duration > 0.0 && player.time_pos >= player.duration * 0.5;
         if let Some(playing) = self.playing.as_mut() {
             playing.1 = player.duration;
@@ -282,9 +271,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("dbm-durations-{}", std::process::id()));
         let app = dir.join("Death by MPV");
         std::fs::create_dir_all(app.join("watch_later")).unwrap();
-        // `app_data_dir` is where both files live, and it is read from the
-        // environment — which is also how the harness keeps test runs out of
-        // the real one.
+        // `app_data_dir` is where both files live, read from the environment.
         std::env::set_var("APPDATA", &dir);
 
         std::fs::write(

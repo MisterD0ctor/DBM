@@ -1,34 +1,26 @@
 //! Arriving at a file with a place saved in it.
 //!
-//! mpv resumes every file at the point its watch-later entry saved, on its
-//! own and without a word. That is right for a film left last night and
-//! wrong for one somebody means to see again, and only the person knows
-//! which. So a file opened on purpose — a row of the playlist, the previous
-//! and next buttons and keys, the way on at the end of a file, a file or a
-//! folder opened — that has a real place saved in it is held, paused on
-//! that place, until they say: on from there, or from the beginning. The
-//! choice is the centre pill's — see `arriving` in app.slint.
+//! mpv resumes every file at its saved place on its own, which is right for a
+//! film left last night and wrong for one somebody means to see again, and
+//! only the person knows which. So a file opened on purpose (a playlist row,
+//! previous and next, the way on, a file or folder opened) that has a real
+//! place saved is held, paused there, until they choose: on from there, or
+//! from the beginning (see `arriving` in app.slint).
 //!
-//! A file watched to its end, or all but, starts again from the top rather
-//! than in its credits; one barely begun starts again too, rather than ask
-//! about seconds. The way in's Continue has already said which, and so has
-//! a pair of headphones skipping on: the media keys are answered from
-//! threads of their own, by someone who may not be looking, and resume as
-//! mpv always did.
+//! A file watched to its end, or all but, starts from the top rather than in
+//! its credits, and so does one barely begun. The way in's Continue has
+//! already chosen, and so have the media keys, answered on threads of their
+//! own for someone who may not be looking, which resume as mpv does.
 //!
-//! Autoplay cannot ask — nobody may be watching, and a held pause would end
-//! the evening — so a file it brings in starts from the top. It got there
-//! because the one before it played to its end, so the person is watching
-//! in order, and a place saved in the next one is from an earlier viewing:
-//! dropped into the middle of a scene with nobody at the controls is the
-//! worse mistake. But not the only one, since the earlier viewing may be
-//! what they rewatched the last episode to get back to; so for its first
-//! ten seconds the corner pill offers to go on from that place.
+//! Autoplay can't ask, since nobody may be watching, so a file it brings in
+//! starts from the top: the person is watching in order, so a place saved in
+//! the next file is from an earlier viewing. That viewing may be what they
+//! meant to get back to, so for its first ten seconds the corner pill offers
+//! to go on from it.
 //!
-//! Decided before the file is asked for, from what the playlist already
-//! knows — so that a file to be held is paused before it loads, rather than
-//! heard playing from its saved place for the moment it took to notice —
-//! and carried out when it has loaded.
+//! Decided before the file is asked for, from what the playlist knows, so a
+//! file to be held is paused before it loads rather than heard from its saved
+//! place first, and carried out once it has loaded.
 
 use std::cell::RefCell;
 
@@ -40,10 +32,10 @@ use crate::playback::mpv::Mpv;
 /// one being watched, and it starts over rather than ask about seconds.
 const WORTH_ASKING: f64 = 60.0;
 /// Left this close to its end, a file has been watched to it in all but
-/// name — its credits never heard, or its last checkpoint a little short of
-/// them — and it starts over, as a finished one does. The last twentieth of
-/// it, but never less than its last minute: a twentieth of an eleven-minute
-/// episode is half a minute, and its credits run longer than that.
+/// name (its credits never heard, or its last checkpoint a little short of
+/// them), and starts over as a finished one does. The last twentieth, but
+/// never less than its last minute, since an eleven-minute episode's credits
+/// run longer than a twentieth of it.
 const ENDING_SHARE: f64 = 0.05;
 const ENDING_LEAST: f64 = 60.0;
 /// How far the position may wander from the saved place, in seconds, before
@@ -86,8 +78,8 @@ impl Saved {
 enum Then {
     /// Stay on the saved place, `from` seconds in, until told which.
     Ask { from: f64 },
-    /// Back to the top, and then playing or not as it was asked for — and,
-    /// for a file autoplay brought in, the place passed over, to offer.
+    /// Back to the top, then playing or not as asked, and, for a file
+    /// autoplay brought in, the place passed over, to offer.
     Over { play: bool, offer: Option<f64> },
 }
 
@@ -115,9 +107,8 @@ struct Pending {
     wanted: String,
     then: Then,
     /// How many files had loaded, and which was playing, when it was asked
-    /// for. A load is not enough to go by on its own: mpv says a file has
-    /// loaded a moment before it says which, and for that moment the path
-    /// is still the one being left.
+    /// for. A load alone isn't enough, since mpv says a file has loaded a
+    /// moment before it says which.
     loads: u64,
     left: Option<String>,
 }
@@ -194,10 +185,9 @@ impl Arrival {
     }
 
     /// The file `entry` played to its end and autoplay is moving on to
-    /// `next`. mpv will resume it at its saved place by itself; this has it
-    /// start from the top instead, offering the place for a while. Paused at
-    /// once, since mpv is already opening it — usually in time for it to
-    /// play nothing from that place first.
+    /// `next`. mpv would resume it at its saved place; this starts it from
+    /// the top instead, offering the place for a while. Paused at once, since
+    /// mpv is already opening it, usually in time to play nothing from there.
     pub fn played_out(&self, mpv: &Mpv, next: &str) {
         if crate::harness::armed() {
             return;
@@ -227,13 +217,10 @@ impl Arrival {
     pub fn offered(&self, path: Option<&str>, time_pos: f64) -> Option<f64> {
         let mut state = self.state.borrow_mut();
         let offer = state.offer.as_ref()?;
-        // The position passes through the place itself on the way: the file
-        // reads nothing at first, mpv then resumes it at its place as it
-        // opens, and the restart lands after that. So only being past the
-        // first ten seconds anywhere but the place ends the offer, and it is
-        // offered all the way through — shown and hidden as the position
-        // went by, it flickered, and the title sequence's offer flashed up
-        // in the gaps.
+        // The position passes through the place on the way (mpv resumes it
+        // there as it opens, then the restart lands), so only being past the
+        // first ten seconds anywhere but the place ends the offer. Following
+        // the position in and out would flicker.
         let at_place = (time_pos - offer.from).abs() <= WANDER;
         if path != Some(offer.path.as_str()) || time_pos >= OFFER_FOR && !at_place {
             state.offer = None;
@@ -261,7 +248,7 @@ impl Arrival {
 
     /// Play entry `index` of the playlist, asked for on purpose. `play` is
     /// whether it should play once there; `None` keeps the pause as it is,
-    /// which is what choosing a row or stepping with the bar always did.
+    /// as choosing a row or stepping with the bar does.
     pub fn play_index(&self, mpv: &Mpv, index: i64, play: Option<bool>) {
         let mut state = self.state.borrow_mut();
         let playing = play.unwrap_or(!state.paused);
@@ -280,8 +267,8 @@ impl Arrival {
             };
             Some((path.clone(), then))
         });
-        // Whatever was being asked about or offered, the answer is now
-        // another file.
+        // Whatever was being asked about or offered gives way to another
+        // file.
         state.asking = None;
         state.offer = None;
         match then {
@@ -303,7 +290,7 @@ impl Arrival {
     }
 
     /// The entry `delta` along from the one playing. Before the lists have
-    /// been read there is nothing to go by, and it steps as it always did.
+    /// been read there is nothing to go by, and it steps plainly.
     pub fn step(&self, mpv: &Mpv, delta: i32, play: Option<bool>) {
         let (target, known) = {
             let state = self.state.borrow();
@@ -321,7 +308,7 @@ impl Arrival {
     }
 
     /// A playlist about to be loaded whose first file is `path`, with
-    /// `saved` for it. Whether the load should leave it paused — which it
+    /// `saved` for it. Whether the load should leave it paused, which it
     /// should while there is something to do once it is in.
     pub fn open_list(&self, mpv: &Mpv, path: String, saved: Saved) -> bool {
         let mut state = self.state.borrow_mut();
@@ -344,15 +331,15 @@ impl Arrival {
         true
     }
 
-    /// Whether a file is still on its way in to be held or started over —
-    /// which is when nothing else should set it playing.
+    /// Whether a file is still on its way in to be held or started over,
+    /// when nothing else should set it playing.
     pub fn holding(&self) -> bool {
         self.state.borrow().pending.is_some()
     }
 
-    /// Where the file being held was left, if one is — or `None` once the
-    /// choice has been made, by the pill or otherwise: playing on, a seek
-    /// away from the place, another file.
+    /// Where the file being held was left, or `None` once the choice has been
+    /// made, by the pill or otherwise: playing on, a seek away from the
+    /// place, another file.
     pub fn asking(&self, path: Option<&str>, time_pos: f64, paused: bool) -> Option<f64> {
         let mut state = self.state.borrow_mut();
         let asking = state.asking.as_mut()?;

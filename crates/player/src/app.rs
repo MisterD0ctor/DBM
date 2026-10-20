@@ -1,12 +1,9 @@
 //! The handles the parts of the player share.
 //!
-//! One value rather than a parameter apiece. The interface's callbacks, the
-//! frame loop and the harness each need several of these, and handing them
-//! over one at a time had grown to nine arguments for the callbacks and eleven
-//! for the frame loop, with every handler opening on a tuple of whichever
-//! clones it happened to need. Every field is a reference-counted handle, so
-//! cloning an `App` is a few counter increments and a closure takes the whole
-//! thing.
+//! One value rather than a parameter apiece, since the interface's callbacks,
+//! the frame loop and the harness each need several. Every field is a
+//! reference-counted handle, so cloning an `App` is cheap and a closure can
+//! take the whole thing.
 //!
 //! UI thread only, like everything that holds one: the `Rc`s are not `Send`.
 //! The worker and the bus threads are given the `Arc<Mpv>` alone.

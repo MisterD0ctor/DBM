@@ -4,8 +4,7 @@
 //! of things the interface can ask for is one readable list. The handlers
 //! themselves stay thin: decide *what*, hand off to `commands` for *how*.
 //!
-//! All of this runs on the UI thread, so an `Rc` is sufficient — no
-//! synchronisation, no channels.
+//! All of this runs on the UI thread, so an `Rc` is enough.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -20,9 +19,8 @@ use crate::playback::commands;
 use crate::settings::{Before, Section, REGISTRY};
 use crate::{MainWindow, Motion, Shapes, Tip};
 
-/// A click on the video is held this long so a double-click can cancel it.
-/// Without the delay, double-clicking to go fullscreen pauses and unpauses on
-/// the way there.
+/// A click on the video is held this long so a double-click can cancel it,
+/// rather than pausing and unpausing on the way to fullscreen.
 const DOUBLE_CLICK_GRACE: Duration = Duration::from_millis(250);
 
 /// What the last reset replaced, so its page can offer it back. One slot: a
@@ -171,10 +169,9 @@ fn wire_timeline(ui: &MainWindow, app: &App) {
         let (app, weak) = (app.clone(), ui.as_weak());
         ui.on_seek_scrub(move |f| {
             app.activity.bump();
-            // The mirrored state is the cheapest source of the current
-            // playback state, which only matters on the first update of a
-            // drag, and of the film's length, which is what makes a
-            // distance along the track a speed through the film.
+            // From the mirrored state, the cheapest source: whether it is
+            // paused, which matters on a drag's first update, and the film's
+            // length, which turns distance along the track into speed.
             let (paused, duration) = weak
                 .upgrade()
                 .map_or((false, 0.0), |ui| (ui.get_paused(), ui.get_duration()));
@@ -189,9 +186,9 @@ fn wire_timeline(ui: &MainWindow, app: &App) {
             app.scrubber.held_at(&app.mpv, f);
         });
     }
-    // Answered from what is already known — the duration and the atlas —
-    // because this fires on every pointer move over the timeline and nothing
-    // on that path may touch mpv or the disk.
+    // Answered from what is already known (the duration and the atlas),
+    // because this fires on every pointer move over the timeline, where
+    // nothing may touch mpv or the disk.
     {
         let (app, weak) = (app.clone(), ui.as_weak());
         ui.on_preview_at(move |fraction| {
@@ -233,9 +230,8 @@ fn wire_tracks(ui: &MainWindow, app: &App) {
     on!(ui, app, on_cycle_track, |m, subtitles, direction| {
         commands::cycle_track(m, subtitles, direction)
     });
-    // A track out, and a fetched one forgotten with it, so it does not come
-    // back the next time the film opens. Reads the track list for the file
-    // it came from, so on the worker.
+    // A track out, and a fetched one forgotten with it so it doesn't come
+    // back next time the film opens. Reads the track list, so on the worker.
     {
         let app = app.clone();
         ui.on_remove_track(move |id, subtitle| {
@@ -343,9 +339,9 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
         });
     }
     // Page numbers as the settings panel counts them: 1 glass, 2 ambient
-    // border, 3 subtitles. The subtitles' delay and speed travel with the
-    // request because they are per-file state mpv owns, and the interface
-    // already had the numbers when the reset was pressed.
+    // border, 3 subtitles. The subtitles' delay and speed come with the
+    // request because they are per-file state mpv owns, and the interface had
+    // them when the reset was pressed.
     {
         let (app, models, undo) = (app.clone(), models.clone(), undo.clone());
         ui.on_undo_reset(move |page, delay, speed| {
@@ -371,9 +367,8 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
         });
     }
 
-    // Effect toggles. The tuning behind an effect survives switching it off,
-    // which is why these are separate from the sliders rather than a zero
-    // value on one of them.
+    // Effect toggles, separate from the sliders rather than a zero on one,
+    // so the tuning survives switching an effect off.
     {
         let app = app.clone();
         ui.on_set_ambience(move |on| {
@@ -389,10 +384,9 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
             commands::set_autoplay(&app.mpv, on);
         });
     }
-    // The interface has already stopped moving by the time this runs:
-    // `Motion.enabled` is set on the Slint side first. What is left is saving
-    // it, and the backdrop's fade, which the driver hands the pipeline from
-    // the store.
+    // `Motion.enabled` is already set on the Slint side, so this saves the
+    // choice, which the driver also hands the pipeline for the backdrop's
+    // fade.
     {
         let app = app.clone();
         ui.on_set_animations(move |on| {
@@ -433,9 +427,9 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
 /// The subtitles page: timing, size and placement, and lining the timing up
 /// with the film's speech.
 ///
-/// Size and placement are nudged from the stored value rather than from the
-/// mirrored one: the store is what gets saved, and driving both from the same
-/// number is what keeps them from drifting apart.
+/// Size and placement are nudged from the stored value rather than the
+/// mirrored one, because the store is what gets saved, and one source keeps
+/// them from drifting apart.
 fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
     on!(ui, app, on_nudge_sub_delay, |m, d| {
         commands::nudge_sub_delay(m, d as f64)
@@ -462,10 +456,9 @@ fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
         ui.on_reset_subtitles(move || {
             app.activity.bump();
             undo.set(Some(app.settings.before()));
-            // One row rather than three, matching the settings pages. The
-            // delay goes back to zero too even though it is not saved here -
-            // "reset" on a page means the whole page. So does the speed a
-            // sync may have set, which has no row of its own to undo it on.
+            // One row rather than three, matching the settings pages, so it
+            // resets the whole page: the delay too, though it isn't saved
+            // here, and the speed a sync may have set, which has no row.
             commands::set_sub_delay(&app.mpv, 0.0);
             commands::set_sub_speed(&app.mpv, 1.0);
             app.settings
@@ -531,14 +524,11 @@ fn wire_opening(ui: &MainWindow, app: &App) {
         ui.on_open_path(move |path, ask| {
             app.activity.bump();
             let path = std::path::PathBuf::from(path.as_str());
-            // Say so before handing it over. Everything past this point is on
-            // another thread — a `read_dir` that the playlist module warns can
-            // take seconds on a network share, an m3u write, a `loadlist`, and
-            // then mpv's own open — and for all of it the interface used to be
-            // indistinguishable from one that had ignored the click.
-            //
-            // Set here rather than in the dialog handlers so a drop and the
-            // command line get it too: this is the one funnel they share.
+            // Said before handing it over, since everything past here is on
+            // another thread (a `read_dir` that can take seconds on a network
+            // share, an m3u write, a `loadlist`, mpv's own open), and would
+            // otherwise look like an ignored click. Set here, the one funnel
+            // they share, so a drop and the command line get it too.
             if let Some(ui) = weak.upgrade() {
                 ui.set_opening_name(opening_name(&path).into());
                 ui.set_opening(true);
@@ -590,8 +580,8 @@ fn wire_video_clicks(ui: &MainWindow, app: &App) {
     }
 }
 
-/// Fullscreen is the window's business, not mpv's — with `vo=libmpv` there is
-/// no mpv-owned window to put into a fullscreen state.
+/// Fullscreen is the window's business, not mpv's, since with `vo=libmpv`
+/// there is no mpv-owned window.
 fn wire_fullscreen(ui: &MainWindow) {
     {
         let weak = ui.as_weak();
@@ -679,16 +669,14 @@ fn near(ui: &MainWindow) -> Option<std::path::PathBuf> {
 
 /// What to call the thing being opened while it is being opened.
 ///
-/// The file's or folder's own name, not the path: the line it goes into is one
-/// row wide, and the part that identifies it to the person who just picked it
-/// is the end. No extension — `naming` strips it everywhere else too, and
-/// "Opening S02E01.mkv…" reads like a file manager rather than a player.
+/// The file's or folder's own name, not the path, since the line is one row
+/// wide and the end is what identifies it. No extension, as everywhere else
+/// in `naming`.
 ///
-/// Decided from the name alone. Whether the path is a folder is a question
-/// for the disk, and this runs on the UI thread at the moment of a click, on
-/// a path that may be on a share; every other part of opening is kept off
-/// this thread for that reason. A video extension is stripped, and a folder
-/// called `Show.S01.1080p` keeps all of its name, since `1080p` is not one.
+/// Decided from the name alone, without asking the disk whether it is a
+/// folder, because this runs on the UI thread at a click, on a path that may
+/// be on a share. So only a video extension is stripped, and a folder called
+/// `Show.S01.1080p` keeps all of its name.
 fn opening_name(path: &std::path::Path) -> String {
     let name = if crate::library::playlist::is_video_file(path) {
         path.file_stem()

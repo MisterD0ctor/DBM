@@ -30,35 +30,27 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_paused(player.paused);
     ui.set_muted(player.muted);
     ui.set_volume(player.volume as f32);
-    // mpv's `sub-visibility` is only half of it: it can be on with no
-    // subtitle track selected, which puts nothing on screen. The interface
-    // asks whether subtitles are showing, and answers the tracks menu's Off
-    // row and the bar's own glyph with it — both of which were claiming
-    // subtitles were on for a file mpv had chosen none for.
+    // mpv's `sub-visibility` can be on with no subtitle track selected, which
+    // shows nothing, so the interface is told whether subtitles are actually
+    // showing, for the tracks menu's Off row.
     ui.set_subs_visible(
         player.sub_visibility && tracks::selected(&player.tracks, TrackKind::Sub).is_some(),
     );
     ui.set_panscan(player.panscan > 0.5);
     ui.set_sub_delay_text(format::delay(player.sub_delay).into());
     ui.set_sub_scale_text(format::scale(player.sub_scale).into());
-    // Whether anything is loaded at all.
-    //
-    // Derived from mpv every frame rather than set once at startup. It used to
-    // be written exactly once, in `main`, from the command line — so a file
-    // opened through the dialog, the folder button or a drop never touched it,
-    // and the interface spent the whole film insisting "No file open" while
-    // showing a play glyph over a running picture. The end-of-playback button
-    // is gated on this too, so it never appeared for those files either.
+    // Whether anything is loaded, derived from mpv every frame, since a file
+    // can arrive by the dialog, a drop or the command line.
     ui.set_has_file(player.path.is_some());
-    // A finished file, and whether there is another one after it. mpv only
-    // reports `eof-reached` while it is holding the last frame open, which is
-    // exactly when the interface has something to offer.
+    // A finished file, and whether another follows it. mpv only reports
+    // `eof-reached` while holding the last frame, which is when the interface
+    // has something to offer.
     ui.set_at_end(player.eof_reached && player.path.is_some());
     ui.set_at_last(player.playlist_pos + 1 >= player.playlist_count);
     // The other end, so previous can say there is nothing before this.
     ui.set_at_first(player.playlist_pos <= 0);
-    // Raw, beside the formatted text: undoing a reset has to put back the
-    // number, and parsing it out of "+0.30 s" would be reading our own label.
+    // Raw, beside the formatted text, so undoing a reset can put the number
+    // back without parsing it out of "+0.30 s".
     ui.set_sub_delay(player.sub_delay as f32);
     ui.set_sub_speed(if player.sub_speed > 0.0 {
         player.sub_speed as f32
@@ -90,9 +82,8 @@ pub struct Lists {
     pub tracks: Vec<Track>,
     pub playlist: Vec<PlaylistEntry>,
     /// One per playlist entry, in the same order: how long it is and how far
-    /// into it the resume point sits. Read here rather than in a job of its
-    /// own because it is answered *from* the playlist — the paths have to be
-    /// known before the lookup can start, and they are known right here.
+    /// in the resume point sits. Read here rather than in a job of its own,
+    /// because the lookup needs the playlist's paths, which are read here.
     pub progress: Vec<Progress>,
     /// The file's chapter marks. Invalidated with the tracks, by a new file.
     pub chapters: Vec<Chapter>,
@@ -103,21 +94,18 @@ pub struct Lists {
 
 /// Requests list reads and applies the results.
 ///
-/// The reads themselves are ~80ms of blocking property calls, so they happen
-/// on the worker. This keeps one request in flight and remembers what it was
-/// for, which is the same shape as the scrubber: coalesce, and always
-/// converge on the newest state rather than replaying every intermediate one.
+/// The reads are ~80ms of blocking property calls, so they happen on the
+/// worker. Like the scrubber, this keeps one request in flight and converges
+/// on the newest state rather than replaying every intermediate one.
 #[derive(Default)]
 pub struct ListSync {
     in_flight: bool,
     requested: u64,
     /// Ask again even though nothing mpv knows about has changed.
     ///
-    /// The progress on each playlist row comes from files on disk that mpv
-    /// writes without telling anyone — the resume position of the file
-    /// playing now is rewritten every ten seconds. Nothing in the event
-    /// stream marks that, so the one moment it matters is used instead: when
-    /// somebody opens the playlist to look at it.
+    /// The progress on each playlist row comes from files mpv writes without
+    /// an event (the playing file's every ten seconds), so the lists are read
+    /// again when the playlist is opened, the moment it matters.
     forced: bool,
 }
 
@@ -168,7 +156,7 @@ impl ListSync {
 }
 
 /// Hand the tracks and chapters to the UI as models. The playlist goes by
-/// way of the worker — see `playlist_panel`.
+/// way of the worker (see `playlist_panel`).
 pub fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_sub_tracks(track_model(player, TrackKind::Sub));
     ui.set_audio_tracks(track_model(player, TrackKind::Audio));
@@ -190,9 +178,8 @@ pub fn push_lists(ui: &MainWindow, player: &PlayerState) {
 
 /// Which row of a track list is the selected one, or -1.
 ///
-/// Worked out here because the interface cannot search a model, and it needs
-/// the answer to open the tracks panel on the track in use rather than at the
-/// top of a list of fifteen.
+/// Worked out here because the interface can't search a model, and needs the
+/// answer to open the tracks panel on the track in use.
 fn selected_row(player: &PlayerState, kind: TrackKind) -> i32 {
     tracks::labelled(&player.tracks, kind)
         .iter()

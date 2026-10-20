@@ -1,11 +1,10 @@
 //! The native window behind Slint's, for the code that has to reach it.
 //!
-//! On Windows several things can only be done to the window itself — taking
+//! On Windows several things can only be done to the window itself (taking
 //! over its drop target, hooking the modal resize loop, claiming the media
-//! keys for it — and none of them can happen before the window manager has
-//! made the window. Slint documents that as after at least one turn of the
-//! event loop, so each of them is tried from the frame path until it takes,
-//! by way of [`UntilWindow`].
+//! keys), and none before the window manager has made it, which Slint says is
+//! after at least one turn of the event loop. So each is tried from the frame
+//! path until it takes, by way of [`UntilWindow`].
 
 /// A setup step retried once a frame until the window exists for it.
 ///
@@ -76,7 +75,7 @@ impl Default for UntilWindow {
 
 /// The Win32 handle of the window behind `window`.
 ///
-/// Fails until the window manager has made the window — see [`UntilWindow`].
+/// Fails until the window manager has made the window (see [`UntilWindow`]).
 #[cfg(windows)]
 pub fn hwnd(window: &slint::Window) -> Result<windows::Win32::Foundation::HWND, String> {
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};

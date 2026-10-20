@@ -1,95 +1,67 @@
-// The interface's typefaces, compiled into the binary rather than asked of the
-// system: IBM Plex Sans in the three weights the type scale uses — Medium
-// (500), 600 and 700 — and IBM Plex Mono Medium for the times that tick. See
-// THIRD-PARTY.md for their licence.
+// Bundled rather than taken from the system, so the type is the same
+// everywhere: IBM Plex Sans in the three weights the scale uses, and IBM Plex
+// Mono for the times that tick. Their licence is in THIRD-PARTY.md.
 import "../fonts/IBMPlexSans-Medium.ttf";
 import "../fonts/IBMPlexSans-SemiBold.ttf";
 import "../fonts/IBMPlexSans-Bold.ttf";
 import "../fonts/IBMPlexMono-Medium.ttf";
 
-// The design tokens: every colour, size, duration and row metric the
-// interface uses, named by what it is for. Nothing here draws anything.
+// The design tokens, named for what they are for rather than for their
+// values, so that changing a role is one edit.
 
-/// How long things take to move, and whether they move at all.
-///
-/// Every duration the interface animates over is here, named for what is
-/// moving, so that one switch stops all of it: Animations, on the settings
-/// panel's accessibility page. With it off each of these is zero, and
-/// everything arrives, leaves and changes in the frame it was asked to. The
-/// two delays at the end are not motion — they are how long a tip waits
-/// before it is shown at all — and stay as they are.
+/// Every duration the interface animates over, so that the Animations switch
+/// on the accessibility page can turn all of them to zero at once. The two
+/// tip delays are not motion, and keep their length.
 export global Motion {
-    /// Whether anything moves. Set from the saved setting at startup and by
-    /// the switch; nothing else writes it.
+    /// Written only from the saved setting at startup and by the switch.
     in-out property <bool> enabled: true;
 
-    /// How long the wash under a pointer takes to arrive.
-    ///
-    /// One value for every hover highlight — bar buttons, steppers, menu rows
-    /// — because they are the same gesture and reading them at different
-    /// speeds is what makes an interface feel loose. Short on purpose: a
-    /// highlight is feedback that the pointer landed, and feedback that
-    /// arrives after the eye has already moved on is not feedback.
+    /// The wash arriving under the pointer, for every hover highlight alike:
+    /// one gesture at different speeds makes an interface feel loose. Short,
+    /// because feedback that lands after the eye has moved on is missed.
     out property <duration> highlight: Motion.enabled ? 45ms : 0ms;
-    /// A track thickening under the pointer: the timeline's, the volume's, a
-    /// settings slider's and a scroll bar's. One gesture, one speed.
+    /// A track thickening under the pointer: the timeline, the volume, the
+    /// sliders and the scroll bars.
     out property <duration> track-grow: Motion.enabled ? 100ms : 0ms;
-    /// A surface fading in or out, and rising the few pixels it travels: the
+    /// A surface fading in or out and rising the few pixels it travels: the
     /// panels, the bar, the flash, the tip. The glass fades with it.
     out property <duration> surface: Motion.enabled ? 120ms : 0ms;
     /// A switch's knob crossing its track, and the track's colour with it.
     out property <duration> switch: Motion.enabled ? 120ms : 0ms;
-    /// The title pill resizing to a new title. A pill that jumped on every
-    /// file change would be a flicker; moving there over a moment reads as
-    /// deliberate.
+    /// The title pill resizing to a new title, so a file change doesn't make
+    /// it jump.
     out property <duration> title-width: Motion.enabled ? 160ms : 0ms;
-    /// A drill: a page moving sideways and the panel's height with it, in the
-    /// settings and in the playlist. Longer than a surface because it is a
-    /// journey rather than an arrival.
+    /// A page sliding sideways in a panel, and the panel's height with it.
+    /// Longer than `surface` because it travels rather than arrives.
     out property <duration> drill: Motion.enabled ? 220ms : 0ms;
-    /// A list carried to a row: the angle pointing back to its current one,
-    /// pressed. Longer than a drill because the distance is anything up to a
-    /// whole season, and at a drill's length the rows went past as a smear.
+    /// A list carried to its current row by the way back to it. Longer than a
+    /// drill because the distance can be a whole season, and at a drill's
+    /// length the rows go past as a smear.
     out property <duration> glide: Motion.enabled ? 300ms : 0ms;
 
-    /// How long the pointer has to rest on a control before it says its name.
-    ///
-    /// Long enough that crossing the bar on the way somewhere else raises
-    /// nothing, short enough that stopping on a glyph you do not recognise
-    /// feels like it answered rather than like it eventually got round to it.
+    /// How long the pointer rests on a control before its tip shows: long
+    /// enough that crossing the bar raises nothing, short enough that stopping
+    /// on an unfamiliar glyph feels answered.
     out property <duration> tip-delay: 500ms;
-    /// How long after a tip goes down the next one comes up without waiting.
-    ///
-    /// Once one name has been asked for, the pointer moving along the bar is
-    /// reading it, and making each neighbour wait out the delay again turns
-    /// that into a stutter: a label, nothing, a label.
+    /// How soon after a tip goes the next one shows without the delay. Once
+    /// someone is reading along the bar, making each neighbour wait again
+    /// turns it into a stutter.
     out property <duration> tip-grace: 300ms;
 }
 
-/// Every colour in the interface, named by what it is for.
-///
-/// One hue, white, at a few alphas, and one dark knob. Written here rather
-/// than at each use, because values scattered through a file drift apart one
-/// careful tweak at a time: that is how the text ladder came to have ten
-/// rungs 0x0d apart, most of them indistinguishable over a moving picture.
+/// Every colour in the interface: white at a few alphas, and one dark knob.
+/// Kept in one place because values written at each use drift apart.
 export global Paint {
     // --- text and glyphs ------------------------------------------------------
     //
-    // Five steps, 0x20 apart — the Two-Step Rule: closer than that and the
-    // steps stop reading as a hierarchy over moving video, where the backdrop
-    // changes faster than the eye can calibrate. Built upward from `dim`,
-    // which does not move: the floor is what sets the worst-case contrast
-    // over a bright frame, so everything else stands on it.
+    // A ladder of five steps 0x20 apart, since any closer and they stop
+    // reading as a hierarchy over moving video. It is built up from `dim`,
+    // which sets the worst-case contrast over a bright frame: 0x80, 0xa0,
+    // 0xc0, 0xe0, and `lit` at 0xff because eight bits have no 0x100. Don't
+    // widen that short top step by lowering `strong`; it would cost a real step.
     //
-    // 0x80, 0xa0, 0xc0, 0xe0 — and then `lit`, which is 0xff rather than the
-    // 0x100 the rule asks for, because there is no 0x100 in eight bits. The
-    // top rung is 0x1f and always will be. Do not close it by moving `strong`
-    // down: that spends a real step to satisfy a rule about the one gap
-    // nobody can widen.
-    //
-    // Five steps cannot give ten roles a value each, and they should not
-    // have: roles that sit in different places, or differ by case, size or
-    // tracking, share a step rather than wear a near-copy of one.
+    // Roles that already differ by place, case, size or tracking share a step
+    // rather than get a near-copy of one.
 
     /// The active state and nothing else: the current row, a control that is
     /// on, the flash, the end-of-file prompt.
@@ -97,13 +69,9 @@ export global Paint {
     /// Text that leads: the media title, times and values, a switch's label,
     /// a fatal headline.
     out property <color> strong: #ffffffe0;
-    /// Row labels, section headings and a show's name, a row's icon.
-    ///
-    /// On Strong's step rather than one of its own. It was 0xc0, a step
-    /// down, and the ordinary run of the interface read grey over a bright
-    /// frame; it is the text there is most of, and it reads as white now.
-    /// Sharing a step is what the ladder asks of a role that needs moving —
-    /// see above — and it leaves a 0x40 gap down to Quiet rather than 0x20.
+    /// Row labels, section headings, a show's name, a row's icon. On Strong's
+    /// step because it is the text there is most of, and a step lower read
+    /// grey over a bright frame.
     out property <color> body: #ffffffe0;
     /// Beside or under something else: a shortcut's keys, a row's running
     /// time, prose hints, a scroll thumb.
@@ -113,8 +81,8 @@ export global Paint {
 
     // --- marks ------------------------------------------------------------------
 
-    /// The played length of the timeline — the one near-solid white that reads
-    /// as a measurement rather than as text.
+    /// The played length of the timeline: the one near-solid white, so it
+    /// reads as a measurement rather than as text.
     out property <color> played: #fffffff2;
     /// The filled length of a slider or the volume; a lit switch track.
     out property <color> fill: #ffffffcc;
@@ -127,44 +95,28 @@ export global Paint {
 
     // --- washes -----------------------------------------------------------------
     //
-    // Three, and the two a row can wear are 0x20 apart — the Two-Step Rule the
-    // text keeps, for the same reason. The focus wash was once 0x0f above the
-    // hover: over moving video, with a hand resting in a panel and the keys
-    // walking it, the two were one colour and nothing said which row Enter
-    // would press.
+    // The two a row can wear are 0x20 apart, like the text steps. Any closer
+    // and, over moving video, hover and focus look alike and nothing shows
+    // which row Enter will press.
 
     /// Where the keyboard is, a button whose panel is open, a hovered stepper
-    /// disc. A wash rather than a ring: there is no border anywhere in this
-    /// interface, and introducing one for this would make the keyboard the
-    /// only thing that draws an outline.
+    /// disc. A wash rather than a ring, because nothing else in the interface
+    /// draws an outline.
     out property <color> wash-strong: #ffffff34;
     /// A hovered icon button, or a choice on the end-of-file pill. Never on a
-    /// row, so it never has to be told apart from the two either side of it.
+    /// row, so it never has to be told apart from the row washes.
     out property <color> wash-button: #ffffff24;
     /// A hovered row of any kind; a stepper disc at rest; a scroll bar's rail.
     out property <color> wash-soft: #ffffff14;
 }
 
-/// The type scale. Nine roles over four sizes: the eight sizes below, and the
-/// timecode, which is a readout's size set in `numerals`.
+/// The type scale, as roles rather than sizes, so a role can change without
+/// finding every literal. Roles that share a size are told apart by weight,
+/// or by one being figures and the other prose.
 ///
-/// Named here rather than written at each of the twenty-eight places text
-/// appears, because a scale spread across twenty-eight literals cannot be
-/// judged — only audited, and it had already drifted: every readout in the
-/// interface was sitting a step below the size the design system claims for
-/// it. That is how a timestamp ended up at 11px over moving video, where a
-/// figure has to be read at a glance and got smaller than the glyphs around
-/// it.
-///
-/// The floor is 12px and it is only for capitals, which are read by their
-/// shape. Below that, white text over arbitrary moving content stops being
-/// read and starts being recognised — fine for a heading whose wording you
-/// already know, no use at all for a number that changes.
-///
-/// Roles rather than sizes, and several roles share a size: what separates a
-/// title from a body line is weight, and what separates a readout from a hint
-/// is that one is a figure and the other is prose. Two names on one value cost
-/// nothing and keep the next change from having to be everywhere at once.
+/// The floor is 12px, and only for capitals, which are read by their shape.
+/// Smaller white text over moving video is recognised rather than read, which
+/// is no use for a number that changes.
 export global Type {
     /// The interface's family, in the three weights below.
     out property <string> face: "IBM Plex Sans";
@@ -173,54 +125,41 @@ export global Type {
     /// of shuffling sideways every second.
     out property <string> numerals: "IBM Plex Mono";
     /// 600. The media title, the flash, a fatal headline. (The row that is
-    /// playing is body size at 700 — see `MenuRow`.)
+    /// playing is body size at 700; see `MenuRow`.)
     out property <length> title: 14px;
-    /// 500. Row labels, menu items, switch labels — anything that is the name
-    /// of something you can press.
+    /// 500. Row labels, menu items, switch labels: anything that names
+    /// something you can press.
     out property <length> body: 14px;
-    /// 500. A playlist heading carrying a show's name rather than a section
-    /// name: a section label's weight and alpha, in its own case and size and
-    /// with no tracking, because it is the user's word and not the
-    /// interface's.
+    /// 500. A playlist heading that carries a show's name: a section label's
+    /// weight and alpha, but in its own case and size and untracked, because
+    /// it is the user's word rather than the interface's.
     out property <length> named: 13px;
     /// 500. Figures: timestamps, slider and stepper values, a row's running
-    /// time, a shortcut's keys — and the labels of the dense rows those sit
+    /// time, a shortcut's keys. Also the labels of the dense rows those sit
     /// in, which read as part of the same line rather than as menu entries.
     out property <length> readout: 13px;
-    /// 500. Prose the interface adds underneath something else: the drop hint,
-    /// the line under a failure saying what usually fixes it. A readout's size and
-    /// its own name, because prose is what would want a different one first.
+    /// 500. Prose under something else: the drop hint, the line under a
+    /// failure saying what usually fixes it. A readout's size under its own
+    /// name, because prose is what would want a different size first.
     out property <length> hint: 13px;
     /// 500, capitals, tracked. Section headings, and the way back out of
     /// a page.
     out property <length> label: 12px;
-    /// Tracking for that role, and only that role.
-    ///
-    /// Capitals set solid read as a word; capitals with air between them read
-    /// as a label, which is the whole job — and it is what lets the weight
-    /// come all the way down without the kicker losing its identity.
-    ///
-    /// It had to come down. At 700 a section label put more ink on screen per
-    /// character than the rows beneath it — 34.9 lit pixels against 25.6 —
-    /// so the alpha ladder said kicker while the page said heading, and the
-    /// only thing telling the two apart was the capitals.
-    ///
-    /// 600 was tried first and changed nothing: Segoe UI, the face then,
-    /// ships Semibold as its own family rather than as a weight of Segoe UI,
-    /// so 600 and 700 rasterised identically, to the pixel. Tracked capitals
-    /// at the body's own weight is the treatment that was wanted anyway, and
-    /// it stayed when faces with both weights replaced it.
+    /// Tracking for `label` only. The air between the capitals is what marks
+    /// them as a label, which lets them sit at the body's weight: at 700 a
+    /// label put more ink on screen than the rows under it, and read as a
+    /// heading.
     out property <length> label-track: 1px;
-    /// A character standing in for an icon — the stepper's minus and plus.
+    /// A character standing in for an icon: the stepper's minus and plus.
     /// Sized against the 26px disc it sits in, not against the text.
     out property <length> glyph: 16px;
-    /// The one thing the interface says louder than the rest: the word on the
-    /// end-of-file pill, sized against the 24px arrow beside it.
+    /// The one thing said louder than the rest: the word on the end-of-file
+    /// pill, sized against the 24px arrow beside it.
     out property <length> prompt: 16px;
 
-    /// The three weights, the only three the bundled files carry.
-    /// Plain is Medium, 500: at 400 the 13–14px lines over glass read thin,
-    /// and Plex's in-between Text weight (450) was not quite enough.
+    /// The only three weights the bundled files carry. Plain is Medium,
+    /// because at 400 the 13–14px lines read thin over glass, and Plex's 450
+    /// Text weight was not quite enough.
     out property <int> weight-plain: 500;
     /// Title and Prompt.
     out property <int> weight-title: 600;
@@ -228,71 +167,52 @@ export global Type {
     out property <int> weight-current: 700;
 }
 
-/// Metrics for the wash behind a hovered row.
+/// Metrics for the rows and the washes behind them.
 ///
-/// Rows span the full width of a panel, but a panel's glass has rounded
-/// corners and a row does not — so a full-bleed highlight leaks past the glass
-/// wherever the corner is still curving in, which is the first and last row of
-/// every list. Insetting the wash and rounding it keeps it on the glass, and
-/// reads as deliberate besides: it is what a native menu does.
-///
-/// The inset is the row gap, which is also the panel's padding — see below
-/// for why that one number settles every corner at once.
+/// A row spans its panel's width, but the panel's glass has rounded corners,
+/// so a full-width wash would leak past the glass on the first and last row.
+/// The wash is inset and rounded to keep it on the glass, as a native menu's is.
 export global Rows {
-    // Every row wears the same corner, and the panel is built around it.
-    //
-    // Two corners are concentric — they share a centre, so the gap between
-    // them stays even the whole way round — when their radii differ by
-    // exactly that gap. So rather than give the end rows a corner of their
-    // own, the gap is made the same on all four sides and the panel takes
-    // whatever radius that implies. The first and last rows then come out
-    // concentric on their own, and every row in between is identical to
-    // them. Anything else and the curves pinch at 45 degrees while still
-    // meeting cleanly on the axes, which is the part the eye catches.
-    //
-    // Turn `radius` or `gap`; `panel-radius` follows, and the invariant
-    // cannot be broken by editing one of the three.
+    // The wash is inset by `gap` on every side, so a panel radius of
+    // `radius + gap` keeps the end rows' corners concentric with the panel's,
+    // and every row in between matches them. Any other radius and the gap
+    // pinches at 45°. Change `radius` or `gap`, and `panel-radius` follows.
     out property <length> radius: 16px;
     out property <length> gap: 16px;
     out property <length> panel-radius: Rows.radius + Rows.gap;
-    /// Panel padding is the gap: it is what puts the end rows the same
-    /// distance from the panel edge as every row is from the sides.
+    /// The gap, so the end rows sit as far from the panel's top and bottom
+    /// as every row does from its sides.
     out property <length> panel-pad: Rows.gap;
 
-    /// Where a label starts, and where a trailing control ends — measured
-    /// from the panel edge, so text sits inside the wash rather than on its
-    /// rim.
+    /// Where a label starts and a trailing control ends, from the panel edge,
+    /// so text sits inside the wash rather than on its rim.
     out property <length> label-x: Rows.gap + 14px;
     out property <length> trail-x: Rows.gap + 10px;
-    /// Space before a row that is not one of the list above it — a reset, a
-    /// setting about the list. Without it the eye reads one more entry and
-    /// only the wording says otherwise.
-    ///
-    /// The row gap, and derived rather than typed: the space that separates
-    /// two ideas is the space the rows already stand in, and a second literal
-    /// here is a second thing to remember when the first one moves.
+    /// Space before a row that isn't part of the list above it, such as a
+    /// reset or a setting about the list, so it isn't read as one more entry.
+    /// The row gap, since that is already the space between ideas.
     out property <length> group-gap: Rows.gap;
 
     /// The air one surface keeps from the next: a panel or the hover label
-    /// above the timeline row, the credits pill lifted off it, the flash's
-    /// caption under its ring, the seek preview clear of a panel. One idea,
-    /// and it was thirteen bare twelves and three private properties for it.
+    /// above the timeline, the credits pill above it, the flash's caption
+    /// under its ring, the seek preview beside a panel.
     out property <length> offset: 12px;
-    /// How much of a scrolling list's end blurs and thins away where rows
-    /// run on past it. Most of a row: short enough that the row above it is
-    /// whole, long enough that the row in it is plainly leaving.
+    /// How much of a scrolling list's end blurs and thins away where rows run
+    /// on past it: short enough that the row above is whole, long enough that
+    /// the row in it is plainly leaving.
     out property <length> fade: 28px;
 
-    /// The rows themselves. Here rather than at the top of `MainWindow`
-    /// because the components below are outside it and cannot see anything
-    /// declared there — which is why eight of them wrote the height out and
-    /// the panel arithmetic wrote it twelve times more.
+    /// The row heights. Here rather than in `MainWindow` because components
+    /// outside it can't see its properties.
     out property <length> row: 34px;
-    /// A heading over a group of them.
+    /// A heading over a group of rows.
     out property <length> heading: 28px;
-    /// The two denser rows, both on the settings pages: a slider, which is a
-    /// label and a track, and a stepper, which is a label and two discs.
+    /// The two denser rows on the settings pages: a slider, which is a label
+    /// and a track, and a stepper, which is a label and two discs.
     out property <length> slider-row: 30px;
     out property <length> stepper-row: 38px;
+    /// A row carrying a switch, taller than a list row because the switch is
+    /// taller than a line of text.
+    out property <length> toggle-row: 40px;
 
 }

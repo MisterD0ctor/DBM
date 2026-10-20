@@ -1,10 +1,10 @@
 //! A thin shadow under the interface's words and marks.
 //!
-//! White text over a bright frame is the one place the interface can lose
-//! its contrast, and Slint has no shadow for text or images to give it one.
-//! So it is drawn here, after Slint, from the finished frame: wherever the
-//! interface laid its white over the pipeline's output, the ground around it
-//! is darkened a little, with no offset — a soft rim, not a cast shadow. See
+//! White text over a bright frame is where the interface can lose its
+//! contrast, and Slint has no shadow for text or images. So it is drawn here,
+//! after Slint, from the finished frame: wherever the interface laid white
+//! over the pipeline's output, the ground around it is darkened a little,
+//! with no offset, as a soft rim rather than a cast shadow. See
 //! `ui_shadow.frag` for how the words are told from the frame.
 //!
 //! Only where there is glass: every surface with words or marks on it has
@@ -48,9 +48,9 @@ impl Shadow {
         })
     }
 
-    /// Shade the interface on whatever framebuffer is bound — the window's,
-    /// in `AfterRendering`. `ground` is the pipeline's output, the frame
-    /// under the interface; `panels` the glass, in physical pixels.
+    /// Shade the interface on whatever framebuffer is bound (the window's, in
+    /// `AfterRendering`). `ground` is the pipeline's output, the frame under
+    /// the interface; `panels` the glass, in physical pixels.
     pub fn run(
         &mut self,
         gl: &glow::Context,

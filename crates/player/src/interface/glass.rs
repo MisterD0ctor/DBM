@@ -11,9 +11,9 @@ use crate::MainWindow;
 
 /// Read the glass panel geometry out of Slint's own layout.
 ///
-/// Same process, same frame, read synchronously — so the glass cannot lag the
-/// widget it belongs to. Slint works in logical pixels and the pipeline in
-/// physical ones, hence the scale factor.
+/// Read synchronously in the same frame, so the glass can't lag its widget.
+/// Slint works in logical pixels and the pipeline in physical ones, hence the
+/// scale factor.
 pub fn collect(ui: &MainWindow, out: &mut Vec<GlassPanel>) {
     let dpi = ui.window().scale_factor();
     out.clear();
@@ -21,18 +21,14 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<GlassPanel>) {
     for i in 0..rects.row_count() {
         let Some(g) = rects.row_data(i) else { continue };
         // A hidden panel publishes a zero-sized rect rather than dropping out
-        // of the array, which keeps the UI side a plain literal. Skip those.
-        // A panel mid-fade still needs glass; one faded out entirely is as
-        // absent as one that was never opened.
+        // of the array, which keeps the UI side a plain literal. A panel
+        // mid-fade still needs glass; one faded out entirely does not.
         if g.width <= 0.0 || g.height <= 0.0 || g.opacity <= 0.004 {
             continue;
         }
-        // The cap counts panels that are really on screen, not how far into
-        // the declaration list we have read. Capping the read instead meant
-        // that once the list grew past `MAX_PANELS` — which it did the moment
-        // the timeline became two pills — whatever was declared last silently
-        // got no glass, however few panels were actually open. Every entry
-        // past the live ones is a placeholder for something closed.
+        // The cap counts panels actually on screen, not entries read: the
+        // list declares more surfaces than `MAX_PANELS`, most of them closed
+        // placeholders, and capping the read would drop the last ones.
         if out.len() == MAX_PANELS {
             warn_overflow();
             return;
@@ -51,9 +47,7 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<GlassPanel>) {
     }
 }
 
-/// Said once, not once a frame. Losing glass off the end of the list is quiet
-/// enough that it wants saying at all, and repeating it sixty times a second
-/// would bury everything else.
+/// Said once rather than every frame, which would bury everything else.
 fn warn_overflow() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {

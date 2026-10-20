@@ -10,13 +10,10 @@ use crate::{MainWindow, Motion};
 
 /// Walk the keyboard into a panel and down it, with real key events.
 ///
-/// The ring, the wrap and the scroll-to-follow are all driven from the same
-/// dispatch a person's keyboard reaches, so this presses `P` and then Down
-/// rather than assigning to the property: assigning would prove the wash
-/// draws and nothing about whether the keys arrive.
-///
-/// Twelve rows down because nine fit: the interesting part is the three past
-/// the bottom edge, where the list has to move for the ring to stay visible.
+/// Presses `P` and then Down rather than assigning to the property, which
+/// would prove the wash draws and nothing about whether the keys arrive.
+/// Twelve rows down because nine fit, and the three past the bottom edge are
+/// where the list has to follow the ring.
 pub(super) fn reach_test(ui: &MainWindow) -> slint::Timer {
     use slint::platform::Key;
 
@@ -107,10 +104,9 @@ pub(super) fn reach_test(ui: &MainWindow) -> slint::Timer {
                     chord(&ui, &[], "s");
                 }
 
-                // S puts the ring on the first row, which is Liquid glass, so
-                // Enter opens it straight away. This pressed Down first once,
-                // from before S showed the ring, and from then on walked into
-                // the ambient border's page and stepped its edge blur.
+                // S puts the ring on the first row, Liquid glass, so Enter
+                // opens it directly; a Down first would walk into the ambient
+                // border's page.
                 (true, 1) => {
                     chord(&ui, &[], slint::SharedString::from(Key::Return).as_str());
                     eprintln!("dbm: enter, opening the glass page");
@@ -158,14 +154,11 @@ pub(super) fn key_test(ui: &MainWindow) -> slint::Timer {
         move || {
             let Some(ui) = weak.upgrade() else { return };
             match step {
-                // C, twice, on a file whose subtitles are not showing. The
-                // first press has to turn them on: it used to turn off a
-                // `sub-visibility` that was already showing nothing, which
-                // from the outside was a key that did nothing.
+                // C, twice, on a file whose subtitles aren't showing: the first
+                // press must turn them on, not turn off a `sub-visibility` that
+                // already shows nothing.
                 //
-                // Before the dialogs, not after. The two that follow put a
-                // file chooser on screen and it keeps the keyboard, so
-                // anything pressed after them is pressed at the dialog.
+                // Before the dialogs, since a file chooser keeps the keyboard.
                 0 => {
                     eprintln!("dbm: subs showing {}", ui.get_subs_visible());
                     eprintln!("dbm: pressing C");
@@ -201,16 +194,11 @@ pub(super) fn key_test(ui: &MainWindow) -> slint::Timer {
 
 /// The shortcuts page under the keys that read it.
 ///
-/// Every row on that page is a statement, so the ring has only the way back
-/// to stand on and the arrows have nowhere to go. That was the bug: the ring
-/// wrapped on its one row and swallowed them, and Home, PgUp and PgDn went
-/// past it into the film — a reference page that restarted the film when you
-/// asked to go to the top of it.
-///
-/// `time-pos` is the evidence, not the list: the list is built inside the
-/// conditional the drill slides, so nothing out here can read where it
-/// scrolled to. What can be proved is that the film did not move and the
-/// page did not close, which is the whole of what went wrong.
+/// Its rows are statements, so the ring has only the way back to stand on,
+/// and the keys must scroll the page rather than wrap the ring or reach the
+/// film. `time-pos` is the evidence rather than the list, which is built
+/// inside the drill's conditional and can't be read from here: the film must
+/// not move and the page must not close.
 pub(super) fn read_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
     use slint::platform::Key;
 
@@ -233,10 +221,9 @@ pub(super) fn read_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                 }
                 1 => {
                     before = pos();
-                    // The page number stays private to the interface —
-                    // exposing it to be read here would make this test the
-                    // reason a property is public, which is how UI-as-storage
-                    // starts. `?` opens the panel on page 4 or not at all.
+                    // The page number stays private to the interface rather
+                    // than made public for a test. `?` opens the panel on the
+                    // shortcuts page or not at all.
                     eprintln!(
                         "dbm: settings-open={} time-pos={before}",
                         ui.get_settings_open()
@@ -261,9 +248,8 @@ pub(super) fn read_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                     key(Key::DownArrow);
                 }
                 6 => {
-                    // Playing, so the two will differ — the check is that
-                    // they differ by about the time this test took, rather
-                    // than by everything back to zero.
+                    // Playing, so the two differ, but only by about the time
+                    // this test took, not back to zero.
                     eprintln!(
                         "dbm: settings-open={} time-pos={} (was {before})",
                         ui.get_settings_open(),

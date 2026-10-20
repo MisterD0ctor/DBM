@@ -1,8 +1,6 @@
 //! Where to go when a list runs out.
 //!
-//! The end of the last file — or its closing credits, where the credits pill
-//! makes the same offer before the file is over — is the loudest the
-//! interface ever speaks, and the last thing it says about a film. So it
+//! At the end of the last file, or in its closing credits, the interface
 //! names a place to go rather than offering a file-manager verb: the next
 //! season of the show where one sits beside this one on disk, and failing
 //! that, whatever else was left unfinished.
@@ -14,18 +12,15 @@ use crate::library::{playlist, resume};
 
 /// The way on from the end of a list.
 ///
-/// Named here rather than in the interface: what it is called depends on
-/// which of the two it turned out to be, and the interface should not have to
-/// know that a season and a film are found in different ways.
+/// Named here rather than in the interface, since what it is called depends
+/// on whether it is a season or a film, which are found in different ways.
 pub struct Onward {
     pub path: String,
-    /// What the pill says. A noun, as *Season 8* is: the thing you are going
-    /// to, not a verb about going there.
+    /// What the pill says: a noun, like *Season 8*, for the thing you are
+    /// going to.
     pub label: String,
-    /// Whether it is more of the same show. The credits pill is the offer to
-    /// skip ahead to the next episode, and only another episode can honour
-    /// that — a different film is a fair thing to offer when a file has ended
-    /// and not a fair thing to cut a film's credits short for.
+    /// Whether it is more of the same show, since only another episode is a
+    /// fair reason for the credits pill to cut credits short.
     pub season: bool,
 }
 
@@ -46,10 +41,9 @@ fn next_season(path: &str) -> Option<Onward> {
     })
 }
 
-/// Nothing of this show comes after it — a film, or the last season on disk.
-/// The next thing to watch is then whatever else was left unfinished, which
-/// is the same film the empty window offers to continue and the only other
-/// thing the player can name without being told.
+/// Nothing of this show comes after it: a film, or the last season on disk.
+/// The way on is then whatever else was left unfinished, the same film the
+/// empty window offers to continue.
 fn unfinished(path: &str) -> Option<Onward> {
     let film = resume::last_watched().filter(|r| r.path != path)?;
     Some(Onward {

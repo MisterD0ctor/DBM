@@ -5,35 +5,28 @@ import { Chrome, Tip } from "globals.slint";
 import { Motion, Paint, Type } from "theme.slint";
 import { Squircle } from "squircle.slint";
 
+/// A round glyph button on the bar.
+///
+/// A state the button controls, like mute, is shown by the caller swapping
+/// `icon`, not by a wash: on a bar of controls a wash read as chrome rather
+/// than as the state.
 export component IconButton inherits Rectangle {
     in property <image> icon;
-    /// Lit glyph: the thing this button controls is on.
-    ///
-    /// Every button that sets this swaps its own glyph as well — muted for
-    /// unmuted, slashed for unslashed — and between the two marks that is
-    /// enough. A wash behind an engaged button was tried and taken back out:
-    /// on a bar of seven controls it made the state read as chrome rather
-    /// than as the glyph, and the glyph is the thing that says which state it
-    /// is rather than merely that there is one.
-    in property <bool> active;
-    /// Held background: the panel this button opens is showing. A separate
-    /// channel from `active`, so the two never share one highlight - though
-    /// no button wears both now: one that opened a menu and also lit for a
-    /// state was read as a switch, and clicked as one.
+    /// The panel this button opens is showing, so its wash is held.
     in property <bool> open;
-    // The icon set is drawn for 24x24; anything else resamples it.
+    /// The icon set is drawn for 24x24; any other size resamples it.
     in property <length> glyph: 24px;
     /// What this button is called, and the key that does the same thing.
-    /// A button with no `tip` stays silent rather than showing an empty one.
+    /// A button with no `tip` shows none rather than an empty one.
     in property <string> tip;
     in property <string> keys;
-    /// Whether the keyboard is on this button. The bar's own ring, reached
+    /// Whether the keyboard is on this button: the bar's own ring, reached
     /// with Tab while nothing is open.
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
-    /// Whether pressing it would do anything. Previous on the first file of a
-    /// playlist is a button with nowhere to go, and one that looks the same as
-    /// when it has somewhere is a promise it cannot keep.
+    /// Whether pressing it would do anything, such as Previous on a
+    /// playlist's first file. A disabled button is dimmed, so it doesn't
+    /// promise what it can't do.
     in property <bool> enabled: true;
     callback clicked();
 
@@ -61,18 +54,14 @@ export component IconButton inherits Rectangle {
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
         image-fit: contain;
-        // Full white whenever it can be pressed: the bar's marks are its
-        // controls, and over a bright frame anything less read as greyed out.
-        // So the pointer and the ring are answered by the wash alone, and an
-        // engaged button by its own swapped glyph — muted, slashed, the other
-        // fullscreen arrows — which is what said it already. Dim, the floor,
-        // for a button with nowhere to go: the one glyph that should look
-        // greyed out, because it is.
+        // Full white whenever it can be pressed, because over a bright frame
+        // anything less reads as greyed out. Hover and the ring are shown by
+        // the wash alone.
         colorize: !root.enabled ? Paint.dim : Paint.lit;
     }
 
-    // The keyboard gets the label the pointer gets. It was only ever raised by
-    // hovering, so a bar walked with Tab was thirteen unnamed marks.
+    // The keyboard gets the same tip as the pointer, or a bar walked with Tab
+    // would be unnamed marks.
     changed ring => {
         if (root.tip == "") {
             return;
@@ -84,8 +73,8 @@ export component IconButton inherits Rectangle {
         }
     }
 
-    // A name that changes while it is up - Fullscreen becoming Leave
-    // fullscreen from the F key - is said again rather than left stale.
+    // A name that changes while it is up (Fullscreen becoming Leave
+    // fullscreen from the F key) is put up again rather than left stale.
     changed tip => {
         if (Tip.seq == root.tip-claim) {
             root.tip-claim = Tip.point(root.tip, root.keys, root.tip-cx);
@@ -100,23 +89,22 @@ export component IconButton inherits Rectangle {
             Chrome.pointed(event.kind == PointerEventKind.down);
         }
         clicked => {
-            // The question was answered by pressing: a name hanging over the
-            // result is in the way of seeing it. It comes back on the next
-            // arrival, as a native tooltip does.
+            // Pressing answers the question, and a tip left over the result
+            // hides it. It comes back on the next arrival, as a native
+            // tooltip does.
             Tip.release(root.tip-claim);
             if (root.enabled) {
                 root.clicked();
             }
         }
 
-        // Asked for once, on arrival and departure, rather than bound - so
-        // `absolute-position`, which is a question for the layout, is put
-        // when a hand moves and not once a frame.
+        // On arrival and departure rather than bound, so `absolute-position`,
+        // which costs a layout query, is read when the hand moves rather than
+        // every frame.
         //
-        // Leaving only clears the tip if the tip is still this button's.
-        // Sliding along a row of them fires the next button's arrival and
-        // this one's departure in an order nobody promises, and the wrong
-        // order would take down the label that just went up.
+        // Sliding along the bar fires the next button's arrival and this
+        // one's departure in no promised order, so leaving releases only this
+        // button's claim and can't take down the next one's tip.
         changed has-hover => {
             if (root.tip == "") {
                 return;
@@ -131,13 +119,13 @@ export component IconButton inherits Rectangle {
 
     private property <length> tip-cx:
         root.absolute-position.x + root.width / 2;
-    /// This button's claim on the tip, from `Tip.point`. Never a real one
-    /// until it has pointed.
+    /// This button's claim on the tip, from `Tip.point`; -1 until it has
+    /// put one up.
     private property <int> tip-claim: -1;
 }
 
-/// One end of a stepper. Small, round and repeated, so it is its own thing
-/// rather than two copies of the same block inside `StepperRow`.
+/// One end of a stepper, as a component so `StepperRow` doesn't hold two
+/// copies of it.
 export component StepButton inherits Rectangle {
     in property <string> glyph;
     callback clicked();
@@ -175,23 +163,20 @@ export component StepButton inherits Rectangle {
     }
 }
 
-/// One thing the end-of-file pill offers.
-///
-/// A capsule of its own inside the pill, so that when there are two, each
-/// lights on its own under the pointer rather than the whole pill lighting
-/// for either.
+/// One thing the end-of-file pill offers. A capsule of its own, so that when
+/// there are two, each lights under the pointer rather than the whole pill.
 export component EndChoice inherits Rectangle {
     in property <image> icon;
     in property <string> label;
     /// Where the words start, from this capsule's own edge.
     in property <length> pad;
     in property <length> gap;
-    /// Whether the keyboard is on this choice: it is part of the bar's Tab
+    /// Whether the keyboard is on this choice, which is part of the bar's Tab
     /// walk while the pill is up.
     in property <bool> focused;
-    /// How far in from the pill's glass it sits, so that its ends follow the
-    /// pill's: nothing where it fills the pill, the pill's padding where it
-    /// shares it with another.
+    /// How far inside the pill's glass it sits, so its corners follow the
+    /// pill's: zero when it fills the pill, the pill's padding when it shares
+    /// it with another.
     in property <length> inset;
     private property <bool> ring: root.focused && Chrome.focus-visible;
     callback picked();
@@ -231,8 +216,8 @@ export component EndChoice inherits Rectangle {
             font-size: Type.prompt;
             font-weight: Type.weight-title;
             vertical-alignment: center;
-            // The capsule is capped by whoever places it; a name longer than
-            // that ends in an ellipsis rather than out through the rim.
+            // The parent caps the capsule's width, so a longer name elides
+            // rather than running out through the rim.
             overflow: elide;
             min-width: 0px;
         }

@@ -17,9 +17,9 @@
 //!
 //! The automated exercises that drive the interface live in `harness`.
 //!
-//! The phase timings earned their place: a 220ms-per-frame regression during
-//! resize was invisible until the render path was broken down, and guessing
-//! at it twice got the wrong answer both times.
+//! The phase timings are worth keeping: a 220ms-per-frame resize regression
+//! was invisible until the render path was broken down, and guessing at it
+//! was wrong twice.
 
 use std::sync::OnceLock;
 use std::time::{Duration, Instant};
@@ -247,18 +247,14 @@ impl Probe {
         self.video_frames = 0;
     }
 
-    /// How far the rect the border was drawn against is from where the
-    /// picture really is, in pixels, worst case.
+    /// How far, worst case in pixels, the rect the border was drawn against
+    /// is from where the picture really is.
     ///
-    /// This is the whole of the bug that darkens a border during a resize.
-    /// `border_extend` clamps every one of its taps *into* the rect it is
-    /// given, so a rect larger than the picture makes it average the black
-    /// surround into the edge colour. It does not black the border out —
-    /// which is why looking for black found nothing — it washes it darker,
-    /// by an amount no threshold describes. The gap does.
-    ///
-    /// Measured rather than sampled: a readback would stall the pipeline
-    /// every frame, and this needs no pixels.
+    /// `border_extend` clamps its taps into the rect it is given, so a rect
+    /// larger than the picture averages the black surround into the edge
+    /// colour. That washes the border darker during a resize rather than
+    /// blacking it out, so no pixel threshold catches it, but the gap does.
+    /// Measured rather than sampled, since a readback would stall every frame.
     fn watch_rect(&mut self, player: &PlayerState, w: u32, h: u32) {
         let truth = player.fitted_rect(w, h)[1];
         let used = player.video_rect(w, h)[1];
@@ -273,9 +269,8 @@ impl Probe {
     /// meant to be running so the two can be compared. Returns the flags it
     /// sampled at.
     ///
-    /// Two points because the effects do not overlap: the glass shows inside a
-    /// panel, the ambient border only outside the video. Sampling one of them
-    /// says nothing at all about the other.
+    /// Two points because the effects don't overlap: the glass shows inside a
+    /// panel, the ambient border only outside the video.
     fn sample_enables(
         &self,
         pipeline: &Pipeline,
@@ -340,12 +335,11 @@ impl Probe {
     /// March inward from each panel's left edge and print what the glass
     /// does along the way.
     ///
-    /// The bevel is the band where the surface is curved; past it the glass is
-    /// flat and the pixels settle. So the distance at which a profile stops
-    /// changing *is* the bevel width, and since the bevel is now a fraction of
-    /// each panel's corner radius, a panel with twice the radius should take
-    /// twice as far to settle. That is the claim, and it is not one a single
-    /// sample at the centre could ever show.
+    /// The bevel is the band where the surface is curved; past it the pixels
+    /// settle. So where a profile stops changing is the bevel width, and since
+    /// the bevel is a fraction of the corner radius, a panel with twice the
+    /// radius should take twice as far to settle, which no single sample at
+    /// the centre could show.
     fn sample_rims(&self, pipeline: &Pipeline, gl: &glow::Context, bevel_ratio: f32) {
         for (rect, radius) in &self.last_panels {
             let half_h = 0.5 * (rect[3] - rect[1]);
@@ -355,13 +349,11 @@ impl Probe {
             let y = (0.5 * (rect[1] + rect[3])) as u32;
             let bevel = bevel_ratio * radius;
 
-            // Sampled as fractions of this panel's own bevel, not in fixed
-            // pixels. The dome puts nearly all its curvature in the last
-            // stretch of the band, so fixed steps miss it entirely on a
-            // narrow rim; and reading the same fractions on every panel is
-            // what makes the profiles comparable at all. If the bevel really
-            // does scale with the radius, these land at different pixel
-            // offsets and yet trace the same curve.
+            // As fractions of this panel's bevel rather than fixed pixels,
+            // since the dome's curvature is in the band's last stretch, which
+            // fixed steps miss on a narrow rim. The same fractions on every
+            // panel make the profiles comparable: if the bevel scales with the
+            // radius, they trace the same curve.
             let fractions = [0.02f32, 0.06, 0.15, 0.3, 0.5, 0.8];
             let offsets: Vec<u32> = fractions
                 .iter()
@@ -450,17 +442,12 @@ impl Default for Probe {
 
 /// One-shot capture of a finished frame, read straight off the framebuffer.
 ///
-/// This exists because photographing the desktop is not the same as seeing
-/// what the player drew. The desktop is a place where another window can be in
-/// front, where a display can be asleep and nothing is presented at all, and
-/// where a GPU-drawn surface comes back blank for reasons that have nothing to
-/// do with this program. Every one of those happened while trying to look at
-/// this interface. None of them is true of the framebuffer the frame was just
-/// drawn into.
+/// Because a screenshot of the desktop isn't what the player drew: another
+/// window can be in front, the display can be asleep, and a GPU-drawn surface
+/// can come back blank. None of that affects the framebuffer.
 ///
-/// Taken in `AfterRendering`, so Slint's own scene — the text, the icons, the
-/// highlights — is already composited over the pipeline's output and the
-/// picture is the whole interface rather than the video half of it.
+/// Taken in `AfterRendering`, so Slint's scene is already composited over
+/// the pipeline's output and the picture is the whole interface.
 ///
 /// `DBM_CAPTURE=<path.bmp>`, and `DBM_CAPTURE_AFTER=<ms>` for how long to let
 /// the interface settle first. BMP because it is a header and the pixels: a
@@ -526,9 +513,9 @@ impl Capture {
 
 /// 32-bit bottom-up BMP.
 ///
-/// `glReadPixels` hands back rows from the bottom up, which is the order a BMP
-/// with a positive height already wants — so the rows go down as they are.
-/// Only the channel order needs turning round: GL gives RGBA, BMP wants BGRA.
+/// `glReadPixels` returns rows bottom-up, the order a BMP with a positive
+/// height wants, so only the channel order needs turning round: GL gives
+/// RGBA, BMP wants BGRA.
 fn write_bmp(path: &std::path::Path, rgba: &[u8], width: u32, height: u32) -> std::io::Result<()> {
     use std::io::Write;
 

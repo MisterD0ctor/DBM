@@ -1,12 +1,11 @@
 //! The film left unfinished most recently, for the empty window to offer.
 //!
-//! Worked out from two things mpv and the player already keep, rather than
-//! from a record of its own. The duration cache is the list of paths that
-//! were ever played here, and mpv's watch-later file for a path exists only
-//! while it has a position worth resuming — it deletes it when a file is
-//! watched to the end. So the newest watch-later file among those paths is
-//! the last thing left unfinished, and its `start=` is where. Nothing here
-//! can disagree with what mpv will actually do on opening it.
+//! Worked out from what mpv and the player already keep rather than a record
+//! of its own, so it can't disagree with what mpv will do. The duration cache
+//! lists the paths ever played here, and mpv keeps a watch-later file only
+//! while a path has a position worth resuming. So the newest watch-later file
+//! among those paths is the last thing left unfinished, and its `start=` is
+//! where.
 
 use crate::paths;
 
@@ -14,8 +13,8 @@ use crate::paths;
 pub struct Resume {
     pub path: String,
     /// The show it is an episode of, if it is one. Kept apart from the title
-    /// so the way in can give it a line of its own: sharing one with the
-    /// episode, a show's name took the room and the episode lost its number.
+    /// so the way in can give it a line of its own, leaving the episode room
+    /// for its number.
     pub show: Option<String>,
     /// Named the way the bar would name it, less the show.
     pub title: String,
@@ -46,9 +45,8 @@ pub fn last_watched() -> Option<Resume> {
     candidates.sort_by_key(|(modified, ..)| std::cmp::Reverse(*modified));
 
     // Newest first, and the first that still stands up: a watch-later file
-    // can outlive the video it describes, and mpv also writes entries that
-    // carry no position at all. Nor one watched into its credits and left
-    // there: mpv still holds a position for it, but it is not unfinished.
+    // can outlive its video, mpv writes some with no position, and one left
+    // in its credits has a position but isn't unfinished.
     let finished = crate::library::durations::load_finished();
     candidates.into_iter().find_map(|(_, path, seconds)| {
         let start = crate::library::durations::resume_point(&dir, &path)?;

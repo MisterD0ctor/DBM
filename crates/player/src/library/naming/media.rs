@@ -47,21 +47,17 @@ pub fn parse(path: &str) -> Media {
 /// One line for a bar or a menu row, given what the container says about
 /// itself.
 ///
-/// A file name and an embedded title are two descriptions of one thing, and
-/// they are not interchangeable: the name knows the show and the numbering,
-/// the container usually knows only the episode's own title. Showing one and
-/// then the other — which is what happens when the metadata arrives a moment
-/// after the file opens — reads as the name changing under you.
-///
-/// So they are combined instead. The name provides the shape and the
-/// container fills in the episode title, which is the one part someone
-/// actually typed. What arrives late then adds to the line rather than
-/// replacing it.
+/// A file name and an embedded title describe one thing differently: the
+/// name knows the show and the numbering, the container usually only the
+/// episode's own title. Showing one and then the other, as the metadata
+/// arrives a moment after the file opens, would read as the name changing, so
+/// they are combined: the name gives the shape and the container fills in the
+/// episode title.
 ///
 /// Where the name has a title of its own, the container's can only spell the
-/// same words better. A tag that says something else is not about this
-/// episode at all: a rip tags every episode on a disc `The Pacific Disc 1`,
-/// and the name's `Part One` is the one that says which it is.
+/// same words better. A tag that says something else is about something else:
+/// a rip tags every episode on a disc `The Pacific Disc 1`, and the name's
+/// `Part One` says which it is.
 pub fn titled(path: &str, embedded: Option<&str>) -> String {
     match described(path, embedded) {
         (Some(show), rest) => format!("{show} · {rest}"),
@@ -71,10 +67,8 @@ pub fn titled(path: &str, embedded: Option<&str>) -> String {
 
 /// One entry, split into the show it belongs to and everything else.
 ///
-/// Split rather than formatted because a list of episodes from one show says
-/// that show's name on every row, and a panel 380px wide has better uses for
-/// the space. Whoever is building the list decides whether the show is worth
-/// repeating; see [`listing`].
+/// Split rather than formatted, so whoever builds a list decides whether the
+/// show is worth repeating on every row (see [`listing`]).
 pub fn described(path: &str, embedded: Option<&str>) -> (Option<String>, String) {
     let embedded = embedded
         .map(str::trim)
@@ -102,9 +96,8 @@ pub fn described(path: &str, embedded: Option<&str>) -> (Option<String>, String)
                 episode_line(season, episode, episode_end, title.as_deref()),
             )
         }
-        // A film's embedded title is the film's name, so it replaces rather
-        // than adds to — but the year, which containers rarely carry, is
-        // still worth keeping from the name.
+        // A film's embedded title is the film's name, so it replaces the
+        // name's, but the year, which containers rarely carry, is kept.
         (Media::Movie { year, .. }, Some(title)) => (None, movie_line(title, year)),
         (media, None) => line(media),
     }
@@ -122,13 +115,10 @@ pub struct Listing {
 
 /// Label a whole list at once.
 ///
-/// A season's worth of episodes writes the show's name down the left margin
-/// of the panel and then runs out of room for the part that differs — which
-/// is the part being read. So when every entry belongs to the same show, the
-/// show becomes the heading and the rows keep only what distinguishes them.
-///
-/// Anything else — a film among the episodes, two different shows, a folder
-/// of unparseable names — and each row says what it is on its own.
+/// When every entry belongs to the same show, the show becomes the heading
+/// and the rows keep only what distinguishes them, rather than spending
+/// their room on the same name. Otherwise (a film among the episodes, two
+/// shows, unparseable names) each row says what it is on its own.
 pub fn listing<'a>(entries: impl Iterator<Item = (&'a str, Option<&'a str>)>) -> Listing {
     let described: Vec<(Option<String>, String)> = entries
         .map(|(path, embedded)| described(path, embedded))
@@ -151,8 +141,8 @@ pub fn listing<'a>(entries: impl Iterator<Item = (&'a str, Option<&'a str>)>) ->
 fn common_show(described: &[(Option<String>, String)]) -> Option<String> {
     let mut entries = described.iter();
     let first = entries.next()?.0.clone()?;
-    // Case-insensitively: one release naming it `Frieren` and the next
-    // `frieren` is still one show, and the first spelling is as good as any.
+    // Case-insensitively, since `Frieren` and `frieren` are one show; the
+    // first spelling is as good as any.
     entries
         .all(|(show, _)| {
             show.as_ref()
@@ -180,15 +170,12 @@ fn line(media: Media) -> (Option<String>, String) {
 /// A container's own title, with any numbering it repeats taken off the
 /// front.
 ///
-/// Containers are routinely tagged `S02E03-Somewhere She'd Like`, or just
-/// `03 - Somewhere She'd Like`. The line already says which episode this is,
-/// so leaving that in produces `S02E03 · S02E03-Somewhere She'd Like`.
+/// Containers are routinely tagged `S02E03-Somewhere She'd Like`, or
+/// `03 - Somewhere She'd Like`, and the line already says which episode it is.
 ///
-/// Only a *leading* marker, and a bare number only when it is the episode we
-/// already know about — a title is allowed to be about a number, and nothing
-/// here should turn `2001 - A Space Odyssey` into `A Space Odyssey`.
-/// Deliberately no metadata stripping either: this is a line someone typed,
-/// not a file name, and a word like `Extended` in it is part of the title.
+/// Only a leading marker, and a bare number only when it is this episode's,
+/// so `2001 - A Space Odyssey` keeps its number. No metadata stripping, since
+/// this is a line someone typed, where a word like `Extended` is the title's.
 fn episode_title(embedded: &str, episode: u32) -> Option<String> {
     let chars: Vec<char> = embedded.chars().collect();
     let cut = match match_marker(&chars, 0) {
@@ -230,8 +217,8 @@ fn episode_line(
     episode_end: Option<u32>,
     title: Option<&str>,
 ) -> String {
-    // `E01` on its own where there is no season, in the same vocabulary as
-    // `S02E01` — a number that reads as an episode rather than as a count.
+    // `E01` on its own where there is no season, like `S02E01`, so the
+    // number reads as an episode rather than a count.
     let season = season.map(|s| format!("S{s:02}")).unwrap_or_default();
     let number = match episode_end {
         Some(end) => format!("{season}E{episode:02}-E{end:02}"),
@@ -255,8 +242,7 @@ pub fn without_season(line: &str, season: u32) -> String {
 }
 
 fn movie_line(title: &str, year: Option<u32>) -> String {
-    // Not twice: a container title of "Blade Runner 2049" plus a year read
-    // off the name is one film, not a film and a date.
+    // Not twice, as for a container title like "Blade Runner 2049".
     match year.filter(|y| !title.contains(&y.to_string())) {
         Some(y) => format!("{title} ({y})"),
         None => title.to_string(),
@@ -271,8 +257,8 @@ fn parse_episode(stem: &str) -> Option<Media> {
             continue;
         };
         let show = trim_junk(&clean_separators(&chars[..i].iter().collect::<String>()));
-        // A marker at the very start leaves no show name, which means this
-        // was a bare `S01E02 - Title` — common enough inside a show folder.
+        // A marker at the very start leaves no show name: a bare
+        // `S01E02 - Title`, common inside a show folder.
         let rest: String = chars[end..].iter().collect();
         let title = strip_metadata(&trim_junk(&clean_separators(&rest)));
         return Some(Media::Episode {
@@ -288,17 +274,13 @@ fn parse_episode(stem: &str) -> Option<Media> {
 
 /// `Show - 01`: an episode numbered without a season.
 ///
-/// The fansub convention, and one the season markers miss entirely. Without
-/// it a folder of `[Group] Show - 01.mkv` was a folder of films called
-/// `Show - 01` — and once each file's own title was read ahead of time the
-/// numbers went too, leaving episode titles in no visible order under a
-/// heading that said PLAYLIST.
+/// The fansub convention, which the season markers miss entirely.
 ///
 /// Strict about what counts, because a dash and a number turn up in names
-/// that are not episodes. The dash has to stand between gaps, so
-/// `Spider-Man 2` is safe. The number has to be a whole token, so `1080p` is
-/// not episode 108; and it must be neither a plausible year nor a bare
-/// resolution, so `Some Film - 2019` stays a film.
+/// that aren't episodes. The dash has to stand between gaps, so
+/// `Spider-Man 2` is safe. The number has to be a whole token, so `1080p`
+/// isn't episode 108, and neither a plausible year nor a bare resolution, so
+/// `Some Film - 2019` stays a film.
 fn parse_absolute(stem: &str) -> Option<Media> {
     let chars: Vec<char> = stem.chars().collect();
     let gap = |c: Option<&char>| c.is_some_and(|c| matches!(c, ' ' | '_'));
@@ -333,9 +315,9 @@ fn parse_absolute(stem: &str) -> Option<Media> {
         if show.is_empty() {
             continue;
         }
-        // Bracketed groups after the number belong to the release, not the
-        // episode. `- 01 [ABCD1234]` is a checksum, and a checksum is not
-        // release vocabulary `strip_metadata` would know to cut.
+        // Bracketed groups after the number belong to the release, like the
+        // checksum in `- 01 [ABCD1234]`, which `strip_metadata` wouldn't know
+        // to cut.
         let rest = without_brackets(&chars[end..].iter().collect::<String>());
         let title = strip_metadata(&trim_junk(&clean_separators(&rest)));
         return Some(Media::Episode {
@@ -374,8 +356,8 @@ fn without_brackets(s: &str) -> String {
 
 /// The marker at `i`, and where it ends.
 ///
-/// Handles `S01E02`, `S01E02E03`, `S01E02-E03`, `1x02` — and `S2 - 01`, which
-/// carries no `E` at all and is how most of anime is named.
+/// Handles `S01E02`, `S01E02E03`, `S01E02-E03`, `1x02`, and `S2 - 01`, which
+/// has no `E` and is how most anime is named.
 fn match_marker(chars: &[char], i: usize) -> Option<(u32, u32, Option<u32>, usize)> {
     // A marker has to start a word; otherwise `Class01e02` would match.
     if i > 0 && chars[i - 1].is_alphanumeric() {
@@ -476,8 +458,7 @@ fn skip_separators(chars: &[char], i: usize) -> usize {
 }
 
 /// A four-digit year in parentheses or standing alone, and the name without
-/// it. Only plausible years: `1080` is a resolution and `2160` is a bigger
-/// one, and both turn up in the same names.
+/// it. Only plausible years, since `1080` and `2160` are resolutions.
 fn split_year(name: &str) -> (String, Option<u32>) {
     let words: Vec<&str> = name.split(' ').collect();
     for (i, w) in words.iter().enumerate().rev() {
@@ -703,9 +684,8 @@ mod tests {
     }
     #[test]
     fn the_container_title_fills_the_episode_slot() {
-        // The name knows the show and the numbering; the container knows the
-        // episode's own title. Combined, not swapped — otherwise the line
-        // changes shape the moment the metadata arrives.
+        // Combined rather than swapped, so the line keeps its shape when the
+        // metadata arrives.
         let path = "[EMBER] Sousou no Frieren S2 - 01.mkv";
         assert_eq!(titled(path, None), "Sousou no Frieren \u{b7} S02E01");
         assert_eq!(
@@ -746,11 +726,9 @@ mod tests {
     }
     #[test]
     fn an_advertisement_in_the_title_tag_is_not_a_title() {
-        // Verbatim from a real file. The tag is the release name with a site
-        // name bolted on the front, so it is not equal to the file name and
-        // the old exact-match test let it through whole — advertisement,
-        // resolution, codec and release group — into the slot meant for the
-        // episode's own title.
+        // Verbatim from a real file: the release name with a site name
+        // bolted on the front, which isn't equal to the file name but must
+        // still be refused.
         let path = r"C:\Users\me\Game.of.Thrones.S07E01.Dragonstone.1080p.10bit.BluRay.6CH.x265.HEVC-PSA.mkv";
         let tag = concat!(
             "PSArips.com | Game.of.Thrones.S07E01.Dragonstone",

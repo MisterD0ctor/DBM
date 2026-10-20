@@ -1,19 +1,13 @@
 //! The player's own mark, as the light behind an empty window.
 //!
 //! The way in is glass, and glass needs something behind it to bend. With a
-//! film left unfinished that is a frame of it — see `resume::last_watched` —
-//! but a fresh install has none, and until now its window stayed black and
-//! the way in fell back to a flat fill: at the one moment the player is met
-//! for the first time, the material it exists for was the one thing missing.
+//! film left unfinished that is a frame of it (see `resume::last_watched`),
+//! but a fresh install has none, so the mark lights the window instead.
 //!
-//! So when no film can light the window, the mark does. It goes through the
-//! backdrop pass like any frame — covered, softened, dimmed and fallen away
-//! toward the corners — which is what makes it light rather than a logo: the
-//! pass softens by about one texel of what it is given, so the mark is drawn
-//! small, and magnified to the window it has no edges left to read as a
-//! drawing. What remains is the colour of the thing, behind the panel where
-//! the rim can catch it. The light of the player, standing in for the light
-//! of a film until there is one.
+//! It goes through the backdrop pass like any frame: covered, softened and
+//! dimmed. Drawn small and magnified to the window, it has no edges left to
+//! read as a drawing, only its colour behind the panel, where the rim can
+//! catch it.
 
 use crate::library::preview::Still;
 
@@ -23,25 +17,20 @@ const LOGO: &[u8] = include_bytes!("../../../../public/death-by-mpv.svg");
 
 /// The tile, 16:9 like the window it covers.
 ///
-/// Tiny, deliberately: the backdrop pass softens by about a texel of its
-/// source, so the size of the tile is the size of the blur. Photographed at
-/// three sizes. At 64×36 the eye sockets and the jaw still read — a face
-/// glowing behind the panel, which is a picture and not light, and the
-/// backdrop's own rule is to soften past the point where a face reads. At
-/// 16×9 the mark averaged away into so few texels that it barely lit
-/// anything. 32×18 is the size where it is colour with a shape to its edge
-/// and nothing to recognise.
+/// Tiny, because the backdrop pass softens by about a texel of its source, so
+/// the tile's size sets the blur. At 64×36 the face still reads, which is a
+/// picture rather than light; at 16×9 it barely lights anything. At 32×18 it
+/// is colour with a shape to its edge and nothing to recognise.
 const WIDTH: u32 = 32;
 const HEIGHT: u32 = 18;
 
-/// How much of the tile's height the mark takes. About the way in's own
-/// height in the window, so the light falls off across the panel's rim —
-/// where refraction has something to show — rather than lying flat and even
-/// under all of it, which a pane of glass gives back as a pane of colour.
+/// How much of the tile's height the mark takes: about the way in's height
+/// in the window, so the light falls off across the panel's rim, where
+/// refraction has something to show, rather than lying flat under it all.
 const SIZE: f32 = 0.55;
 
-/// The mark on black, as a backdrop still. `None` only if the drawing would
-/// not parse, which a test of this file would catch long before anyone did.
+/// The mark on black, as a backdrop still. `None` only if the drawing won't
+/// parse, which this file's test catches.
 pub fn still() -> Option<Still> {
     use resvg::tiny_skia::{Color, Pixmap, Transform};
 
