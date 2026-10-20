@@ -36,6 +36,12 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     ui.get_scrub_x() + ui.get_scrub_w() * 0.62,
                     ui.get_timeline_y() + 14.0,
                 ),
+                // The middle of the track, whose preview reaches the end pill
+                // in a short window.
+                "end-preview" => (
+                    ui.get_scrub_x() + ui.get_scrub_w() * 0.5,
+                    ui.get_timeline_y() + 14.0,
+                ),
                 // The settings gear, mid-pill.
                 "tip" | "tip-idle" | "tip-open" => (1140.0, 672.0),
                 // The last button there is, to see the clamp hold a tip
@@ -83,6 +89,15 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 } else {
                     -1
                 });
+            }
+
+            // The pill moving aside for a panel opened over it.
+            if tick == 8 {
+                match surface.as_str() {
+                    "end-playlist" => ui.invoke_open_playlist(true),
+                    "end-settings" => ui.invoke_open_settings_page(0),
+                    _ => {}
+                }
             }
 
             // Reaching the end puts the keyboard's ring on the pill; `end`
@@ -232,8 +247,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 }
                 "files" => ui.invoke_open_files(true),
                 // Run to the end, with autoplay off, so the pill stays; `end`
-                // with the pointer away from it, to subtract.
-                "end" | "end-hover" => ui.invoke_seek_fraction(1.0),
+                // with the pointer away from it, to subtract; the last three
+                // with something in its way.
+                "end" | "end-hover" | "end-playlist" | "end-settings" | "end-preview" => {
+                    ui.invoke_seek_fraction(1.0)
+                }
                 // The three graphics failures all need a driver that does
                 // not work, which is not something a test can arrange. The
                 // wording is the part worth looking at anyway: it is the only

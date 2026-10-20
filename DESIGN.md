@@ -1380,6 +1380,15 @@ each choice is a 40px capsule of its own, set 4px inside the pill (24 − 4 = 20
 concentric) with its words still 18px from the pill's edge, 6px apart, each
 taking the Button wash on its own and the Strong wash under the keyboard.
 
+**It makes way rather than standing down.** In a small window a panel can open
+over the middle of the picture, and below about 600px tall the seek preview
+reaches it too. That is glass on glass, but where the preview stands down for a
+panel, this cannot: it may be the question the player is paused on. So beside
+an open panel it slides, at a page's pace, to the middle of the room the panel
+leaves, which at the 960px floor still holds the widest pill; and over the seek
+preview it rises clear, and settles back once the preview has gone by. Only for
+a panel or a preview actually in its way.
+
 ### The credits pill
 While an episode's closing credits play, the end pill's single capsule offers
 what comes next with the Next glyph, named as the end pill names it — the next

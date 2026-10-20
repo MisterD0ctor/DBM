@@ -1109,8 +1109,50 @@ export component MainWindow inherits Window {
     property <length> end-w: root.end-two
         ? 2 * root.end-inset + root.end-first-w + root.btn-gap + root.end-second-w
         : root.end-first-w;
-    property <length> end-x: (root.width - root.end-w) / 2;
-    property <length> end-y: (root.height - root.end-h) / 2;
+    /// Where the pill sits with nothing in its way. A move is tested from
+    /// here rather than from where it puts the pill, which would make it
+    /// depend on itself.
+    property <length> end-middle-x: (root.width - root.end-w) / 2;
+    property <length> end-middle-y: (root.height - root.end-h) / 2;
+    /// An open panel over where the pill sits. The seek preview stands down
+    /// for one, but the pill may be the question playback is paused on, so
+    /// it moves aside instead.
+    property <bool> end-crowded: root.panel-open
+        && root.end-middle-x + root.end-w + Rows.offset > root.panel-x
+        && root.end-middle-x < root.panel-x + root.panel-w + Rows.offset
+        && root.end-middle-y + root.end-h + Rows.offset
+            > root.timeline-y - Rows.offset - root.panel-h;
+    /// The room beside the open panel, on the side away from it. At the
+    /// smallest window it still holds the widest pill.
+    property <bool> end-panel-left: root.panel-x + root.panel-w / 2 < root.width / 2;
+    property <length> end-room-from: root.end-panel-left
+        ? root.panel-x + root.panel-w + Rows.offset : root.panel-margin;
+    property <length> end-room-to: root.end-panel-left
+        ? root.width - root.panel-margin : root.panel-x - Rows.offset;
+    property <length> end-x: !root.end-crowded ? root.end-middle-x
+        : clamp((root.end-room-from + root.end-room-to - root.end-w) / 2,
+            root.panel-margin, root.width - root.panel-margin - root.end-w);
+    // A sideways move, so at the pace of the other one, a page's.
+    animate end-x {
+        duration: root.resizing ? 0ms : Motion.drill;
+        easing: ease-in-out;
+    }
+    /// The seek preview under the pill, which reaches the middle in a window
+    /// under about 600px tall. It is what the hand is doing, so rather than
+    /// stand down it stays, and the pill rises clear. Its column counts too,
+    /// so a pointer elsewhere on the track leaves the pill where it is.
+    property <bool> end-over-preview: root.preview-open && !root.preview-crowded
+        && root.preview-x + root.preview-w + Rows.offset > root.end-x
+        && root.preview-x < root.end-x + root.end-w + Rows.offset
+        && root.preview-y < root.end-middle-y + root.end-h + Rows.offset;
+    property <length> end-y: root.end-over-preview
+        ? min(root.end-middle-y, root.preview-y - Rows.offset - root.end-h)
+        : root.end-middle-y;
+    // At a surface's pace, since it makes way for one arriving.
+    animate end-y {
+        duration: root.resizing ? 0ms : Motion.surface;
+        easing: ease-out;
+    }
     /// Restart at the end of the last file, and at the end of any other the
     /// file that comes next — which only happens with autoplay off, since
     /// otherwise mpv has already moved on by the time anyone could read it.
@@ -1671,6 +1713,12 @@ export component MainWindow inherits Window {
         : root.playlist-open ? playlist-panel.width
         : root.files-open ? files-panel.width
         : settings.width;
+    /// Its height, up from a bottom edge that is always one `Rows.offset`
+    /// above the timeline.
+    property <length> panel-h: root.menu-open ? menu.height
+        : root.playlist-open ? playlist-panel.height
+        : root.files-open ? files-panel.height
+        : settings.height;
     /// The open panel's right edge, for the test that drags a list's thumb.
     out property <length> panel-right: root.panel-x + root.panel-w;
     /// And its left, for the one that presses the way back to a list's
