@@ -15,6 +15,12 @@
 // back over a darker ground, exactly as if the shadow had been drawn first.
 // Pixels the interface covered entirely are left as they are.
 //
+// White laid on white changes nothing, so over clear glass on a white scene
+// the words would leave no trace to be found by. So the glass pass hands Slint
+// the frame held `u_headroom` under white wherever this pass looks, and this
+// pass measures against that and gives the rest back: the ground it lays the
+// white over is the frame as it is.
+//
 // Only coverage past the washes casts a shadow: a row's highlight, the
 // keyboard's included, or a track's unfilled length is not a word, and a dark
 // rim round one would read as a border it does not have.
@@ -41,9 +47,12 @@ uniform vec2 u_dir;
 uniform float u_sigma;
 /// How dark it is where it is deepest: the share of the ground taken away.
 uniform float u_depth;
+/// How far under white the glass pass held the ground here.
+uniform float u_headroom;
 
-/// The frame before the interface was drawn on it, and where the region's
-/// bottom-left pixel is in the window, from the window's top-left.
+/// The frame before the interface was drawn on it, held under white, and
+/// where the region's bottom-left pixel is in the window, from the window's
+/// top-left.
 uniform sampler2D u_ground;
 uniform vec2 u_ground_scale;
 uniform vec2 u_origin;
@@ -113,15 +122,18 @@ void main() {
 
     vec2 here = inside(at);
     vec3 frame = texture(u_frame, here / u_region * u_frame_scale).rgb;
-    vec3 ground = ground_at(here);
-    float covered = coverage(frame, ground);
+    vec3 held = ground_at(here);
+    float covered = coverage(frame, held);
     // What white over the ground cannot explain is a picture the interface
-    // drew — the seek preview's frame — and counts as covered: the shadow is
-    // under the interface, never on it. Measured against what that much
-    // white would have made, so a wash, which is white, does not count.
-    vec3 white = ground + covered * (1.0 - ground);
+    // drew — the seek preview's frame — and is left as it was drawn: the
+    // shadow is under the interface, never on it. Measured against what that
+    // much white would have made, so a wash, which is white, does not count.
+    vec3 white = held + covered * (1.0 - held);
     vec3 off = abs(frame - white);
-    covered = max(covered, smoothstep(0.03, 0.1, max(off.r, max(off.g, off.b))));
-    // The white as it was laid, over a ground the shadow has darkened.
-    frag = vec4(frame - u_depth * shadow * (1.0 - covered) * ground, 1.0);
+    float picture = smoothstep(0.03, 0.1, max(off.r, max(off.g, off.b)));
+    // The white as it was laid, over the ground as it is, darkened by the
+    // shadow.
+    vec3 ground = min(held / (1.0 - u_headroom), vec3(1.0));
+    vec3 laid = covered + (1.0 - covered) * ground * (1.0 - u_depth * shadow);
+    frag = vec4(mix(laid, frame, picture), 1.0);
 }

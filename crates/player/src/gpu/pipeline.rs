@@ -21,6 +21,7 @@
 use glow::HasContext;
 
 use crate::gpu::gfx::{bind_texture, saved_draw_fbo, Program, ScreenQuad, Target};
+use crate::gpu::shadow::HEADROOM;
 use crate::playback::mpv::RenderContext;
 
 /// How far the glass's corners ease into its straight edges: the corner's
@@ -241,6 +242,9 @@ pub struct Frame<'a> {
     pub rect: [f32; 4],
     /// The surfaces that want glass under them.
     pub panels: &'a [GlassPanel],
+    /// Where the shadow pass will look, from `shadow::regions`, which the
+    /// glass pass holds under white for it.
+    pub shaded: &'a [[i32; 4]],
 }
 
 pub struct Pipeline {
@@ -275,6 +279,8 @@ pub struct Pipeline {
     over_blur: Target,
     over_out: Target,
     panels: Vec<GlassPanel>,
+    /// The frame's `shaded`, as last drawn.
+    shaded: Vec<[i32; 4]>,
     pub glass: GlassParams,
 
     /// (mpv, border+blur, glass) from the last frame, when `DBM_GPU_TIME`
@@ -360,6 +366,7 @@ impl Pipeline {
             over_blur: Target::new(),
             over_out: Target::new(),
             panels: Vec::new(),
+            shaded: Vec::new(),
             glass: GlassParams::default(),
             timings: Default::default(),
             split: Default::default(),
@@ -535,6 +542,7 @@ impl Pipeline {
             params_dirty,
             rect,
             panels,
+            shaded,
         } = *frame;
         let (ok, resized) = self.ensure_sizes(gl, w, h);
         if !ok {
@@ -589,7 +597,7 @@ impl Pipeline {
         // reasons, a resize drag above all, and re-running a 256-tap border
         // pass on each of those was most of the resize lag.
         let t1 = mark(gl);
-        let panels_changed = self.panels != panels;
+        let panels_changed = self.panels != panels || self.shaded != shaded;
         // The border is drawn from `rect`, which can change on its own: mpv
         // reports `osd-dimensions` asynchronously, so the rect for a new size
         // often arrives a frame or two after the resize. Paused, no next frame
@@ -621,6 +629,8 @@ impl Pipeline {
         // depends on that, so the border and blur above are skipped then.
         self.panels.clear();
         self.panels.extend_from_slice(panels);
+        self.shaded.clear();
+        self.shaded.extend_from_slice(shaded);
         self.run_glass(gl, w, h);
         let t3 = mark(gl);
         if gpu_time {
@@ -683,12 +693,15 @@ impl Pipeline {
             &self.composite,
             self.blur(),
             panels,
+            &self.shaded,
             &self.glassed,
         );
     }
 
     /// The glass pass: `panels` over `base`, refracting `blur`, into `out`,
-    /// all of them `size` and the panels placed in it.
+    /// all of them `size` and the panels placed in it, and the frame held
+    /// under white inside `shaded` (see `shadow::HEADROOM`).
+    #[allow(clippy::too_many_arguments)]
     fn draw_glass(
         &self,
         gl: &glow::Context,
@@ -696,6 +709,7 @@ impl Pipeline {
         base: &Target,
         blur: &Target,
         panels: &[GlassPanel],
+        shaded: &[[i32; 4]],
         out: &Target,
     ) {
         let g = self.glass;
@@ -747,6 +761,15 @@ impl Pipeline {
             .set_vec4_array(gl, "u_panel_style[0]", &styles);
         self.prog_glass
             .set_vec4_array(gl, "u_panel_light[0]", &lights);
+
+        let held = shaded.len().min(MAX_PANELS);
+        let mut regions = [0.0f32; MAX_PANELS * 4];
+        for (i, region) in shaded.iter().take(held).enumerate() {
+            regions[i * 4..i * 4 + 4].copy_from_slice(&region.map(|v| v as f32));
+        }
+        self.prog_glass.set_i32(gl, "u_shaded_count", held as i32);
+        self.prog_glass.set_vec4_array(gl, "u_shaded[0]", &regions);
+        self.prog_glass.set_f32(gl, "u_headroom", HEADROOM);
 
         self.prog_glass.set_f32(gl, "u_bevel", BEVEL);
         self.prog_glass
@@ -871,12 +894,15 @@ impl Pipeline {
             ],
             ..*pane
         };
+        // Not held under white again: what it copied already is, and the
+        // shadow pass gives that back.
         self.draw_glass(
             gl,
             size,
             &self.over_base,
             &self.over_blur,
             &[placed],
+            &[],
             &self.over_out,
         );
 

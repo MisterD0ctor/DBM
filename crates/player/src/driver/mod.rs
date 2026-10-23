@@ -78,6 +78,9 @@ pub struct Driver {
     gpu: Option<Gpu>,
     player: PlayerState,
     panels: Vec<GlassPanel>,
+    /// Where the shadow under the interface is cast this frame, which the
+    /// glass pass holds under white for it (see `shadow::regions`).
+    shaded: Vec<[i32; 4]>,
     /// The ends of scrolling lists to soften this frame. Reused, like the
     /// panels, to keep the frame path from allocating.
     fades: Vec<crate::gpu::fade::Strip>,
@@ -160,6 +163,7 @@ impl Driver {
             gpu: None,
             player: PlayerState::default(),
             panels: Vec::new(),
+            shaded: Vec::new(),
             fades: Vec::new(),
             ways: Vec::new(),
             modal: modal_loop::Hook::new(),
@@ -240,7 +244,7 @@ impl Driver {
                                 &gpu.gl,
                                 gpu.pipeline.output(),
                                 (size.width, size.height),
-                                &self.panels,
+                                &self.shaded,
                                 ui.window().scale_factor(),
                             );
                         }
@@ -795,6 +799,17 @@ impl Driver {
         // second call would swallow the frame it reported.
         let new_frame = gpu.ctx.wants_redraw();
 
+        // None without the shadow, since nothing would give back what the
+        // glass pass held.
+        self.shaded.clear();
+        if gpu.shadow.is_some() {
+            crate::gpu::shadow::regions(
+                &self.panels,
+                (size.width, size.height),
+                ui.window().scale_factor(),
+                &mut self.shaded,
+            );
+        }
         let frame = Frame {
             width: size.width,
             height: size.height,
@@ -802,6 +817,7 @@ impl Driver {
             params_dirty,
             rect,
             panels: &self.panels,
+            shaded: &self.shaded,
         };
         let rendered = match gpu.pipeline.render(&gpu.gl, &gpu.ctx, &frame) {
             Ok(v) => v,

@@ -1068,7 +1068,12 @@ seek preview's frame — is left alone, shadow and all.
 
 Like the list edges it is drawn by the player on the finished frame — see
 `gpu::shadow` — since Slint can shadow a rectangle and nothing else. It runs
-only where there is glass, and with the chrome asleep it does nothing. It is
+only where there is glass, and with the chrome asleep it does nothing. It finds
+the words by the white they added to the frame, and white on white adds none,
+so wherever it runs the glass pass hands Slint the frame held
+`shadow.HEADROOM` under white, and the shadow gives that back: over clear glass
+on a white scene, where nothing else keeps a word readable, the shadow still
+does. It is
 drawn after the list edges, from what they left, or the rows thinning away at
 an edge would leave their shadows behind them as a dark smear.
 

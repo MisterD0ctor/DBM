@@ -131,6 +131,14 @@ uniform float u_absorb;
 /// off; see shadow, below.
 uniform float u_shadow;
 
+/// Where the shadow under the interface's words is cast, as (x0, y0, x1, y1)
+/// in pixels, and how far under white the frame is held there: the words are
+/// found by the white they add, and white on white adds none. The shadow pass
+/// gives back what is held (see `shadow::HEADROOM`).
+uniform int u_shaded_count;
+uniform vec4 u_shaded[MAX_PANELS];
+uniform float u_headroom;
+
 // --- shadow -------------------------------------------------------------------
 //
 // A pane casts a soft shadow onto the picture, darkest at its edge and fading
@@ -622,7 +630,7 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     vec2 reach = -box_normal * height * thickness;
 
     // Dispersion. Cauchy's B from the dispersive power, and the two ends of
-    // the band from it — viol(1.0 - max(1e-5, 1.0 - u_absorb) / max(1e-5, 1.0 - u_absorb + u_absorb * luma))et has the highest index and lands furthest in.
+    // the band from it — violet has the highest index and lands furthest in.
     float cauchy_b = u_aberration * (ior - 1.0) / INV_FC;
     float ratio_violet = transmit_ratio(slope, slope2, index_at(LAMBDA_MIN, ior, cauchy_b));
     float ratio_red = transmit_ratio(slope, slope2, index_at(LAMBDA_MAX, ior, cauchy_b));
@@ -663,7 +671,8 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
 
     // Then absorb, by how bright what is left is.
     float luma = dot(refracted, LUMA);
-    float absorbed = (1.0 - (1.0 - u_absorb) / (1.0 - u_absorb + u_absorb * luma))
+    // Floored, because at full absorption over black the curve is 0/0.
+    float absorbed = (1.0 - (1.0 - u_absorb) / max(1.0 - u_absorb + u_absorb * luma, 1e-5))
                      * tinted;
     
     refracted *= 1.0 - absorbed;
@@ -689,15 +698,17 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     vec2 mirror = vec2(-2.0 * slope, 1.0 - slope2) / (1.0 + slope2);
     vec3 mirror3 = vec3(box_normal * mirror.x, mirror.y);
 
-    float key = sqrt(0.5 + 0.5 * dot(mirror3, vec3(0.0, -1.0, 0.0))) 
+    // Each root and power floored at zero: rounding takes `luma` a hair past
+    // 1 over white, with nothing absorbed, and `pow` of a negative is NaN.
+    float key = sqrt(max(0.5 + 0.5 * dot(mirror3, vec3(0.0, -1.0, 0.0)), 0.0)) 
                 * pow(max(0.0, 1.0 - rel_uv.y), 1.0)
-                * pow(1.0 - luma, 12.0)
+                * pow(max(1.0 - luma, 0.0), 12.0)
                 * 0.1;
 
-    float fill = sqrt(0.5 + 0.5 * dot(mirror3, vec3(0.0, 1.0, 0.0))) 
+    float fill = sqrt(max(0.5 + 0.5 * dot(mirror3, vec3(0.0, 1.0, 0.0)), 0.0)) 
                  * pow(max(0.0, rel_uv.y), 7.0) 
                  * pow(max(0.0, rel_uv.x), 0.5)
-                 * pow(1.0 - luma, 12.0)
+                 * pow(max(1.0 - luma, 0.0), 12.0)
                  * 0.07;
 
     // The rim light, where the mirrored ray has tipped over and points back
@@ -787,6 +798,17 @@ void main() {
         }
 
         col = mix(col, glass, coverage);
+    }
+
+    for (int i = 0; i < MAX_PANELS; i++) {
+        if (i >= u_shaded_count) {
+            break;
+        }
+        vec4 region = u_shaded[i];
+        if (all(greaterThanEqual(px, region.xy)) && all(lessThan(px, region.zw))) {
+            col *= 1.0 - u_headroom;
+            break;
+        }
     }
 
     frag = vec4(col, 1.0);

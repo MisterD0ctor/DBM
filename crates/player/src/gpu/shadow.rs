@@ -10,6 +10,12 @@
 //! Only where there is glass: every surface with words or marks on it has
 //! some, so the glass rects already say where to look, and with the chrome
 //! asleep there are none and this does nothing.
+//!
+//! Words are told from the frame by how much white they added to it, and
+//! white on white adds nothing. So wherever this looks, the glass pass hands
+//! Slint the frame held [`HEADROOM`] under white, and this pass gives back what
+//! it held: white words keep a trace of themselves over clear glass on a white
+//! scene, which is where they most need their shadow.
 
 use glow::HasContext;
 
@@ -20,6 +26,11 @@ use super::pipeline::GlassPanel;
 const SIGMA: f32 = 1.50;
 /// How much of the ground it takes away at its darkest.
 const DEPTH: f32 = 0.33;
+/// The share of white the frame is held under inside the regions (see
+/// [`regions`]), so the words laid on it can always be measured. An eighth, so
+/// white words on white are still read in thirty-odd steps, while the frame
+/// given back is scaled by little enough not to band.
+pub const HEADROOM: f32 = 0.125;
 
 pub struct Shadow {
     quad: ScreenQuad,
@@ -28,8 +39,6 @@ pub struct Shadow {
     copied: Target,
     /// The coverage, blurred across.
     across: Target,
-    /// The regions to shade this frame, reused.
-    regions: Vec<[i32; 4]>,
 }
 
 impl Shadow {
@@ -44,53 +53,31 @@ impl Shadow {
             .map_err(|e| format!("ui_shadow: {e}"))?,
             copied: Target::new(),
             across: Target::new(),
-            regions: Vec::new(),
         })
     }
 
     /// Shade the interface on whatever framebuffer is bound (the window's, in
     /// `AfterRendering`). `ground` is the pipeline's output, the frame under
-    /// the interface; `panels` the glass, in physical pixels.
+    /// the interface, held under white inside `regions`, which are the ones
+    /// [`regions`] gave the glass pass this frame.
     pub fn run(
         &mut self,
         gl: &glow::Context,
         ground: &Target,
         window: (u32, u32),
-        panels: &[GlassPanel],
+        regions: &[[i32; 4]],
         scale: f32,
     ) {
-        if window.0 == 0 || window.1 == 0 {
+        if window.0 == 0 || window.1 == 0 || regions.is_empty() {
             return;
         }
         let sigma = SIGMA * scale;
-        // The shadow reaches three deviations past what casts it.
-        let reach = (sigma * 3.0).ceil() as i32 + 1;
-        self.regions.clear();
-        for panel in panels.iter().filter(|p| p.opacity > 0.004) {
-            let [x0, y0, x1, y1] = panel.rect;
-            let rect = [
-                (x0.floor() as i32 - reach).max(0),
-                (y0.floor() as i32 - reach).max(0),
-                (x1.ceil() as i32 + reach).min(window.0 as i32),
-                (y1.ceil() as i32 + reach).min(window.1 as i32),
-            ];
-            if rect[2] > rect[0] && rect[3] > rect[1] {
-                self.regions.push(rect);
-            }
-        }
-        merge(&mut self.regions);
-        if self.regions.is_empty() {
-            return;
-        }
-
         let screen = saved_draw_fbo(gl);
         let mut viewport = [0i32; 4];
         unsafe { gl.get_parameter_i32_slice(glow::VIEWPORT, &mut viewport) };
-        let regions = std::mem::take(&mut self.regions);
-        for region in &regions {
+        for region in regions {
             self.shade(gl, ground, window, screen, *region, sigma);
         }
-        self.regions = regions;
         unsafe {
             gl.bind_framebuffer(glow::FRAMEBUFFER, screen);
             gl.viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
@@ -147,6 +134,7 @@ impl Shadow {
         program.set_vec2(gl, "u_region", width as f32, height as f32);
         program.set_f32(gl, "u_sigma", sigma);
         program.set_f32(gl, "u_depth", DEPTH);
+        program.set_f32(gl, "u_headroom", HEADROOM);
         program.set_vec2(gl, "u_ground_scale", ground_scale.0, ground_scale.1);
         program.set_vec2(gl, "u_origin", left as f32, bottom as f32);
         program.set_vec2(gl, "u_window", window.0 as f32, window.1 as f32);
@@ -175,6 +163,32 @@ impl Shadow {
         self.program.release(gl);
         self.quad.release(gl);
     }
+}
+
+/// Where the shadow is cast this frame, in physical pixels from the window's
+/// top-left: each pane of glass on screen and as far round it as the shadow
+/// reaches, with overlaps folded together. Into `out`.
+///
+/// Worked out once a frame, before the glass pass, which holds these under
+/// white, and handed to [`Shadow::run`], which gives it back: the two have to
+/// agree to the pixel.
+pub fn regions(panels: &[GlassPanel], window: (u32, u32), scale: f32, out: &mut Vec<[i32; 4]>) {
+    out.clear();
+    // The shadow reaches three deviations past what casts it.
+    let reach = (SIGMA * scale * 3.0).ceil() as i32 + 1;
+    for panel in panels.iter().filter(|p| p.opacity > 0.004) {
+        let [x0, y0, x1, y1] = panel.rect;
+        let rect = [
+            (x0.floor() as i32 - reach).max(0),
+            (y0.floor() as i32 - reach).max(0),
+            (x1.ceil() as i32 + reach).min(window.0 as i32),
+            (y1.ceil() as i32 + reach).min(window.1 as i32),
+        ];
+        if rect[2] > rect[0] && rect[3] > rect[1] {
+            out.push(rect);
+        }
+    }
+    merge(out);
 }
 
 /// Fold overlapping regions into the box around them, until none overlap.
