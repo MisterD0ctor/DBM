@@ -200,10 +200,25 @@ const float DARK_REACH = 0.12;
 
 const float KNEE = 0.7;
 
-/// Luminance as WCAG measures it, from the encoded colour.
+float decode_sRGB(float c) {
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, 2.4), step(0.04045, c));
+}
+
+vec3 decode_sRGB(vec3 c) {
+    return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+}
+
+float encode_sRGB(float c) {
+    return mix(c * 12.92, 1.055 * pow(c, 1.0 / 2.4) - 0.055, step(0.0031308, c));
+}
+
+vec3 encode_sRGB(vec3 c) {
+    return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
+}
+
+/// Luminance, from the encoded colour.
 float luminance(vec3 c) {
-    vec3 lin = mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
-    return dot(lin, LUMA);
+    return dot(decode_sRGB(c), LUMA);
 }
 
 /// The colour, darkened where it is brighter than the words on it can
@@ -219,8 +234,8 @@ vec3 legible(vec3 c, float ceiling) {
     float wanted = knee + room * (1.0 - exp(-(lum - knee) / room));
     // Scaling an encoded colour scales its luminance by about the 2.2th power
     // of the scale; a second step takes out what that leaves.
-    float scale = pow(wanted / lum, 1.0 / 2.2);
-    scale *= pow(wanted / max(luminance(c * scale), 1e-6), 1.0 / 2.2);
+    float scale = encode_sRGB(wanted / lum);
+    scale *= encode_sRGB(wanted / max(luminance(c * scale), 1e-6));
     return c * scale;
 }
 
@@ -528,6 +543,19 @@ float shadow_at(vec2 px, vec2 centre, vec2 half_size, float radius) {
     return smoothstep(-soft, 0.0, -d) * exp(-4.0 * d / soft);
 }
 
+float saturation(vec3 c) {
+    float c_max = max(c.r, max(c.g, c.b));
+    float c_min = min(c.r, min(c.g, c.b));
+    return 1.0 - max(1e-5, c_min) / max(1e-5, c_max);
+}
+
+vec3 saturate(vec3 c, float s) {
+    float c_max = max(c.r, max(c.g, c.b));
+    float c_min = min(c.r, min(c.g, c.b));
+    return max(1e-5, c_max - c_min * (1.0 - s)) / max(1e-5, c_max - c_min) * (c - vec3(c_min))
+           + vec3(c_min) * (1.0 - s);
+}
+
 /// The glass surface at pixel `px` of one panel. A point just outside the
 /// outline, as an edge sample can be, is shaded as the rim itself: `t` clamps
 /// to 1 there, and every term below is finite at 1.
@@ -539,6 +567,7 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
               vec4 light, int budget, float dither) {
     vec2 uv = px / u_size;
     vec2 rel = px - centre;
+    vec2 rel_uv = 0.5 * rel / half_size + vec2(0.5);
     vec3 sdg = sdg_superbox(rel, half_size, radius, u_corner_softness);
     float d = sdg.x;
 
@@ -564,9 +593,9 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // lensing hug the rim. `slope` runs to -infinity as the surface
     // turns vertical at t = 1, so the root is floored; every term below
     // converges as |slope| grows, so a large finite value behaves.
-    float dome = max(pow(max(1.0 - t * t * t * t, 0.0), 0.25), 1e-4);
+    float dome = max(pow(max(1.0 - t*t*t*t, 0.0), 0.25), 1e-4);
     float height = 0.5 + dome;
-    float slope = -t * t * t / (dome * dome * dome);
+    float slope = -t*t*t / (dome*dome*dome);
     float slope2 = slope * slope;
 
     // Snell's law for a vertical incident ray. With surface normal
@@ -593,7 +622,7 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     vec2 reach = -box_normal * height * thickness;
 
     // Dispersion. Cauchy's B from the dispersive power, and the two ends of
-    // the band from it — violet has the highest index and lands furthest in.
+    // the band from it — viol(1.0 - max(1e-5, 1.0 - u_absorb) / max(1e-5, 1.0 - u_absorb + u_absorb * luma))et has the highest index and lands furthest in.
     float cauchy_b = u_aberration * (ior - 1.0) / INV_FC;
     float ratio_violet = transmit_ratio(slope, slope2, index_at(LAMBDA_MIN, ior, cauchy_b));
     float ratio_red = transmit_ratio(slope, slope2, index_at(LAMBDA_MAX, ior, cauchy_b));
@@ -626,47 +655,30 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
             float n = index_at(start + dither * width, ior, cauchy_b);
             refracted += share * blur_at(uv + reach * transmit_ratio(slope, slope2, n) / u_size);
         }
-        // Out of gamut comes out negative; see dispersion, above. The
-        // absorption below divides by this colour's luminance.
+        // Out of gamut comes out negative; see dispersion, above.
         refracted = max(refracted, vec3(0.0));
     }
 
-    // Tint first. Glass is not a neutral filter, and without this a panel
-    // over dark video reads as a hole rather than a surface.
     refracted = mix(refracted, u_tint, clamp(tinted * u_tint_amount, 0.0, 1.0));
 
-    // Then absorb, by how bright what is left is. The sample is already
-    // blurred, so a small glint doesn't pull the whole pane down, only a
-    // genuinely bright area does, and smoothly. Opted in per panel by the
-    // same flag as the tint. Floored because the curve divides by it, and an
-    // exactly black frame with no tint would otherwise make every pane NaN.
-    float backdrop = max(dot(refracted, LUMA), 1e-4);
-    float absorb = clamp(u_absorb, 0.0, 1.0);
-    float absorbed = (1.0 - (1.0 - absorb) / (1.0 - absorb + absorb * backdrop))
-                    * tinted;
-
+    // Then absorb, by how bright what is left is.
+    float luma = dot(refracted, LUMA);
+    float absorbed = (1.0 - (1.0 - u_absorb) / (1.0 - u_absorb + u_absorb * luma))
+                     * tinted;
+    
     refracted *= 1.0 - absorbed;
-    vec3 gray = vec3(dot(refracted, LUMA));
 
-    // And give back the colour the darkening took, more where more was
-    // absorbed; see absorption, above.
-    refracted = mix(gray, refracted, 1.0 / (1.0 - 0.5 * absorbed));
+    float s = absorbed 
+              * pow(luma, 4.0) 
+              * (1.0 - pow(1.0 - saturation(refracted), 4.0));
+
+    refracted = saturate(refracted, s);
+
+    luma = dot(refracted, LUMA);
 
     // Never brighter than the lowest step of text can stand on; see
     // legibility, above.
     refracted = mix(refracted, legible(refracted, light.x), tinted);
-
-    // Exact unpolarised Fresnel reflectance, averaging s and p. Written
-    // in D so it needs no further trigonometry:
-    //
-    //     Rs = ((D - 1) / (D + 1))^2
-    //     Rp = ((D - ior^2) / (D + ior^2))^2
-    //
-    // Both approach 1 as the surface turns vertical, which is why the rim
-    // light, weighted by this below, is strongest at the very edge.
-    float rs = (D - 1.0) / (D + 1.0);
-    float rp = (D - ior2) / (D + ior2);
-    float reflectance = 0.5 * (rs * rs + rp * rp);
 
     // Mirror direction for the same vertical view ray:
     // reflect((0,-1), n) = (-2*slope, 1 - slope^2) / (1 + slope^2),
@@ -677,20 +689,16 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     vec2 mirror = vec2(-2.0 * slope, 1.0 - slope2) / (1.0 + slope2);
     vec3 mirror3 = vec3(box_normal * mirror.x, mirror.y);
 
-    // Switched off, with the reflection it fades below: the backdrop the
-    // mirrored ray finds once it has tipped over and points down, as a
-    // screen-space reflection displaced by the same lateral-over-vertical
-    // reasoning as the refracted ray. The rim light stands in for it.
-    //
-    // The denominator vanishes as the mirrored ray passes horizontal
-    // (|slope| -> 1), where the true displacement really is unbounded.
-    // Floor it rather than let one ring of pixels smear.
-    //float denom = 1.0 - slope2;
-    //denom = abs(denom) < 1e-3 ? (denom < 0.0 ? -1e-3 : 1e-3) : denom;
-    //float reflection_ratio = -2.0 * slope / denom;
-    //vec2 reflection_offset =
-    //    -box_normal * reflection_ratio * height * bevel / u_size;
-    //vec3 reflected = base_at(uv + reflection_offset) * u_specular;
+    float key = sqrt(0.5 + 0.5 * dot(mirror3, vec3(0.0, -1.0, 0.0))) 
+                * pow(max(0.0, 1.0 - rel_uv.y), 1.0)
+                * pow(1.0 - luma, 12.0)
+                * 0.1;
+
+    float fill = sqrt(0.5 + 0.5 * dot(mirror3, vec3(0.0, 1.0, 0.0))) 
+                 * pow(max(0.0, rel_uv.y), 7.0) 
+                 * pow(max(0.0, rel_uv.x), 0.5)
+                 * pow(1.0 - luma, 12.0)
+                 * 0.07;
 
     // The rim light, where the mirrored ray has tipped over and points back
     // down. Nothing while the surface is under 45 degrees and the ray still
@@ -700,26 +708,12 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // the outermost edge.
     // Never under the floor for what is behind it; see the rim over a dark
     // frame, above.
-    float rim = max(light.y, DARK_RIM * (1.0 - smoothstep(0.0, DARK_REACH, backdrop)));
-    float rim_strength = max(0.0, -mirror.y * (1.0 - mirror.x) * (1.0 - mirror.x))
-                         * rim;
-
-    // Its colour is how squarely the edge faces up or down the screen: the
-    // mirrored ray's screen-vertical part over all of its sideways part,
-    // squared, which comes to box_normal.y^2. White along the top and
-    // bottom, darkening to black down the sides, as an edge lit from above
-    // and below would be.
-    float rim_color = max(0.0, (mirror3.y * mirror3.y) / (mirror.x * mirror.x));
-
-    // Pointing up, the mirrored ray leaves the screen and finds nothing to
-    // reflect, so the switched-off reflection above fades out as it swings
-    // through horizontal — which also hides the turn, where its screen-space
-    // offset runs off to infinity.
-    //vec3 specular = mix(reflected, vec3(1.0), rim) * (1.0 - smoothstep(-0.7, 0.0, mirror.y));
+    float rim = max(0.0, -mirror.y * (1.0 - mirror.x) * (1.0 - mirror.x))
+                * light.y;
 
     // Fresnel decides how much of the rim light the viewer gets, over what
     // the transmitted ray brought.
-    return mix(refracted, vec3(rim_color), rim_strength * reflectance);
+    return mix(refracted, vec3(1.0), key + fill) + vec3(rim);
 }
 
 void main() {
