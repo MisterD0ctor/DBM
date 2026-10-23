@@ -103,10 +103,9 @@ pub struct GlassParams {
     /// number. The shader integrates the transmitted ray over wavelength with
     /// it, so this is the width of the prismatic fringe.
     pub aberration: f32,
-    /// How strongly the rim light shows: a ring round each pane's outermost
-    /// edge, where the surface has turned past 45 degrees, white along the top
-    /// and bottom and darkening to black down the sides. Zero turns it off
-    /// over a lit frame; over a dark one it keeps a floor (see glass.frag).
+    /// How strongly the rim light shows: white added round each pane's
+    /// outermost edge, where the surface has turned past 45 degrees. Zero
+    /// turns it off.
     pub rim: f32,
     pub tint: [f32; 3],
     /// How far a panel pulls toward the tint colour, 0..1. Scales the
@@ -124,11 +123,10 @@ pub struct GlassParams {
 // --- the material's fixed properties ----------------------------------------
 //
 // What the material is, rather than how much of it you want: the rim is the
-// corner, the glass is flint, and a mirror reflects. Changing any of them
-// stops the panes reading as one material, so they are constants rather than
-// settings, and the glass page has no row for them. Old settings naming
-// `glass.bevel_ratio`, `glass.ior` or `glass.specular` are skipped like any
-// unknown key.
+// corner, and the glass is flint. Changing either stops the panes reading as
+// one material, so they are constants rather than settings, and the glass
+// page has no row for them. Old settings naming `glass.bevel_ratio`,
+// `glass.ior` or `glass.specular` are skipped like any unknown key.
 
 /// Width of the domed rim, as a fraction of each panel's corner radius: how
 /// far in from the edge the lensing and lighting reach.
@@ -139,11 +137,10 @@ pub struct GlassParams {
 pub const BEVEL: f32 = 1.0;
 
 /// Index of refraction: 1.0 bends nothing, 1.33 water, 1.5 window glass,
-/// 1.8 flint, 2.4 diamond. Drives both the bending and, through the Fresnel
-/// term, how mirror-like the rim becomes.
+/// 1.8 flint, 2.4 diamond.
 ///
-/// Well past a window pane, so the rim bends and mirrors hard enough to read
-/// at interface scale. No higher, because at diamond the lensing pulls a dark
+/// Well past a window pane, so the rim bends hard enough to read at interface
+/// scale. No higher, because at diamond the lensing pulls a dark
 /// patch of the backdrop into a black oval across the top of the way in.
 pub const IOR: f32 = 2.0;
 
@@ -202,13 +199,6 @@ fn luminance(encoded: f32) -> f32 {
         ((encoded + 0.055) / 1.055).powf(2.4)
     }
 }
-
-/// Overall reflection strength, scaling the Fresnel weight. Read only by the
-/// screen-space reflection, which is switched off in glass.frag.
-///
-/// Unity, since the Fresnel term is already the physical answer to how much
-/// light a surface returns at that angle.
-pub const SPECULAR: f32 = 1.0;
 
 impl Default for GlassParams {
     fn default() -> Self {
@@ -777,7 +767,6 @@ impl Pipeline {
         self.prog_glass.set_f32(gl, "u_refract", g.refract);
         self.prog_glass.set_f32(gl, "u_ior", IOR);
         self.prog_glass.set_f32(gl, "u_aberration", g.aberration);
-        self.prog_glass.set_f32(gl, "u_specular", SPECULAR);
         self.prog_glass.set_vec3(gl, "u_tint", g.tint);
         self.prog_glass.set_f32(gl, "u_tint_amount", g.tint_amount);
         self.prog_glass.set_f32(gl, "u_absorb", g.absorb);

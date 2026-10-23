@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-23T14:33:59Z",
+  "generatedAt": "2026-10-23T13:31:08Z",
   "title": "Design System: Death by MPV",
   "extensions": {
     "colorMeta": {
@@ -236,7 +236,7 @@
         "purpose": "The thin dark rim under the interface's words and marks, with no offset: a Gaussian of 1.5 logical pixels that takes this share of the ground away at its darkest. Only what is drawn in white casts it, not the washes."
       }
     ],
-    "shadowNote": "Two shadows, both drawn by the pipeline: the one each glass pane casts on the picture, and the thin rim under the interface's words. Depth is carried by the material first: a domed bevel whose width follows each panel's corner radius, a Fresnel term that turns the edge mirror-like as it curves away, and a rim light where the surface turns past 45 degrees.",
+    "shadowNote": "Two shadows, both drawn by the pipeline: the one each glass pane casts on the picture, and the thin rim under the interface's words. Depth is carried by the material first: a domed bevel whose width follows each panel's corner radius, magnifying the picture under it as it curves away, and a rim light where the surface turns past 45 degrees.",
     "motion": [
       {
         "name": "highlight",
@@ -333,7 +333,7 @@
       }
     ],
     "material": {
-      "note": "The glass and ambient-border values as the code ships them (gpu/pipeline.rs). Not expressible as Stitch tokens: they are shader uniforms. Most are sliders on the settings panel's glass and ambient-border pages; bevel, ior and specular are constants and deliberately not adjustable (see `fixed` below).",
+      "note": "The glass and ambient-border values as the code ships them (gpu/pipeline.rs). Not expressible as Stitch tokens: they are shader uniforms. Most are sliders on the settings panel's glass and ambient-border pages; bevel and ior are constants and deliberately not adjustable (see `fixed` below).",
       "glass": {
         "blurSigma": 3,
         "bevel": 1,
@@ -341,7 +341,6 @@
         "refract": 1,
         "ior": 2,
         "aberration": 0.2,
-        "specular": 1,
         "rim": 0.2,
         "tint": 0,
         "absorb": 0.5,
@@ -353,7 +352,7 @@
         ]
       },
       "absorption": {
-        "curve": "absorbed = 1 - (1 - absorb) / ((1 - absorb) + absorb * luma), then a saturation lift of 1 / (1 - 0.5 * absorbed) about the luma",
+        "curve": "absorbed = 1 - (1 - absorb) / ((1 - absorb) + absorb * luma), then a saturation lift of absorbed * luma^4 * (1 - (1 - saturation)^4), which takes the smallest channel toward zero by that share, so a grey stays grey",
         "appliesTo": "the transmitted light only, never the rim light",
         "adjustable": true,
         "control": "the glass page's Dimming slider, 0..1: the share of a white backdrop absorbed; 0 is a clear pane, 1 absorbs everything"
@@ -381,10 +380,9 @@
       "fixed": {
         "values": [
           "bevel",
-          "ior",
-          "specular"
+          "ior"
         ],
-        "why": "What the material is, rather than how much of it you want. Changing any of them stops the panes reading as one material, so all three are constants in pipeline.rs and the glass page has no slider for any of them."
+        "why": "What the material is, rather than how much of it you want. Changing either stops the panes reading as one material, so both are constants in pipeline.rs and the glass page has no slider for either."
       }
     }
   },
@@ -488,7 +486,7 @@
   ],
   "narrative": {
     "northStar": "The Cinema Window",
-    "overview": "Panes of real glass, laid over the film. Not a metaphor for glass — the interface is genuinely refractive: mpv's frame is rendered into the application's own GL context as a texture, and every surface bends the picture behind it through a superelliptic box's distance field, a dome profile, Snell's law and an exact unpolarised Fresnel term. Thickness, bevel and index of refraction are real parameters, and the rim behaves like a rim because it is one.\n\nThe consequence is that this system has almost no palette. Colour comes from whatever is playing. The interface is white at a handful of alphas and full white, a single near-black switch knob, and — before anything is loaded — the dimmed light of the last film left unfinished. Even the letterbox is not neutral: the ambient border extends the frame's own edge colours outward, so a red scene bleeds red into the bars. Nothing here is tinted by a brand.\n\nControls behave like instrument switches: definite, short, slightly firm. A hover wash lands in `Motion.highlight` and surfaces arrive in `Motion.surface` with a few pixels of travel, fast enough that the movement registers as a response rather than an animation. Density is generous: `Rows.gap` on all four sides of every row, and panels that hold at most a heading and a list.",
+    "overview": "Panes of real glass, laid over the film. Not a metaphor for glass — the interface is genuinely refractive: mpv's frame is rendered into the application's own GL context as a texture, and every surface bends the picture behind it through a superelliptic box's distance field, a dome profile and Snell's law. Thickness, bevel and index of refraction are real parameters, and the rim behaves like a rim because it is one.\n\nThe consequence is that this system has almost no palette. Colour comes from whatever is playing. The interface is white at a handful of alphas and full white, a single near-black switch knob, and — before anything is loaded — the dimmed light of the last film left unfinished. Even the letterbox is not neutral: the ambient border extends the frame's own edge colours outward, so a red scene bleeds red into the bars. Nothing here is tinted by a brand.\n\nControls behave like instrument switches: definite, short, slightly firm. A hover wash lands in `Motion.highlight` and surfaces arrive in `Motion.surface` with a few pixels of travel, fast enough that the movement registers as a response rather than an animation. Density is generous: `Rows.gap` on all four sides of every row, and panels that hold at most a heading and a list.",
     "keyCharacteristics": [
       "Real per-pixel refraction, not a translucent blur panel",
       "No palette of its own; colour is the film's",
@@ -581,7 +579,7 @@
       {
         "name": "The Ring Pane Rule",
         "section": "shapes",
-        "body": "The keyboard's place is a pane of glass of its own, laid on the surface it is in, under the Ring wash. A wash alone can't do both of its jobs: no alpha of it stands out from the glass beside it at 3:1 and keeps Lit words on it at 4.5:1, since the brighter it is, the less its words stand out. So the wash is the area and the pane is the edge. The pane is real glass, refracting the frame on its own, held darker than the glass around it (see The Legible Glass Rule), and its rim is lit at `pipeline.RING_RIM` whatever the Rim slider says, so its top and bottom edges carry the 3:1. It casts no shadow, and never reaches past the pane it lies on, which a page sliding in would otherwise carry out over the film. On a bar button the window places a disc (`MainWindow.ring-disc`); on a row or one of a pill's choices, which the window can't reach into, the row says where it is through `Ring` (`RingPane`). In a scrolling list the pane is cut to the list and fades as its row leaves, gone by the time half the row is."
+        "body": "The keyboard's place is a pane of glass of its own, laid on the surface it is in, under the Ring wash. A wash alone can't do both of its jobs: no alpha of it stands out from the glass beside it at 3:1 and keeps Lit words on it at 4.5:1, since the brighter it is, the less its words stand out. So the wash is the area and the pane is the edge. The pane is real glass, refracting the frame on its own, held darker than the glass around it (see The Legible Glass Rule), and its rim is lit at `pipeline.RING_RIM` whatever the Rim slider says, so its edge carries the 3:1. It casts no shadow, and never reaches past the pane it lies on, which a page sliding in would otherwise carry out over the film. On a bar button the window places a disc (`MainWindow.ring-disc`); on a row or one of a pill's choices, which the window can't reach into, the row says where it is through `Ring` (`RingPane`). In a scrolling list the pane is cut to the list and fades as its row leaves, gone by the time half the row is."
       },
       {
         "name": "The Concentric Rule",

@@ -236,7 +236,7 @@
         "purpose": "The thin dark rim under the interface's words and marks, with no offset: a Gaussian of {{ shadow.SIGMA }} logical pixels that takes this share of the ground away at its darkest. Only what is drawn in white casts it, not the washes."
       }
     ],
-    "shadowNote": "Two shadows, both drawn by the pipeline: the one each glass pane casts on the picture, and the thin rim under the interface's words. Depth is carried by the material first: a domed bevel whose width follows each panel's corner radius, a Fresnel term that turns the edge mirror-like as it curves away, and a rim light where the surface turns past 45 degrees.",
+    "shadowNote": "Two shadows, both drawn by the pipeline: the one each glass pane casts on the picture, and the thin rim under the interface's words. Depth is carried by the material first: a domed bevel whose width follows each panel's corner radius, magnifying the picture under it as it curves away, and a rim light where the surface turns past 45 degrees.",
     "motion": [
       {
         "name": "highlight",
@@ -333,7 +333,7 @@
       }
     ],
     "material": {
-      "note": "The glass and ambient-border values as the code ships them (gpu/pipeline.rs). Not expressible as Stitch tokens: they are shader uniforms. Most are sliders on the settings panel's glass and ambient-border pages; bevel, ior and specular are constants and deliberately not adjustable (see `fixed` below).",
+      "note": "The glass and ambient-border values as the code ships them (gpu/pipeline.rs). Not expressible as Stitch tokens: they are shader uniforms. Most are sliders on the settings panel's glass and ambient-border pages; bevel and ior are constants and deliberately not adjustable (see `fixed` below).",
       "glass": {
         "blurSigma": "{{ pipeline.GlassParams.blur_sigma }}",
         "bevel": "{{ pipeline.BEVEL }}",
@@ -341,7 +341,6 @@
         "refract": "{{ pipeline.GlassParams.refract }}",
         "ior": "{{ pipeline.IOR }}",
         "aberration": "{{ pipeline.GlassParams.aberration }}",
-        "specular": "{{ pipeline.SPECULAR }}",
         "rim": "{{ pipeline.GlassParams.rim }}",
         "tint": "{{ pipeline.GlassParams.tint_amount }}",
         "absorb": "{{ pipeline.GlassParams.absorb }}",
@@ -349,7 +348,7 @@
         "tintColor": "{{ pipeline.GlassParams.tint }}"
       },
       "absorption": {
-        "curve": "absorbed = 1 - (1 - absorb) / ((1 - absorb) + absorb * luma), then a saturation lift of 1 / (1 - 0.5 * absorbed) about the luma",
+        "curve": "absorbed = 1 - (1 - absorb) / ((1 - absorb) + absorb * luma), then a saturation lift of absorbed * luma^4 * (1 - (1 - saturation)^4), which takes the smallest channel toward zero by that share, so a grey stays grey",
         "appliesTo": "the transmitted light only, never the rim light",
         "adjustable": true,
         "control": "the glass page's Dimming slider, 0..1: the share of a white backdrop absorbed; 0 is a clear pane, 1 absorbs everything"
@@ -377,10 +376,9 @@
       "fixed": {
         "values": [
           "bevel",
-          "ior",
-          "specular"
+          "ior"
         ],
-        "why": "What the material is, rather than how much of it you want. Changing any of them stops the panes reading as one material, so all three are constants in pipeline.rs and the glass page has no slider for any of them."
+        "why": "What the material is, rather than how much of it you want. Changing either stops the panes reading as one material, so both are constants in pipeline.rs and the glass page has no slider for either."
       }
     }
   },

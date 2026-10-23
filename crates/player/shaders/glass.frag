@@ -27,20 +27,15 @@
 //       +----------------------------------------> radial   (t: 0 centre .. 1 rim)
 //
 // The viewer looks straight down, so a fragment's colour is whatever a
-// vertical ray picks up at that surface. Three things happen at the
-// interface. Two are computed rather than faked, and the third is lit by hand:
+// vertical ray picks up at that surface. What it transmits is computed rather
+// than faked: Snell's law bends the ray, so it lands somewhere else on the
+// backdrop. This gives the panel apparent thickness, and is by far the
+// strongest cue that it is an object rather than a hole.
 //
-//   * transmission — Snell's law bends the ray, so it lands somewhere else on
-//     the backdrop. This gives the panel apparent thickness, and is by far
-//     the strongest cue that it is an object rather than a hole.
-//   * reflection — the mirrored ray either escapes upward off the screen,
-//     where there is nothing to see, or tips over and comes back down. What
-//     it comes down to is not traced (the screen-space reflection that did
-//     is switched off, in `glass_at`) but lit by hand: the rim light, a ring
-//     round each pane's outermost edge — see `u_panel_light`.
-//   * Fresnel — how the transmitted ray and the rim light are weighted, from
-//     the exact unpolarised reflectance. Grazing angles at the rim go
-//     strongly reflective, so the rim light is strongest at the very edge.
+// What it reflects is not traced but placed by hand, from the way the
+// mirrored ray points: the rim light round each pane's outermost edge (see
+// `u_panel_light`), and over a dark frame a key light from above and a fill
+// from below (see the light over a dark frame, below).
 //
 // Wavelength enters on the transmitted ray, and enters properly: the index
 // of refraction is a function of it, so every wavelength lands somewhere
@@ -78,10 +73,10 @@ uniform vec4 u_panel_rect[MAX_PANELS];
 uniform vec4 u_panel_style[MAX_PANELS];
 /// (ceiling, rim, unused, unused): the brightest luminance the pane may pass,
 /// 0 for no limit (see legibility, below), and how strongly its rim light
-/// shows: a ring round its outermost edge, where the surface has turned past
-/// 45 degrees and the mirrored ray points back down, white along the top and
-/// bottom and darkening to black down the sides. Per pane, because the pane
-/// under the keyboard's ring is held darker and lit harder than the rest.
+/// shows: white added round its outermost edge, where the surface has turned
+/// past 45 degrees and the mirrored ray points back down. Per pane, because
+/// the pane under the keyboard's ring is held darker and lit harder than the
+/// rest.
 uniform vec4 u_panel_light[MAX_PANELS];
 
 // --- Material parameters ---------------------------------------------------
@@ -106,8 +101,7 @@ uniform float u_corner_softness;
 /// thinning looks painted on.
 uniform float u_refract;
 /// Index of refraction. 1.0 bends nothing, 1.33 water, 1.5 window glass,
-/// 1.8 flint, 2.4 diamond. Higher bends harder and, through the Fresnel term,
-/// also makes the rim more mirror-like.
+/// 1.8 flint, 2.4 diamond. Higher bends harder.
 uniform float u_ior;
 /// How strongly the index of refraction varies with wavelength, as dispersive
 /// power: the spread of the index between the F and C lines as a fraction of
@@ -116,10 +110,6 @@ uniform float u_ior;
 /// for dense flint; this goes well past that, since here the fringe is meant
 /// to be seen.
 uniform float u_aberration;
-/// Overall strength of the reflection, scaling the Fresnel weight. Read only
-/// by the screen-space reflection in `glass_at`, which is switched off; the
-/// rim light is weighted by Fresnel alone.
-uniform float u_specular;
 uniform vec3 u_tint;
 /// Global tint strength. The per-panel value in `u_panel_style` says whether
 /// a panel takes tint at all; this says how much, and is the slider.
@@ -173,27 +163,24 @@ const float SHADOW_SOFTNESS_MIN = 4.0;
 //
 //     absorbed = 1 - (1 - a) / ((1 - a) + a * luma)
 //
-// The saturation lift after it grows with what was absorbed, to give back the
-// colour the darkening takes.
+// The saturation lift after it gives back the colour the darkening takes. It
+// grows with what was absorbed and with how bright the colour is, and only
+// where there is colour already, so a grey stays grey.
 
 /// Rec. 709, matching how the eye weights the three channels rather than
 /// averaging them: a saturated green frame is far brighter than its mean.
 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 
-// --- the rim over a dark frame -------------------------------------------------
+// --- the light over a dark frame ------------------------------------------------
 //
 // Absorption's opposite. Over black there is nothing for the glass to bend or
-// blur, and a pane at the rim light's usual strength all but vanishes: a bar
-// over a fade, the way on at the end of an episode, are words on nothing. So
-// the rim light has a floor that rises as what is behind it darkens, and over
-// a lit frame, where the refraction already draws the pane, it leaves the rim
-// as its slider set it.
-
-/// The rim light's strength over black.
-const float DARK_RIM = 0.5;
-/// How bright a backdrop has to be, as Rec. 709 luma of the encoded colour,
-/// before the floor is gone.
-const float DARK_REACH = 0.12;
+// blur, and a pane all but vanishes: a bar over a fade, the way on at the end
+// of an episode, are words on nothing. So two soft lights fall on the dome: a
+// key from above, across the pane and brightest at its top, and a fainter
+// fill from below, at its lower right. Each is weighted by how squarely the
+// mirrored ray faces it, and each comes up as the glass behind it darkens,
+// with the twelfth power of how far it is from white, so over a lit frame,
+// where the refraction already draws the pane, they are gone.
 
 // --- legibility ---------------------------------------------------------------
 //
@@ -204,7 +191,7 @@ const float DARK_REACH = 0.12;
 // `legible_ceiling` in pipeline.rs). Over dark glass it does nothing. Short
 // of the ceiling it eases in, from `KNEE` of it, so a bright area keeps its
 // shading rather than going flat at a line. Like absorption it comes before
-// the rim light, which keeps its edge.
+// the lights, so the rim keeps its edge.
 
 const float KNEE = 0.7;
 
@@ -254,8 +241,8 @@ vec3 legible(vec3 c, float ceiling) {
 // samples would only quantise it into steps.
 //
 // What aliases is the shading just inside it. The dome's slope runs to
-// infinity at the rim, so the reflectance, the mirror direction and the rim
-// light all change within the last pixel or two, and one sample per pixel
+// infinity at the rim, so the mirror direction and the rim light change
+// within the last pixel or two, and one sample per pixel
 // makes the edge crawl as a panel moves. So the shading there, and only
 // there, is supersampled.
 
@@ -610,13 +597,8 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // n = (-slope, 1)/sqrt(1 + slope^2):
     //
     //     cos_i = 1 / sqrt(1 + slope^2)
-    //     cos_t = D / (ior * sqrt(1 + slope^2))
-    //
-    // `D` collects the shared awkward part once — the refracted direction
-    // and both Fresnel terms are all expressible in it.
+    //     cos_t = D / (ior * sqrt(1 + slope^2)),  D = sqrt(ior^2 + (ior^2 - 1) slope^2)
     float ior = max(u_ior, 1.0);
-    float ior2 = ior * ior;
-    float D = sqrt(ior2 + (ior2 - 1.0) * slope2);
 
     // The vector form of Snell's law reduces, for a vertical incident
     // ray, to a lateral-over-vertical ratio of -slope*(D-1)/(slope^2+D),
@@ -677,6 +659,7 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     
     refracted *= 1.0 - absorbed;
 
+    // The saturation lift; see absorption, above.
     float s = absorbed 
               * pow(luma, 4.0) 
               * (1.0 - pow(1.0 - saturation(refracted), 4.0));
@@ -698,8 +681,9 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     vec2 mirror = vec2(-2.0 * slope, 1.0 - slope2) / (1.0 + slope2);
     vec3 mirror3 = vec3(box_normal * mirror.x, mirror.y);
 
-    // Each root and power floored at zero: rounding takes `luma` a hair past
-    // 1 over white, with nothing absorbed, and `pow` of a negative is NaN.
+    // The key and the fill; see the light over a dark frame, above. Each root
+    // and power is floored at zero: rounding takes `luma` a hair past 1 over
+    // white, with nothing absorbed, and `pow` of a negative is NaN.
     float key = sqrt(max(0.5 + 0.5 * dot(mirror3, vec3(0.0, -1.0, 0.0)), 0.0)) 
                 * pow(max(0.0, 1.0 - rel_uv.y), 1.0)
                 * pow(max(1.0 - luma, 0.0), 12.0)
@@ -717,13 +701,11 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // (`mirror.x` = 1); from there it rises steeply as the ray swings round
     // to point straight down, to full where the surface stands vertical at
     // the outermost edge.
-    // Never under the floor for what is behind it; see the rim over a dark
-    // frame, above.
     float rim = max(0.0, -mirror.y * (1.0 - mirror.x) * (1.0 - mirror.x))
                 * light.y;
 
-    // Fresnel decides how much of the rim light the viewer gets, over what
-    // the transmitted ray brought.
+    // The key and the fill lean the glass toward white, and the rim is added
+    // over both.
     return mix(refracted, vec3(1.0), key + fill) + vec3(rim);
 }
 

@@ -187,8 +187,8 @@ components:
 Panes of real glass, laid over the film. Not a metaphor for glass — the
 interface is genuinely refractive: mpv's frame is rendered into the
 application's own GL context as a texture, and every surface bends the picture
-behind it through a superelliptic box's distance field, a dome profile,
-Snell's law and an exact unpolarised Fresnel term. Thickness, bevel and index of refraction are real
+behind it through a superelliptic box's distance field, a dome profile and
+Snell's law. Thickness, bevel and index of refraction are real
 parameters, and the rim behaves like a rim because it is one.
 
 The consequence is that this system has almost no palette. Colour comes from
@@ -578,10 +578,10 @@ identical rows that says where one idea stops.
 ## Elevation & Depth
 
 Depth is carried by the material first: each panel's rim is a domed bevel
-whose width is a fraction of that panel's own corner radius, lit by a Fresnel
-term that makes the edge turn mirror-like as it curves away, and a rim light
-where the surface turns past 45°. A surface reads as raised because its edge
-bends light, which is the same reason a real one does.
+whose width is a fraction of that panel's own corner radius, magnifying the
+picture under it as it curves away, with a rim light where the surface turns
+past 45°. A surface reads as raised because its edge bends light, which is the
+same reason a real one does.
 
 **One shadow, cast on the picture and nothing else.** Each pane casts a soft
 shadow, the same on every side: darkest at the pane's edge and falling off
@@ -621,28 +621,27 @@ there is no ceiling either, and nothing but the words' own shadow between
 them and the film.
 
 **What the material is, and what you want of it, are different questions.**
-Three properties answer the first, and are constants in `gpu/pipeline.rs`
-rather than settings: the **bevel** (`BEVEL`: the rim is the corner), the
+Two properties answer the first, and are constants in `gpu/pipeline.rs`
+rather than settings: the **bevel** (`BEVEL`: the rim is the corner) and the
 **index of refraction** (`IOR`: well past a window pane, short of the diamond
-that pulls a black oval across the top of the way in) and the **reflection
-strength** (`SPECULAR`: the Fresnel term is already the physical answer). None
-has a range where the result is a matter of taste rather than of whether the
-panes still read as one material. What is left on that page — blur, refraction depth, fringe, rim,
-tint, absorption, shadow — is how much of the material you want, which is the
-question worth a slider. The rim light is the one hand-placed light, and with
-the traced reflection switched off it is all the reflection there is: a ring
-round each pane's outermost edge, where the surface has turned past 45° and the
-mirrored ray points back down, white along the top and bottom and darkening to
-black down the sides, weighted by Fresnel so it is strongest at the very edge.
+that pulls a black oval across the top of the way in). Neither has a range
+where the result is a matter of taste rather than of whether the panes still
+read as one material. What is left on that page — blur, refraction depth,
+fringe, rim, tint, absorption, shadow — is how much of the material you want,
+which is the question worth a slider. Reflection is not traced but placed by
+hand, from the way the mirrored ray points. The rim light is white added round
+each pane's outermost edge, where the surface has turned past 45° and the
+mirrored ray points back down, rising steeply to full at the very edge.
 
-**The rim stays drawn over black.** Over a dark frame there is nothing for the
-glass to bend or blur, and at the Rim slider's strength a pane all but
-vanishes: a bar over a fade, or the way on at the end of an episode, read as
-words on nothing. So the rim light has a floor, absorption's opposite: it
-rises as what is behind the pane darkens, to `glass.DARK_RIM` over black, and
-is gone once the backdrop is as bright as `glass.DARK_REACH`, where the
-refraction draws the pane by itself. Like the ceiling it is not on the glass
-page, since it is what keeps a pane there at all.
+**The pane stays drawn over black.** Over a dark frame there is nothing for the
+glass to bend or blur, and a pane all but vanishes: a bar over a fade, or the
+way on at the end of an episode, read as words on nothing. So two soft lights
+fall on the dome, absorption's opposite: a key from above, across the pane and
+brightest at its top, and a fainter fill from below, at its lower right. Each
+leans the glass toward white as far as the mirrored ray faces it, and each
+comes up only as the glass behind it darkens, so over a lit frame, where the
+refraction draws the pane by itself, they are gone. Like the ceiling they are
+not on the glass page, since they are what keeps a pane there at all.
 
 **The fringe is a spectrum, not three copies.** The index of refraction is a
 function of wavelength (Cauchy's law, anchored so the index above is the one
@@ -759,7 +758,7 @@ keeps Lit words on it at 4.5:1, since the brighter it is, the less its words
 stand out. So the wash is the area and the pane is the edge. The pane is real
 glass, refracting the frame on its own, held darker than the glass around it
 (see The Legible Glass Rule), and its rim is lit at `pipeline.RING_RIM`
-whatever the Rim slider says, so its top and bottom edges carry the 3:1. It
+whatever the Rim slider says, so its edge carries the 3:1. It
 casts no shadow, and never reaches past the pane it lies on, which a page
 sliding in would otherwise carry out over the film. On a bar button the window
 places a disc (`MainWindow.ring-disc`); on a row or one of a pill's choices,
