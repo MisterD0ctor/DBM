@@ -44,6 +44,8 @@ macro_rules! on {
 
 pub fn wire(ui: &MainWindow, app: &App) {
     push_constants(ui);
+    // First, since some of what the wiring hands the interface is words.
+    restore_language(ui, app);
     ui.global::<Shapes>().on_squircle(squircle::image);
     let undo: Undo = Rc::new(Cell::new(None));
 
@@ -394,6 +396,14 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
             app.settings.set_animations(on);
         });
     }
+    // Saved, and handed the pipeline by the driver with the material.
+    {
+        let app = app.clone();
+        ui.on_set_legible_glass(move |on| {
+            app.activity.bump();
+            app.settings.set_legible_glass(on);
+        });
+    }
     // The tooltips' two switches, likewise already acted on by `Tip`.
     {
         let app = app.clone();
@@ -414,12 +424,15 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
     // English, then each language built in. The row is already lit by the
     // time this runs; what is left is speaking it and saving it.
     {
-        let app = app.clone();
+        let (app, models, weak) = (app.clone(), models.clone(), ui.as_weak());
         ui.on_choose_language(move |row| {
             app.activity.bump();
             let code = language_of(row);
             app.settings.set_language(&code);
             crate::lang::speak(&code);
+            if let Some(ui) = weak.upgrade() {
+                models.say_again(&ui, &app.settings);
+            }
         });
     }
 }
@@ -633,9 +646,17 @@ fn restore_preferences(ui: &MainWindow, app: &App) {
     ui.set_ambience_on(settings.ambience_on());
     ui.set_autoplay(settings.autoplay());
     ui.global::<Motion>().set_enabled(settings.animations());
+    ui.set_legible_glass(settings.legible_glass());
     let tip = ui.global::<Tip>();
     tip.set_enabled(settings.tips());
     tip.set_with_keys(settings.tip_keys());
+    commands::set_autoplay(&app.mpv, settings.autoplay());
+    commands::set_sub_scale(&app.mpv, settings.sub_scale() as f64);
+    app.subline.set(&app.mpv, settings.sub_pos() as f64);
+}
+
+/// Speak the language that was saved, and list the ones it can be changed to.
+fn restore_language(ui: &MainWindow, app: &App) {
     // Each language by its own name for itself, which is the one name for it
     // that its speakers can read whatever the interface is in.
     ui.set_language_names(slint::ModelRc::new(slint::VecModel::from(
@@ -643,12 +664,9 @@ fn restore_preferences(ui: &MainWindow, app: &App) {
             .map(|code| crate::library::naming::language_name(code).into())
             .collect::<Vec<slint::SharedString>>(),
     )));
-    let language = settings.language();
+    let language = app.settings.language();
     ui.set_language_choice(row_of(&language));
     crate::lang::speak(&language);
-    commands::set_autoplay(&app.mpv, settings.autoplay());
-    commands::set_sub_scale(&app.mpv, settings.sub_scale() as f64);
-    app.subline.set(&app.mpv, settings.sub_pos() as f64);
 }
 
 /// Set the window state and the mirrored flag together, so the toolbar icon

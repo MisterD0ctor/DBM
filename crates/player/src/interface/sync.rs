@@ -24,6 +24,7 @@ use crate::{MainWindow, TrackItem};
 /// Push the scalar values the UI binds to.
 pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_media_title(player.display_title().into());
+    ui.set_media_episode(player.display_episode().into());
     ui.set_elapsed(format::time(player.time_pos).into());
     ui.set_total(format::time(player.duration).into());
     ui.set_progress(player.progress());

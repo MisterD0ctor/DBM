@@ -40,6 +40,14 @@ pub fn tr(text: &'static str) -> &'static str {
         .map_or(text, |found| words[found].1)
 }
 
+/// Words marked for translation where they are written, in a table that can't
+/// call [`tr`] because it is built before any language is spoken. Whoever
+/// shows them passes them through `tr` then; `scripts/translations.py` finds
+/// them by this mark.
+pub const fn marked(text: &'static str) -> &'static str {
+    text
+}
+
 /// A sentence with its blanks filled in: each `{}` takes the next value.
 ///
 /// By hand rather than `format!`, which needs its pattern at compile time and

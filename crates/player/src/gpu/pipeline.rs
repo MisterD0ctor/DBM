@@ -31,12 +31,13 @@ use crate::playback::mpv::RenderContext;
 /// Handed to the shader as `u_corner_softness` rather than written there,
 /// because the interface draws the same corner on its highlights
 /// (`interface::squircle`) and the two must not disagree.
-pub const CORNER_SOFTNESS: f64 = 1.5;
+pub const CORNER_SOFTNESS: f64 = 1.25;
 
 /// Must match `MAX_PANELS` in glass.frag.
 ///
-/// More than the interface can put up at once: at most the bar's four panes,
-/// the flash's two, the tip, the seek preview, one panel and a pill. The
+/// More than the interface can put up at once: at most the bar's four panes
+/// and the disc under the ring, the flash's two, the tip, the seek preview,
+/// one panel and a pill. The
 /// shader stops at the real count, so the headroom costs nothing.
 pub const MAX_PANELS: usize = 14;
 
@@ -76,6 +77,11 @@ pub struct GlassPanel {
     pub tint_alpha: f32,
     /// How far the panel has faded in, 0..1, so the glass fades with it.
     pub opacity: f32,
+    /// Laid on another pane, so it casts no shadow; see `GlassRect.nested`.
+    pub nested: bool,
+    /// Under the keyboard's ring, so it is held darker, for Lit words on the
+    /// ring's wash, and its rim is lit at [`RING_RIM`]; see `GlassRect.ring`.
+    pub ring: bool,
 }
 
 /// Look of the glass: what the settings panel's glass page adjusts, plus the
@@ -98,7 +104,8 @@ pub struct GlassParams {
     pub aberration: f32,
     /// How strongly the rim light shows: a ring round each pane's outermost
     /// edge, where the surface has turned past 45 degrees, white along the top
-    /// and bottom and darkening to black down the sides. Zero turns it off.
+    /// and bottom and darkening to black down the sides. Zero turns it off
+    /// over a lit frame; over a dark one it keeps a floor (see glass.frag).
     pub rim: f32,
     pub tint: [f32; 3],
     /// How far a panel pulls toward the tint colour, 0..1. Scales the
@@ -139,6 +146,62 @@ pub const BEVEL: f32 = 1.0;
 /// patch of the backdrop into a black oval across the top of the way in.
 pub const IOR: f32 = 2.0;
 
+/// The contrast the lowest step of text keeps with the glass behind it,
+/// however bright the frame; see [`legible_ceiling`]. WCAG asks 4.5 of text
+/// this size. The margin is for its thinnest strokes, which antialiasing
+/// leaves short of their full alpha, so that the pixels on screen measure
+/// past 4.5 too.
+pub const LEGIBLE: f32 = 5.0;
+
+/// The most light the glass may let through, as a luminance: that of the
+/// brightest grey on which white at `text` alpha still reads at `ratio`,
+/// standing on white at `wash` alpha laid over that grey. Zero where no grey
+/// would do, which leaves the glass as it is.
+pub fn legible_ceiling(text: f32, wash: f32, ratio: f32) -> f32 {
+    let contrast = |grey: f32| {
+        let under = wash + (1.0 - wash) * grey;
+        let words = text + (1.0 - text) * under;
+        (luminance(words) + 0.05) / (luminance(under) + 0.05)
+    };
+    if contrast(0.0) < ratio {
+        return 0.0;
+    }
+    // The contrast falls steadily as the grey brightens.
+    let (mut lo, mut hi) = (0.0f32, 1.0f32);
+    for _ in 0..24 {
+        let mid = 0.5 * (lo + hi);
+        if contrast(mid) >= ratio {
+            lo = mid;
+        } else {
+            hi = mid;
+        }
+    }
+    luminance(lo)
+}
+
+/// The lower of two ceilings from [`legible_ceiling`], where zero sets none.
+fn stricter(a: f32, b: f32) -> f32 {
+    match (a > 0.0, b > 0.0) {
+        (true, true) => a.min(b),
+        (true, false) => a,
+        _ => b,
+    }
+}
+
+/// The rim light on the pane under the keyboard's ring, whatever the rim
+/// slider says: its edge is what tells the ring from the pointer's wash, which
+/// a wash alone can't do at 3:1 and keep its words at 4.5:1 too.
+pub const RING_RIM: f32 = 1.0;
+
+/// An encoded channel's share of light, as WCAG decodes it.
+fn luminance(encoded: f32) -> f32 {
+    if encoded <= 0.04045 {
+        encoded / 12.92
+    } else {
+        ((encoded + 0.055) / 1.055).powf(2.4)
+    }
+}
+
 /// Overall reflection strength, scaling the Fresnel weight. Read only by the
 /// screen-space reflection, which is switched off in glass.frag.
 ///
@@ -153,10 +216,10 @@ impl Default for GlassParams {
             // The glass is as thick as the rim is wide; see `BEVEL`.
             refract: 1.0,
             aberration: 0.2,
-            rim: 0.1,
+            rim: 0.2,
             tint: [0.0, 0.0, 0.0],
             tint_amount: 0.0,
-            absorb: 0.33,
+            absorb: 0.5,
             shadow: 0.2,
         }
     }
@@ -237,6 +300,15 @@ pub struct Pipeline {
     /// the pass already short-circuits on an empty list, so it costs one
     /// full-screen copy and no special case.
     pub glass_enabled: bool,
+    /// The alpha of the lowest step of text, `Paint.body`, which the glass
+    /// never grows too bright for; see [`legible_ceiling`].
+    pub text_floor: f32,
+    /// The alpha of the ring's wash, `Paint.wash-ring`, which the pane under
+    /// the ring is held dark enough for, with Lit words on it.
+    pub ring_wash: f32,
+    /// Whether it is held to that at all: off, the glass is only what its
+    /// sliders make it.
+    pub legible: bool,
 
     prog_backdrop: Program,
     /// A frame of the last film left unfinished (see [`Pipeline::set_backdrop`]).
@@ -296,6 +368,9 @@ impl Pipeline {
             rect: [0.0, 0.0, 1.0, 1.0],
             border_enabled: true,
             glass_enabled: true,
+            text_floor: 0.0,
+            ring_wash: 0.0,
+            legible: true,
             prog_backdrop: Program::new(gl, vert, include_str!("../../shaders/backdrop.frag"))
                 .map_err(|e| format!("backdrop: {e}"))?,
             backdrop: None,
@@ -636,20 +711,42 @@ impl Pipeline {
 
         // Uniform arrays are uploaded whole; unused slots are simply never
         // read, since the shader loop stops at `u_panel_count`.
+        let (ceiling, ring_ceiling) = if self.legible {
+            (
+                legible_ceiling(self.text_floor, 0.0, LEGIBLE),
+                legible_ceiling(1.0, self.ring_wash, LEGIBLE),
+            )
+        } else {
+            (0.0, 0.0)
+        };
         let count = panels.len().min(MAX_PANELS);
         let mut rects = [0.0f32; MAX_PANELS * 4];
         let mut styles = [0.0f32; MAX_PANELS * 4];
+        let mut lights = [0.0f32; MAX_PANELS * 4];
         for (i, panel) in panels.iter().take(count).enumerate() {
             rects[i * 4..i * 4 + 4].copy_from_slice(&panel.rect);
             styles[i * 4] = panel.radius;
             styles[i * 4 + 1] = panel.tint_alpha;
             styles[i * 4 + 2] = panel.opacity;
+            styles[i * 4 + 3] = if panel.nested { 1.0 } else { 0.0 };
+            lights[i * 4] = if panel.ring {
+                stricter(ceiling, ring_ceiling)
+            } else {
+                ceiling
+            };
+            lights[i * 4 + 1] = if panel.ring {
+                g.rim.max(RING_RIM)
+            } else {
+                g.rim
+            };
         }
         self.prog_glass.set_i32(gl, "u_panel_count", count as i32);
         self.prog_glass
             .set_vec4_array(gl, "u_panel_rect[0]", &rects);
         self.prog_glass
             .set_vec4_array(gl, "u_panel_style[0]", &styles);
+        self.prog_glass
+            .set_vec4_array(gl, "u_panel_light[0]", &lights);
 
         self.prog_glass.set_f32(gl, "u_bevel", BEVEL);
         self.prog_glass
@@ -658,7 +755,6 @@ impl Pipeline {
         self.prog_glass.set_f32(gl, "u_ior", IOR);
         self.prog_glass.set_f32(gl, "u_aberration", g.aberration);
         self.prog_glass.set_f32(gl, "u_specular", SPECULAR);
-        self.prog_glass.set_f32(gl, "u_rim", g.rim);
         self.prog_glass.set_vec3(gl, "u_tint", g.tint);
         self.prog_glass.set_f32(gl, "u_tint_amount", g.tint_amount);
         self.prog_glass.set_f32(gl, "u_absorb", g.absorb);
@@ -874,5 +970,58 @@ impl Pipeline {
         ] {
             p.release(gl);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{legible_ceiling, luminance, stricter, LEGIBLE};
+
+    /// The brightest 8-bit grey under a ceiling.
+    fn grey_at(ceiling: f32) -> f32 {
+        (0..=255)
+            .map(|v| v as f32 / 255.0)
+            .take_while(|g| luminance(*g) <= ceiling)
+            .last()
+            .unwrap()
+    }
+
+    #[test]
+    fn body_text_keeps_its_contrast_on_glass_at_the_ceiling() {
+        let body = 224.0 / 255.0;
+        let ceiling = legible_ceiling(body, 0.0, LEGIBLE);
+        // A mid grey, nowhere near white.
+        assert!((0.08..0.16).contains(&ceiling), "{ceiling}");
+        let grey = grey_at(ceiling);
+        let text = body + (1.0 - body) * grey;
+        let contrast = (luminance(text) + 0.05) / (luminance(grey) + 0.05);
+        assert!(contrast >= LEGIBLE, "{contrast}");
+    }
+
+    #[test]
+    fn lit_text_keeps_its_contrast_on_the_ring_wash_at_its_ceiling() {
+        let wash = 84.0 / 255.0;
+        let ceiling = legible_ceiling(1.0, wash, LEGIBLE);
+        // Darker than the glass elsewhere has to be, since the wash lightens it.
+        assert!(
+            ceiling < legible_ceiling(224.0 / 255.0, 0.0, LEGIBLE),
+            "{ceiling}"
+        );
+        let under = wash + (1.0 - wash) * grey_at(ceiling);
+        let contrast = 1.05 / (luminance(under) + 0.05);
+        assert!(contrast >= LEGIBLE, "{contrast}");
+    }
+
+    #[test]
+    fn brighter_text_lets_the_glass_be_brighter() {
+        assert!(legible_ceiling(1.0, 0.0, LEGIBLE) > legible_ceiling(224.0 / 255.0, 0.0, LEGIBLE));
+    }
+
+    #[test]
+    fn text_that_could_never_read_leaves_the_glass_alone() {
+        assert_eq!(legible_ceiling(0.0, 0.0, LEGIBLE), 0.0);
+        assert_eq!(stricter(0.0, 0.0), 0.0);
+        assert_eq!(stricter(0.05, 0.0), 0.05);
+        assert_eq!(stricter(0.05, 0.02), 0.02);
     }
 }

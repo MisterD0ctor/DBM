@@ -68,6 +68,15 @@
 //!   part's page on every tick, so a capture lands inside the 220ms move rather
 //!   than at either end. Like `flash`, a movement can't be held, so it is
 //!   restarted instead.
+//! * `DBM_SHOWCASE=ring-bar` walks the ring with Tab to the settings button,
+//!   for the disc of glass under it; `ring-row` and `ring-slider` put it on a
+//!   playlist row and on a glass slider.
+//! * `DBM_SHOWCASE=armed` opens the tracks menu and presses Delete once on
+//!   the first subtitle loaded from its own file, so the row asks for the
+//!   second press. Open a film with a downloaded subtitle.
+//! * `DBM_SHOWCASE=sideways` presses Left and Right in the settings and the
+//!   playlist and prints the page each left behind and the film's position,
+//!   which neither should move. Open a file from the middle of a season.
 //! * `DBM_SHOWCASE=<surface>` — holds one surface open with the chrome awake,
 //!   so the window can be captured. Everything else here reports numbers.
 //! * `DBM_WINDOW=<w>x<h>` — opens at that size instead of 1280×720, with any

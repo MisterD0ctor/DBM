@@ -341,7 +341,7 @@ msgstr "{} wird geöffnet…"
 
 msgctxt "MainWindow"
 msgid "Or drop a file or folder onto the window"
-msgstr "Oder eine Datei oder einen Ordner auf das Fenster ziehen"
+msgstr "Oder Datei oder Ordner hierher ziehen"
 
 msgctxt "MainWindow"
 msgid "Open a file or folder"
@@ -658,3 +658,151 @@ msgstr "Von vorne"
 msgctxt "MainWindow"
 msgid "Continue from {}"
 msgstr "Fortsetzen ab {}"
+
+msgctxt "MenuRow"
+msgid "Press again to remove"
+msgstr "Zum Entfernen erneut drücken"
+
+msgctxt "player"
+msgid "Blur"
+msgstr "Unschärfe"
+
+msgctxt "player"
+msgid "Refraction"
+msgstr "Brechung"
+
+msgctxt "player"
+msgid "Dispersion"
+msgstr "Dispersion"
+
+msgctxt "player"
+msgid "Edge light"
+msgstr "Randlicht"
+
+msgctxt "player"
+msgid "Tint"
+msgstr "Tönung"
+
+msgctxt "player"
+msgid "Dimming"
+msgstr "Abdunklung"
+
+msgctxt "player"
+msgid "Shadow"
+msgstr "Schatten"
+
+msgctxt "player"
+msgid "Edge blur"
+msgstr "Randunschärfe"
+
+msgctxt "player"
+msgid "Spread"
+msgstr "Ausdehnung"
+
+msgctxt "player"
+msgid "Falloff"
+msgstr "Abklingen"
+
+msgctxt "player"
+msgid "Softness"
+msgstr "Weichheit"
+
+msgctxt "MainWindow"
+msgid "Darken bright glass"
+msgstr "Helles Glas abdunkeln"
+
+msgctxt "MainWindow"
+msgid "Space"
+msgstr "Leertaste"
+
+msgctxt "MainWindow"
+msgid "Shift+← →"
+msgstr "Umschalt+← →"
+
+msgctxt "MainWindow"
+msgid "Home"
+msgstr "Pos1"
+
+msgctxt "MainWindow"
+msgid "Ctrl+← →"
+msgstr "Strg+← →"
+
+msgctxt "MainWindow"
+msgid "PgUp PgDn"
+msgstr "Bild↑ Bild↓"
+
+msgctxt "MainWindow"
+msgid "Backspace"
+msgstr "Rücktaste"
+
+msgctxt "MainWindow"
+msgid "Z / Shift+Z"
+msgstr "Z / Umschalt+Z"
+
+msgctxt "MainWindow"
+msgid "J / Shift+J"
+msgstr "J / Umschalt+J"
+
+msgctxt "MainWindow"
+msgid "Home End"
+msgstr "Pos1 Ende"
+
+msgctxt "MainWindow"
+msgid "Tab"
+msgstr "Tab"
+
+msgctxt "MainWindow"
+msgid "Enter / ← →"
+msgstr "Eingabe / ← →"
+
+msgctxt "MainWindow"
+msgid "Esc"
+msgstr "Esc"
+
+msgctxt "MainWindow"
+msgid "Delete"
+msgstr "Entf"
+
+msgctxt "MainWindow"
+msgid "Ctrl+O"
+msgstr "Strg+O"
+
+msgctxt "MainWindow"
+msgid "Ctrl+Shift+O"
+msgstr "Strg+Umschalt+O"
+
+msgctxt "MainWindow"
+msgid "Ctrl+←"
+msgstr "Strg+←"
+
+msgctxt "MainWindow"
+msgid "Ctrl+→"
+msgstr "Strg+→"
+
+msgctxt "player"
+msgid "The player cannot show video on this computer."
+msgstr "Der Player kann auf diesem Computer kein Video anzeigen."
+
+msgctxt "player"
+msgid "Slint gave the player a renderer that is not OpenGL. The film and the glass are both drawn through OpenGL, so neither can be drawn without it."
+msgstr "Slint hat dem Player einen Renderer gegeben, der nicht OpenGL ist. Der Film und das Glas werden beide über OpenGL gezeichnet, ohne OpenGL also keines von beiden."
+
+msgctxt "player"
+msgid "Updating the graphics driver is the usual fix."
+msgstr "Meist hilft es, den Grafiktreiber zu aktualisieren."
+
+msgctxt "player"
+msgid "The graphics driver would not build the player's shaders. {}"
+msgstr "Der Grafiktreiber wollte die Shader des Players nicht erstellen. {}"
+
+msgctxt "player"
+msgid "If the driver is current, this is a bug in the player."
+msgstr "Ist der Treiber aktuell, ist das ein Fehler im Player."
+
+msgctxt "player"
+msgid "mpv could not attach to the player's graphics context. {}"
+msgstr "mpv konnte sich nicht an den Grafikkontext des Players anbinden. {}"
+
+msgctxt "MenuRow"
+msgid "Remove?"
+msgstr "Entfernen?"

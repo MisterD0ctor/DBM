@@ -12,6 +12,7 @@ colors:
   rail: "#ffffff2e"  # Paint.rail
   knob: "#101010e6"  # Paint.knob
   ground: "#000000"  # Paint.ground
+  wash-ring: "#ffffff54"  # Paint.wash-ring
   wash-strong: "#ffffff34"  # Paint.wash-strong
   wash-button: "#ffffff24"  # Paint.wash-button
   wash-soft: "#ffffff14"  # Paint.wash-soft
@@ -81,7 +82,7 @@ components:
   icon-button-open:
     backgroundColor: "{colors.wash-strong}"
   icon-button-focus:
-    backgroundColor: "{colors.wash-strong}"
+    backgroundColor: "{colors.wash-ring}"
   icon-button-disabled:
     textColor: "{colors.dim}"
   control-pill:
@@ -109,7 +110,7 @@ components:
     backgroundColor: "{colors.wash-soft}"
     rounded: "{rounded.row}"
   menu-row-focus:
-    backgroundColor: "{colors.wash-strong}"
+    backgroundColor: "{colors.wash-ring}"
     rounded: "{rounded.row}"
   menu-row-active:
     textColor: "{colors.lit}"
@@ -231,23 +232,26 @@ interface is one written out. The values are in the front matter.
 
 **Text and glyphs**: steps 0x20 of alpha apart, built upward from the floor,
 Dim. The top step falls one short: Lit is full white, and 0x20 above Strong
-does not exist in eight bits. Every step that can keep the rule does:
+does not exist in eight bits. Every step that can keep the rule does. Words use
+only the top two, Lit and the step Strong and Body share; the two under them
+are marks (see The Bright Text Rule):
 
 - **Strong** (`Paint.strong`): text that leads. The media title, the elapsed
   and total times, the timestamp under a seek preview, a stepper's value and
   its minus and plus, a fatal headline, and the fill of a resume measure.
-- **Body** (`Paint.body`, Strong's step): the ordinary run of the interface.
-  Row labels and menu items, switch labels, a hover label's name, a slider's
-  label and value, a stepper's label, a driver's error text; every section
-  heading and its icon, and a show's name in the same slot; back rows and drill
-  rows. It shares Strong's step because it is the text there is most of, and a
-  step lower read grey over a bright frame; a role moves on this ladder onto an
-  existing step, never between two. Leading text is told from it by place,
-  size and weight.
-- **Quiet** (`Paint.quiet`): what sits beside or under something else. A
-  shortcut's keys, a playlist row's running time, the prose hints, a scroll
-  thumb, the unity dot where it sits off the volume fill, and text stating an
-  absence.
+- **Body** (`Paint.body`, Strong's step): every other word. Row labels and
+  menu items, switch labels, a hover label's name and key, a slider's label and
+  value, a stepper's label, a driver's error text; every section heading and its
+  icon, and a show's name in the same slot; back rows and drill rows; and what
+  sits beside or under any of them: a shortcut's keys, a playlist row's running
+  time, a search result's language, the speed beside the title, the prose hints,
+  and text stating an absence. It shares Strong's step because it is the text
+  there is most of, and a step lower read grey over a bright frame; a role moves
+  on this ladder onto an existing step, never between two. Leading text is told
+  from it by place, size and weight, and what sits beside it by place and size.
+- **Quiet** (`Paint.quiet`): a mark on or beside a track. A chapter's dot ahead
+  of the played length, the unity dot where it sits off the volume fill, a
+  scroll thumb. Never text.
 - **Dim** (`Paint.dim`): the glyph of a bar button with nowhere to go
   (Previous on the first file, Next on the last) and nothing else: the one
   mark meant to look greyed out. **The floor**: see below.
@@ -265,11 +269,14 @@ does not exist in eight bits. Every step that can keep the rule does:
   where it sits on the fill.
 - **Ground** (`Paint.ground`): the window before a frame exists.
 
-**Washes** — three, and the two a row can wear sit 0x20 apart:
+**Washes** — four, and the three a row or a bar button can wear sit 0x20 apart:
 
-- **Strong wash** (`Paint.wash-strong`): where the keyboard is, on a row or on a bar
-  button; the held background of a button whose panel is open; a hovered
-  stepper disc.
+- **Ring wash** (`Paint.wash-ring`): where the keyboard is, on a row, a bar
+  button or one of a pill's choices. It always stands on a pane of glass of
+  its own, a disc on a bar button and the row's or the choice's own shape
+  elsewhere (see The Ring Pane Rule).
+- **Strong wash** (`Paint.wash-strong`): the held background of a button whose
+  panel is open; a hovered stepper disc or remove disc.
 - **Button wash** (`Paint.wash-button`): a hovered icon button, and a hovered choice on
   the end-of-file pill. Never on a row, so it never has to be told apart from
   the washes either side of it.
@@ -279,8 +286,9 @@ does not exist in eight bits. Every step that can keep the rule does:
 
 The row washes keep the Two-Step Rule the text keeps: closer, a hand resting in
 a panel and the keyboard walking it would light two rows in one colour, and
-nothing would say which one Enter presses. The rail is a mark with a value of
-its own, not a wash.
+nothing would say which one Enter presses; and on the bar the keyboard's place
+would look like a panel left open. The rail is a mark with a value of its own,
+not a wash.
 
 ### Named Rules
 
@@ -296,17 +304,25 @@ satisfy a rule about the one gap nobody can widen.
 Closer than that and the hierarchy stops reading over moving video, where the
 backdrop changes faster than the eye can calibrate.
 
-Five steps cannot give every text role a value of its own, and should not:
+Two steps cannot give every text role a value of its own, and should not:
 **a new role takes an existing step.** Roles that sit in different places, or that differ by
 case, size or tracking, share one rather than wear a near-copy of it. A new step
 is only admissible with 0x20 clear on both sides, and there is no room left for
 one.
 
+**The Bright Text Rule.** No word sits under Body's step. The glass is held dark
+enough for the lowest step of text to read on it over a bright frame, so every
+step lower darkens every pane over every bright scene: with a row's running time
+and a shortcut's keys at Quiet, the glass over white would be held to a dark
+smoked grey that reads as tint rather than as glass. How the glass looks comes before a
+second, quieter level of words. What sits beside a row's name is told from it
+by place and by size instead, at Readout or Hint, a size under Body.
+
 **The Fixed Floor Rule.** The ladder is built upward from Dim (`Paint.dim`), and
-Dim does not move. The lowest step is what sets the worst-case contrast over a
-bright frame, where the glass's absorption is doing its hardest work; every step
-above it inherits its margin. Retuning the ladder means moving the steps above
-the floor, never the floor.
+Dim does not move: retuning the ladder means moving the steps above the floor,
+never the floor. Dim is the one step meant to look greyed out and Quiet is for
+marks, so neither is what the glass is held to; that is Body, the lowest step
+that is ever text (see The Legible Glass Rule).
 
 ## Typography
 
@@ -451,9 +467,20 @@ buttons (`MainWindow.btn`) sit `MainWindow.btn-gap` apart with
 `MainWindow.pill-pad` of padding; text directly on a pill is inset
 `MainWindow.pill-text-pad`, clear of the capsule's curve.
 
+The title pill opens with its two buttons, Playlist and then Open, and the
+title follows them (`MainWindow.lp-title`). So the buttons, and the playlist
+and open panels that hang from them, stand in one place for every film, and
+only the pill's far end moves with the title. After the title, they would move
+with every file, and the playlist panel with them.
+
 The title pill hugs its title, up to the room the transport leaves, and
 past that the title runs out at the end of its room, blurring and thinning
-away there as a list's rows do (see List edges) with no ellipsis. It eases to a
+away there as a list's rows do (see List edges) with no ellipsis. Short of
+room for an episode's whole title, it drops the show's name first
+(`MainWindow.title-short`): *S04E06 · Live Bait*, not *The Walking Dead · S04*
+running out, since the show is what one show's episodes share and the episode
+is what tells them apart. That is judged by the most room the pill could
+have, not the room it has, which the choice itself would change. It eases to a
 new width over `Motion.title-width` rather than jumping: a pill that resized
 itself on every file change would be a flicker, and the glass follows because
 it is drawn from the same number.
@@ -570,8 +597,28 @@ of the glass darkens as the frame behind it brightens, on a smooth curve rather
 than a threshold, so white text keeps a ground over a white scene. Both are
 settings: the pull toward the tint colour, and Dimming — how much of a white
 backdrop the pane absorbs, a darker one losing less along a hyperbola and black
-losing nothing. Turned down, the pane clears and the ground under white text
-over a bright scene goes with it.
+losing nothing. Turned down, the pane clears.
+
+**The Legible Glass Rule.** Absorption is a look, and its slider can turn it
+down; legibility is not on that page. Whatever absorption leaves, the glass
+lets through no more light than Body needs to keep `pipeline.LEGIBLE` of
+contrast on it: a ceiling worked out from `Paint.body` (`legible_ceiling`, in
+`gpu/pipeline.rs`), eased into from `glass.KNEE` of it so a bright area keeps
+its shading rather than going flat at a line. Over dark glass it does
+nothing; over a white frame the panes go to a mid grey, and over a coloured
+one keep its colour, darker. Like absorption it darkens the transmitted light
+only, so the rim keeps its edge. The pane under the keyboard's ring has a
+ceiling of its own, lower: its words are Lit, but on the ring wash, which
+lightens the glass under them, so it is worked out from `Paint.wash-ring`
+as well (see The Ring Pane Rule). WCAG asks 4.5 of text this size; the margin
+is for its thinnest strokes, which antialiasing leaves short of their full
+alpha. The one way out is a switch of its own on the accessibility page,
+*Darken bright glass* (`MainWindow.legible-glass`), for someone who would
+rather have the glass as its sliders make it and accept words that can vanish
+over a white scene: a choice about legibility, made where legibility is
+chosen, and not undone by the glass page's reset. With the glass switched off
+there is no ceiling either, and nothing but the words' own shadow between
+them and the film.
 
 **What the material is, and what you want of it, are different questions.**
 Three properties answer the first, and are constants in `gpu/pipeline.rs`
@@ -587,6 +634,15 @@ the traced reflection switched off it is all the reflection there is: a ring
 round each pane's outermost edge, where the surface has turned past 45° and the
 mirrored ray points back down, white along the top and bottom and darkening to
 black down the sides, weighted by Fresnel so it is strongest at the very edge.
+
+**The rim stays drawn over black.** Over a dark frame there is nothing for the
+glass to bend or blur, and at the Rim slider's strength a pane all but
+vanishes: a bar over a fade, or the way on at the end of an episode, read as
+words on nothing. So the rim light has a floor, absorption's opposite: it
+rises as what is behind the pane darkens, to `glass.DARK_RIM` over black, and
+is gone once the backdrop is as bright as `glass.DARK_REACH`, where the
+refraction draws the pane by itself. Like the ceiling it is not on the glass
+page, since it is what keeps a pane there at all.
 
 **The fringe is a spectrum, not three copies.** The index of refraction is a
 function of wavelength (Cauchy's law, anchored so the index above is the one
@@ -691,9 +747,25 @@ clips only to that.
 
 There are no borders anywhere, and no hairlines. Where a state would
 conventionally be drawn as an outline — the keyboard's position — it is carried
-by a stronger wash instead.
+by a stronger wash instead, standing on a pane of glass whose own rim lights
+it.
 
 ### Named Rules
+
+**The Ring Pane Rule.** The keyboard's place is a pane of glass of its own,
+laid on the surface it is in, under the Ring wash. A wash alone can't do both
+of its jobs: no alpha of it stands out from the glass beside it at 3:1 and
+keeps Lit words on it at 4.5:1, since the brighter it is, the less its words
+stand out. So the wash is the area and the pane is the edge. The pane is real
+glass, refracting the frame on its own, held darker than the glass around it
+(see The Legible Glass Rule), and its rim is lit at `pipeline.RING_RIM`
+whatever the Rim slider says, so its top and bottom edges carry the 3:1. It
+casts no shadow, and never reaches past the pane it lies on, which a page
+sliding in would otherwise carry out over the film. On a bar button the window
+places a disc (`MainWindow.ring-disc`); on a row or one of a pill's choices,
+which the window can't reach into, the row says where it is through `Ring`
+(`RingPane`). In a scrolling list the pane is cut to the list and fades as its
+row leaves, gone by the time half the row is.
 
 **The Concentric Rule.** Inner radius = outer radius − the gap between them.
 Anything else pinches the curves together at 45° while still meeting cleanly on
@@ -719,14 +791,16 @@ by under a pixel at the corner.
   bar is Lit, and Mute muted or the ambient border off say so by the mark
   they wear, which their tips name.
 - **Open:** a held Strong wash for as long as the panel it opened is showing — a
-  separate channel from the lit glyph, so the two never share one highlight.
+  step under the ring's, so the two never share one highlight.
   A button that opens something does not also show a state, because a glyph
   that lights like a switch is clicked like one. The subtitles and audio button
   wears the plain subtitles mark and says *Subtitles & audio*; the menu's
   *Off* row is where subtitles go off.
-- **Focus:** the Strong wash and the glyph at Lit, while the keyboard is on it.
-  The wash alone is the one an open panel holds; the lit glyph is what says the
-  keyboard is here. Tab walks the bar left to right while a film is loaded and
+- **Focus:** the Ring wash, on a disc of glass laid on its pill
+  (`MainWindow.ring-disc`), while the keyboard is on it: see The Ring Pane
+  Rule. With the glass switched off the wash is the whole of it, a step over
+  the open one.
+  Tab walks the bar left to right while a film is loaded and
   nothing is open — then on to the end-of-file choices, or the credits pill,
   while either is up —
   and Enter presses; the arrows, Space and every other key keep their meaning
@@ -746,10 +820,10 @@ by under a pixel at the corner.
   of padding)
 - **Background:** none. The pill is a glass rect published to the renderer; a
   fill here would paint over the material.
-- **Contents:** buttons `MainWindow.btn-gap` apart; the title pill's text is the
-  Title role at Strong, inset `MainWindow.pill-text-pad`, running out at its
-  end. At any speed but normal the speed rides beside the title at Quiet in
-  Readout size (*1.5×*) for as long as it holds, rather than only in a passing
+- **Contents:** buttons `MainWindow.btn-gap` apart; on the title pill, the two
+  buttons first and then its text, the Title role at Strong, inset
+  `MainWindow.pill-text-pad` from the pill's far end and running out there. At
+  any speed but normal the speed rides beside the title at Body in Readout size (*1.5×*) for as long as it holds, rather than only in a passing
   flash.
 
 ### Timeline row
@@ -804,9 +878,11 @@ by under a pixel at the corner.
 - **Text:** Body, starting `Rows.label-x` from the panel edge, eliding
   `Rows.trail-x` from the right
 - **Hover:** Soft wash, over `Motion.highlight`
-- **Focus:** Strong wash, shown only while the keyboard is in use — never a ring.
-  A pointer moving over a different row stands it down, so a panel never shows
-  two lit rows
+- **Focus:** Ring wash on a pane of its own, shown only while the keyboard is
+  in use — never a ring (see The Ring Pane Rule). Everything on the row goes
+  to Lit under it: the name, its icon, and a figure beside it, a running time
+  or a count. A pointer moving over a different row stands the ring down, so a
+  panel never shows two lit rows
 - **Active:** Lit at `Type.weight-current`, and the active mark: a thin
   capsule in Lit (`ActiveMark`), inside the wash so a row that is both current
   and focused
@@ -824,16 +900,16 @@ by under a pixel at the corner.
   the mark they do not. On a film with no subtitle tracks the SUBTITLES
   section is that one row, which is when it is most wanted. Absent from a
   build without an OpenSubtitles key, where a film with no subtitle tracks
-  has the section anyway, holding one Quiet line: *No subtitles*. A menu
+  has the section anyway, holding one line that says so: *No subtitles*. A menu
   called Subtitles & audio does not lose its first half
 - **The page:** pressed, it slides a page of the tracks menu over the tracks
   with the drill's movement, headed by its way back, FIND SUBTITLES. Under
   that, one line while it searches — *Searching OpenSubtitles…* — then either
   the results or what came of it: *No subtitles found*, or why it could not
-  ask, in a quiet line rather than a notice, since the page that asked is the
+  ask, in a line rather than a notice, since the page that asked is the
   one on screen
 - **A result:** the release it was timed against at Body, eliding, and beside
-  it at Quiet in Readout size its language by its own name and what sets it
+  it at Body in Readout size its language by its own name and what sets it
   apart: *Exact* for one found by the file's hash, timed for this very copy,
   which all come first; SDH; *Machine* for a machine translation. Pressed, the
   second column says *Downloading…* and the row wears the active mark until it
@@ -853,6 +929,17 @@ by under a pixel at the corner.
   opposite. It sits over the row's own press, so taking a track out
   never chooses it first; the label elides short of it
 - **Keyboard:** Delete on the row the ring is on. Listed with the shortcuts
+- **Two presses:** the first asks *Remove?* beside the button, with Warning in
+  the disc, for `MainWindow.armed-for`; the second removes. The name stays,
+  since it is what says which track the press would take; it elides short of
+  the question, and a press on the question is a press on the button. The
+  question stands on a Strong wash running from it to the button, which drains
+  towards the button over the wait, so how long the row will go on asking is
+  in sight; with animations off it stays full until the row stops asking. A
+  fetched subtitle's file goes with it, and getting it back is another
+  download against the key's small daily allowance. Closing the menu, or
+  going to the search, stands the row down. Unlike a reset it does not offer
+  itself back afterwards: the file is gone
 - **What it does:** takes the track out of the film. A fetched subtitle is
   also forgotten and its file deleted, so it does not come back on the next
   open; a file beside the film is the person's and is left where it is, so
@@ -860,7 +947,7 @@ by under a pixel at the corner.
 
 ### Playlist rows
 - **Shape:** a menu row with two more facts on it
-- **Running time:** Quiet in Readout size, right-aligned so a column of them
+- **Running time:** Body in Readout size, right-aligned so a column of them
   reads as a column; empty for a file never opened and not yet described.
   A file that would not play wears the Warning mark there instead, without
   the measure, for the rest of the run: the mark alone, since words would take
@@ -895,7 +982,7 @@ construction — a show's seasons, not the files in them.
   one file on its own, a film or a stray episode, stands among them as a
   playlist row and plays from there.
 - **A part's row** is a drill row with a count: its name, *10 episodes* at
-  Quiet in the running times' column, then the chevron. No measure, since its
+  Body in Readout size in the running times' column, then the chevron. No measure, since its
   own page says how much is watched better. The part holding the file playing wears the active mark. File
   rows on a page with parts leave the chevron's column empty, so the columns
   line up.
@@ -974,9 +1061,9 @@ share of what is underneath rather than laying a fixed grey over it. Over dark
 glass it is barely there.
 
 What casts it is what the interface laid down as white at more than about a
-fifth of full strength: text at every step from Dim up, glyphs, a track's
-filled length, a switch, the played timeline. A wash or a rail does not, so
-a highlighted row has no rim of its own. A picture the interface shows — the
+third of full strength: text, glyphs down to Dim, a track's
+filled length, a switch, the played timeline. A wash, the keyboard's
+included, or a rail does not, so a highlighted row has no rim of its own. A picture the interface shows — the
 seek preview's frame — is left alone, shadow and all.
 
 Like the list edges it is drawn by the player on the finished frame — see
@@ -1038,8 +1125,9 @@ doing in it.
 
 ### Sliders
 - **Row:** `Rows.slider-row`; a row icon at Body, as a stepper has, then the
-  label at Body in Readout size, in a column wide enough for the longest
-  (`ParamSlider.name-text`), and the value right-aligned at Body, the step a
+  label at Body in Readout size, in one column on both pages as wide as the
+  widest name in the language spoken (`MainWindow.param-name-w`), so the
+  tracks start together, and the value right-aligned at Body, the step a
   stepper's value stands on too. At Dim, a step under its name, it would read
   as greyed out
 - **Track:** at Rail, growing on hover or press (`ParamSlider.rail`, over
@@ -1056,8 +1144,9 @@ doing in it.
   timeline and the volume follow the same rule
 - **Readout:** precision taken from the parameter's *range* rather than its
   value — three decimals on a 0–0.1 edge blur, one on a 0–40 blur
-- **Focus:** the row takes the Strong wash; the sliders have no hover wash,
-  since the growing track already answers the pointer
+- **Focus:** the row takes the Ring wash and its pane, and its icon, name and
+  value go to Lit; the sliders have no hover wash, since the growing track
+  already answers the pointer
 - **Keys:** ← and → move it a hundredth of its range, which the readout's
   precision always shows
 
@@ -1066,6 +1155,8 @@ doing in it.
   size, then two discs (`StepButton.width`) flanking the value at Strong
 - **Discs:** Soft wash at rest, Strong wash on hover (`Motion.highlight`); `−`
   (U+2212, to match the digits) and `+` in Glyph size at Strong
+- **Focus:** the Ring wash and its pane, and everything on the row at Lit, the
+  value and the discs' glyphs with it
 - **Use:** for quantities read as numbers rather than positions — a subtitle
   delay is +0.30 s and the useful move is one step. Sliders are for material
   parameters, where the eye judges the result and the number is incidental.
@@ -1086,9 +1177,9 @@ doing in it.
   punched through it either way
 - **Motion:** `Motion.switch` ease-out on the knob and on the track colour
 - **Hover:** Soft wash; one target for the whole row
-- **Use:** Autoplay under the playlist, and Animations, Tooltips and
-  Shortcuts in tooltips on the accessibility page — a page of switches and no
-  reset, because each switch is its own undo
+- **Use:** Autoplay under the playlist, and Animations, Darken bright glass,
+  Tooltips and Shortcuts in tooltips on the accessibility page — a page of
+  switches and no reset, because each switch is its own undo
 - **Unavailable:** a switch about something another switch has turned off
   fades to half, takes no pointer and no wash, and keeps its position —
   Shortcuts in tooltips while Tooltips is off
@@ -1134,7 +1225,7 @@ doing in it.
   above it. Without it the eye reads one more entry and only the wording says
   otherwise.
 - **Resets:** two presses, then a way back. The first changes the row to *Press
-  again to reset* for `MainWindow.reset-timer.interval`; the second resets, and
+  again to reset* for `MainWindow.armed-for`; the second resets, and
   the row becomes *Undo
   reset* until the page is left. Settings always save, so a reset is on disk
   within a second, and a look tuned by eye cannot be typed back in. The ring
@@ -1153,7 +1244,7 @@ doing in it.
   already in sync*, and *Could not match these subtitles to the speech*, which
   is the answer whenever no timing stands clear of the rest. A sync that is
   not sure does nothing.
-- **Shortcut rows:** Body label, keys at Quiet in Readout size. On
+- **Shortcut rows:** Body label, keys at Body in Readout size. On
   the reference page they are inert — no wash and no pointer, because a wash
   under a row that does nothing when clicked is an offer the row cannot keep.
   The page lists what the pointer does as well, under POINTER — click, double
@@ -1169,6 +1260,14 @@ doing in it.
   `?` and then pressing Home threw the film back to 0:00. **No key belonging
   to a list may reach the film while a panel is open**, whether or not that
   panel has a use for it; on a page with none, doing nothing is the answer
+- **Left and right, in a panel,** move the row the ring is on where it is a
+  slider or a stepper. Elsewhere they go the way the rows do: → opens the row
+  the ring is on if it leads somewhere — a settings page, a season, the
+  search for subtitles — as Enter does, and ← goes back a page if there is
+  one, as Escape's first press does. Anywhere else they do nothing, by the
+  rule above: the film jumping ten seconds behind a menu is a key pressed in
+  the wrong place. Held with Shift or Ctrl they are the film's again, a
+  second's seek and the next file
 - **The keys beyond the bar** are mpv's own, so the habit carries over:
   Shift with an arrow for a one-second seek, `[` `]` and Backspace for speed
   on a fixed ladder (0.25× to 4×), `,` `.` for a frame, PgUp PgDn for chapters,
@@ -1187,7 +1286,7 @@ doing in it.
 
 A capsule of glass (`MainWindow.tip-h`) that names the control under the
 pointer and gives the key that does the same thing. The name is Body, the key
-is Quiet at Readout size (`MainWindow.tip-gap` apart, `MainWindow.tip-pad` of
+Body at Readout size (`MainWindow.tip-gap` apart, `MainWindow.tip-pad` of
 padding): the two roles of a shortcuts row, unchanged, because the tip is that
 list arriving one row at a time where the question was asked.
 
@@ -1365,7 +1464,7 @@ Restart alone is the least likely thing anyone wants there. With two, each
 choice is a capsule of its own, set `MainWindow.pill-pad` inside the pill so
 the curves are concentric, with its words still `MainWindow.end-pad` from the
 pill's edge, a button's gap apart, each taking the Button wash on its own and
-the Strong wash under the keyboard.
+the Ring wash under the keyboard.
 
 **It makes way rather than standing down.** In a small window a panel can open
 over the middle of the picture, and in a short window the seek preview reaches
@@ -1466,7 +1565,7 @@ ever sees should say what is asking before it says *Open file…*:
 - **Continue**, first, when there is a film to continue: a play glyph at Body,
   the film's name at Strong in Body size — the one line on the window about a
   film rather than the player — then the resume measure and, where a playlist
-  row keeps its running time, what is left at Quiet: *43 min left*. It is the
+  row keeps its running time, what is left at Body in Readout size: *43 min left*. It is the
   newest file mpv still holds a position for that is still on disk; the same
   thing the backdrop is a frame of. A group gap follows it, because it is a
   film and the rows below it are dialogs, and the panel widens
@@ -1478,7 +1577,7 @@ ever sees should say what is asking before it says *Open file…*:
   Enter presses it at once, without first raising the ring: it is the first
   row, and the one the window is opened to get back to.
 - **Open file, Open folder, Settings and Shortcuts** as shortcut rows with their keys, then
-  a line at Quiet saying a file can be dropped anywhere — **on the platforms
+  a line in Hint size saying a file can be dropped anywhere — **on the platforms
   where one can.** The drop target is Windows-only; Linux would be a different
   implementation against a different protocol and does not have one yet. Both
   places that offer a drop — this line and the POINTER row on the reference
@@ -1495,7 +1594,7 @@ answering — to the pointer and to every key — and the line names what is
 arriving; Settings stays at full strength, because it still works. Carrying a
 failure it widens as for Continue and offers nothing to open: a Title headline
 at Strong, the driver's own error text at Body in Hint size wrapping to three
-lines, a line at Quiet saying what usually puts it right (a driver update,
+lines, a line in Hint size saying what usually puts it right (a driver update,
 except for shaders the driver would not build, where a current driver means
 the bug is the player's), on its own account rather than beside the drop
 line, which can be gone; and after a group gap two rows: *Copy details*, which
@@ -1519,8 +1618,8 @@ for a moment (`MainWindow.copied-timer.interval`), and *Close the player*.
 - **Do** capitalise the interface's own labels and leave the user's content in
   its own case.
 - **Do** fade glass with the surface above it.
-- **Do** show where the keyboard is with the Strong wash, and only while the
-  keyboard is being used.
+- **Do** show where the keyboard is with the Ring wash on a pane of glass of its
+  own, and only while the keyboard is being used.
 - **Do** open a list on its current row, and make a destructive row take two
   presses and offer itself back.
 - **Do** keep the accessible roles and labels Slint makes cheap — an icon

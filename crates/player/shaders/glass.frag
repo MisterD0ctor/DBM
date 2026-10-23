@@ -37,7 +37,7 @@
 //     where there is nothing to see, or tips over and comes back down. What
 //     it comes down to is not traced (the screen-space reflection that did
 //     is switched off, in `glass_at`) but lit by hand: the rim light, a ring
-//     round each pane's outermost edge — see `u_rim`.
+//     round each pane's outermost edge — see `u_panel_light`.
 //   * Fresnel — how the transmitted ray and the rim light are weighted, from
 //     the exact unpolarised reflectance. Grazing angles at the rim go
 //     strongly reflective, so the rim light is strongest at the very edge.
@@ -68,11 +68,21 @@ uniform vec2 u_size;
 uniform int u_panel_count;
 /// (x0, y0, x1, y1) in pixels, top-left origin.
 uniform vec4 u_panel_rect[MAX_PANELS];
-/// (corner_radius, tint_alpha, opacity, unused)
+/// (corner_radius, tint_alpha, opacity, nested)
 ///
 /// `opacity` is how far the panel has faded in. It scales coverage, so the
-/// glass arrives with its surface rather than ahead of it.
+/// glass arrives with its surface rather than ahead of it. `nested` is 1 for
+/// a pane laid on another, which casts no shadow: the pane beneath would hide
+/// it, and past that pane's edge it would fall on the picture. Nor does it
+/// reach past that edge itself (see `main`).
 uniform vec4 u_panel_style[MAX_PANELS];
+/// (ceiling, rim, unused, unused): the brightest luminance the pane may pass,
+/// 0 for no limit (see legibility, below), and how strongly its rim light
+/// shows: a ring round its outermost edge, where the surface has turned past
+/// 45 degrees and the mirrored ray points back down, white along the top and
+/// bottom and darkening to black down the sides. Per pane, because the pane
+/// under the keyboard's ring is held darker and lit harder than the rest.
+uniform vec4 u_panel_light[MAX_PANELS];
 
 // --- Material parameters ---------------------------------------------------
 
@@ -110,11 +120,6 @@ uniform float u_aberration;
 /// by the screen-space reflection in `glass_at`, which is switched off; the
 /// rim light is weighted by Fresnel alone.
 uniform float u_specular;
-/// How strongly the rim light shows: a ring round each pane's outermost edge,
-/// where the surface has turned past 45 degrees and the mirrored ray points
-/// back down, white along the top and bottom and darkening to black down the
-/// sides. Zero turns it off.
-uniform float u_rim;
 uniform vec3 u_tint;
 /// Global tint strength. The per-panel value in `u_panel_style` says whether
 /// a panel takes tint at all; this says how much, and is the slider.
@@ -166,6 +171,58 @@ const float SHADOW_SOFTNESS_MIN = 4.0;
 /// Rec. 709, matching how the eye weights the three channels rather than
 /// averaging them: a saturated green frame is far brighter than its mean.
 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
+
+// --- the rim over a dark frame -------------------------------------------------
+//
+// Absorption's opposite. Over black there is nothing for the glass to bend or
+// blur, and a pane at the rim light's usual strength all but vanishes: a bar
+// over a fade, the way on at the end of an episode, are words on nothing. So
+// the rim light has a floor that rises as what is behind it darkens, and over
+// a lit frame, where the refraction already draws the pane, it leaves the rim
+// as its slider set it.
+
+/// The rim light's strength over black.
+const float DARK_RIM = 0.5;
+/// How bright a backdrop has to be, as Rec. 709 luma of the encoded colour,
+/// before the floor is gone.
+const float DARK_REACH = 0.12;
+
+// --- legibility ---------------------------------------------------------------
+//
+// Absorption is a look, and the slider can turn it down; legibility can't be
+// turned down. So whatever absorption leaves, the glass lets through no more
+// light than the lowest step of text needs to keep its contrast on it:
+// each pane's ceiling, a luminance worked out from that step's alpha (see
+// `legible_ceiling` in pipeline.rs). Over dark glass it does nothing. Short
+// of the ceiling it eases in, from `KNEE` of it, so a bright area keeps its
+// shading rather than going flat at a line. Like absorption it comes before
+// the rim light, which keeps its edge.
+
+const float KNEE = 0.7;
+
+/// Luminance as WCAG measures it, from the encoded colour.
+float luminance(vec3 c) {
+    vec3 lin = mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
+    return dot(lin, LUMA);
+}
+
+/// The colour, darkened where it is brighter than the words on it can
+/// stand: no brighter than `ceiling`, a luminance, or as it is at 0. See
+/// legibility, above.
+vec3 legible(vec3 c, float ceiling) {
+    float lum = luminance(c);
+    float knee = KNEE * ceiling;
+    if (ceiling <= 0.0 || lum <= knee) {
+        return c;
+    }
+    float room = ceiling - knee;
+    float wanted = knee + room * (1.0 - exp(-(lum - knee) / room));
+    // Scaling an encoded colour scales its luminance by about the 2.2th power
+    // of the scale; a second step takes out what that leaves.
+    float scale = pow(wanted / lum, 1.0 / 2.2);
+    scale *= pow(wanted / max(luminance(c * scale), 1e-6), 1.0 / 2.2);
+    return c * scale;
+}
 
 // --- antialiasing -------------------------------------------------------------
 //
@@ -475,10 +532,11 @@ float shadow_at(vec2 px, vec2 centre, vec2 half_size, float radius) {
 /// outline, as an edge sample can be, is shaded as the rim itself: `t` clamps
 /// to 1 there, and every term below is finite at 1.
 ///
-/// `budget` is the most wavelengths this sample may take and `dither` where
-/// in each stratum it takes them; see dispersion, above.
+/// `light` is the pane's (ceiling, rim) from `u_panel_light`. `budget` is
+/// the most wavelengths this sample may take and `dither` where in each
+/// stratum it takes them; see dispersion, above.
 vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
-              int budget, float dither) {
+              vec4 light, int budget, float dither) {
     vec2 uv = px / u_size;
     vec2 rel = px - centre;
     vec3 sdg = sdg_superbox(rel, half_size, radius, u_corner_softness);
@@ -594,6 +652,10 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // absorbed; see absorption, above.
     refracted = mix(gray, refracted, 1.0 / (1.0 - 0.5 * absorbed));
 
+    // Never brighter than the lowest step of text can stand on; see
+    // legibility, above.
+    refracted = mix(refracted, legible(refracted, light.x), tinted);
+
     // Exact unpolarised Fresnel reflectance, averaging s and p. Written
     // in D so it needs no further trigonometry:
     //
@@ -636,8 +698,11 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // (`mirror.x` = 1); from there it rises steeply as the ray swings round
     // to point straight down, to full where the surface stands vertical at
     // the outermost edge.
+    // Never under the floor for what is behind it; see the rim over a dark
+    // frame, above.
+    float rim = max(light.y, DARK_RIM * (1.0 - smoothstep(0.0, DARK_REACH, backdrop)));
     float rim_strength = max(0.0, -mirror.y * (1.0 - mirror.x) * (1.0 - mirror.x))
-                         * u_rim;
+                         * rim;
 
     // Its colour is how squarely the edge faces up or down the screen: the
     // mirrored ray's screen-vertical part over all of its sideways part,
@@ -671,12 +736,19 @@ void main() {
             if (i >= u_panel_count) {
                 break;
             }
+            if (u_panel_style[i].w > 0.5) {
+                continue;
+            }
             panel_shape(i, centre, half_size, radius);
             float shadow = shadow_at(px, centre, half_size, radius) * u_panel_style[i].z;
             col *= 1.0 - clamp(u_shadow, 0.0, 1.0) * shadow;
         }
     }
 
+    // How much of this pixel the panes so far cover, which is as far as a
+    // pane laid on one of them reaches: the one under the ring stays on its
+    // panel while a page carries it in from past the panel's edge.
+    float beneath = 0.0;
     for (int i = 0; i < MAX_PANELS; i++) {
         if (i >= u_panel_count) {
             break;
@@ -689,7 +761,13 @@ void main() {
         // Two pixels of feather, centred half a pixel outside the outline:
         // the coverage mask, which is all the outline needs (see
         // antialiasing, above).
-        float coverage = smoothstep(-1.5, 0.5, -d) * u_panel_style[i].z;
+        float shape = smoothstep(-1.5, 0.5, -d);
+        if (u_panel_style[i].w > 0.5) {
+            shape *= beneath;
+        } else {
+            beneath = max(beneath, shape);
+        }
+        float coverage = shape * u_panel_style[i].z;
         if (coverage <= 0.0) {
             continue;
         }
@@ -705,11 +783,13 @@ void main() {
             // the supersampling it was doing anyway.
             for (int s = 0; s < 8; s++) {
                 glass += glass_at(px + RIM_SAMPLES[s], centre, half_size, radius, tinted,
-                                  RIM_BANDS, fract(dither + float(s) * 0.125));
+                                  u_panel_light[i], RIM_BANDS,
+                                  fract(dither + float(s) * 0.125));
             }
             glass *= 0.125;
         } else {
-            glass = glass_at(px, centre, half_size, radius, tinted, MAX_BANDS, dither);
+            glass = glass_at(px, centre, half_size, radius, tinted, u_panel_light[i],
+                             MAX_BANDS, dither);
         }
 
         col = mix(col, glass, coverage);

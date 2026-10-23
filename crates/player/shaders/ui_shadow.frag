@@ -15,9 +15,9 @@
 // back over a darker ground, exactly as if the shadow had been drawn first.
 // Pixels the interface covered entirely are left as they are.
 //
-// Only coverage past the faintest washes casts a shadow: a row's highlight
-// or a track's unfilled length is not a word, and a dark rim round one
-// would read as a border it does not have.
+// Only coverage past the washes casts a shadow: a row's highlight, the
+// keyboard's included, or a track's unfilled length is not a word, and a dark
+// rim round one would read as a border it does not have.
 //
 // Two passes, like every Gaussian here: the coverage blurred across into a
 // scratch target, then down and applied onto the window. Pixels are counted
@@ -71,10 +71,12 @@ float coverage(vec3 frame, vec3 ground) {
 }
 
 /// What casts a shadow at a pixel: the words and marks, not the washes.
+/// The ring's wash, the strongest, is a third of full white; Dim, the
+/// faintest mark, a half.
 float caster(vec2 at) {
     at = inside(at);
     vec3 frame = texture(u_src, at / u_region * u_src_scale).rgb;
-    return smoothstep(0.2, 0.45, coverage(frame, ground_at(at)));
+    return smoothstep(0.36, 0.48, coverage(frame, ground_at(at)));
 }
 
 float shade(vec2 at) {

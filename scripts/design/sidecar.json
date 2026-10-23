@@ -14,7 +14,7 @@
           "{{ Paint.strong }}",
           "{{ Paint.lit }}"
         ],
-        "rampNote": "The text ladder as used, floor first: Dim, Quiet, Strong, Lit. Body shares Strong's step, and the ladder's 0xc0 step is held empty rather than spent on a near-copy.",
+        "rampNote": "The ladder, floor first: Dim, Quiet, Strong, Lit. Words use only Strong's step, which Body shares, and Lit; Quiet and Dim are marks. The 0xc0 step is held empty rather than spent on a near-copy.",
         "purpose": "The active state and where the hand or the keyboard is: the current row, a hovered chevron, the flash, the end-of-file prompt. Also every bar glyph that can be pressed, since anything less reads as greyed out over a bright frame."
       },
       "strong": {
@@ -27,7 +27,7 @@
           "{{ Paint.strong }}",
           "{{ Paint.lit }}"
         ],
-        "rampNote": "The text ladder as used, floor first: Dim, Quiet, Strong, Lit. Body shares Strong's step, and the ladder's 0xc0 step is held empty rather than spent on a near-copy.",
+        "rampNote": "The ladder, floor first: Dim, Quiet, Strong, Lit. Words use only Strong's step, which Body shares, and Lit; Quiet and Dim are marks. The 0xc0 step is held empty rather than spent on a near-copy.",
         "purpose": "Text that leads: the media title, the timeline's times, a stepper's value, a fatal headline, the title on the way in's Continue row, the resume measure's fill."
       },
       "body": {
@@ -40,8 +40,8 @@
           "{{ Paint.strong }}",
           "{{ Paint.lit }}"
         ],
-        "rampNote": "The text ladder as used, floor first: Dim, Quiet, Strong, Lit. Body shares Strong's step, and the ladder's 0xc0 step is held empty rather than spent on a near-copy.",
-        "purpose": "The ordinary run of the interface: row labels and menu items, section headings and their icons, back rows, drill rows, switch labels, a slider's value. On Strong's step, because it is the text there is most of, and a step lower read grey over a bright frame."
+        "rampNote": "The ladder, floor first: Dim, Quiet, Strong, Lit. Words use only Strong's step, which Body shares, and Lit; Quiet and Dim are marks. The 0xc0 step is held empty rather than spent on a near-copy.",
+        "purpose": "Every other word: row labels and menu items, section headings and their icons, back rows, drill rows, switch labels, a slider's value, and what sits beside or under them, such as a shortcut's keys, a playlist row's running time and the prose hints. The lowest step of text, which the glass's ceiling is worked out from, so nothing is set under it."
       },
       "quiet": {
         "role": "neutral",
@@ -53,8 +53,8 @@
           "{{ Paint.strong }}",
           "{{ Paint.lit }}"
         ],
-        "rampNote": "The text ladder as used, floor first: Dim, Quiet, Strong, Lit. Body shares Strong's step, and the ladder's 0xc0 step is held empty rather than spent on a near-copy.",
-        "purpose": "Beside or under something else: a shortcut's keys, a playlist row's running time, prose hints, a scroll thumb, text stating an absence."
+        "rampNote": "The ladder, floor first: Dim, Quiet, Strong, Lit. Words use only Strong's step, which Body shares, and Lit; Quiet and Dim are marks. The 0xc0 step is held empty rather than spent on a near-copy.",
+        "purpose": "A mark on or beside a track: a chapter's dot ahead of the played length, the volume's unity dot off the fill, a scroll thumb. Never text."
       },
       "dim": {
         "role": "neutral",
@@ -66,7 +66,7 @@
           "{{ Paint.strong }}",
           "{{ Paint.lit }}"
         ],
-        "rampNote": "The text ladder as used, floor first: Dim, Quiet, Strong, Lit. Body shares Strong's step, and the ladder's 0xc0 step is held empty rather than spent on a near-copy.",
+        "rampNote": "The ladder, floor first: Dim, Quiet, Strong, Lit. Words use only Strong's step, which Body shares, and Lit; Quiet and Dim are marks. The 0xc0 step is held empty rather than spent on a near-copy.",
         "purpose": "The glyph of a bar button with nowhere to go. The floor: the ladder is built upward from here and this step does not move."
       },
       "played": {
@@ -103,9 +103,10 @@
           "{{ Paint.wash-soft }}",
           "{{ Paint.wash-button }}",
           "{{ Paint.rail }}",
-          "{{ Paint.wash-strong }}"
+          "{{ Paint.wash-strong }}",
+          "{{ Paint.wash-ring }}"
         ],
-        "rampNote": "The three washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fourth wash would have to be told apart from the two either side of it.",
+        "rampNote": "The four washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fifth wash would have to be told apart from the two either side of it.",
         "purpose": "The unfilled length of every track, switch and measure."
       },
       "knob": {
@@ -136,10 +137,25 @@
           "{{ Paint.wash-soft }}",
           "{{ Paint.wash-button }}",
           "{{ Paint.rail }}",
-          "{{ Paint.wash-strong }}"
+          "{{ Paint.wash-strong }}",
+          "{{ Paint.wash-ring }}"
         ],
-        "rampNote": "The three washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fourth wash would have to be told apart from the two either side of it.",
-        "purpose": "Where the keyboard is, on a row or a bar button; the held background of a button whose panel is open; a hovered stepper disc. 0x20 above the Soft wash, by the Two-Step Rule."
+        "rampNote": "The four washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fifth wash would have to be told apart from the two either side of it.",
+        "purpose": "The held background of a button whose panel is open; a hovered stepper disc or remove disc. 0x20 above the Soft wash and under the Ring wash, by the Two-Step Rule, so a panel's button is never taken for the keyboard's place."
+      },
+      "wash-ring": {
+        "role": "neutral",
+        "displayName": "Ring wash",
+        "canonical": "{{ Paint.wash-ring }}",
+        "tonalRamp": [
+          "{{ Paint.wash-soft }}",
+          "{{ Paint.wash-button }}",
+          "{{ Paint.rail }}",
+          "{{ Paint.wash-strong }}",
+          "{{ Paint.wash-ring }}"
+        ],
+        "rampNote": "The four washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fifth wash would have to be told apart from the two either side of it.",
+        "purpose": "Where the keyboard is: on a row, a bar button or a pill's choice. On a bar button it stands on a disc of glass of its own, whose rim lights the place. A wash rather than a ring, because nothing in the interface draws an outline."
       },
       "wash-button": {
         "role": "neutral",
@@ -149,9 +165,10 @@
           "{{ Paint.wash-soft }}",
           "{{ Paint.wash-button }}",
           "{{ Paint.rail }}",
-          "{{ Paint.wash-strong }}"
+          "{{ Paint.wash-strong }}",
+          "{{ Paint.wash-ring }}"
         ],
-        "rampNote": "The three washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fourth wash would have to be told apart from the two either side of it.",
+        "rampNote": "The four washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fifth wash would have to be told apart from the two either side of it.",
         "purpose": "A hovered icon button, and a hovered choice on the end-of-file pill. Never on a row."
       },
       "wash-soft": {
@@ -162,9 +179,10 @@
           "{{ Paint.wash-soft }}",
           "{{ Paint.wash-button }}",
           "{{ Paint.rail }}",
-          "{{ Paint.wash-strong }}"
+          "{{ Paint.wash-strong }}",
+          "{{ Paint.wash-ring }}"
         ],
-        "rampNote": "The three washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fourth wash would have to be told apart from the two either side of it.",
+        "rampNote": "The four washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fifth wash would have to be told apart from the two either side of it.",
         "purpose": "The inset highlight behind a hovered row of any kind; a stepper disc at rest; a scroll bar's rail; and the way in's fill in the two states where there is no glass to paint over."
       }
     },
@@ -373,7 +391,7 @@
       "refersTo": "icon-button",
       "description": "Every control in the bar: a {{ MainWindow.btn }} circle with a {{ IconButton.glyph }} glyph in Lit, and the Strong wash held while its panel is open. A state the button controls shows by its glyph swapping, never by a wash. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-icon-row\"><button class=\"ds-icon-btn\" aria-label=\"Settings\"><svg viewBox=\"0 0 24 24\" width=\"{{ IconButton.glyph | n }}\" height=\"{{ IconButton.glyph | n }}\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.36.44.63.8.76H21a2 2 0 1 1 0 4h-.09c-.36.13-.66.4-.8.76z\"/></svg></button><button class=\"ds-icon-btn ds-icon-btn-open\" aria-label=\"Subtitles &amp; audio\" aria-expanded=\"true\"><svg viewBox=\"0 0 24 24\" width=\"{{ IconButton.glyph | n }}\" height=\"{{ IconButton.glyph | n }}\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\"/><path d=\"M7 14h4M13 14h4M7 10h10\"/></svg></button><button class=\"ds-icon-btn\" aria-label=\"No earlier file\" disabled><svg viewBox=\"0 0 24 24\" width=\"{{ IconButton.glyph | n }}\" height=\"{{ IconButton.glyph | n }}\" fill=\"currentColor\"><path d=\"M18 5v14l-10-7z\"/><rect x=\"5\" y=\"5\" width=\"2.5\" height=\"14\" rx=\"1\"/></svg></button></div>",
-      "css": ".ds-icon-row { display: inline-flex; gap: {{ MainWindow.btn-gap }}; padding: {{ MainWindow.pill-pad }}; } .ds-icon-btn { width: {{ MainWindow.btn }}; height: {{ MainWindow.btn }}; display: grid; place-items: center; border: none; border-radius: {{ MainWindow.btn / 2 }}; background: transparent; color: {{ Paint.lit }}; cursor: pointer; transition: background {{ Motion.highlight }} ease-out; } .ds-icon-btn:hover { background: {{ Paint.wash-button }}; } .ds-icon-btn:focus-visible { outline: none; background: {{ Paint.wash-strong }}; } .ds-icon-btn-open { background: {{ Paint.wash-strong }}; } .ds-icon-btn:disabled { color: {{ Paint.dim }}; background: transparent; cursor: default; }"
+      "css": ".ds-icon-row { display: inline-flex; gap: {{ MainWindow.btn-gap }}; padding: {{ MainWindow.pill-pad }}; } .ds-icon-btn { width: {{ MainWindow.btn }}; height: {{ MainWindow.btn }}; display: grid; place-items: center; border: none; border-radius: {{ MainWindow.btn / 2 }}; background: transparent; color: {{ Paint.lit }}; cursor: pointer; transition: background {{ Motion.highlight }} ease-out; } .ds-icon-btn:hover { background: {{ Paint.wash-button }}; } .ds-icon-btn:focus-visible { outline: none; background: {{ Paint.wash-ring }}; } .ds-icon-btn-open { background: {{ Paint.wash-strong }}; } .ds-icon-btn:disabled { color: {{ Paint.dim }}; background: transparent; cursor: default; }"
     },
     {
       "name": "Menu Row",
@@ -381,7 +399,7 @@
       "refersTo": "menu-row",
       "description": "One selectable line in a panel, {{ Rows.row }} tall, its text in Body starting {{ Rows.label-x }} from the panel edge. The wash insets {{ Rows.gap }} at a {{ Rows.radius }} corner so it never runs past the panel's. Hover is the Soft wash, the keyboard's position the Strong wash. The current row wears Lit at {{ Type.weight-current }} and a {{ ActiveMark.mark.width | n }}x{{ ActiveMark.mark.height | n }} capsule mark. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-rows\"><div class=\"ds-row ds-row-active\" tabindex=\"0\">English</div><div class=\"ds-row\" tabindex=\"0\">日本語</div><div class=\"ds-row\" tabindex=\"0\">Français</div></div>",
-      "css": ".ds-rows { display: flex; flex-direction: column; padding: {{ Rows.panel-pad }} 0; width: {{ MainWindow.menu.width }}; } .ds-row { height: {{ Rows.row }}; display: flex; align-items: center; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; position: relative; cursor: pointer; outline: none; } .ds-row::before { content: \"\"; position: absolute; inset: 0 {{ Rows.gap }}; border-radius: {{ Rows.radius }}; background: transparent; transition: background {{ Motion.highlight }} ease-out; z-index: -1; } .ds-row:hover::before { background: {{ Paint.wash-soft }}; } .ds-row:focus-visible::before { background: {{ Paint.wash-strong }}; } .ds-row:focus-visible { color: {{ Paint.lit }}; } .ds-row-active { color: {{ Paint.lit }}; font-weight: {{ Type.weight-current }}; } .ds-row-active::after { content: \"\"; position: absolute; left: {{ ActiveMark.mark.x }}; top: {{ (Rows.row - ActiveMark.mark.height) / 2 }}; width: {{ ActiveMark.mark.width }}; height: {{ ActiveMark.mark.height }}; border-radius: {{ ActiveMark.mark.width / 2 }}; background: {{ Paint.lit }}; }"
+      "css": ".ds-rows { display: flex; flex-direction: column; padding: {{ Rows.panel-pad }} 0; width: {{ MainWindow.menu.width }}; } .ds-row { height: {{ Rows.row }}; display: flex; align-items: center; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; position: relative; cursor: pointer; outline: none; } .ds-row::before { content: \"\"; position: absolute; inset: 0 {{ Rows.gap }}; border-radius: {{ Rows.radius }}; background: transparent; transition: background {{ Motion.highlight }} ease-out; z-index: -1; } .ds-row:hover::before { background: {{ Paint.wash-soft }}; } .ds-row:focus-visible::before { background: {{ Paint.wash-ring }}; } .ds-row:focus-visible { color: {{ Paint.lit }}; } .ds-row-active { color: {{ Paint.lit }}; font-weight: {{ Type.weight-current }}; } .ds-row-active::after { content: \"\"; position: absolute; left: {{ ActiveMark.mark.x }}; top: {{ (Rows.row - ActiveMark.mark.height) / 2 }}; width: {{ ActiveMark.mark.width }}; height: {{ ActiveMark.mark.height }}; border-radius: {{ ActiveMark.mark.width / 2 }}; background: {{ Paint.lit }}; }"
     },
     {
       "name": "Section Heading",
@@ -397,15 +415,15 @@
       "refersTo": "section-label",
       "description": "A page's heading and the way out of it at once: {{ Rows.row }} tall, the Label role in Body, with a {{ MenuHeading.icon-size }} chevron laid out as a drill row lays out its icon, {{ BackRow.layout.spacing }} before the words. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-back\" tabindex=\"0\"><svg viewBox=\"0 0 24 24\" width=\"{{ MenuHeading.icon-size | n }}\" height=\"{{ MenuHeading.icon-size | n }}\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M15 5l-7 7 7 7\"/></svg><span>SEASON 7</span></div>",
-      "css": ".ds-back { height: {{ Rows.row }}; width: {{ MainWindow.menu.width }}; box-sizing: border-box; display: flex; align-items: center; gap: {{ BackRow.layout.spacing }}; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.label }}; font-weight: {{ Type.weight-plain }}; letter-spacing: {{ Type.label-track }}; color: {{ Paint.body }}; position: relative; cursor: pointer; outline: none; } .ds-back::before { content: \"\"; position: absolute; inset: 0 {{ Rows.gap }}; border-radius: {{ Rows.radius }}; background: transparent; transition: background {{ Motion.highlight }} ease-out; z-index: -1; } .ds-back:hover { color: {{ Paint.lit }}; } .ds-back:hover::before { background: {{ Paint.wash-soft }}; } .ds-back:focus-visible { color: {{ Paint.lit }}; } .ds-back:focus-visible::before { background: {{ Paint.wash-strong }}; }"
+      "css": ".ds-back { height: {{ Rows.row }}; width: {{ MainWindow.menu.width }}; box-sizing: border-box; display: flex; align-items: center; gap: {{ BackRow.layout.spacing }}; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.label }}; font-weight: {{ Type.weight-plain }}; letter-spacing: {{ Type.label-track }}; color: {{ Paint.body }}; position: relative; cursor: pointer; outline: none; } .ds-back::before { content: \"\"; position: absolute; inset: 0 {{ Rows.gap }}; border-radius: {{ Rows.radius }}; background: transparent; transition: background {{ Motion.highlight }} ease-out; z-index: -1; } .ds-back:hover { color: {{ Paint.lit }}; } .ds-back:hover::before { background: {{ Paint.wash-soft }}; } .ds-back:focus-visible { color: {{ Paint.lit }}; } .ds-back:focus-visible::before { background: {{ Paint.wash-ring }}; }"
     },
     {
       "name": "Parameter Slider",
       "kind": "input",
       "refersTo": "slider-row",
-      "description": "A material parameter on the glass and ambient-border pages: a {{ Rows.slider-row }} row, a {{ ParamSlider.name-text.width }} label in Body at Readout size, and a {{ ParamSlider.value-text.width }} value right-aligned in Body. The track grows from {{ ParamSlider.rail.height@else }} to {{ ParamSlider.rail.height@then }} under the pointer; there is no hover wash, since the growing track already answers. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "description": "A material parameter on the glass and ambient-border pages: a {{ Rows.slider-row }} row, a label in Body at Readout size in a column as wide as the widest name in the language spoken, and a {{ ParamSlider.value-text.width }} value right-aligned in Body. The track grows from {{ ParamSlider.rail.height@else }} to {{ ParamSlider.rail.height@then }} under the pointer; there is no hover wash, since the growing track already answers. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-slider\"><span class=\"ds-slider-label\">Refraction</span><span class=\"ds-track\"><span class=\"ds-fill\"></span></span><span class=\"ds-slider-value\">1.00</span></div>",
-      "css": ".ds-slider { height: {{ Rows.slider-row }}; width: {{ MainWindow.settings.width }}; box-sizing: border-box; display: flex; align-items: center; gap: {{ ParamSlider.layout.spacing }}; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-slider-label { width: {{ ParamSlider.name-text.width }}; } .ds-track { flex: 1; height: {{ ParamSlider.rail.height@else }}; border-radius: {{ ParamSlider.rail.height@then / 2 }}; background: {{ Paint.rail }}; transition: height {{ Motion.track-grow }} ease-out; } .ds-slider:hover .ds-track { height: {{ ParamSlider.rail.height@then }}; } .ds-fill { display: block; width: 50%; height: 100%; border-radius: inherit; background: {{ Paint.fill }}; } .ds-slider-value { width: {{ ParamSlider.value-text.width }}; text-align: right; color: {{ Paint.body }}; }"
+      "css": ".ds-slider { height: {{ Rows.slider-row }}; width: {{ MainWindow.settings.width }}; box-sizing: border-box; display: flex; align-items: center; gap: {{ ParamSlider.layout.spacing }}; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-slider-label { width: {{ demo 66px }}; } .ds-track { flex: 1; height: {{ ParamSlider.rail.height@else }}; border-radius: {{ ParamSlider.rail.height@then / 2 }}; background: {{ Paint.rail }}; transition: height {{ Motion.track-grow }} ease-out; } .ds-slider:hover .ds-track { height: {{ ParamSlider.rail.height@then }}; } .ds-fill { display: block; width: 50%; height: 100%; border-radius: inherit; background: {{ Paint.fill }}; } .ds-slider-value { width: {{ ParamSlider.value-text.width }}; text-align: right; color: {{ Paint.body }}; }"
     },
     {
       "name": "Stepper Row",
@@ -413,7 +431,7 @@
       "refersTo": "stepper-button",
       "description": "For quantities read as numbers rather than positions, like a subtitle delay, where the useful move is one step: a {{ Rows.stepper-row }} row, the label in Body at Readout size, then two {{ StepButton.width }} discs (the Soft wash at rest, the Strong wash under the pointer) either side of a {{ StepperRow.value-text.width }} value in Strong. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-stepper\"><span class=\"ds-stepper-label\">Timing</span><button class=\"ds-step\">−</button><span class=\"ds-stepper-value\">+0.30 s</span><button class=\"ds-step\">+</button></div>",
-      "css": ".ds-stepper { height: {{ Rows.stepper-row }}; width: {{ MainWindow.settings.width }}; box-sizing: border-box; display: flex; align-items: center; gap: {{ StepperRow.layout.spacing }}; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-stepper-label { flex: 1; } .ds-step { width: {{ StepButton.width }}; height: {{ StepButton.width }}; border: none; border-radius: {{ StepButton.width / 2 }}; background: {{ Paint.wash-soft }}; color: {{ Paint.strong }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.glyph }}; font-weight: {{ Type.weight-plain }}; line-height: 1; cursor: pointer; transition: background {{ Motion.highlight }} ease-out; } .ds-step:hover { background: {{ Paint.wash-strong }}; } .ds-step:focus-visible { outline: none; background: {{ Paint.wash-strong }}; } .ds-stepper-value { width: {{ StepperRow.value-text.width }}; text-align: center; color: {{ Paint.strong }}; }"
+      "css": ".ds-stepper { height: {{ Rows.stepper-row }}; width: {{ MainWindow.settings.width }}; box-sizing: border-box; display: flex; align-items: center; gap: {{ StepperRow.layout.spacing }}; padding: 0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-stepper-label { flex: 1; } .ds-step { width: {{ StepButton.width }}; height: {{ StepButton.width }}; border: none; border-radius: {{ StepButton.width / 2 }}; background: {{ Paint.wash-soft }}; color: {{ Paint.strong }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.glyph }}; font-weight: {{ Type.weight-plain }}; line-height: 1; cursor: pointer; transition: background {{ Motion.highlight }} ease-out; } .ds-step:hover { background: {{ Paint.wash-strong }}; } .ds-step:focus-visible { outline: none; background: {{ Paint.wash-ring }}; } .ds-stepper-value { width: {{ StepperRow.value-text.width }}; text-align: center; color: {{ Paint.strong }}; }"
     },
     {
       "name": "Switch Row",
@@ -437,7 +455,7 @@
       "refersTo": "hover-label",
       "description": "A {{ MainWindow.tip-h }} capsule of glass naming the control under the pointer and the key that does the same thing, {{ Motion.tip-delay }} after the pointer settles, then a fade and a {{ MainWindow.lift }} rise. The name in Body, the key in Quiet at Readout size, {{ MainWindow.tip-gap }} apart inside {{ MainWindow.tip-pad }} of padding. It says what pressing will do, not what the glyph already shows. The volume track's is a reading instead (Volume 84%, or Muted), which opens at once when the level moves under the pointer and stays up through a press. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<span class=\"ds-tip\"><span class=\"ds-tip-name\">Unmute</span><span class=\"ds-tip-keys\">M</span></span>",
-      "css": ".ds-tip { display: inline-flex; align-items: center; gap: {{ MainWindow.tip-gap }}; height: {{ MainWindow.tip-h }}; padding: 0 {{ MainWindow.tip-pad }}; border-radius: {{ MainWindow.tip-h / 2 }}; background: rgba(16,18,24,0.55); backdrop-filter: blur({{ demo 12px }}); font-family: \"{{ Type.face }}\"; } .ds-tip-name { font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-tip-keys { font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.quiet }}; }"
+      "css": ".ds-tip { display: inline-flex; align-items: center; gap: {{ MainWindow.tip-gap }}; height: {{ MainWindow.tip-h }}; padding: 0 {{ MainWindow.tip-pad }}; border-radius: {{ MainWindow.tip-h / 2 }}; background: rgba(16,18,24,0.55); backdrop-filter: blur({{ demo 12px }}); font-family: \"{{ Type.face }}\"; } .ds-tip-name { font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-tip-keys { font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; }"
     },
     {
       "name": "End-of-File Pill",
@@ -445,7 +463,7 @@
       "refersTo": "end-pill",
       "description": "The bar's own {{ MainWindow.end-h }} capsule, in the middle of the picture where the film stopped: a {{ EndChoice.glyph.width }} glyph and the way on by name (the next season, else the newest other unfinished film, else Open folder…) in Prompt at Lit, {{ MainWindow.end-gap }} apart, the words {{ MainWindow.end-pad }} from the pill's edge. With two choices each is a capsule of its own, inset {{ MainWindow.pill-pad }}. The Button wash on hover, the Strong wash under the keyboard. Not tied to the idle clock, and it moves aside for a panel or a seek preview in its way. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-end\"><button class=\"ds-end-choice\"><svg viewBox=\"0 0 24 24\" width=\"{{ EndChoice.glyph.width | n }}\" height=\"{{ EndChoice.glyph.width | n }}\" fill=\"currentColor\"><path d=\"M6 5l10 7-10 7z\"/><rect x=\"17\" y=\"5\" width=\"2.5\" height=\"14\" rx=\"1\"/></svg>Season 8</button><button class=\"ds-end-choice\"><svg viewBox=\"0 0 24 24\" width=\"{{ EndChoice.glyph.width | n }}\" height=\"{{ EndChoice.glyph.width | n }}\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4\"/></svg>Restart</button></div>",
-      "css": ".ds-end { display: inline-flex; align-items: center; gap: {{ MainWindow.btn-gap }}; height: {{ MainWindow.end-h }}; padding: {{ MainWindow.pill-pad }}; box-sizing: border-box; border-radius: {{ MainWindow.pill-radius }}; background: rgba(16,18,24,0.55); backdrop-filter: blur({{ demo 12px }}); } .ds-end-choice { display: inline-flex; align-items: center; gap: {{ MainWindow.end-gap }}; height: {{ MainWindow.end-h - 2 * MainWindow.pill-pad }}; padding: 0 {{ MainWindow.end-pad - MainWindow.pill-pad }}; border: none; border-radius: {{ (MainWindow.end-h - 2 * MainWindow.pill-pad) / 2 }}; background: transparent; color: {{ Paint.lit }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.prompt }}; font-weight: {{ Type.weight-title }}; cursor: pointer; transition: background {{ Motion.highlight }} ease-out; } .ds-end-choice:hover { background: {{ Paint.wash-button }}; } .ds-end-choice:focus-visible { outline: none; background: {{ Paint.wash-strong }}; }"
+      "css": ".ds-end { display: inline-flex; align-items: center; gap: {{ MainWindow.btn-gap }}; height: {{ MainWindow.end-h }}; padding: {{ MainWindow.pill-pad }}; box-sizing: border-box; border-radius: {{ MainWindow.pill-radius }}; background: rgba(16,18,24,0.55); backdrop-filter: blur({{ demo 12px }}); } .ds-end-choice { display: inline-flex; align-items: center; gap: {{ MainWindow.end-gap }}; height: {{ MainWindow.end-h - 2 * MainWindow.pill-pad }}; padding: 0 {{ MainWindow.end-pad - MainWindow.pill-pad }}; border: none; border-radius: {{ (MainWindow.end-h - 2 * MainWindow.pill-pad) / 2 }}; background: transparent; color: {{ Paint.lit }}; font-family: \"{{ Type.face }}\"; font-size: {{ Type.prompt }}; font-weight: {{ Type.weight-title }}; cursor: pointer; transition: background {{ Motion.highlight }} ease-out; } .ds-end-choice:hover { background: {{ Paint.wash-button }}; } .ds-end-choice:focus-visible { outline: none; background: {{ Paint.wash-ring }}; }"
     },
     {
       "name": "Seek Preview",
@@ -461,7 +479,7 @@
       "refersTo": "resume-row",
       "description": "With no film loaded, a panel of glass centred over the backdrop: Continue first when there is a film to continue (a play glyph in Body, the film's name in Strong at Body size, the resume measure and what is left in Quiet, with the show on a Named heading line above it), then a group gap, then the open rows as shortcut rows with their keys. The drop line shows only where the platform has a drop target, and takes its gap with it. This is the one surface with a fill (the Soft wash at the panel corner), and only where there is no glass to paint over: a fatal error, and no film with no backdrop. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-invite\"><div class=\"ds-invite-show\">Game of Thrones</div><div class=\"ds-invite-row\"><svg viewBox=\"0 0 24 24\" width=\"{{ ResumeRow.icon-size | n }}\" height=\"{{ ResumeRow.icon-size | n }}\" fill=\"currentColor\"><path d=\"M7 5l12 7-12 7z\"/></svg><span class=\"ds-invite-name\">S07E06 · Beyond the Wall</span><span class=\"ds-measure\"><span class=\"ds-measure-fill\"></span></span><span class=\"ds-invite-left\">43 min left</span></div><div class=\"ds-invite-gap\"></div><div class=\"ds-invite-key\"><span>Open file…</span><span class=\"ds-keys\">Ctrl+O</span></div><div class=\"ds-invite-key\"><span>Shortcuts</span><span class=\"ds-keys\">?</span></div></div>",
-      "css": ".ds-invite { width: {{ MainWindow.invite-w@then }}; box-sizing: border-box; padding: {{ Rows.panel-pad }}; border-radius: {{ Rows.panel-radius }}; background: {{ Paint.wash-soft }}; font-family: \"{{ Type.face }}\"; } .ds-invite-show { height: {{ Rows.heading }}; display: flex; align-items: center; padding: 0 {{ Rows.label-x - Rows.gap }}; font-size: {{ Type.named }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-invite-row { height: {{ Rows.row }}; display: flex; align-items: center; gap: {{ ResumeRow.icon-gap }}; padding: 0 {{ Rows.trail-x - Rows.gap }} 0 {{ Rows.label-x - Rows.gap }}; border-radius: {{ Rows.radius }}; color: {{ Paint.body }}; cursor: pointer; transition: background {{ Motion.highlight }} ease-out; } .ds-invite-row:hover { background: {{ Paint.wash-soft }}; } .ds-invite-name { flex: 1; font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.strong }}; } .ds-measure { width: {{ ResumeRow.measure-w }}; height: {{ ResumeRow.measure.height }}; border-radius: {{ ResumeRow.measure.height / 2 }}; background: {{ Paint.rail }}; } .ds-measure-fill { display: block; width: 62%; height: 100%; border-radius: inherit; background: {{ Paint.strong }}; } .ds-invite-left { text-align: right; font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.quiet }}; } .ds-invite-gap { height: {{ Rows.group-gap }}; } .ds-invite-key { height: {{ Rows.row }}; display: flex; align-items: center; justify-content: space-between; padding: 0 {{ Rows.trail-x - Rows.gap }} 0 {{ Rows.label-x - Rows.gap }}; font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-keys { font-size: {{ Type.readout }}; color: {{ Paint.quiet }}; }"
+      "css": ".ds-invite { width: {{ MainWindow.invite-w@then }}; box-sizing: border-box; padding: {{ Rows.panel-pad }}; border-radius: {{ Rows.panel-radius }}; background: {{ Paint.wash-soft }}; font-family: \"{{ Type.face }}\"; } .ds-invite-show { height: {{ Rows.heading }}; display: flex; align-items: center; padding: 0 {{ Rows.label-x - Rows.gap }}; font-size: {{ Type.named }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-invite-row { height: {{ Rows.row }}; display: flex; align-items: center; gap: {{ ResumeRow.icon-gap }}; padding: 0 {{ Rows.trail-x - Rows.gap }} 0 {{ Rows.label-x - Rows.gap }}; border-radius: {{ Rows.radius }}; color: {{ Paint.body }}; cursor: pointer; transition: background {{ Motion.highlight }} ease-out; } .ds-invite-row:hover { background: {{ Paint.wash-soft }}; } .ds-invite-name { flex: 1; font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.strong }}; } .ds-measure { width: {{ ResumeRow.measure-w }}; height: {{ ResumeRow.measure.height }}; border-radius: {{ ResumeRow.measure.height / 2 }}; background: {{ Paint.rail }}; } .ds-measure-fill { display: block; width: 62%; height: 100%; border-radius: inherit; background: {{ Paint.strong }}; } .ds-invite-left { text-align: right; font-size: {{ Type.readout }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-invite-gap { height: {{ Rows.group-gap }}; } .ds-invite-key { height: {{ Rows.row }}; display: flex; align-items: center; justify-content: space-between; padding: 0 {{ Rows.trail-x - Rows.gap }} 0 {{ Rows.label-x - Rows.gap }}; font-size: {{ Type.body }}; font-weight: {{ Type.weight-plain }}; color: {{ Paint.body }}; } .ds-keys { font-size: {{ Type.readout }}; color: {{ Paint.body }}; }"
     }
   ]
 }

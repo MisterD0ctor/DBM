@@ -16,6 +16,14 @@ export struct GlassRect {
     /// it: full-strength glass under a half-faded surface reads as a hole in
     /// the picture.
     opacity: float,
+    /// A pane laid on another, as the disc under the ring lies on its pill.
+    /// It casts no shadow, which would fall on the picture past the edge of
+    /// the pane beneath, and doesn't reach past that edge itself.
+    nested: bool,
+    /// Under the keyboard's ring: held darker, so Lit words on the ring's
+    /// wash keep their contrast, and its rim lit hard enough to stand out at
+    /// 3:1 from the glass beside it.
+    ring: bool,
 }
 
 /// A scrolling list, or a line of words too long for its place, for the

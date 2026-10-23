@@ -1,0 +1,102 @@
+// The pane of glass under the keyboard's ring, when the ring is on a row or
+// a pill's choice. The bar's buttons have a disc of their own, which the
+// window places (see `MainWindow.ring-disc`).
+
+/// Where the ring is, for the window to lay its pane in `glass-rects`.
+///
+/// A global because the ring is on one row of a list deep inside a panel,
+/// which the window can't reach into. Whatever holds the ring keeps it placed
+/// as it moves, with a scroll or a page's slide (see `RingPane`).
+export global Ring {
+    /// Whether anything holds the ring. The place outlasts it, so the pane
+    /// fades out where it was rather than at the window's corner.
+    out property <bool> held;
+    out property <length> x;
+    out property <length> y;
+    out property <length> width;
+    out property <length> height;
+    out property <length> radius;
+    /// Bumped by every claim, so a holder can tell whether it still holds the
+    /// ring once the next one has taken it.
+    out property <int> seq;
+
+    /// Take the ring for a box in window coordinates, and return the claim on
+    /// it, for `place` and `release`.
+    public function claim(x: length, y: length, width: length, height: length,
+        radius: length) -> int {
+        Ring.seq += 1;
+        Ring.held = true;
+        Ring.place(Ring.seq, x, y, width, height, radius);
+        return Ring.seq;
+    }
+
+    /// Move the box, if `claim` still holds the ring.
+    public function place(claim: int, x: length, y: length, width: length, height: length,
+        radius: length) {
+        if (Ring.seq == claim) {
+            Ring.x = x;
+            Ring.y = y;
+            Ring.width = width;
+            Ring.height = height;
+            Ring.radius = radius;
+        }
+    }
+
+    /// Let go, if `claim` still holds the ring. Moving from one row to the
+    /// next takes it and lets it go in no promised order, so a release that
+    /// comes second mustn't take the pane from the row that now has it.
+    public function release(claim: int) {
+        if (Ring.seq == claim) {
+            Ring.held = false;
+        }
+    }
+}
+
+/// The box the pane goes on: drawn as nothing, sized by its parent, and
+/// holding the ring while `on`.
+export component RingPane inherits Rectangle {
+    in property <bool> on;
+    in property <length> radius;
+
+    width: 100%;
+    height: 100%;
+
+    // Read only while it is on, because `absolute-position` costs a layout
+    // query, and a season of rows asking every frame would drag the panel.
+    private property <length> at-x: root.on ? self.absolute-position.x : 0px;
+    private property <length> at-y: root.on ? self.absolute-position.y : 0px;
+    private property <int> claim: -1;
+
+    function follow() {
+        if (root.on) {
+            Ring.place(root.claim, root.at-x, root.at-y, root.width, root.height, root.radius);
+        }
+    }
+
+    // A page built with the ring already on its first row has no change to
+    // report.
+    init => {
+        if (root.on) {
+            root.claim = Ring.claim(root.at-x, root.at-y, root.width, root.height, root.radius);
+        }
+    }
+    changed on => {
+        if (root.on) {
+            root.claim = Ring.claim(root.at-x, root.at-y, root.width, root.height, root.radius);
+        } else {
+            Ring.release(root.claim);
+        }
+    }
+    changed at-x => {
+        root.follow();
+    }
+    changed at-y => {
+        root.follow();
+    }
+    changed width => {
+        root.follow();
+    }
+    changed height => {
+        root.follow();
+    }
+}

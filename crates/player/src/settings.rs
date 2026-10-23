@@ -5,7 +5,8 @@
 //! so adding a knob is one entry here: it gets a slider with the right range
 //! and reaches the shader without touching the UI or the render code. Beside
 //! them sit the preferences that aren't sliders: whether each effect runs,
-//! autoplay, animations and tips, and the subtitles' size and place.
+//! autoplay, animations, darkening bright glass and tips, and the subtitles'
+//! size and place.
 //!
 //! Values live in a shared store because the two ends run at different
 //! times: the UI writes whenever a slider moves, the pipeline reads once a
@@ -15,12 +16,14 @@
 use std::cell::{Cell, RefCell};
 
 use crate::gpu::pipeline::{BorderParams, GlassParams};
+use crate::lang::marked;
 use crate::playback::commands;
 
 const AMBIENCE_ON: &str = "ambience.enabled";
 const GLASS_ON: &str = "glass.enabled";
 const AUTOPLAY: &str = "playback.autoplay";
 const ANIMATIONS: &str = "accessibility.animations";
+const LEGIBLE_GLASS: &str = "accessibility.legible-glass";
 const TIPS: &str = "accessibility.tooltips";
 const TIP_KEYS: &str = "accessibility.tooltip-keys";
 /// What a chosen language is saved under, its code after the dot. The file is
@@ -84,7 +87,8 @@ pub struct Param {
     /// Stable identifier used in the saved file. Distinct from `label`, so
     /// the display text can change without orphaning saved settings.
     pub name: &'static str,
-    /// Shown in the panel. Grouped by the headings below.
+    /// Shown in the panel, in English; translated where it is shown. Grouped
+    /// by the headings below.
     pub label: &'static str,
     pub min: f32,
     pub max: f32,
@@ -94,17 +98,17 @@ pub struct Param {
 /// row's icon by its index here.
 #[rustfmt::skip]
 pub const REGISTRY: &[Param] = &[
-    Param { key: Key::Blur, name: "glass.blur", section: Section::Glass, label: "Blur", min: 0.0, max: 100.0 },
-    Param { key: Key::Refract, name: "glass.refract_ratio", section: Section::Glass, label: "Refraction", min: 0.0, max: 4.0 },
-    Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: "Dispersion", min: 0.0, max: 4.0 },
-    Param { key: Key::Rim, name: "glass.rim", section: Section::Glass, label: "Edge light", min: 0.0, max: 1.0 },
-    Param { key: Key::Tint, name: "glass.tint", section: Section::Glass, label: "Tint", min: 0.0, max: 1.0 },
-    Param { key: Key::Absorb, name: "glass.absorb", section: Section::Glass, label: "Dimming", min: 0.0, max: 1.0 },
-    Param { key: Key::Shadow, name: "glass.shadow", section: Section::Glass, label: "Shadow", min: 0.0, max: 1.0 },
-    Param { key: Key::EdgeBlur, name: "border.edge_blur", section: Section::Border, label: "Edge blur", min: 0.0, max: 0.1 },
-    Param { key: Key::Spread, name: "border.spread", section: Section::Border, label: "Spread", min: 0.0, max: 5.0 },
-    Param { key: Key::Falloff, name: "border.falloff", section: Section::Border, label: "Falloff", min: 0.0, max: 12.0 },
-    Param { key: Key::Softness, name: "border.softness", section: Section::Border, label: "Softness", min: 0.0, max: 1.0 },
+    Param { key: Key::Blur, name: "glass.blur", section: Section::Glass, label: marked("Blur"), min: 0.0, max: 100.0 },
+    Param { key: Key::Refract, name: "glass.refract_ratio", section: Section::Glass, label: marked("Refraction"), min: 0.0, max: 4.0 },
+    Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: marked("Dispersion"), min: 0.0, max: 4.0 },
+    Param { key: Key::Rim, name: "glass.rim", section: Section::Glass, label: marked("Edge light"), min: 0.0, max: 1.0 },
+    Param { key: Key::Tint, name: "glass.tint", section: Section::Glass, label: marked("Tint"), min: 0.0, max: 1.0 },
+    Param { key: Key::Absorb, name: "glass.absorb", section: Section::Glass, label: marked("Dimming"), min: 0.0, max: 1.0 },
+    Param { key: Key::Shadow, name: "glass.shadow", section: Section::Glass, label: marked("Shadow"), min: 0.0, max: 1.0 },
+    Param { key: Key::EdgeBlur, name: "border.edge_blur", section: Section::Border, label: marked("Edge blur"), min: 0.0, max: 0.1 },
+    Param { key: Key::Spread, name: "border.spread", section: Section::Border, label: marked("Spread"), min: 0.0, max: 5.0 },
+    Param { key: Key::Falloff, name: "border.falloff", section: Section::Border, label: marked("Falloff"), min: 0.0, max: 12.0 },
+    Param { key: Key::Softness, name: "border.softness", section: Section::Border, label: marked("Softness"), min: 0.0, max: 1.0 },
 ];
 
 /// What a settings page held just before it was reset.
@@ -132,6 +136,9 @@ pub struct Store {
     /// Whether anything in the interface moves (see `Motion` in theme.slint),
     /// including the backdrop the pipeline fades up.
     animations: Cell<bool>,
+    /// Whether the glass is held dark enough for its words over a bright frame
+    /// (see `pipeline::legible_ceiling`).
+    legible_glass: Cell<bool>,
     /// Whether the bar's controls name themselves under the pointer, and
     /// whether the names come with their keys (see `Tip` in globals.slint).
     tips: Cell<bool>,
@@ -158,6 +165,7 @@ impl Default for Store {
             glass_on: Cell::new(true),
             autoplay: Cell::new(true),
             animations: Cell::new(true),
+            legible_glass: Cell::new(true),
             tips: Cell::new(true),
             tip_keys: Cell::new(true),
             sub_scale: Cell::new(commands::SUB_SCALE_DEFAULT as f32),
@@ -301,6 +309,15 @@ impl Store {
         self.touch();
     }
 
+    pub fn legible_glass(&self) -> bool {
+        self.legible_glass.get()
+    }
+
+    pub fn set_legible_glass(&self, on: bool) {
+        self.legible_glass.set(on);
+        self.touch();
+    }
+
     pub fn tips(&self) -> bool {
         self.tips.get()
     }
@@ -378,6 +395,7 @@ impl Store {
         out.push((GLASS_ON.into(), self.glass_on.get() as u8 as f32));
         out.push((AUTOPLAY.into(), self.autoplay.get() as u8 as f32));
         out.push((ANIMATIONS.into(), self.animations.get() as u8 as f32));
+        out.push((LEGIBLE_GLASS.into(), self.legible_glass.get() as u8 as f32));
         out.push((TIPS.into(), self.tips.get() as u8 as f32));
         out.push((TIP_KEYS.into(), self.tip_keys.get() as u8 as f32));
         out.push((SUB_SCALE.into(), self.sub_scale.get()));
@@ -414,6 +432,7 @@ impl Store {
                 GLASS_ON => self.glass_on.set(*value >= 0.5),
                 AUTOPLAY => self.autoplay.set(*value >= 0.5),
                 ANIMATIONS => self.animations.set(*value >= 0.5),
+                LEGIBLE_GLASS => self.legible_glass.set(*value >= 0.5),
                 TIPS => self.tips.set(*value >= 0.5),
                 TIP_KEYS => self.tip_keys.set(*value >= 0.5),
                 other => {
@@ -573,6 +592,24 @@ mod tests {
         let store = Store::default();
         store.apply_saved(&[(AUTOPLAY.to_string(), 0.0)]);
         assert!(store.animations());
+    }
+
+    #[test]
+    fn darkening_bright_glass_survives_a_save_and_a_load() {
+        let store = Store::default();
+        assert!(
+            store.legible_glass(),
+            "the glass keeps its words readable until told not to"
+        );
+        store.set_legible_glass(false);
+        let loaded = Store::default();
+        loaded.apply_saved(&store.to_saved());
+        assert!(!loaded.legible_glass());
+
+        // A file from before the switch keeps it on.
+        let older = Store::default();
+        older.apply_saved(&[(ANIMATIONS.to_string(), 0.0)]);
+        assert!(older.legible_glass());
     }
 
     #[test]

@@ -11,11 +11,16 @@ dbm-player.po, and it holds both halves of the interface:
   * the words in the .slint files, marked @tr("...") and filed under the
     name of the component they are written in, which is where Slint looks
     them up;
-  * the words made in Rust, marked tr("..."), filed under `player`.
+  * the words made in Rust, marked tr("..."), filed under `player`, and the
+    words in a Rust table translated where they are shown, marked
+    marked("...") where they are written.
 
 `check` exits non-zero when a language is missing an entry or has one left
-empty, so it can stand in a release checklist. An entry the source no longer
-has is reported and left alone: deleting a translation is a person's call.
+empty, so it can stand in a release checklist, and when a Rust `label:` is a
+bare string, which is a name the interface shows that nothing marked, as is
+the `reason:`, `detail:` or `note:` of a failure the way in shows. An entry
+the source no longer has is reported and left alone: deleting a translation
+is a person's call.
 """
 
 import re
@@ -26,10 +31,14 @@ ROOT = Path(__file__).resolve().parent.parent / "crates" / "player"
 LANG = ROOT / "lang"
 RUST_CONTEXT = "player"
 
-STRING = r'"((?:[^"\\]|\\.)*)"'
+STRING = r'"((?:[^"\\]|\\[\s\S])*)"'
 SLINT_TR = re.compile(r"@tr\(\s*" + STRING)
 SLINT_OWNER = re.compile(r"^(?:export\s+)?(?:component|global)\s+([A-Za-z_][\w-]*)")
-RUST_TR = re.compile(r"(?<![\w@])tr\(\s*" + STRING)
+RUST_TR = re.compile(r"(?<![\w@])(?:tr|marked)\(\s*" + STRING)
+RUST_BARE_LABEL = re.compile(r"\b(?:label|reason|detail|note):\s*\"")
+# Rust's line continuation: a backslash at the end of a line drops the break
+# and the next line's indentation, so the words are what the program holds.
+RUST_CONTINUED = re.compile(r"\\\n\s*")
 
 
 def wanted():
@@ -49,7 +58,7 @@ def wanted():
         if file.name == "lang.rs":
             continue
         for said in RUST_TR.finditer(file.read_text(encoding="utf-8")):
-            found.append((RUST_CONTEXT, said.group(1)))
+            found.append((RUST_CONTEXT, RUST_CONTINUED.sub("", said.group(1))))
     seen, out = set(), []
     for entry in found:
         if entry not in seen:
@@ -107,9 +116,29 @@ def header(code):
     )
 
 
+def bare_labels():
+    """Every Rust `label:`, and failure field, set to a string nothing
+    marked, as file:line.
+
+    A file's tests, which come last in it, are not looked at: their labels
+    are fixtures, never shown.
+    """
+    found = []
+    for file in sorted((ROOT / "src").rglob("*.rs")):
+        for number, line in enumerate(file.read_text(encoding="utf-8").splitlines(), 1):
+            if line.strip() == "#[cfg(test)]":
+                break
+            if RUST_BARE_LABEL.search(line):
+                found.append(f"{file.relative_to(ROOT)}:{number}")
+    return found
+
+
 def check():
     asked = wanted()
     short = False
+    for where in bare_labels():
+        print(f"unmarked  {where}: a label the interface shows, not marked for translation")
+        short = True
     for file in files():
         code = file.parts[-3]
         have = entries(file.read_text(encoding="utf-8"))

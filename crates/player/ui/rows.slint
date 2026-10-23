@@ -6,6 +6,7 @@
 import { Chrome } from "globals.slint";
 import { Motion, Paint, Rows, Type } from "theme.slint";
 import { StepButton } from "controls.slint";
+import { RingPane } from "ring.slint";
 import { Squircle } from "squircle.slint";
 
 /// The mark beside the current row: the subtitle track in use, the episode
@@ -34,10 +35,13 @@ export component ActiveMark inherits Rectangle {
 }
 
 /// The wash behind a hovered or focused row. It fills the row and insets
-/// itself, so the row only says whether it is lit.
+/// itself, so the row only says why it is lit.
+///
+/// Under the ring the wash is stronger and stands on a pane of glass of its
+/// own, whose lit rim is what tells it from the pointer's at 3:1 (see `Ring`).
 export component RowHighlight inherits Rectangle {
-    in property <bool> lit;
-    in property <color> shade: Paint.wash-soft;
+    in property <bool> hovered;
+    in property <bool> ring;
 
     width: 100%;
     height: 100%;
@@ -53,8 +57,15 @@ export component RowHighlight inherits Rectangle {
         x: Rows.gap;
         width: parent.width - 2 * Rows.gap;
         radius: Rows.radius;
-        fill: root.lit ? root.shade : transparent;
+        fill: root.ring ? Paint.wash-ring : root.hovered ? Paint.wash-soft : transparent;
         animate fill { duration: Motion.highlight; easing: ease-out; }
+    }
+
+    RingPane {
+        x: Rows.gap;
+        width: parent.width - 2 * Rows.gap;
+        radius: Rows.radius;
+        on: root.ring;
     }
 }
 
@@ -75,6 +86,13 @@ export component MenuRow inherits Rectangle {
     /// A track loaded from its own file, which can be removed. The row ends
     /// in a button for it (see `removed`).
     in property <bool> removable;
+    /// The button has been pressed once, and the next press removes the
+    /// track. The row asks beside the button rather than in place of the
+    /// name, which is what says which track the press would take.
+    in property <bool> armed;
+    /// How long it waits for that press, for the wash behind the question
+    /// to drain over.
+    in property <duration> armed-for;
     callback picked();
     callback removed();
 
@@ -89,8 +107,8 @@ export component MenuRow inherits Rectangle {
     }
 
     RowHighlight {
-        lit: touch.has-hover || root.ring;
-        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+        hovered: touch.has-hover;
+        ring: root.ring;
     }
 
     ActiveMark {
@@ -111,8 +129,9 @@ export component MenuRow inherits Rectangle {
 
     Text {
         x: Rows.label-x + (root.iconic ? 26px : 0px);
-        width: parent.width - self.x - Rows.trail-x
-            - (root.removable ? root.bin + Rows.group-gap : 0px);
+        width: (root.armed ? root.ask-x - 8px
+            : parent.width - Rows.trail-x - (root.removable ? root.bin + Rows.group-gap : 0px))
+            - self.x;
         height: 100%;
         text: root.label;
         color: root.active || root.ring ? Paint.lit : Paint.body;
@@ -135,41 +154,77 @@ export component MenuRow inherits Rectangle {
 
     // The remove button, at the trailing edge where a drill row keeps its
     // chevron. It sits over the row's own press, so a click removes the track
-    // without choosing it first; Delete does the same from the keyboard.
+    // without choosing it first; Delete does the same from the keyboard. Each
+    // takes two presses (see `armed`), since a downloaded file goes with it.
     //
     // It takes clicks over the row's full height from just before the disc,
     // because a click just off the disc would choose the track instead, the
     // one miss that does the opposite.
     private property <length> bin: 28px;
     private property <length> bin-x: root.width - Rows.trail-x - root.bin + 6px;
+
+    // While armed, the question stands on a capsule that drains towards the
+    // button as the wait runs out, so how long the row will go on asking is
+    // in sight. With animations off it stays full.
+    private property <length> ask-x: root.bin-x - question.width - 12px;
+    // Set rather than bound, since nothing reads a bound one until the row is
+    // armed, and an animation needs the value it starts from.
+    private property <float> asking: 1;
+    animate asking { duration: root.armed ? root.armed-for : 0ms; }
+    changed armed => {
+        root.asking = root.armed && Motion.enabled ? 0 : 1;
+    }
+    if root.armed: Rectangle {
+        private property <length> full: root.bin-x + root.bin - root.ask-x;
+        x: root.bin-x + root.bin - self.width;
+        y: (parent.height - self.height) / 2;
+        width: max(0px, self.full * root.asking);
+        height: root.bin;
+        border-radius: min(self.width, self.height) / 2;
+        background: Paint.wash-strong;
+    }
+    question := Text {
+        x: root.bin-x - self.width;
+        height: 100%;
+        visible: root.armed;
+        text: @tr("Remove?");
+        color: Paint.lit;
+        font-size: Type.readout;
+        vertical-alignment: center;
+    }
+
     if root.removable: Rectangle {
-        x: root.bin-x - 12px;
+        // The question is part of the button while it asks, as a press on
+        // the word is a press meant for it.
+        x: root.armed ? root.ask-x : root.bin-x - 12px;
         width: parent.width - self.x;
         height: parent.height;
 
         accessible-role: button;
-        accessible-label: @tr("Remove");
+        accessible-label: root.armed ? @tr("Press again to remove") : @tr("Remove");
         accessible-action-default => {
             root.removed();
         }
 
         Rectangle {
-            x: 12px;
+            x: root.bin-x - parent.x;
             y: (parent.height - self.height) / 2;
             width: root.bin;
             height: root.bin;
             border-radius: self.width / 2;
-            background: bin-touch.has-hover ? Paint.wash-strong : transparent;
+            // The capsule is the wash while it asks.
+            background: bin-touch.has-hover && !root.armed ? Paint.wash-strong : transparent;
             animate background { duration: Motion.highlight; easing: ease-out; }
 
             Image {
-                source: @image-url("../../../public/icons/trash.svg");
+                source: root.armed ? @image-url("../../../public/icons/warning.svg")
+                    : @image-url("../../../public/icons/trash.svg");
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
                 width: 18px;
                 height: 18px;
                 image-fit: contain;
-                colorize: bin-touch.has-hover ? Paint.lit : Paint.body;
+                colorize: bin-touch.has-hover || root.ring || root.armed ? Paint.lit : Paint.body;
             }
         }
 
@@ -187,7 +242,7 @@ export component MenuRow inherits Rectangle {
 }
 
 /// One subtitle a search found: the release it was timed against, and beside
-/// it, quieter, its language and what sets it apart. While it is being
+/// it, smaller, its language and what sets it apart. While it is being
 /// fetched, the second column says so instead.
 export component FoundRow inherits Rectangle {
     in property <string> label;
@@ -208,8 +263,8 @@ export component FoundRow inherits Rectangle {
     }
 
     RowHighlight {
-        lit: touch.has-hover || root.ring;
-        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+        hovered: touch.has-hover;
+        ring: root.ring;
     }
 
     ActiveMark {
@@ -235,7 +290,7 @@ export component FoundRow inherits Rectangle {
 
         Text {
             text: root.busy ? @tr("Downloading…") : root.detail;
-            color: Paint.quiet;
+            color: root.ring ? Paint.lit : Paint.body;
             font-size: Type.readout;
             vertical-alignment: center;
             horizontal-alignment: right;
@@ -300,8 +355,8 @@ export component PlaylistRow inherits Rectangle {
     }
 
     RowHighlight {
-        lit: touch.has-hover || root.ring;
-        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+        hovered: touch.has-hover;
+        ring: root.ring;
     }
 
     ActiveMark {
@@ -328,7 +383,9 @@ export component PlaylistRow inherits Rectangle {
         x: parent.width - root.trail - self.width;
         height: 100%;
         text: root.failed ? "" : root.length;
-        color: Paint.quiet;
+        // Lit under the ring, as the name is. The same in every row with a
+        // figure.
+        color: root.ring ? Paint.lit : Paint.body;
         font-size: Type.readout;
         vertical-alignment: center;
     }
@@ -343,7 +400,7 @@ export component PlaylistRow inherits Rectangle {
         width: 16px;
         height: 16px;
         image-fit: contain;
-        colorize: Paint.quiet;
+        colorize: root.ring ? Paint.lit : Paint.body;
     }
 
     // How far into it you got. A hairline rather than a bar, since it is
@@ -419,8 +476,8 @@ export component GroupRow inherits Rectangle {
     }
 
     RowHighlight {
-        lit: touch.has-hover || root.ring;
-        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+        hovered: touch.has-hover;
+        ring: root.ring;
     }
 
     ActiveMark {
@@ -443,7 +500,7 @@ export component GroupRow inherits Rectangle {
         x: root.column-end - self.width;
         height: 100%;
         text: root.detail;
-        color: Paint.quiet;
+        color: root.ring ? Paint.lit : Paint.body;
         font-size: Type.readout;
         vertical-alignment: center;
     }
@@ -498,8 +555,8 @@ export component ResumeRow inherits Rectangle {
     }
 
     RowHighlight {
-        lit: touch.has-hover || root.ring;
-        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+        hovered: touch.has-hover;
+        ring: root.ring;
     }
 
     Image {
@@ -530,7 +587,7 @@ export component ResumeRow inherits Rectangle {
         x: parent.width - Rows.trail-x - self.width;
         height: 100%;
         text: root.left;
-        color: Paint.quiet;
+        color: root.ring ? Paint.lit : Paint.body;
         font-size: Type.readout;
         vertical-alignment: center;
     }
@@ -593,8 +650,8 @@ export component ShortcutRow inherits Rectangle {
     }
 
     RowHighlight {
-        lit: !root.inert && (touch.has-hover || root.ring);
-        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+        hovered: !root.inert && touch.has-hover;
+        ring: !root.inert && root.ring;
     }
 
     HorizontalLayout {
@@ -613,7 +670,7 @@ export component ShortcutRow inherits Rectangle {
 
         Text {
             text: root.shortcut;
-            color: Paint.quiet;
+            color: root.ring && !root.inert ? Paint.lit : Paint.body;
             font-size: Type.readout;
             vertical-alignment: center;
         }
@@ -643,6 +700,9 @@ export component ParamSlider inherits Rectangle {
     in property <image> icon;
     in property <float> fraction;
     in property <string> readout;
+    /// How wide the name is set: the widest of a page's names, so the tracks
+    /// down a page start together whatever the language makes of them.
+    in property <length> name-w;
     callback moved(float);
 
     height: Rows.slider-row;
@@ -660,8 +720,7 @@ export component ParamSlider inherits Rectangle {
     // No hover wash, because the growing track answers a pointer; the
     // keyboard has nothing like that, so the row lights under the ring.
     RowHighlight {
-        lit: root.ring;
-        shade: Paint.wash-strong;
+        ring: root.ring;
     }
 
     layout := HorizontalLayout {
@@ -683,10 +742,8 @@ export component ParamSlider inherits Rectangle {
             }
         }
 
-        // 2px wider than the longest label, so with the layout's 8px spacing
-        // the track sits 10px off the words.
         name-text := Text {
-            width: 80px;
+            width: root.name-w;
             text: root.label;
             color: root.ring ? Paint.lit : Paint.body;
             font-size: Type.readout;
@@ -741,7 +798,7 @@ export component ParamSlider inherits Rectangle {
         value-text := Text {
             width: 46px;
             text: root.readout;
-            color: Paint.body;
+            color: root.ring ? Paint.lit : Paint.body;
             font-size: Type.readout;
             horizontal-alignment: right;
             vertical-alignment: center;
@@ -783,8 +840,8 @@ export component ToggleRow inherits Rectangle {
     }
 
     RowHighlight {
-        lit: root.enabled && (switch-touch.has-hover || root.ring);
-        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+        hovered: root.enabled && switch-touch.has-hover;
+        ring: root.enabled && root.ring;
     }
 
     layout := HorizontalLayout {
@@ -873,8 +930,8 @@ export component DrillRow inherits Rectangle {
     }
 
     RowHighlight {
-        lit: touch.has-hover || root.ring;
-        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+        hovered: touch.has-hover;
+        ring: root.ring;
     }
 
     HorizontalLayout {
@@ -961,8 +1018,7 @@ export component StepperRow inherits Rectangle {
     // As on the sliders: the two buttons light under the pointer, but the
     // keyboard is on the row, not on either of them.
     RowHighlight {
-        lit: root.ring;
-        shade: Paint.wash-strong;
+        ring: root.ring;
     }
 
     layout := HorizontalLayout {
@@ -999,6 +1055,7 @@ export component StepperRow inherits Rectangle {
                 y: (parent.height - self.height) / 2;
                 // U+2212, not a hyphen: it matches the digits either side.
                 glyph: "−";
+                lit: root.ring;
                 clicked => {
                     root.stepped(-1);
                 }
@@ -1008,7 +1065,7 @@ export component StepperRow inherits Rectangle {
         value-text := Text {
             width: 62px;
             text: root.value;
-            color: Paint.strong;
+            color: root.ring ? Paint.lit : Paint.strong;
             font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -1020,6 +1077,7 @@ export component StepperRow inherits Rectangle {
             StepButton {
                 y: (parent.height - self.height) / 2;
                 glyph: "+";
+                lit: root.ring;
                 clicked => {
                     root.stepped(1);
                 }
@@ -1049,8 +1107,8 @@ export component BackRow inherits Rectangle {
     }
 
     RowHighlight {
-        lit: touch.has-hover || root.ring;
-        shade: root.ring ? Paint.wash-strong : Paint.wash-soft;
+        hovered: touch.has-hover;
+        ring: root.ring;
     }
 
     // The arrow is laid out like `DrillRow`'s icon, because a back row is the
@@ -1112,7 +1170,7 @@ export component EmptyRow inherits Rectangle {
         width: parent.width - Rows.label-x - Rows.trail-x;
         height: 100%;
         text: root.label;
-        color: Paint.quiet;
+        color: Paint.body;
         font-size: Type.body;
         vertical-alignment: center;
         overflow: elide;

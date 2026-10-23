@@ -35,6 +35,7 @@ use crate::app::App;
 use crate::gpu::gfx::Target;
 use crate::gpu::pipeline::{Frame, GlassPanel, Pipeline};
 use crate::interface::{fades, format, glass, playlist_panel, sync};
+use crate::lang::{fill, marked, tr};
 use crate::library::playlist;
 use crate::platform::modal_loop;
 use crate::playback::commands;
@@ -128,6 +129,21 @@ pub struct Driver {
     diag: diagnostics::Probe,
     /// A picture of a finished frame, when one is asked for.
     capture: diagnostics::Capture,
+    /// Why there is no video this run, if there isn't.
+    failure: Option<Failure>,
+}
+
+/// What `Driver::fatal` puts on the way in, kept in English so it can be said
+/// again in a language chosen after it.
+struct Failure {
+    /// The sentence that names it.
+    reason: &'static str,
+    /// What went wrong, with a blank for `cause`: the driver's or mpv's own
+    /// words, which are shown as they came.
+    detail: &'static str,
+    cause: String,
+    /// What usually puts it right.
+    note: &'static str,
 }
 
 impl Driver {
@@ -167,6 +183,7 @@ impl Driver {
             awake: crate::platform::awake::Awake::default(),
             diag: diagnostics::Probe::new(),
             capture: diagnostics::Capture::new(),
+            failure: None,
         }
     }
 
@@ -271,28 +288,43 @@ impl Driver {
     /// sit black. The way in says it, and drops its rows, which could only
     /// open something that plays invisibly.
     ///
-    /// `note` is what usually puts it right, and differs: a context the driver
+    /// The note on what usually puts it right differs: a context the driver
     /// wouldn't give, or mpv couldn't use, is the driver's, but refused
     /// shaders may be a fault in the player's own GLSL.
-    fn fatal(&self, reason: &str, detail: String, note: &str) {
-        eprintln!("dbm: {reason} — {detail}");
+    fn fatal(&mut self, failure: Failure) {
+        eprintln!(
+            "dbm: {} — {}",
+            failure.reason,
+            fill(failure.detail, &[&failure.cause])
+        );
+        self.failure = Some(failure);
         if let Some(ui) = self.ui.upgrade() {
-            ui.set_fatal(reason.into());
-            ui.set_fatal_detail(detail.into());
-            ui.set_fatal_note(note.into());
+            self.say_failure(&ui);
         }
+    }
+
+    /// Put the failure on the way in, in the language being spoken.
+    fn say_failure(&self, ui: &MainWindow) {
+        let Some(failure) = &self.failure else {
+            return;
+        };
+        ui.set_fatal(tr(failure.reason).into());
+        ui.set_fatal_detail(fill(tr(failure.detail), &[&failure.cause]).into());
+        ui.set_fatal_note(tr(failure.note).into());
     }
 
     fn setup(&mut self, api: &GraphicsAPI) {
         let GraphicsAPI::NativeOpenGL { get_proc_address } = api else {
-            self.fatal(
-                "The player cannot show video on this computer.",
-                "Slint gave the player a renderer that is not OpenGL. The film \
-                 and the glass are both drawn through OpenGL, so neither can be \
-                 drawn without it."
-                    .into(),
-                "Updating the graphics driver is the usual fix.",
-            );
+            self.fatal(Failure {
+                reason: marked("The player cannot show video on this computer."),
+                detail: marked(
+                    "Slint gave the player a renderer that is not OpenGL. The film \
+                     and the glass are both drawn through OpenGL, so neither can be \
+                     drawn without it.",
+                ),
+                cause: String::new(),
+                note: marked("Updating the graphics driver is the usual fix."),
+            });
             return;
         };
         let gl = unsafe { glow::Context::from_loader_function_cstr(|s| get_proc_address(s)) };
@@ -301,11 +333,12 @@ impl Driver {
         let pipeline = match Pipeline::new(&gl) {
             Ok(p) => p,
             Err(e) => {
-                self.fatal(
-                    "The player cannot show video on this computer.",
-                    format!("The graphics driver would not build the player's shaders. {e}"),
-                    "If the driver is current, this is a bug in the player.",
-                );
+                self.fatal(Failure {
+                    reason: marked("The player cannot show video on this computer."),
+                    detail: marked("The graphics driver would not build the player's shaders. {}"),
+                    cause: e,
+                    note: marked("If the driver is current, this is a bug in the player."),
+                });
                 return;
             }
         };
@@ -362,11 +395,12 @@ impl Driver {
                     _mpv: self.app.mpv.clone(),
                 });
             }
-            Err(e) => self.fatal(
-                "The player cannot show video on this computer.",
-                format!("mpv could not attach to the player's graphics context. {e}"),
-                "Updating the graphics driver is the usual fix.",
-            ),
+            Err(e) => self.fatal(Failure {
+                reason: marked("The player cannot show video on this computer."),
+                detail: marked("mpv could not attach to the player's graphics context. {}"),
+                cause: e.to_string(),
+                note: marked("Updating the graphics driver is the usual fix."),
+            }),
         }
     }
 
@@ -410,6 +444,13 @@ impl Driver {
             return;
         };
         let Some(mut gpu) = self.gpu.take() else {
+            // With no render context, the failure is all there is to say
+            // again in a language just chosen.
+            let changes = crate::lang::changes();
+            if changes != self.language_seen {
+                self.language_seen = changes;
+                self.say_failure(&ui);
+            }
             return;
         };
         self.modal.poll(ui.window());
@@ -737,11 +778,15 @@ impl Driver {
             gpu.pipeline.border_enabled = self.app.settings.ambience_on();
             gpu.pipeline.glass_enabled = self.app.settings.glass_on();
             gpu.pipeline.animate = self.app.settings.animations();
+            gpu.pipeline.legible = self.app.settings.legible_glass();
             params_dirty = true;
         }
 
         // The backdrop stands in only while nothing is loaded.
         gpu.pipeline.show_backdrop = self.player.path.is_none();
+        let paint = ui.global::<crate::Paint>();
+        gpu.pipeline.text_floor = f32::from(paint.get_body().alpha()) / 255.0;
+        gpu.pipeline.ring_wash = f32::from(paint.get_wash_ring().alpha()) / 255.0;
 
         let size = ui.window().size();
         // For the size being rendered at, not the one mpv last reported on.

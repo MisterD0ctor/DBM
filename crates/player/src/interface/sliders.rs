@@ -2,9 +2,10 @@
 
 use std::rc::Rc;
 
-use slint::{Model, ModelRc, VecModel};
+use slint::{Model, ModelRc, SharedString, VecModel};
 
 use crate::interface::format;
+use crate::lang::tr;
 use crate::settings::{self, Section, Store};
 use crate::{MainWindow, ParamItem};
 
@@ -26,7 +27,14 @@ impl ParamModels {
         };
         ui.set_glass_params(ModelRc::from(models.glass.clone()));
         ui.set_border_params(ModelRc::from(models.border.clone()));
+        ui.set_param_names(names());
         models
+    }
+
+    /// Both pages again, in the language now spoken.
+    pub fn say_again(&self, ui: &MainWindow, store: &Store) {
+        self.refresh_all(store);
+        ui.set_param_names(names());
     }
 
     /// Refresh one row in place.
@@ -64,6 +72,14 @@ impl ParamModels {
     }
 }
 
+/// Every slider's name, one to a line, for the interface to measure: both
+/// pages set their names in one column, as wide as the widest of them in the
+/// language spoken.
+fn names() -> SharedString {
+    let names: Vec<&str> = settings::REGISTRY.iter().map(|p| tr(p.label)).collect();
+    names.join("\n").into()
+}
+
 fn rows_of(section: Section) -> impl Iterator<Item = usize> {
     (0..settings::REGISTRY.len()).filter(move |i| settings::REGISTRY[*i].section == section)
 }
@@ -82,7 +98,7 @@ fn param_row(store: &Store, index: usize) -> ParamItem {
     let span = (param.max - param.min).max(f32::EPSILON);
     ParamItem {
         index: index as i32,
-        label: param.label.into(),
+        label: tr(param.label).into(),
         fraction: ((value - param.min) / span).clamp(0.0, 1.0),
         readout: format::readout(value, param.min, param.max).into(),
     }

@@ -2,6 +2,7 @@
 
 use std::time::Duration;
 
+use slint::platform::Key;
 use slint::{ComponentHandle, Model};
 
 use super::drive::{arrow, click, hover, wheel};
@@ -14,6 +15,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
     let mut tick = 0u32;
+    let mut armed = false;
     timer.start(
         slint::TimerMode::Repeated,
         Duration::from_millis(250),
@@ -157,6 +159,68 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 arrow(&ui, slint::platform::Key::DownArrow);
             }
 
+            // The keyboard's ring held on the bar's settings button, for the
+            // disc of glass it stands on: one Tab puts it on the first button
+            // and ten more walk it there.
+            if surface == "ring-bar" && (4..=14).contains(&tick) {
+                arrow(&ui, Key::Tab);
+            }
+            // And on a row: the playlist's fourth, and the glass page's third
+            // slider, whose name sits in the measured column.
+            if (surface == "ring-row" || surface == "ring-slider") && (6..=9).contains(&tick) {
+                arrow(&ui, Key::DownArrow);
+            }
+
+            // A track loaded from its own file, pressed once to remove it:
+            // the ring is walked down to the first such subtitle and Delete
+            // pressed, and never again, so the row stays armed. Open a film
+            // with a downloaded subtitle.
+            if surface == "armed" && tick >= 6 && !armed {
+                let row = ui.get_focus_row();
+                let external = (row as usize)
+                    .checked_sub(1)
+                    .and_then(|i| ui.get_sub_tracks().row_data(i))
+                    .is_some_and(|t| t.external);
+                if ui.global::<crate::Chrome>().get_focus_visible() && external {
+                    arrow(&ui, Key::Delete);
+                    armed = true;
+                    eprintln!("dbm: armed row {row}");
+                } else {
+                    arrow(&ui, Key::DownArrow);
+                }
+            }
+
+            // Left and right inside the panels: into a settings page and back
+            // out, nothing past the front page, nothing on a file's row, back
+            // to the list of parts and into a part again. Open a film in the
+            // middle of a season with seasons beside it; prints what each key
+            // left behind, and whether the film moved.
+            if surface == "sideways" {
+                match tick {
+                    4 => ui.invoke_open_settings_page(0),
+                    5 | 15 | 16 | 20 => arrow(&ui, Key::DownArrow),
+                    6 | 12 | 18 | 22 => arrow(&ui, Key::RightArrow),
+                    8 | 10 | 19 => arrow(&ui, Key::LeftArrow),
+                    14 => {
+                        ui.invoke_open_settings(false);
+                        ui.invoke_open_playlist(true);
+                    }
+                    _ => {}
+                }
+                if (5..=23).contains(&tick) {
+                    eprintln!(
+                        "dbm: sideways t{tick:<2} settings={}:{} playlist={}:{} row={} at {} {}",
+                        ui.get_settings_open(),
+                        ui.get_settings_page(),
+                        ui.get_playlist_open(),
+                        ui.get_playlist_page(),
+                        ui.get_focus_row(),
+                        ui.get_elapsed(),
+                        ui.get_media_title(),
+                    );
+                }
+            }
+
             // Autoplay into a file with a place saved in it: the file before
             // it is sent to its last seconds and left to play out. The next
             // one should start from the top with the place offered in the
@@ -226,9 +290,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     ui.invoke_select_subtitle(-1);
                 }
                 "playlist" | "drill" | "scroll-bar" | "current-above" | "current-below"
-                | "current-half" | "current-back" | "current-hover" => {
+                | "current-half" | "current-back" | "current-hover" | "ring-row" => {
                     ui.invoke_open_playlist(true)
                 }
+                "armed" => ui.invoke_open_menu(true),
+                "ring-slider" => ui.invoke_open_settings_page(1),
                 // The list of parts rather than the page the panel opens on.
                 "seasons" => {
                     ui.invoke_open_playlist(true);
@@ -236,11 +302,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 }
                 "files" => ui.invoke_open_files(true),
                 // Run to the end, with autoplay off, so the pill stays; `end`
-                // with the pointer away from it, to subtract; the last three
-                // with something in its way.
-                "end" | "end-hover" | "end-playlist" | "end-settings" | "end-preview" => {
-                    ui.invoke_seek_fraction(1.0)
-                }
+                // with the pointer away from it, to subtract; `end-ring` with
+                // the keyboard's ring left on it; the last three with
+                // something in its way.
+                "end" | "end-hover" | "end-ring" | "end-playlist" | "end-settings"
+                | "end-preview" => ui.invoke_seek_fraction(1.0),
                 // The fatal pane, having been asked to copy itself, so the
                 // clipboard can be read back from outside.
                 "fatal-copy" => {

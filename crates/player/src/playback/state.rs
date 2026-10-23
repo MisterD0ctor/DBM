@@ -452,12 +452,24 @@ impl PlayerState {
     /// filename otherwise, which out of a release is mostly not a title. So a
     /// filename is read properly, and a real embedded title left alone.
     pub fn display_title(&self) -> String {
-        let path = self
-            .path
+        crate::library::naming::titled(self.title_path(), self.embedded_title())
+    }
+
+    /// What the bar shows when it has no room for the show's name as well:
+    /// the part that tells one episode from the next. Empty for anything
+    /// that has no show.
+    pub fn display_episode(&self) -> String {
+        match crate::library::naming::described(self.title_path(), self.embedded_title()) {
+            (Some(_), episode) => episode,
+            (None, _) => String::new(),
+        }
+    }
+
+    fn title_path(&self) -> &str {
+        self.path
             .as_deref()
             .or(self.filename.as_deref())
-            .unwrap_or("");
-        crate::library::naming::titled(path, self.embedded_title())
+            .unwrap_or("")
     }
 
     /// The container's own title, where it has one.

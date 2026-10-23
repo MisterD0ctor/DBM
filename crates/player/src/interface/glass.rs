@@ -7,7 +7,7 @@
 use slint::{ComponentHandle, Model};
 
 use crate::gpu::pipeline::{GlassPanel, MAX_PANELS};
-use crate::MainWindow;
+use crate::{MainWindow, ScrollFade};
 
 /// Read the glass panel geometry out of Slint's own layout.
 ///
@@ -33,17 +33,61 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<GlassPanel>) {
             warn_overflow();
             return;
         }
+        let mut rect = [g.x, g.y, g.x + g.width, g.y + g.height];
+        let mut opacity = g.opacity;
+        if g.ring {
+            (rect, opacity) = within_list(rect, opacity, &ui.get_scroll_fades());
+            if opacity <= 0.004 {
+                continue;
+            }
+        }
         out.push(GlassPanel {
-            rect: [
-                g.x * dpi,
-                g.y * dpi,
-                (g.x + g.width) * dpi,
-                (g.y + g.height) * dpi,
-            ],
+            rect: rect.map(|v| v * dpi),
             radius: g.radius * dpi,
             tint_alpha: g.tint,
-            opacity: g.opacity,
+            opacity,
+            nested: g.nested,
+            ring: g.ring,
         });
+    }
+}
+
+/// The pane under the ring, cut to the scrolling list its row is in.
+///
+/// The list clips its rows, and the glass under one would otherwise go on past
+/// the list's end into the heading above it. The pane fades as its row leaves,
+/// and is gone by the time half the row is, so a cut pane is never more than
+/// a glimpse. A row outside every list, like a page's way back, is left whole.
+fn within_list(
+    rect: [f32; 4],
+    opacity: f32,
+    lists: &impl Model<Data = ScrollFade>,
+) -> ([f32; 4], f32) {
+    let centre = 0.5 * (rect[0] + rect[2]);
+    let height = rect[3] - rect[1];
+    if height <= 0.0 {
+        return (rect, opacity);
+    }
+    let mut best: Option<(f32, f32, f32)> = None;
+    for list in lists.iter() {
+        if list.width <= 0.0 || list.height <= 0.0 {
+            continue;
+        }
+        if centre < list.x || centre > list.x + list.width {
+            continue;
+        }
+        let (top, bottom) = (rect[1].max(list.y), rect[3].min(list.y + list.height));
+        let inside = (bottom - top) / height;
+        if inside > 0.0 && best.is_none_or(|(most, _, _)| inside > most) {
+            best = Some((inside, top, bottom));
+        }
+    }
+    match best {
+        Some((inside, top, bottom)) => (
+            [rect[0], top, rect[2], bottom],
+            opacity * (2.0 * inside - 1.0).clamp(0.0, 1.0),
+        ),
+        None => (rect, opacity),
     }
 }
 
@@ -53,4 +97,47 @@ fn warn_overflow() {
     ONCE.call_once(|| {
         eprintln!("dbm: more than {MAX_PANELS} glass panels on screen; the rest get none");
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::within_list;
+    use crate::ScrollFade;
+
+    /// A list from y 100 to 300, as wide as its rows' washes.
+    fn list() -> slint::VecModel<ScrollFade> {
+        slint::VecModel::from(vec![ScrollFade {
+            x: 40.0,
+            y: 100.0,
+            width: 300.0,
+            height: 200.0,
+            ..Default::default()
+        }])
+    }
+
+    #[test]
+    fn a_row_inside_its_list_keeps_its_pane() {
+        let rect = [40.0, 150.0, 340.0, 184.0];
+        assert_eq!(within_list(rect, 1.0, &list()), (rect, 1.0));
+    }
+
+    #[test]
+    fn a_row_half_out_of_its_list_has_no_pane_left() {
+        let (cut, opacity) = within_list([40.0, 83.0, 340.0, 117.0], 1.0, &list());
+        assert_eq!(cut, [40.0, 100.0, 340.0, 117.0]);
+        assert_eq!(opacity, 0.0);
+    }
+
+    #[test]
+    fn a_row_leaving_its_list_fades_as_it_goes() {
+        let (cut, opacity) = within_list([40.0, 275.0, 340.0, 309.0], 0.5, &list());
+        assert_eq!(cut[3], 300.0);
+        assert!(opacity > 0.0 && opacity < 0.5, "{opacity}");
+    }
+
+    #[test]
+    fn a_row_outside_every_list_is_left_whole() {
+        let rect = [40.0, 40.0, 340.0, 74.0];
+        assert_eq!(within_list(rect, 1.0, &list()), (rect, 1.0));
+    }
 }

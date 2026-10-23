@@ -655,3 +655,151 @@ msgstr "Från början"
 msgctxt "MainWindow"
 msgid "Continue from {}"
 msgstr "Fortsätt från {}"
+
+msgctxt "MenuRow"
+msgid "Press again to remove"
+msgstr "Tryck igen för att ta bort"
+
+msgctxt "player"
+msgid "Blur"
+msgstr "Oskärpa"
+
+msgctxt "player"
+msgid "Refraction"
+msgstr "Ljusbrytning"
+
+msgctxt "player"
+msgid "Dispersion"
+msgstr "Dispersion"
+
+msgctxt "player"
+msgid "Edge light"
+msgstr "Kantljus"
+
+msgctxt "player"
+msgid "Tint"
+msgstr "Toning"
+
+msgctxt "player"
+msgid "Dimming"
+msgstr "Dämpning"
+
+msgctxt "player"
+msgid "Shadow"
+msgstr "Skugga"
+
+msgctxt "player"
+msgid "Edge blur"
+msgstr "Kantoskärpa"
+
+msgctxt "player"
+msgid "Spread"
+msgstr "Spridning"
+
+msgctxt "player"
+msgid "Falloff"
+msgstr "Avtoning"
+
+msgctxt "player"
+msgid "Softness"
+msgstr "Mjukhet"
+
+msgctxt "MainWindow"
+msgid "Darken bright glass"
+msgstr "Tona ner ljust glas"
+
+msgctxt "MainWindow"
+msgid "Space"
+msgstr "Blanksteg"
+
+msgctxt "MainWindow"
+msgid "Shift+← →"
+msgstr "Skift+← →"
+
+msgctxt "MainWindow"
+msgid "Home"
+msgstr "Home"
+
+msgctxt "MainWindow"
+msgid "Ctrl+← →"
+msgstr "Ctrl+← →"
+
+msgctxt "MainWindow"
+msgid "PgUp PgDn"
+msgstr "PgUp PgDn"
+
+msgctxt "MainWindow"
+msgid "Backspace"
+msgstr "Backsteg"
+
+msgctxt "MainWindow"
+msgid "Z / Shift+Z"
+msgstr "Z / Skift+Z"
+
+msgctxt "MainWindow"
+msgid "J / Shift+J"
+msgstr "J / Skift+J"
+
+msgctxt "MainWindow"
+msgid "Home End"
+msgstr "Home End"
+
+msgctxt "MainWindow"
+msgid "Tab"
+msgstr "Tabb"
+
+msgctxt "MainWindow"
+msgid "Enter / ← →"
+msgstr "Retur / ← →"
+
+msgctxt "MainWindow"
+msgid "Esc"
+msgstr "Esc"
+
+msgctxt "MainWindow"
+msgid "Delete"
+msgstr "Delete"
+
+msgctxt "MainWindow"
+msgid "Ctrl+O"
+msgstr "Ctrl+O"
+
+msgctxt "MainWindow"
+msgid "Ctrl+Shift+O"
+msgstr "Ctrl+Skift+O"
+
+msgctxt "MainWindow"
+msgid "Ctrl+←"
+msgstr "Ctrl+←"
+
+msgctxt "MainWindow"
+msgid "Ctrl+→"
+msgstr "Ctrl+→"
+
+msgctxt "player"
+msgid "The player cannot show video on this computer."
+msgstr "Spelaren kan inte visa video på den här datorn."
+
+msgctxt "player"
+msgid "Slint gave the player a renderer that is not OpenGL. The film and the glass are both drawn through OpenGL, so neither can be drawn without it."
+msgstr "Slint gav spelaren en renderare som inte är OpenGL. Både filmen och glaset ritas med OpenGL, så inget av dem kan ritas utan det."
+
+msgctxt "player"
+msgid "Updating the graphics driver is the usual fix."
+msgstr "Oftast hjälper det att uppdatera grafikdrivrutinen."
+
+msgctxt "player"
+msgid "The graphics driver would not build the player's shaders. {}"
+msgstr "Grafikdrivrutinen ville inte bygga spelarens shaders. {}"
+
+msgctxt "player"
+msgid "If the driver is current, this is a bug in the player."
+msgstr "Om drivrutinen är aktuell är det här ett fel i spelaren."
+
+msgctxt "player"
+msgid "mpv could not attach to the player's graphics context. {}"
+msgstr "mpv kunde inte ansluta till spelarens grafikkontext. {}"
+
+msgctxt "MenuRow"
+msgid "Remove?"
+msgstr "Ta bort?"

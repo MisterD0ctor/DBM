@@ -67,6 +67,9 @@ impl Way {
             // Tinted, as every other piece of the interface's glass is.
             tint_alpha: 1.0,
             opacity: self.on.clamp(0.0, 1.0),
+            // Drawn over the rows on its own, so its shadow falls on them.
+            nested: false,
+            ring: false,
         };
         (pane, self.clip)
     }

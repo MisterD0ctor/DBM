@@ -341,7 +341,7 @@ msgstr "Abriendo {}…"
 
 msgctxt "MainWindow"
 msgid "Or drop a file or folder onto the window"
-msgstr "O suelta un archivo o una carpeta en la ventana"
+msgstr "O suelta aquí un archivo o una carpeta"
 
 msgctxt "MainWindow"
 msgid "Open a file or folder"
@@ -658,3 +658,151 @@ msgstr "Desde el principio"
 msgctxt "MainWindow"
 msgid "Continue from {}"
 msgstr "Continuar desde {}"
+
+msgctxt "MenuRow"
+msgid "Press again to remove"
+msgstr "Pulsa de nuevo para quitar"
+
+msgctxt "player"
+msgid "Blur"
+msgstr "Desenfoque"
+
+msgctxt "player"
+msgid "Refraction"
+msgstr "Refracción"
+
+msgctxt "player"
+msgid "Dispersion"
+msgstr "Dispersión"
+
+msgctxt "player"
+msgid "Edge light"
+msgstr "Luz de borde"
+
+msgctxt "player"
+msgid "Tint"
+msgstr "Tinte"
+
+msgctxt "player"
+msgid "Dimming"
+msgstr "Atenuación"
+
+msgctxt "player"
+msgid "Shadow"
+msgstr "Sombra"
+
+msgctxt "player"
+msgid "Edge blur"
+msgstr "Borde difuso"
+
+msgctxt "player"
+msgid "Spread"
+msgstr "Extensión"
+
+msgctxt "player"
+msgid "Falloff"
+msgstr "Caída"
+
+msgctxt "player"
+msgid "Softness"
+msgstr "Suavidad"
+
+msgctxt "MainWindow"
+msgid "Darken bright glass"
+msgstr "Oscurecer el cristal claro"
+
+msgctxt "MainWindow"
+msgid "Space"
+msgstr "Espacio"
+
+msgctxt "MainWindow"
+msgid "Shift+← →"
+msgstr "Mayús+← →"
+
+msgctxt "MainWindow"
+msgid "Home"
+msgstr "Inicio"
+
+msgctxt "MainWindow"
+msgid "Ctrl+← →"
+msgstr "Ctrl+← →"
+
+msgctxt "MainWindow"
+msgid "PgUp PgDn"
+msgstr "RePág AvPág"
+
+msgctxt "MainWindow"
+msgid "Backspace"
+msgstr "Retroceso"
+
+msgctxt "MainWindow"
+msgid "Z / Shift+Z"
+msgstr "Z / Mayús+Z"
+
+msgctxt "MainWindow"
+msgid "J / Shift+J"
+msgstr "J / Mayús+J"
+
+msgctxt "MainWindow"
+msgid "Home End"
+msgstr "Inicio Fin"
+
+msgctxt "MainWindow"
+msgid "Tab"
+msgstr "Tab"
+
+msgctxt "MainWindow"
+msgid "Enter / ← →"
+msgstr "Intro / ← →"
+
+msgctxt "MainWindow"
+msgid "Esc"
+msgstr "Esc"
+
+msgctxt "MainWindow"
+msgid "Delete"
+msgstr "Supr"
+
+msgctxt "MainWindow"
+msgid "Ctrl+O"
+msgstr "Ctrl+O"
+
+msgctxt "MainWindow"
+msgid "Ctrl+Shift+O"
+msgstr "Ctrl+Mayús+O"
+
+msgctxt "MainWindow"
+msgid "Ctrl+←"
+msgstr "Ctrl+←"
+
+msgctxt "MainWindow"
+msgid "Ctrl+→"
+msgstr "Ctrl+→"
+
+msgctxt "player"
+msgid "The player cannot show video on this computer."
+msgstr "El reproductor no puede mostrar vídeo en este ordenador."
+
+msgctxt "player"
+msgid "Slint gave the player a renderer that is not OpenGL. The film and the glass are both drawn through OpenGL, so neither can be drawn without it."
+msgstr "Slint dio al reproductor un renderizador que no es OpenGL. La película y el cristal se dibujan con OpenGL, así que sin él no se puede dibujar ninguno de los dos."
+
+msgctxt "player"
+msgid "Updating the graphics driver is the usual fix."
+msgstr "Lo habitual es que se arregle actualizando el controlador gráfico."
+
+msgctxt "player"
+msgid "The graphics driver would not build the player's shaders. {}"
+msgstr "El controlador gráfico no quiso compilar los shaders del reproductor. {}"
+
+msgctxt "player"
+msgid "If the driver is current, this is a bug in the player."
+msgstr "Si el controlador está al día, es un fallo del reproductor."
+
+msgctxt "player"
+msgid "mpv could not attach to the player's graphics context. {}"
+msgstr "mpv no pudo engancharse al contexto gráfico del reproductor. {}"
+
+msgctxt "MenuRow"
+msgid "Remove?"
+msgstr "¿Quitar?"

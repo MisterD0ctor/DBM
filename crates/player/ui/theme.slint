@@ -54,11 +54,11 @@ export global Motion {
 export global Paint {
     // --- text and glyphs ------------------------------------------------------
     //
-    // A ladder of five steps 0x20 apart, since any closer and they stop
-    // reading as a hierarchy over moving video. It is built up from `dim`,
-    // which sets the worst-case contrast over a bright frame: 0x80, 0xa0,
-    // 0xc0, 0xe0, and `lit` at 0xff because eight bits have no 0x100. Don't
-    // widen that short top step by lowering `strong`; it would cost a real step.
+    // Every word is on one of two steps, Lit or the one Strong and Body share,
+    // because the glass is held dark enough for the lowest step of text to
+    // read on it over a bright frame (see `legible_ceiling`), and a dimmer
+    // step held it darker than the glass should look. Below them, Quiet is for
+    // marks and Dim for a glyph with nowhere to go, and neither is ever text.
     //
     // Roles that already differ by place, case, size or tracking share a step
     // rather than get a near-copy of one.
@@ -71,14 +71,15 @@ export global Paint {
     /// Text that leads: the media title, times and values, a fatal headline,
     /// and a resume measure's fill.
     out property <color> strong: #ffffffe0;
-    /// Row labels, section headings, a show's name, a row's icon. On Strong's
-    /// step because it is the text there is most of, and a step lower read
-    /// grey over a bright frame.
+    /// Every other word: row labels, section headings, a show's name, a row's
+    /// icon, and what sits beside or under them, such as a shortcut's keys, a
+    /// row's running time and the prose hints. The lowest step of text, which
+    /// the glass's ceiling is worked out from.
     out property <color> body: #ffffffe0;
-    /// Beside or under something else: a shortcut's keys, a row's running
-    /// time, prose hints, a scroll thumb.
+    /// A mark on or beside a track: a chapter's dot ahead of the played
+    /// length, the volume's unity dot off the fill, a scroll thumb.
     out property <color> quiet: #ffffffa0;
-    /// A bar button with nowhere to go. The floor.
+    /// A bar button with nowhere to go, the one mark meant to look greyed out.
     out property <color> dim: #ffffff80;
 
     // --- marks ------------------------------------------------------------------
@@ -97,13 +98,17 @@ export global Paint {
 
     // --- washes -----------------------------------------------------------------
     //
-    // The two a row can wear are 0x20 apart, like the text steps. Any closer
-    // and, over moving video, hover and focus look alike and nothing shows
-    // which row Enter will press.
+    // The pointer's, an open panel's and the keyboard's are 0x20 apart, like
+    // the text steps. Any closer and, over moving video, hover and focus look
+    // alike and nothing shows which row Enter will press.
 
-    /// Where the keyboard is, a button whose panel is open, a hovered stepper
-    /// disc. A wash rather than a ring, because nothing else in the interface
-    /// draws an outline.
+    /// Where the keyboard is, on a row or a pill's choice. A wash rather than
+    /// a ring, because nothing else in the interface draws an outline; on a
+    /// bar button it also stands on a disc of glass of its own.
+    out property <color> wash-ring: #ffffff54;
+    /// A button whose panel is open, a hovered stepper disc. A step under the
+    /// ring's, so the button a panel came from and the keyboard's place can't
+    /// be taken for each other.
     out property <color> wash-strong: #ffffff34;
     /// A hovered icon button, or a choice on the end-of-file pill. Never on a
     /// row, so it never has to be told apart from the row washes.

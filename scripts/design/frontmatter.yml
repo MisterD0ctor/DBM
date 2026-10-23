@@ -11,6 +11,7 @@ colors:
   rail: "{{ Paint.rail }}"
   knob: "{{ Paint.knob }}"
   ground: "{{ Paint.ground }}"
+  wash-ring: "{{ Paint.wash-ring }}"
   wash-strong: "{{ Paint.wash-strong }}"
   wash-button: "{{ Paint.wash-button }}"
   wash-soft: "{{ Paint.wash-soft }}"
@@ -80,7 +81,7 @@ components:
   icon-button-open:
     backgroundColor: "{colors.wash-strong}"
   icon-button-focus:
-    backgroundColor: "{colors.wash-strong}"
+    backgroundColor: "{colors.wash-ring}"
   icon-button-disabled:
     textColor: "{colors.dim}"
   control-pill:
@@ -108,7 +109,7 @@ components:
     backgroundColor: "{colors.wash-soft}"
     rounded: "{rounded.row}"
   menu-row-focus:
-    backgroundColor: "{colors.wash-strong}"
+    backgroundColor: "{colors.wash-ring}"
     rounded: "{rounded.row}"
   menu-row-active:
     textColor: "{colors.lit}"
