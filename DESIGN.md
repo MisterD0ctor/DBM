@@ -92,9 +92,14 @@ components:
   button-row:
     height: "48px"  # MainWindow.pill-h
     padding: "4px"  # MainWindow.pill-pad
+  window-buttons:
+    height: "30px"  # MainWindow.window-pane-h
+    rounded: "15px"  # MainWindow.window-pane-h / 2
+    padding: "3px"  # MainWindow.window-btn-pad
+    backgroundColor: "transparent"
   window-button:
-    size: "26px"  # MainWindow.window-btn
-    rounded: "13px"  # MainWindow.window-btn / 2
+    size: "24px"  # MainWindow.window-btn
+    rounded: "12px"  # MainWindow.window-btn / 2
     textColor: "{colors.lit}"
     backgroundColor: "transparent"
   window-button-hover:
@@ -522,11 +527,10 @@ opens on that same line, `Rows.offset` above the bar; the seek preview floats
 just above it.
 
 **The window has no frame.** The film runs to its edges, the picture is what
-drags it, and its buttons are its own: Minimize, Maximize and Close, each a
-small disc of glass (`MainWindow.window-btn`), `MainWindow.pill-gap` apart and
-`MainWindow.window-btn-margin` from the window's top and side. A title bar
-would be a strip of the desktop's chrome across the top of every film, in a
-material that isn't glass.
+drags it, and its buttons are its own: Minimize, Maximize and Close on one
+small pane of glass, `MainWindow.window-btn-margin` from the window's top and
+side. A title bar would be a strip of the desktop's chrome across the top of
+every film, in a material that isn't glass.
 
 **The middle of the picture** belongs to things that are about the film rather
 than controls for it: the action flash, the end-of-file pill and the choice at
@@ -863,11 +867,16 @@ by under a pixel at the corner.
   flash.
 
 ### The window's buttons
-- **Shape:** the disc is the button: `MainWindow.window-btn` across, its glyph
-  at `IconButton.glyph`, and the Button wash filling it under the pointer.
-  Smaller than the bar's buttons, because none of the three is pressed often
-  and they are over the picture whenever the chrome is. Three discs rather
-  than one capsule, because the three do unrelated things.
+- **Shape:** one capsule of glass, `MainWindow.window-btn-pad` round three
+  buttons `MainWindow.window-btn` across and `MainWindow.window-btn-gap` apart,
+  its ends concentric with the end buttons as the bar's corners are with its
+  own. One pane, as the bar is one, so the three read as one object rather
+  than three beads, and a click on the glass between them stops there rather
+  than pausing the film.
+- **A button is its disc:** its glyph at `IconButton.glyph`, and the Button
+  wash filling it under the pointer. Smaller than the bar's buttons, because
+  none of the three is pressed often and they are over the picture whenever
+  the chrome is.
 - **Shown** with the chrome, on its fade and rise, and always over an empty
   window, which has no film to keep clear. Never in fullscreen, where the film
   has the whole screen and Esc is the way out.

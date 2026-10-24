@@ -91,6 +91,11 @@ components:
   button-row:
     height: "{{ MainWindow.pill-h }}"
     padding: "{{ MainWindow.pill-pad }}"
+  window-buttons:
+    height: "{{ MainWindow.window-pane-h }}"
+    rounded: "{{ MainWindow.window-pane-h / 2 }}"
+    padding: "{{ MainWindow.window-btn-pad }}"
+    backgroundColor: "transparent"
   window-button:
     size: "{{ MainWindow.window-btn }}"
     rounded: "{{ MainWindow.window-btn / 2 }}"

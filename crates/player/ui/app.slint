@@ -993,22 +993,28 @@ export component MainWindow inherits Window {
 
     // --- the window's own buttons -------------------------------------------
     //
-    // Minimize, maximize and close, each a small disc of glass that is the
-    // button itself, in the window's top corner at its own margins and a
-    // pill's gap apart.
+    // Minimize, maximize and close on one small pane of glass, in the
+    // window's top corner at its own margins.
     property <length> window-btn-margin: 10px;
-    property <length> window-btn: 26px;
-    property <length> window-btn-y: root.window-btn-margin;
-    property <length> window-btn-step: root.window-btn + root.pill-gap;
-    /// The first of them, minimize, so that close is the one at the margin.
-    property <length> window-btn-x: root.width - root.window-btn-margin
-        - root.window-btn - 2 * root.window-btn-step;
+    property <length> window-btn: 24px;
+    property <length> window-btn-gap: root.btn-gap;
+    /// The glass round the buttons. The pane's corner is theirs plus this, so
+    /// the end buttons sit concentric in its ends.
+    property <length> window-btn-pad: 3px;
+    property <length> window-btn-step: root.window-btn + root.window-btn-gap;
+    property <length> window-pane-w: 2 * root.window-btn-pad + root.window-btn
+        + 2 * root.window-btn-step;
+    property <length> window-pane-h: 2 * root.window-btn-pad + root.window-btn;
+    /// At the margin, so that close is the button nearest the corner.
+    property <length> window-pane-x: root.width - root.window-btn-margin
+        - root.window-pane-w;
+    property <length> window-pane-y: root.window-btn-margin;
     /// An open panel tall enough to reach their row, in their column, puts
     /// them away, since it was asked for and they weren't.
     property <bool> window-crowded: root.panel-open
         && root.bar-top - root.panel-h - Rows.offset
-            < root.window-btn-y + root.window-btn + Rows.offset
-        && root.panel-x + root.panel-w + Rows.offset > root.window-btn-x;
+            < root.window-pane-y + root.window-pane-h + Rows.offset
+        && root.panel-x + root.panel-w + Rows.offset > root.window-pane-x;
 
     // --- end of playback ---
     //
@@ -1970,32 +1976,14 @@ export component MainWindow inherits Window {
             tint: 1.0,
             radius: root.panel-radius,
         },
-        // The window's own buttons, a disc each.
+        // The window's own buttons, on one pane.
         {
-            x: root.window-btn-x,
-            y: root.window-btn-y + root.window-rise,
-            width: root.window-shown > root.shown-epsilon ? root.window-btn : 0,
-            height: root.window-shown > root.shown-epsilon ? root.window-btn : 0,
+            x: root.window-pane-x,
+            y: root.window-pane-y + root.window-rise,
+            width: root.window-shown > root.shown-epsilon ? root.window-pane-w : 0,
+            height: root.window-shown > root.shown-epsilon ? root.window-pane-h : 0,
             opacity: root.window-shown,
-            radius: root.window-btn / 2,
-            tint: 1.0,
-        },
-        {
-            x: root.window-btn-x + root.window-btn-step,
-            y: root.window-btn-y + root.window-rise,
-            width: root.window-shown > root.shown-epsilon ? root.window-btn : 0,
-            height: root.window-shown > root.shown-epsilon ? root.window-btn : 0,
-            opacity: root.window-shown,
-            radius: root.window-btn / 2,
-            tint: 1.0,
-        },
-        {
-            x: root.window-btn-x + 2 * root.window-btn-step,
-            y: root.window-btn-y + root.window-rise,
-            width: root.window-shown > root.shown-epsilon ? root.window-btn : 0,
-            height: root.window-shown > root.shown-epsilon ? root.window-btn : 0,
-            opacity: root.window-shown,
-            radius: root.window-btn / 2,
+            radius: root.window-pane-h / 2,
             tint: 1.0,
         },
         // The disc under the ring (see `ring-disc`). After the bar, since a
@@ -2165,7 +2153,7 @@ export component MainWindow inherits Window {
 
     title: "Death by MPV";
     // No frame: the film runs to the window's edges, the window's buttons
-    // are its own (`window-btn-x`), and the picture is what drags it
+    // are its own (`window-pane-x`), and the picture is what drags it
     // (`video-surface`).
     no-frame: true;
     // The edge a frame would have given to take hold of. None while
@@ -5597,15 +5585,24 @@ export component MainWindow inherits Window {
     }
     // --- the window's own buttons -------------------------------------------
     Rectangle {
-        x: root.window-btn-x;
-        y: root.window-btn-y + root.window-rise;
-        width: root.window-btn + 2 * root.window-btn-step;
-        height: root.window-btn;
+        x: root.window-pane-x;
+        y: root.window-pane-y + root.window-rise;
+        width: root.window-pane-w;
+        height: root.window-pane-h;
         visible: root.window-shown > root.shown-epsilon;
         opacity: root.window-shown;
 
+        // Under the buttons, so a click on the glass between them doesn't
+        // reach the film.
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.pointed(event.kind == PointerEventKind.down);
+            }
+        }
+
         IconButton {
-            x: 0;
+            x: root.window-btn-pad;
+            y: root.window-btn-pad;
             width: root.window-btn;
             height: root.window-btn;
             icon: @image-url("../../../public/icons/minimize.svg");
@@ -5617,7 +5614,8 @@ export component MainWindow inherits Window {
             }
         }
         IconButton {
-            x: root.window-btn-step;
+            x: root.window-btn-pad + root.window-btn-step;
+            y: root.window-btn-pad;
             width: root.window-btn;
             height: root.window-btn;
             icon: root.maximized
@@ -5629,7 +5627,8 @@ export component MainWindow inherits Window {
             }
         }
         IconButton {
-            x: 2 * root.window-btn-step;
+            x: root.window-btn-pad + 2 * root.window-btn-step;
+            y: root.window-btn-pad;
             width: root.window-btn;
             height: root.window-btn;
             icon: @image-url("../../../public/icons/close.svg");
