@@ -71,6 +71,13 @@ jobs:
     build:
         name: Windows
         runs-on: windows-latest
+        # The OpenSubtitles key the shipped player identifies itself with (see
+        # crates/player/keys/). Set for the whole job, so lint, build and test
+        # all compile the same crate and none of them redoes another's work.
+        # A pull request from a fork gets no secrets, and its build simply has
+        # no search.
+        env:
+            DBM_OPENSUBTITLES_KEY: ${{ secrets.OPENSUBTITLES }}
 
         steps:
             - uses: actions/checkout@v4
