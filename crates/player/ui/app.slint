@@ -5728,9 +5728,11 @@ export component MainWindow inherits Window {
                 }
             }
             panscan-button := IconButton {
+                // What a press does, as fullscreen's glyph is: filling while
+                // the picture fits, fitting while it fills.
                 icon: root.panscan
-                    ? @image-url("../../../public/icons/panscan-on.svg")
-                    : @image-url("../../../public/icons/panscan-off.svg");
+                    ? @image-url("../../../public/icons/panscan-off.svg")
+                    : @image-url("../../../public/icons/panscan-on.svg");
                 // Names the direction it will go, which the shortcuts list,
                 // covering both in one row, can't.
                 tip: root.panscan ? @tr("Fit the window") : @tr("Fill the window");

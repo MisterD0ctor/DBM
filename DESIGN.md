@@ -835,7 +835,9 @@ by under a pixel at the corner.
   wash behind an engaged button makes the state read as chrome.
   **A button's state is its glyph, never its brightness**: every glyph on the
   bar is Lit, and Mute muted or Fullscreen on say so by the mark they wear,
-  which their tips name.
+  which their tips name. Mute wears the state it is in, as a speaker does
+  everywhere; Fullscreen and panscan wear the one a press goes to, as a
+  fullscreen button does everywhere.
 - **Open:** a held Strong wash for as long as the panel it opened is showing — a
   step under the ring's, so the two never share one highlight.
   A button that opens something does not also show a state, because a glyph
