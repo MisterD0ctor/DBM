@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-24T13:47:05Z",
+  "generatedAt": "2026-10-24T17:36:49Z",
   "title": "Design System: Death by MPV",
   "extensions": {
     "colorMeta": {
@@ -335,7 +335,7 @@
         "cornerSoftness": 1.25,
         "refract": 1,
         "ior": 2,
-        "aberration": 0.2,
+        "aberration": 0.1,
         "rim": 0.2,
         "tint": 0,
         "absorb": 0.5,

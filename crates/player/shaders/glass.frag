@@ -103,13 +103,18 @@ uniform float u_refract;
 /// Index of refraction. 1.0 bends nothing, 1.33 water, 1.5 window glass,
 /// 1.8 flint, 2.4 diamond. Higher bends harder.
 uniform float u_ior;
-/// How strongly the index of refraction varies with wavelength, as dispersive
-/// power: the spread of the index between the F and C lines as a fraction of
-/// (n_d - 1). That is the reciprocal of the Abbe number, which is how glass
-/// is actually specified. Real glasses run from about 1/70 for crown to 1/20
-/// for dense flint; this goes well past that, since here the fringe is meant
-/// to be seen.
+/// How strongly the index of refraction varies with wavelength, 0..1, as a
+/// share of the most it can: at 1 the band's red end, `LAMBDA_MAX`, is at an
+/// index of exactly 1, so every wavelength still bends and none is clamped.
+/// As dispersive power, the reciprocal of the Abbe number glass is specified
+/// by, that top is about 2.16, where real glass runs from 1/70 for crown to
+/// 1/20 for dense flint: here the fringe is meant to be seen. That is the
+/// fringe at the default blur; see `u_fringe_scale`.
 uniform float u_aberration;
+/// How far each wavelength's ray is moved off the d line's, against what
+/// `u_aberration` alone gives: in step with how wide the blurred backdrop's
+/// edges are, which a fringe is seen against (see `pipeline::fringe_scale`).
+uniform float u_fringe_scale;
 uniform vec3 u_tint;
 /// Global tint strength. The per-panel value in `u_panel_style` says whether
 /// a panel takes tint at all; this says how much, and is the slider.
@@ -296,10 +301,6 @@ const float LAMBDA_MAX = 0.705;
 
 /// 1/lambda^2 at the sodium d line, 587.6nm — where `u_ior` is the index.
 const float INV_D2 = 2.896647;
-/// 1/lambda_F^2 - 1/lambda_C^2, the hydrogen F and C lines at 486.1 and
-/// 656.3nm. Dispersive power is measured across those two, so this is what
-/// turns `u_aberration` into Cauchy's B.
-const float INV_FC = 1.910389;
 
 /// Running integral of the weight curve, at each bin edge.
 ///
@@ -611,9 +612,14 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // direction, and how far the ray descends, in pixels.
     vec2 reach = -box_normal * height * thickness;
 
-    // Dispersion. Cauchy's B from the dispersive power, and the two ends of
-    // the band from it — violet has the highest index and lands furthest in.
-    float cauchy_b = u_aberration * (ior - 1.0) / INV_FC;
+    // Dispersion. Cauchy's B as the slider's share of the most there can be,
+    // which brings the band's red end down to an index of 1, and the two ends
+    // of the band from it — violet has the highest index and lands furthest
+    // in. Each wavelength's ray is the d line's, moved by its own difference
+    // from it scaled with the blur, rather than a scaled B, which would take
+    // red's index under 1.
+    float cauchy_b = u_aberration * (ior - 1.0) / (INV_D2 - 1.0 / (LAMBDA_MAX * LAMBDA_MAX));
+    float ratio_d = transmit_ratio(slope, slope2, ior);
     float ratio_violet = transmit_ratio(slope, slope2, index_at(LAMBDA_MIN, ior, cauchy_b));
     float ratio_red = transmit_ratio(slope, slope2, index_at(LAMBDA_MAX, ior, cauchy_b));
 
@@ -621,13 +627,15 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // are worth taking. Under a pixel there is nothing to resolve and the
     // d-line ray is the answer, as across every flat middle, where the slope
     // and every offset are zero. Past that, about one wavelength per pixel of
-    // smear, since fewer would show as bands.
-    float spread = length(reach) * abs(ratio_violet - ratio_red);
-    int bands = int(clamp(ceil(spread), 1.0, float(budget)));
+    // smear, since fewer would show as bands, or per as many pixels as the
+    // fringe is widened: over edges that much wider, neighbouring wavelengths
+    // land on that much more alike values.
+    float spread = length(reach) * abs(ratio_violet - ratio_red) * u_fringe_scale;
+    int bands = int(clamp(ceil(spread / max(u_fringe_scale, 1.0)), 1.0, float(budget)));
 
     vec3 refracted;
     if (bands <= 1) {
-        refracted = blur_at(uv + reach * transmit_ratio(slope, slope2, ior) / u_size);
+        refracted = blur_at(uv + reach * ratio_d / u_size);
     } else {
         refracted = vec3(0.0);
         float width = (LAMBDA_MAX - LAMBDA_MIN) / float(bands);
@@ -643,7 +651,8 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
             vec3 share = upto - below;
             below = upto;
             float n = index_at(start + dither * width, ior, cauchy_b);
-            refracted += share * blur_at(uv + reach * transmit_ratio(slope, slope2, n) / u_size);
+            float ratio = ratio_d + (transmit_ratio(slope, slope2, n) - ratio_d) * u_fringe_scale;
+            refracted += share * blur_at(uv + reach * ratio / u_size);
         }
         // Out of gamut comes out negative; see dispersion, above.
         refracted = max(refracted, vec3(0.0));

@@ -669,14 +669,21 @@ not on the glass page, since they are what keeps a pane there at all.
 function of wavelength (Cauchy's law, anchored so the index above is the one
 at the sodium d line), and the transmitted colour is integrated across the
 visible band under the CIE 1931 observer and D65 — the illuminant sRGB white
-already is. The Dispersion slider is dispersive power, the reciprocal of an Abbe
-number. One offset scaled three ways reads as a coloured edge while subtle
-and as three coloured copies past a pixel or two, so the band is sampled as
-finely as the smear is wide: one wavelength across the flat middle of every
-panel, where the slope and so the spread are zero, up to twenty four at the
-rim. Each sample's weight is its exact share of the curve, so a flat backdrop
-comes through white at any count. At Dispersion 0 it is a single ray, to
-within 1/255.
+already is. The Dispersion slider runs to the most the glass can disperse with
+every wavelength still bending: at 1 the band's red end, 705nm, is at an index
+of exactly 1, a dispersive power of about 2.16 (an Abbe number of 0.46, where
+dense flint is 20). That is at the default blur. A fringe is seen against the
+edges it splits, so
+at any other blur each wavelength's ray is moved off the d line's in step with
+how wide the blurred backdrop's edges are (`pipeline::fringe_scale`): the same
+setting is the same look at any blur, a perceptual slider rather than a
+physical one. One offset scaled three ways reads as a coloured edge while
+subtle and as three coloured copies past a pixel or two, so the band is sampled
+as finely as the smear is wide against those edges: one wavelength across the
+flat middle of every panel, where the slope and so the spread are zero, up to
+twenty four at the rim. Each sample's weight is its exact share of the curve,
+so a flat backdrop comes through white at any count. At Dispersion 0 it is a
+single ray, to within 1/255.
 
 Fading a surface in fades its glass with it: opacity scales the shader's
 coverage, so a panel arriving at a third of its opacity refracts a third as

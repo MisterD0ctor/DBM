@@ -330,7 +330,7 @@
     "material": {
       "note": "The glass and ambient-border values as the code ships them (gpu/pipeline.rs). Not expressible as Stitch tokens: they are shader uniforms. Most are sliders on the settings panel's glass and ambient-border pages; bevel and ior are constants and deliberately not adjustable (see `fixed` below).",
       "glass": {
-        "blurSigma": "{{ pipeline.GlassParams.blur_sigma }}",
+        "blurSigma": "{{ pipeline.DEFAULT_BLUR }}",
         "bevel": "{{ pipeline.BEVEL }}",
         "cornerSoftness": "{{ pipeline.CORNER_SOFTNESS }}",
         "refract": "{{ pipeline.GlassParams.refract }}",

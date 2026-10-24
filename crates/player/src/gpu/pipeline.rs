@@ -99,10 +99,12 @@ pub struct GlassParams {
     /// backdrop, so it scales how strongly the rim displaces what is behind
     /// it.
     pub refract: f32,
-    /// Dispersive power: how far the index of refraction spreads across the
-    /// visible band, as (n_F - n_C) / (n_d - 1), the reciprocal of the Abbe
-    /// number. The shader integrates the transmitted ray over wavelength with
-    /// it, so this is the width of the prismatic fringe.
+    /// How dispersive the glass is, 0..1: a share of the most it can be with
+    /// every visible wavelength still bending, where the band's red end meets
+    /// an index of 1 (a dispersive power of about 2.16, whatever the index).
+    /// The shader integrates the transmitted ray over wavelength with it, so
+    /// this is the width of the prismatic fringe at the default blur, and in
+    /// step with the blur at any other (see [`fringe_scale`]).
     pub aberration: f32,
     /// How strongly the rim light shows: white added round each pane's
     /// outermost edge, where the surface has turned past 45 degrees. Zero
@@ -201,13 +203,28 @@ fn luminance(encoded: f32) -> f32 {
     }
 }
 
+/// The Blur slider's default, and the blur at which Dispersion is the glass's
+/// own dispersive power; see [`fringe_scale`].
+const DEFAULT_BLUR: f32 = 3.0;
+
+/// How much wider the dispersion fringe is drawn than the dispersive power
+/// alone makes it, over a backdrop blurred by `sigma`.
+///
+/// A fringe is seen against the edges it splits, so it widens in step with
+/// them: their width here, √(σ² + 1px²), over their width at the default blur.
+/// Dispersion is then one look at any blur.
+pub fn fringe_scale(sigma: f32) -> f32 {
+    let edge = |s: f32| (s * s + 1.0).sqrt();
+    edge(sigma.max(0.0)) / edge(DEFAULT_BLUR)
+}
+
 impl Default for GlassParams {
     fn default() -> Self {
         Self {
-            blur_sigma: 3.0,
+            blur_sigma: DEFAULT_BLUR,
             // The glass is as thick as the rim is wide; see `BEVEL`.
             refract: 1.0,
-            aberration: 0.2,
+            aberration: 0.1,
             rim: 0.2,
             tint: [0.0, 0.0, 0.0],
             tint_amount: 0.0,
@@ -736,6 +753,8 @@ impl Pipeline {
         self.prog_glass.set_f32(gl, "u_refract", g.refract);
         self.prog_glass.set_f32(gl, "u_ior", IOR);
         self.prog_glass.set_f32(gl, "u_aberration", g.aberration);
+        self.prog_glass
+            .set_f32(gl, "u_fringe_scale", fringe_scale(g.blur_sigma));
         self.prog_glass.set_vec3(gl, "u_tint", g.tint);
         self.prog_glass.set_f32(gl, "u_tint_amount", g.tint_amount);
         self.prog_glass.set_f32(gl, "u_absorb", g.absorb);
@@ -955,7 +974,17 @@ impl Pipeline {
 
 #[cfg(test)]
 mod tests {
-    use super::{legible_ceiling, luminance, stricter, LEGIBLE};
+    use super::{fringe_scale, legible_ceiling, luminance, stricter, DEFAULT_BLUR, LEGIBLE};
+
+    #[test]
+    fn the_fringe_is_the_glass_own_at_the_default_blur_and_widens_past_it() {
+        assert!((fringe_scale(DEFAULT_BLUR) - 1.0).abs() < 1e-6);
+        // Narrower under it, to a pixel's edge at no blur at all.
+        assert!((fringe_scale(0.0) - 1.0 / 10f32.sqrt()).abs() < 1e-6);
+        // And about in step with the blur well past it.
+        let wide = fringe_scale(100.0) / fringe_scale(50.0);
+        assert!((wide - 2.0).abs() < 0.01, "{wide}");
+    }
 
     /// The brightest 8-bit grey under a ceiling.
     fn grey_at(ceiling: f32) -> f32 {
