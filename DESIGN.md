@@ -522,9 +522,9 @@ line, `Rows.offset` above the timeline; the seek preview floats just above it.
 **The window has no frame.** The film runs to its edges, the picture is what
 drags it, and its buttons are its own: Minimize, Maximize and Close, each a
 small disc of glass (`MainWindow.window-btn`), `MainWindow.pill-gap` apart and
-`MainWindow.panel-margin` from the window's top and side, as the bar is from its
-bottom and sides. A title bar would be a strip of the desktop's chrome across
-the top of every film, in a material that isn't glass.
+`MainWindow.window-btn-margin` from the window's top and side. A title bar
+would be a strip of the desktop's chrome across the top of every film, in a
+material that isn't glass.
 
 **The middle of the picture** belongs to things that are about the film rather
 than controls for it: the action flash, the end-of-file pill and the choice at
