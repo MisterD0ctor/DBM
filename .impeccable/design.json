@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-24T17:36:49Z",
+  "generatedAt": "2026-10-24T16:27:23Z",
   "title": "Design System: Death by MPV",
   "extensions": {
     "colorMeta": {
@@ -419,7 +419,7 @@
       "kind": "input",
       "refersTo": "slider-row",
       "description": "A material parameter on the glass and ambient-border pages: a 30px row, a label in Body at Readout size in a column as wide as the widest name in the language spoken, and a 46px value right-aligned in Body. The track grows from 4px to 6px under the pointer; there is no hover wash, since the growing track already answers. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
-      "html": "<div class=\"ds-slider\"><span class=\"ds-slider-label\">Refraction</span><span class=\"ds-track\"><span class=\"ds-fill\"></span></span><span class=\"ds-slider-value\">1.00</span></div>",
+      "html": "<div class=\"ds-slider\"><span class=\"ds-slider-label\">Refraction</span><span class=\"ds-track\"><span class=\"ds-fill\"></span></span><span class=\"ds-slider-value\">0.50</span></div>",
       "css": ".ds-slider { height: 30px; width: 340px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 26px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 13px; font-weight: 500; color: #ffffff; } .ds-slider-label { width: 66px; } .ds-track { flex: 1; height: 4px; border-radius: 3px; background: #ffffff2e; transition: height 100ms ease-out; } .ds-slider:hover .ds-track { height: 6px; } .ds-fill { display: block; width: 50%; height: 100%; border-radius: inherit; background: #ffffffcc; } .ds-slider-value { width: 46px; text-align: right; color: #ffffff; }"
     },
     {
