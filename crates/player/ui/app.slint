@@ -954,13 +954,14 @@ export component MainWindow inherits Window {
     // --- the window's own buttons -------------------------------------------
     //
     // Minimize, maximize and close, each a small disc of glass that is the
-    // button itself, in the window's top corner at the bar's margins and a
+    // button itself, in the window's top corner at its own margins and a
     // pill's gap apart.
+    property <length> window-btn-margin: 10px;
     property <length> window-btn: 26px;
-    property <length> window-btn-y: root.panel-margin;
+    property <length> window-btn-y: root.window-btn-margin;
     property <length> window-btn-step: root.window-btn + root.pill-gap;
     /// The first of them, minimize, so that close is the one at the margin.
-    property <length> window-btn-x: root.width - root.panel-margin
+    property <length> window-btn-x: root.width - root.window-btn-margin
         - root.window-btn - 2 * root.window-btn-step;
     /// An open panel tall enough to reach their row, in their column, puts
     /// them away, since it was asked for and they weren't.
