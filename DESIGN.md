@@ -93,13 +93,13 @@ components:
     height: "48px"  # MainWindow.pill-h
     padding: "4px"  # MainWindow.pill-pad
   window-buttons:
-    height: "30px"  # MainWindow.window-pane-h
-    rounded: "15px"  # MainWindow.window-pane-h / 2
+    height: "34px"  # MainWindow.window-pane-h
+    rounded: "17px"  # MainWindow.window-pane-h / 2
     padding: "3px"  # MainWindow.window-btn-pad
     backgroundColor: "transparent"
   window-button:
-    size: "24px"  # MainWindow.window-btn
-    rounded: "12px"  # MainWindow.window-btn / 2
+    size: "28px"  # MainWindow.window-btn
+    rounded: "14px"  # MainWindow.window-btn / 2
     textColor: "{colors.lit}"
     backgroundColor: "transparent"
   window-button-hover:
