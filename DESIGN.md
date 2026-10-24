@@ -104,7 +104,7 @@ components:
     typography: "{typography.timecode}"
     backgroundColor: "transparent"
   timeline-time:
-    width: "60px"  # MainWindow.minutes-w
+    padding: "0 13px"  # MainWindow.glyph-inset
     textColor: "{colors.strong}"
     typography: "{typography.timecode}"
   menu-row:
@@ -860,10 +860,11 @@ by under a pixel at the corner.
 ### Timeline row
 - **Shape:** one capsule of glass (`MainWindow.timeline-h`) across the bar's
   full width
-- **Times:** Strong in the Timecode role, each centred in a column
-  `MainWindow.minutes-w` wide, widened by exactly as much as the film's length
-  reads wider than `00:00`, so a time past the hour keeps the air a shorter one
-  has. Sized from the length rather than the time played, so it is set when a
+- **Times:** Strong in the Timecode role, each centred in a column as wide as
+  the film's length reads, never narrower than `00:00`, with
+  `MainWindow.glyph-inset` either side: a time at its full width starts and
+  ends where the end buttons' drawings do, and one past the hour keeps the same
+  air. Sized from the length rather than the time played, so it is set when a
   film opens and the row does not shift when the time played passes the hour
 - **Track:** at Rail, growing under the pointer or a drag (`MainWindow.timeline-rail`,
   over `Motion.track-grow`); the played length at Played, sized by

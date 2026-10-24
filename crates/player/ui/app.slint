@@ -852,17 +852,19 @@ export component MainWindow inherits Window {
     /// Shorter than the control pills: they hold a 24px glyph, these hold a
     /// single line of type.
     property <length> timeline-h: 30px;
-    /// Wide enough for the longest either time can read, which is the total.
+    /// Wide enough for the longest either time can read, which is the total,
+    /// and never narrower than "00:00", with `glyph-inset` either side.
     ///
-    /// `minutes-w` holds a time under an hour with air either side, and a
-    /// longer one widens it by exactly as much as it measures wider than
-    /// "00:00". Measured rather than assumed, since a figure's width is up to
-    /// the font, and a fixed width let "1:23:45" run into the capsule's curve.
-    /// Set from the total, so the row doesn't shift when the elapsed time
-    /// passes the hour.
-    property <length> time-w: root.minutes-w
-        + max(0px, time-measure.preferred-width - minutes-measure.preferred-width);
-    property <length> minutes-w: 60px;
+    /// A time at its full width then starts and ends where the end buttons'
+    /// drawings do. Measured rather than assumed, since a figure's width is up
+    /// to the font. Set from the total, so the row doesn't shift when the
+    /// elapsed time passes the hour.
+    property <length> time-w: max(time-measure.preferred-width,
+        minutes-measure.preferred-width) + 2 * root.glyph-inset;
+    /// How far in from the bar's ends the end buttons' drawings start: the
+    /// pill's padding, the 24px glyph centred in its button, and the 1px the
+    /// icon set leaves round its 22px drawings.
+    property <length> glyph-inset: root.pill-pad + (root.btn - 24px) / 2 + 1px;
 
     /// The glass round the bar's rows, on every side: as much as takes the
     /// end buttons' corner out to the panels', so the bar's corner is
@@ -4574,7 +4576,8 @@ export component MainWindow inherits Window {
 
         Text {
             // Centred over the column the figure owns, not over the reach of
-            // the surface behind it.
+            // the surface behind it, which Slint would centre it in unasked.
+            x: 0;
             width: root.time-w;
             height: 100%;
             text: root.elapsed;
@@ -5067,7 +5070,7 @@ export component MainWindow inherits Window {
     // answer. Each must match its visible text's font exactly.
 
     /// The film's length as the timeline writes it, and the widest a time
-    /// under an hour can read; `time-w` grows by the difference.
+    /// under an hour can read; `time-w` holds the wider of the two.
     time-measure := Text {
         text: root.total;
         font-family: Type.numerals;

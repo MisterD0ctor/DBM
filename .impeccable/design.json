@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-24T11:07:51Z",
+  "generatedAt": "2026-10-24T13:55:29Z",
   "title": "Design System: Death by MPV",
   "extensions": {
     "colorMeta": {
@@ -447,9 +447,9 @@
       "name": "Timeline Row",
       "kind": "custom",
       "refersTo": "timeline-row",
-      "description": "One 30px capsule of glass across the bar's width: elapsed time, track, total, each time centred in a column at least 60px wide and set from the total, so the row doesn't shift when a film passes the hour. The track is 5px in Rail, growing to 7px; the hit area is the whole row. The dark fill here stands in for refraction. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "description": "One 30px capsule of glass across the bar's width: elapsed time, track, total, each time centred in a column as wide as the total reads and never narrower than 00:00, with 13px either side, so a time at its full width lines up with the end buttons' drawings and the row doesn't shift when a film passes the hour. The track is 5px in Rail, growing to 7px; the hit area is the whole row. The dark fill here stands in for refraction. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-timeline\"><span class=\"ds-time\">0:24:10</span><span class=\"ds-scrub\"><span class=\"ds-played\"></span></span><span class=\"ds-time\">1:23:45</span></div>",
-      "css": ".ds-timeline { display: flex; align-items: center; gap: 10px; width: 640px; height: 30px; border-radius: 15px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); } .ds-time { width: 60px; text-align: center; font-family: \"IBM Plex Mono\"; font-size: 13px; font-weight: 500; color: #ffffff; } .ds-scrub { flex: 1; height: 5px; border-radius: 3.5px; background: #ffffff2e; transition: height 100ms ease-out; } .ds-timeline:hover .ds-scrub { height: 7px; } .ds-played { display: block; width: 30%; height: 100%; border-radius: inherit; background: #fffffff2; }"
+      "css": ".ds-timeline { display: flex; align-items: center; gap: 10px; width: 640px; height: 30px; border-radius: 15px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); } .ds-time { padding: 0 13px; text-align: center; font-family: \"IBM Plex Mono\"; font-size: 13px; font-weight: 500; color: #ffffff; } .ds-scrub { flex: 1; height: 5px; border-radius: 3.5px; background: #ffffff2e; transition: height 100ms ease-out; } .ds-timeline:hover .ds-scrub { height: 7px; } .ds-played { display: block; width: 30%; height: 100%; border-radius: inherit; background: #fffffff2; }"
     },
     {
       "name": "Hover Label",

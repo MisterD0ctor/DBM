@@ -103,7 +103,7 @@ components:
     typography: "{typography.timecode}"
     backgroundColor: "transparent"
   timeline-time:
-    width: "{{ MainWindow.minutes-w }}"
+    padding: "0 {{ MainWindow.glyph-inset }}"
     textColor: "{colors.strong}"
     typography: "{typography.timecode}"
   menu-row:
