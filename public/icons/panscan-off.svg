@@ -24,7 +24,7 @@
      inkscape:deskcolor="#505050"
      inkscape:document-units="px"
      inkscape:zoom="31.999999"
-     inkscape:cx="9.9375003"
+     inkscape:cx="9.9531253"
      inkscape:cy="11.171875"
      inkscape:window-width="3440"
      inkscape:window-height="1403"
@@ -76,12 +76,12 @@
      id="layer1">
     <path
        style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:round;stroke-miterlimit:100;stroke-dasharray:none"
-       d="M 0.52916683,1.3229167 V 5.0270833"
+       d="M 0.52916683,1.0583333 V 5.2916666"
        id="wall-left"
        sodipodi:nodetypes="cc" />
     <path
        style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:round;stroke-miterlimit:100;stroke-dasharray:none"
-       d="M 5.8208335,1.3229167 V 5.0270833"
+       d="M 5.8208335,1.0583333 V 5.2916666"
        id="wall-right"
        sodipodi:nodetypes="cc" />
     <path
