@@ -256,7 +256,7 @@
       {
         "name": "lift",
         "value": "{{ MainWindow.lift }}",
-        "purpose": "How far a surface sits below its place before it arrives."
+        "purpose": "How far a surface sits from its place before it arrives: below it, or above it for the window's buttons, which come down into theirs."
       },
       {
         "name": "switch",
