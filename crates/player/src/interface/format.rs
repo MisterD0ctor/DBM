@@ -70,7 +70,7 @@ pub fn position(percent: f64) -> String {
 /// of noise.
 ///
 /// From the parameter's range rather than its value: 5.000 is three
-/// meaningless digits on a blur that runs to 40, and 0.010 is the whole story
+/// meaningless digits on a blur that runs to 100, and 0.010 is the whole story
 /// on an edge blur that runs to 0.1.
 pub fn readout(value: f32, min: f32, max: f32) -> String {
     let span = (max - min).abs();

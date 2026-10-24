@@ -648,6 +648,13 @@ hand, from the way the mirrored ray points. The rim light is white added round
 each pane's outermost edge, where the surface has turned past 45° and the
 mirrored ray points back down, rising steeply to full at the very edge.
 
+**The blur is a Gaussian at every strength.** Up to σ 6 it runs at the
+window's own size. Past that the picture is averaged down a level at a time
+until what is left is under σ 6, blurred there, and drawn back with a cubic
+B-spline, whose smooth slope gives the refraction no seams to magnify (see
+`gpu/blur.rs`). So the top of the Blur slider costs about what its bottom does,
+and is still a Gaussian rather than a kernel cut short.
+
 **The pane stays drawn over black.** Over a dark frame there is nothing for the
 glass to bend or blur, and a pane all but vanishes: a bar over a fade, or the
 way on at the end of an episode, read as words on nothing. So two soft lights
@@ -1189,7 +1196,7 @@ doing in it.
   nothing. The smallest are drawn square, with nothing left to round. The
   timeline and the volume follow the same rule
 - **Readout:** precision taken from the parameter's *range* rather than its
-  value — three decimals on a 0–0.1 edge blur, one on a 0–40 blur
+  value — three decimals on a 0–0.1 edge blur, none on a 0–100 blur
 - **Focus:** the row takes the Ring wash and its pane, and its icon, name and
   value go to Lit; the sliders have no hover wash, since the growing track
   already answers the pointer

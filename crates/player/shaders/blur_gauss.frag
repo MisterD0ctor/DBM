@@ -1,56 +1,38 @@
-// Separable Gaussian, run at full resolution.
+// One axis of the blur's Gaussian, at the level the blur works at.
 //
-// No downsampling anywhere, so cost scales linearly with radius rather than
-// being nearly free. Worth it because refraction magnifies the backdrop with
-// sub-pixel displacement, and a texture reconstructed from a smaller one
-// shows faint blockiness under that magnification. A true Gaussian cannot.
-//
-// Run twice - horizontally, then vertically - which is what makes an O(n^2)
-// kernel O(n).
+// The weights come from `gpu::blur::Kernel`, two texels to a tap: a bilinear
+// read placed between them by their weights returns their weighted sum, so
+// the loop runs half as long as the kernel is wide.
 
 in vec2 v_uv;
 out vec4 frag;
 
 uniform sampler2D u_src;
-/// 1.0 / source size, in texels of the active image.
-uniform vec2 u_texel;
-/// Fraction of the source texture its active image covers.
-uniform vec2 u_src_scale;
+/// The source's texture size, which its image need not fill (see `Target`).
+uniform vec2 u_alloc;
+/// The image's size, border included. This draws one the same size.
+uniform vec2 u_size;
 /// (1, 0) for the horizontal pass, (0, 1) for the vertical one.
 uniform vec2 u_dir;
-/// Standard deviation, in pixels.
-uniform float u_sigma;
+uniform float u_center;
+uniform int u_taps;
+/// Taps either side of the centre. Sized to `blur::MAX_TAP_PAIRS`.
+uniform float u_weight[12];
+uniform float u_offset[12];
 
-/// Hard ceiling on taps per side. Reaching it clamps the effective radius
-/// rather than letting a large sigma run the shader off a cliff - the same
-/// trade the ambient border shader makes with `max_taps`.
-const int MAX_TAPS = 48;
-
-vec3 src(vec2 p) {
-    return texture(u_src, clamp(p, vec2(0.0), vec2(1.0)) * u_src_scale).rgb;
+vec3 at(vec2 p) {
+    return textureLod(u_src, clamp(p, vec2(0.5), u_size - 0.5) / u_alloc, 0.0).rgb;
 }
 
 void main() {
-    float sigma = max(u_sigma, 1e-3);
-    // 3 sigma covers 99.7% of the kernel; past that the weights are below
-    // what an 8-bit target can represent anyway.
-    int taps = int(min(ceil(sigma * 3.0), float(MAX_TAPS)));
-
-    vec3 acc = src(v_uv);
-    float sum_w = 1.0;
-
-    // Two samples per iteration, mirrored, so the loop runs half as long as
-    // the kernel is wide.
-    for (int i = 1; i <= MAX_TAPS; i++) {
-        if (i > taps) {
+    vec2 p = gl_FragCoord.xy;
+    vec3 acc = at(p) * u_center;
+    for (int i = 0; i < 12; i++) {
+        if (i >= u_taps) {
             break;
         }
-        float x = float(i);
-        float w = exp(-0.5 * x * x / (sigma * sigma));
-        vec2 off = u_dir * u_texel * x;
-        acc += (src(v_uv + off) + src(v_uv - off)) * w;
-        sum_w += 2.0 * w;
+        vec2 off = u_dir * u_offset[i];
+        acc += (at(p - off) + at(p + off)) * u_weight[i];
     }
-
-    frag = vec4(acc / sum_w, 1.0);
+    frag = vec4(acc, 1.0);
 }

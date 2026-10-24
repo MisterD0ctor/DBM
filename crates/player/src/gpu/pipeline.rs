@@ -11,8 +11,8 @@
 //! the forked mpv `//!HOOK BORDER` stage. `spread` also lays the video over
 //! the border it just drew, where mpv's compositor would otherwise do it.
 //!
-//! The blur is a separable Gaussian at the window's own resolution, and feeds
-//! the glass pass as the backdrop the panels refract.
+//! The blur is a Gaussian of the composite (see `blur`), and feeds the glass
+//! pass as the backdrop the panels refract.
 //!
 //! Slint owns layout and content, and this owns material. Panel rectangles
 //! are read from Slint's layout in the same frame, so the glass can't drift
@@ -20,6 +20,7 @@
 
 use glow::HasContext;
 
+use crate::gpu::blur::{self, Blur};
 use crate::gpu::gfx::{bind_texture, saved_draw_fbo, Program, ScreenQuad, Target};
 use crate::gpu::shadow::HEADROOM;
 use crate::playback::mpv::RenderContext;
@@ -258,14 +259,12 @@ pub struct Pipeline {
     /// shows; the panels themselves contribute only their content.
     glassed: Target,
     prog_glass: Program,
-    prog_gauss: Program,
-    /// Scratch for the horizontal half of the Gaussian.
-    gauss_tmp: Target,
+    /// The passes that make `blur_out`, and the over-pass's blur.
+    blur_chain: Blur,
     /// Glass over the interface rather than under it (see
-    /// [`Pipeline::glass_over`]): the region as Slint left it, its two blur
-    /// passes, and the region glassed.
+    /// [`Pipeline::glass_over`]): the region as Slint left it, blurred, and
+    /// glassed.
     over_base: Target,
-    over_tmp: Target,
     over_blur: Target,
     over_out: Target,
     panels: Vec<GlassPanel>,
@@ -348,11 +347,8 @@ impl Pipeline {
             glassed: Target::new(),
             prog_glass: Program::new(gl, vert, include_str!("../../shaders/glass.frag"))
                 .map_err(|e| format!("glass: {e}"))?,
-            prog_gauss: Program::new(gl, vert, include_str!("../../shaders/blur_gauss.frag"))
-                .map_err(|e| format!("blur_gauss: {e}"))?,
-            gauss_tmp: Target::new(),
+            blur_chain: Blur::new(gl, vert)?,
             over_base: Target::new(),
-            over_tmp: Target::new(),
             over_blur: Target::new(),
             over_out: Target::new(),
             panels: Vec::new(),
@@ -483,7 +479,7 @@ impl Pipeline {
         format!(
             "composite {} | horizontal {} | blur_out {}",
             probe(&self.composite),
-            probe(&self.gauss_tmp),
+            probe(self.blur_chain.across()),
             probe(&self.blur_out),
         )
     }
@@ -500,14 +496,13 @@ impl Pipeline {
     /// frame from mpv.
     fn ensure_sizes(&mut self, gl: &glow::Context, w: u32, h: u32) -> (bool, bool) {
         let resized = self.composite.size() != (w, h);
-        // Every target is the window's own size: both halves of the Gaussian
-        // run at native resolution, like everything else.
+        // Every target here is the window's own size; the blur's levels size
+        // themselves.
         let ok = [
             &mut self.video,
             &mut self.extended,
             &mut self.composite,
             &mut self.glassed,
-            &mut self.gauss_tmp,
             &mut self.blur_out,
         ]
         .into_iter()
@@ -637,37 +632,11 @@ impl Pipeline {
         Ok(true)
     }
 
-    /// Separable Gaussian at native resolution: horizontal into scratch,
-    /// vertical into the blur output.
-    ///
-    /// Native rather than downsampled, because refraction magnifies the
-    /// backdrop with sub-pixel displacement, which shows a smaller texture's
-    /// blocks. It also makes a radius of 0 a true passthrough.
+    /// The composite, blurred by the Blur slider, into `blur_out`.
     fn run_blur(&mut self, gl: &glow::Context) {
-        self.gauss(gl, &self.composite, &self.gauss_tmp, &self.blur_out);
-    }
-
-    /// The Gaussian of `run_blur` from `src` into `dst`, by way of `tmp`.
-    fn gauss(&self, gl: &glow::Context, src: &Target, tmp: &Target, dst: &Target) {
-        let sigma = self.glass.blur_sigma.max(0.0);
-        self.prog_gauss.bind(gl);
-        self.prog_gauss.set_f32(gl, "u_sigma", sigma);
-
-        for (dir, src, dst) in [((1.0f32, 0.0f32), src, tmp), ((0.0, 1.0), tmp, dst)] {
-            let (sw, sh) = src.size();
-            let scale = src.scale();
-            self.prog_gauss.set_vec2(gl, "u_dir", dir.0, dir.1);
-            self.prog_gauss.set_vec2(
-                gl,
-                "u_texel",
-                1.0 / sw.max(1) as f32,
-                1.0 / sh.max(1) as f32,
-            );
-            self.prog_gauss
-                .set_vec2(gl, "u_src_scale", scale.0, scale.1);
-            bind_texture(gl, &self.prog_gauss, "u_src", 0, src.texture());
-            self.quad.draw_to(gl, dst);
-        }
+        let sigma = self.glass.blur_sigma;
+        self.blur_chain
+            .run(gl, &self.quad, &self.composite, &self.blur_out, sigma);
     }
 
     /// Composite the glass panels over the finished frame.
@@ -823,9 +792,10 @@ impl Pipeline {
         clip: [i32; 4],
     ) {
         let (win_w, win_h) = (window.0 as i32, window.1 as i32);
-        // Three deviations of blur, and the shadow, which fades over the
-        // pane's radius and a few pixels more.
-        let margin = (3.0 * self.glass.blur_sigma.max(0.0) + pane.radius + 8.0).ceil() as i32;
+        // The blur's reach, and the shadow, which fades over the pane's radius
+        // and a few pixels more.
+        let margin =
+            (blur::REACH * self.glass.blur_sigma.max(0.0) + pane.radius + 8.0).ceil() as i32;
         let [x0, y0, x1, y1] = pane.rect;
         let left = (x0.floor() as i32 - margin).max(0);
         let top = (y0.floor() as i32 - margin).max(0);
@@ -839,12 +809,7 @@ impl Pipeline {
             return;
         }
         let size = (width as u32, height as u32);
-        for target in [
-            &mut self.over_base,
-            &mut self.over_tmp,
-            &mut self.over_blur,
-            &mut self.over_out,
-        ] {
+        for target in [&mut self.over_base, &mut self.over_blur, &mut self.over_out] {
             if !target.ensure_size(gl, size.0, size.1) {
                 return;
             }
@@ -873,7 +838,9 @@ impl Pipeline {
             );
         }
 
-        self.gauss(gl, &self.over_base, &self.over_tmp, &self.over_blur);
+        let sigma = self.glass.blur_sigma;
+        self.blur_chain
+            .run(gl, &self.quad, &self.over_base, &self.over_blur, sigma);
         let placed = GlassPanel {
             rect: [
                 x0 - left as f32,
@@ -963,15 +930,14 @@ impl Pipeline {
             &mut self.extended,
             &mut self.composite,
             &mut self.glassed,
-            &mut self.gauss_tmp,
             &mut self.blur_out,
             &mut self.over_base,
-            &mut self.over_tmp,
             &mut self.over_blur,
             &mut self.over_out,
         ] {
             target.release(gl);
         }
+        self.blur_chain.release(gl);
         self.quad.release(gl);
         if let Some(b) = self.backdrop.take() {
             unsafe { gl.delete_texture(b.tex) };
@@ -980,7 +946,6 @@ impl Pipeline {
             &self.prog_extend,
             &self.prog_spread,
             &self.prog_glass,
-            &self.prog_gauss,
             &self.prog_backdrop,
         ] {
             p.release(gl);

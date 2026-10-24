@@ -321,6 +321,14 @@ impl Program {
         }
     }
 
+    /// Upload a `float[]` uniform, named by its first element as
+    /// `set_vec4_array` is.
+    pub fn set_f32_array(&self, gl: &glow::Context, name: &str, v: &[f32]) {
+        if let Some(l) = self.loc(gl, name) {
+            unsafe { gl.uniform_1_f32_slice(Some(&l), v) };
+        }
+    }
+
     /// Upload a `vec4[]` uniform. `name` must be the first element (drivers
     /// differ on whether the bare array name resolves, `name[0]` always does).
     pub fn set_vec4_array(&self, gl: &glow::Context, name: &str, v: &[f32]) {
