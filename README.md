@@ -48,9 +48,8 @@ libmpv for playback.
 
 ## Installing
 
-There's no release yet, so for now you'll need to
-[build it yourself](#building-from-source). Releases will be on the
-[Releases](https://github.com/MisterD0ctor/DBM/releases) page.
+Download it from the [Releases](https://github.com/MisterD0ctor/DBM/releases)
+page, or [build it yourself](#building-from-source).
 
 **Windows:** there's an installer, plus a portable zip if you'd rather not
 install anything. The installer only installs for your user, so it doesn't ask
