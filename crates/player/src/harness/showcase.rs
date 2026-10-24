@@ -158,6 +158,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 click(&ui, 1219.0, 27.0);
             }
 
+            // Muted, for the volume track with its fill faded out.
+            if surface == "muted" && tick == 6 {
+                ui.invoke_toggle_mute();
+            }
+
             // The language page walked with the keyboard to its last row,
             // which on a small window is past the bottom of what the panel
             // shows: the list has to follow the ring down.

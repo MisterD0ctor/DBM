@@ -41,6 +41,7 @@
 //!   right-hand pill instead of in the corner, so the hover label shows.
 //!   `tip-volume` rests it on the volume track, whose label is the level.
 //! * `DBM_SHOWCASE=window-max` presses the window's own maximize button.
+//! * `DBM_SHOWCASE=muted` mutes, for the volume track with its fill gone.
 //! * `DBM_SHOWCASE=scroll-bar` opens the playlist and rests the pointer on its
 //!   scroll bar, to draw the bar at its grown width.
 //! * `DBM_SHOWCASE=current-above`, `current-below` and `current-half` open the

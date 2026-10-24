@@ -938,10 +938,13 @@ by under a pixel at the corner.
 ### Volume
 - **Track:** `MainWindow.vol-w` long, at Rail, growing like the timeline's
   (`MainWindow.vol-rail`), filled at Fill across mpv's full 0–200% range, never taller
-  than it is long; empty at zero or muted
+  than it is long; empty at zero or muted. A mute fades the fill out and an
+  unmute fades it back in, over `Motion.switch` as a switch's track turns,
+  so the press is answered on the track as well as by the glyph.
 - **Unity dot:** a dot, not a line, at 100%. A line the height of the track
   divides it into two ranges; a dot is a landmark on one. It reverses against
-  the fill the way the switch knob does: Knob on the fill, Quiet off it.
+  the fill the way the switch knob does: Knob on the fill, Quiet off it, and
+  turns as the fill fades.
 - **Wheel:** `commands.VOLUME_STEP` a notch, over the track and nowhere else. Over the
   picture the wheel wakes the bar and changes nothing, so a brushed wheel or
   fingers resting on a touchpad can't reach the loudest control in the player.
@@ -1738,9 +1741,9 @@ for a moment (`MainWindow.copied-timer.interval`), and *Close the player*.
 - **Don't** open two panels at once.
 - **Don't** animate for its own sake. Motion here is a response:
   `Motion.highlight` for a wash, `Motion.track-grow` for a track,
-  `Motion.surface` for a surface and `Motion.switch` for a switch, ease-out, no
-  bounce, no overshoot. Four things depart from that, each for a reason that is
-  about what is moving rather than about how it looks:
+  `Motion.surface` for a surface and `Motion.switch` for a switch or a mute,
+  ease-out, no bounce, no overshoot. Four things depart from that, each for a
+  reason that is about what is moving rather than about how it looks:
   - the **backdrop's** arrival (`pipeline.BACKDROP_ARRIVAL`), the one motion
     that is not a response to anything: it is the window's light changing, not
     a control answering;

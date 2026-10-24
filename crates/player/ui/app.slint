@@ -5434,6 +5434,11 @@ export component MainWindow inherits Window {
                 property <length> tip-cx: self.absolute-position.x + self.width / 2;
                 /// This track's claim on the tip, as a button holds one.
                 property <int> tip-claim: -1;
+                /// How far the level is heard. The fill fades out with a mute
+                /// and back in with an unmute, as a switch's track turns, and
+                /// the unity dot turns with it rather than ahead of it.
+                property <float> heard: root.muted ? 0.0 : 1.0;
+                animate heard { duration: Motion.switch; easing: ease-out; }
 
                 // A level that moves under the pointer shows at once, without
                 // the wait, as the answer to whatever moved it.
@@ -5466,11 +5471,12 @@ export component MainWindow inherits Window {
                         x: 0;
                         y: (parent.height - self.height) / 2;
                         width: parent.width
-                            * clamp(root.muted ? 0 : root.volume / root.volume-max, 0, 1);
+                            * clamp(root.volume / root.volume-max, 0, 1);
                         height: min(parent.height, self.width);
                         border-radius: self.height < 2px ? 0px
                             : self.height / 2;
                         background: Paint.fill;
+                        opacity: vol-track.heard;
                     }
 
                     // Unity gain: the track runs to mpv's 200%, so this marks
@@ -5487,8 +5493,9 @@ export component MainWindow inherits Window {
                         border-radius: self.height / 2;
                         // Keyed on the fill as drawn rather than the level, so
                         // muted, with no fill, the dot stays light.
-                        background: !root.muted && root.volume >= 100
-                            ? Paint.knob : Paint.quiet;
+                        background: root.volume >= 100
+                            ? Paint.knob.mix(Paint.quiet, vol-track.heard)
+                            : Paint.quiet;
                     }
                 }
 

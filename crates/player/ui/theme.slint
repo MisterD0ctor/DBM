@@ -26,7 +26,8 @@ export global Motion {
     /// A surface fading in or out and rising the few pixels it travels: the
     /// panels, the bar, the flash, the tip. The glass fades with it.
     out property <duration> surface: Motion.enabled ? 120ms : 0ms;
-    /// A switch's knob crossing its track, and the track's colour with it.
+    /// A switch's knob crossing its track, and the track's colour with it;
+    /// the volume's fill fading with a mute.
     out property <duration> switch: Motion.enabled ? 120ms : 0ms;
     /// A page sliding sideways in a panel, and the panel's height with it.
     /// Longer than `surface` because it travels rather than arrives.

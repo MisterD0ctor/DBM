@@ -261,7 +261,7 @@
       {
         "name": "switch",
         "value": "120ms ease-out",
-        "purpose": "A switch's knob crossing its track, and the track's colour with it."
+        "purpose": "A switch's knob crossing its track, and the track's colour with it; the volume's fill fading with a mute."
       },
       {
         "name": "drill",
