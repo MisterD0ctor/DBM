@@ -126,8 +126,8 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
 }
 
 /// Open the subtitles menu, open its search, take the first result with the
-/// keyboard, take it back out with Delete, and report what the menu holds at
-/// each step. With `DBM_FIND_FAKE` set the search answers from a fixed list
+/// keyboard, walk the ring to it and take it back out with Delete's two
+/// presses, and report what the menu holds at each step. With `DBM_FIND_FAKE` set the search answers from a fixed list
 /// and the download is a subtitle written on the spot, so no key or
 /// connection is needed.
 pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
@@ -173,7 +173,9 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
         move || {
             let Some(ui) = weak.upgrade() else { return };
             let down = slint::SharedString::from(Key::DownArrow);
+            let up = slint::SharedString::from(Key::UpArrow);
             let enter = slint::SharedString::from(Key::Return);
+            let delete = slint::SharedString::from(Key::Delete);
             match step {
                 0..=3 => {}
                 4 => {
@@ -192,12 +194,28 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                     chord(&ui, &[], enter.as_str());
                 }
                 14 => report(&ui, &mpv, "fetched"),
-                // The ring is on the fetched track: take it back out.
+                // The ring onto the fetched track, wherever the film's own
+                // tracks put it, and Delete twice, since the first asks.
                 16 => {
+                    let fetched = ui
+                        .get_sub_tracks()
+                        .iter()
+                        .position(|t| t.external && t.selected)
+                        .map(|i| i as i32 + 1);
+                    if let Some(fetched) = fetched {
+                        for _ in 0..8 {
+                            let row = ui.get_focus_row();
+                            if row == fetched {
+                                break;
+                            }
+                            let toward = if row < fetched { &down } else { &up };
+                            chord(&ui, &[], toward.as_str());
+                        }
+                    }
                     eprintln!("dbm: find delete on row {}", ui.get_focus_row());
-                    let delete = slint::SharedString::from(Key::Delete);
                     chord(&ui, &[], delete.as_str());
                 }
+                17 => chord(&ui, &[], delete.as_str()),
                 18 => report(&ui, &mpv, "removed"),
                 19 => eprintln!("dbm: --- find test done ---"),
                 _ => {}
