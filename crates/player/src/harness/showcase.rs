@@ -276,6 +276,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             }
             match surface.as_str() {
                 "tracks" => ui.invoke_open_menu(true),
+                "audio" => ui.invoke_open_audio(true),
                 // The menu with a subtitle track chosen, so exactly one row
                 // is lit.
                 "subs-on" => {

@@ -33,7 +33,7 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_volume(player.volume as f32);
     // mpv's `sub-visibility` can be on with no subtitle track selected, which
     // shows nothing, so the interface is told whether subtitles are actually
-    // showing, for the tracks menu's Off row.
+    // showing, for the subtitles menu's Off row.
     ui.set_subs_visible(
         player.sub_visibility && tracks::selected(&player.tracks, TrackKind::Sub).is_some(),
     );

@@ -156,7 +156,7 @@ export component MainWindow inherits Window {
 
     /// Whether there is any searching to be done: a key, and a film.
     in property <bool> find-offered;
-    /// The search's page is the one the tracks menu shows.
+    /// The search's page is the one the subtitles menu shows.
     in-out property <bool> find-open: false;
     /// 0 nothing asked yet, 1 searching, 2 results, 3 none found, 4 failed.
     in-out property <int> find-state: 0;
@@ -171,9 +171,17 @@ export component MainWindow inherits Window {
     /// set, an audio track otherwise.
     callback remove-track(int, bool);
 
-    /// Delete on the tracks menu: arms the track the ring is on, or removes it
+    /// Delete on a tracks panel: arms the track the ring is on, or removes it
     /// if it is armed, where it can be removed; says whether it could.
     function remove-focused-track() -> bool {
+        if (root.audio-open) {
+            if (root.focus-row < root.audio-tracks.length
+                    && root.audio-tracks[root.focus-row].external) {
+                root.remove-row(root.audio-tracks[root.focus-row].id, false);
+                return true;
+            }
+            return false;
+        }
         if (root.find-open) {
             return false;
         }
@@ -181,15 +189,6 @@ export component MainWindow inherits Window {
                 && root.has-subs) {
             if (root.sub-tracks[root.focus-row - 1].external) {
                 root.remove-row(root.sub-tracks[root.focus-row - 1].id, true);
-                return true;
-            }
-            return false;
-        }
-        if (root.focus-row >= root.subs-focus-count
-                && root.focus-row - root.subs-focus-count < root.audio-tracks.length) {
-            if (root.audio-tracks[root.focus-row - root.subs-focus-count].external) {
-                root.remove-row(
-                    root.audio-tracks[root.focus-row - root.subs-focus-count].id, false);
                 return true;
             }
         }
@@ -230,8 +229,8 @@ export component MainWindow inherits Window {
         ? max(0px, menu.height - root.panel-pad - root.row-h) : 0px;
     property <length> find-rest-h: min(root.find-natural,
         max(0px, root.panel-max-h - root.panel-pad - root.row-h));
-    /// The tracks menu's height: whichever of its two pages is showing.
-    property <length> menu-h: root.find-open ? root.find-h : root.tracks-h;
+    /// The subtitles menu's height: whichever of its two pages is showing.
+    property <length> menu-h: root.find-open ? root.find-h : root.subs-h;
     /// The search's page sliding in over the tracks, as a settings page does.
     property <float> menu-drill: root.find-open ? 1.0 : 0.0;
     animate menu-drill {
@@ -329,8 +328,8 @@ export component MainWindow inherits Window {
     /// Which row the keyboard is on inside whatever is open. `out` for the
     /// tests, since the ring is only a wash and gives them nothing to read.
     out property <int> focus-row: 0;
-    /// The subtitle half of the tracks menu, which the audio half is indexed
-    /// after. `Off` counts as a row, since it is the one people reach for.
+    /// The subtitles menu's rows. `Off` counts as a row, since it is the one
+    /// people reach for.
     property <int> subs-focus-count:
         (root.has-subs ? 1 + root.sub-tracks.length : 0)
         // The search, after the tracks.
@@ -338,8 +337,8 @@ export component MainWindow inherits Window {
     /// How many rows what is on screen offers the keyboard. Zero, as when a
     /// film plays with nothing open, means the keys ignore the ring.
     property <int> focus-count:
-        root.menu-open ? (root.find-open ? root.find-focus-count
-            : root.subs-focus-count + root.audio-tracks.length)
+        root.menu-open ? (root.find-open ? root.find-focus-count : root.subs-focus-count)
+        : root.audio-open ? root.audio-tracks.length
         : root.playlist-open ? root.playlist-lead + root.playlist-rows + 1
         : root.files-open ? 2
         : root.settings-open ? root.settings-focus-count
@@ -359,12 +358,13 @@ export component MainWindow inherits Window {
     property <bool> focus-has-reset: root.settings-open
         && root.settings-page >= 1 && root.settings-page <= 3;
     /// Per page: the rows, the way back, and the reset after them, plus the
-    /// sync on the subtitles page. Accessibility has no reset, since each
-    /// switch undoes itself, and the shortcuts page has only the way back.
+    /// sync on the subtitles page and the switch on the ambient border's.
+    /// Accessibility has no reset, since each switch undoes itself, and the
+    /// shortcuts page has only the way back.
     property <int> settings-focus-count:
         root.settings-page == 0 ? 6
         : root.settings-page == 1 ? 2 + root.glass-params.length
-        : root.settings-page == 2 ? 2 + root.border-params.length
+        : root.settings-page == 2 ? 3 + root.border-params.length
         : root.settings-page == 3 ? 6
         : root.settings-page == 4 ? 5
         : root.settings-page == 6 ? 1 + root.language-count
@@ -374,7 +374,7 @@ export component MainWindow inherits Window {
     /// wrong reset row on a page halfway out of the panel.
     property <int> leaf-focus-count:
         root.leaf-page == 1 ? 2 + root.glass-params.length
-        : root.leaf-page == 2 ? 2 + root.border-params.length
+        : root.leaf-page == 2 ? 3 + root.border-params.length
         : root.leaf-page == 3 ? 6
         : root.leaf-page == 4 ? 5
         : root.leaf-page == 6 ? 1 + root.language-count
@@ -559,6 +559,7 @@ export component MainWindow inherits Window {
 
     // in-out so the tests can open them.
     in-out property <bool> menu-open: false;
+    in-out property <bool> audio-open: false;
     in-out property <bool> playlist-open: false;
     in-out property <bool> files-open: false;
     in-out property <bool> settings-open: false;
@@ -574,9 +575,8 @@ export component MainWindow inherits Window {
     // stopping to look at where you are, and while an open is in flight,
     // since "Opening …" in the title pill is the only sign a slow scan hasn't
     // been ignored.
-    property <bool> controls-visible: !Chrome.idle
-        || root.menu-open || root.playlist-open || root.settings-open
-        || root.files-open || (root.paused && root.has-file) || root.opening;
+    property <bool> controls-visible: !Chrome.idle || root.panel-open
+        || (root.paused && root.has-file) || root.opening;
 
     /// Whether the pointer should be off screen: over a film with the chrome
     /// gone, but never on an empty window, where it is how the way in is
@@ -612,13 +612,9 @@ export component MainWindow inherits Window {
                 find-list.reveal((root.focus-row - 1) * root.row-h, root.row-h);
             }
         } else if (root.menu-open) {
-            if (root.focus-row < root.subs-focus-count) {
-                subs-list.reveal(root.focus-row * root.row-h, root.row-h);
-            } else {
-                audio-list.reveal(
-                    (root.focus-row - root.subs-focus-count) * root.row-h,
-                    root.row-h);
-            }
+            subs-list.reveal(root.focus-row * root.row-h, root.row-h);
+        } else if (root.audio-open) {
+            audio-list.reveal(root.focus-row * root.row-h, root.row-h);
         } else if (root.playlist-open && root.focus-row >= root.playlist-lead
                 && root.focus-row < root.playlist-lead + root.playlist-rows) {
             if (root.playlist-top) {
@@ -650,12 +646,10 @@ export component MainWindow inherits Window {
         root.focus-scroll();
     }
 
-    /// The row the tracks menu opens on: the subtitle in use, or Off when
+    /// The row the subtitles menu opens on: the subtitle in use, or Off when
     /// none is showing.
-    property <int> tracks-open-row: root.has-subs
-        ? (root.subs-visible && root.sub-current >= 0 ? root.sub-current + 1 : 0)
-        : root.has-audio ? root.subs-focus-count + max(0, root.audio-current)
-        : 0;
+    property <int> subs-open-row: root.has-subs && root.subs-visible
+        && root.sub-current >= 0 ? root.sub-current + 1 : 0;
 
     // Otherwise a ring left up by the way in would land on the bar as a film
     // arrives, on a button nobody chose.
@@ -727,6 +721,7 @@ export component MainWindow inherits Window {
     // Hidden with no film loaded, when most of its buttons can do nothing.
     property <float> bar-shown: root.controls-visible && root.has-file ? 1.0 : 0.0;
     property <float> menu-shown: root.menu-open ? 1.0 : 0.0;
+    property <float> audio-shown: root.audio-open ? 1.0 : 0.0;
     property <float> playlist-shown: root.playlist-open ? 1.0 : 0.0;
     property <float> settings-shown: root.settings-open ? 1.0 : 0.0;
     property <float> files-shown: root.files-open ? 1.0 : 0.0;
@@ -751,7 +746,7 @@ export component MainWindow inherits Window {
     property <float> window-shown: (root.controls-visible || !root.has-file)
         && !root.fullscreen && !root.window-crowded ? 1.0 : 0.0;
 
-    animate bar-shown, menu-shown, playlist-shown, settings-shown,
+    animate bar-shown, menu-shown, audio-shown, playlist-shown, settings-shown,
             files-shown, end-shown, credits-shown, invite-shown,
             window-shown, tip-shown {
         duration: Motion.surface;
@@ -773,6 +768,7 @@ export component MainWindow inherits Window {
     /// The rise, per surface. Zero once arrived.
     property <length> bar-rise: (1.0 - root.bar-shown) * root.lift;
     property <length> menu-rise: (1.0 - root.menu-shown) * root.lift;
+    property <length> audio-rise: (1.0 - root.audio-shown) * root.lift;
     property <length> playlist-rise: (1.0 - root.playlist-shown) * root.lift;
     property <length> settings-rise: (1.0 - root.settings-shown) * root.lift;
     property <length> files-rise: (1.0 - root.files-shown) * root.lift;
@@ -872,7 +868,7 @@ export component MainWindow inherits Window {
     property <length> bar-w: root.width - 2 * root.panel-margin;
     /// Transport: previous, back, play, forward, next.
     property <length> center-w: 2 * root.pill-pad + 5 * root.btn + 4 * root.btn-gap;
-    /// Mute, volume, ambience, subtitles, settings, panscan, fullscreen.
+    /// Mute, volume, audio, subtitles, settings, panscan, fullscreen.
     property <length> right-w:
         2 * root.pill-pad + 6 * root.btn + root.vol-w + 6 * root.btn-gap;
     /// Everything in the title pill that is not the title: the padding
@@ -1208,7 +1204,8 @@ export component MainWindow inherits Window {
             max(root.panel-margin, root.width - w - root.panel-margin));
     }
     /// The panel the notice on show answers, and so sits beside: 1 the
-    /// tracks menu, 2 the playlist, 3 the files, 4 the settings, 0 none.
+    /// subtitles menu, 2 the playlist, 3 the files, 4 the settings, 5 the
+    /// audio panel, 0 none.
     ///
     /// A notice raised with a panel open is nearly always that panel's
     /// answer, and belongs by the row that asked rather than in the middle.
@@ -1218,14 +1215,17 @@ export component MainWindow inherits Window {
     property <length> flash-panel-x: root.flash-panel == 1 ? menu.x
         : root.flash-panel == 2 ? playlist-panel.x
         : root.flash-panel == 3 ? files-panel.x
+        : root.flash-panel == 5 ? audio-panel.x
         : settings.x;
     property <length> flash-panel-w: root.flash-panel == 1 ? menu.width
         : root.flash-panel == 2 ? playlist-panel.width
         : root.flash-panel == 3 ? files-panel.width
+        : root.flash-panel == 5 ? audio-panel.width
         : settings.width;
     property <length> flash-panel-h: root.flash-panel == 1 ? menu.height
         : root.flash-panel == 2 ? playlist-panel.height
         : root.flash-panel == 3 ? files-panel.height
+        : root.flash-panel == 5 ? audio-panel.height
         : settings.height;
     /// To the panel's left, unless the panel is too far left for the words
     /// to fit.
@@ -1279,7 +1279,8 @@ export component MainWindow inherits Window {
             : root.menu-open ? 1
             : root.playlist-open ? 2
             : root.files-open ? 3
-            : root.settings-open ? 4 : 0;
+            : root.settings-open ? 4
+            : root.audio-open ? 5 : 0;
         root.flash-row = root.flash-panel == 4 ? root.asked-row : -1px;
         root.flash-shown = 1.0;
         root.flash-waiting = false;
@@ -1292,7 +1293,8 @@ export component MainWindow inherits Window {
     property <bool> flash-panel-open: root.flash-panel == 1 ? root.menu-open
         : root.flash-panel == 2 ? root.playlist-open
         : root.flash-panel == 3 ? root.files-open
-        : root.flash-panel == 4 ? root.settings-open : true;
+        : root.flash-panel == 4 ? root.settings-open
+        : root.flash-panel == 5 ? root.audio-open : true;
     changed flash-panel-open => {
         if (!root.flash-panel-open) {
             flash-timer.stop();
@@ -1317,8 +1319,8 @@ export component MainWindow inherits Window {
     /// Whether any panel is open. Tips open on the line panels do, so a tip
     /// stands down while any panel is up rather than working out whether it
     /// would land under it.
-    property <bool> panel-open: root.menu-open || root.playlist-open
-        || root.files-open || root.settings-open;
+    property <bool> panel-open: root.menu-open || root.audio-open
+        || root.playlist-open || root.files-open || root.settings-open;
 
     property <length> tip-h: 28px;
     property <length> tip-pad: 12px;
@@ -1474,11 +1476,12 @@ export component MainWindow inherits Window {
 
     // Where each control sits inside the right pill, for the panels that
     // hang from them.
-    property <length> rp-ambience:
+    property <length> rp-audio:
         root.pill-pad + root.btn + root.btn-gap + root.vol-w + root.btn-gap;
-    property <length> rp-subs: root.rp-ambience + root.btn + root.btn-gap;
+    property <length> rp-subs: root.rp-audio + root.btn + root.btn-gap;
     property <length> rp-settings: root.rp-subs + root.btn + root.btn-gap;
 
+    property <length> audio-anchor: root.right-x + root.rp-audio + root.btn / 2;
     out property <length> subs-anchor: root.right-x + root.rp-subs + root.btn / 2;
     property <length> settings-anchor: root.right-x + root.rp-settings + root.btn / 2;
     // Playlist, then open, then the title, so the two buttons and the panels
@@ -1534,16 +1537,19 @@ export component MainWindow inherits Window {
     /// The column the open panel occupies. Opening a panel closes the others
     /// (`close-others`), so there is only ever one to test against.
     property <length> panel-x: root.menu-open ? menu.x
+        : root.audio-open ? audio-panel.x
         : root.playlist-open ? playlist-panel.x
         : root.files-open ? files-panel.x
         : settings.x;
     property <length> panel-w: root.menu-open ? menu.width
+        : root.audio-open ? audio-panel.width
         : root.playlist-open ? playlist-panel.width
         : root.files-open ? files-panel.width
         : settings.width;
     /// Its height, up from a bottom edge that is always one `Rows.offset`
     /// above the timeline.
     property <length> panel-h: root.menu-open ? menu.height
+        : root.audio-open ? audio-panel.height
         : root.playlist-open ? playlist-panel.height
         : root.files-open ? files-panel.height
         : settings.height;
@@ -1619,7 +1625,8 @@ export component MainWindow inherits Window {
         { label: @tr("Ambient border"), keys: "B" },
 
         { heading: @tr("PANELS"), icon: @image-url("../../../public/icons/panel.svg"),
-          label: @tr("Subtitles & audio"), keys: "A" },
+          label: @tr("Subtitles"), keys: "V" },
+        { label: @tr("Audio"), keys: "A" },
         { label: @tr("Playlist"), keys: "P" },
         { label: @tr("Settings"), keys: "S" },
         { label: @tr("Shortcuts"), keys: "?" },
@@ -1673,8 +1680,10 @@ export component MainWindow inherits Window {
         if (page == 1) {
             return root.glass-params.length * Rows.slider-row + Rows.group-gap + root.row-h;
         }
+        // The switch and a gap before them.
         if (page == 2) {
-            return root.border-params.length * Rows.slider-row + Rows.group-gap + root.row-h;
+            return root.sliders-top(2) + root.border-params.length * Rows.slider-row
+                + Rows.group-gap + root.row-h;
         }
         // The sync, the three steppers, the gap and the reset.
         if (page == 3) {
@@ -1712,9 +1721,21 @@ export component MainWindow inherits Window {
     property <length> settings-reveal-h;
     property <int> settings-reveal-tick;
 
-    /// How many sliders a page of them has.
+    /// How many sliders a page of them has, the row the first is, and how far
+    /// down the list it starts: under the ambient border's switch and a gap.
     pure function sliders-on(page: int) -> int {
         return page == 1 ? root.glass-params.length : root.border-params.length;
+    }
+    pure function sliders-from(page: int) -> int {
+        return page == 2 ? 2 : 1;
+    }
+    pure function sliders-top(page: int) -> length {
+        return page == 2 ? root.toggle-h + Rows.group-gap : 0px;
+    }
+    /// Whether a row of a page of sliders is one of them.
+    pure function is-slider(page: int, row: int) -> bool {
+        return (page == 1 || page == 2) && row >= root.sliders-from(page)
+            && row < root.sliders-from(page) + root.sliders-on(page);
     }
     /// Where a row of a settings page is in its list, and how tall it is.
     /// Row 0 of every page but the first is the way back, which is not in
@@ -1726,10 +1747,14 @@ export component MainWindow inherits Window {
                 + (row >= 2 ? root.heading-h + Rows.group-gap : 0px)
                 + (row >= 3 ? root.heading-h + Rows.group-gap : 0px);
         }
-        // The sliders, then the gap and the reset.
+        // The ambient border's switch, the sliders, then the gap and the reset.
+        if (page == 2 && row == 1) {
+            return 0px;
+        }
         if (page == 1 || page == 2) {
-            return row <= root.sliders-on(page) ? (row - 1) * Rows.slider-row
-                : root.sliders-on(page) * Rows.slider-row + Rows.group-gap;
+            return root.sliders-top(page) + (root.is-slider(page, row)
+                ? (row - root.sliders-from(page)) * Rows.slider-row
+                : root.sliders-on(page) * Rows.slider-row + Rows.group-gap);
         }
         if (page == 3) {
             return row == 1 ? 0px
@@ -1742,8 +1767,11 @@ export component MainWindow inherits Window {
         return (row - 1) * root.row-h;
     }
     pure function settings-row-h(page: int, row: int) -> length {
-        if ((page == 1 || page == 2) && row <= root.sliders-on(page)) {
+        if (root.is-slider(page, row)) {
             return Rows.slider-row;
+        }
+        if (page == 2 && row == 1) {
+            return root.toggle-h;
         }
         if (page == 3 && row >= 2 && row <= 4) {
             return Rows.stepper-row;
@@ -1755,38 +1783,27 @@ export component MainWindow inherits Window {
     }
     property <length> panel-pad: 2 * Rows.panel-pad;
 
-    // Each section appears only when it has something in it, and a file with
-    // neither says so in one line, rather than show headings over nothing.
+    // Each tracks panel is a heading over one list. A list with nothing in it
+    // says so in one line, rather than leave a heading over nothing.
     property <bool> has-subs: root.sub-tracks.length > 0;
     property <bool> has-audio: root.audio-tracks.length > 0;
-    /// The subtitle section shows whenever the menu shows anything: for its
-    /// tracks, for the search on a film with none, when it is most wanted, or
-    /// to say there are none. A Subtitles & audio menu without it reads as
-    /// not finished opening.
-    property <bool> show-subs: root.has-subs || root.find-offered || root.has-audio;
-    /// No tracks and nothing to search with: the section says so in a line.
+    /// No tracks and nothing to search with.
     property <bool> subs-empty: !root.has-subs && !root.find-offered;
-    property <bool> no-tracks: !root.show-subs && !root.has-audio;
 
     /// The "Off" row belongs to the subtitle list, so it counts with it.
     out property <length> subs-natural:
         (root.has-subs ? (1 + root.sub-tracks.length) * root.row-h : 0px)
         + (root.find-offered || root.subs-empty ? root.row-h : 0px);
-    out property <length> audio-natural:
-        root.has-audio ? root.audio-tracks.length * root.row-h : 0px;
-    property <length> tracks-fixed: root.panel-pad
-        + (root.show-subs ? root.heading-h : 0px)
-        + (root.has-audio ? root.heading-h : 0px)
-        // AUDIO takes the gap above it only when SUBTITLES came first.
-        + (root.show-subs && root.has-audio ? Rows.group-gap : 0px)
-        + (root.no-tracks ? root.row-h : 0px);
-    out property <length> tracks-h: min(
-        root.tracks-fixed + root.subs-natural + root.audio-natural,
-        root.panel-max-h);
-    out property <length> tracks-avail: max(0px, root.tracks-h - root.tracks-fixed);
-    out property <length> subs-list-h: min(root.subs-natural,
-        max(root.tracks-avail / 2, root.tracks-avail - root.audio-natural));
-    out property <length> audio-list-h: root.tracks-avail - root.subs-list-h;
+    out property <length> audio-natural: root.has-audio
+        ? root.audio-tracks.length * root.row-h : root.row-h;
+    out property <length> subs-h: min(
+        root.panel-pad + root.heading-h + root.subs-natural, root.panel-max-h);
+    out property <length> subs-list-h:
+        max(0px, root.subs-h - root.panel-pad - root.heading-h);
+    out property <length> audio-h: min(
+        root.panel-pad + root.heading-h + root.audio-natural, root.panel-max-h);
+    out property <length> audio-list-h:
+        max(0px, root.audio-h - root.panel-pad - root.heading-h);
 
     /// A part's page is headed by its way back, which is a row; the list of
     /// parts, and a list of one part, by a heading.
@@ -1885,8 +1902,8 @@ export component MainWindow inherits Window {
     out property <[ScrollFade]> scroll-fades: [
         root.fade-within(subs-list.fade, root.menu-shown,
             menu.x, menu.y, menu.width, menu.height),
-        root.fade-within(audio-list.fade, root.menu-shown,
-            menu.x, menu.y, menu.width, menu.height),
+        root.fade-within(audio-list.fade, root.audio-shown,
+            audio-panel.x, audio-panel.y, audio-panel.width, audio-panel.height),
         root.fade-within(find-list.fade, root.menu-shown,
             menu.x, menu.y, menu.width, menu.height),
         root.fade-within(playlist-top-list.fade, root.playlist-shown,
@@ -2091,6 +2108,15 @@ export component MainWindow inherits Window {
             tint: 1.0,
         },
         {
+            x: audio-panel.x,
+            y: audio-panel.y,
+            width: root.audio-shown > root.shown-epsilon ? audio-panel.width : 0,
+            height: root.audio-shown > root.shown-epsilon ? audio-panel.height : 0,
+            opacity: root.audio-shown,
+            radius: root.panel-radius,
+            tint: 1.0,
+        },
+        {
             x: files-panel.x,
             y: files-panel.y,
             width: root.files-shown > root.shown-epsilon ? files-panel.width : 0,
@@ -2144,6 +2170,7 @@ export component MainWindow inherits Window {
     /// How far in the surface the keys are steering is, in the order the
     /// key handler asks.
     property <float> ring-host-shown: root.menu-open ? root.menu-shown
+        : root.audio-open ? root.audio-shown
         : root.playlist-open ? root.playlist-shown
         : root.settings-open ? root.settings-shown
         : root.files-open ? root.files-shown
@@ -2215,13 +2242,16 @@ export component MainWindow inherits Window {
                 }
             } else if (root.find-offered && root.focus-row == root.subs-focus-count - 1) {
                 root.open-find();
-            } else if (root.focus-row < root.subs-focus-count) {
+            } else if (root.has-subs) {
                 root.select-subtitle(root.focus-row == 0
                     ? -1
                     : root.sub-tracks[root.focus-row - 1].id);
-            } else {
-                root.select-audio(
-                    root.audio-tracks[root.focus-row - root.subs-focus-count].id);
+            }
+            return true;
+        }
+        if (root.audio-open) {
+            if (root.has-audio) {
+                root.select-audio(root.audio-tracks[root.focus-row].id);
             }
             return true;
         }
@@ -2302,6 +2332,11 @@ export component MainWindow inherits Window {
         }
         if (root.settings-page == 3 && root.focus-row == 1) {
             root.sync-row();
+            return true;
+        }
+        if (root.settings-page == 2 && root.focus-row == 1) {
+            root.ambience-on = !root.ambience-on;
+            root.set-ambience(root.ambience-on);
             return true;
         }
         if (root.focus-row == root.settings-focus-count - 1) {
@@ -2388,13 +2423,16 @@ export component MainWindow inherits Window {
     changed menu-open => {
         root.remove-armed = -1;
     }
+    changed audio-open => {
+        root.remove-armed = -1;
+    }
 
-    // Taking out the menu's last track would leave the ring on no row, with
+    // Taking out a panel's last track would leave the ring on no row, with
     // Enter pressing nothing and its pane where the row was. It goes to the
     // row that is last now.
     changed focus-count => {
-        if (root.menu-open && !root.find-open && root.focus-count > 0
-                && root.focus-row >= root.focus-count) {
+        if (((root.menu-open && !root.find-open) || root.audio-open)
+                && root.focus-count > 0 && root.focus-row >= root.focus-count) {
             root.focus-row = root.focus-count - 1;
         }
     }
@@ -2604,10 +2642,9 @@ export component MainWindow inherits Window {
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
-        if (root.settings-page == 2
-            && root.focus-row <= root.border-params.length) {
-            root.set-param(root.border-params[root.focus-row - 1].index,
-                clamp(root.border-params[root.focus-row - 1].fraction
+        if (root.settings-page == 2 && root.is-slider(2, root.focus-row)) {
+            root.set-param(root.border-params[root.focus-row - 2].index,
+                clamp(root.border-params[root.focus-row - 2].fraction
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
@@ -2755,7 +2792,7 @@ export component MainWindow inherits Window {
     /// stop at the ends rather than wrapping, since nobody aims a jump at the
     /// other end.
     function focus-jump(text: string) -> bool {
-        if (!root.menu-open && !root.playlist-open) {
+        if (!root.menu-open && !root.audio-open && !root.playlist-open) {
             return false;
         }
         if (text == Key.Home) {
@@ -2786,8 +2823,9 @@ export component MainWindow inherits Window {
     /// stays on screen to read against.
     property <int> list-page: max(1, Math.floor((root.playlist-open
         ? root.playlist-list-h
+        : root.audio-open ? root.audio-list-h
         : root.find-open ? root.find-list-h
-        : max(root.subs-list-h, root.audio-list-h)) / root.row-h) - 1);
+        : root.subs-list-h) / root.row-h) - 1);
 
     /// The same page as a distance, for the one list that is scrolled rather
     /// than walked.
@@ -3200,15 +3238,15 @@ export component MainWindow inherits Window {
                 : forward-button.absolute-position.x;
         }
         return index == 7 ? mute-button.absolute-position.x
-            : index == 8 ? ambience-button.absolute-position.x
-            : index == 9 ? tracks-button.absolute-position.x
+            : index == 8 ? audio-button.absolute-position.x
+            : index == 9 ? subs-button.absolute-position.x
             : index == 10 ? settings-button.absolute-position.x
             : index == 11 ? panscan-button.absolute-position.x
             : fullscreen-button.absolute-position.x;
     }
 
     /// Left to right: playlist, open; back, previous, play, next, forward;
-    /// mute, ambience, tracks, settings, panscan, fullscreen. The volume track
+    /// mute, audio, subtitles, settings, panscan, fullscreen. The volume track
     /// isn't a stop, since Up and Down already set it. Split in two for the
     /// compiler, as the key handlers are.
     function bar-activate(index: int) {
@@ -3257,8 +3295,8 @@ export component MainWindow inherits Window {
         if (index == 7) {
             root.toggle-mute();
         } else if (index == 8) {
-            root.ambience-on = !root.ambience-on;
-            root.set-ambience(root.ambience-on);
+            root.open-audio(true);
+            root.focus-show(root.focus-row);
         } else if (index == 9) {
             root.open-menu(true);
             root.focus-show(root.focus-row);
@@ -3301,10 +3339,17 @@ export component MainWindow inherits Window {
             }
             return true;
         }
-        // A for the tracks, where audio is picked as often as subtitles; P for
-        // the playlist. Neither with no film, since both describe one and
-        // would hang from a bar that isn't there.
+        // A for the audio, V for the subtitles beside C, which turns them on
+        // and off, and P for the playlist. None with no film, since they
+        // describe one and would hang from a bar that isn't there.
         if (root.keys-act && root.has-file && (text == "a" || text == "A")) {
+            root.open-audio(!root.audio-open);
+            if (root.audio-open) {
+                root.focus-show(root.focus-row);
+            }
+            return true;
+        }
+        if (root.keys-act && root.has-file && (text == "v" || text == "V")) {
             root.open-menu(!root.menu-open);
             if (root.menu-open) {
                 root.focus-show(root.focus-row);
@@ -3319,13 +3364,14 @@ export component MainWindow inherits Window {
             return true;
         }
         if (root.keys-act && (text == "b" || text == "B")) {
-            // Kept on a key as well as in the settings, as the one effect
+            // Kept on a key as well as on its settings page, as the one effect
             // worth toggling mid-film.
             root.ambience-on = !root.ambience-on;
             root.set-ambience(root.ambience-on);
             return true;
         }
-        if (text == Key.Delete && root.menu-open && Chrome.focus-visible) {
+        if (text == Key.Delete && (root.menu-open || root.audio-open)
+                && Chrome.focus-visible) {
             return root.remove-focused-track();
         }
         // One Escape dismisses one thing, innermost first: a page within a
@@ -3342,6 +3388,8 @@ export component MainWindow inherits Window {
                 root.files-open = false;
             } else if (root.menu-open) {
                 root.menu-open = false;
+            } else if (root.audio-open) {
+                root.audio-open = false;
             } else {
                 root.leave-fullscreen();
             }
@@ -3352,21 +3400,26 @@ export component MainWindow inherits Window {
 
     // The panels share the space above the bar, so opening one closes the
     // others. Every button and key goes through these functions so they
-    // can't drift apart. Each opens on its front page, and the two lists on
-    // their current row, centred.
+    // can't drift apart. Each opens on its front page, and the lists on their
+    // current row, centred.
     public function open-menu(open: bool) {
         root.menu-open = open;
         if (open) {
             root.close-others();
             root.menu-open = true;
             root.find-open = false;
-            root.focus-row = root.tracks-open-row;
-            if (root.focus-row < root.subs-focus-count) {
-                subs-list.centre(root.focus-row * root.row-h, root.row-h);
-            } else {
-                audio-list.centre(
-                    (root.focus-row - root.subs-focus-count) * root.row-h, root.row-h);
-            }
+            root.focus-row = root.subs-open-row;
+            subs-list.centre(root.focus-row * root.row-h, root.row-h);
+        }
+    }
+
+    public function open-audio(open: bool) {
+        root.audio-open = open;
+        if (open) {
+            root.close-others();
+            root.audio-open = true;
+            root.focus-row = max(0, root.audio-current);
+            audio-list.centre(root.focus-row * root.row-h, root.row-h);
         }
     }
 
@@ -3461,6 +3514,7 @@ export component MainWindow inherits Window {
     /// can't be forgotten in someone else's list.
     function close-others() {
         root.menu-open = false;
+        root.audio-open = false;
         root.playlist-open = false;
         root.settings-open = false;
         root.files-open = false;
@@ -3639,9 +3693,8 @@ export component MainWindow inherits Window {
                             root.settings-page = 1;
                         }
                     }
-                    // The bar button's glyph pair, so the icon says whether the
-                    // effect is on. B and the bar button toggle it; this is the
-                    // tuning.
+                    // The switch's glyph pair, so the icon says whether the
+                    // effect is on before the page is opened.
                     DrillRow {
                         icon: root.ambience-on
                             ? @image-url("../../../public/icons/ambience-on.svg")
@@ -3653,8 +3706,8 @@ export component MainWindow inherits Window {
                         }
                     }
 
-                    // No switch: subtitles are turned on and off from the bar
-                    // and the tracks menu's Off row. This is the tuning.
+                    // No switch: subtitles are turned on and off with C and the
+                    // subtitles menu's Off row. This is the tuning.
                     MenuHeading {
                         text: @tr("SUBTITLES");
                         after-content: true;
@@ -3781,13 +3834,26 @@ export component MainWindow inherits Window {
                         reveal-h: root.settings-reveal-h;
                         reveal-tick: root.settings-reveal-tick;
 
+                        // Whether, then how: the switch heads its own tuning.
+                        ToggleRow {
+                            label: @tr("Ambient border");
+                            checked: root.ambience-on;
+                            focused: root.focus-row == 1;
+                            toggled(on) => {
+                                root.ambience-on = on;
+                                root.set-ambience(on);
+                            }
+                        }
+                        Rectangle {
+                            height: Rows.group-gap;
+                        }
                         for item[idx] in root.border-params: ParamSlider {
                             label: item.label;
                             name-w: root.param-name-w;
                             icon: root.param-icon(item.index);
                             fraction: item.fraction;
                             readout: item.readout;
-                            focused: root.focus-row == idx + 1;
+                            focused: root.focus-row == idx + 2;
                             moved(f) => {
                                 root.set-param(item.index, f);
                             }
@@ -4083,7 +4149,7 @@ export component MainWindow inherits Window {
         Rectangle {
             x: -root.menu-drill * parent.width;
             width: parent.width;
-            height: root.tracks-h;
+            height: root.subs-h;
             y: 0;
             visible: root.menu-drill < 1.0;
 
@@ -4091,11 +4157,7 @@ export component MainWindow inherits Window {
                 padding-top: Rows.panel-pad;
                 padding-bottom: Rows.panel-pad;
 
-                if root.no-tracks: EmptyRow {
-                    label: @tr("No subtitle or audio tracks");
-                }
-
-                if root.show-subs: MenuHeading {
+                MenuHeading {
                     text: @tr("SUBTITLES");
                     icon: @image-url("../../../public/icons/subtitles.svg");
                 }
@@ -4107,7 +4169,7 @@ export component MainWindow inherits Window {
                     current-h: root.has-subs && (!root.subs-visible || root.sub-current >= 0)
                         ? root.row-h : 0px;
 
-                    if root.show-subs && root.subs-empty: EmptyRow {
+                    if root.subs-empty: EmptyRow {
                         label: @tr("No subtitles");
                     }
                     if root.has-subs: MenuRow {
@@ -4148,33 +4210,6 @@ export component MainWindow inherits Window {
                     }
                 }
 
-                if root.has-audio: MenuHeading {
-                    text: @tr("AUDIO");
-                    icon: @image-url("../../../public/icons/speaking.svg");
-                    after-content: root.show-subs;
-                }
-                audio-list := ScrollList {
-                    height: root.audio-list-h;
-                    content-height: root.audio-natural;
-                    current-top: root.audio-current * root.row-h;
-                    current-h: root.audio-current >= 0 ? root.row-h : 0px;
-
-                    for track[idx] in root.audio-tracks: MenuRow {
-                        label: track.label;
-                        active: track.selected;
-                        focused: root.menu-open
-                            && root.focus-row == root.subs-focus-count + idx;
-                        removable: track.external;
-                        armed: root.remove-armed == track.id && !root.remove-armed-sub;
-                        armed-for: root.armed-for;
-                        picked => {
-                            root.select-audio(track.id);
-                        }
-                        removed => {
-                            root.remove-row(track.id, false);
-                        }
-                    }
-                }
             }
         }
 
@@ -4223,6 +4258,57 @@ export component MainWindow inherits Window {
         }
     }
 
+    // The audio tracks, a panel of their own beside the subtitles' menu.
+    audio-panel := Rectangle {
+        width: 380px;
+        height: root.audio-h;
+        clip: true;
+        x: root.anchored-x(root.audio-anchor, self.width);
+        y: root.timeline-y - self.height - Rows.offset + root.audio-rise;
+        visible: root.audio-shown > root.shown-epsilon;
+        opacity: root.audio-shown;
+
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.pointed(event.kind == PointerEventKind.down);
+            }
+        }
+
+        VerticalLayout {
+            padding-top: Rows.panel-pad;
+            padding-bottom: Rows.panel-pad;
+
+            MenuHeading {
+                text: @tr("AUDIO");
+                icon: @image-url("../../../public/icons/speaking.svg");
+            }
+            audio-list := ScrollList {
+                height: root.audio-list-h;
+                content-height: root.audio-natural;
+                current-top: root.audio-current * root.row-h;
+                current-h: root.audio-current >= 0 ? root.row-h : 0px;
+
+                if !root.has-audio: EmptyRow {
+                    label: @tr("No audio tracks");
+                }
+                for track[idx] in root.audio-tracks: MenuRow {
+                    label: track.label;
+                    active: track.selected;
+                    focused: root.audio-open && root.focus-row == idx;
+                    removable: track.external;
+                    armed: root.remove-armed == track.id && !root.remove-armed-sub;
+                    armed-for: root.armed-for;
+                    picked => {
+                        root.select-audio(track.id);
+                    }
+                    removed => {
+                        root.remove-row(track.id, false);
+                    }
+                }
+            }
+        }
+    }
+
     // Opening: two rows, so it stays a menu rather than a mode. The button
     // says what it is for, and the rows say what the difference is.
     files-panel := Rectangle {
@@ -4265,9 +4351,8 @@ export component MainWindow inherits Window {
         }
     }
 
-    // Playlist: its own panel rather than a section of the tracks menu, since
-    // it is the one list that grows without bound, and it has a setting of
-    // its own.
+    // Playlist: its own panel, since it is the one list that grows without
+    // bound, and it has a setting of its own.
     playlist-panel := Rectangle {
         width: 380px;
         height: root.playlist-h;
@@ -5484,30 +5569,25 @@ export component MainWindow inherits Window {
                 }
             }
 
-            // Just the switch; its tuning is in the settings panel.
-            ambience-button := IconButton {
-                icon: root.ambience-on
-                    ? @image-url("../../../public/icons/ambience-on.svg")
-                    : @image-url("../../../public/icons/ambience-slash.svg");
-                tip: root.ambience-on
-                    ? @tr("Turn off the ambient border")
-                    : @tr("Turn on the ambient border");
-                keys: "B";
+            // The audio panel's mark is its heading's, so the button and what
+            // it opens wear the same glyph.
+            audio-button := IconButton {
+                icon: @image-url("../../../public/icons/speaking.svg");
+                tip: @tr("Audio");
+                keys: "A";
                 focused: root.bar-reach && root.bar-focus == 8;
+                open: root.audio-open;
                 clicked => {
-                    root.ambience-on = !root.ambience-on;
-                    root.set-ambience(root.ambience-on);
+                    root.open-audio(!root.audio-open);
                 }
             }
-            // Opens the tracks menu. It shows no on/off state, because a
+            // Opens the subtitles menu. It shows no on/off state, because a
             // button that looks like a switch gets clicked like one; the
             // menu's Off row and C are the switch.
-            tracks-button := IconButton {
+            subs-button := IconButton {
                 icon: @image-url("../../../public/icons/subtitles.svg");
-                // Both halves, since the subtitle glyph alone doesn't say the
-                // panel holds audio too.
-                tip: @tr("Subtitles & audio");
-                keys: "A";
+                tip: @tr("Subtitles");
+                keys: "V";
                 focused: root.bar-reach && root.bar-focus == 9;
                 open: root.menu-open;
                 clicked => {

@@ -72,7 +72,7 @@
 //! * `DBM_SHOWCASE=ring-bar` walks the ring with Tab to the settings button,
 //!   for the disc of glass under it; `ring-row` and `ring-slider` put it on a
 //!   playlist row and on a glass slider.
-//! * `DBM_SHOWCASE=armed` opens the tracks menu and presses Delete once on
+//! * `DBM_SHOWCASE=armed` opens the subtitles menu and presses Delete once on
 //!   the first subtitle loaded from its own file, so the row asks for the
 //!   second press. Open a film with a downloaded subtitle.
 //! * `DBM_SHOWCASE=sideways` presses Left and Right in the settings and the
@@ -92,9 +92,9 @@
 //!   so anything drawn from state that arrives late stays wrong.
 //! * `DBM_PREVIEW_TEST=1` — hovers along the timeline and reports what the seek
 //!   preview would show at each point.
-//! * `DBM_SCROLL_TEST=1` — checks how the tracks and playlist panels divide
-//!   their height between lists, that a wheel over one actually moves it, and
-//!   that its scroll bar can be pressed and dragged.
+//! * `DBM_SCROLL_TEST=1` — checks how tall the tracks and playlist panels
+//!   come out against their lists, that a wheel over one actually moves it,
+//!   and that its scroll bar can be pressed and dragged.
 //! * `DBM_WHEEL_TEST=1` — turns the wheel over the picture, which should do
 //!   nothing, and then over the volume track, which should move the level and
 //!   say it in the hover label without the wait a name gets.
@@ -126,7 +126,7 @@
 //!   out the listening, and reports the delay and speed it settled on with
 //!   the line mpv shows at `DBM_SYNC_AT` seconds (19 if unset). Then takes
 //!   the sync back and reports again, unless `DBM_SYNC_KEEP` is set.
-//! * `DBM_FIND_TEST=1` — opens the tracks menu and its search for subtitles,
+//! * `DBM_FIND_TEST=1` — opens the subtitles menu and its search,
 //!   takes the first result with the keyboard, removes it again with Delete,
 //!   and reports the menu and the line on screen at each step. Pair it with
 //!   `DBM_FIND_FAKE=1`, which answers the search from a fixed list and writes

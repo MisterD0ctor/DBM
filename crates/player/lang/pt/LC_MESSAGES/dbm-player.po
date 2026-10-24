@@ -823,3 +823,15 @@ msgstr "Maximizar"
 msgctxt "MainWindow"
 msgid "Close"
 msgstr "Fechar"
+
+msgctxt "MainWindow"
+msgid "Subtitles"
+msgstr "Legendas"
+
+msgctxt "MainWindow"
+msgid "Audio"
+msgstr "Áudio"
+
+msgctxt "MainWindow"
+msgid "No audio tracks"
+msgstr "Sem faixas de áudio"

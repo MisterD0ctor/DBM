@@ -819,3 +819,15 @@ msgstr "Maximera"
 msgctxt "MainWindow"
 msgid "Close"
 msgstr "Stäng"
+
+msgctxt "MainWindow"
+msgid "Subtitles"
+msgstr "Undertexter"
+
+msgctxt "MainWindow"
+msgid "Audio"
+msgstr "Ljud"
+
+msgctxt "MainWindow"
+msgid "No audio tracks"
+msgstr "Inga ljudspår"

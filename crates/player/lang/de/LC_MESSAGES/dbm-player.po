@@ -822,3 +822,15 @@ msgstr "Maximieren"
 msgctxt "MainWindow"
 msgid "Close"
 msgstr "Schließen"
+
+msgctxt "MainWindow"
+msgid "Subtitles"
+msgstr "Untertitel"
+
+msgctxt "MainWindow"
+msgid "Audio"
+msgstr "Ton"
+
+msgctxt "MainWindow"
+msgid "No audio tracks"
+msgstr "Keine Tonspuren"

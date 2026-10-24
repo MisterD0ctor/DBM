@@ -361,7 +361,7 @@ on every platform the player runs on.
 
 **Latin, and then the system.** The four files compiled in cover Latin and
 nothing else, so a track named in its own script — العربية and فارسی sit in
-the tracks panel of the episode this was last checked against — is drawn by
+the track lists of the episode this was last checked against — is drawn by
 whatever the machine has. The words are right and the face is not ours: the
 fallback sets smaller at the same size and on its own baseline, and on a
 machine with nothing for that script it is tofu. Endonyms are the Capitals
@@ -468,11 +468,12 @@ three control pills (`MainWindow.pill-h` tall): a title pill on the left, the
 transport pill (`MainWindow.center-w`) centred in the window until that would
 bring it within `MainWindow.pill-gap` of the right pill, where it keeps the gap
 and gives way leftwards, and the right pill (`MainWindow.right-w`) holding
-sound, effects and window controls. They sit `MainWindow.panel-margin` from the
-window edges, `MainWindow.pill-gap` below the timeline row. Inside a pill,
-buttons (`MainWindow.btn`) sit `MainWindow.btn-gap` apart with
-`MainWindow.pill-pad` of padding; text directly on a pill is inset
-`MainWindow.pill-text-pad`, clear of the capsule's curve.
+sound, the two tracks panels, the settings and the picture's own controls.
+They sit `MainWindow.panel-margin` from the window edges, `MainWindow.pill-gap`
+below the timeline row. Inside a pill, buttons (`MainWindow.btn`) sit
+`MainWindow.btn-gap` apart with `MainWindow.pill-pad` of padding; text
+directly on a pill is inset `MainWindow.pill-text-pad`, clear of the
+capsule's curve.
 
 The title pill opens with its two buttons, Playlist and then Open, and the
 title follows them (`MainWindow.lp-title`). So the buttons, and the playlist
@@ -504,20 +505,19 @@ by what is written in it.**
 
 **Panels** open `Rows.offset` above the timeline row, anchored to the button
 that opened them and kept inside the same margins. Their widths are the
-`width` of `menu`, `playlist-panel`, `settings` and `files-panel` in
-`MainWindow`. Only one is ever open. Each is capped at the space between the bar
-and the window's top, less the same margin it keeps from the window's sides, so
-a panel at its tallest is framed evenly. Any list inside
-it scrolls within that cap; where two lists share a panel they take a fair share
-each, except that a list which fits keeps its full height and hands the
-remainder to the other. Every page of the settings is such a list — the first
-page whole, the others under their way back — so on a small window nothing on
-any of them is out of reach; a page that fits does not scroll and looks as it
-always did. A list opens on its current row, centred as far as
-its ends allow — the playlist on the episode playing, the tracks on the
-subtitle in use — however it was opened. The language page has a current row
-too, and the angle that points back to it. The hover label opens on that same
-line, `Rows.offset` above the timeline; the seek preview floats just above it.
+`width` of `menu`, `audio-panel`, `playlist-panel`, `settings` and
+`files-panel` in `MainWindow`. Only one is ever open. Each is capped at the
+space between the bar and the window's top, less the same margin it keeps from
+the window's sides, so a panel at its tallest is framed evenly. Any list inside
+it scrolls within that cap. Every page of the settings is such a list — the
+first page whole, the others under their way back — so on a small window
+nothing on any of them is out of reach; a page that fits does not scroll and
+looks as it always did. A list opens on its current row, centred as far as its
+ends allow — the playlist on the episode playing, the subtitles on the one in
+use, the audio on the track playing — however it was opened. The language page
+has a current row too, and the angle that points back to it. The hover label
+opens on that same line, `Rows.offset` above the timeline; the seek preview
+floats just above it.
 
 **The window has no frame.** The film runs to its edges, the picture is what
 drags it, and its buttons are its own: Minimize, Maximize and Close, each a
@@ -800,14 +800,14 @@ by under a pixel at the corner.
   unmuted, slashed for unslashed), and that swap is the whole of the sign. A
   wash behind an engaged button makes the state read as chrome.
   **A button's state is its glyph, never its brightness**: every glyph on the
-  bar is Lit, and Mute muted or the ambient border off say so by the mark
-  they wear, which their tips name.
+  bar is Lit, and Mute muted or Fullscreen on say so by the mark they wear,
+  which their tips name.
 - **Open:** a held Strong wash for as long as the panel it opened is showing — a
   step under the ring's, so the two never share one highlight.
   A button that opens something does not also show a state, because a glyph
-  that lights like a switch is clicked like one. The subtitles and audio button
-  wears the plain subtitles mark and says *Subtitles & audio*; the menu's
-  *Off* row is where subtitles go off.
+  that lights like a switch is clicked like one. The subtitles button wears the
+  plain subtitles mark, and its menu's *Off* row is where subtitles go off;
+  the audio button wears Speaking, the mark over its panel's heading.
 - **Focus:** the Ring wash, on a disc of glass laid on its pill
   (`MainWindow.ring-disc`), while the keyboard is on it: see The Ring Pane
   Rule. With the glass switched off the wash is the whole of it, a step over
@@ -926,14 +926,13 @@ by under a pixel at the corner.
   with the words. A choice in a list has none.
 
 ### Finding subtitles
-- **Where:** the last row of the tracks menu's subtitle list, *Find
-  subtitles…*, with the Search icon — an action among choices, so it wears
-  the mark they do not. On a film with no subtitle tracks the SUBTITLES
-  section is that one row, which is when it is most wanted. Absent from a
-  build without an OpenSubtitles key, where a film with no subtitle tracks
-  has the section anyway, holding one line that says so: *No subtitles*. A menu
-  called Subtitles & audio does not lose its first half
-- **The page:** pressed, it slides a page of the tracks menu over the tracks
+- **Where:** the last row of the subtitles menu, *Find subtitles…*, with the
+  Search icon — an action among choices, so it wears the mark they do not. On
+  a film with no subtitle tracks the menu is that one row, which is when it is
+  most wanted. Absent from a build without an OpenSubtitles key, where a film
+  with no subtitle tracks gets the menu anyway, holding one line that says so:
+  *No subtitles*, as the audio panel says *No audio tracks*
+- **The page:** pressed, it slides a page of the subtitles menu over the tracks
   with the drill's movement, headed by its way back, FIND SUBTITLES. Under
   that, one line while it searches — *Searching OpenSubtitles…* — then either
   the results or what came of it: *No subtitles found*, or why it could not
@@ -1213,9 +1212,12 @@ doing in it.
   punched through it either way
 - **Motion:** `Motion.switch` ease-out on the knob and on the track colour
 - **Hover:** Soft wash; one target for the whole row
-- **Use:** Autoplay under the playlist, and Animations, Darken bright glass,
-  Tooltips and Shortcuts in tooltips on the accessibility page — a page of
-  switches and no reset, because each switch is its own undo
+- **Use:** Autoplay under the playlist; Ambient border at the head of its own
+  page, over the sliders that tune it, since whether comes before how; and
+  Animations, Darken bright glass, Tooltips and Shortcuts in tooltips on the
+  accessibility page — a page of switches and no reset, because each switch is
+  its own undo. B still turns the border on and off from anywhere, as the one
+  effect worth changing mid-film
 - **Unavailable:** a switch about something another switch has turned off
   fades to half, takes no pointer and no wash, and keeps its position —
   Shortcuts in tooltips while Tooltips is off
@@ -1250,7 +1252,7 @@ doing in it.
   itself rather than being pushed down by the row above, because the last row
   of a group does not know that it is last
 - **Heading icons:** a heading over rows without icons of their own carries
-  one — the playlist, SUBTITLES and AUDIO in the tracks panel, every group on
+  one — the playlist, SUBTITLES and AUDIO over the tracks panels, every group on
   the shortcuts page. A row's size (`MenuHeading.icon-size`), since icons come
   at two sizes and nothing between (see Don'ts); at the heading's own alpha, so
   mark and words are one thing; starting on the row-label line with the words
@@ -1309,7 +1311,8 @@ doing in it.
   on a fixed ladder (0.25× to 4×), `,` `.` for a frame, PgUp PgDn for chapters,
   J and Shift+J through the subtitle tracks, # through the audio, and `?`
   straight to this page, which is also a row on the way in. The bindings
-  the player already had — the arrows' volume, S, T, A — stay where they were
+  the player already had — the arrows' volume, S, T — stay where they were. A
+  opens the audio, and V, beside C, the subtitles
 - **Language:** the last row of the settings' INTERFACE group opens a page of
   menu rows, one lit: *System language* first, which is what the player speaks
   until told otherwise, then English, then each language built in under its

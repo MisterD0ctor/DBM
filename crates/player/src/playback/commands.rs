@@ -220,7 +220,7 @@ pub fn set_subtitle_track(mpv: &Mpv, id: Option<i64>) {
             set_prop(mpv, "sub-visibility", "yes");
         }
         // Leaves `sid` intact so the track stays the one a later toggle
-        // brings back, matching the tracks menu's own "Off" entry.
+        // brings back, matching the subtitles menu's own "Off" entry.
         None => set_prop(mpv, "sub-visibility", "no"),
     }
 }

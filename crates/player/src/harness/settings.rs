@@ -125,7 +125,7 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
     timer
 }
 
-/// Open the tracks menu, open its search, take the first result with the
+/// Open the subtitles menu, open its search, take the first result with the
 /// keyboard, take it back out with Delete, and report what the menu holds at
 /// each step. With `DBM_FIND_FAKE` set the search answers from a fixed list
 /// and the download is a subtitle written on the spot, so no key or

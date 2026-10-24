@@ -822,3 +822,15 @@ msgstr "Ingrandisci"
 msgctxt "MainWindow"
 msgid "Close"
 msgstr "Chiudi"
+
+msgctxt "MainWindow"
+msgid "Subtitles"
+msgstr "Sottotitoli"
+
+msgctxt "MainWindow"
+msgid "Audio"
+msgstr "Audio"
+
+msgctxt "MainWindow"
+msgid "No audio tracks"
+msgstr "Nessuna traccia audio"

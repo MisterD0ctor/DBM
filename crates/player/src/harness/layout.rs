@@ -147,23 +147,23 @@ pub(super) fn paused_resize_test(ui: &MainWindow) -> slint::Timer {
     timer
 }
 
-/// How a panel divided itself up, against what its lists wanted.
+/// How tall each tracks panel came out, against what its list wanted.
 fn report_lists(ui: &MainWindow, label: &str) {
     eprintln!(
-        "dbm: {label:<18} panel={:.0} | subs {:.0}/{:.0} audio {:.0}/{:.0}",
-        ui.get_tracks_h(),
+        "dbm: {label:<18} subs panel={:.0} list {:.0}/{:.0} | audio panel={:.0} list {:.0}/{:.0}",
+        ui.get_subs_h(),
         ui.get_subs_list_h(),
         ui.get_subs_natural(),
+        ui.get_audio_h(),
         ui.get_audio_list_h(),
         ui.get_audio_natural(),
     );
 }
 
-/// Check the height split and that the lists actually move.
+/// Check the panels' heights against their caps, and that the lists move.
 ///
-/// The split has four cases (both lists fitting, either borrowing from the
-/// other, both capped), so it is worth reading back. The wheel is the other
-/// half, since a list sized correctly but stuck at the top looks the same.
+/// A list sized correctly but stuck at the top looks the same as one that
+/// works, so the wheel is turned over each that can scroll.
 pub(super) fn scroll_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
     let weak = ui.as_weak();
@@ -174,8 +174,7 @@ pub(super) fn scroll_test(ui: &MainWindow) -> slint::Timer {
         move || {
             let Some(ui) = weak.upgrade() else { return };
             match step {
-                // Short enough that the panel cannot hold both lists, which
-                // is the only state where the split does anything.
+                // Short enough that a long list runs into the panel's cap.
                 0 => {
                     ui.window().set_size(slint::LogicalSize::new(1280.0, 540.0));
                     ui.invoke_open_menu(true);
@@ -183,9 +182,9 @@ pub(super) fn scroll_test(ui: &MainWindow) -> slint::Timer {
                 1 => report_lists(&ui, "tracks, short"),
                 2 => {
                     // Into the subtitle list: below the panel top, the
-                    // padding and the first heading.
+                    // padding and the heading.
                     let x = ui.window().size().width as f32 / ui.window().scale_factor() - 100.0;
-                    let y = ui.get_timeline_y() - ui.get_tracks_h() + 60.0;
+                    let y = ui.get_timeline_y() - ui.get_subs_h() + 60.0;
                     eprintln!("dbm: wheel over the subtitle list at ({x:.0}, {y:.0})");
                     wheel(&ui, x, y, -120.0);
                 }
@@ -246,11 +245,11 @@ pub(super) fn scroll_test(ui: &MainWindow) -> slint::Timer {
                     ui.get_playlist_scroll(),
                     ui.get_playlist_list_h() - ui.get_playlist_natural(),
                 ),
-                // Back to the tracks menu and click the first real subtitle
-                // row: the one below "Off", inside the scrolling list.
+                // Back to the subtitles menu and click the first real
+                // subtitle row: the one below "Off", inside the scrolling list.
                 14 => ui.invoke_open_menu(true),
                 15 => {
-                    let top = ui.get_timeline_y() - ui.get_tracks_h();
+                    let top = ui.get_timeline_y() - ui.get_subs_h();
                     let y = top + 14.0 + 28.0 + 34.0 + 17.0;
                     let x = ui.get_subs_anchor();
                     eprintln!("dbm: clicking a subtitle row at ({x:.0}, {y:.0})");
@@ -291,32 +290,34 @@ pub(super) fn panel_test(ui: &MainWindow) -> slint::Timer {
             match step {
                 0 => report_panels(&ui, "nothing open"),
                 1 => ui.invoke_open_menu(true),
-                2 => report_panels(&ui, "tracks"),
-                3 => ui.invoke_open_playlist(true),
-                4 => report_panels(&ui, "playlist over tracks"),
-                5 => ui.invoke_open_settings(true),
-                6 => report_panels(&ui, "settings over playlist"),
-                7 => ui.invoke_open_files(true),
-                8 => report_panels(&ui, "files over settings"),
-                9 => ui.invoke_open_menu(true),
-                10 => report_panels(&ui, "tracks over files"),
+                2 => report_panels(&ui, "subtitles"),
+                3 => ui.invoke_open_audio(true),
+                4 => report_panels(&ui, "audio over subtitles"),
+                5 => ui.invoke_open_playlist(true),
+                6 => report_panels(&ui, "playlist over audio"),
+                7 => ui.invoke_open_settings(true),
+                8 => report_panels(&ui, "settings over playlist"),
+                9 => ui.invoke_open_files(true),
+                10 => report_panels(&ui, "files over settings"),
+                11 => ui.invoke_open_menu(true),
+                12 => report_panels(&ui, "subtitles over files"),
                 // Each settings page sizes the panel from its own row
                 // count, so walk them and see what the pipeline is told.
-                11 => ui.invoke_open_settings_page(0),
-                12 => report_panels(&ui, "settings list"),
-                13 => ui.invoke_open_settings_page(1),
-                14 => report_panels(&ui, "settings glass"),
-                15 => ui.invoke_open_settings_page(2),
-                16 => report_panels(&ui, "settings ambience"),
-                17 => ui.invoke_open_settings_page(3),
-                18 => report_panels(&ui, "settings subtitles"),
-                19 => ui.invoke_open_settings_page(4),
-                20 => report_panels(&ui, "settings accessibility"),
-                21 => ui.invoke_open_settings_page(5),
-                22 => report_panels(&ui, "settings shortcuts"),
-                23 => ui.invoke_open_settings(false),
-                24 => report_panels(&ui, "closed again"),
-                25 => eprintln!("dbm: --- panel test done ---"),
+                13 => ui.invoke_open_settings_page(0),
+                14 => report_panels(&ui, "settings list"),
+                15 => ui.invoke_open_settings_page(1),
+                16 => report_panels(&ui, "settings glass"),
+                17 => ui.invoke_open_settings_page(2),
+                18 => report_panels(&ui, "settings ambience"),
+                19 => ui.invoke_open_settings_page(3),
+                20 => report_panels(&ui, "settings subtitles"),
+                21 => ui.invoke_open_settings_page(4),
+                22 => report_panels(&ui, "settings accessibility"),
+                23 => ui.invoke_open_settings_page(5),
+                24 => report_panels(&ui, "settings shortcuts"),
+                25 => ui.invoke_open_settings(false),
+                26 => report_panels(&ui, "closed again"),
+                27 => eprintln!("dbm: --- panel test done ---"),
                 _ => {}
             }
             step += 1;
@@ -335,8 +336,9 @@ fn report_panels(ui: &MainWindow, label: &str) {
         .map(|r| format!("x{}..{} h{}", r.x, r.x + r.width, r.height))
         .collect();
     eprintln!(
-        "dbm: {label:<22} tracks={} playlist={} settings={} files={} | {} rect(s) {}",
+        "dbm: {label:<22} subtitles={} audio={} playlist={} settings={} files={} | {} rect(s) {}",
         ui.get_menu_open(),
+        ui.get_audio_open(),
         ui.get_playlist_open(),
         ui.get_settings_open(),
         ui.get_files_open(),
