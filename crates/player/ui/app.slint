@@ -1367,7 +1367,9 @@ export component MainWindow inherits Window {
     property <bool> tip-up;
     /// Came down within `tip-grace`, so the next one need not wait.
     property <bool> tip-warm;
-    /// Taken away without a fade, by a resize; cleared by the next tip.
+    /// Taken away without a fade, by a resize or a panel; cleared by the next
+    /// tip to rise with no panel open. A panel only hides what it covers, so
+    /// without the cut, closing it would uncover a tip mid-fade.
     property <bool> tip-cut;
 
     function raise-tip() {
@@ -1376,9 +1378,15 @@ export component MainWindow inherits Window {
         root.tip-at = Tip.cx;
         root.tip-up = true;
         root.tip-warm = false;
-        root.tip-cut = false;
+        root.tip-cut = root.panel-open;
         tip-cool.stop();
         root.tip-shown = 1.0;
+    }
+
+    changed panel-open => {
+        if (root.panel-open) {
+            root.tip-cut = true;
+        }
     }
 
     // Watched through a local property, as the flash's is.

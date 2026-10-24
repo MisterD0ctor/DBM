@@ -1373,7 +1373,9 @@ expression, never a decision taken when the pointer arrives. Both ways it can
 go wrong happen afterwards: a pointer resting on a button raises no events, so
 the idle clock runs out under a label that is already up and the bar leaves
 without it; and a panel can open underneath one, over the very row the tip
-covers, which a check run once on hover never sees.
+covers, which a check run once on hover never sees. A tip a panel hid stays
+gone when the panel closes, until the pointer next arrives; uncovered, it
+would show its fade-out in a place the hand may have left.
 
 ### The seek preview
 The signature component. A thumbnail from an ffmpeg sprite atlas
