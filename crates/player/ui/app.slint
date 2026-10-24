@@ -871,7 +871,7 @@ export component MainWindow inherits Window {
     /// Where the rows go, inside that. The pane is the margins' own box.
     property <length> bar-x: root.panel-margin + root.bar-pad;
     property <length> bar-w: root.width - 2 * root.bar-x;
-    property <length> bar-h: 2 * root.bar-pad + root.timeline-h + root.pill-gap
+    property <length> bar-h: 2 * root.bar-pad + root.timeline-h
         + root.pill-h;
     /// Transport: previous, back, play, forward, next.
     property <length> center-w: 2 * root.pill-pad + 5 * root.btn + 4 * root.btn-gap;
@@ -1449,7 +1449,7 @@ export component MainWindow inherits Window {
 
     property <length> pills-y: root.height - root.panel-margin - root.bar-pad
         - root.pill-h;
-    out property <length> timeline-y: root.pills-y - root.pill-gap - root.timeline-h;
+    out property <length> timeline-y: root.pills-y - root.timeline-h;
     /// The top of the bar's glass, which panels, the tip and the seek
     /// preview open above.
     property <length> bar-top: root.timeline-y - root.bar-pad;
@@ -1970,8 +1970,7 @@ export component MainWindow inherits Window {
         {
             x: root.panel-margin,
             y: root.bar-top + root.bar-rise,
-            width: root.bar-shown > root.shown-epsilon
-                ? root.width - 2 * root.panel-margin : 0,
+            width: root.bar-shown > root.shown-epsilon ? root.width - 2 * root.panel-margin : 0,
             height: root.bar-shown > root.shown-epsilon ? root.bar-h : 0,
             opacity: root.bar-shown,
             // Opt in to tinting; the strength is the global slider.
