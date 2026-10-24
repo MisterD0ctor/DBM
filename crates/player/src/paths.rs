@@ -65,10 +65,11 @@ pub fn vendored(names: &[&str]) -> Option<PathBuf> {
 /// Plain text on purpose: it is a short list of numbers, and being able to
 /// open it in an editor while tuning is worth more than a compact format.
 pub fn settings_file() -> PathBuf {
-    // A harness writes to its own file, so a test run never touches the real
-    // settings, however it was started.
-    let name = if crate::harness::armed() {
-        eprintln!("dbm: harness armed - settings go to settings.test.conf");
+    // A run nobody is watching (an exercise, a showcase or a capture) keeps to
+    // its own file, so it neither touches the real settings nor looks like
+    // whatever they were last set to while trying something.
+    let name = if crate::harness::unattended() {
+        eprintln!("dbm: unattended - settings go to settings.test.conf");
         "settings.test.conf"
     } else {
         "settings.conf"
