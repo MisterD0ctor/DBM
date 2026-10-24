@@ -50,6 +50,10 @@ pub struct App {
     /// What the last search on OpenSubtitles found, in the order its rows
     /// are drawn: the frame loop puts it here, a pressed row reads it back.
     pub found: Rc<std::cell::RefCell<Vec<Hit>>>,
+    /// The result whose download was refused for want of an account, and the
+    /// film it was for: fetched again once the person signs in, which is what
+    /// they signed in for.
+    pub waiting: Rc<std::cell::RefCell<Option<(String, Hit)>>>,
     /// Arriving at a file with a place saved in it: the callbacks ask for
     /// files through it, the frame loop tells it what the playlist knows and
     /// when a file has loaded.

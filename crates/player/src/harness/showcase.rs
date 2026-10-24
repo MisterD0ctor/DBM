@@ -5,7 +5,7 @@ use std::time::Duration;
 use slint::platform::Key;
 use slint::{ComponentHandle, Model};
 
-use super::drive::{arrow, click, hover, wheel};
+use super::drive::{arrow, chord, click, hover, wheel};
 use crate::MainWindow;
 
 /// Hold one surface open, with the chrome kept awake, for a capture: the
@@ -161,6 +161,50 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             // Muted, for the volume track with its fill faded out.
             if surface == "muted" && tick == 6 {
                 ui.invoke_toggle_mute();
+            }
+
+            // Signing in to OpenSubtitles, with `DBM_FIND_FAKE=spent`: the
+            // search's page offering it once a download is refused, the
+            // sign-in with a name and a password typed, and the account's
+            // page once signed in.
+            if matches!(surface.as_str(), "find-offer" | "sign-in" | "account") {
+                let typed = |text: &str| {
+                    for c in text.chars() {
+                        chord(&ui, &[], &c.to_string());
+                    }
+                };
+                // Down until the ring is on the account's row, then into it.
+                let into_account = || {
+                    for _ in 0..3 {
+                        if ui.get_focus_row() == 1 {
+                            break;
+                        }
+                        arrow(&ui, Key::DownArrow);
+                    }
+                    arrow(&ui, Key::Return);
+                };
+                match tick {
+                    4 => ui.invoke_open_menu(true),
+                    5 => ui.invoke_open_find(),
+                    7 => ui.invoke_fetch_subtitle(0),
+                    9 if surface != "find-offer" => into_account(),
+                    10 if surface != "find-offer" => {
+                        typed("fake");
+                        arrow(&ui, Key::Return);
+                        typed(if surface == "account" {
+                            "fake"
+                        } else {
+                            "secret"
+                        });
+                    }
+                    11 if surface == "account" => arrow(&ui, Key::Return),
+                    14 if surface == "account" => {
+                        ui.invoke_open_menu(true);
+                        ui.invoke_open_find();
+                    }
+                    15 if surface == "account" => into_account(),
+                    _ => {}
+                }
             }
 
             // The language page walked with the keyboard to its last row,

@@ -42,6 +42,10 @@
 //!   `tip-volume` rests it on the volume track, whose label is the level.
 //! * `DBM_SHOWCASE=window-max` presses the window's own maximize button.
 //! * `DBM_SHOWCASE=muted` mutes, for the volume track with its fill gone.
+//! * `DBM_SHOWCASE=find-offer`, `sign-in` and `account`, with
+//!   `DBM_FIND_FAKE=spent`: the search's page offering to sign in once a
+//!   download is refused, the sign-in with a name and a password typed, and
+//!   the account's page once signed in.
 //! * `DBM_SHOWCASE=scroll-bar` opens the playlist and rests the pointer on its
 //!   scroll bar, to draw the bar at its grown width.
 //! * `DBM_SHOWCASE=current-above`, `current-below` and `current-half` open the
@@ -132,6 +136,10 @@
 //!   and reports the menu and the line on screen at each step. Pair it with
 //!   `DBM_FIND_FAKE=1`, which answers the search from a fixed list and writes
 //!   the download on the spot, so it needs no key and no connection.
+//! * `DBM_SIGN_IN_TEST=1` — with `DBM_FIND_FAKE=spent`, has a download refused
+//!   for want of an account, signs in from the keyboard (a wrong password,
+//!   then the right one), sees the download go through, and signs out. On the
+//!   way it checks a copy from the password field takes nothing out of it.
 //! * `DBM_AUDIO_TEST=1` — stages the Bluetooth failure: drops the audio track
 //!   the way mpv does when a device dies, then feeds the watchdog a device
 //!   appearing, and reads `aid` back to see whether anything came of it. Then
@@ -325,6 +333,9 @@ pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
     }
     if std::env::var_os("DBM_SYNC_TEST").is_some() {
         timers.push(settings::sync_test(ui, mpv.clone()));
+    }
+    if std::env::var_os("DBM_SIGN_IN_TEST").is_some() {
+        timers.push(settings::sign_in_test(ui));
     }
     if std::env::var_os("DBM_FIND_TEST").is_some() {
         timers.push(settings::find_test(ui, mpv.clone()));

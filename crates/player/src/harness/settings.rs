@@ -208,6 +208,151 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
     timer
 }
 
+/// Run out of downloads without an account and sign in past them, all from
+/// the keyboard: a download refused, the page's offer taken, a wrong password
+/// refused, then the right one, and the download that asked going through.
+/// Then back to the account and out. Wants `DBM_FIND_FAKE=spent`.
+///
+/// It also checks the password field keeps what is in it, where there is a
+/// clipboard to check with. First the name, `fake`, is copied and pasted as
+/// the password: if that signs in, the clipboard works. Then, signed out, the
+/// password field is told to copy *leak*, and the name is pasted over with
+/// the clipboard. If the field kept its own, the name is still `fake` and the
+/// sign-in goes through; if it leaked, the name is *leak*, and it is refused.
+pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
+    use super::drive::chord;
+    use slint::platform::Key;
+
+    let report = |ui: &MainWindow, label: &str| {
+        eprintln!(
+            "dbm: sign-in {label:<16} find={} account={} row={} offered={} busy={} \
+             said={:?} as={:?} left={} fetching={}",
+            ui.get_find_open(),
+            ui.get_account_open(),
+            ui.get_focus_row(),
+            ui.get_find_sign_in_offered(),
+            ui.get_signing_in(),
+            ui.get_sign_in_said(),
+            ui.get_find_account(),
+            ui.get_find_left(),
+            ui.get_find_fetching(),
+        );
+    };
+    let typed = |ui: &MainWindow, text: &str| {
+        for c in text.chars() {
+            chord(ui, &[], &c.to_string());
+        }
+    };
+    let press = |ui: &MainWindow, key: Key| chord(ui, &[], &slint::SharedString::from(key));
+    let control = |ui: &MainWindow, text: &str| chord(ui, &[Key::Control], text);
+
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut step = 0usize;
+    let mut clipboard = false;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(400),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            match step {
+                0..=3 => {}
+                4 => ui.invoke_open_menu(true),
+                5 => ui.invoke_open_find(),
+                // The ring up, onto the first result, and Enter on it.
+                7 => press(&ui, Key::DownArrow),
+                8 => press(&ui, Key::DownArrow),
+                9 => press(&ui, Key::Return),
+                11 => report(&ui, "refused"),
+                // The account's row has taken the place the ring is on.
+                12 => press(&ui, Key::Return),
+                13 => report(&ui, "account page"),
+                14 => typed(&ui, "fake"),
+                15 => press(&ui, Key::Return),
+                16 => typed(&ui, "nope"),
+                17 => press(&ui, Key::Return),
+                18 => report(&ui, "wrong password"),
+                // A second on, for the sign-ins' own limit: the name copied
+                // and pasted as the password.
+                21 => {
+                    press(&ui, Key::UpArrow);
+                    control(&ui, "a");
+                    control(&ui, "c");
+                    press(&ui, Key::DownArrow);
+                    control(&ui, "v");
+                    press(&ui, Key::Return);
+                }
+                23 => {
+                    clipboard = ui.get_find_account() == "fake";
+                    if clipboard {
+                        report(&ui, "pasted, in");
+                    } else {
+                        report(&ui, "no clipboard");
+                        typed(&ui, "fake");
+                        press(&ui, Key::Return);
+                    }
+                }
+                25 => report(&ui, "signed in"),
+                27 => report(&ui, "fetched"),
+                28 => {
+                    ui.invoke_open_menu(true);
+                    ui.invoke_open_find();
+                }
+                // Down until the ring is on the account's row, however many
+                // presses that is from wherever it was left.
+                29 => {
+                    report(&ui, "searched again");
+                    for _ in 0..3 {
+                        if ui.get_focus_row() == 1 {
+                            break;
+                        }
+                        press(&ui, Key::DownArrow);
+                    }
+                    press(&ui, Key::Return);
+                }
+                30 => {
+                    report(&ui, "account again");
+                    press(&ui, Key::Return);
+                }
+                31 => report(&ui, "signed out"),
+                // The leak: back to the sign-in, the password field told to
+                // copy, and the name pasted over with whatever it held.
+                32 if clipboard => press(&ui, Key::Return),
+                33 if clipboard => {
+                    typed(&ui, "fake");
+                    press(&ui, Key::DownArrow);
+                    typed(&ui, "leak");
+                    control(&ui, "a");
+                    control(&ui, "c");
+                    control(&ui, "a");
+                    press(&ui, Key::Backspace);
+                    press(&ui, Key::UpArrow);
+                    control(&ui, "a");
+                    control(&ui, "v");
+                    press(&ui, Key::DownArrow);
+                    typed(&ui, "fake");
+                    press(&ui, Key::Return);
+                }
+                35 if clipboard => {
+                    let kept = ui.get_find_account() == "fake";
+                    report(&ui, if kept { "nothing copied" } else { "LEAKED" });
+                }
+                36 => eprintln!(
+                    "dbm: --- sign-in test done{} ---",
+                    if clipboard {
+                        ""
+                    } else {
+                        " (no clipboard, so no leak check)"
+                    }
+                ),
+                _ => {}
+            }
+            step += 1;
+        },
+    );
+    timer
+}
+
 /// Sync the subtitles to the film's speech, from the keyboard, and read back
 /// what mpv then shows.
 ///

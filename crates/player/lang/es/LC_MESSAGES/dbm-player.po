@@ -834,3 +834,67 @@ msgstr "Audio"
 msgctxt "MainWindow"
 msgid "No audio tracks"
 msgstr "No hay pistas de audio"
+
+msgctxt "SignInForm"
+msgid "Username"
+msgstr "Usuario"
+
+msgctxt "SignInForm"
+msgid "Password"
+msgstr "Contraseña"
+
+msgctxt "SignInForm"
+msgid "Signing in…"
+msgstr "Iniciando sesión…"
+
+msgctxt "SignInForm"
+msgid "Sign in"
+msgstr "Iniciar sesión"
+
+msgctxt "AccountPage"
+msgid "ACCOUNT"
+msgstr "CUENTA"
+
+msgctxt "AccountPage"
+msgid "SIGN IN"
+msgstr "INICIAR SESIÓN"
+
+msgctxt "AccountPage"
+msgid "Signed in as {}"
+msgstr "Sesión iniciada como {}"
+
+msgctxt "AccountPage"
+msgid "Downloads left today: {}"
+msgstr "Descargas que quedan hoy: {}"
+
+msgctxt "AccountPage"
+msgid "Sign out"
+msgstr "Cerrar sesión"
+
+msgctxt "MainWindow"
+msgid "Signed in as {}"
+msgstr "Sesión iniciada como {}"
+
+msgctxt "MainWindow"
+msgid "Sign in to OpenSubtitles"
+msgstr "Iniciar sesión en OpenSubtitles"
+
+msgctxt "MainWindow"
+msgid "Subtitles provided by OpenSubtitles.com"
+msgstr "Subtítulos proporcionados por OpenSubtitles.com"
+
+msgctxt "player"
+msgid "The downloads without an account are used up for today"
+msgstr "Se agotaron por hoy las descargas sin cuenta"
+
+msgctxt "player"
+msgid "OpenSubtitles is busy. Try again in a moment"
+msgstr "OpenSubtitles está ocupado. Inténtalo de nuevo en un momento"
+
+msgctxt "player"
+msgid "The username or password is wrong"
+msgstr "El usuario o la contraseña no son correctos"
+
+msgctxt "player"
+msgid "The sign-in to OpenSubtitles has run out"
+msgstr "La sesión de OpenSubtitles ha caducado"

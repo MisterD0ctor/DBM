@@ -25,8 +25,12 @@ window, the black bars pick up the colours from the edges of the picture.
   lines the subtitles up with it. You can also move them earlier or later by
   hand.
 - **Finds subtitles online.** Search OpenSubtitles for what you're watching
-  and choose one from the list. That search is the only time the player goes
-  online, and it only happens when you ask for it.
+  and choose one from the list. The first few downloads each day need no
+  account; after that, the player asks you to sign in with your own
+  OpenSubtitles account. It keeps the sign-in only until you quit, and never
+  writes down your password. Searching, downloading and signing in are the
+  only times the player goes online, and only when you ask. Subtitles
+  provided by [OpenSubtitles.com](https://www.opensubtitles.com).
 - **Works from the keyboard.** Everything has a shortcut, and the menu lists
   them all. Media keys and your desktop's media controls work too.
 - **Speaks your language.** English, Swedish, German, Spanish, French,

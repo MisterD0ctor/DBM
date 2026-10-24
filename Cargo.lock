@@ -946,6 +946,7 @@ checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
 name = "dbm-player"
 version = "0.3.0"
 dependencies = [
+ "base64 0.22.1",
  "glow 0.16.0",
  "libc",
  "libloading",
@@ -960,9 +961,11 @@ dependencies = [
  "slint-build",
  "sys-locale",
  "ureq",
+ "url",
  "windows 0.61.3",
  "winresource",
  "zbus",
+ "zeroize",
 ]
 
 [[package]]

@@ -290,6 +290,35 @@ fn wire_finding(ui: &MainWindow, app: &App) {
             opensubtitles::fetch(path, hit, app.worker.reporter());
         });
     }
+    {
+        let app = app.clone();
+        let weak = ui.as_weak();
+        ui.on_sign_in(move |name, password| {
+            app.activity.bump();
+            let Some(ui) = weak.upgrade() else { return };
+            // The player's one copy of the password, overwritten once it is
+            // sent. Slint's is cleared from the field as this returns.
+            let password = zeroize::Zeroizing::new(password.as_str().to_owned());
+            let name = name.trim().to_string();
+            if name.is_empty() || password.is_empty() {
+                return;
+            }
+            ui.set_signing_in(true);
+            ui.set_sign_in_said(Default::default());
+            opensubtitles::account::sign_in(name, password, app.worker.reporter());
+        });
+    }
+    {
+        let app = app.clone();
+        let weak = ui.as_weak();
+        ui.on_sign_out(move || {
+            app.activity.bump();
+            let Some(ui) = weak.upgrade() else { return };
+            opensubtitles::account::sign_out();
+            ui.set_find_account(Default::default());
+            ui.set_find_left(-1);
+        });
+    }
 }
 
 /// The languages a search asks for: the one the player speaks, and English

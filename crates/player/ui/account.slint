@@ -1,0 +1,313 @@
+// The account's page in the subtitles menu: signing in to OpenSubtitles once
+// the downloads without an account are used up, or, signed in, who it is and
+// the way out. The sign-in itself is the Rust side's (see
+// `opensubtitles::account`); this is where it is typed.
+
+import { Chrome } from "globals.slint";
+import { Paint, Rows, Type } from "theme.slint";
+import { BackRow, EmptyRow, MenuRow, RowHighlight } from "rows.slint";
+
+/// A line to type into: what it is for, and a well to type in.
+///
+/// It takes the keyboard while the ring is on it, and hands the ring's own
+/// keys back (see `ring-key`), so the arrows, Tab, Enter and Escape walk the
+/// page as they do everywhere, and everything else is typing.
+///
+/// A password field is held tighter than Slint holds one by itself. Slint
+/// masks it on screen, but would copy it out with Ctrl+C or Ctrl+X, put a
+/// selection made with the mouse in the selection clipboard, bring it back
+/// with Ctrl+Z after it was cleared, and give it whole to anything reading the
+/// accessibility tree. Here those keys do nothing, the mouse only gives it
+/// the keyboard, and the accessibility tree is told it is a password and
+/// nothing of what is in it.
+component Field inherits Rectangle {
+    in property <string> label;
+    /// The labels' column, the same for every field on the page.
+    in property <length> label-w;
+    in property <bool> password;
+    /// Whether the ring is on this row.
+    in property <bool> focused;
+    /// Whether the page is showing, so the field may take the keyboard.
+    in property <bool> active;
+    out property <string> text: input.text;
+    private property <bool> ring: root.focused && Chrome.focus-visible;
+    /// One of the ring's keys, pressed while this field had the keyboard.
+    /// Says whether it was taken.
+    callback ring-key(KeyEvent) -> bool;
+    /// The keyboard came here from somewhere else, so the ring follows it.
+    callback pointed();
+
+    public function clear() {
+        input.text = "";
+    }
+
+    height: Rows.row;
+
+    init => {
+        if (root.focused && root.active) {
+            input.focus();
+        }
+    }
+    changed focused => {
+        if (root.focused && root.active) {
+            input.focus();
+        }
+    }
+
+    RowHighlight {
+        hovered: touch.has-hover;
+        ring: root.ring;
+    }
+
+    // Under the words and the well, for the label and the margins: anywhere
+    // on the row gives the field the keyboard.
+    touch := TouchArea {
+        mouse-cursor: MouseCursor.text;
+        pointer-event(event) => {
+            Chrome.pointed(event.kind == PointerEventKind.down);
+        }
+        clicked => {
+            input.focus();
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: Rows.label-x;
+        padding-right: Rows.trail-x;
+        spacing: Rows.group-gap;
+
+        Text {
+            text: root.label;
+            color: root.ring || input.has-focus ? Paint.lit : Paint.body;
+            font-size: Type.body;
+            vertical-alignment: center;
+            width: root.label-w;
+        }
+
+        // A capsule, since it is a track for words, and a wash rather than a
+        // line round it, since nothing here is drawn with one.
+        Rectangle {
+            property <length> well-h: self.height - 8px;
+
+            horizontal-stretch: 1;
+
+            Rectangle {
+                y: (parent.height - self.height) / 2;
+                height: parent.well-h;
+                border-radius: self.height / 2;
+                background: Paint.wash-soft;
+            }
+
+            FocusScope {
+                x: parent.well-h / 2;
+                width: parent.width - parent.well-h;
+                focus-on-click: false;
+                focus-on-tab-navigation: false;
+                capture-key-pressed(event) => {
+                    Chrome.bump();
+                    Chrome.input-seq += 1;
+                    if (root.password && event.modifiers.control
+                            && (event.text == "c" || event.text == "x" || event.text == "z"
+                                || event.text == "Z" || event.text == "y")) {
+                        return EventResult.accept;
+                    }
+                    if (event.text == Key.UpArrow || event.text == Key.DownArrow
+                            || event.text == Key.Tab || event.text == Key.Backtab
+                            || event.text == Key.Return || event.text == Key.Escape) {
+                        if (root.ring-key(event)) {
+                            return EventResult.accept;
+                        }
+                    }
+                    return EventResult.reject;
+                }
+
+                input := TextInput {
+                    single-line: true;
+                    input-type: root.password ? InputType.password : InputType.text;
+                    color: Paint.lit;
+                    selection-foreground-color: Paint.lit;
+                    selection-background-color: Paint.wash-strong;
+                    font-size: Type.body;
+                    vertical-alignment: center;
+                    accessible-label: root.label;
+                    accessible-value: root.password ? "" : self.text;
+                    changed has-focus => {
+                        if (self.has-focus) {
+                            root.pointed();
+                        }
+                    }
+                }
+
+                // Over a password, so the mouse can't select what is in it
+                // and put it in the selection clipboard.
+                if root.password: TouchArea {
+                    mouse-cursor: MouseCursor.text;
+                    pointer-event(event) => {
+                        Chrome.pointed(event.kind == PointerEventKind.down);
+                    }
+                    clicked => {
+                        input.focus();
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Signing in: the name, the password, and the row that sends them, then why
+/// it failed if it did.
+component SignInForm inherits Rectangle {
+    /// The row the ring is on, counted on the page: 1 and 2 are the fields.
+    in property <int> ring-row;
+    in property <bool> active;
+    in property <bool> busy;
+    in property <string> said;
+    /// Counts the ring's presses of *Sign in* (see `AccountPage`).
+    in property <int> presses;
+    callback submitted(string, string);
+    callback ring-key(KeyEvent) -> bool;
+    callback pointed(int);
+
+    /// Send what was typed, and clear the password as it goes, so Slint's
+    /// copy is gone from the field the moment the player has its own.
+    function submit() {
+        if (root.busy || name.text == "" || password.text == "") {
+            return;
+        }
+        root.submitted(name.text, password.text);
+        password.clear();
+    }
+
+    changed presses => {
+        root.submit();
+    }
+
+    // The wider of the two labels, so both wells start in one column, and no
+    // language's word for either is cut short. Measured here rather than on
+    // the rows, whose labels take the width they are given.
+    property <length> label-w: max(name-label.preferred-width, password-label.preferred-width);
+    name-label := Text {
+        text: @tr("Username");
+        font-size: Type.body;
+        visible: false;
+    }
+    password-label := Text {
+        text: @tr("Password");
+        font-size: Type.body;
+        visible: false;
+    }
+
+    VerticalLayout {
+        name := Field {
+            label: @tr("Username");
+            label-w: root.label-w;
+            focused: root.ring-row == 1;
+            active: root.active;
+            ring-key(event) => {
+                return root.ring-key(event);
+            }
+            pointed => {
+                root.pointed(1);
+            }
+        }
+        password := Field {
+            label: @tr("Password");
+            label-w: root.label-w;
+            password: true;
+            focused: root.ring-row == 2;
+            active: root.active;
+            ring-key(event) => {
+                return root.ring-key(event);
+            }
+            pointed => {
+                root.pointed(2);
+            }
+        }
+        MenuRow {
+            label: root.busy ? @tr("Signing in…") : @tr("Sign in");
+            focused: root.active && root.ring-row == 3;
+            picked => {
+                root.submit();
+            }
+        }
+        if root.said != "": EmptyRow {
+            label: root.said;
+        }
+    }
+}
+
+/// The account's page: its way back, then either the sign-in or who is
+/// signed in.
+///
+/// Built only while it shows (see `MainWindow`), so what was typed goes with
+/// it when it closes, undo history and all.
+export component AccountPage inherits Rectangle {
+    in property <bool> signed-in;
+    in property <string> account;
+    /// Downloads left today, or -1 where OpenSubtitles hasn't said.
+    in property <int> left;
+    /// A sign-in is on its way.
+    in property <bool> busy;
+    /// Why the last sign-in failed, or empty.
+    in property <string> said;
+    /// The row the ring is on, counted on this page.
+    in property <int> ring-row;
+    /// Whether this is the page showing, and may take the keyboard.
+    in property <bool> active;
+    /// Counts the ring's presses of *Sign in*, which reach the window rather
+    /// than the page, since the keyboard is the window's on that row.
+    in property <int> presses;
+    callback back();
+    callback submitted(string, string);
+    callback sign-out();
+    callback ring-key(KeyEvent) -> bool;
+    /// The keyboard went to a field, which is this row.
+    callback pointed(int);
+
+    VerticalLayout {
+        padding-top: Rows.panel-pad;
+        padding-bottom: Rows.panel-pad;
+        alignment: start;
+
+        BackRow {
+            label: root.signed-in ? @tr("ACCOUNT") : @tr("SIGN IN");
+            focused: root.active && root.ring-row == 0;
+            back => {
+                root.back();
+            }
+        }
+
+        if !root.signed-in: SignInForm {
+            ring-row: root.ring-row;
+            active: root.active;
+            busy: root.busy;
+            said: root.said;
+            presses: root.presses;
+            submitted(name, password) => {
+                root.submitted(name, password);
+            }
+            ring-key(event) => {
+                return root.ring-key(event);
+            }
+            pointed(row) => {
+                root.pointed(row);
+            }
+        }
+
+        if root.signed-in: VerticalLayout {
+            EmptyRow {
+                label: @tr("Signed in as {}", root.account);
+            }
+            if root.left >= 0: EmptyRow {
+                label: @tr("Downloads left today: {}", root.left);
+            }
+            MenuRow {
+                label: @tr("Sign out");
+                focused: root.active && root.ring-row == 1;
+                picked => {
+                    root.sign-out();
+                }
+            }
+        }
+    }
+}

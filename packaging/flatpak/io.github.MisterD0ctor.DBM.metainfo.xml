@@ -21,6 +21,9 @@
       Open an episode and the rest of its folder becomes the playlist, in
       watching order, with how far into each file you got.
     </p>
+    <p>
+      Subtitles provided by OpenSubtitles.com.
+    </p>
   </description>
 
   <launchable type="desktop-id">io.github.MisterD0ctor.DBM.desktop</launchable>

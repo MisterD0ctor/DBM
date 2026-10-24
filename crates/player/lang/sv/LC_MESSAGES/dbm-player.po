@@ -831,3 +831,67 @@ msgstr "Ljud"
 msgctxt "MainWindow"
 msgid "No audio tracks"
 msgstr "Inga ljudspår"
+
+msgctxt "SignInForm"
+msgid "Username"
+msgstr "Användarnamn"
+
+msgctxt "SignInForm"
+msgid "Password"
+msgstr "Lösenord"
+
+msgctxt "SignInForm"
+msgid "Signing in…"
+msgstr "Loggar in…"
+
+msgctxt "SignInForm"
+msgid "Sign in"
+msgstr "Logga in"
+
+msgctxt "AccountPage"
+msgid "ACCOUNT"
+msgstr "KONTO"
+
+msgctxt "AccountPage"
+msgid "SIGN IN"
+msgstr "LOGGA IN"
+
+msgctxt "AccountPage"
+msgid "Signed in as {}"
+msgstr "Inloggad som {}"
+
+msgctxt "AccountPage"
+msgid "Downloads left today: {}"
+msgstr "Nedladdningar kvar i dag: {}"
+
+msgctxt "AccountPage"
+msgid "Sign out"
+msgstr "Logga ut"
+
+msgctxt "MainWindow"
+msgid "Signed in as {}"
+msgstr "Inloggad som {}"
+
+msgctxt "MainWindow"
+msgid "Sign in to OpenSubtitles"
+msgstr "Logga in på OpenSubtitles"
+
+msgctxt "MainWindow"
+msgid "Subtitles provided by OpenSubtitles.com"
+msgstr "Undertexter från OpenSubtitles.com"
+
+msgctxt "player"
+msgid "The downloads without an account are used up for today"
+msgstr "Nedladdningarna utan konto är slut för i dag"
+
+msgctxt "player"
+msgid "OpenSubtitles is busy. Try again in a moment"
+msgstr "OpenSubtitles är upptaget. Försök igen om en stund"
+
+msgctxt "player"
+msgid "The username or password is wrong"
+msgstr "Fel användarnamn eller lösenord"
+
+msgctxt "player"
+msgid "The sign-in to OpenSubtitles has run out"
+msgstr "Inloggningen på OpenSubtitles har gått ut"

@@ -7,7 +7,8 @@
 use super::{say, warn, Driver, Gpu};
 use crate::interface::format;
 use crate::lang::{fill, tr};
-use crate::library::opensubtitles::{Fetched, Found, Hit};
+use crate::library::opensubtitles::account::Account;
+use crate::library::opensubtitles::{self, Fetched, Found, Hit};
 use crate::library::preview::Atlas;
 use crate::library::resume::Resume;
 use crate::library::subsync::{Failure, Outcome};
@@ -148,6 +149,10 @@ impl Driver {
                 self.fetched(ui, fetched);
                 false
             }
+            Completion::SignedIn(result) => {
+                self.signed_in(ui, result);
+                false
+            }
             Completion::Kept { path, files } => {
                 // Back in the list as the film's own tracks are, without
                 // taking the place of whichever one it opened on.
@@ -239,6 +244,7 @@ impl Driver {
 
     /// Fill the search's page with what OpenSubtitles found, or say why not.
     fn found(&self, ui: &MainWindow, found: Found) {
+        show_account(ui, found.account.as_ref());
         // For the film it was asked about, or for nothing.
         if self.player.path.as_deref() != Some(found.path.as_str()) {
             return;
@@ -260,6 +266,7 @@ impl Driver {
     /// Load a fetched subtitle and show it, or say why there is none.
     fn fetched(&self, ui: &MainWindow, fetched: Fetched) {
         ui.set_find_fetching(-1);
+        show_account(ui, fetched.account.as_ref());
         if self.player.path.as_deref() != Some(fetched.path.as_str()) {
             return;
         }
@@ -270,7 +277,40 @@ impl Driver {
                 // is the row it arrived as.
                 ui.set_find_open(false);
             }
-            Err(why) => warn(ui, why.sentence()),
+            Err(why) => {
+                // Kept to be fetched once the person has signed in, and the
+                // page offers to, since that is the way past it.
+                if why.wants_account() {
+                    *self.app.waiting.borrow_mut() = Some((fetched.path, fetched.hit));
+                    ui.set_find_sign_in_offered(true);
+                }
+                warn(ui, why.sentence());
+            }
+        }
+    }
+
+    /// Go on with the download that asked for an account, now there is one,
+    /// or say on the sign-in page why there isn't.
+    fn signed_in(&self, ui: &MainWindow, result: Result<Account, opensubtitles::Failure>) {
+        ui.set_signing_in(false);
+        match result {
+            Ok(account) => {
+                show_account(ui, Some(&account));
+                ui.set_find_sign_in_offered(false);
+                ui.set_sign_in_said(Default::default());
+                ui.set_account_open(false);
+                let waiting = self.app.waiting.borrow_mut().take();
+                let Some((path, hit)) = waiting else {
+                    return;
+                };
+                if self.player.path.as_deref() != Some(path.as_str()) {
+                    return;
+                }
+                let row = self.app.found.borrow().iter().position(|h| *h == hit);
+                ui.set_find_fetching(row.map_or(-1, |row| row as i32));
+                opensubtitles::fetch(path, hit, self.app.worker.reporter());
+            }
+            Err(why) => ui.set_sign_in_said(why.sentence().into()),
         }
     }
 
@@ -329,6 +369,16 @@ impl Driver {
 
 /// One result of a search, as its row says it: the release it was timed
 /// against, and beside it the language and whatever sets it apart.
+/// Who is signed in to OpenSubtitles, on the search's page.
+fn show_account(ui: &MainWindow, account: Option<&Account>) {
+    ui.set_find_account(account.map(|a| a.name.as_str()).unwrap_or_default().into());
+    ui.set_find_left(
+        account
+            .and_then(|a| a.left)
+            .map_or(-1, |left| left.clamp(0, i32::MAX as i64) as i32),
+    );
+}
+
 fn found_row(hit: &Hit) -> FoundItem {
     let mut detail = vec![crate::library::naming::language_name(&hit.language)];
     if hit.exact {

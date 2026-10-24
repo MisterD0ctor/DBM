@@ -834,3 +834,67 @@ msgstr "Audio"
 msgctxt "MainWindow"
 msgid "No audio tracks"
 msgstr "Geen audiosporen"
+
+msgctxt "SignInForm"
+msgid "Username"
+msgstr "Gebruikersnaam"
+
+msgctxt "SignInForm"
+msgid "Password"
+msgstr "Wachtwoord"
+
+msgctxt "SignInForm"
+msgid "Signing in…"
+msgstr "Bezig met aanmelden…"
+
+msgctxt "SignInForm"
+msgid "Sign in"
+msgstr "Aanmelden"
+
+msgctxt "AccountPage"
+msgid "ACCOUNT"
+msgstr "ACCOUNT"
+
+msgctxt "AccountPage"
+msgid "SIGN IN"
+msgstr "AANMELDEN"
+
+msgctxt "AccountPage"
+msgid "Signed in as {}"
+msgstr "Aangemeld als {}"
+
+msgctxt "AccountPage"
+msgid "Downloads left today: {}"
+msgstr "Downloads over voor vandaag: {}"
+
+msgctxt "AccountPage"
+msgid "Sign out"
+msgstr "Afmelden"
+
+msgctxt "MainWindow"
+msgid "Signed in as {}"
+msgstr "Aangemeld als {}"
+
+msgctxt "MainWindow"
+msgid "Sign in to OpenSubtitles"
+msgstr "Aanmelden bij OpenSubtitles"
+
+msgctxt "MainWindow"
+msgid "Subtitles provided by OpenSubtitles.com"
+msgstr "Ondertitels geleverd door OpenSubtitles.com"
+
+msgctxt "player"
+msgid "The downloads without an account are used up for today"
+msgstr "De downloads zonder account zijn op voor vandaag"
+
+msgctxt "player"
+msgid "OpenSubtitles is busy. Try again in a moment"
+msgstr "OpenSubtitles is druk. Probeer het zo opnieuw"
+
+msgctxt "player"
+msgid "The username or password is wrong"
+msgstr "De gebruikersnaam of het wachtwoord klopt niet"
+
+msgctxt "player"
+msgid "The sign-in to OpenSubtitles has run out"
+msgstr "De aanmelding bij OpenSubtitles is verlopen"

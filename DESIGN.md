@@ -995,9 +995,50 @@ by under a pixel at the corner.
   second column says *Downloading…* and the row wears the active mark until it
   arrives; then the menu slides back to the tracks, where it stands lit as the
   subtitle showing. A failure there is a notice, beside the panel
+- **The credit:** *Subtitles provided by OpenSubtitles.com* closes the page,
+  a line that states a fact. OpenSubtitles' terms ask it of a free key
+  wherever its subtitles are searched or picked, and this is the one place
+  they are
 - **Afterwards:** a fetched subtitle is the film's from then on, loaded with
   it every time it opens, in the list beside its own tracks — until it is
   taken out with its row's Trash button, which forgets it and deletes it
+
+### Signing in to OpenSubtitles
+- **When:** only once a download is refused because the day's downloads
+  without an account are used up, or because a sign-in has run out. A free
+  key's few downloads a day are there so the player works straight after
+  it is installed; past them, OpenSubtitles asks for the person's own
+  account, and so does the player, but not before
+- **Where:** a row under the search's way back, *Sign in to OpenSubtitles*,
+  with the chevron of a row that leads somewhere. Under the way back rather
+  than after the results, so it is the first thing there once a download
+  has asked for it, however long the list. It opens a page one further in,
+  with the drill's movement: SIGN IN, a field for the username and one for
+  the password, *Sign in*, and under them why the last try failed
+- **Then:** signing in fetches the download that asked, since that is what
+  was pressed, and the menu slides back to the tracks with it lit
+- **Signed in:** the same row says *Signed in as* and the name, and its page,
+  ACCOUNT, says how many downloads are left today and offers *Sign out*. The
+  sign-in lasts until the player quits, or a day, whichever is first; nothing
+  of it is kept, so the next session starts without one
+
+### Fields
+- **Shape:** a row, `Rows.row` tall, its label at Body and beside it a well
+  to type in: a capsule of the Soft wash, with no line round it, since
+  nothing here is drawn with one. The labels share one column, as wide as
+  the wider of them in the language spoken, so the wells start together
+- **Typing:** the words in Lit, and the label lit while the field has the
+  keyboard. The ring's keys stay the ring's: Up, Down and Tab walk the page,
+  Enter moves from the name to the password and from the password sends,
+  Escape goes back. Everything else is typing, and none of the film's keys
+  reach past it
+- **A password** shows as dots and is never let out of its field. Copy and
+  cut do nothing in it, and nor does undo, which would bring back one
+  already sent. The mouse only gives it the keyboard rather than selecting
+  in it, since on Linux a selection is copied to the selection clipboard by
+  itself. The accessibility tree is told it is a password and nothing of
+  what is in it. It is cleared the moment it is sent, and the page that held
+  it is built only while it shows
 
 ### Removing a track
 - **Which:** any track that came from a file of its own — fetched, dropped,

@@ -66,6 +66,14 @@ pub enum Completion {
     Found(crate::library::opensubtitles::Found),
     /// A subtitle fetched from there and kept, or why it was not.
     Fetched(crate::library::opensubtitles::Fetched),
+    /// Who signed in to OpenSubtitles, or why they could not. From the
+    /// sign-in's own thread (see `opensubtitles::account`).
+    SignedIn(
+        Result<
+            crate::library::opensubtitles::account::Account,
+            crate::library::opensubtitles::Failure,
+        >,
+    ),
     /// Subtitles fetched for a file on an earlier day, to put back as it
     /// opens. `path` is the file, so an answer for one since replaced is
     /// dropped.

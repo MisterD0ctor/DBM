@@ -834,3 +834,67 @@ msgstr "Ton"
 msgctxt "MainWindow"
 msgid "No audio tracks"
 msgstr "Keine Tonspuren"
+
+msgctxt "SignInForm"
+msgid "Username"
+msgstr "Benutzername"
+
+msgctxt "SignInForm"
+msgid "Password"
+msgstr "Passwort"
+
+msgctxt "SignInForm"
+msgid "Signing in…"
+msgstr "Wird angemeldet…"
+
+msgctxt "SignInForm"
+msgid "Sign in"
+msgstr "Anmelden"
+
+msgctxt "AccountPage"
+msgid "ACCOUNT"
+msgstr "KONTO"
+
+msgctxt "AccountPage"
+msgid "SIGN IN"
+msgstr "ANMELDEN"
+
+msgctxt "AccountPage"
+msgid "Signed in as {}"
+msgstr "Angemeldet als {}"
+
+msgctxt "AccountPage"
+msgid "Downloads left today: {}"
+msgstr "Heute noch verfügbare Downloads: {}"
+
+msgctxt "AccountPage"
+msgid "Sign out"
+msgstr "Abmelden"
+
+msgctxt "MainWindow"
+msgid "Signed in as {}"
+msgstr "Angemeldet als {}"
+
+msgctxt "MainWindow"
+msgid "Sign in to OpenSubtitles"
+msgstr "Bei OpenSubtitles anmelden"
+
+msgctxt "MainWindow"
+msgid "Subtitles provided by OpenSubtitles.com"
+msgstr "Untertitel bereitgestellt von OpenSubtitles.com"
+
+msgctxt "player"
+msgid "The downloads without an account are used up for today"
+msgstr "Die Downloads ohne Konto sind für heute aufgebraucht"
+
+msgctxt "player"
+msgid "OpenSubtitles is busy. Try again in a moment"
+msgstr "OpenSubtitles ist ausgelastet. Gleich noch einmal versuchen"
+
+msgctxt "player"
+msgid "The username or password is wrong"
+msgstr "Benutzername oder Passwort ist falsch"
+
+msgctxt "player"
+msgid "The sign-in to OpenSubtitles has run out"
+msgstr "Die Anmeldung bei OpenSubtitles ist abgelaufen"

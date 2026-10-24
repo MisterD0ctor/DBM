@@ -73,8 +73,14 @@ truthfully claim any of this.
   `subtitles/` and listed in `downloaded-subtitles.json`, and load again
   whenever the film is opened, until they are taken out of it again — which
   forgets and deletes them. It needs an API key the build is given — see
-  the README — and has no login, so it lives on the key's small anonymous
-  daily allowance. A build without a key has no search.
+  the README — and a build without one has no search. Downloads come first
+  from the key's own few a day without an account, which OpenSubtitles
+  gives so an app works straight after it is installed; once those are
+  used up, the person signs in with their own account, and downloads count
+  against it. The username and password go to OpenSubtitles once, over
+  HTTPS, to sign in; the token that comes back is kept in memory for the
+  session and handed back when the player quits. Nothing of the account is
+  ever written anywhere. See `opensubtitles::account`.
 - Interface settings persist to `%APPDATA%/Death by MPV/settings.conf` as plain
   text, editable by hand while tuning.
 - Seek-preview thumbnails are cached per file under `previews/`, keyed on path

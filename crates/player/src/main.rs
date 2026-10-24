@@ -99,6 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         audio: playback::audio::Watchdog::new(worker.clone()),
         subline: Rc::new(interface::subline::Subline::new(settings.clone())),
         found: Rc::default(),
+        waiting: Rc::default(),
         arrival: Rc::default(),
     };
     // Observing the device list is what starts mpv's hotplug monitor, so this
@@ -134,6 +135,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let harnesses = harness::install(&ui, &app);
 
     ui.run()?;
+
+    // The window is gone by now, so a slow answer holds up nothing anyone
+    // can see; OpenSubtitles asks for the token back when an app is done.
+    library::opensubtitles::account::sign_out_before_quitting();
 
     drop(harnesses);
     drop(idle_timer);

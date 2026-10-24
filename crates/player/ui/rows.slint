@@ -917,7 +917,10 @@ export component DrillRow inherits Rectangle {
     /// Whether the keyboard is on this row.
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
+    /// Optional: a row among rows without marks, as on the search's page,
+    /// has none, and its words keep their column.
     in property <image> icon;
+    private property <bool> iconic: root.icon.width > 0;
     in property <string> label;
     callback opened();
 
@@ -939,7 +942,7 @@ export component DrillRow inherits Rectangle {
         padding-right: Rows.trail-x;
         spacing: 10px;
 
-        Rectangle {
+        if root.iconic: Rectangle {
             width: 18px;
 
             Image {

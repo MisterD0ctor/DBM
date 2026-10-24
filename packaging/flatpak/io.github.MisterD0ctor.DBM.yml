@@ -35,7 +35,8 @@ finish-args:
   # document-portal path would break both. Nothing is written outside the
   # app's own data directory.
   - --filesystem=host:ro
-  # Finding subtitles on OpenSubtitles, the one thing the player fetches:
+  # Finding subtitles on OpenSubtitles, the one thing the player fetches,
+  # and signing in there once the downloads without an account are used up:
   # only when asked, and nothing else goes out. A build without a key never
   # opens a connection at all.
   - --share=network
