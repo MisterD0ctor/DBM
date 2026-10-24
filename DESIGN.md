@@ -3,8 +3,8 @@ name: Death by MPV
 description: A video player whose interface is panes of real glass laid over the film.
 colors:
   lit: "#ffffff"  # Paint.lit
-  strong: "#ffffffe0"  # Paint.strong
-  body: "#ffffffe0"  # Paint.body
+  strong: "#ffffff"  # Paint.strong
+  body: "#ffffff"  # Paint.body
   quiet: "#ffffffa0"  # Paint.quiet
   dim: "#ffffff80"  # Paint.dim
   played: "#fffffff2"  # Paint.played

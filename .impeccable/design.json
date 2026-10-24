@@ -11,7 +11,7 @@
         "tonalRamp": [
           "#ffffff80",
           "#ffffffa0",
-          "#ffffffe0",
+          "#ffffff",
           "#ffffff"
         ],
         "rampNote": "The ladder, floor first: Dim, Quiet, Strong, Lit. Words use only Strong's step, which Body shares, and Lit; Quiet and Dim are marks. The 0xc0 step is held empty rather than spent on a near-copy.",
@@ -20,11 +20,11 @@
       "strong": {
         "role": "neutral",
         "displayName": "Strong",
-        "canonical": "#ffffffe0",
+        "canonical": "#ffffff",
         "tonalRamp": [
           "#ffffff80",
           "#ffffffa0",
-          "#ffffffe0",
+          "#ffffff",
           "#ffffff"
         ],
         "rampNote": "The ladder, floor first: Dim, Quiet, Strong, Lit. Words use only Strong's step, which Body shares, and Lit; Quiet and Dim are marks. The 0xc0 step is held empty rather than spent on a near-copy.",
@@ -33,11 +33,11 @@
       "body": {
         "role": "neutral",
         "displayName": "Body",
-        "canonical": "#ffffffe0",
+        "canonical": "#ffffff",
         "tonalRamp": [
           "#ffffff80",
           "#ffffffa0",
-          "#ffffffe0",
+          "#ffffff",
           "#ffffff"
         ],
         "rampNote": "The ladder, floor first: Dim, Quiet, Strong, Lit. Words use only Strong's step, which Body shares, and Lit; Quiet and Dim are marks. The 0xc0 step is held empty rather than spent on a near-copy.",
@@ -50,7 +50,7 @@
         "tonalRamp": [
           "#ffffff80",
           "#ffffffa0",
-          "#ffffffe0",
+          "#ffffff",
           "#ffffff"
         ],
         "rampNote": "The ladder, floor first: Dim, Quiet, Strong, Lit. Words use only Strong's step, which Body shares, and Lit; Quiet and Dim are marks. The 0xc0 step is held empty rather than spent on a near-copy.",
@@ -63,7 +63,7 @@
         "tonalRamp": [
           "#ffffff80",
           "#ffffffa0",
-          "#ffffffe0",
+          "#ffffff",
           "#ffffff"
         ],
         "rampNote": "The ladder, floor first: Dim, Quiet, Strong, Lit. Words use only Strong's step, which Body shares, and Lit; Quiet and Dim are marks. The 0xc0 step is held empty rather than spent on a near-copy.",
@@ -401,7 +401,7 @@
       "refersTo": "menu-row",
       "description": "One selectable line in a panel, 34px tall, its text in Body starting 30px from the panel edge. The wash insets 16px at a 16px corner so it never runs past the panel's. Hover is the Soft wash, the keyboard's position the Strong wash. The current row wears Lit at 700 and a 3x14 capsule mark. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-rows\"><div class=\"ds-row ds-row-active\" tabindex=\"0\">English</div><div class=\"ds-row\" tabindex=\"0\">日本語</div><div class=\"ds-row\" tabindex=\"0\">Français</div></div>",
-      "css": ".ds-rows { display: flex; flex-direction: column; padding: 16px 0; width: 380px; } .ds-row { height: 34px; display: flex; align-items: center; padding: 0 26px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 14px; font-weight: 500; color: #ffffffe0; position: relative; cursor: pointer; outline: none; } .ds-row::before { content: \"\"; position: absolute; inset: 0 16px; border-radius: 16px; background: transparent; transition: background 45ms ease-out; z-index: -1; } .ds-row:hover::before { background: #ffffff14; } .ds-row:focus-visible::before { background: #ffffff54; } .ds-row:focus-visible { color: #ffffff; } .ds-row-active { color: #ffffff; font-weight: 700; } .ds-row-active::after { content: \"\"; position: absolute; left: 20px; top: 10px; width: 3px; height: 14px; border-radius: 1.5px; background: #ffffff; }"
+      "css": ".ds-rows { display: flex; flex-direction: column; padding: 16px 0; width: 380px; } .ds-row { height: 34px; display: flex; align-items: center; padding: 0 26px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 14px; font-weight: 500; color: #ffffff; position: relative; cursor: pointer; outline: none; } .ds-row::before { content: \"\"; position: absolute; inset: 0 16px; border-radius: 16px; background: transparent; transition: background 45ms ease-out; z-index: -1; } .ds-row:hover::before { background: #ffffff14; } .ds-row:focus-visible::before { background: #ffffff54; } .ds-row:focus-visible { color: #ffffff; } .ds-row-active { color: #ffffff; font-weight: 700; } .ds-row-active::after { content: \"\"; position: absolute; left: 20px; top: 10px; width: 3px; height: 14px; border-radius: 1.5px; background: #ffffff; }"
     },
     {
       "name": "Section Heading",
@@ -409,7 +409,7 @@
       "refersTo": "section-label",
       "description": "Names a part of the application in tracked capitals in the Label role, at the rows' own alpha, with a 18px icon 8px before the words where the rows below carry none. Icons are drawn at 24px or 18px and nothing between. A show's name takes the Named role instead: its own case, no tracking, the same weight and alpha. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-headings\"><div class=\"ds-kicker\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\"/><path d=\"M7 14h4M13 14h4M7 10h10\"/></svg>SUBTITLES</div><div class=\"ds-kicker ds-kicker-named\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M9 6h12M9 12h12M9 18h12M3 5l3 2-3 2z\"/></svg>Wandering Road</div></div>",
-      "css": ".ds-headings { display: flex; flex-direction: column; width: 380px; font-family: \"IBM Plex Sans\"; } .ds-kicker { height: 28px; display: flex; align-items: center; gap: 8px; padding: 0 26px 0 30px; font-size: 12px; font-weight: 500; letter-spacing: 1px; color: #ffffffe0; } .ds-kicker-named { font-size: 13px; letter-spacing: 0; }"
+      "css": ".ds-headings { display: flex; flex-direction: column; width: 380px; font-family: \"IBM Plex Sans\"; } .ds-kicker { height: 28px; display: flex; align-items: center; gap: 8px; padding: 0 26px 0 30px; font-size: 12px; font-weight: 500; letter-spacing: 1px; color: #ffffff; } .ds-kicker-named { font-size: 13px; letter-spacing: 0; }"
     },
     {
       "name": "Back Row",
@@ -417,7 +417,7 @@
       "refersTo": "section-label",
       "description": "A page's heading and the way out of it at once: 34px tall, the Label role in Body, with a 18px chevron laid out as a drill row lays out its icon, 10px before the words. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-back\" tabindex=\"0\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M15 5l-7 7 7 7\"/></svg><span>SEASON 7</span></div>",
-      "css": ".ds-back { height: 34px; width: 380px; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 26px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 12px; font-weight: 500; letter-spacing: 1px; color: #ffffffe0; position: relative; cursor: pointer; outline: none; } .ds-back::before { content: \"\"; position: absolute; inset: 0 16px; border-radius: 16px; background: transparent; transition: background 45ms ease-out; z-index: -1; } .ds-back:hover { color: #ffffff; } .ds-back:hover::before { background: #ffffff14; } .ds-back:focus-visible { color: #ffffff; } .ds-back:focus-visible::before { background: #ffffff54; }"
+      "css": ".ds-back { height: 34px; width: 380px; box-sizing: border-box; display: flex; align-items: center; gap: 10px; padding: 0 26px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 12px; font-weight: 500; letter-spacing: 1px; color: #ffffff; position: relative; cursor: pointer; outline: none; } .ds-back::before { content: \"\"; position: absolute; inset: 0 16px; border-radius: 16px; background: transparent; transition: background 45ms ease-out; z-index: -1; } .ds-back:hover { color: #ffffff; } .ds-back:hover::before { background: #ffffff14; } .ds-back:focus-visible { color: #ffffff; } .ds-back:focus-visible::before { background: #ffffff54; }"
     },
     {
       "name": "Parameter Slider",
@@ -425,7 +425,7 @@
       "refersTo": "slider-row",
       "description": "A material parameter on the glass and ambient-border pages: a 30px row, a label in Body at Readout size in a column as wide as the widest name in the language spoken, and a 46px value right-aligned in Body. The track grows from 4px to 6px under the pointer; there is no hover wash, since the growing track already answers. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-slider\"><span class=\"ds-slider-label\">Refraction</span><span class=\"ds-track\"><span class=\"ds-fill\"></span></span><span class=\"ds-slider-value\">1.00</span></div>",
-      "css": ".ds-slider { height: 30px; width: 340px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 26px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 13px; font-weight: 500; color: #ffffffe0; } .ds-slider-label { width: 66px; } .ds-track { flex: 1; height: 4px; border-radius: 3px; background: #ffffff2e; transition: height 100ms ease-out; } .ds-slider:hover .ds-track { height: 6px; } .ds-fill { display: block; width: 50%; height: 100%; border-radius: inherit; background: #ffffffcc; } .ds-slider-value { width: 46px; text-align: right; color: #ffffffe0; }"
+      "css": ".ds-slider { height: 30px; width: 340px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 26px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 13px; font-weight: 500; color: #ffffff; } .ds-slider-label { width: 66px; } .ds-track { flex: 1; height: 4px; border-radius: 3px; background: #ffffff2e; transition: height 100ms ease-out; } .ds-slider:hover .ds-track { height: 6px; } .ds-fill { display: block; width: 50%; height: 100%; border-radius: inherit; background: #ffffffcc; } .ds-slider-value { width: 46px; text-align: right; color: #ffffff; }"
     },
     {
       "name": "Stepper Row",
@@ -433,7 +433,7 @@
       "refersTo": "stepper-button",
       "description": "For quantities read as numbers rather than positions, like a subtitle delay, where the useful move is one step: a 38px row, the label in Body at Readout size, then two 26px discs (the Soft wash at rest, the Strong wash under the pointer) either side of a 62px value in Strong. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-stepper\"><span class=\"ds-stepper-label\">Timing</span><button class=\"ds-step\">−</button><span class=\"ds-stepper-value\">+0.30 s</span><button class=\"ds-step\">+</button></div>",
-      "css": ".ds-stepper { height: 38px; width: 340px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 26px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 13px; font-weight: 500; color: #ffffffe0; } .ds-stepper-label { flex: 1; } .ds-step { width: 26px; height: 26px; border: none; border-radius: 13px; background: #ffffff14; color: #ffffffe0; font-family: \"IBM Plex Sans\"; font-size: 16px; font-weight: 500; line-height: 1; cursor: pointer; transition: background 45ms ease-out; } .ds-step:hover { background: #ffffff34; } .ds-step:focus-visible { outline: none; background: #ffffff54; } .ds-stepper-value { width: 62px; text-align: center; color: #ffffffe0; }"
+      "css": ".ds-stepper { height: 38px; width: 340px; box-sizing: border-box; display: flex; align-items: center; gap: 8px; padding: 0 26px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 13px; font-weight: 500; color: #ffffff; } .ds-stepper-label { flex: 1; } .ds-step { width: 26px; height: 26px; border: none; border-radius: 13px; background: #ffffff14; color: #ffffff; font-family: \"IBM Plex Sans\"; font-size: 16px; font-weight: 500; line-height: 1; cursor: pointer; transition: background 45ms ease-out; } .ds-step:hover { background: #ffffff34; } .ds-step:focus-visible { outline: none; background: #ffffff54; } .ds-stepper-value { width: 62px; text-align: center; color: #ffffff; }"
     },
     {
       "name": "Switch Row",
@@ -441,7 +441,7 @@
       "refersTo": "toggle-track-on",
       "description": "A setting that is on or off: a 40px row, the switch first and the label after it in Body, 12px apart. The knob is dark on a lit track and light on a dark one, so it reads as a hole punched through either way. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-switch-row\"><span class=\"ds-switch ds-switch-on\"><span class=\"ds-knob\"></span></span><span class=\"ds-switch-label\">Autoplay next</span></div>",
-      "css": ".ds-switch-row { height: 40px; width: 380px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 26px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 14px; font-weight: 500; color: #ffffffe0; position: relative; cursor: pointer; } .ds-switch-row::before { content: \"\"; position: absolute; inset: 0 16px; border-radius: 16px; background: transparent; transition: background 45ms ease-out; z-index: -1; } .ds-switch-row:hover::before { background: #ffffff14; } .ds-switch { width: 34px; height: 18px; border-radius: 9px; background: #ffffff2e; position: relative; transition: background 120ms ease-out; } .ds-switch-on { background: #ffffffcc; } .ds-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 7px; background: #ffffffcc; transition: left 120ms ease-out; } .ds-switch-on .ds-knob { left: 18px; background: #101010e6; }"
+      "css": ".ds-switch-row { height: 40px; width: 380px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 26px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 14px; font-weight: 500; color: #ffffff; position: relative; cursor: pointer; } .ds-switch-row::before { content: \"\"; position: absolute; inset: 0 16px; border-radius: 16px; background: transparent; transition: background 45ms ease-out; z-index: -1; } .ds-switch-row:hover::before { background: #ffffff14; } .ds-switch { width: 34px; height: 18px; border-radius: 9px; background: #ffffff2e; position: relative; transition: background 120ms ease-out; } .ds-switch-on { background: #ffffffcc; } .ds-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 7px; background: #ffffffcc; transition: left 120ms ease-out; } .ds-switch-on .ds-knob { left: 18px; background: #101010e6; }"
     },
     {
       "name": "Timeline Row",
@@ -449,7 +449,7 @@
       "refersTo": "timeline-row",
       "description": "One 30px capsule of glass across the bar's width: elapsed time, track, total, each time centred in a column at least 60px wide and set from the total, so the row doesn't shift when a film passes the hour. The track is 5px in Rail, growing to 7px; the hit area is the whole row. The dark fill here stands in for refraction. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-timeline\"><span class=\"ds-time\">0:24:10</span><span class=\"ds-scrub\"><span class=\"ds-played\"></span></span><span class=\"ds-time\">1:23:45</span></div>",
-      "css": ".ds-timeline { display: flex; align-items: center; gap: 10px; width: 640px; height: 30px; border-radius: 15px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); } .ds-time { width: 60px; text-align: center; font-family: \"IBM Plex Mono\"; font-size: 13px; font-weight: 500; color: #ffffffe0; } .ds-scrub { flex: 1; height: 5px; border-radius: 3.5px; background: #ffffff2e; transition: height 100ms ease-out; } .ds-timeline:hover .ds-scrub { height: 7px; } .ds-played { display: block; width: 30%; height: 100%; border-radius: inherit; background: #fffffff2; }"
+      "css": ".ds-timeline { display: flex; align-items: center; gap: 10px; width: 640px; height: 30px; border-radius: 15px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); } .ds-time { width: 60px; text-align: center; font-family: \"IBM Plex Mono\"; font-size: 13px; font-weight: 500; color: #ffffff; } .ds-scrub { flex: 1; height: 5px; border-radius: 3.5px; background: #ffffff2e; transition: height 100ms ease-out; } .ds-timeline:hover .ds-scrub { height: 7px; } .ds-played { display: block; width: 30%; height: 100%; border-radius: inherit; background: #fffffff2; }"
     },
     {
       "name": "Hover Label",
@@ -457,7 +457,7 @@
       "refersTo": "hover-label",
       "description": "A 28px capsule of glass naming the control under the pointer and the key that does the same thing, 500ms after the pointer settles, then a fade and a 6px rise. The name in Body, the key in Quiet at Readout size, 12px apart inside 12px of padding. It says what pressing will do, not what the glyph already shows. The volume track's is a reading instead (Volume 84%, or Muted), which opens at once when the level moves under the pointer and stays up through a press. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<span class=\"ds-tip\"><span class=\"ds-tip-name\">Unmute</span><span class=\"ds-tip-keys\">M</span></span>",
-      "css": ".ds-tip { display: inline-flex; align-items: center; gap: 12px; height: 28px; padding: 0 12px; border-radius: 14px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); font-family: \"IBM Plex Sans\"; } .ds-tip-name { font-size: 14px; font-weight: 500; color: #ffffffe0; } .ds-tip-keys { font-size: 13px; font-weight: 500; color: #ffffffe0; }"
+      "css": ".ds-tip { display: inline-flex; align-items: center; gap: 12px; height: 28px; padding: 0 12px; border-radius: 14px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); font-family: \"IBM Plex Sans\"; } .ds-tip-name { font-size: 14px; font-weight: 500; color: #ffffff; } .ds-tip-keys { font-size: 13px; font-weight: 500; color: #ffffff; }"
     },
     {
       "name": "End-of-File Pill",
@@ -473,7 +473,7 @@
       "refersTo": "seek-preview",
       "description": "The signature component: one tile of a 8x8 ffmpeg sprite atlas inside a glass panel with a 18px corner and 9px of padding, wider than the bevel so the material has room to render, and the tile's corner concentric with it. The timestamp beneath in Strong, in a 22px caption. Its fade is half a surface's, 60ms. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<figure class=\"ds-preview\"><span class=\"ds-preview-tile\"></span><figcaption class=\"ds-preview-time\">0:24:10</figcaption></figure>",
-      "css": ".ds-preview { margin: 0; padding: 9px 9px 0; border-radius: 18px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); display: inline-block; transition: opacity 60ms ease-out; } .ds-preview-tile { display: block; width: 192px; height: 108px; border-radius: 9px; background: linear-gradient(135deg, #6d2f3a, #0e3a4a 55%, #0b1020); } .ds-preview-time { height: 22px; padding-bottom: 9px; display: grid; place-items: center; font-family: \"IBM Plex Mono\"; font-size: 13px; font-weight: 500; color: #ffffffe0; }"
+      "css": ".ds-preview { margin: 0; padding: 9px 9px 0; border-radius: 18px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); display: inline-block; transition: opacity 60ms ease-out; } .ds-preview-tile { display: block; width: 192px; height: 108px; border-radius: 9px; background: linear-gradient(135deg, #6d2f3a, #0e3a4a 55%, #0b1020); } .ds-preview-time { height: 22px; padding-bottom: 9px; display: grid; place-items: center; font-family: \"IBM Plex Mono\"; font-size: 13px; font-weight: 500; color: #ffffff; }"
     },
     {
       "name": "The Way In",
@@ -481,7 +481,7 @@
       "refersTo": "resume-row",
       "description": "With no film loaded, a panel of glass centred over the backdrop: Continue first when there is a film to continue (a play glyph in Body, the film's name in Strong at Body size, the resume measure and what is left in Quiet, with the show on a Named heading line above it), then a group gap, then the open rows as shortcut rows with their keys. The drop line shows only where the platform has a drop target, and takes its gap with it. This is the one surface with a fill (the Soft wash at the panel corner), and only where there is no glass to paint over: a fatal error, and no film with no backdrop. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
       "html": "<div class=\"ds-invite\"><div class=\"ds-invite-show\">Game of Thrones</div><div class=\"ds-invite-row\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"currentColor\"><path d=\"M7 5l12 7-12 7z\"/></svg><span class=\"ds-invite-name\">S07E06 · Beyond the Wall</span><span class=\"ds-measure\"><span class=\"ds-measure-fill\"></span></span><span class=\"ds-invite-left\">43 min left</span></div><div class=\"ds-invite-gap\"></div><div class=\"ds-invite-key\"><span>Open file…</span><span class=\"ds-keys\">Ctrl+O</span></div><div class=\"ds-invite-key\"><span>Shortcuts</span><span class=\"ds-keys\">?</span></div></div>",
-      "css": ".ds-invite { width: 420px; box-sizing: border-box; padding: 16px; border-radius: 32px; background: #ffffff14; font-family: \"IBM Plex Sans\"; } .ds-invite-show { height: 28px; display: flex; align-items: center; padding: 0 14px; font-size: 13px; font-weight: 500; color: #ffffffe0; } .ds-invite-row { height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 10px 0 14px; border-radius: 16px; color: #ffffffe0; cursor: pointer; transition: background 45ms ease-out; } .ds-invite-row:hover { background: #ffffff14; } .ds-invite-name { flex: 1; font-size: 14px; font-weight: 500; color: #ffffffe0; } .ds-measure { width: 44px; height: 4px; border-radius: 2px; background: #ffffff2e; } .ds-measure-fill { display: block; width: 62%; height: 100%; border-radius: inherit; background: #ffffffe0; } .ds-invite-left { text-align: right; font-size: 13px; font-weight: 500; color: #ffffffe0; } .ds-invite-gap { height: 16px; } .ds-invite-key { height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 14px; font-size: 14px; font-weight: 500; color: #ffffffe0; } .ds-keys { font-size: 13px; color: #ffffffe0; }"
+      "css": ".ds-invite { width: 420px; box-sizing: border-box; padding: 16px; border-radius: 32px; background: #ffffff14; font-family: \"IBM Plex Sans\"; } .ds-invite-show { height: 28px; display: flex; align-items: center; padding: 0 14px; font-size: 13px; font-weight: 500; color: #ffffff; } .ds-invite-row { height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 10px 0 14px; border-radius: 16px; color: #ffffff; cursor: pointer; transition: background 45ms ease-out; } .ds-invite-row:hover { background: #ffffff14; } .ds-invite-name { flex: 1; font-size: 14px; font-weight: 500; color: #ffffff; } .ds-measure { width: 44px; height: 4px; border-radius: 2px; background: #ffffff2e; } .ds-measure-fill { display: block; width: 62%; height: 100%; border-radius: inherit; background: #ffffff; } .ds-invite-left { text-align: right; font-size: 13px; font-weight: 500; color: #ffffff; } .ds-invite-gap { height: 16px; } .ds-invite-key { height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 10px 0 14px; font-size: 14px; font-weight: 500; color: #ffffff; } .ds-keys { font-size: 13px; color: #ffffff; }"
     }
   ],
   "narrative": {
