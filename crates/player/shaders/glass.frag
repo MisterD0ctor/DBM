@@ -59,7 +59,7 @@ uniform vec2 u_blur_scale;
 /// Target size in pixels; all panel geometry below is in pixels too.
 uniform vec2 u_size;
 
-#define MAX_PANELS 14
+#define MAX_PANELS 16
 uniform int u_panel_count;
 /// (x0, y0, x1, y1) in pixels, top-left origin.
 uniform vec4 u_panel_rect[MAX_PANELS];

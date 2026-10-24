@@ -803,3 +803,19 @@ msgstr "mpv kunde inte ansluta till spelarens grafikkontext. {}"
 msgctxt "MenuRow"
 msgid "Remove?"
 msgstr "Ta bort?"
+
+msgctxt "MainWindow"
+msgid "Minimize"
+msgstr "Minimera"
+
+msgctxt "MainWindow"
+msgid "Restore"
+msgstr "Återställ"
+
+msgctxt "MainWindow"
+msgid "Maximize"
+msgstr "Maximera"
+
+msgctxt "MainWindow"
+msgid "Close"
+msgstr "Stäng"

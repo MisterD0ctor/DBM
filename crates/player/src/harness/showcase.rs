@@ -152,6 +152,12 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 }
             }
 
+            // The window's maximize button pressed, for the window at the
+            // monitor's size and the button's glyph turned to restore.
+            if surface == "window-max" && tick == 6 {
+                click(&ui, 1207.0, 37.0);
+            }
+
             // The language page walked with the keyboard to its last row,
             // which on a small window is past the bottom of what the panel
             // shows: the list has to follow the ring down.

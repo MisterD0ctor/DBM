@@ -89,6 +89,13 @@ components:
     rounded: "{rounded.pill}"
     padding: "{{ MainWindow.pill-pad }}"
     backgroundColor: "transparent"
+  window-button:
+    size: "{{ MainWindow.window-btn }}"
+    rounded: "{{ MainWindow.window-btn / 2 }}"
+    textColor: "{colors.lit}"
+    backgroundColor: "transparent"
+  window-button-hover:
+    backgroundColor: "{colors.wash-button}"
   timeline-row:
     height: "{{ MainWindow.timeline-h }}"
     rounded: "{rounded.timeline}"

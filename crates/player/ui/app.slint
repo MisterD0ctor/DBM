@@ -24,9 +24,9 @@ import { Shapes, Squircle } from "squircle.slint";
 export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem }
 
 export component MainWindow inherits Window {
-    // For the title bar and the task bar, at 256px because window managers
-    // scale down better than up. The Windows executable's icon is a separate
-    // resource compiled in by `build.rs`.
+    // For the task bar and the window switcher, at 256px because window
+    // managers scale down better than up. The Windows executable's icon is a
+    // separate resource compiled in by `build.rs`.
     icon: @image-url("../icons/128x128@2x.png");
 
     // --- from the render pipeline ---
@@ -422,6 +422,9 @@ export component MainWindow inherits Window {
     /// Subtitles or audio, and which way.
     callback cycle-track(bool, int);
     callback quit();
+    /// Straight to the window rather than through `minimized`, which a Wayland
+    /// client is never told has been undone (see `window::minimize`).
+    callback minimize();
     callback set-ambience(bool);
     callback set-autoplay(bool);
     /// The accessibility page's switch. `Motion.enabled` is already set when
@@ -742,10 +745,15 @@ export component MainWindow inherits Window {
     /// nothing. Only the settings panel can open over it.
     property <float> invite-shown: !root.has-file && !root.settings-open
         ? 1.0 : 0.0;
+    /// The window's own buttons: with the chrome, and always over an empty
+    /// window, which has no film to keep clear. Never in fullscreen, where
+    /// the film has the whole screen and Esc is the way out.
+    property <float> window-shown: (root.controls-visible || !root.has-file)
+        && !root.fullscreen && !root.window-crowded ? 1.0 : 0.0;
 
     animate bar-shown, menu-shown, playlist-shown, settings-shown,
             files-shown, end-shown, credits-shown, invite-shown,
-            tip-shown {
+            window-shown, tip-shown {
         duration: Motion.surface;
         easing: ease-out;
     }
@@ -772,6 +780,7 @@ export component MainWindow inherits Window {
     property <length> end-rise: (1.0 - root.end-shown) * root.lift;
     property <length> credits-rise: (1.0 - root.credits-shown) * root.lift;
     property <length> invite-rise: (1.0 - root.invite-shown) * root.lift;
+    property <length> window-rise: (1.0 - root.window-shown) * root.lift;
 
     // --- the way in ---------------------------------------------------------
     //
@@ -941,6 +950,24 @@ export component MainWindow inherits Window {
             root.settled-height = root.height;
         }
     }
+
+    // --- the window's own buttons -------------------------------------------
+    //
+    // Minimize, maximize and close, each a small disc of glass that is the
+    // button itself, in the window's top corner at the bar's margins and a
+    // pill's gap apart.
+    property <length> window-btn: 26px;
+    property <length> window-btn-y: root.panel-margin;
+    property <length> window-btn-step: root.window-btn + root.pill-gap;
+    /// The first of them, minimize, so that close is the one at the margin.
+    property <length> window-btn-x: root.width - root.panel-margin
+        - root.window-btn - 2 * root.window-btn-step;
+    /// An open panel tall enough to reach their row, in their column, puts
+    /// them away, since it was asked for and they weren't.
+    property <bool> window-crowded: root.panel-open
+        && root.timeline-y - root.panel-h - Rows.offset
+            < root.window-btn-y + root.window-btn + Rows.offset
+        && root.panel-x + root.panel-w + Rows.offset > root.window-btn-x;
 
     // --- end of playback ---
     //
@@ -1940,6 +1967,34 @@ export component MainWindow inherits Window {
             radius: root.pill-radius,
             tint: 1.0,
         },
+        // The window's own buttons, a disc each.
+        {
+            x: root.window-btn-x,
+            y: root.window-btn-y + root.window-rise,
+            width: root.window-shown > root.shown-epsilon ? root.window-btn : 0,
+            height: root.window-shown > root.shown-epsilon ? root.window-btn : 0,
+            opacity: root.window-shown,
+            radius: root.window-btn / 2,
+            tint: 1.0,
+        },
+        {
+            x: root.window-btn-x + root.window-btn-step,
+            y: root.window-btn-y + root.window-rise,
+            width: root.window-shown > root.shown-epsilon ? root.window-btn : 0,
+            height: root.window-shown > root.shown-epsilon ? root.window-btn : 0,
+            opacity: root.window-shown,
+            radius: root.window-btn / 2,
+            tint: 1.0,
+        },
+        {
+            x: root.window-btn-x + 2 * root.window-btn-step,
+            y: root.window-btn-y + root.window-rise,
+            width: root.window-shown > root.shown-epsilon ? root.window-btn : 0,
+            height: root.window-shown > root.shown-epsilon ? root.window-btn : 0,
+            opacity: root.window-shown,
+            radius: root.window-btn / 2,
+            tint: 1.0,
+        },
         // The disc under the ring (see `ring-disc`). After the pills, since a
         // later pane is drawn over an earlier one.
         {
@@ -2096,11 +2151,18 @@ export component MainWindow inherits Window {
         : root.invite-shown;
 
     title: "Death by MPV";
+    // No frame: the film runs to the window's edges, the window's buttons
+    // are its own (`window-btn-x`), and the picture is what drags it
+    // (`video-surface`).
+    no-frame: true;
+    // The edge a frame would have given to take hold of. None while
+    // maximized, since there is nothing to resize from.
+    resize-border-width: root.maximized ? 0px : 8px;
     preferred-width: 1280px;
     preferred-height: 720px;
     // The floor: 960×540, 16:9 at three quarters of the opening size, which
     // still leaves the title pill some room once the transport has given way
-    // to the right pill. It excludes the title bar, which winit adds on top.
+    // to the right pill.
     min-width: 960px;
     min-height: 540px;
     background: Paint.ground;
@@ -3440,35 +3502,40 @@ export component MainWindow inherits Window {
         image-fit: fill;
     }
 
-    // Under the chrome, so buttons take clicks first. It doesn't hide the
-    // cursor, because a `mouse-cursor` binding is only read while a mouse
-    // event is routed, never when the pointer should go (see
-    // `pointer-hidden`).
-    video-surface := TouchArea {
-        width: 100%;
-        height: 100%;
-        pointer-event(event) => {
-            Chrome.pointed(event.kind == PointerEventKind.down);
-        }
-        clicked => {
-            // A click away from an open panel closes it, as a desktop menu
-            // does, rather than pausing the film under it.
-            if (root.menu-open || root.playlist-open || root.settings-open
-                || root.files-open) {
-                root.close-others();
-            } else {
-                root.video-clicked();
+    // Dragging the picture moves the window, which has no title bar to take
+    // hold of. A press that doesn't travel is still a click on the film.
+    WindowMoveArea {
+        enabled: !root.fullscreen;
+
+        // Under the chrome, so buttons take clicks first. It doesn't hide the
+        // cursor, because a `mouse-cursor` binding is only read while a mouse
+        // event is routed, never when the pointer should go (see
+        // `pointer-hidden`).
+        video-surface := TouchArea {
+            width: 100%;
+            height: 100%;
+            pointer-event(event) => {
+                Chrome.pointed(event.kind == PointerEventKind.down);
             }
-        }
-        double-clicked => {
-            root.video-double-clicked();
-        }
-        // The wheel over the picture only wakes the bar: a brushed wheel or a
-        // touchpad shouldn't change the volume, which has its own track.
-        // Accepted so this area keeps its hover.
-        scroll-event(event) => {
-            Chrome.bump();
-            return EventResult.accept;
+            clicked => {
+                // A click away from an open panel closes it, as a desktop menu
+                // does, rather than pausing the film under it.
+                if (root.panel-open) {
+                    root.close-others();
+                } else {
+                    root.video-clicked();
+                }
+            }
+            double-clicked => {
+                root.video-double-clicked();
+            }
+            // The wheel over the picture only wakes the bar: a brushed wheel or
+            // a touchpad shouldn't change the volume, which has its own track.
+            // Accepted so this area keeps its hover.
+            scroll-event(event) => {
+                Chrome.bump();
+                return EventResult.accept;
+            }
         }
     }
 
@@ -5479,6 +5546,50 @@ export component MainWindow inherits Window {
                 clicked => {
                     root.toggle-fullscreen();
                 }
+            }
+        }
+    }
+    // --- the window's own buttons -------------------------------------------
+    Rectangle {
+        x: root.window-btn-x;
+        y: root.window-btn-y + root.window-rise;
+        width: root.window-btn + 2 * root.window-btn-step;
+        height: root.window-btn;
+        visible: root.window-shown > root.shown-epsilon;
+        opacity: root.window-shown;
+
+        IconButton {
+            x: 0;
+            width: root.window-btn;
+            height: root.window-btn;
+            icon: @image-url("../../../public/icons/minimize.svg");
+            // No tip, since there is no key to teach; the name is for screen
+            // readers.
+            accessible-label: @tr("Minimize");
+            clicked => {
+                root.minimize();
+            }
+        }
+        IconButton {
+            x: root.window-btn-step;
+            width: root.window-btn;
+            height: root.window-btn;
+            icon: root.maximized
+                ? @image-url("../../../public/icons/unmaximize.svg")
+                : @image-url("../../../public/icons/maximize.svg");
+            accessible-label: root.maximized ? @tr("Restore") : @tr("Maximize");
+            clicked => {
+                root.maximized = !root.maximized;
+            }
+        }
+        IconButton {
+            x: 2 * root.window-btn-step;
+            width: root.window-btn;
+            height: root.window-btn;
+            icon: @image-url("../../../public/icons/close.svg");
+            accessible-label: @tr("Close");
+            clicked => {
+                root.quit();
             }
         }
     }

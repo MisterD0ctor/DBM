@@ -4,10 +4,10 @@
 #   scripts/icons.sh
 #
 # Every icon the player ships is the one drawing in public/death-by-mpv.svg:
-# the window's (128x128@2x.png, which Slint hands the title bar and task
-# bar), the Windows executable's and its installer's (icon.ico, compiled in
-# by build.rs), and the Flatpak's at each size it installs beside the SVG
-# itself. The one exception is the symbolic icon (symbolic.svg), which is
+# the window's (128x128@2x.png, which Slint hands the task bar), the Windows
+# executable's and its installer's (icon.ico, compiled in by build.rs), and
+# the Flatpak's at each size it installs beside the SVG itself. The one
+# exception is the symbolic icon (symbolic.svg), which is
 # public/death-by-mpv-simple.svg, the version drawn for small sizes. Run this
 # after changing either drawing, so that none of the icons goes on showing
 # the old one.

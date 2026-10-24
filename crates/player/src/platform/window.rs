@@ -4,7 +4,8 @@
 //! over its drop target, hooking the modal resize loop, claiming the media
 //! keys), and none before the window manager has made it, which Slint says is
 //! after at least one turn of the event loop. So each is tried from the frame
-//! path until it takes, by way of [`UntilWindow`].
+//! path until it takes, by way of [`UntilWindow`]. Minimizing goes to the
+//! window too, everywhere but Windows (see [`minimize`]).
 
 /// A setup step retried once a frame until the window exists for it.
 ///
@@ -90,4 +91,24 @@ pub fn hwnd(window: &slint::Window) -> Result<windows::Win32::Foundation::HWND, 
     Ok(windows::Win32::Foundation::HWND(
         win32.hwnd.get() as *mut core::ffi::c_void
     ))
+}
+
+/// Minimize the window, from its own button.
+///
+/// Straight to winit rather than through Slint's `minimized`, because a
+/// Wayland client is never told it was restored: the property stays set after
+/// the first time, and setting it again does nothing. Nothing happens under a
+/// backend that isn't winit.
+#[cfg(not(windows))]
+pub fn minimize(window: &slint::Window) {
+    use slint::winit_030::WinitWindowAccessor;
+
+    window.with_winit_window(|w| w.set_minimized(true));
+}
+
+/// Windows says when the window is restored, so Slint's own property keeps up
+/// and this build needs no unstable API for it.
+#[cfg(windows)]
+pub fn minimize(window: &slint::Window) {
+    window.set_minimized(true);
 }

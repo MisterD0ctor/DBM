@@ -329,7 +329,7 @@
       {
         "name": "min-window",
         "value": "{{ MainWindow.min-width | n }}x{{ MainWindow.min-height | n }}",
-        "purpose": "The floor: 16:9 at three quarters of the opening size, measured as the picture, with the title bar on top. Enforced as the window's minimum size rather than by reflowing. At this width the room beside any panel still holds the widest end-of-file pill."
+        "purpose": "The floor: 16:9 at three quarters of the opening size. Enforced as the window's minimum size rather than by reflowing. At this width the room beside any panel still holds the widest end-of-file pill."
       }
     ],
     "material": {

@@ -20,8 +20,7 @@
 # running shell, and it is stopped when the command ends.
 #
 # DBM_HEADLESS_SIZE sets the virtual monitor, 1920x1080 by default: larger
-# than the 1280x720 the window asks for, so the window gets that size — its
-# title bar is drawn by the client and would otherwise come out of it.
+# than the 1280x720 the window asks for, so the window gets that size.
 #
 # Commands run through distrobox see the same socket: `distrobox enter`
 # forwards WAYLAND_DISPLAY, and the socket is in the shared runtime directory.

@@ -806,3 +806,19 @@ msgstr "mpv konnte sich nicht an den Grafikkontext des Players anbinden. {}"
 msgctxt "MenuRow"
 msgid "Remove?"
 msgstr "Entfernen?"
+
+msgctxt "MainWindow"
+msgid "Minimize"
+msgstr "Minimieren"
+
+msgctxt "MainWindow"
+msgid "Restore"
+msgstr "Wiederherstellen"
+
+msgctxt "MainWindow"
+msgid "Maximize"
+msgstr "Maximieren"
+
+msgctxt "MainWindow"
+msgid "Close"
+msgstr "Schließen"

@@ -806,3 +806,19 @@ msgstr "mpv no pudo engancharse al contexto gráfico del reproductor. {}"
 msgctxt "MenuRow"
 msgid "Remove?"
 msgstr "¿Quitar?"
+
+msgctxt "MainWindow"
+msgid "Minimize"
+msgstr "Minimizar"
+
+msgctxt "MainWindow"
+msgid "Restore"
+msgstr "Restaurar"
+
+msgctxt "MainWindow"
+msgid "Maximize"
+msgstr "Maximizar"
+
+msgctxt "MainWindow"
+msgid "Close"
+msgstr "Cerrar"

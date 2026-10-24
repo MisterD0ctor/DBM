@@ -56,7 +56,7 @@ pub fn wire(ui: &MainWindow, app: &App) {
     wire_subtitles(ui, app, &undo);
     wire_opening(ui, app);
     wire_video_clicks(ui, app);
-    wire_fullscreen(ui);
+    wire_window(ui);
     restore_preferences(ui, app);
 }
 
@@ -593,9 +593,18 @@ fn wire_video_clicks(ui: &MainWindow, app: &App) {
     }
 }
 
-/// Fullscreen is the window's business, not mpv's, since with `vo=libmpv`
-/// there is no mpv-owned window.
-fn wire_fullscreen(ui: &MainWindow) {
+/// Minimizing, from the window's own button, and fullscreen, which is the
+/// window's business rather than mpv's, since with `vo=libmpv` there is no
+/// mpv-owned window. Maximizing is the interface's, through `maximized`.
+fn wire_window(ui: &MainWindow) {
+    {
+        let weak = ui.as_weak();
+        ui.on_minimize(move || {
+            if let Some(ui) = weak.upgrade() {
+                crate::platform::window::minimize(ui.window());
+            }
+        });
+    }
     {
         let weak = ui.as_weak();
         ui.on_toggle_fullscreen(move || {

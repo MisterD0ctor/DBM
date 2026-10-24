@@ -1,12 +1,12 @@
-// Controls that are not rows: the bar's icon buttons, a stepper's discs,
-// and the choices on the end-of-file pill.
+// Controls that are not rows: the icon buttons, a stepper's discs, and the
+// choices on the end-of-file pill.
 
 import { Chrome, Tip } from "globals.slint";
 import { Motion, Paint, Type } from "theme.slint";
 import { RingPane } from "ring.slint";
 import { Squircle } from "squircle.slint";
 
-/// A round glyph button on the bar.
+/// A round glyph button: the bar's, and the window's own at its top.
 ///
 /// A state the button controls, like mute, is shown by the caller swapping
 /// `icon`, not by a wash: on a bar of controls a wash read as chrome rather

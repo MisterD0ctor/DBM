@@ -807,3 +807,19 @@ msgstr "O mpv não conseguiu se conectar ao contexto gráfico do reprodutor. {}"
 msgctxt "MenuRow"
 msgid "Remove?"
 msgstr "Remover?"
+
+msgctxt "MainWindow"
+msgid "Minimize"
+msgstr "Minimizar"
+
+msgctxt "MainWindow"
+msgid "Restore"
+msgstr "Restaurar"
+
+msgctxt "MainWindow"
+msgid "Maximize"
+msgstr "Maximizar"
+
+msgctxt "MainWindow"
+msgid "Close"
+msgstr "Fechar"

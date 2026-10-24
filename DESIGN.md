@@ -90,6 +90,13 @@ components:
     rounded: "{rounded.pill}"
     padding: "4px"  # MainWindow.pill-pad
     backgroundColor: "transparent"
+  window-button:
+    size: "26px"  # MainWindow.window-btn
+    rounded: "13px"  # MainWindow.window-btn / 2
+    textColor: "{colors.lit}"
+    backgroundColor: "transparent"
+  window-button-hover:
+    backgroundColor: "{colors.wash-button}"
   timeline-row:
     height: "30px"  # MainWindow.timeline-h
     rounded: "{rounded.timeline}"
@@ -451,8 +458,8 @@ database.
 
 ## Layout
 
-A dark field with four glass objects along the bottom and at most one panel
-above them.
+A dark field with four glass objects along the bottom, the window's three
+buttons in its top corner, and at most one panel above the bar.
 
 **The bar** is four separate pieces, not one slab. The timeline row is one pane
 (`MainWindow.timeline-h` tall) running the full width, holding the elapsed time
@@ -512,6 +519,13 @@ subtitle in use — however it was opened. The language page has a current row
 too, and the angle that points back to it. The hover label opens on that same
 line, `Rows.offset` above the timeline; the seek preview floats just above it.
 
+**The window has no frame.** The film runs to its edges, the picture is what
+drags it, and its buttons are its own: Minimize, Maximize and Close, each a
+small disc of glass (`MainWindow.window-btn`), `MainWindow.pill-gap` apart and
+`MainWindow.panel-margin` from the window's top and side, as the bar is from its
+bottom and sides. A title bar would be a strip of the desktop's chrome across
+the top of every film, in a material that isn't glass.
+
 **The middle of the picture** belongs to things that are about the film rather
 than controls for it: the action flash, the end-of-file pill and the choice at
 the start of a file left part way, and — with no film loaded — the panel that
@@ -533,9 +547,8 @@ is one of them waiting to drift. So is the air a surface keeps from the next
 one, `Rows.offset`: a panel above the timeline, the hover label on that line,
 the flash's caption under its ring, the seek preview clear of an open panel.
 One idea, one name. The window opens at its preferred size and floors at
-three quarters of it, the same 16:9, measured as the picture: the title bar
-comes on top of it. It never reflows; the breakpoints in the sidecar give the
-sizes.
+three quarters of it, the same 16:9. It never reflows; the breakpoints in the
+sidecar give the sizes.
 
 ### Named Rules
 
@@ -824,6 +837,25 @@ by under a pixel at the corner.
   `MainWindow.pill-text-pad` from the pill's far end and running out there. At
   any speed but normal the speed rides beside the title at Body in Readout size (*1.5×*) for as long as it holds, rather than only in a passing
   flash.
+
+### The window's buttons
+- **Shape:** the disc is the button: `MainWindow.window-btn` across, its glyph
+  at `IconButton.glyph`, and the Button wash filling it under the pointer.
+  Smaller than the bar's buttons, because none of the three is pressed often
+  and they are over the picture whenever the chrome is. Three discs rather
+  than one capsule, because the three do unrelated things.
+- **Shown** with the chrome, on its fade and rise, and always over an empty
+  window, which has no film to keep clear. Never in fullscreen, where the film
+  has the whole screen and Esc is the way out.
+- **Maximize turns into Restore** while the window is maximized, glyph and
+  label both: a button's state is its glyph.
+- **It makes way for a panel** tall enough to reach its row in its column, and
+  comes back when the panel goes: the panel was asked for, and the buttons
+  weren't.
+- **No hover label.** The three are every desktop's own glyphs, with no key
+  to teach; a screen reader still gets their names.
+- **Not on the keyboard's ring.** Tab walks the film's controls; the desktop's
+  own keys for minimizing, maximizing and closing a window still do those.
 
 ### Timeline row
 - **Shape:** one capsule of glass (`MainWindow.timeline-h`) across the bar's

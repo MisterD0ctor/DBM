@@ -806,3 +806,19 @@ msgstr "mpv kon zich niet aan de grafische context van de speler koppelen. {}"
 msgctxt "MenuRow"
 msgid "Remove?"
 msgstr "Verwijderen?"
+
+msgctxt "MainWindow"
+msgid "Minimize"
+msgstr "Minimaliseren"
+
+msgctxt "MainWindow"
+msgid "Restore"
+msgstr "Herstellen"
+
+msgctxt "MainWindow"
+msgid "Maximize"
+msgstr "Maximaliseren"
+
+msgctxt "MainWindow"
+msgid "Close"
+msgstr "Sluiten"
