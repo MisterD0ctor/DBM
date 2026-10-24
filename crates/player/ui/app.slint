@@ -864,8 +864,15 @@ export component MainWindow inherits Window {
         + max(0px, time-measure.preferred-width - minutes-measure.preferred-width);
     property <length> minutes-w: 60px;
 
-    property <length> bar-x: root.panel-margin;
-    property <length> bar-w: root.width - 2 * root.panel-margin;
+    /// The glass round the bar's rows, on every side: as much as takes the
+    /// end buttons' corner out to the panels', so the bar's corner is
+    /// concentric with them and the same as the panels'.
+    property <length> bar-pad: root.panel-radius - root.pill-radius;
+    /// Where the rows go, inside that. The pane is the margins' own box.
+    property <length> bar-x: root.panel-margin + root.bar-pad;
+    property <length> bar-w: root.width - 2 * root.bar-x;
+    property <length> bar-h: 2 * root.bar-pad + root.timeline-h + root.pill-gap
+        + root.pill-h;
     /// Transport: previous, back, play, forward, next.
     property <length> center-w: 2 * root.pill-pad + 5 * root.btn + 4 * root.btn-gap;
     /// Mute, volume, audio, subtitles, settings, panscan, fullscreen.
@@ -962,7 +969,7 @@ export component MainWindow inherits Window {
     /// An open panel tall enough to reach their row, in their column, puts
     /// them away, since it was asked for and they weren't.
     property <bool> window-crowded: root.panel-open
-        && root.timeline-y - root.panel-h - Rows.offset
+        && root.bar-top - root.panel-h - Rows.offset
             < root.window-btn-y + root.window-btn + Rows.offset
         && root.panel-x + root.panel-w + Rows.offset > root.window-btn-x;
 
@@ -1016,7 +1023,7 @@ export component MainWindow inherits Window {
         && root.end-middle-x + root.end-w + Rows.offset > root.panel-x
         && root.end-middle-x < root.panel-x + root.panel-w + Rows.offset
         && root.end-middle-y + root.end-h + Rows.offset
-            > root.timeline-y - Rows.offset - root.panel-h;
+            > root.bar-top - Rows.offset - root.panel-h;
     /// The room beside the open panel, on the side away from it. At the
     /// smallest window it still holds the widest pill.
     property <bool> end-panel-left: root.panel-x + root.panel-w / 2 < root.width / 2;
@@ -1127,10 +1134,10 @@ export component MainWindow inherits Window {
     property <length> credits-w: min(
         2 * root.pill-text-pad + 24px + root.end-gap + credits-measure.preferred-width,
         root.right-w);
-    property <length> credits-x: root.bar-x + root.bar-w - root.credits-w;
+    property <length> credits-x: root.width - root.panel-margin - root.credits-w;
     /// Driven by the bar's own fade, so it moves exactly with the bar.
-    property <length> credits-y: root.pills-y
-        - root.bar-shown * (root.pills-y - root.timeline-y + Rows.offset + root.pill-h);
+    property <length> credits-y: root.height - root.panel-margin - root.pill-h
+        - root.bar-shown * (root.height - root.panel-margin - root.bar-top + Rows.offset);
     /// The seek preview reaching the pill's column. The preview is what the
     /// pointer asked for, so the pill is the one that goes.
     property <bool> credits-crowded: root.preview-open
@@ -1249,7 +1256,7 @@ export component MainWindow inherits Window {
     /// in when that is on screen, since both are centred and the notice would
     /// otherwise cover the rows it answers.
     property <length> flash-text-y: root.flash-panel != 0
-        ? root.timeline-y - root.flash-panel-h - Rows.offset
+        ? root.bar-top - root.flash-panel-h - Rows.offset
             + (root.flash-row < 0 ? 0px : root.flash-row - root.flash-text-h / 2)
         : !root.flash-has-ring
         ? (root.has-file
@@ -1335,11 +1342,10 @@ export component MainWindow inherits Window {
     /// Centred on its button, kept inside the bar's margins so a tip on the
     /// last button doesn't hang off the window.
     property <length> tip-x: clamp(root.tip-at - root.tip-w / 2,
-        root.bar-x, root.bar-x + root.bar-w - root.tip-w);
-    /// Above the timeline row, on the line panels open from, because laid
-    /// over the timeline between it and its button it would be glass on
-    /// glass.
-    property <length> tip-y: root.timeline-y - root.tip-h - Rows.offset
+        root.panel-margin, root.width - root.panel-margin - root.tip-w);
+    /// Above the bar, on the line panels open from, because any lower it
+    /// would be glass on glass.
+    property <length> tip-y: root.bar-top - root.tip-h - Rows.offset
         - (root.tip-over-credits ? root.pill-h + Rows.offset : 0px);
     /// A tip that would land on the credits pill goes up a row, over it,
     /// since the pill was there first.
@@ -1441,15 +1447,19 @@ export component MainWindow inherits Window {
         }
     }
 
-    property <length> pills-y: root.height - root.panel-margin - root.pill-h;
+    property <length> pills-y: root.height - root.panel-margin - root.bar-pad
+        - root.pill-h;
     out property <length> timeline-y: root.pills-y - root.pill-gap - root.timeline-h;
+    /// The top of the bar's glass, which panels, the tip and the seek
+    /// preview open above.
+    property <length> bar-top: root.timeline-y - root.bar-pad;
 
     /// The highest a subtitle may rest while the bar is up, in mpv's
     /// `sub-pos` (percent of the window's height, from the top). It keeps
-    /// mpv's bottom margin above the timeline, so the bar arriving reads as
+    /// mpv's bottom margin above the bar, so the bar arriving reads as
     /// the floor rising. The Rust side takes the lower of this and the
     /// person's own Position (see `subline`).
-    out property <float> subtitle-ceiling: 100 * root.timeline-y / root.height;
+    out property <float> subtitle-ceiling: 100 * root.bar-top / root.height;
     /// How much of that applies this frame, faded with the bar so the line
     /// climbs and settles rather than leaping.
     ///
@@ -1538,9 +1548,9 @@ export component MainWindow inherits Window {
     /// Centred on the pointer and kept inside the bar's margins.
     property <length> preview-x: clamp(
         root.scrub-x + root.preview-cursor - root.preview-w / 2,
-        root.bar-x,
-        root.bar-x + root.bar-w - root.preview-w);
-    property <length> preview-y: root.timeline-y - 10px - root.preview-h;
+        root.panel-margin,
+        root.width - root.panel-margin - root.preview-w);
+    property <length> preview-y: root.bar-top - 10px - root.preview-h;
 
     /// The column the open panel occupies. Opening a panel closes the others
     /// (`close-others`), so there is only ever one to test against.
@@ -1555,7 +1565,7 @@ export component MainWindow inherits Window {
         : root.files-open ? files-panel.width
         : settings.width;
     /// Its height, up from a bottom edge that is always one `Rows.offset`
-    /// above the timeline.
+    /// above the bar.
     property <length> panel-h: root.menu-open ? menu.height
         : root.audio-open ? audio-panel.height
         : root.playlist-open ? playlist-panel.height
@@ -1580,7 +1590,7 @@ export component MainWindow inherits Window {
     /// Room for a panel between the bar and a top margin the same as its
     /// side margins.
     property <length> panel-max-h:
-        root.timeline-y - Rows.offset - root.panel-margin;
+        root.bar-top - Rows.offset - root.panel-margin;
 
     // --- list panels ---
     //
@@ -1949,49 +1959,24 @@ export component MainWindow inherits Window {
     /// rect, which the Rust side drops, so this stays a plain literal rather
     /// than an array built conditionally.
     out property <[GlassRect]> glass-rects: [
-        // The whole timeline row, times included, on one pane.
+        // The whole bar on one pane: the timeline row over the three pills,
+        // the gaps between them, and `bar-pad` round them.
         //
         // Glass because over a white frame a bare track all but vanishes, and
-        // the glass's absorption is what darkens behind it. The row's height
-        // rather than the track's 5px, because the rim scales with the corner
-        // radius, and glass that thin would be all rim and darken nothing. One
-        // pane, because a time, the track and a time are one statement.
+        // the glass's absorption is what darkens behind it. One pane rather
+        // than a capsule each, because the rim is as wide as the corner
+        // (`BEVEL`), so a capsule is rim the whole way through; a pane taller
+        // than its corners has a flat middle for the rim to roll down from.
         {
-            x: root.bar-x,
-            y: root.timeline-y + root.bar-rise,
-            width: root.bar-shown > root.shown-epsilon ? root.bar-w : 0,
-            height: root.bar-shown > root.shown-epsilon ? root.timeline-h : 0,
+            x: root.panel-margin,
+            y: root.bar-top + root.bar-rise,
+            width: root.bar-shown > root.shown-epsilon
+                ? root.width - 2 * root.panel-margin : 0,
+            height: root.bar-shown > root.shown-epsilon ? root.bar-h : 0,
             opacity: root.bar-shown,
             // Opt in to tinting; the strength is the global slider.
             tint: 1.0,
-            radius: root.timeline-h / 2,
-        },
-        {
-            x: root.bar-x,
-            y: root.pills-y + root.bar-rise,
-            width: root.bar-shown > root.shown-epsilon ? root.left-w : 0,
-            height: root.bar-shown > root.shown-epsilon ? root.pill-h : 0,
-            opacity: root.bar-shown,
-            radius: root.pill-radius,
-            tint: 1.0,
-        },
-        {
-            x: root.center-x,
-            y: root.pills-y + root.bar-rise,
-            width: root.bar-shown > root.shown-epsilon ? root.center-w : 0,
-            height: root.bar-shown > root.shown-epsilon ? root.pill-h : 0,
-            opacity: root.bar-shown,
-            radius: root.pill-radius,
-            tint: 1.0,
-        },
-        {
-            x: root.right-x,
-            y: root.pills-y + root.bar-rise,
-            width: root.bar-shown > root.shown-epsilon ? root.right-w : 0,
-            height: root.bar-shown > root.shown-epsilon ? root.pill-h : 0,
-            opacity: root.bar-shown,
-            radius: root.pill-radius,
-            tint: 1.0,
+            radius: root.panel-radius,
         },
         // The window's own buttons, a disc each.
         {
@@ -2021,7 +2006,7 @@ export component MainWindow inherits Window {
             radius: root.window-btn / 2,
             tint: 1.0,
         },
-        // The disc under the ring (see `ring-disc`). After the pills, since a
+        // The disc under the ring (see `ring-disc`). After the bar, since a
         // later pane is drawn over an earlier one.
         {
             x: root.ring-disc-x,
@@ -3224,7 +3209,7 @@ export component MainWindow inherits Window {
     }
 
     // The ring on a bar button stands on a disc of glass of its own, laid on
-    // its pill, so the material's rim lights the keyboard's place rather than
+    // the bar, so the material's rim lights the keyboard's place rather than
     // an outline; a wash alone is faint against the glass beside it. The
     // pill's choices keep the wash, being capsules within a pane already.
     property <bool> ring-disc: Chrome.focus-visible && root.bar-reach
@@ -3637,7 +3622,7 @@ export component MainWindow inherits Window {
         x: root.anchored-x(root.settings-anchor, self.width);
         // From its own height, so the panel keeps its bottom edge and grows
         // upward, and the glass, read from this rectangle, follows.
-        y: root.timeline-y - self.height - Rows.offset + root.settings-rise;
+        y: root.bar-top - self.height - Rows.offset + root.settings-rise;
 
         // With `drill`, by the same numbers, so the box and its pages move as
         // one. Not while the window is resized (see `resizing`).
@@ -4141,7 +4126,7 @@ export component MainWindow inherits Window {
             easing: ease-in-out;
         }
         x: root.anchored-x(root.subs-anchor, self.width);
-        y: root.timeline-y - self.height - Rows.offset + root.menu-rise;
+        y: root.bar-top - self.height - Rows.offset + root.menu-rise;
         visible: root.menu-shown > root.shown-epsilon;
         opacity: root.menu-shown;
 
@@ -4272,7 +4257,7 @@ export component MainWindow inherits Window {
         height: root.audio-h;
         clip: true;
         x: root.anchored-x(root.audio-anchor, self.width);
-        y: root.timeline-y - self.height - Rows.offset + root.audio-rise;
+        y: root.bar-top - self.height - Rows.offset + root.audio-rise;
         visible: root.audio-shown > root.shown-epsilon;
         opacity: root.audio-shown;
 
@@ -4324,7 +4309,7 @@ export component MainWindow inherits Window {
         height: root.panel-pad + 2 * root.row-h;
         clip: true;
         x: root.anchored-x(root.files-anchor, self.width);
-        y: root.timeline-y - self.height - Rows.offset + root.files-rise;
+        y: root.bar-top - self.height - Rows.offset + root.files-rise;
         visible: root.files-shown > root.shown-epsilon;
         opacity: root.files-shown;
 
@@ -4374,7 +4359,7 @@ export component MainWindow inherits Window {
             easing: ease-in-out;
         }
         x: root.anchored-x(root.playlist-anchor, self.width);
-        y: root.timeline-y - self.height - Rows.offset + root.playlist-rise;
+        y: root.bar-top - self.height - Rows.offset + root.playlist-rise;
         visible: root.playlist-shown > root.shown-epsilon;
         opacity: root.playlist-shown;
 
@@ -4543,19 +4528,35 @@ export component MainWindow inherits Window {
         }
     }
 
-    // The bar is four pieces of glass: the timeline row, and three pills that
-    // group what belongs together. These are their contents; the glass is the
-    // pipeline's, from `glass-rects`.
+    // The bar is one pane of glass holding the timeline row and three pills
+    // that group what belongs together. These are its contents; the glass is
+    // the pipeline's, from `glass-rects`.
     //
     // Each is placed from the bar geometry rather than by a layout, so reading
     // its geometry every frame costs nothing. Inside a pill a HorizontalLayout
     // is fine, since nothing outside asks where its children ended up.
 
+    // The pane itself, under the rows, so a click on its padding or between
+    // its pills doesn't reach the film under it.
+    Rectangle {
+        x: root.panel-margin;
+        y: root.bar-top + root.bar-rise;
+        width: root.width - 2 * root.panel-margin;
+        height: root.bar-h;
+        visible: root.bar-shown > root.shown-epsilon;
+
+        TouchArea {
+            pointer-event(event) => {
+                Chrome.pointed(event.kind == PointerEventKind.down);
+            }
+        }
+    }
+
     // --- timeline ---
     //
-    // One pane the bar's width: a time at each end and the track between
-    // (see `glass-rects`). Each end reaches the track rather than stopping at
-    // its text, so no gap lets a click through to the play/pause handler.
+    // One row the bar's width: a time at each end and the track between.
+    // Each end reaches the track rather than stopping at its text, so no gap
+    // lets a click through to the play/pause handler.
 
     Rectangle {
         x: root.bar-x;

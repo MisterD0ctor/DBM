@@ -36,8 +36,8 @@ pub const CORNER_SOFTNESS: f64 = 1.25;
 
 /// Must match `MAX_PANELS` in glass.frag.
 ///
-/// More than the interface can put up at once: at most the bar's four panes
-/// and the disc under the ring, the window's three buttons, the flash's two,
+/// More than the interface can put up at once: at most the bar's pane and
+/// the disc under the ring, the window's three buttons, the flash's two,
 /// the tip, the seek preview, one panel, the pane under the ring in it, and a
 /// pill. The shader stops at the real count, so the headroom costs nothing.
 pub const MAX_PANELS: usize = 16;
