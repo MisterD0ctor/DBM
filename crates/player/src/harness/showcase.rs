@@ -26,7 +26,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             // Any pointer event resets the idle clock. Most surfaces keep the
             // pointer clear of the controls; the preview needs it on the
             // track, and a tip needs it resting on a button. The coordinates
-            // are the right pill's buttons at the default size, aimed for a
+            // are the right group's buttons at the default size, aimed for a
             // capture rather than geometry anything depends on.
             let (x, y) = match surface.as_str() {
                 "preview" => (
@@ -39,11 +39,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     ui.get_scrub_x() + ui.get_scrub_w() * 0.5,
                     ui.get_timeline_y() + 14.0,
                 ),
-                // The settings gear, mid-pill.
-                "tip" | "tip-idle" | "tip-open" => (1140.0, 672.0),
+                // The settings gear.
+                "tip" | "tip-idle" | "tip-open" => (1132.0, 664.0),
                 // The last button there is, to see the clamp hold a tip
                 // inside the margin rather than off the window.
-                "tip-edge" => (1232.0, 672.0),
+                "tip-edge" => (1224.0, 664.0),
                 // The playlist's scroll bar, which thickens under a pointer.
                 "scroll-bar" => (
                     ui.get_panel_right() - 5.5,

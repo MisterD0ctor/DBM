@@ -28,9 +28,6 @@ export global Motion {
     out property <duration> surface: Motion.enabled ? 120ms : 0ms;
     /// A switch's knob crossing its track, and the track's colour with it.
     out property <duration> switch: Motion.enabled ? 120ms : 0ms;
-    /// The title pill resizing to a new title, so a file change doesn't make
-    /// it jump.
-    out property <duration> title-width: Motion.enabled ? 160ms : 0ms;
     /// A page sliding sideways in a panel, and the panel's height with it.
     /// Longer than `surface` because it travels rather than arrives.
     out property <duration> drill: Motion.enabled ? 220ms : 0ms;

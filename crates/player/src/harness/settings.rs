@@ -312,12 +312,11 @@ fn report_motion(ui: &MainWindow, label: &str) {
     let motion = ui.global::<Motion>();
     eprintln!(
         "dbm: {label:<18} highlight={}ms track-grow={}ms surface={}ms switch={}ms \
-         title-width={}ms drill={}ms",
+         drill={}ms",
         motion.get_highlight(),
         motion.get_track_grow(),
         motion.get_surface(),
         motion.get_switch(),
-        motion.get_title_width(),
         motion.get_drill(),
     );
 }

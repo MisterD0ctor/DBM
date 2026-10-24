@@ -59,7 +59,6 @@ rounded:
   panel: "32px"  # Rows.panel-radius
   pill: "24px"  # MainWindow.pill-radius
   button: "20px"  # MainWindow.btn / 2
-  timeline: "15px"  # MainWindow.timeline-h / 2
   preview: "18px"  # MainWindow.preview-radius
   preview-tile: "9px"  # MainWindow.preview-tile-radius
 spacing:
@@ -85,11 +84,14 @@ components:
     backgroundColor: "{colors.wash-ring}"
   icon-button-disabled:
     textColor: "{colors.dim}"
-  control-pill:
-    height: "48px"  # MainWindow.pill-h
-    rounded: "{rounded.pill}"
-    padding: "4px"  # MainWindow.pill-pad
+  bar:
+    height: "94px"  # MainWindow.bar-h
+    rounded: "{rounded.panel}"
+    padding: "8px"  # MainWindow.bar-pad
     backgroundColor: "transparent"
+  button-row:
+    height: "48px"  # MainWindow.pill-h
+    padding: "4px"  # MainWindow.pill-pad
   window-button:
     size: "26px"  # MainWindow.window-btn
     rounded: "13px"  # MainWindow.window-btn / 2
@@ -99,10 +101,8 @@ components:
     backgroundColor: "{colors.wash-button}"
   timeline-row:
     height: "30px"  # MainWindow.timeline-h
-    rounded: "{rounded.timeline}"
     textColor: "{colors.strong}"
     typography: "{typography.timecode}"
-    backgroundColor: "transparent"
   timeline-time:
     padding: "0 13px"  # MainWindow.glyph-inset
     textColor: "{colors.strong}"
@@ -458,52 +458,54 @@ database.
 
 ## Layout
 
-A dark field with four glass objects along the bottom, the window's three
+A dark field with one pane of glass along the bottom, the window's three
 buttons in its top corner, and at most one panel above the bar.
 
-**The bar** is four separate pieces, not one slab. The timeline row is one pane
-(`MainWindow.timeline-h` tall) running the full width, holding the elapsed time
-at its left end, the total at its right, and the track between them. Below sit
-three control pills (`MainWindow.pill-h` tall): a title pill on the left, the
-transport pill (`MainWindow.center-w`) centred in the window until that would
-bring it within `MainWindow.pill-gap` of the right pill, where it keeps the gap
-and gives way leftwards, and the right pill (`MainWindow.right-w`) holding
-sound, the two tracks panels, the settings and the picture's own controls.
-They sit `MainWindow.panel-margin` from the window edges, `MainWindow.pill-gap`
-below the timeline row. Inside a pill, buttons (`MainWindow.btn`) sit
-`MainWindow.btn-gap` apart with `MainWindow.pill-pad` of padding; text
-directly on a pill is inset `MainWindow.pill-text-pad`, clear of the
-capsule's curve.
+**The bar** is one pane (`MainWindow.bar-h` tall), `MainWindow.panel-margin`
+from the window's sides and bottom: the timeline row (`MainWindow.timeline-h`)
+over a row of buttons (`MainWindow.pill-h`), with `MainWindow.bar-pad` of glass
+round both. The timeline row holds the elapsed time at its left end, the total
+at its right, and the track between them. The row of buttons holds three
+groups: the title on the left, the transport (`MainWindow.center-w`) centred
+in the window until that would bring it within `MainWindow.pill-gap` of the
+right group, where it keeps the gap and gives way leftwards, and the right
+group (`MainWindow.right-w`) holding sound, the two tracks panels, the settings
+and the picture's own controls. Buttons (`MainWindow.btn`) sit
+`MainWindow.btn-gap` apart, `MainWindow.pill-pad` in from the row's ends.
 
-The title pill opens with its two buttons, Playlist and then Open, and the
+The padding is what takes the end buttons' corner out to the panels', so the
+bar's corners are concentric with the buttons in them and the bar and the
+panels share one corner (see Shapes). Each time is inset
+`MainWindow.glyph-inset`, so at its full width it starts and ends where the end
+buttons' drawings do, and each end of the bar is one edge from the time down to
+its button.
+
+The bar is one pane because a capsule is rim the whole way through (see The
+Transmissive Middle Rule): four of them were four rolled edges with nothing
+between to darken, and a slab taller than its corners has a flat middle for
+the rim to roll down from. The timeline needs glass under it in any case,
+since a bare track all but vanishes over a white frame (1.02:1 against the
+picture, with the played edge at 1.13:1 against the rail). It is the one place
+in this system where **the glass is sized by the window, not by what is
+written on it.**
+
+The title group opens with its two buttons, Playlist and then Open, and the
 title follows them (`MainWindow.lp-title`). So the buttons, and the playlist
 and open panels that hang from them, stand in one place for every film, and
-only the pill's far end moves with the title. After the title, they would move
-with every file, and the playlist panel with them.
+only the group's far end moves with the title. After the title, they would
+move with every file, and the playlist panel with them.
 
-The title pill hugs its title, up to the room the transport leaves, and
-past that the title runs out at the end of its room, blurring and thinning
-away there as a list's rows do (see List edges) with no ellipsis. Short of
-room for an episode's whole title, it drops the show's name first
-(`MainWindow.title-short`): *S04E06 · Live Bait*, not *The Walking Dead · S04*
-running out, since the show is what one show's episodes share and the episode
-is what tells them apart. That is judged by the most room the pill could
-have, not the room it has, which the choice itself would change. It eases to a
-new width over `Motion.title-width` rather than jumping: a pill that resized
-itself on every file change would be a flicker, and the glass follows because
-it is drawn from the same number.
+The title hugs its room, up to what the transport leaves, ending
+`MainWindow.pill-text-pad` short of it, and past that it runs out at the end of
+its room, blurring and thinning away there as a list's rows do (see List edges)
+with no ellipsis. Short of room for an episode's whole title, it drops the
+show's name first (`MainWindow.title-short`): *S04E06 · Live Bait*, not *The
+Walking Dead · S04* running out, since the show is what one show's episodes
+share and the episode is what tells them apart. That is judged by the most
+room the title could have, not the room it has, which the choice itself would
+change.
 
-The timeline row is one pane because it makes one statement: where you are, out
-of how much. As three panes, a pill around each time and the track bare over
-the video between them, glass would cut between parts of a sentence, and the
-bare track all but vanishes over a white frame (1.02:1 against the picture,
-with the played edge at 1.13:1 against the rail).
-
-A row with contents at both ends and nothing but a line in the middle is the
-one place in this system where **the glass is sized by what the row means, not
-by what is written in it.**
-
-**Panels** open `Rows.offset` above the timeline row, anchored to the button
+**Panels** open `Rows.offset` above the bar, anchored to the button
 that opened them and kept inside the same margins. Their widths are the
 `width` of `menu`, `audio-panel`, `playlist-panel`, `settings` and
 `files-panel` in `MainWindow`. Only one is ever open. Each is capped at the
@@ -516,8 +518,8 @@ looks as it always did. A list opens on its current row, centred as far as its
 ends allow — the playlist on the episode playing, the subtitles on the one in
 use, the audio on the track playing — however it was opened. The language page
 has a current row too, and the angle that points back to it. The hover label
-opens on that same line, `Rows.offset` above the timeline; the seek preview
-floats just above it.
+opens on that same line, `Rows.offset` above the bar; the seek preview floats
+just above it.
 
 **The window has no frame.** The film runs to its edges, the picture is what
 drags it, and its buttons are its own: Minimize, Maximize and Close, each a
@@ -544,7 +546,7 @@ the same `Rows.gap` that insets every wash and pads every panel, so the space
 that separates two ideas is the space the rows already stand in, and it is
 *derived* from it, not typed again, because two literals asserting an identity
 is one of them waiting to drift. So is the air a surface keeps from the next
-one, `Rows.offset`: a panel above the timeline, the hover label on that line,
+one, `Rows.offset`: a panel above the bar, the hover label on that line,
 the flash's caption under its ring, the seek preview clear of an open panel.
 One idea, one name. The window opens at its preferred size and floors at
 three quarters of it, the same 16:9. It never reflows; the breakpoints in the
@@ -563,17 +565,17 @@ lands on top of it either.
 **The Bar Stays For A Pause.** The bar hides after three still seconds while a
 film plays, and not while it is paused. Pausing is stopping to look at where you
 are, which is the moment the bar is for. Nor while an open is in flight:
-*Opening …* takes the title pill's place, and it is the only sign anywhere that
+*Opening …* takes the title's place, and it is the only sign anywhere that
 a folder on a share is still being read. The open is over when mpv finishes
 opening the new file — not when there is a file, which over a film already
 playing was true at once and cleared the line before it was ever drawn.
 
 **The Bar Is A Floor.** While the bar is up, subtitles rest above it. The line
 keeps its own place — the Position on the subtitles page — and rises only as
-far as it must: to sit mpv's own bottom margin above the timeline, the same air
-it keeps above the window's edge when nothing is in the way. It climbs on the
-bar's own fade and settles as the bar goes. A line already above the timeline
-does not move, and one resting in the letterbox comes all the way up. The case
+far as it must: to sit mpv's own bottom margin above the bar, the same air it
+keeps above the window's edge when nothing is in the way. It climbs on the
+bar's own fade and settles as the bar goes. A line already above the bar does
+not move, and one resting in the letterbox comes all the way up. The case
 that made this necessary is pausing to read a line, which holds the bar up over
 exactly that line. The one exception is setting the Position: from its first
 press the line goes down to where it rests, so the stepper moves what is being
@@ -722,9 +724,9 @@ component only, never to the rim light.
 The rim is the full corner radius, so a capsule is rim the whole way through
 and has no transmitted component to darken. **A pane that exists to give
 something a ground must be tall enough to have a flat middle.** This is why the
-timeline's glass is the height of its row and not of its track: glass at the
-track's own size would be all edge and would darken nothing, which is the one
-thing it is there to do.
+bar is one pane and not a capsule for each row and group: glass at a row's own
+size would be all edge and would darken little, which is the one thing it is
+there to do.
 
 ## Shapes
 
@@ -733,14 +735,17 @@ concentrically.** Two corners share a centre — and so keep an even gap the who
 way round — when their radii differ by exactly the gap between them. So
 `Rows.radius` plus `Rows.gap` *is* `Rows.panel-radius`, and the panel's padding
 is that same gap, which makes the first and last rows come out concentric with
-the panel's own corners without being special-cased.
+the panel's own corners without being special-cased. The bar runs it the
+other way: half its row of buttons plus `MainWindow.bar-pad` is the panels'
+corner, so the padding follows from the two radii and the end buttons sit
+concentric in the bar's corners.
 
 The same arithmetic governs the seek preview: the thumbnail's corner
 (`MainWindow.preview-tile-radius`) is the preview's less its padding. Turn
 either the radius or the gap and the third value follows.
 
-Control pills, the timeline row, the hover label, the flash's caption and the
-end-of-file pill are true capsules, their radius half their height. Icon
+The hover label, the flash's caption and the end-of-file pill are true
+capsules, their radius half their height. Icon
 buttons are circles, and so is the flash's ring. Every track, fill, measure and
 scroll thumb is a capsule too. The switch is a capsule with a circular knob
 inset from its ends.
@@ -808,7 +813,7 @@ by under a pixel at the corner.
   that lights like a switch is clicked like one. The subtitles button wears the
   plain subtitles mark, and its menu's *Off* row is where subtitles go off;
   the audio button wears Speaking, the mark over its panel's heading.
-- **Focus:** the Ring wash, on a disc of glass laid on its pill
+- **Focus:** the Ring wash, on a disc of glass laid on the bar
   (`MainWindow.ring-disc`), while the keyboard is on it: see The Ring Pane
   Rule. With the glass switched off the wash is the whole of it, a step over
   the open one.
@@ -827,14 +832,19 @@ by under a pixel at the corner.
   so — *No earlier file*, with no key beside it. Its key does nothing either,
   raises no flash, and Tab walks past it.
 
-### Control pills
-- **Shape:** a capsule (`MainWindow.pill-h`: a button with `MainWindow.pill-pad`
-  of padding)
-- **Background:** none. The pill is a glass rect published to the renderer; a
-  fill here would paint over the material.
-- **Contents:** buttons `MainWindow.btn-gap` apart; on the title pill, the two
-  buttons first and then its text, the Title role at Strong, inset
-  `MainWindow.pill-text-pad` from the pill's far end and running out there. At
+### The bar
+- **Shape:** one pane (`MainWindow.bar-h`) across the window inside its
+  margins, at the panels' corner (`Rows.panel-radius`), `MainWindow.bar-pad`
+  of glass round its two rows
+- **Background:** none. The pane is a glass rect published to the renderer; a
+  fill here would paint over the material. A click on it that no control
+  takes stops there, rather than pausing the film under it.
+- **Rows:** the timeline row (below) over a row of buttons (`MainWindow.pill-h`:
+  a button with `MainWindow.pill-pad` of padding), with nothing between them
+- **Contents:** buttons `MainWindow.btn-gap` apart in three groups; in the
+  title group, the two buttons first and then the title, the Title role at
+  Strong, ending `MainWindow.pill-text-pad` short of its room and running out
+  there. At
   any speed but normal the speed rides beside the title at Body in Readout size (*1.5×*) for as long as it holds, rather than only in a passing
   flash.
 
@@ -858,8 +868,8 @@ by under a pixel at the corner.
   own keys for minimizing, maximizing and closing a window still do those.
 
 ### Timeline row
-- **Shape:** one capsule of glass (`MainWindow.timeline-h`) across the bar's
-  full width
+- **Shape:** the bar's top row (`MainWindow.timeline-h`), across its full
+  width
 - **Times:** Strong in the Timecode role, each centred in a column as wide as
   the film's length reads, never narrower than `00:00`, with
   `MainWindow.glyph-inset` either side: a time at its full width starts and
@@ -1350,10 +1360,9 @@ list arriving one row at a time where the question was asked.
   once — it is the answer to the wheel, the drag or the key that moved it, and
   each notch would otherwise start the wait again. A press leaves it up: here
   the label is the result, not something in front of it.
-- **Above the timeline row, on the line panels open from**, centred on its
-  control and clamped inside the bar's margins. There is nowhere closer: the
-  row between is one unbroken pane, and a tip laid over it would be glass on
-  glass.
+- **Above the bar, on the line panels open from**, centred on its control
+  and clamped inside the bar's margins. There is nowhere closer: the bar is
+  one unbroken pane, and a tip laid over it would be glass on glass.
 - **It says what pressing will do**, not what the glyph already shows. The
   glyph says which state you are in; the label is the only thing that can say
   what happens next, so a muted control offers *Unmute*.
@@ -1384,7 +1393,7 @@ The signature component. A thumbnail from an ffmpeg sprite atlas
 glass panel (`MainWindow.preview-radius`, `MainWindow.preview-pad` of padding)
 whose tile's corners are concentric with it (`MainWindow.preview-tile-radius`),
 with the timestamp beneath it at Strong in a caption
-(`MainWindow.preview-caption`). It floats just above the timeline, centred on
+(`MainWindow.preview-caption`). It floats just above the bar, centred on
 the pointer and clamped inside the bar's margins, and takes no pointer events
 of its own. It falls back to the timestamp alone, in a capsule, when no atlas
 exists, which is the state it sits in for the first seconds of every unseen
@@ -1438,7 +1447,8 @@ out sideways from the panel's edge rather than rising, and fades out with the
 panel when that closes.
 
 ### The end-of-file pill
-The bar's own capsule (`MainWindow.end-h`), in the middle of the picture where
+A capsule as tall as the bar's row of buttons (`MainWindow.end-h`), in the
+middle of the picture where
 the film stopped: a bar glyph and the name of what comes next (*E04 ·
 Slabtown*, in the words its playlist row uses) in Prompt at Lit,
 `MainWindow.end-gap` apart, inset `MainWindow.end-pad`. It
@@ -1523,7 +1533,7 @@ While an episode's closing credits play, the end pill's single capsule offers
 what comes next with the Next glyph, named as the end pill names it — the next
 file as its row says it, or at the end of a season the season after it — and
 *Next episode* only when neither can be said. It is no wider than the bar's
-right pill, the corner it keeps to; a long title elides rather than reach over
+right group, the corner it keeps to; a long title elides rather than reach over
 the names. The credits are a chapter named for them —
 *End Credits*, *Credits*, *Outro*, *ED*, *Ending* — in the file's second half,
 and the pill stays from there to the end. Where no chapter has a real name —
@@ -1543,7 +1553,7 @@ end of a season the next season found beside it.
 
 It keeps out of the middle, where the names roll, and sits at the bottom right
 on the bar's lines: at `MainWindow.panel-margin` while the bar is away, lifted
-`Rows.offset` above the timeline row while it is up, riding the bar's own fade
+`Rows.offset` above the bar while it is up, riding the bar's own fade
 between the two.
 Its arrival wakes the bar once and holds nothing up — the clock runs out, the
 bar leaves, the pill stays, and doing nothing is watching the credits. It also
@@ -1693,14 +1703,8 @@ for a moment (`MainWindow.copied-timer.interval`), and *Close the player*.
 - **Don't** animate for its own sake. Motion here is a response:
   `Motion.highlight` for a wash, `Motion.track-grow` for a track,
   `Motion.surface` for a surface and `Motion.switch` for a switch, ease-out, no
-  bounce, no overshoot. Five things depart from that, each for a reason that is
+  bounce, no overshoot. Four things depart from that, each for a reason that is
   about what is moving rather than about how it looks:
-  - the **title pill** resizing to a new title over `Motion.title-width`
-    ease-in-out, so a
-    file change is a movement rather than a flicker — but never to a new
-    window: while the window is being resized, the pill and the panels' heights
-    take their new size in the frame they are given it, since eased they
-    would trail the window's edge for as long as the drag lasted;
   - the **backdrop's** arrival (`pipeline.BACKDROP_ARRIVAL`), the one motion
     that is not a response to anything: it is the window's light changing, not
     a control answering;
@@ -1713,7 +1717,10 @@ for a moment (`MainWindow.copied-timer.interval`), and *Close the player*.
     playlist between its list of parts and a part's page. A panel with two
     levels that changes which one it shows in a single frame leaves no
     account of what happened, and that is as true of a season as of a page of
-    sliders;
+    sliders. Never to a new window, though: while the window is being resized,
+    the panels' heights take their new size in the frame they are given it,
+    since eased they would trail the window's edge for as long as the drag
+    lasted;
   - a **glide** (`Motion.glide`), ease-in-out, carrying a list back to its
     current row when the angle pointing to it is pressed. Longer than a drill,
     because the distance is anything up to a whole season and at a drill's

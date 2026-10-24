@@ -46,9 +46,9 @@ pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
                 (1200, 560 + d * 45)
             };
             ui.window().set_size(slint::PhysicalSize::new(w, h));
-            // How far the title pill, and the settings panel if open, trail
-            // their size, read a frame or so after it was set, where an eased
-            // resize would trail by tens of pixels.
+            // How far the settings panel, if open, trails its size, read a
+            // frame or so after it was set, where an eased resize would trail
+            // by tens of pixels.
             if tick % 10 == 5 {
                 eprintln!("dbm: resize lag {:.1}px", ui.get_resize_lag());
             }

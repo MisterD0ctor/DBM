@@ -835,22 +835,22 @@ export component MainWindow inherits Window {
     // a binding that depends on a layout forces a full layout pass each time
     // it is read, which dragged resizing down to 4fps.
     //
-    // The same constants place the pills, their controls and the points the
-    // panels hang from, so nothing has to be kept in agreement by hand.
+    // The same constants place the bar's groups, their controls and the
+    // points the panels hang from, so nothing has to be kept in agreement by
+    // hand.
     property <length> btn: 40px;
     property <length> btn-gap: 6px;
     property <length> pill-pad: 4px;
     property <length> vol-w: 96px;
-    /// Inset for text directly on a pill. `pill-pad` suits a round 40px
-    /// button, but text at that inset runs into the capsule's curve. The
-    /// end-of-file pill uses the same 18px, so words on any 48px capsule start
-    /// in the same place.
+    /// Inset for text at the end of a row of buttons: after the title, and
+    /// in the end-of-file and credits pills, where `pill-pad` would run the
+    /// words into the capsule's curve.
     property <length> pill-text-pad: 18px;
     property <length> pill-h: root.btn + 2 * root.pill-pad;
     property <length> pill-radius: root.pill-h / 2;
     property <length> pill-gap: 10px;
-    /// Shorter than the control pills: they hold a 24px glyph, these hold a
-    /// single line of type.
+    /// Shorter than the row of buttons under it, since it holds a line of
+    /// type rather than a 24px glyph.
     property <length> timeline-h: 30px;
     /// Wide enough for the longest either time can read, which is the total,
     /// and never narrower than "00:00", with `glyph-inset` either side.
@@ -862,7 +862,7 @@ export component MainWindow inherits Window {
     property <length> time-w: max(time-measure.preferred-width,
         minutes-measure.preferred-width) + 2 * root.glyph-inset;
     /// How far in from the bar's ends the end buttons' drawings start: the
-    /// pill's padding, the 24px glyph centred in its button, and the 1px the
+    /// row's padding, the 24px glyph centred in its button, and the 1px the
     /// icon set leaves round its 22px drawings.
     property <length> glyph-inset: root.pill-pad + (root.btn - 24px) / 2 + 1px;
 
@@ -873,70 +873,105 @@ export component MainWindow inherits Window {
     /// Where the rows go, inside that. The pane is the margins' own box.
     property <length> bar-x: root.panel-margin + root.bar-pad;
     property <length> bar-w: root.width - 2 * root.bar-x;
-    property <length> bar-h: 2 * root.bar-pad + root.timeline-h
-        + root.pill-h;
+    property <length> bar-h: 2 * root.bar-pad + root.timeline-h + root.pill-h;
+    property <length> pills-y: root.height - root.panel-margin - root.bar-pad
+        - root.pill-h;
+    out property <length> timeline-y: root.pills-y - root.timeline-h;
+    /// The top of the bar's glass, which panels, the tip and the seek
+    /// preview open above.
+    property <length> bar-top: root.timeline-y - root.bar-pad;
+
     /// Transport: previous, back, play, forward, next.
     property <length> center-w: 2 * root.pill-pad + 5 * root.btn + 4 * root.btn-gap;
     /// Mute, volume, audio, subtitles, settings, panscan, fullscreen.
     property <length> right-w:
         2 * root.pill-pad + 6 * root.btn + root.vol-w + 6 * root.btn-gap;
-    /// Everything in the title pill that is not the title: the padding
+    /// Everything in the title group that is not the title: the padding
     /// before the two buttons, the buttons with their gaps, and the text
     /// inset after the title.
     property <length> left-fixed:
         root.lp-title + root.pill-text-pad
         + (root.speed-shown ? speed-measure.preferred-width + root.btn-gap : 0px);
-    /// The title pill hugs its title, up to what the transport leaves room
-    /// for. Past that the title runs out and the pill stops growing.
-    property <length> left-w: root.left-target;
-    property <length> left-target: clamp(
+    /// The title group hugs its title, up to what the transport leaves room
+    /// for. Past that the title runs out at the group's end.
+    property <length> left-w: clamp(
         root.title-w + root.left-fixed,
         root.left-fixed,
         root.center-x - root.bar-x - root.pill-gap);
-    /// How far the title pill is from its target width, and the settings
-    /// panel from its target height, for the test that drags the window's
-    /// size and expects both to be zero.
-    out property <length> resize-lag: max(abs(root.left-w - root.left-target),
-        root.settings-open
-            ? abs(settings.height - min(root.panel-pad + settings.body, root.panel-max-h))
-            : 0px);
     /// Width the title wants, measured from `Text`s that are never drawn
     /// (`title-measure` and `episode-measure`, at the bottom), because asking
-    /// the title inside the pill would make its width depend on itself. The
+    /// the title inside the group would make its width depend on itself. The
     /// choice between the two is made here rather than in their words, which
     /// would make the window's size depend on itself.
     property <length> title-w: root.title-short
         ? episode-measure.preferred-width : title-measure.preferred-width;
-    /// Short of room, the title pill drops the show's name: it is what one
-    /// show's episodes share, and the episode is what tells them apart.
-    /// Judged by the most room the pill could have rather than the room it
-    /// has, which the choice itself would change.
+    /// Short of room, the title drops the show's name: it is what one show's
+    /// episodes share, and the episode is what tells them apart. Judged by
+    /// the most room the title could have rather than the room it has, which
+    /// the choice itself would change.
     property <bool> title-short: !root.opening && root.media-episode != ""
         && title-measure.preferred-width > root.title-room-most;
     property <length> title-room-most: max(0px,
         root.center-x - root.bar-x - root.pill-gap - root.left-fixed);
-    /// What the title pill says.
+    /// What the title says.
     property <string> title-text: root.opening ? @tr("Opening {}…", root.opening-name)
         : root.title-short ? root.media-episode
         : root.media-title;
 
-    // Eased, so the pill doesn't jump on every file change. The glass follows
-    // because it is drawn from this same property.
-    animate left-w {
-        duration: root.resizing ? 0ms : Motion.title-width;
-        easing: ease-in-out;
-    }
+    /// Centred in the window, until that would bring it closer to the right
+    /// group than the gap (below about 1080px). From there it keeps the gap
+    /// and moves left, and the title group gives up the width.
+    property <length> center-x: min(root.bar-x + (root.bar-w - root.center-w) / 2,
+        root.right-x - root.pill-gap - root.center-w);
+    property <length> right-x: root.bar-x + root.bar-w - root.right-w;
 
+    /// The track runs between the two times, clear of both.
+    property <length> total-x: root.bar-x + root.bar-w - root.time-w;
+    out property <length> scrub-x: root.bar-x + root.time-w + root.pill-gap;
+    out property <length> scrub-w: root.bar-w - 2 * (root.time-w + root.pill-gap);
+    /// The middle of the volume track, for the test that turns a wheel over
+    /// it and the capture of its tip.
+    out property <length> vol-cx:
+        root.right-x + root.pill-pad + root.btn + root.btn-gap + root.vol-w / 2;
+    out property <length> vol-cy: root.pills-y + root.pill-h / 2;
+
+    // Where each control sits inside the right group, for the panels that
+    // hang from them.
+    property <length> rp-audio:
+        root.pill-pad + root.btn + root.btn-gap + root.vol-w + root.btn-gap;
+    property <length> rp-subs: root.rp-audio + root.btn + root.btn-gap;
+    property <length> rp-settings: root.rp-subs + root.btn + root.btn-gap;
+
+    property <length> audio-anchor: root.right-x + root.rp-audio + root.btn / 2;
+    out property <length> subs-anchor: root.right-x + root.rp-subs + root.btn / 2;
+    property <length> settings-anchor: root.right-x + root.rp-settings + root.btn / 2;
+    // Playlist, then open, then the title, so the two buttons and the panels
+    // that hang from them stand in one place whatever the film is called.
+    // Only the group's far end moves with the title.
+    property <length> lp-playlist: root.pill-pad;
+    property <length> lp-open: root.lp-playlist + root.btn + root.btn-gap;
+    property <length> lp-title: root.lp-open + root.btn + root.btn-gap;
+
+    property <length> files-anchor: root.bar-x + root.lp-open + root.btn / 2;
+    out property <length> playlist-anchor:
+        root.bar-x + root.lp-playlist + root.btn / 2;
+
+    // --- resizing ---
     /// Whether the window is being resized: from its size first changing
     /// until it has kept still for a moment, and from startup until it first
     /// settles.
     ///
-    /// While it is, the eased sizes (the title pill, the panels' page heights)
-    /// jump, or they would trail the window's edge for the whole drag. A
-    /// binding on the size rather than a flag set by a handler, because the
-    /// handler runs a frame late, and that frame would ease.
+    /// While it is, the panels' eased page heights jump, or they would trail
+    /// the window's edge for the whole drag. A binding on the size rather
+    /// than a flag set by a handler, because the handler runs a frame late,
+    /// and that frame would ease.
     property <bool> resizing: root.width != root.settled-width
         || root.height != root.settled-height;
+    /// How far the settings panel is from its target height, for the test
+    /// that drags the window's size and expects it to be zero.
+    out property <length> resize-lag: root.settings-open
+        ? abs(settings.height - min(root.panel-pad + settings.body, root.panel-max-h))
+        : 0px;
     /// The window's size once it last kept still.
     property <length> settled-width: -1px;
     property <length> settled-height: -1px;
@@ -978,10 +1013,9 @@ export component MainWindow inherits Window {
     // --- end of playback ---
     //
     // One pill in the middle of the picture, where the film just stopped and
-    // nothing else competes for the eye. The same capsule and glass as the
-    // bar's.
+    // nothing else competes for the eye, as tall as the bar's row of buttons.
     property <length> end-h: root.pill-h;
-    /// Text inset, matching the title pill's.
+    /// Text inset, matching the title's.
     property <length> end-pad: root.pill-text-pad;
     property <length> end-gap: 12px;
     /// Whether there is a second thing to offer: the way on, at the end of
@@ -1131,7 +1165,7 @@ export component MainWindow inherits Window {
         : !root.at-last && root.next-label != "" ? root.next-label
         : root.at-last && root.onward-path != "" ? root.onward-label
         : @tr("Next episode");
-    /// No wider than the bar's right pill, the corner it keeps to, so a long
+    /// No wider than the bar's right group, the corner it keeps to, so a long
     /// episode title elides rather than reach over the rolling names.
     property <length> credits-w: min(
         2 * root.pill-text-pad + 24px + root.end-gap + credits-measure.preferred-width,
@@ -1449,13 +1483,7 @@ export component MainWindow inherits Window {
         }
     }
 
-    property <length> pills-y: root.height - root.panel-margin - root.bar-pad
-        - root.pill-h;
-    out property <length> timeline-y: root.pills-y - root.timeline-h;
-    /// The top of the bar's glass, which panels, the tip and the seek
-    /// preview open above.
-    property <length> bar-top: root.timeline-y - root.bar-pad;
-
+    // --- subtitles above the bar ---
     /// The highest a subtitle may rest while the bar is up, in mpv's
     /// `sub-pos` (percent of the window's height, from the top). It keeps
     /// mpv's bottom margin above the bar, so the bar arriving reads as
@@ -1477,44 +1505,6 @@ export component MainWindow inherits Window {
         duration: Motion.surface;
         easing: ease-out;
     }
-    /// Centred in the window, until that would bring it closer to the right
-    /// pill than the gap (below about 1060px). From there it keeps the gap
-    /// and moves left, and the title pill gives up the width.
-    property <length> center-x: min(root.bar-x + (root.bar-w - root.center-w) / 2,
-        root.right-x - root.pill-gap - root.center-w);
-    property <length> right-x: root.bar-x + root.bar-w - root.right-w;
-
-    /// The track runs between the two times, clear of both.
-    property <length> total-x: root.bar-x + root.bar-w - root.time-w;
-    out property <length> scrub-x: root.bar-x + root.time-w + root.pill-gap;
-    out property <length> scrub-w: root.bar-w - 2 * (root.time-w + root.pill-gap);
-    /// The middle of the volume track, for the test that turns a wheel over
-    /// it and the capture of its tip.
-    out property <length> vol-cx:
-        root.right-x + root.pill-pad + root.btn + root.btn-gap + root.vol-w / 2;
-    out property <length> vol-cy: root.pills-y + root.pill-h / 2;
-
-    // Where each control sits inside the right pill, for the panels that
-    // hang from them.
-    property <length> rp-audio:
-        root.pill-pad + root.btn + root.btn-gap + root.vol-w + root.btn-gap;
-    property <length> rp-subs: root.rp-audio + root.btn + root.btn-gap;
-    property <length> rp-settings: root.rp-subs + root.btn + root.btn-gap;
-
-    property <length> audio-anchor: root.right-x + root.rp-audio + root.btn / 2;
-    out property <length> subs-anchor: root.right-x + root.rp-subs + root.btn / 2;
-    property <length> settings-anchor: root.right-x + root.rp-settings + root.btn / 2;
-    // Playlist, then open, then the title, so the two buttons and the panels
-    // that hang from them stand in one place whatever the film is called.
-    // Only the pill's far end moves with the title.
-    property <length> lp-playlist: root.pill-pad;
-    property <length> lp-open: root.lp-playlist + root.btn + root.btn-gap;
-    property <length> lp-title: root.lp-open + root.btn + root.btn-gap;
-
-    property <length> files-anchor: root.bar-x + root.lp-open + root.btn / 2;
-    out property <length> playlist-anchor:
-        root.bar-x + root.lp-playlist + root.btn / 2;
-
     // --- seek preview ---
     //
     // Shown while the pointer is over the timeline, centred on it and kept
@@ -1953,22 +1943,23 @@ export component MainWindow inherits Window {
         },
     ];
 
-    /// The room the title pill has for its title: the pill, less everything
-    /// in it that is not the title.
+    /// The room the title has: its group, less everything in it that is not
+    /// the title.
     property <length> title-room: max(0px, root.left-w - root.left-fixed);
 
     /// Where the pipeline draws glass. A closed surface publishes a zero-sized
     /// rect, which the Rust side drops, so this stays a plain literal rather
     /// than an array built conditionally.
     out property <[GlassRect]> glass-rects: [
-        // The whole bar on one pane: the timeline row over the three pills,
-        // the gaps between them, and `bar-pad` round them.
+        // The whole bar on one pane: the timeline over the row of buttons,
+        // with `bar-pad` round them.
         //
         // Glass because over a white frame a bare track all but vanishes, and
         // the glass's absorption is what darkens behind it. One pane rather
-        // than a capsule each, because the rim is as wide as the corner
-        // (`BEVEL`), so a capsule is rim the whole way through; a pane taller
-        // than its corners has a flat middle for the rim to roll down from.
+        // than a capsule for each row and group, because the rim is as wide as
+        // the corner (`BEVEL`), so a capsule is rim the whole way through; a
+        // pane taller than its corners has a flat middle for the rim to roll
+        // down from.
         {
             x: root.panel-margin,
             y: root.bar-top + root.bar-rise,
@@ -2183,8 +2174,8 @@ export component MainWindow inherits Window {
     preferred-width: 1280px;
     preferred-height: 720px;
     // The floor: 960×540, 16:9 at three quarters of the opening size, which
-    // still leaves the title pill some room once the transport has given way
-    // to the right pill.
+    // still leaves the title some room once the transport has given way to
+    // the right group.
     min-width: 960px;
     min-height: 540px;
     background: Paint.ground;
@@ -3217,8 +3208,8 @@ export component MainWindow inherits Window {
         && root.bar-focus < root.pill-stop;
     property <float> ring-disc-on: root.ring-disc ? 1 : 0;
     animate ring-disc-on { duration: Motion.highlight; easing: ease-out; }
-    /// Where the disc goes: the button the ring is on, as laid out, so it
-    /// follows a title that changes the left pill's width.
+    /// Where the disc goes: the button the ring is on, where the layout put
+    /// it.
     property <length> ring-disc-x: root.bar-button-x(root.bar-focus);
 
     pure function bar-button-x(index: int) -> length {
@@ -4529,16 +4520,16 @@ export component MainWindow inherits Window {
         }
     }
 
-    // The bar is one pane of glass holding the timeline row and three pills
-    // that group what belongs together. These are its contents; the glass is
-    // the pipeline's, from `glass-rects`.
+    // The bar is one pane of glass: the timeline row over a row of buttons in
+    // three groups of what belongs together. These are its contents; the
+    // glass is the pipeline's, from `glass-rects`.
     //
     // Each is placed from the bar geometry rather than by a layout, so reading
-    // its geometry every frame costs nothing. Inside a pill a HorizontalLayout
+    // its geometry every frame costs nothing. Inside a group a HorizontalLayout
     // is fine, since nothing outside asks where its children ended up.
 
-    // The pane itself, under the rows, so a click on its padding or between
-    // its pills doesn't reach the film under it.
+    // The pane itself, under the rows, so a click on it that no control takes
+    // doesn't reach the film underneath.
     Rectangle {
         x: root.panel-margin;
         y: root.bar-top + root.bar-rise;
@@ -4556,29 +4547,17 @@ export component MainWindow inherits Window {
     // --- timeline ---
     //
     // One row the bar's width: a time at each end and the track between.
-    // Each end reaches the track rather than stopping at its text, so no gap
-    // lets a click through to the play/pause handler.
 
     Rectangle {
         x: root.bar-x;
         y: root.timeline-y + root.bar-rise;
-        width: root.time-w + root.pill-gap;
+        width: root.time-w;
         height: root.timeline-h;
         visible: root.bar-shown > root.shown-epsilon;
         opacity: root.bar-shown;
 
-        // So a click on the pane doesn't reach the play/pause handler.
-        TouchArea {
-            pointer-event(event) => {
-                Chrome.pointed(event.kind == PointerEventKind.down);
-            }
-        }
-
         Text {
-            // Centred over the column the figure owns, not over the reach of
-            // the surface behind it, which Slint would centre it in unasked.
-            x: 0;
-            width: root.time-w;
+            width: 100%;
             height: 100%;
             text: root.elapsed;
             font-family: Type.numerals;
@@ -4691,22 +4670,15 @@ export component MainWindow inherits Window {
     }
 
     Rectangle {
-        x: root.total-x - root.pill-gap;
+        x: root.total-x;
         y: root.timeline-y + root.bar-rise;
-        width: root.time-w + root.pill-gap;
+        width: root.time-w;
         height: root.timeline-h;
         visible: root.bar-shown > root.shown-epsilon;
         opacity: root.bar-shown;
 
-        TouchArea {
-            pointer-event(event) => {
-                Chrome.pointed(event.kind == PointerEventKind.down);
-            }
-        }
-
         Text {
-            x: root.pill-gap;
-            width: root.time-w;
+            width: 100%;
             height: 100%;
             text: root.total;
             font-family: Type.numerals;
@@ -5296,12 +5268,6 @@ export component MainWindow inherits Window {
         opacity: root.bar-shown;
         clip: true;
 
-        TouchArea {
-            pointer-event(event) => {
-                Chrome.pointed(event.kind == PointerEventKind.down);
-            }
-        }
-
         HorizontalLayout {
             padding-left: root.pill-pad;
             padding-right: root.pill-text-pad;
@@ -5333,13 +5299,13 @@ export component MainWindow inherits Window {
             }
 
             Text {
-                // While something else opens, the pill names what is coming,
+                // While something else opens, the title names what is coming,
                 // as the one piece of chrome about which file this is.
                 text: root.title-text;
                 color: Paint.strong;
                 font-size: Type.title;
                 font-weight: Type.weight-title;
-                // Cut off rather than pushing the speed out of the pill, and
+                // Cut off rather than pushing the speed out of the group, and
                 // the cut end blurs away like a list's (see `scroll-fades`).
                 overflow: clip;
                 // Clipped text asks for its whole length, which the layout
@@ -5369,12 +5335,6 @@ export component MainWindow inherits Window {
         height: root.pill-h;
         visible: root.bar-shown > root.shown-epsilon;
         opacity: root.bar-shown;
-
-        TouchArea {
-            pointer-event(event) => {
-                Chrome.pointed(event.kind == PointerEventKind.down);
-            }
-        }
 
         HorizontalLayout {
             padding: root.pill-pad;
@@ -5450,12 +5410,6 @@ export component MainWindow inherits Window {
         height: root.pill-h;
         visible: root.bar-shown > root.shown-epsilon;
         opacity: root.bar-shown;
-
-        TouchArea {
-            pointer-event(event) => {
-                Chrome.pointed(event.kind == PointerEventKind.down);
-            }
-        }
 
         HorizontalLayout {
             padding: root.pill-pad;

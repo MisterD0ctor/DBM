@@ -58,7 +58,6 @@ rounded:
   panel: "{{ Rows.panel-radius }}"
   pill: "{{ MainWindow.pill-radius }}"
   button: "{{ MainWindow.btn / 2 }}"
-  timeline: "{{ MainWindow.timeline-h / 2 }}"
   preview: "{{ MainWindow.preview-radius }}"
   preview-tile: "{{ MainWindow.preview-tile-radius }}"
 spacing:
@@ -84,11 +83,14 @@ components:
     backgroundColor: "{colors.wash-ring}"
   icon-button-disabled:
     textColor: "{colors.dim}"
-  control-pill:
-    height: "{{ MainWindow.pill-h }}"
-    rounded: "{rounded.pill}"
-    padding: "{{ MainWindow.pill-pad }}"
+  bar:
+    height: "{{ MainWindow.bar-h }}"
+    rounded: "{rounded.panel}"
+    padding: "{{ MainWindow.bar-pad }}"
     backgroundColor: "transparent"
+  button-row:
+    height: "{{ MainWindow.pill-h }}"
+    padding: "{{ MainWindow.pill-pad }}"
   window-button:
     size: "{{ MainWindow.window-btn }}"
     rounded: "{{ MainWindow.window-btn / 2 }}"
@@ -98,10 +100,8 @@ components:
     backgroundColor: "{colors.wash-button}"
   timeline-row:
     height: "{{ MainWindow.timeline-h }}"
-    rounded: "{rounded.timeline}"
     textColor: "{colors.strong}"
     typography: "{typography.timecode}"
-    backgroundColor: "transparent"
   timeline-time:
     padding: "0 {{ MainWindow.glyph-inset }}"
     textColor: "{colors.strong}"
