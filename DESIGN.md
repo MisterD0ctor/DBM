@@ -664,12 +664,13 @@ and is still a Gaussian rather than a kernel cut short.
 **The pane stays drawn over black.** Over a dark frame there is nothing for the
 glass to bend or blur, and a pane all but vanishes: a bar over a fade, or the
 way on at the end of an episode, read as words on nothing. So two soft lights
-fall on the dome, absorption's opposite: a key from above, across the pane and
-brightest at its top, and a fainter fill from below, at its lower right. Each
-leans the glass toward white as far as the mirrored ray faces it, and each
-comes up only as the glass behind it darkens, so over a lit frame, where the
-refraction draws the pane by itself, they are gone. Like the ceiling they are
-not on the glass page, since they are what keeps a pane there at all.
+fall on the dome, absorption's opposite, both raised toward the eye: a key
+from above, across the pane and brightest at its top, and a fainter fill from
+below, along its bottom edge. Each adds light to the glass as far as the
+mirrored ray faces it, whole over black and fading out as the glass behind it
+lightens, so over a lit frame, where the refraction draws the pane by itself,
+they are gone. Like the ceiling they are not on the glass page, since they
+are what keeps a pane there at all.
 
 **The fringe is a spectrum, not three copies.** The index of refraction is a
 function of wavelength (Cauchy's law, anchored so the index above is the one

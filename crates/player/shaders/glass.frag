@@ -180,12 +180,13 @@ const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 //
 // Absorption's opposite. Over black there is nothing for the glass to bend or
 // blur, and a pane all but vanishes: a bar over a fade, the way on at the end
-// of an episode, are words on nothing. So two soft lights fall on the dome: a
-// key from above, across the pane and brightest at its top, and a fainter
-// fill from below, at its lower right. Each is weighted by how squarely the
-// mirrored ray faces it, and each comes up as the glass behind it darkens,
-// with the twelfth power of how far it is from white, so over a lit frame,
-// where the refraction already draws the pane, they are gone.
+// of an episode, are words on nothing. So two soft lights fall on the dome,
+// each raised 30 degrees off the screen toward the eye: a key from above,
+// across the pane and brightest at its top, and a fainter fill from below,
+// along its bottom edge. Each is weighted by how squarely the mirrored ray
+// faces it, and together they are a sheen added to the glass, whole over
+// black and gone once the glass under it is a twentieth of white, so over a
+// lit frame, where the refraction already draws the pane, there is none.
 
 // --- legibility ---------------------------------------------------------------
 //
@@ -691,8 +692,8 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     vec3 mirror3 = vec3(box_normal * mirror.x, mirror.y);
 
     // The key and the fill; see the light over a dark frame, above. Each root
-    // and power is floored at zero: rounding takes `luma` a hair past 1 over
-    // white, with nothing absorbed, and `pow` of a negative is NaN.
+    // and power is floored at zero, since rounding can take what it is given a
+    // hair below, and `sqrt` or `pow` of a negative is NaN.
     float key = sqrt(max(0.5 + 0.5 * dot(mirror3, vec3(0.0, -0.866, 0.5)), 0.0)) 
                 * pow(max(0.0, 1.0 - rel_uv.y), 1.0)
                 * 0.1;
@@ -712,8 +713,7 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     float rim = max(0.0, -mirror.y * (1.0 - mirror.x) * (1.0 - mirror.x))
                 * light.y;
 
-    // The key and the fill lean the glass toward white, and the rim is added
-    // over both.
+    // The sheen and the rim are both light added over the glass.
     return refracted + vec3(sheen) + vec3(rim);
 }
 
