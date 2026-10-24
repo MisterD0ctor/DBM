@@ -45,6 +45,7 @@ MODULES = {
     "state": PLAYER / "src/playback/state.rs",
     "arrival": PLAYER / "src/playback/arrival.rs",
     "preview": PLAYER / "src/library/preview.rs",
+    "window": PLAYER / "src/platform/window.rs",
     "glass": PLAYER / "shaders/glass.frag",
     "backdrop": PLAYER / "shaders/backdrop.frag",
 }

@@ -433,6 +433,31 @@ impl ScreenQuad {
         }
     }
 
+    /// The same, multiplying what is already there by the shader's alpha,
+    /// colour and alpha alike: a mask, which leaves the window premultiplied.
+    pub fn mask_at(
+        &self,
+        gl: &glow::Context,
+        fbo: Option<glow::Framebuffer>,
+        rect: (i32, i32, i32, i32),
+    ) {
+        unsafe {
+            gl.bind_framebuffer(glow::FRAMEBUFFER, fbo);
+            gl.viewport(rect.0, rect.1, rect.2, rect.3);
+            gl.bind_vertex_array(Some(self.vao));
+            gl.disable(glow::DEPTH_TEST);
+            gl.disable(glow::STENCIL_TEST);
+            gl.disable(glow::SCISSOR_TEST);
+            gl.enable(glow::BLEND);
+            gl.blend_equation(glow::FUNC_ADD);
+            gl.blend_func(glow::ZERO, glow::SRC_ALPHA);
+            gl.color_mask(true, true, true, true);
+            gl.draw_arrays(glow::TRIANGLES, 0, 3);
+            gl.disable(glow::BLEND);
+            gl.bind_vertex_array(None);
+        }
+    }
+
     pub fn release(&self, gl: &glow::Context) {
         unsafe { gl.delete_vertex_array(self.vao) };
     }

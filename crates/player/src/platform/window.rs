@@ -5,7 +5,10 @@
 //! keys), and none before the window manager has made it, which Slint says is
 //! after at least one turn of the event loop. So each is tried from the frame
 //! path until it takes, by way of [`UntilWindow`]. Minimizing goes to the
-//! window too, everywhere but Windows (see [`minimize`]).
+//! window too, everywhere but Windows (see [`minimize`]). The window's corners
+//! are round, as the desktop's other windows' are: Windows rounds them itself
+//! once asked (see [`Rounding`]), and elsewhere they are cut from the frame
+//! (see [`corner_radius`]).
 
 /// A setup step retried once a frame until the window exists for it.
 ///
@@ -111,4 +114,84 @@ pub fn minimize(window: &slint::Window) {
 #[cfg(windows)]
 pub fn minimize(window: &slint::Window) {
     window.set_minimized(true);
+}
+
+/// The radius of the desktop's own windows' corners, in logical pixels:
+/// libadwaita's, which most of a Linux desktop's apps are drawn with.
+#[cfg(not(windows))]
+pub const CORNER_RADIUS: f32 = 15.0;
+
+/// How round the frame's corners are cut, in logical pixels (see
+/// `gpu::corners`).
+///
+/// Square while the window fills the screen, as other windows are then. A
+/// tiled window keeps its round corners, since winit doesn't say when a
+/// window is tiled.
+#[cfg(not(windows))]
+pub fn corner_radius(window: &slint::Window) -> f32 {
+    if window.is_maximized() || window.is_fullscreen() {
+        0.0
+    } else {
+        CORNER_RADIUS
+    }
+}
+
+/// Never cut on Windows, which rounds the window itself (see [`Rounding`]).
+#[cfg(windows)]
+pub fn corner_radius(_window: &slint::Window) -> f32 {
+    0.0
+}
+
+/// Asks Windows 11 to round the window's corners, retrying from the frame
+/// path until the window exists (see [`UntilWindow`]).
+///
+/// A window with no frame stays square unless it asks. Windows then rounds it
+/// as it does its own, and squares it again while it is maximized or snapped.
+#[derive(Default)]
+pub struct Rounding {
+    #[cfg(windows)]
+    until: UntilWindow,
+}
+
+impl Rounding {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    #[cfg(windows)]
+    pub fn poll(&mut self, window: &slint::Window) {
+        if let Attempt::GaveUp(e) = self.until.poll(|| round_corners(window)) {
+            eprintln!("dbm: cannot round the window's corners ({e})");
+        }
+    }
+
+    /// Nothing to ask: the frame's corners are cut instead.
+    #[cfg(not(windows))]
+    pub fn poll(&mut self, _window: &slint::Window) {}
+}
+
+#[cfg(windows)]
+fn round_corners(window: &slint::Window) -> Result<(), String> {
+    use windows::Win32::Graphics::Dwm::{
+        DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+    };
+
+    let hwnd = hwnd(window)?;
+    let preference = DWMWCP_ROUND;
+    let asked = unsafe {
+        DwmSetWindowAttribute(
+            hwnd,
+            DWMWA_WINDOW_CORNER_PREFERENCE,
+            std::ptr::from_ref(&preference).cast(),
+            std::mem::size_of_val(&preference) as u32,
+        )
+    };
+    // Windows 10 refuses it, having no round corners to give. That is an
+    // answer too, so it is not asked again.
+    if let Err(e) = asked {
+        if crate::diagnostics::trace() {
+            eprintln!("dbm: the window's corners stay square ({e})");
+        }
+    }
+    Ok(())
 }

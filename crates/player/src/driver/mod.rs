@@ -66,6 +66,9 @@ struct Gpu {
     way: Option<crate::gpu::way::Ways>,
     /// The shadow under the interface's words and marks, the same way.
     shadow: Option<crate::gpu::shadow::Shadow>,
+    /// Cuts the window's round corners. Absent the same way, and they are
+    /// then square.
+    corners: Option<crate::gpu::corners::Corners>,
     published: Option<Published>,
     _mpv: Arc<Mpv>,
 }
@@ -89,6 +92,8 @@ pub struct Driver {
     modal: modal_loop::Hook,
     /// Installed the same way and for the same reason as the modal hook.
     drops: crate::platform::dropped::Accepting,
+    /// Asked for the same way.
+    rounding: crate::platform::window::Rounding,
     lists: sync::ListSync,
     /// Has the playlist laid out on the worker, and shows what comes back.
     panel: playlist_panel::Panel,
@@ -168,6 +173,7 @@ impl Driver {
             ways: Vec::new(),
             modal: modal_loop::Hook::new(),
             drops: crate::platform::dropped::Accepting::new(),
+            rounding: crate::platform::window::Rounding::new(),
             lists: sync::ListSync::default(),
             panel: playlist_panel::Panel::default(),
             language_seen: 0,
@@ -237,8 +243,8 @@ impl Driver {
                                 ui.window().request_redraw();
                             }
                         }
-                        // ...and then the shadow, cast by what is left, so a row
-                        // cut off at a list's edge casts nothing past it.
+                        // ...then the shadow, cast by what is left, so a row
+                        // cut off at a list's edge casts nothing past it...
                         if let Some(shadow) = gpu.shadow.as_mut() {
                             shadow.run(
                                 &gpu.gl,
@@ -246,6 +252,15 @@ impl Driver {
                                 (size.width, size.height),
                                 &self.shaded,
                                 ui.window().scale_factor(),
+                            );
+                        }
+                        // ...and last the window's corners, cut from all of it.
+                        if let Some(corners) = gpu.corners.as_mut() {
+                            let radius = crate::platform::window::corner_radius(ui.window());
+                            corners.run(
+                                &gpu.gl,
+                                (size.width, size.height),
+                                radius * ui.window().scale_factor(),
                             );
                         }
                         self.capture.maybe(&gpu.gl, size.width, size.height);
@@ -266,6 +281,7 @@ impl Driver {
                         fader,
                         way,
                         shadow,
+                        corners,
                         ..
                     } = &mut gpu;
                     pipeline.release(gl);
@@ -277,6 +293,9 @@ impl Driver {
                     }
                     if let Some(shadow) = shadow {
                         shadow.release(gl);
+                    }
+                    if let Some(corners) = corners {
+                        corners.release(gl);
                     }
                 }
             }
@@ -388,6 +407,9 @@ impl Driver {
                 let shadow = crate::gpu::shadow::Shadow::new(&gl)
                     .inspect_err(|e| eprintln!("dbm: no shadow under the interface: {e}"))
                     .ok();
+                let corners = crate::gpu::corners::Corners::new(&gl)
+                    .inspect_err(|e| eprintln!("dbm: no round corners on the window: {e}"))
+                    .ok();
                 self.gpu = Some(Gpu {
                     ctx,
                     gl,
@@ -395,6 +417,7 @@ impl Driver {
                     fader,
                     way,
                     shadow,
+                    corners,
                     published: None,
                     _mpv: self.app.mpv.clone(),
                 });
@@ -459,6 +482,7 @@ impl Driver {
         };
         self.modal.poll(ui.window());
         self.drops.poll(&ui);
+        self.rounding.poll(ui.window());
 
         let t = self.diag.begin();
         let moved = self.take_events(&ui);

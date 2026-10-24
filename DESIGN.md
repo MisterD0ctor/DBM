@@ -61,6 +61,7 @@ rounded:
   button: "20px"  # MainWindow.btn / 2
   preview: "18px"  # MainWindow.preview-radius
   preview-tile: "9px"  # MainWindow.preview-tile-radius
+  window: "15px"  # window.CORNER_RADIUS
 spacing:
   hair: "4px"  # MainWindow.pill-pad
   tight: "6px"  # MainWindow.btn-gap
@@ -530,7 +531,8 @@ just above it.
 drags it, and its buttons are its own: Minimize, Maximize and Close on one
 small pane of glass, `MainWindow.window-btn-margin` from the window's top and
 side. A title bar would be a strip of the desktop's chrome across the top of
-every film, in a material that isn't glass.
+every film, in a material that isn't glass. Its corners are round, as the
+desktop's other windows' are (see Shapes).
 
 **The middle of the picture** belongs to things that are about the film rather
 than controls for it: the action flash, the end-of-file pill and the choice at
@@ -779,6 +781,14 @@ of a pill at higher softness. Circles stay circles, and so
 do the thin capsules of tracks and fills, where the two differ by less than a
 pixel. The seek preview's thumbnail keeps a circle's corner too, since Slint
 clips only to that.
+
+The window's own corners are circles as well, at `window.CORNER_RADIUS`,
+libadwaita's: the window's edge is the desktop's, beside other windows, and
+not a pane of glass. They are cut from the finished frame, last of all, and
+square while the window is maximized or fullscreen, as other windows' are
+then. On Windows, Windows 11 rounds them itself. Nothing inside nests with
+them: the bar and the window's buttons stand far enough in that no corner of
+theirs comes near the cut.
 
 There are no borders anywhere, and no hairlines. Where a state would
 conventionally be drawn as an outline — the keyboard's position — it is carried

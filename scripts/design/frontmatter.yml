@@ -60,6 +60,7 @@ rounded:
   button: "{{ MainWindow.btn / 2 }}"
   preview: "{{ MainWindow.preview-radius }}"
   preview-tile: "{{ MainWindow.preview-tile-radius }}"
+  window: "{{ window.CORNER_RADIUS }}px"
 spacing:
   hair: "{{ MainWindow.pill-pad }}"
   tight: "{{ MainWindow.btn-gap }}"

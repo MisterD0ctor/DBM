@@ -71,6 +71,8 @@ windows = { version = "0.61", features = [
     "Win32_UI_WindowsAndMessaging",
     # Keeping the display on while something plays — see `awake`.
     "Win32_System_Power",
+    # Asking for Windows 11's round corners — see `platform::window`.
+    "Win32_Graphics_Dwm",
 ] }
 
 [build-dependencies]
