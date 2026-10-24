@@ -712,10 +712,11 @@ export component MainWindow inherits Window {
     // --- appearing and disappearing ---
     //
     // Every surface fades in and rises a few pixels into place, enough to read
-    // as arriving. Each has one animated number for how far in it is, which
-    // drives its opacity, its offset and its glass rect, so they can't drift
-    // apart. All take `Motion.surface`, and the seek preview half of it.
-    /// How far a surface sits below its place before it arrives.
+    // as arriving; the window's buttons come down into theirs. Each has one
+    // animated number for how far in it is, which drives its opacity, its
+    // offset and its glass rect, so they can't drift apart. All take
+    // `Motion.surface`, and the seek preview half of it.
+    /// How far a surface sits from its place before it arrives.
     property <length> lift: 6px;
 
     // Hidden with no film loaded, when most of its buttons can do nothing.
@@ -776,7 +777,9 @@ export component MainWindow inherits Window {
     property <length> end-rise: (1.0 - root.end-shown) * root.lift;
     property <length> credits-rise: (1.0 - root.credits-shown) * root.lift;
     property <length> invite-rise: (1.0 - root.invite-shown) * root.lift;
-    property <length> window-rise: (1.0 - root.window-shown) * root.lift;
+    /// Above their place rather than below: the buttons come in from the
+    /// window's top edge, as the bar does from its bottom one.
+    property <length> window-drop: (root.window-shown - 1.0) * root.lift;
 
     // --- the way in ---------------------------------------------------------
     //
@@ -1979,7 +1982,7 @@ export component MainWindow inherits Window {
         // The window's own buttons, on one pane.
         {
             x: root.window-pane-x,
-            y: root.window-pane-y + root.window-rise,
+            y: root.window-pane-y + root.window-drop,
             width: root.window-shown > root.shown-epsilon ? root.window-pane-w : 0,
             height: root.window-shown > root.shown-epsilon ? root.window-pane-h : 0,
             opacity: root.window-shown,
@@ -5586,7 +5589,7 @@ export component MainWindow inherits Window {
     // --- the window's own buttons -------------------------------------------
     Rectangle {
         x: root.window-pane-x;
-        y: root.window-pane-y + root.window-rise;
+        y: root.window-pane-y + root.window-drop;
         width: root.window-pane-w;
         height: root.window-pane-h;
         visible: root.window-shown > root.shown-epsilon;

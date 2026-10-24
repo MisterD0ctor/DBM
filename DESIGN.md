@@ -887,9 +887,11 @@ by under a pixel at the corner.
   wash filling it under the pointer. Smaller than the bar's buttons, because
   none of the three is pressed often and they are over the picture whenever
   the chrome is.
-- **Shown** with the chrome, on its fade and rise, and always over an empty
-  window, which has no film to keep clear. Never in fullscreen, where the film
-  has the whole screen and Esc is the way out.
+- **Shown** with the chrome, on its fade, and always over an empty window,
+  which has no film to keep clear. Never in fullscreen, where the film has the
+  whole screen and Esc is the way out.
+- **Comes down** `MainWindow.lift` into place rather than rising: the buttons
+  come in from the window's top edge, as the bar does from its bottom one.
 - **Maximize turns into Restore** while the window is maximized, glyph and
   label both: a button's state is its glyph.
 - **It makes way for a panel** tall enough to reach its row in its column, and
