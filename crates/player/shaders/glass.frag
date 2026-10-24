@@ -693,16 +693,15 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // The key and the fill; see the light over a dark frame, above. Each root
     // and power is floored at zero: rounding takes `luma` a hair past 1 over
     // white, with nothing absorbed, and `pow` of a negative is NaN.
-    float key = sqrt(max(0.5 + 0.5 * dot(mirror3, vec3(0.0, -1.0, 0.0)), 0.0)) 
+    float key = sqrt(max(0.5 + 0.5 * dot(mirror3, vec3(0.0, -0.866, 0.5)), 0.0)) 
                 * pow(max(0.0, 1.0 - rel_uv.y), 1.0)
-                * pow(max(1.0 - luma, 0.0), 12.0)
                 * 0.1;
 
-    float fill = sqrt(max(0.5 + 0.5 * dot(mirror3, vec3(0.0, 1.0, 0.0)), 0.0)) 
+    float fill = sqrt(max(0.5 + 0.5 * dot(mirror3, vec3(0.0, 0.866, 0.5)), 0.0)) 
                  * pow(max(0.0, rel_uv.y), 7.0) 
-                 * pow(max(0.0, rel_uv.x), 0.5)
-                 * pow(max(1.0 - luma, 0.0), 12.0)
-                 * 0.07;
+                 * 0.08;
+
+    float sheen = (key + fill) * (1.0 - min(1.0, 20.0 * luma));
 
     // The rim light, where the mirrored ray has tipped over and points back
     // down. Nothing while the surface is under 45 degrees and the ray still
@@ -715,7 +714,7 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
 
     // The key and the fill lean the glass toward white, and the rim is added
     // over both.
-    return mix(refracted, vec3(1.0), key + fill) + vec3(rim);
+    return refracted + vec3(sheen) + vec3(rim);
 }
 
 void main() {
