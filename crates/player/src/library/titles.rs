@@ -115,7 +115,8 @@ pub type Span = (f64, f64);
 ///    fifteen seconds or more.
 /// 2. With up to four of the season, those known to hold the sequence
 ///    first; credits from eight seconds, if they end an episode.
-const HEARD: u32 = 2;
+/// 3. The nearest of the season first, known to hold the sequence or not.
+const HEARD: u32 = 3;
 
 /// A run's answer: the file it listened to, which end of it, and what it
 /// found there.
@@ -132,15 +133,16 @@ fn current(generation: u64) -> bool {
     GENERATION.load(Ordering::SeqCst) == generation
 }
 
-/// The episodes `path` could be compared with: others of the same show and
-/// season in the playlist, nearest first, the one after before the one
-/// before. Empty for a film, which shares neither end with anything.
+/// The episodes `path` could be compared with, and how many places from it
+/// each is: others of the same show and season in the playlist, nearest
+/// first, the one after before the one before. Empty for a film, which
+/// shares neither end with anything.
 ///
 /// The same season because a show's titles change between seasons, and
 /// nearest because they also change within one (a cast member gone, a second
 /// cut from the halfway point). Which are tried, and in what order, depends
 /// on what is already known of them; see [`worth_trying`].
-pub fn beside(path: &str, playlist: &[String]) -> Vec<String> {
+pub fn beside(path: &str, playlist: &[String]) -> Vec<(String, usize)> {
     let Media::Episode { show, season, .. } = naming::parse(path) else {
         return Vec::new();
     };
@@ -154,46 +156,41 @@ pub fn beside(path: &str, playlist: &[String]) -> Vec<String> {
                 if n == season && s.eq_ignore_ascii_case(&show)
         )
     };
-    let mut near: Vec<(usize, &String)> = playlist
+    let mut near: Vec<(usize, usize, &String)> = playlist
         .iter()
         .enumerate()
         .filter(|(at, other)| *at != here && same(other))
-        .map(|(at, other)| (at.abs_diff(here) * 2 + usize::from(at < here), other))
+        .map(|(at, other)| (at.abs_diff(here), usize::from(at < here), other))
         .collect();
     near.sort();
-    near.into_iter().map(|(_, other)| other.clone()).collect()
+    near.into_iter()
+        .map(|(away, _, other)| (other.clone(), away))
+        .collect()
 }
 
 /// Which of the episodes [`beside`] gave to compare with, in order, and what
 /// each was already heard to hold at this end.
 ///
-/// Those known to hold a sequence go first. They have the season's usual
-/// one, and where it lies in them is known, so they are the likeliest
-/// matches and the cheapest to listen to. Then those not yet heard, and
-/// last those heard to hold none, which are only worth a try in case that
-/// was wrong. Nearest first within each.
+/// Nearest first, since titles can change partway through a season, and
+/// then every episode known to hold them may hold the old ones. Of two as
+/// near, one known to hold the sequence goes first, being the cheapest to
+/// listen to. Those heard to hold none go last, worth a try only in case
+/// that was wrong.
 fn worth_trying<'a>(
-    beside: &'a [String],
+    beside: &'a [(String, usize)],
     known: &HashMap<String, Option<Span>>,
 ) -> Vec<(&'a str, Option<Option<Span>>)> {
-    let mut ranked: Vec<(u8, usize, &str, Option<Option<Span>>)> = beside
-        .iter()
-        .enumerate()
-        .map(|(near, other)| {
-            let held = known.get(other).copied();
-            let rank = match held {
-                Some(Some(_)) => 0,
-                None => 1,
-                Some(None) => 2,
-            };
-            (rank, near, other.as_str(), held)
-        })
-        .collect();
-    ranked.sort_by_key(|&(rank, near, ..)| (rank, near));
+    let mut ranked: Vec<(usize, &(String, usize))> = beside.iter().enumerate().collect();
+    ranked.sort_by_key(|&(near, (other, away))| {
+        let held = known.get(other);
+        let holds = matches!(held, Some(Some(_)));
+        let holds_none = matches!(held, Some(None));
+        (holds_none, *away, !holds, near)
+    });
     ranked
         .into_iter()
         .take(TRIES)
-        .map(|(_, _, other, held)| (other, held))
+        .map(|(_, (other, _))| (other.as_str(), known.get(other).copied()))
         .collect()
 }
 
@@ -206,7 +203,13 @@ fn worth_trying<'a>(
 /// playing. A superseded run reports nothing, and neither does one that
 /// couldn't listen at all (no ffmpeg, nothing beside it), since nothing is
 /// waiting on the answer.
-pub fn spawn(path: String, ends: Vec<End>, beside: Vec<String>, duration: f64, reporter: Reporter) {
+pub fn spawn(
+    path: String,
+    ends: Vec<End>,
+    beside: Vec<(String, usize)>,
+    duration: f64,
+    reporter: Reporter,
+) {
     let generation = GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
     std::thread::spawn(move || {
         for end in ends {
@@ -236,7 +239,7 @@ pub fn spawn(path: String, ends: Vec<End>, beside: Vec<String>, duration: f64, r
 fn find(
     path: &str,
     end: End,
-    beside: &[String],
+    beside: &[(String, usize)],
     duration: f64,
     generation: u64,
 ) -> Option<Option<Span>> {
@@ -459,6 +462,20 @@ mod tests {
         names.iter().map(|n| n.to_string()).collect()
     }
 
+    fn away(names: &[(&str, usize)]) -> Vec<(String, usize)> {
+        names.iter().map(|&(n, a)| (n.to_string(), a)).collect()
+    }
+
+    fn tried<'a>(
+        near: &'a [(String, usize)],
+        known: &HashMap<String, Option<Span>>,
+    ) -> Vec<&'a str> {
+        worth_trying(near, known)
+            .into_iter()
+            .map(|(other, _)| other)
+            .collect()
+    }
+
     #[test]
     fn the_nearest_episodes_come_first() {
         let season = list(&[
@@ -469,17 +486,25 @@ mod tests {
         ]);
         assert_eq!(
             beside("Show.S02E02.mkv", &season),
-            list(&["Show.S02E03.mkv", "Show.S02E01.mkv", "Show.S02E04.mkv"])
+            away(&[
+                ("Show.S02E03.mkv", 1),
+                ("Show.S02E01.mkv", 1),
+                ("Show.S02E04.mkv", 2)
+            ])
         );
         // The last has nothing after it, so those before, nearest first.
         assert_eq!(
             beside("Show.S02E04.mkv", &season),
-            list(&["Show.S02E03.mkv", "Show.S02E02.mkv", "Show.S02E01.mkv"])
+            away(&[
+                ("Show.S02E03.mkv", 1),
+                ("Show.S02E02.mkv", 2),
+                ("Show.S02E01.mkv", 3)
+            ])
         );
     }
 
     #[test]
-    fn episodes_known_to_hold_the_titles_are_tried_first() {
+    fn of_two_as_near_one_known_to_hold_the_titles_goes_first() {
         // A show in eleven-minute halves: the titles on every other one.
         let season: Vec<String> = (1..=9).map(|e| format!("Show.S07E{e:02}.mkv")).collect();
         let near = beside("Show.S07E05.mkv", &season);
@@ -488,20 +513,39 @@ mod tests {
         known.insert("Show.S07E04.mkv".to_string(), None);
         known.insert("Show.S07E03.mkv".to_string(), Some((0.0, 25.0)));
         known.insert("Show.S07E09.mkv".to_string(), Some((0.0, 25.0)));
-        let tried: Vec<&str> = worth_trying(&near, &known)
-            .into_iter()
-            .map(|(other, _)| other)
-            .collect();
-        // Both that hold them, nearest first; then the nearest not yet
-        // heard, the later of two as near. The two either side, heard to
-        // have none, are not reached.
+        // The one that holds them ahead of the one as near not yet heard,
+        // then the next nearest, the later of two as near. The further one
+        // that holds them is not reached, and nor are the two either side,
+        // heard to have none.
         assert_eq!(
-            tried,
+            tried(&near, &known),
             [
                 "Show.S07E03.mkv",
-                "Show.S07E09.mkv",
                 "Show.S07E07.mkv",
-                "Show.S07E08.mkv"
+                "Show.S07E08.mkv",
+                "Show.S07E02.mkv"
+            ]
+        );
+    }
+
+    #[test]
+    fn titles_that_change_partway_are_found_after_the_change() {
+        // A season whose second half has titles of its own, and the first
+        // half already heard.
+        let season: Vec<String> = (1..=22).map(|e| format!("Show.S01E{e:02}.mkv")).collect();
+        let near = beside("Show.S01E12.mkv", &season);
+        let known = (1..=11)
+            .map(|e| (format!("Show.S01E{e:02}.mkv"), Some((50.0, 140.0))))
+            .collect();
+        // Outward from the change, so the second half's own are reached
+        // rather than all of the first half's.
+        assert_eq!(
+            tried(&near, &known),
+            [
+                "Show.S01E11.mkv",
+                "Show.S01E13.mkv",
+                "Show.S01E10.mkv",
+                "Show.S01E14.mkv"
             ]
         );
     }
@@ -555,7 +599,7 @@ mod tests {
         ]);
         assert_eq!(
             beside("Show.S02E01.mkv", &mixed),
-            list(&["Show.S02E03.mkv"])
+            away(&[("Show.S02E03.mkv", 2)])
         );
     }
 
