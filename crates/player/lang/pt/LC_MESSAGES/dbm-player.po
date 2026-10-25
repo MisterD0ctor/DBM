@@ -911,3 +911,7 @@ msgstr "ENTRAR NO OPENSUBTITLES"
 msgctxt "MainWindow"
 msgid "{} left today"
 msgstr "Mais {} hoje"
+
+msgctxt "MainWindow"
+msgid "Find subtitles"
+msgstr "Procurar legendas"

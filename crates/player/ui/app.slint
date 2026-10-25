@@ -726,7 +726,9 @@ export component MainWindow inherits Window {
                 find-list.reveal((root.focus-row - 1) * root.row-h, root.row-h);
             }
         } else if (root.menu-open) {
-            subs-list.reveal(root.focus-row * root.row-h, root.row-h);
+            if (root.focus-row < root.subs-focus-count - (root.find-offered ? 1 : 0)) {
+                subs-list.reveal(root.focus-row * root.row-h, root.row-h);
+            }
         } else if (root.audio-open) {
             audio-list.reveal(root.focus-row * root.row-h, root.row-h);
         } else if (root.playlist-open && root.focus-row >= root.playlist-lead
@@ -1924,15 +1926,20 @@ export component MainWindow inherits Window {
     property <bool> subs-empty: !root.has-subs && !root.find-offered;
 
     /// The "Off" row belongs to the subtitle list, so it counts with it.
-    out property <length> subs-natural:
-        (root.has-subs ? (1 + root.sub-tracks.length) * root.row-h : 0px)
-        + (root.find-offered || root.subs-empty ? root.row-h : 0px);
+    out property <length> subs-natural: root.has-subs
+        ? (1 + root.sub-tracks.length) * root.row-h
+        : root.subs-empty ? root.row-h : 0px;
+    /// Under the list, the search, a group gap below the tracks when there
+    /// are any to set it off from.
+    property <length> subs-fixed: root.find-offered
+        ? root.row-h + (root.has-subs ? Rows.group-gap : 0px) : 0px;
     out property <length> audio-natural: root.has-audio
         ? root.audio-tracks.length * root.row-h : root.row-h;
     out property <length> subs-h: min(
-        root.panel-pad + root.heading-h + root.subs-natural, root.panel-max-h);
+        root.panel-pad + root.heading-h + root.subs-natural + root.subs-fixed,
+        root.panel-max-h);
     out property <length> subs-list-h:
-        max(0px, root.subs-h - root.panel-pad - root.heading-h);
+        max(0px, root.subs-h - root.panel-pad - root.heading-h - root.subs-fixed);
     out property <length> audio-h: min(
         root.panel-pad + root.heading-h + root.audio-natural, root.panel-max-h);
     out property <length> audio-list-h:
@@ -2914,14 +2921,15 @@ export component MainWindow inherits Window {
     }
 
     /// The list's own rows: not the way back above a part's page, nor the
-    /// autoplay switch under the playlist, nor the account under the
-    /// search's results.
+    /// autoplay switch under the playlist, nor the search under the tracks,
+    /// nor the account under the search's results.
     property <bool> find-listing: root.menu-open && root.find-open && !root.account-open;
     property <int> list-first: root.playlist-open ? root.playlist-lead
         : root.find-listing ? 1 : 0;
     property <int> list-last: root.playlist-open
         ? root.playlist-lead + root.playlist-rows - 1
         : root.find-listing ? root.find-hit-count
+        : root.menu-open && !root.find-open && root.has-subs ? root.sub-tracks.length
         : root.focus-count - 1;
     /// A page is what the list shows less one row, so the row a jump left
     /// stays on screen to read against.
@@ -4302,16 +4310,20 @@ export component MainWindow inherits Window {
                             root.remove-row(track.id, true);
                         }
                     }
-                    // An action among choices, so it wears an icon where they
-                    // wear none — see `MenuRow`.
-                    if root.find-offered: MenuRow {
-                        icon: @image-url("../../../public/icons/search.svg");
-                        label: @tr("Find subtitles…");
-                        focused: root.menu-open && !root.find-open
-                            && root.focus-row == root.subs-focus-count - 1;
-                        picked => {
-                            root.open-find();
-                        }
+                }
+                // Under the list rather than in it, as the way to a page of
+                // its own rather than one more track, so it stays in reach
+                // however many a film has.
+                if root.find-offered && root.has-subs: Rectangle {
+                    height: Rows.group-gap;
+                }
+                if root.find-offered: DrillRow {
+                    icon: @image-url("../../../public/icons/search.svg");
+                    label: @tr("Find subtitles");
+                    focused: root.menu-open && !root.find-open
+                        && root.focus-row == root.subs-focus-count - 1;
+                    opened => {
+                        root.open-find();
                     }
                 }
 

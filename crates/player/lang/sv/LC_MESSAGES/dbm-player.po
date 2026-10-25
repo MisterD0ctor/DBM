@@ -907,3 +907,7 @@ msgstr "LOGGA IN PÅ OPENSUBTITLES"
 msgctxt "MainWindow"
 msgid "{} left today"
 msgstr "{} kvar i dag"
+
+msgctxt "MainWindow"
+msgid "Find subtitles"
+msgstr "Hitta undertexter"

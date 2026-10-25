@@ -978,10 +978,12 @@ by under a pixel at the corner.
   with the words. A choice in a list has none.
 
 ### Finding subtitles
-- **Where:** the last row of the subtitles menu, *Find subtitles…*, with the
-  Search icon — an action among choices, so it wears the mark they do not. On
-  a film with no subtitle tracks the menu is that one row, which is when it is
-  most wanted. Absent from a build without an OpenSubtitles key, where a film
+- **Where:** under the subtitles menu's list, a group gap below the tracks,
+  *Find subtitles*: a drill row, with the Search icon and the chevron, since
+  it leads to a page of its own. Under the list rather than in it, so it is
+  never read as one more track and stays in reach however many a film has.
+  On a film with no subtitle tracks the menu is that one row, with no gap,
+  which is when it is most wanted. Absent from a build without an OpenSubtitles key, where a film
   with no subtitle tracks gets the menu anyway, holding one line that says so:
   *No subtitles*, as the audio panel says *No audio tracks*
 - **The page:** pressed, it slides a page of the subtitles menu over the tracks
@@ -1336,8 +1338,8 @@ doing in it.
   icon with the words, since both name the same subject. A figure about where
   it leads may stand before the chevron in Readout size, lit with them: the
   account's row says how many downloads are left
-- **Use:** every row of the settings tree, and the account's under the
-  search's results. An effect that can be turned off says
+- **Use:** every row of the settings tree, *Find subtitles* under the
+  tracks, and the account's under the search's results. An effect that can be turned off says
   so with its glyph rather than with a switch, because a switch beside a chevron
   is two things to press in one row.
 

@@ -910,3 +910,7 @@ msgstr "SE CONNECTER À OPENSUBTITLES"
 msgctxt "MainWindow"
 msgid "{} left today"
 msgstr "Encore {} aujourd’hui"
+
+msgctxt "MainWindow"
+msgid "Find subtitles"
+msgstr "Chercher des sous-titres"

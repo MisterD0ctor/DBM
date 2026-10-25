@@ -910,3 +910,7 @@ msgstr "INICIAR SESIÓN EN OPENSUBTITLES"
 msgctxt "MainWindow"
 msgid "{} left today"
 msgstr "{} más hoy"
+
+msgctxt "MainWindow"
+msgid "Find subtitles"
+msgstr "Buscar subtítulos"
