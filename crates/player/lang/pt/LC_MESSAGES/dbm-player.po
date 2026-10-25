@@ -129,10 +129,6 @@ msgid "PANELS"
 msgstr "PAINÉIS"
 
 msgctxt "MainWindow"
-msgid "Subtitles & audio"
-msgstr "Legendas e áudio"
-
-msgctxt "MainWindow"
 msgid "Playlist"
 msgstr "Lista de reprodução"
 
@@ -305,10 +301,6 @@ msgid "SHORTCUTS"
 msgstr "ATALHOS"
 
 msgctxt "MainWindow"
-msgid "No subtitle or audio tracks"
-msgstr "Nenhuma faixa de legendas ou de áudio"
-
-msgctxt "MainWindow"
 msgid "Off"
 msgstr "Desativadas"
 
@@ -391,14 +383,6 @@ msgstr "Sem som"
 msgctxt "MainWindow"
 msgid "Volume {}%"
 msgstr "Volume {}%"
-
-msgctxt "MainWindow"
-msgid "Turn off the ambient border"
-msgstr "Desligar a luz ambiente"
-
-msgctxt "MainWindow"
-msgid "Turn on the ambient border"
-msgstr "Ligar a luz ambiente"
 
 msgctxt "MainWindow"
 msgid "Fit the window"
@@ -583,10 +567,6 @@ msgstr "Capítulo {} de {}"
 msgctxt "player"
 msgid "Settings could not be saved — {}"
 msgstr "Não foi possível salvar as configurações — {}"
-
-msgctxt "MainWindow"
-msgid "Find subtitles…"
-msgstr "Procurar legendas…"
 
 msgctxt "MainWindow"
 msgid "FIND SUBTITLES"
@@ -848,17 +828,9 @@ msgctxt "SignInForm"
 msgid "Signing in…"
 msgstr "Entrando…"
 
-msgctxt "SignInForm"
-msgid "Sign in"
-msgstr "Entrar"
-
 msgctxt "AccountPage"
 msgid "ACCOUNT"
 msgstr "CONTA"
-
-msgctxt "AccountPage"
-msgid "SIGN IN"
-msgstr "ENTRAR"
 
 msgctxt "AccountPage"
 msgid "Signed in as {}"
@@ -875,10 +847,6 @@ msgstr "Sair"
 msgctxt "MainWindow"
 msgid "Signed in as {}"
 msgstr "Conectado como {}"
-
-msgctxt "MainWindow"
-msgid "Sign in to OpenSubtitles"
-msgstr "Entrar no OpenSubtitles"
 
 msgctxt "MainWindow"
 msgid "Subtitles provided by OpenSubtitles.com"

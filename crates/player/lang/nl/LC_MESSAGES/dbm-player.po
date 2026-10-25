@@ -128,10 +128,6 @@ msgid "PANELS"
 msgstr "PANELEN"
 
 msgctxt "MainWindow"
-msgid "Subtitles & audio"
-msgstr "Ondertitels en audio"
-
-msgctxt "MainWindow"
 msgid "Playlist"
 msgstr "Afspeellijst"
 
@@ -304,10 +300,6 @@ msgid "SHORTCUTS"
 msgstr "SNELTOETSEN"
 
 msgctxt "MainWindow"
-msgid "No subtitle or audio tracks"
-msgstr "Geen ondertitel- of audiosporen"
-
-msgctxt "MainWindow"
 msgid "Off"
 msgstr "Uit"
 
@@ -390,14 +382,6 @@ msgstr "Gedempt"
 msgctxt "MainWindow"
 msgid "Volume {}%"
 msgstr "Volume {}%"
-
-msgctxt "MainWindow"
-msgid "Turn off the ambient border"
-msgstr "Sfeerlicht uitschakelen"
-
-msgctxt "MainWindow"
-msgid "Turn on the ambient border"
-msgstr "Sfeerlicht inschakelen"
 
 msgctxt "MainWindow"
 msgid "Fit the window"
@@ -582,10 +566,6 @@ msgstr "Hoofdstuk {} van {}"
 msgctxt "player"
 msgid "Settings could not be saved — {}"
 msgstr "Instellingen konden niet worden opgeslagen — {}"
-
-msgctxt "MainWindow"
-msgid "Find subtitles…"
-msgstr "Ondertitels zoeken…"
 
 msgctxt "MainWindow"
 msgid "FIND SUBTITLES"
@@ -847,17 +827,9 @@ msgctxt "SignInForm"
 msgid "Signing in…"
 msgstr "Bezig met aanmelden…"
 
-msgctxt "SignInForm"
-msgid "Sign in"
-msgstr "Aanmelden"
-
 msgctxt "AccountPage"
 msgid "ACCOUNT"
 msgstr "ACCOUNT"
-
-msgctxt "AccountPage"
-msgid "SIGN IN"
-msgstr "AANMELDEN"
 
 msgctxt "AccountPage"
 msgid "Signed in as {}"
@@ -874,10 +846,6 @@ msgstr "Afmelden"
 msgctxt "MainWindow"
 msgid "Signed in as {}"
 msgstr "Aangemeld als {}"
-
-msgctxt "MainWindow"
-msgid "Sign in to OpenSubtitles"
-msgstr "Aanmelden bij OpenSubtitles"
 
 msgctxt "MainWindow"
 msgid "Subtitles provided by OpenSubtitles.com"

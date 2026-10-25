@@ -113,10 +113,6 @@ msgid "Ambient border"
 msgstr "Omgivningsljus"
 
 msgctxt "MainWindow"
-msgid "Subtitles & audio"
-msgstr "Undertexter och ljud"
-
-msgctxt "MainWindow"
 msgid "Playlist"
 msgstr "Spellista"
 
@@ -277,10 +273,6 @@ msgid "SHORTCUTS"
 msgstr "KORTKOMMANDON"
 
 msgctxt "MainWindow"
-msgid "No subtitle or audio tracks"
-msgstr "Inga undertext- eller ljudspår"
-
-msgctxt "MainWindow"
 msgid "Off"
 msgstr "Av"
 
@@ -363,14 +355,6 @@ msgstr "Ljud av"
 msgctxt "MainWindow"
 msgid "Volume {}%"
 msgstr "Volym {} %"
-
-msgctxt "MainWindow"
-msgid "Turn off the ambient border"
-msgstr "Stäng av omgivningsljuset"
-
-msgctxt "MainWindow"
-msgid "Turn on the ambient border"
-msgstr "Slå på omgivningsljuset"
 
 msgctxt "MainWindow"
 msgid "Fit the window"
@@ -579,10 +563,6 @@ msgstr "FILER"
 msgctxt "MainWindow"
 msgid "POINTER"
 msgstr "PEKARE"
-
-msgctxt "MainWindow"
-msgid "Find subtitles…"
-msgstr "Hitta undertexter…"
 
 msgctxt "MainWindow"
 msgid "FIND SUBTITLES"
@@ -844,17 +824,9 @@ msgctxt "SignInForm"
 msgid "Signing in…"
 msgstr "Loggar in…"
 
-msgctxt "SignInForm"
-msgid "Sign in"
-msgstr "Logga in"
-
 msgctxt "AccountPage"
 msgid "ACCOUNT"
 msgstr "KONTO"
-
-msgctxt "AccountPage"
-msgid "SIGN IN"
-msgstr "LOGGA IN"
 
 msgctxt "AccountPage"
 msgid "Signed in as {}"
@@ -871,10 +843,6 @@ msgstr "Logga ut"
 msgctxt "MainWindow"
 msgid "Signed in as {}"
 msgstr "Inloggad som {}"
-
-msgctxt "MainWindow"
-msgid "Sign in to OpenSubtitles"
-msgstr "Logga in på OpenSubtitles"
 
 msgctxt "MainWindow"
 msgid "Subtitles provided by OpenSubtitles.com"

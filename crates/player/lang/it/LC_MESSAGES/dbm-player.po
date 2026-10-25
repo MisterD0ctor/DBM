@@ -128,10 +128,6 @@ msgid "PANELS"
 msgstr "PANNELLI"
 
 msgctxt "MainWindow"
-msgid "Subtitles & audio"
-msgstr "Sottotitoli e audio"
-
-msgctxt "MainWindow"
 msgid "Playlist"
 msgstr "Playlist"
 
@@ -304,10 +300,6 @@ msgid "SHORTCUTS"
 msgstr "SCORCIATOIE"
 
 msgctxt "MainWindow"
-msgid "No subtitle or audio tracks"
-msgstr "Nessuna traccia sottotitoli o audio"
-
-msgctxt "MainWindow"
 msgid "Off"
 msgstr "Disattivati"
 
@@ -390,14 +382,6 @@ msgstr "Audio disattivato"
 msgctxt "MainWindow"
 msgid "Volume {}%"
 msgstr "Volume {}%"
-
-msgctxt "MainWindow"
-msgid "Turn off the ambient border"
-msgstr "Disattiva la luce ambientale"
-
-msgctxt "MainWindow"
-msgid "Turn on the ambient border"
-msgstr "Attiva la luce ambientale"
 
 msgctxt "MainWindow"
 msgid "Fit the window"
@@ -582,10 +566,6 @@ msgstr "Capitolo {} di {}"
 msgctxt "player"
 msgid "Settings could not be saved — {}"
 msgstr "Impossibile salvare le impostazioni — {}"
-
-msgctxt "MainWindow"
-msgid "Find subtitles…"
-msgstr "Cerca sottotitoli…"
 
 msgctxt "MainWindow"
 msgid "FIND SUBTITLES"
@@ -847,17 +827,9 @@ msgctxt "SignInForm"
 msgid "Signing in…"
 msgstr "Accesso in corso…"
 
-msgctxt "SignInForm"
-msgid "Sign in"
-msgstr "Accedi"
-
 msgctxt "AccountPage"
 msgid "ACCOUNT"
 msgstr "ACCOUNT"
-
-msgctxt "AccountPage"
-msgid "SIGN IN"
-msgstr "ACCEDI"
 
 msgctxt "AccountPage"
 msgid "Signed in as {}"
@@ -874,10 +846,6 @@ msgstr "Esci"
 msgctxt "MainWindow"
 msgid "Signed in as {}"
 msgstr "Accesso eseguito come {}"
-
-msgctxt "MainWindow"
-msgid "Sign in to OpenSubtitles"
-msgstr "Accedi a OpenSubtitles"
 
 msgctxt "MainWindow"
 msgid "Subtitles provided by OpenSubtitles.com"
