@@ -996,11 +996,18 @@ by under a pixel at the corner.
   which all come first; SDH; *Machine* for a machine translation. Pressed, the
   second column says *Downloading…* and the row wears the active mark until it
   arrives; then the menu slides back to the tracks, where it stands lit as the
-  subtitle showing. A failure there is a notice, beside the panel
+  subtitle showing. A failure there is a notice, beside the panel, but for
+  one an account gets past, which opens the sign-in instead (see Signing in
+  to OpenSubtitles)
+- **Under the results,** a group gap below them, what is OpenSubtitles'
+  rather than the film's: the account's row while someone is signed in, and
+  the credit. Kept apart so neither is read as one more result, and below
+  the list, since the list is what the page is for
 - **The credit:** *Subtitles provided by OpenSubtitles.com* closes the page,
-  a line that states a fact. OpenSubtitles' terms ask it of a free key
-  wherever its subtitles are searched or picked, and this is the one place
-  they are
+  a line that states a fact, in the Hint role on a heading's height: a line
+  about the results rather than one of them. OpenSubtitles' terms ask it of
+  a free key wherever its subtitles are searched or picked, and this is the
+  one place they are
 - **Afterwards:** a fetched subtitle is the film's from then on, loaded with
   it every time it opens, in the list beside its own tracks — until it is
   taken out with its row's Trash button, which forgets it and deletes it
@@ -1011,16 +1018,24 @@ by under a pixel at the corner.
   key's few downloads a day are there so the player works straight after
   it is installed; past them, OpenSubtitles asks for the person's own
   account, and so does the player, but not before
-- **Where:** a row under the search's way back, *Sign in to OpenSubtitles*,
-  with the chevron of a row that leads somewhere. Under the way back rather
-  than after the results, so it is the first thing there once a download
-  has asked for it, however long the list. It opens a page one further in,
-  with the drill's movement: SIGN IN, a field for the username and one for
-  the password, *Sign in*, and under them why the last try failed
-- **Then:** signing in fetches the download that asked, since that is what
-  was pressed, and the menu slides back to the tracks with it lit
-- **Signed in:** the same row says *Signed in as* and the name, and its page,
-  ACCOUNT, says how many downloads are left today and offers *Sign out*. The
+- **Where:** the refused download opens it, one page further in with the
+  drill's movement, since signing in is the only way on from there and a
+  notice would only say so. Not when the menu has moved on by the time the
+  answer comes: then it is a notice, and pressing a result again opens it.
+  Nothing offers it before a download asks
+- **The page:** SIGN IN TO OPENSUBTITLES, so it is plain whose account it
+  wants; then why it opened, the refusal in the Hint role on as many as two
+  lines; then, a group gap below, a field for the username and one for the
+  password, *Sign in and download*, and under them why the last try failed.
+  The ring opens on the username, which has the keyboard, since typing is
+  what comes next
+- **Then:** signing in goes back to the search, on the result that asked,
+  which fetches as if it were pressed again, and the menu slides back to the
+  tracks with it lit. Going back without signing in lands on that result too
+- **Signed in:** a row under the results, above the credit: the Account
+  icon, *Signed in as* and the name, and in Readout size how many downloads
+  are left today. The icon because it is an action among choices that wear
+  none. Its page, ACCOUNT, says it in full and offers *Sign out*. The
   sign-in lasts until the player quits, or a day, whichever is first; nothing
   of it is kept, so the next session starts without one
 
@@ -1318,8 +1333,11 @@ doing in it.
 ### Drill rows
 - **Row:** `Rows.row`; a row icon and the label, both at Body, with a chevron
   at the end: Body at rest, Lit on hover and under the ring. The ring lights the
-  icon with the words, since both name the same subject
-- **Use:** every row of the settings tree. An effect that can be turned off says
+  icon with the words, since both name the same subject. A figure about where
+  it leads may stand before the chevron in Readout size, lit with them: the
+  account's row says how many downloads are left
+- **Use:** every row of the settings tree, and the account's under the
+  search's results. An effect that can be turned off says
   so with its glyph rather than with a switch, because a switch beside a chevron
   is two things to press in one row.
 

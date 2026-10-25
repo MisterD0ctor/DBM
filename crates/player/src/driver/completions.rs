@@ -278,11 +278,15 @@ impl Driver {
                 ui.set_find_open(false);
             }
             Err(why) => {
-                // Kept to be fetched once the person has signed in, and the
-                // page offers to, since that is the way past it.
+                // Kept to be fetched once the person has signed in, which is
+                // the way past it, so the menu goes straight to where that is
+                // done, if it is still on the page that asked.
                 if why.wants_account() {
+                    let row = self.row_of(&fetched.hit);
                     *self.app.waiting.borrow_mut() = Some((fetched.path, fetched.hit));
-                    ui.set_find_sign_in_offered(true);
+                    if ui.invoke_offer_sign_in(row, why.sentence().into()) {
+                        return;
+                    }
                 }
                 warn(ui, why.sentence());
             }
@@ -296,9 +300,12 @@ impl Driver {
         match result {
             Ok(account) => {
                 show_account(ui, Some(&account));
-                ui.set_find_sign_in_offered(false);
                 ui.set_sign_in_said(Default::default());
-                ui.set_account_open(false);
+                // Back to the search, on the row whose download goes on, if
+                // the sign-in's page is still the one showing.
+                if ui.get_menu_open() && ui.get_account_open() {
+                    ui.invoke_close_account();
+                }
                 let waiting = self.app.waiting.borrow_mut().take();
                 let Some((path, hit)) = waiting else {
                     return;
@@ -306,12 +313,21 @@ impl Driver {
                 if self.player.path.as_deref() != Some(path.as_str()) {
                     return;
                 }
-                let row = self.app.found.borrow().iter().position(|h| *h == hit);
-                ui.set_find_fetching(row.map_or(-1, |row| row as i32));
+                ui.set_find_fetching(self.row_of(&hit));
                 opensubtitles::fetch(path, hit, self.app.worker.reporter());
             }
             Err(why) => ui.set_sign_in_said(why.sentence().into()),
         }
+    }
+
+    /// Where `hit` is in the search's results, or -1 once a search since has
+    /// replaced them.
+    fn row_of(&self, hit: &Hit) -> i32 {
+        let found = self.app.found.borrow();
+        found
+            .iter()
+            .position(|h| h == hit)
+            .map_or(-1, |row| row as i32)
     }
 
     /// Hand the seek preview a finished atlas. Its picture comes decoded, so

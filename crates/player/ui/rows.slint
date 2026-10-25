@@ -917,11 +917,11 @@ export component DrillRow inherits Rectangle {
     /// Whether the keyboard is on this row.
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
-    /// Optional: a row among rows without marks, as on the search's page,
-    /// has none, and its words keep their column.
     in property <image> icon;
-    private property <bool> iconic: root.icon.width > 0;
     in property <string> label;
+    /// Optional: a figure about where it leads, before the chevron, as the
+    /// account's row says how many downloads are left.
+    in property <string> detail;
     callback opened();
 
     height: Rows.row;
@@ -942,7 +942,7 @@ export component DrillRow inherits Rectangle {
         padding-right: Rows.trail-x;
         spacing: 10px;
 
-        if root.iconic: Rectangle {
+        Rectangle {
             width: 18px;
 
             Image {
@@ -963,7 +963,17 @@ export component DrillRow inherits Rectangle {
             color: root.ring ? Paint.lit : Paint.body;
             font-size: Type.body;
             vertical-alignment: center;
+            overflow: elide;
+            min-width: 0px;
             horizontal-stretch: 1;
+        }
+
+        if root.detail != "": Text {
+            text: root.detail;
+            color: root.ring ? Paint.lit : Paint.body;
+            font-size: Type.readout;
+            vertical-alignment: center;
+            horizontal-stretch: 0;
         }
 
         Rectangle {
@@ -1177,6 +1187,25 @@ export component EmptyRow inherits Rectangle {
         font-size: Type.body;
         vertical-alignment: center;
         overflow: elide;
+    }
+}
+
+/// Prose about the rows rather than one of them, in the Hint role: why a page
+/// opened, or whose the subtitles are. It wraps to the lines its height
+/// holds (see `Rows.note-line`) and elides past them.
+export component NoteRow inherits Rectangle {
+    in property <string> text;
+
+    Text {
+        x: Rows.label-x;
+        width: parent.width - Rows.label-x - Rows.trail-x;
+        height: 100%;
+        text: root.text;
+        color: Paint.body;
+        font-size: Type.hint;
+        wrap: word-wrap;
+        overflow: elide;
+        vertical-alignment: center;
     }
 }
 

@@ -227,14 +227,16 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
 }
 
 /// Run out of downloads without an account and sign in past them, all from
-/// the keyboard: a download refused, the page's offer taken, a wrong password
-/// refused, then the right one, and the download that asked going through.
-/// Then back to the account and out. Wants `DBM_FIND_FAKE=spent`.
+/// the keyboard: a download refused, which opens the sign-in, a wrong
+/// password refused, then the right one, and the download that asked going
+/// through. Then the account's row under the results, and out. Wants
+/// `DBM_FIND_FAKE=spent`.
 ///
 /// It also checks the password field keeps what is in it, where there is a
 /// clipboard to check with. First the name, `fake`, is copied and pasted as
-/// the password: if that signs in, the clipboard works. Then, signed out, the
-/// password field is told to copy *leak*, and the name is pasted over with
+/// the password: if that signs in, the clipboard works. Then, signed out and
+/// back at the sign-in by way of a result, the password field is told to
+/// copy *leak*, and the name is pasted over with
 /// the clipboard. If the field kept its own, the name is still `fake` and the
 /// sign-in goes through; if it leaked, the name is *leak*, and it is refused.
 pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
@@ -243,12 +245,11 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
 
     let report = |ui: &MainWindow, label: &str| {
         eprintln!(
-            "dbm: sign-in {label:<16} find={} account={} row={} offered={} busy={} \
-             said={:?} as={:?} left={} fetching={}",
+            "dbm: sign-in {label:<16} find={} account={} row={} busy={} said={:?} \
+             as={:?} left={} fetching={}",
             ui.get_find_open(),
             ui.get_account_open(),
             ui.get_focus_row(),
-            ui.get_find_sign_in_offered(),
             ui.get_signing_in(),
             ui.get_sign_in_said(),
             ui.get_find_account(),
@@ -281,18 +282,16 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
                 7 => press(&ui, Key::DownArrow),
                 8 => press(&ui, Key::DownArrow),
                 9 => press(&ui, Key::Return),
+                // Refused, so the sign-in's page, on its first field.
                 11 => report(&ui, "refused"),
-                // The account's row has taken the place the ring is on.
-                12 => press(&ui, Key::Return),
-                13 => report(&ui, "account page"),
-                14 => typed(&ui, "fake"),
+                12 => typed(&ui, "fake"),
+                13 => press(&ui, Key::Return),
+                14 => typed(&ui, "nope"),
                 15 => press(&ui, Key::Return),
-                16 => typed(&ui, "nope"),
-                17 => press(&ui, Key::Return),
-                18 => report(&ui, "wrong password"),
+                16 => report(&ui, "wrong password"),
                 // A second on, for the sign-ins' own limit: the name copied
                 // and pasted as the password.
-                21 => {
+                19 => {
                     press(&ui, Key::UpArrow);
                     control(&ui, "a");
                     control(&ui, "c");
@@ -300,7 +299,7 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
                     control(&ui, "v");
                     press(&ui, Key::Return);
                 }
-                23 => {
+                21 => {
                     clipboard = ui.get_find_account() == "fake";
                     if clipboard {
                         report(&ui, "pasted, in");
@@ -310,33 +309,36 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
                         press(&ui, Key::Return);
                     }
                 }
-                25 => report(&ui, "signed in"),
-                27 => report(&ui, "fetched"),
-                28 => {
+                23 => report(&ui, "signed in"),
+                25 => report(&ui, "fetched"),
+                26 => {
                     ui.invoke_open_menu(true);
                     ui.invoke_open_find();
                 }
-                // Down until the ring is on the account's row, however many
-                // presses that is from wherever it was left.
-                29 => {
+                // Down until the ring is on the account's row, under the
+                // results, however many presses that is from wherever it was
+                // left.
+                27 => {
                     report(&ui, "searched again");
-                    for _ in 0..3 {
-                        if ui.get_focus_row() == 1 {
+                    let account = 1 + ui.get_find_hits().row_count() as i32;
+                    for _ in 0..=account {
+                        if ui.get_focus_row() == account {
                             break;
                         }
                         press(&ui, Key::DownArrow);
                     }
                     press(&ui, Key::Return);
                 }
-                30 => {
+                28 => {
                     report(&ui, "account again");
                     press(&ui, Key::Return);
                 }
-                31 => report(&ui, "signed out"),
-                // The leak: back to the sign-in, the password field told to
-                // copy, and the name pasted over with whatever it held.
-                32 if clipboard => press(&ui, Key::Return),
-                33 if clipboard => {
+                29 => report(&ui, "signed out"),
+                // The leak: a result pressed for the sign-in again, the
+                // password field told to copy, and the name pasted over with
+                // whatever it held.
+                30 if clipboard => press(&ui, Key::Return),
+                32 if clipboard => {
                     typed(&ui, "fake");
                     press(&ui, Key::DownArrow);
                     typed(&ui, "leak");
@@ -351,11 +353,11 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
                     typed(&ui, "fake");
                     press(&ui, Key::Return);
                 }
-                35 if clipboard => {
+                34 if clipboard => {
                     let kept = ui.get_find_account() == "fake";
                     report(&ui, if kept { "nothing copied" } else { "LEAKED" });
                 }
-                36 => eprintln!(
+                35 => eprintln!(
                     "dbm: --- sign-in test done{} ---",
                     if clipboard {
                         ""

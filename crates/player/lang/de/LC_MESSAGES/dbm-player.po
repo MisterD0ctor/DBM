@@ -898,3 +898,15 @@ msgstr "Benutzername oder Passwort ist falsch"
 msgctxt "player"
 msgid "The sign-in to OpenSubtitles has run out"
 msgstr "Die Anmeldung bei OpenSubtitles ist abgelaufen"
+
+msgctxt "SignInForm"
+msgid "Sign in and download"
+msgstr "Anmelden und herunterladen"
+
+msgctxt "AccountPage"
+msgid "SIGN IN TO OPENSUBTITLES"
+msgstr "BEI OPENSUBTITLES ANMELDEN"
+
+msgctxt "MainWindow"
+msgid "{} left today"
+msgstr "Heute noch {}"

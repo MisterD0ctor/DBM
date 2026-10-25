@@ -1,11 +1,11 @@
-// The account's page in the subtitles menu: signing in to OpenSubtitles once
-// the downloads without an account are used up, or, signed in, who it is and
-// the way out. The sign-in itself is the Rust side's (see
+// The account's page in the subtitles menu: signing in to OpenSubtitles, which
+// a download refused for want of an account opens, or, signed in, who it is
+// and the way out. The sign-in itself is the Rust side's (see
 // `opensubtitles::account`); this is where it is typed.
 
 import { Chrome } from "globals.slint";
 import { Paint, Rows, Type } from "theme.slint";
-import { BackRow, EmptyRow, MenuRow, RowHighlight } from "rows.slint";
+import { BackRow, EmptyRow, MenuRow, NoteRow, RowHighlight } from "rows.slint";
 
 /// A line to type into: what it is for, and a well to type in.
 ///
@@ -154,13 +154,15 @@ component Field inherits Rectangle {
     }
 }
 
-/// Signing in: the name, the password, and the row that sends them, then why
-/// it failed if it did.
+/// Signing in: why it is asked for, the name, the password, and the row that
+/// sends them and fetches the download that asked, then why it failed if it
+/// did.
 component SignInForm inherits Rectangle {
     /// The row the ring is on, counted on the page: 1 and 2 are the fields.
     in property <int> ring-row;
     in property <bool> active;
     in property <bool> busy;
+    in property <string> why;
     in property <string> said;
     /// Counts the ring's presses of *Sign in* (see `AccountPage`).
     in property <int> presses;
@@ -198,6 +200,18 @@ component SignInForm inherits Rectangle {
     }
 
     VerticalLayout {
+        // Two lines, which the reasons a download is refused take in every
+        // language spoken, and the gap above the fields, which start
+        // something new.
+        if root.why != "": VerticalLayout {
+            NoteRow {
+                height: 2 * Rows.note-line;
+                text: root.why;
+            }
+            Rectangle {
+                height: Rows.group-gap;
+            }
+        }
         name := Field {
             label: @tr("Username");
             label-w: root.label-w;
@@ -224,7 +238,7 @@ component SignInForm inherits Rectangle {
             }
         }
         MenuRow {
-            label: root.busy ? @tr("Signing in…") : @tr("Sign in");
+            label: root.busy ? @tr("Signing in…") : @tr("Sign in and download");
             focused: root.active && root.ring-row == 3;
             picked => {
                 root.submit();
@@ -239,6 +253,9 @@ component SignInForm inherits Rectangle {
 /// The account's page: its way back, then either the sign-in or who is
 /// signed in.
 ///
+/// Signed out, it is only ever opened by a download refused for want of an
+/// account, so its button says it will fetch that download too.
+///
 /// Built only while it shows (see `MainWindow`), so what was typed goes with
 /// it when it closes, undo history and all.
 export component AccountPage inherits Rectangle {
@@ -248,6 +265,8 @@ export component AccountPage inherits Rectangle {
     in property <int> left;
     /// A sign-in is on its way.
     in property <bool> busy;
+    /// Why the sign-in is asked for: the refusal that opened the page.
+    in property <string> why;
     /// Why the last sign-in failed, or empty.
     in property <string> said;
     /// The row the ring is on, counted on this page.
@@ -270,7 +289,7 @@ export component AccountPage inherits Rectangle {
         alignment: start;
 
         BackRow {
-            label: root.signed-in ? @tr("ACCOUNT") : @tr("SIGN IN");
+            label: root.signed-in ? @tr("ACCOUNT") : @tr("SIGN IN TO OPENSUBTITLES");
             focused: root.active && root.ring-row == 0;
             back => {
                 root.back();
@@ -281,6 +300,7 @@ export component AccountPage inherits Rectangle {
             ring-row: root.ring-row;
             active: root.active;
             busy: root.busy;
+            why: root.why;
             said: root.said;
             presses: root.presses;
             submitted(name, password) => {

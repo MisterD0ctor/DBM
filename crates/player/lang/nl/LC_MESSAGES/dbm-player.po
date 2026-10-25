@@ -898,3 +898,15 @@ msgstr "De gebruikersnaam of het wachtwoord klopt niet"
 msgctxt "player"
 msgid "The sign-in to OpenSubtitles has run out"
 msgstr "De aanmelding bij OpenSubtitles is verlopen"
+
+msgctxt "SignInForm"
+msgid "Sign in and download"
+msgstr "Aanmelden en downloaden"
+
+msgctxt "AccountPage"
+msgid "SIGN IN TO OPENSUBTITLES"
+msgstr "AANMELDEN BIJ OPENSUBTITLES"
+
+msgctxt "MainWindow"
+msgid "{} left today"
+msgstr "Nog {} vandaag"

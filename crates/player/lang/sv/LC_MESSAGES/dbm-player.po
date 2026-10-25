@@ -895,3 +895,15 @@ msgstr "Fel användarnamn eller lösenord"
 msgctxt "player"
 msgid "The sign-in to OpenSubtitles has run out"
 msgstr "Inloggningen på OpenSubtitles har gått ut"
+
+msgctxt "SignInForm"
+msgid "Sign in and download"
+msgstr "Logga in och ladda ner"
+
+msgctxt "AccountPage"
+msgid "SIGN IN TO OPENSUBTITLES"
+msgstr "LOGGA IN PÅ OPENSUBTITLES"
+
+msgctxt "MainWindow"
+msgid "{} left today"
+msgstr "{} kvar i dag"

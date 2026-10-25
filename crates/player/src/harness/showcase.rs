@@ -163,46 +163,46 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 ui.invoke_toggle_mute();
             }
 
-            // Signing in to OpenSubtitles, with `DBM_FIND_FAKE=spent`: the
-            // search's page offering it once a download is refused, the
-            // sign-in with a name and a password typed, and the account's
-            // page once signed in.
-            if matches!(surface.as_str(), "find-offer" | "sign-in" | "account") {
+            // Finding subtitles, with `DBM_FIND_FAKE=spent`: the search's page;
+            // the sign-in a refused download opens, with a name and a password
+            // typed; the search's page signed in, the account under the
+            // results; and the account's page.
+            if matches!(
+                surface.as_str(),
+                "find" | "sign-in" | "signed-in" | "account"
+            ) {
                 let typed = |text: &str| {
                     for c in text.chars() {
                         chord(&ui, &[], &c.to_string());
                     }
                 };
-                // Down until the ring is on the account's row, then into it.
-                let into_account = || {
-                    for _ in 0..3 {
-                        if ui.get_focus_row() == 1 {
-                            break;
-                        }
-                        arrow(&ui, Key::DownArrow);
-                    }
-                    arrow(&ui, Key::Return);
-                };
+                let refused = surface != "find";
+                let signs_in = surface == "signed-in" || surface == "account";
                 match tick {
                     4 => ui.invoke_open_menu(true),
                     5 => ui.invoke_open_find(),
-                    7 => ui.invoke_fetch_subtitle(0),
-                    9 if surface != "find-offer" => into_account(),
-                    10 if surface != "find-offer" => {
+                    7 if refused => ui.invoke_fetch_subtitle(0),
+                    10 if refused => {
                         typed("fake");
                         arrow(&ui, Key::Return);
-                        typed(if surface == "account" {
-                            "fake"
-                        } else {
-                            "secret"
-                        });
+                        typed(if signs_in { "fake" } else { "secret" });
                     }
-                    11 if surface == "account" => arrow(&ui, Key::Return),
-                    14 if surface == "account" => {
+                    11 if signs_in => arrow(&ui, Key::Return),
+                    14 if signs_in => {
                         ui.invoke_open_menu(true);
                         ui.invoke_open_find();
                     }
-                    15 if surface == "account" => into_account(),
+                    // Down until the ring is on the account's row, then in.
+                    15 if surface == "account" => {
+                        let account = 1 + ui.get_find_hits().row_count() as i32;
+                        for _ in 0..=account {
+                            if ui.get_focus_row() == account {
+                                break;
+                            }
+                            arrow(&ui, Key::DownArrow);
+                        }
+                        arrow(&ui, Key::Return);
+                    }
                     _ => {}
                 }
             }

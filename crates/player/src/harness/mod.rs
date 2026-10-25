@@ -42,10 +42,10 @@
 //!   `tip-volume` rests it on the volume track, whose label is the level.
 //! * `DBM_SHOWCASE=window-max` presses the window's own maximize button.
 //! * `DBM_SHOWCASE=muted` mutes, for the volume track with its fill gone.
-//! * `DBM_SHOWCASE=find-offer`, `sign-in` and `account`, with
-//!   `DBM_FIND_FAKE=spent`: the search's page offering to sign in once a
-//!   download is refused, the sign-in with a name and a password typed, and
-//!   the account's page once signed in.
+//! * `DBM_SHOWCASE=find`, `sign-in`, `signed-in` and `account`, with
+//!   `DBM_FIND_FAKE=spent`: the search's page, the sign-in a refused download
+//!   opens with a name and a password typed, the search's page once signed
+//!   in with the account under the results, and the account's page.
 //! * `DBM_SHOWCASE=scroll-bar` opens the playlist and rests the pointer on its
 //!   scroll bar, to draw the bar at its grown width.
 //! * `DBM_SHOWCASE=current-above`, `current-below` and `current-half` open the
