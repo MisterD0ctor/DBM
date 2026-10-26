@@ -205,7 +205,7 @@ fn luminance(encoded: f32) -> f32 {
 
 /// The Blur slider's default, and the blur at which Dispersion is the glass's
 /// own dispersive power; see [`fringe_scale`].
-const DEFAULT_BLUR: f32 = 3.0;
+const DEFAULT_BLUR: f32 = 10.0;
 
 /// How much wider the dispersion fringe is drawn than the dispersive power
 /// alone makes it, over a backdrop blurred by `sigma`.
@@ -214,8 +214,8 @@ const DEFAULT_BLUR: f32 = 3.0;
 /// them: their width here, √(σ² + 1px²), over their width at the default blur.
 /// Dispersion is then one look at any blur.
 pub fn fringe_scale(sigma: f32) -> f32 {
-    let edge = |s: f32| (s * s + 1.0).sqrt();
-    edge(sigma.max(0.0)) / edge(DEFAULT_BLUR)
+    let edge = |s: f32| (s + 1.0).sqrt();
+    edge(sigma.max(0.0))
 }
 
 impl Default for GlassParams {
@@ -224,11 +224,11 @@ impl Default for GlassParams {
             blur_sigma: DEFAULT_BLUR,
             // The glass is as thick as the rim is wide; see `BEVEL`.
             refract: 1.0,
-            aberration: 0.1,
+            aberration: 0.3,
             rim: 0.2,
             tint: [0.0, 0.0, 0.0],
             tint_amount: 0.0,
-            absorb: 0.5,
+            absorb: 0.35,
             shadow: 0.2,
         }
     }
