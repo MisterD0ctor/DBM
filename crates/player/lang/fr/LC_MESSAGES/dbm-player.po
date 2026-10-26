@@ -882,3 +882,7 @@ msgstr "Encore {} aujourd’hui"
 msgctxt "MainWindow"
 msgid "Find subtitles"
 msgstr "Chercher des sous-titres"
+
+msgctxt "MainWindow"
+msgid "Skip credits"
+msgstr "Passer le générique"

@@ -882,3 +882,7 @@ msgstr "Nog {} vandaag"
 msgctxt "MainWindow"
 msgid "Find subtitles"
 msgstr "Ondertitels zoeken"
+
+msgctxt "MainWindow"
+msgid "Skip credits"
+msgstr "Aftiteling overslaan"

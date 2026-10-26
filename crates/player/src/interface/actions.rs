@@ -153,8 +153,9 @@ fn wire_timeline(ui: &MainWindow, app: &App) {
         on_seek_relative,
         |m, secs| commands::seek_relative(m, secs as f64)
     );
-    // Past the title sequence, to where it was found to end.
-    on!(ui, app, on_skip_intro, |m, to| commands::seek_to(
+    // Past the title sequence, to where it was found to end, or past the
+    // credits, to the scene after them.
+    on!(ui, app, on_skip_to, |m, to| commands::seek_to(
         m,
         f64::from(to)
     ));

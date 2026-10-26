@@ -523,6 +523,11 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
     let mut credits_at = 0.0f64;
     let own = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "own");
     let heard = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "heard");
+    let scene = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "scene");
+    let mid = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "mid");
+    let played_at: Option<f64> = std::env::var("DBM_CREDITS_AT")
+        .ok()
+        .and_then(|at| at.parse().ok());
     timer.start(
         slint::TimerMode::Repeated,
         Duration::from_millis(1000),
@@ -555,14 +560,27 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                 2 => {
                     let duration = f64::from(ui.get_duration());
                     credits_at = (duration - 120.0).max(duration / 2.0);
+                    // With `=scene`, the credits stop forty seconds short, for
+                    // a scene of the episode's own; with `=mid`, they stop
+                    // for one forty seconds in, and the last forty are more.
+                    let mut marks = vec![(0.0, "Episode"), (credits_at, "End Credits")];
+                    if scene {
+                        marks.push((duration - 40.0, "Post-Credits Scene"));
+                    }
+                    if mid {
+                        marks.push((duration - 80.0, "Mid-Credits Scene"));
+                        marks.push((duration - 40.0, "Credits"));
+                    }
+                    let mut text = String::from(";FFMETADATA1\n");
+                    for (at, &(start, title)) in marks.iter().enumerate() {
+                        let end = marks.get(at + 1).map_or(duration, |next| next.0);
+                        text += &format!(
+                            "[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\ntitle={title}\n",
+                            (start * 1000.0) as u64,
+                            (end * 1000.0) as u64,
+                        );
+                    }
                     let marks = std::env::temp_dir().join("dbm-credits-test.ffmeta");
-                    let text = format!(
-                        ";FFMETADATA1\n\
-                         [CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND={c}\ntitle=Episode\n\
-                         [CHAPTER]\nTIMEBASE=1/1000\nSTART={c}\nEND={d}\ntitle=End Credits\n",
-                        c = (credits_at * 1000.0) as u64,
-                        d = (duration * 1000.0) as u64,
-                    );
                     if let Err(e) = std::fs::write(&marks, text) {
                         eprintln!("dbm: credits: cannot write chapters: {e}");
                         return;
@@ -575,7 +593,8 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                 }
                 6 => {
                     let duration = f64::from(ui.get_duration()).max(1.0);
-                    ui.invoke_seek_fraction(((credits_at + 5.0) / duration) as f32);
+                    let to = played_at.unwrap_or(credits_at + 5.0);
+                    ui.invoke_seek_fraction((to / duration) as f32);
                 }
                 7 => report_credits(&ui, "arrived"),
                 // Past `HIDE_AFTER`, with nothing touched since.
@@ -588,7 +607,14 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                 // The next file, and the ring gone with the pill rather than
                 // waiting on a stop that no longer exists.
                 15 => report_credits(&ui, "after enter"),
-                16 => eprintln!("dbm: --- credits test: holding ---"),
+                // Past the scene, into the rest of the credits, which go on.
+                16 if mid => {
+                    let duration = f64::from(ui.get_duration()).max(1.0);
+                    ui.invoke_seek_fraction(((duration - 35.0) / duration) as f32);
+                }
+                17 if mid => report_credits(&ui, "resumed"),
+                16 if !mid => eprintln!("dbm: --- credits test: holding ---"),
+                18 if mid => eprintln!("dbm: --- credits test: holding ---"),
                 _ => {}
             }
             step += 1;
@@ -688,8 +714,10 @@ fn report_credits(ui: &MainWindow, label: &str) {
         .map(|r| format!("{}x{}@{},{}", r.width, r.height, r.x, r.y))
         .collect();
     eprintln!(
-        "dbm: credits {label:<11} rolling={} chapter={:?} at-last={} idle={} ring={}@{} t={} {:?} | {} rect(s) {}",
+        "dbm: credits {label:<11} rolling={} says={:?} scene={:.1} chapter={:?} at-last={} idle={} ring={}@{} t={} {:?} | {} rect(s) {}",
         ui.get_credits_rolling(),
+        ui.get_credits_label(),
+        ui.get_after_credits(),
         ui.get_chapter_label(),
         ui.get_at_last(),
         ui.global::<crate::Chrome>().get_idle(),

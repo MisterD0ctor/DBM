@@ -69,6 +69,7 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_credits_rolling(player.credits_rolling());
     ui.set_intro_rolling(player.intro_rolling());
     ui.set_intro_end(player.intro().map_or(0.0, |(_, end)| end as f32));
+    ui.set_after_credits(player.after_credits().map_or(0.0, |at| at as f32));
     // Where the dialogs open: beside this file, or on the shelf above its
     // folder.
     ui.set_current_path(player.path.clone().unwrap_or_default().into());
@@ -175,6 +176,7 @@ pub fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_credits_rolling(player.credits_rolling());
     ui.set_intro_rolling(player.intro_rolling());
     ui.set_intro_end(player.intro().map_or(0.0, |(_, end)| end as f32));
+    ui.set_after_credits(player.after_credits().map_or(0.0, |at| at as f32));
 }
 
 /// Which row of a track list is the selected one, or -1.

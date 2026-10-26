@@ -59,6 +59,14 @@ const NEAR_THE_END: f64 = 300.0;
 /// How near the end of a file what ends it has to end, in seconds: the few
 /// it takes to go dark.
 const AT_THE_END: f64 = 5.0;
+/// How much longer one episode stops the music under its credits for than
+/// another, which goes straight on, in seconds, for what it stops for to be
+/// a scene. Less is a card, or a moment more of black.
+const AFTER_CREDITS: f64 = 4.0;
+/// How far apart two pieces of the music an episode shares with another can
+/// lie in it and still be the music going straight on, in seconds: matching
+/// falters for a moment where the other was cut.
+const STRAIGHT_ON: f64 = 5.0;
 
 /// Which end of an episode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -90,14 +98,17 @@ impl End {
         }
     }
 
-    /// What listening for it found, by file: where it is, or that there is
-    /// none.
+    /// What listening for it found, by file: where it is, in pieces, or that
+    /// there is none. A title sequence is one piece. Credits can be several,
+    /// with a scene of the episode's own between two, and the last runs to
+    /// the end of the file unless one was heard after it (see
+    /// [`credits_pieces`]).
     ///
     /// Both are kept, since an episode with no sequence is as much work to
     /// hear as one with, and would otherwise be heard again every time.
-    fn heard(self) -> &'static PathMap<Option<Span>> {
-        static OPENINGS: PathMap<Option<Span>> = PathMap::cache("intros.json", HEARD);
-        static CLOSINGS: PathMap<Option<Span>> = PathMap::cache("outros.json", HEARD);
+    fn heard(self) -> &'static PathMap<Option<Vec<Span>>> {
+        static OPENINGS: PathMap<Option<Vec<Span>>> = PathMap::cache("intros.json", HEARD);
+        static CLOSINGS: PathMap<Option<Vec<Span>>> = PathMap::cache("outros.json", HEARD);
         match self {
             End::Opening => &OPENINGS,
             End::Closing => &CLOSINGS,
@@ -116,14 +127,17 @@ pub type Span = (f64, f64);
 /// 2. With up to four of the season, those known to hold the sequence
 ///    first; credits from eight seconds, if they end an episode.
 /// 3. The nearest of the season first, known to hold the sequence or not.
-const HEARD: u32 = 3;
+/// 4. Credits in pieces, with a scene between two, or after the last, where
+///    the other's music goes straight on and this one's stops; otherwise
+///    one, to the end of the file.
+const HEARD: u32 = 4;
 
 /// A run's answer: the file it listened to, which end of it, and what it
-/// found there.
+/// found there, in pieces.
 pub struct Outcome {
     pub path: String,
     pub end: End,
-    pub span: Option<Span>,
+    pub pieces: Option<Vec<Span>>,
 }
 
 /// Bumped by every run. One that finds the number has moved on stops.
@@ -178,8 +192,8 @@ pub fn beside(path: &str, playlist: &[String]) -> Vec<(String, usize)> {
 /// that was wrong.
 fn worth_trying<'a>(
     beside: &'a [(String, usize)],
-    known: &HashMap<String, Option<Span>>,
-) -> Vec<(&'a str, Option<Option<Span>>)> {
+    known: &HashMap<String, Option<Vec<Span>>>,
+) -> Vec<(&'a str, Option<Option<Vec<Span>>>)> {
     let mut ranked: Vec<(usize, &(String, usize))> = beside.iter().enumerate().collect();
     ranked.sort_by_key(|&(near, (other, away))| {
         let held = known.get(other);
@@ -190,7 +204,7 @@ fn worth_trying<'a>(
     ranked
         .into_iter()
         .take(TRIES)
-        .map(|(_, (other, _))| (other.as_str(), known.get(other).copied()))
+        .map(|(_, (other, _))| (other.as_str(), known.get(other).cloned()))
         .collect()
 }
 
@@ -217,19 +231,25 @@ pub fn spawn(
             if !current(generation) {
                 return;
             }
-            let Some(span) = found else {
+            let Some(pieces) = found else {
                 continue;
             };
             let what = match end {
                 End::Opening => "title sequence",
                 End::Closing => "closing credits",
             };
-            match span {
-                Some((start, to)) => eprintln!("dbm: {what} from {start:.1} s to {to:.1} s"),
+            match &pieces {
+                Some(pieces) => {
+                    let at: Vec<String> = pieces
+                        .iter()
+                        .map(|(start, to)| format!("from {start:.1} s to {to:.1} s"))
+                        .collect();
+                    eprintln!("dbm: {what} {}", at.join(", then "));
+                }
                 None => eprintln!("dbm: no {what} heard"),
             }
             let path = path.clone();
-            reporter.send(Completion::Titles(Outcome { path, end, span }));
+            reporter.send(Completion::Titles(Outcome { path, end, pieces }));
         }
     });
 }
@@ -242,11 +262,11 @@ fn find(
     beside: &[(String, usize)],
     duration: f64,
     generation: u64,
-) -> Option<Option<Span>> {
+) -> Option<Option<Vec<Span>>> {
     let heard = end.heard();
     let known = heard.load();
     if let Some(found) = known.get(path) {
-        return Some(*found);
+        return Some(found.clone());
     }
     if beside.is_empty() || duration <= 0.0 {
         return None;
@@ -265,29 +285,34 @@ fn find(
     // tried, in case one shares more: credits that are a short cut of
     // another episode's share only the cut, and an episode heard to hold
     // only part of its credits offers only that part.
-    let mut short: Option<(Span, &str, Span)> = None;
+    let mut short: Option<(Span, &str, Vec<Span>, Vec<Span>)> = None;
     for (other, held) in worth_trying(beside, &known) {
-        // Where in the other file to listen, and for how long: around what
-        // it is known to hold, or else the same end as this one's. Its
-        // length is not known without asking, and its end cannot be found
-        // without it.
-        let known = matches!(held, Some(Some(_)));
-        let (window, length_there) = match (held, end) {
-            (Some(Some((start, to))), _) => {
-                let at = (start - AROUND).max(0.0);
-                (Some((at, to + AROUND - at)), None)
-            }
-            (_, End::Opening) => (Some((0.0, reach)), None),
-            (_, End::Closing) => {
-                let length = length(&ffmpeg, Path::new(other));
-                (length.map(|l| (from(l), reach)), length)
-            }
+        // How long the other file is, for the credits: where they end is
+        // judged against it, and where they are in a file not heard before
+        // cannot be found without it. It is not known without asking. A file
+        // that will not say, or will not decode, is not an episode without
+        // titles.
+        let length_there = match end {
+            End::Opening => None,
+            End::Closing => match length(&ffmpeg, Path::new(other)) {
+                Some(length) => Some(length),
+                None => continue,
+            },
         };
-        // A file that will not decode is not an episode without titles.
-        let theirs = window.and_then(|(at, long)| {
-            listen(&ffmpeg, Path::new(other), at, long, generation).zip(Some(at))
-        });
-        let Some((theirs, theirs_from)) = theirs else {
+        // Where in it to listen, and for how long: around what it is known
+        // to hold, or else the same end as this one's.
+        let known = matches!(held, Some(Some(_)));
+        let (theirs_from, long) = match (held, length_there) {
+            (Some(Some(pieces)), _) => {
+                let start = pieces.first().map_or(0.0, |piece| piece.0);
+                let to = pieces.last().map_or(0.0, |piece| piece.1);
+                let at = (start - AROUND).max(0.0);
+                (at, to + AROUND - at)
+            }
+            (_, Some(length)) => (from(length), reach),
+            (_, None) => (0.0, reach),
+        };
+        let Some(theirs) = listen(&ffmpeg, Path::new(other), theirs_from, long, generation) else {
             if !current(generation) {
                 return None;
             }
@@ -302,18 +327,32 @@ fn find(
         if end == End::Closing && !credits(here, duration, there, length_there, known) {
             continue;
         }
+        let (kept_here, kept_there) = match length_there {
+            Some(length_there) => {
+                let (ours_in, theirs_in) =
+                    pieces(&ours, from(duration), here, &theirs, theirs_from, there);
+                (
+                    credits_pieces(&ours_in, duration, &theirs_in, length_there),
+                    credits_pieces(&theirs_in, length_there, &ours_in, duration),
+                )
+            }
+            None => (vec![here], vec![there]),
+        };
         let lasts = |(start, to): Span| to - start;
         if lasts(here) < SHORTEST {
-            if short.is_none_or(|(kept, ..)| lasts(here) > lasts(kept)) {
-                short = Some((here, other, there));
+            if short
+                .as_ref()
+                .is_none_or(|(heard, ..)| lasts(here) > lasts(*heard))
+            {
+                short = Some((here, other, kept_here, kept_there));
             }
             continue;
         }
-        keep(heard, path, here, other, there);
-        return Some(Some(here));
+        keep(heard, path, &kept_here, other, kept_there);
+        return Some(Some(kept_here));
     }
-    if let Some((here, other, there)) = short {
-        keep(heard, path, here, other, there);
+    if let Some((_, other, here, there)) = short {
+        keep(heard, path, &here, other, there);
         return Some(Some(here));
     }
     if !compared {
@@ -323,14 +362,20 @@ fn find(
     Some(None)
 }
 
-/// Remember where a stretch two files share lies in each: `here` in `path`,
-/// the one playing, and `there` in `other`.
+/// Remember where what two files share lies in each: `here` in `path`, the
+/// one playing, and `there` in `other`.
 ///
 /// The other file's half doesn't replace what it was heard to hold when it
 /// was the one playing, only a finding of none, which that run must have
 /// missed.
-fn keep(heard: &PathMap<Option<Span>>, path: &str, here: Span, other: &str, there: Span) {
-    heard.set(path, Some(here));
+fn keep(
+    heard: &PathMap<Option<Vec<Span>>>,
+    path: &str,
+    here: &[Span],
+    other: &str,
+    there: Vec<Span>,
+) {
+    heard.set(path, Some(here.to_vec()));
     if !matches!(heard.load().get(other), Some(Some(_))) {
         heard.set(other, Some(there));
     }
@@ -355,6 +400,78 @@ fn credits(here: Span, duration: f64, there: Span, length_there: Option<f64>, kn
     }
     let last = |(_, to): Span, length: f64| to >= length - AT_THE_END;
     last(here, duration) || length_there.is_some_and(|length| last(there, length))
+}
+
+/// The stretch two episodes share at their ends, `here` in ours and `there`
+/// in theirs, with any more of the same music in both just before it and
+/// just after: credits stopped for a scene come in pieces, and the longest
+/// is only one of them. Each piece in order, where it lies in this one and
+/// in the other.
+fn pieces(
+    ours: &Print,
+    ours_from: f64,
+    here: Span,
+    theirs: &Print,
+    theirs_from: f64,
+    there: Span,
+) -> (Vec<Span>, Vec<Span>) {
+    let mut both = vec![(here, there)];
+    let before = fingerprint::shared(
+        &ours.part(0.0, here.0 - ours_from),
+        &theirs.part(0.0, there.0 - theirs_from),
+        SHORTEST_CREDITS,
+    );
+    if let Some(before) = before {
+        both.insert(
+            0,
+            (
+                tidy(before.first, ours_from),
+                tidy(before.second, theirs_from),
+            ),
+        );
+    }
+    let after = fingerprint::shared(
+        &ours.part(here.1 - ours_from, f64::INFINITY),
+        &theirs.part(there.1 - theirs_from, f64::INFINITY),
+        SHORTEST_CREDITS,
+    );
+    if let Some(after) = after {
+        both.push((tidy(after.first, here.1), tidy(after.second, there.1)));
+    }
+    both.into_iter().unzip()
+}
+
+/// What is kept of an episode's credits, from the pieces of music it shares
+/// with another's at their ends: `ours` where each lies in this one, in
+/// order, `theirs` in the other, and `length` and `length_there` how long
+/// each file is.
+///
+/// Where the other's music goes straight on and this one's stops for
+/// [`AFTER_CREDITS`] longer, what it stops for is a scene: between two
+/// pieces, or after the last, where the other's music ends its file. Only
+/// then, since where shared music stops says nothing by itself: two cuts of
+/// one song part wherever they differ, and the rest of the longer is more
+/// credits. Anywhere else the pieces are one, and the last runs to the end
+/// of the file.
+fn credits_pieces(ours: &[Span], length: f64, theirs: &[Span], length_there: f64) -> Vec<Span> {
+    let stops =
+        |gap: f64, gap_there: f64| gap_there <= STRAIGHT_ON && gap - gap_there >= AFTER_CREDITS;
+    let mut kept: Vec<Span> = Vec::new();
+    for (at, piece) in ours.iter().enumerate() {
+        match kept.last_mut() {
+            Some(last) if !stops(piece.0 - ours[at - 1].1, theirs[at].0 - theirs[at - 1].1) => {
+                last.1 = piece.1;
+            }
+            _ => kept.push(*piece),
+        }
+    }
+    let after = |pieces: &[Span], length: f64| length - pieces.last().map_or(length, |p| p.1);
+    if !stops(after(ours, length), after(theirs, length_there)) {
+        if let Some(last) = kept.last_mut() {
+            last.1 = length;
+        }
+    }
+    kept
 }
 
 /// A stretch found in a recording that began `from` seconds into its file,
@@ -468,7 +585,7 @@ mod tests {
 
     fn tried<'a>(
         near: &'a [(String, usize)],
-        known: &HashMap<String, Option<Span>>,
+        known: &HashMap<String, Option<Vec<Span>>>,
     ) -> Vec<&'a str> {
         worth_trying(near, known)
             .into_iter()
@@ -511,8 +628,8 @@ mod tests {
         let mut known = HashMap::new();
         known.insert("Show.S07E06.mkv".to_string(), None);
         known.insert("Show.S07E04.mkv".to_string(), None);
-        known.insert("Show.S07E03.mkv".to_string(), Some((0.0, 25.0)));
-        known.insert("Show.S07E09.mkv".to_string(), Some((0.0, 25.0)));
+        known.insert("Show.S07E03.mkv".to_string(), Some(vec![(0.0, 25.0)]));
+        known.insert("Show.S07E09.mkv".to_string(), Some(vec![(0.0, 25.0)]));
         // The one that holds them ahead of the one as near not yet heard,
         // then the next nearest, the later of two as near. The further one
         // that holds them is not reached, and nor are the two either side,
@@ -535,7 +652,7 @@ mod tests {
         let season: Vec<String> = (1..=22).map(|e| format!("Show.S01E{e:02}.mkv")).collect();
         let near = beside("Show.S01E12.mkv", &season);
         let known = (1..=11)
-            .map(|e| (format!("Show.S01E{e:02}.mkv"), Some((50.0, 140.0))))
+            .map(|e| (format!("Show.S01E{e:02}.mkv"), Some(vec![(50.0, 140.0)])))
             .collect();
         // Outward from the change, so the second half's own are reached
         // rather than all of the first half's.
@@ -587,6 +704,55 @@ mod tests {
         let far = (0.0, 0.0);
         assert!(credits((2547.9, 2582.3), 2700.0, far, None, false));
         assert!(!credits((1000.0, 1040.0), 2700.0, far, None, false));
+    }
+
+    #[test]
+    fn credits_run_to_the_end_unless_a_scene_follows() {
+        // Psycho-Pass 13 against 12: the same song, which ends 12, and then
+        // ten seconds more of 13.
+        let (thirteen, twelve) = ([(1273.7, 1361.2)], [(1282.3, 1369.8)]);
+        assert_eq!(
+            credits_pieces(&thirteen, 1371.6, &twelve, 1372.4),
+            [(1273.7, 1361.2)]
+        );
+        assert_eq!(
+            credits_pieces(&twelve, 1372.4, &thirteen, 1371.6),
+            [(1282.3, 1372.4)]
+        );
+        // 8 against 7: where the two cuts part, 7 goes on too, so the rest
+        // of 8 is more of its credits.
+        assert_eq!(
+            credits_pieces(&[(1280.0, 1340.5)], 1371.9, &[(1297.5, 1358.0)], 1372.1),
+            [(1280.0, 1371.9)]
+        );
+        // A card's length more than the other is no scene.
+        assert_eq!(
+            credits_pieces(&[(1282.0, 1366.0)], 1370.0, &[(1282.0, 1368.0)], 1370.0),
+            [(1282.0, 1370.0)]
+        );
+    }
+
+    #[test]
+    fn credits_that_stop_for_a_scene_are_two_pieces() {
+        // Psycho-Pass 18 against 21: fifty seconds of the song, a scene of a
+        // minute and a half, and the rest, which in 21 goes straight on.
+        let eighteen = [(1191.8, 1241.9), (1333.8, 1368.6)];
+        let twenty_one = [(1282.4, 1332.6), (1335.1, 1369.9)];
+        assert_eq!(
+            credits_pieces(&eighteen, 1372.2, &twenty_one, 1372.2),
+            [(1191.8, 1241.9), (1333.8, 1372.2)]
+        );
+        assert_eq!(
+            credits_pieces(&twenty_one, 1372.2, &eighteen, 1372.2),
+            [(1282.4, 1372.2)]
+        );
+        // Where both stop, neither says the song goes on, so the pieces are
+        // one, as two cuts of it would be.
+        let other = [(1200.0, 1250.0), (1320.0, 1369.0)];
+        assert_eq!(
+            credits_pieces(&eighteen, 1372.2, &other, 1372.0),
+            [(1191.8, 1372.2)]
+        );
     }
 
     #[test]

@@ -1638,7 +1638,8 @@ file as its row says it, or at the end of a season the season after it — and
 right group, the corner it keeps to; a long title elides rather than reach over
 the names. The credits are a chapter named for them —
 *End Credits*, *Credits*, *Outro*, *ED*, *Ending* — in the file's second half,
-and the pill stays from there to the end. Where no chapter has a real name —
+and the pill stays from there to the end, or to a scene after them (see
+*Skipping to a scene after the credits* below). Where no chapter has a real name —
 each titled with its own start time, *Chapter 7*, or nothing, as broadcast
 episodes split at their act breaks usually are — the last chapter is the
 credits if it runs three minutes or less. A file without chapters, or with
@@ -1650,8 +1651,9 @@ end. A short show's credits can run under ten seconds, and from eight seconds
 up they count — but one shorter than a title sequence has to be the very end
 of one of the two episodes, or match what is already known to be the other's
 credits, because a cue that comes round every episode is that short too.
-A film never gets one. It needs somewhere to go: a later file, or at the
-end of a season the next season found beside it.
+A film never gets one to go on with. It needs somewhere to go: a later file,
+or at the end of a season the next season found beside it. It does get the
+skip to a scene after its credits, which needs nowhere else.
 
 It keeps out of the middle, where the names roll, and sits at the bottom right
 on the bar's lines: at `MainWindow.panel-margin` while the bar is away, lifted
@@ -1665,6 +1667,28 @@ pill that has gone. Like the
 end pill it is not tied to the idle clock. It stands aside for an open panel
 and for the seek preview when the preview reaches its column; a hover label
 that would land on it goes up a row instead. Glass never lies on glass.
+
+**Skipping to a scene after the credits.** Where something of the episode's
+own follows its credits, or stops them part way — a scene, a last shot —
+going on from them would skip it, so the capsule says *Skip credits*
+instead, with the Skip glyph, and lands on it. From there it is the
+episode, and nothing is offered while it plays; where credits come after
+it, they offer the way on again, and otherwise the end pill does. A film
+gets the same. From chapters, a scene is any chapter after the credits'
+first that is neither more of them nor a look at the next episode —
+*Preview*, *Next Time* — which is more of the way on, so credits followed
+only by one still offer the next episode. A chapter named for a scene among
+the credits, *Post-Credits Scene* or *Mid-Credits*, is never the credits.
+Heard, the credits are the music the two episodes share, in pieces: the
+stretch first found, and more of the same just before it and just after it
+in both. Where the other episode's music goes straight on and this one's
+stops for longer by `titles.AFTER_CREDITS`, what it stops for is a scene —
+between two pieces, or after the last, where the other's music ends its
+file. Where the shared music stops says nothing by itself: two cuts of one
+song part wherever they differ, and the rest of the longer is more credits.
+The skip lands `state.SCENE_LEAD` before the music stops, since a scene can
+start under the song's last bars. One that starts well before, under
+nothing but the song, is not heard, and the skip lands late in it.
 
 **Skipping the titles.** The same pill at the other end of an episode: while
 its title sequence plays the capsule says *Skip intro*, with the Skip glyph —
@@ -1699,9 +1723,10 @@ is heard: the first twenty minutes of this episode and of another in the
 playlist — same show, same season — are compared, and the longest stretch of
 the same sound in both, fifteen seconds or more, is the titles in each. The
 closing credits are heard the same way from the other end. Up to four
-episodes are tried: first those already known to hold the sequence, nearest
-first, listening only to where it lies in them; then the nearest not yet
-heard. Not just the two either side, because a season has its odd ones, and
+episodes are tried, the nearest first, since a season's titles can change
+part way through and the nearest are likeliest to share them; of two as
+near, one already known to hold the sequence, listening only to where it
+lies in it. Not just the two either side, because a season has its odd ones, and
 a show made in eleven-minute halves has titles on only every other episode —
 compared with its neighbours alone, every episode between two without found
 nothing. That takes a few seconds the first time and is kept for both; an

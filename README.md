@@ -18,7 +18,8 @@ window, the black bars pick up the colours from the edges of the picture.
 - **Skips intros.** It finds a show's opening titles and closing credits, from
   the chapters if the file has them or by comparing two episodes. You get a
   button to skip the intro, and one to go to the next episode when the credits
-  start.
+  start. If the credits stop for a scene, or one comes after them, that
+  button skips to the scene instead, so you don't miss it.
 - **Shows previews on the timeline.** Hover over the timeline to see a
   thumbnail of that moment.
 - **Fixes out-of-sync subtitles.** *Sync to speech* listens to the audio and

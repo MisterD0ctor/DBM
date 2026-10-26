@@ -117,8 +117,12 @@ export component MainWindow inherits Window {
     in property <string> chapter-label;
     /// An episode's closing credits are playing: a chapter named for them in
     /// the file's second half or one after it, or else the stretch its ending
-    /// shares with the next episode's. Decided on the Rust side.
+    /// shares with the next episode's. A film's too, where a scene follows
+    /// them. Decided on the Rust side.
     in property <bool> credits-rolling;
+    /// Where the scene after the credits starts, in seconds, where one does:
+    /// what skipping them lands on. 0 where they run to the end.
+    in property <float> after-credits;
     /// An episode's title sequence is playing with enough left to be worth
     /// skipping, and where it ends, in seconds. Found from a chapter named for
     /// it, or else from the stretch this episode shares with its neighbours
@@ -568,8 +572,9 @@ export component MainWindow inherits Window {
     callback replay();
     /// The next file, playing.
     callback play-next();
-    /// Past the title sequence: seconds from the start, landing exactly.
-    callback skip-intro(float);
+    /// Past the title sequence or the credits: seconds from the start,
+    /// landing exactly.
+    callback skip-to(float);
     /// Seconds, signed.
     callback seek-relative(float);
     /// Absolute position as 0..1 of the file, landing exactly.
@@ -1238,8 +1243,12 @@ export component MainWindow inherits Window {
     /// Somewhere to go: the next file, or the next season found beside this
     /// one when this is the last.
     property <bool> credits-onward: !root.at-last || root.onward-season;
+    /// A scene follows the credits, so the offer is to skip to it rather than
+    /// past it: the scene is the episode's, and the way on comes after it.
+    property <bool> credits-skip: root.after-credits > 0;
     property <bool> credits-offered: root.credits-rolling && root.has-file
-        && !root.at-end && !root.arriving && root.credits-onward && root.fatal == "";
+        && !root.at-end && !root.arriving && (root.credits-skip || root.credits-onward)
+        && root.fatal == "";
     /// The same pill while an episode's title sequence plays, offering to
     /// skip it. Same corner, for the same reason: people watch it too.
     property <bool> intro-offered: root.intro-rolling && root.has-file
@@ -1257,19 +1266,19 @@ export component MainWindow inherits Window {
     property <bool> corner-offered: root.credits-offered || root.intro-offered
         || root.resume-offered;
     /// Which: 0 the way on, 1 past the title sequence, 2 the place passed
-    /// over; -1 for none.
+    /// over, 3 past the credits to the scene after them; -1 for none.
     property <int> corner-offer: root.resume-offered ? 2
-        : root.credits-offered ? 0
+        : root.credits-offered ? (root.credits-skip ? 3 : 0)
         : root.intro-offered ? 1
         : -1;
-    property <bool> corner-intro: root.corner-offer == 1;
     /// Which the pill is dressed as. The offer ends the moment the pill is
     /// pressed, but the pill takes `Motion.surface` to fade, and has to keep
     /// saying the same thing meanwhile. So the last offer, and the place it
     /// named, are remembered until the next one.
     property <int> corner-was: 0;
     property <int> corner-says: root.corner-offer >= 0 ? root.corner-offer : root.corner-was;
-    property <bool> corner-says-intro: root.corner-says == 1;
+    /// Either skip: further into this file.
+    property <bool> corner-says-skip: root.corner-says == 1 || root.corner-says == 3;
     changed corner-offer => {
         if (root.corner-offer >= 0) {
             root.corner-was = root.corner-offer;
@@ -1286,7 +1295,8 @@ export component MainWindow inherits Window {
     /// be said.
     out property <string> credits-label: root.corner-says == 2
         ? @tr("Continue from {}", root.resume-offer-said)
-        : root.corner-says-intro ? @tr("Skip intro")
+        : root.corner-says == 1 ? @tr("Skip intro")
+        : root.corner-says == 3 ? @tr("Skip credits")
         : !root.at-last && root.next-label != "" ? root.next-label
         : root.at-last && root.onward-path != "" ? root.onward-label
         : @tr("Next episode");
@@ -3223,12 +3233,15 @@ export component MainWindow inherits Window {
     }
 
     /// On to the next episode: the next file, or the next season when this
-    /// was the last of one. Or, from the title sequence, on to the episode.
+    /// was the last of one. Or, from the title sequence, on to the episode,
+    /// and from credits a scene follows, on to the scene.
     function credits-activate() {
         if (root.corner-offer == 2) {
             root.take-resume-offer();
-        } else if (root.corner-intro) {
-            root.skip-intro(root.intro-end);
+        } else if (root.corner-offer == 1) {
+            root.skip-to(root.intro-end);
+        } else if (root.corner-offer == 3) {
+            root.skip-to(root.after-credits);
         } else if (!root.at-last) {
             root.play-next();
         } else {
@@ -5299,7 +5312,7 @@ export component MainWindow inherits Window {
             // Next's glyph for the next file, and Skip's for further into
             // this one; not Forward's, which has its ten seconds drawn in.
             icon: root.corner-says == 2 ? @image-url("../../../public/icons/play.svg")
-                : root.corner-says-intro ? @image-url("../../../public/icons/skip.svg")
+                : root.corner-says-skip ? @image-url("../../../public/icons/skip.svg")
                 : @image-url("../../../public/icons/step-forward.svg");
             label: root.credits-label;
             picked => {

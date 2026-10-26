@@ -4,7 +4,9 @@
 ///
 /// Chapter names are structural rather than written (`End Credits`, `Outro`,
 /// `ED`), so whole words are matched, and a title about the start (`Opening
-/// Credits`, `Intro`, `OP`) is refused whatever else it says.
+/// Credits`, `Intro`, `OP`) is refused whatever else it says. So is a scene
+/// set among them (`Post-Credits Scene`, `Mid-Credits`, `Stinger`), which is
+/// the film's or the episode's own.
 pub fn is_credits(title: &str) -> bool {
     let words: Vec<String> = title
         .split(|c: char| !c.is_alphanumeric())
@@ -12,9 +14,21 @@ pub fn is_credits(title: &str) -> bool {
         .map(str::to_lowercase)
         .collect();
     let has = |word: &str| words.iter().any(|w| w == word);
-    if ["opening", "intro", "op", "recap", "previously", "cold"]
-        .iter()
-        .any(|w| has(w))
+    if [
+        "opening",
+        "intro",
+        "op",
+        "recap",
+        "previously",
+        "cold",
+        "post",
+        "mid",
+        "after",
+        "scene",
+        "stinger",
+    ]
+    .iter()
+    .any(|w| has(w))
     {
         return false;
     }
@@ -71,6 +85,23 @@ pub fn is_intro(title: &str) -> bool {
         || words == ["titles"]
 }
 
+/// Whether a chapter's title marks a look at the next episode: `Preview`,
+/// `Next Episode`, `Next Time`, `Next Week`, `Yokoku`, `次回予告`. After the
+/// credits, anything else is a scene to stay for, and this is more of the
+/// way on.
+pub fn is_preview(title: &str) -> bool {
+    let words: Vec<String> = title
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(str::to_lowercase)
+        .collect();
+    let has = |word: &str| words.iter().any(|w| w == word);
+    has("preview")
+        || has("yokoku")
+        || title.contains("予告")
+        || (has("next") && ["episode", "time", "week"].iter().any(|w| has(w)))
+}
+
 /// Whether a chapter's title is only a placeholder (its own start time,
 /// `00:42:22.832`, or `Chapter 7`), as a muxer writes when nobody named it.
 pub fn is_unnamed_chapter(title: &str) -> bool {
@@ -117,6 +148,9 @@ mod tests {
             "Previously On",
             "The End of the Beginning",
             "Preview",
+            "Post-Credits Scene",
+            "Mid-Credits",
+            "After Credits",
         ] {
             assert!(!is_credits(title), "{title}");
         }
@@ -152,6 +186,29 @@ mod tests {
             "Open Water",
         ] {
             assert!(!is_intro(title), "{title}");
+        }
+    }
+
+    #[test]
+    fn previews_are_told_from_scenes() {
+        for title in [
+            "Preview",
+            "Next Episode Preview",
+            "Next Time",
+            "Next Week On",
+            "Yokoku",
+            "次回予告",
+        ] {
+            assert!(is_preview(title), "{title}");
+        }
+        for title in [
+            "Post-Credits Scene",
+            "Epilogue",
+            "Next Morning",
+            "The Next Generation",
+            "Chapter 9",
+        ] {
+            assert!(!is_preview(title), "{title}");
         }
     }
 

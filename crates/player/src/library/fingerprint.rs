@@ -93,6 +93,18 @@ impl Print {
         print
     }
 
+    /// The part of the recording from `from` seconds into it to `to`, as if
+    /// it had been recorded from `from`; `to` may run past its end.
+    pub fn part(&self, from: f64, to: f64) -> Self {
+        let look = |seconds: f64| (seconds * PER_SECOND).round().max(0.0) as usize;
+        let start = look(from).min(self.looks.len());
+        let end = look(to).clamp(start, self.looks.len());
+        Self {
+            looks: self.looks[start..end].to_vec(),
+            heard: self.heard[start..end].to_vec(),
+        }
+    }
+
     /// How long the recording was, to the last whole look.
     #[cfg(test)]
     fn len(&self) -> usize {
@@ -335,6 +347,23 @@ mod tests {
         let found = shared(&Print::of(&a), &Print::of(&b)).expect("a shared stretch");
         assert!((found.first.0 - 20.0).abs() < 1.0, "{found:?}");
         assert!((found.second.1 - 63.0).abs() < 1.0, "{found:?}");
+    }
+
+    #[test]
+    fn a_part_is_heard_as_if_recorded_from_where_it_was_cut() {
+        let theme = music(1, 30.0);
+        let a = Print::of(&episode(2, 20.0, &theme, 3));
+        let b = Print::of(&episode(4, 55.0, &theme, 5));
+        let found =
+            shared(&a.part(10.0, f64::INFINITY), &b.part(40.0, 90.0)).expect("a shared stretch");
+        for (was, want) in [
+            (found.first.0, 10.0),
+            (found.first.1, 40.0),
+            (found.second.0, 15.0),
+            (found.second.1, 45.0),
+        ] {
+            assert!((was - want).abs() < 1.0, "{found:?}");
+        }
     }
 
     #[test]

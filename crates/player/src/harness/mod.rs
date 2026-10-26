@@ -169,7 +169,12 @@
 //!   the last of them. `=heard` gives it nothing and plays into its last
 //!   twenty seconds, for a file with no chapters whose credits have to be
 //!   found by listening; point `APPDATA` at a scratch directory to watch it
-//!   listen, since what it hears is kept.
+//!   listen, since what it hears is kept. `=scene` ends the credits forty
+//!   seconds short, at a chapter for a scene after them, which Enter must
+//!   skip to rather than go on. `=mid` stops them for a scene forty seconds
+//!   in, which Enter must skip to, and then plays into the forty seconds of
+//!   credits after it, which must offer the next episode again.
+//!   `DBM_CREDITS_AT` names the second it plays into instead.
 //! * `DBM_INTRO_TEST=1` — waits for the episode's title sequence to be found,
 //!   by its chapters or by listening, and seeks into it so the pill offers to
 //!   skip it. Reports as it arrives and after the bar has gone, then presses

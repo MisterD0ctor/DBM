@@ -879,3 +879,7 @@ msgstr "{} kvar i dag"
 msgctxt "MainWindow"
 msgid "Find subtitles"
 msgstr "Hitta undertexter"
+
+msgctxt "MainWindow"
+msgid "Skip credits"
+msgstr "Hoppa över eftertexter"

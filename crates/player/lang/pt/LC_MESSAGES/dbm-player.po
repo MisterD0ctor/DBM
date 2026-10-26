@@ -883,3 +883,7 @@ msgstr "Mais {} hoje"
 msgctxt "MainWindow"
 msgid "Find subtitles"
 msgstr "Procurar legendas"
+
+msgctxt "MainWindow"
+msgid "Skip credits"
+msgstr "Pular créditos"

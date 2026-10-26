@@ -882,3 +882,7 @@ msgstr "Ancora {} oggi"
 msgctxt "MainWindow"
 msgid "Find subtitles"
 msgstr "Cerca sottotitoli"
+
+msgctxt "MainWindow"
+msgid "Skip credits"
+msgstr "Salta i titoli di coda"

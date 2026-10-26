@@ -882,3 +882,7 @@ msgstr "Heute noch {}"
 msgctxt "MainWindow"
 msgid "Find subtitles"
 msgstr "Untertitel suchen"
+
+msgctxt "MainWindow"
+msgid "Skip credits"
+msgstr "Abspann überspringen"

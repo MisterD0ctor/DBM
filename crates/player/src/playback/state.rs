@@ -95,8 +95,10 @@ pub struct PlayerState {
     /// file that is true of (see `titles`). Kept with its path, so a new file
     /// needs nothing cleared.
     pub intro_heard: Option<(String, (f64, f64))>,
-    /// Where its closing credits were heard to start, kept the same way.
-    pub credits_heard: Option<(String, f64)>,
+    /// Where its closing credits were heard to be, kept the same way: in
+    /// pieces, with a scene of the file's own between two, or after the last
+    /// where it stops short of the end.
+    pub credits_heard: Option<(String, Vec<(f64, f64)>)>,
     /// Playlist entries that wouldn't play, by mpv's id, so their rows can
     /// say so after the notice has gone. By id rather than path, since a file
     /// that fails at once has no path reported yet.
@@ -276,25 +278,69 @@ impl PlayerState {
         })
     }
 
-    /// Whether an episode's closing credits are playing: the chapter playing
-    /// is the one they start at (see [`credits_chapter`](Self::credits_chapter))
-    /// or one after it. Where the chapters don't say, the credits are where
-    /// they were heard to start, if they were.
+    /// Whether the closing credits are playing: the chapter playing is the
+    /// one they start at (see [`credits_chapter`](Self::credits_chapter)) or
+    /// more of them after it. Where the chapters don't say, the credits are
+    /// where they were heard, if they were.
+    ///
+    /// An episode's, which can go on to the next; and a film's only where a
+    /// scene follows them, which is somewhere to skip to that is the film's
+    /// own.
     pub fn credits_rolling(&self) -> bool {
-        let rolling = match self.credits_chapter() {
-            Some(start) => usize::try_from(self.chapter).is_ok_and(|current| current >= start),
-            None => self
-                .credits_heard_at()
-                .is_some_and(|start| self.time_pos >= start),
-        };
-        // Last, being the one that parses a name.
-        rolling
-            && self.path.as_deref().is_some_and(|path| {
-                matches!(
-                    crate::library::naming::parse(path),
-                    crate::library::naming::Media::Episode { .. }
-                )
-            })
+        match self.credits_playing() {
+            Some(scene) => scene.is_some() || self.is_episode(),
+            None => false,
+        }
+    }
+
+    /// Where the scene after the credits playing starts, where one does:
+    /// what skipping them lands on, whether they stop for it and go on
+    /// after, or end with it.
+    pub fn after_credits(&self) -> Option<f64> {
+        self.credits_playing().flatten()
+    }
+
+    /// Whether credits are playing, and if so where they next stop for a
+    /// scene of the file's own: `Some(None)` where they run to the end.
+    ///
+    /// By chapters, the credits are their first chapter and any after it
+    /// named for more of them or for a look at the next episode, which is
+    /// more of the way on; any other is a scene. Heard, they are the pieces
+    /// of music heard (see `titles`), and the skip lands `SCENE_LEAD` before
+    /// a piece stops, since a scene can start under the song's last bars.
+    fn credits_playing(&self) -> Option<Option<f64>> {
+        if let Some(first) = self.credits_chapter() {
+            let ending = |at: usize| {
+                at == first
+                    || self.chapters[at].title.as_deref().is_some_and(|title| {
+                        crate::library::naming::is_credits(title)
+                            || crate::library::naming::is_preview(title)
+                    })
+            };
+            let current = usize::try_from(self.chapter).ok()?;
+            if current < first || current >= self.chapters.len() || !ending(current) {
+                return None;
+            }
+            let scene = (current + 1..self.chapters.len()).find(|&at| !ending(at));
+            return Some(scene.map(|at| self.chapters[at].time));
+        }
+        let pieces = self.credits_heard_pieces()?;
+        let last = pieces.len() - 1;
+        pieces.iter().enumerate().find_map(|(at, &(start, end))| {
+            let followed = at < last || end + LENGTH_SLACK < self.duration;
+            let scene = followed.then_some(end - SCENE_LEAD);
+            (self.time_pos >= start && scene.is_none_or(|scene| self.time_pos < scene))
+                .then_some(scene)
+        })
+    }
+
+    fn is_episode(&self) -> bool {
+        self.path.as_deref().is_some_and(|path| {
+            matches!(
+                crate::library::naming::parse(path),
+                crate::library::naming::Media::Episode { .. }
+            )
+        })
     }
 
     /// Whether the chapters say where the credits are, by either of the
@@ -304,16 +350,14 @@ impl PlayerState {
         self.credits_chapter().is_some()
     }
 
-    /// Where this file's credits were heard to start. In its second half,
-    /// like everything else that is taken for an ending.
-    fn credits_heard_at(&self) -> Option<f64> {
+    /// Where this file's credits were heard to be, in pieces. In its second
+    /// half, like everything else that is taken for an ending.
+    fn credits_heard_pieces(&self) -> Option<&[(f64, f64)]> {
         let path = self.path.as_deref()?;
-        self.credits_heard
-            .as_ref()
-            .filter(|(of, start)| {
-                of == path && self.duration > 0.0 && *start >= self.duration / 2.0
-            })
-            .map(|(_, start)| *start)
+        let (of, pieces) = self.credits_heard.as_ref()?;
+        let starts = pieces.first()?.0;
+        (of == path && self.duration > 0.0 && starts >= self.duration / 2.0)
+            .then_some(pieces.as_slice())
     }
 
     /// The chapter the closing credits start at, where the chapters say.
@@ -551,6 +595,15 @@ impl PlayerState {
 /// The longest last chapter that is taken for credits when no chapter is
 /// named, in seconds.
 const CREDITS_TAIL: f64 = 180.0;
+/// How far before the music under heard credits stops a skip past them
+/// lands, in seconds. A scene after the credits can start under the song's
+/// last bars, and a moment more of the credits costs less than its start.
+const SCENE_LEAD: f64 = 3.0;
+/// How far short of the file's end heard credits have to stop to be taken
+/// for stopping there, in seconds: the length of a file read once by ffmpeg
+/// and once by mpv can differ by a little. Credits that stop for a scene
+/// stop well short (see `titles`).
+const LENGTH_SLACK: f64 = 1.0;
 
 /// The longest chapter named for a title sequence that is taken for one,
 /// in seconds.
@@ -711,21 +764,79 @@ mod tests {
     fn credits_that_were_heard_roll_where_no_chapter_marks_them() {
         let mut state = at(playing(EPISODE, -1, &[]), 3500.0);
         assert!(!state.credits_rolling());
-        state.credits_heard = Some((EPISODE.into(), 3480.0));
+        state.credits_heard = Some((EPISODE.into(), vec![(3480.0, 3600.0)]));
         assert!(state.credits_rolling());
         assert!(!at(state.clone(), 3470.0).credits_rolling());
         // Heard in another file, or in a film, they say nothing here.
-        state.credits_heard = Some(("Show.Name.S01E03.1080p.mkv".into(), 3480.0));
+        state.credits_heard = Some(("Show.Name.S01E03.1080p.mkv".into(), vec![(3480.0, 3600.0)]));
         assert!(!state.credits_rolling());
         let mut film = at(playing("Some Film (2019).mkv", -1, &[]), 3500.0);
-        film.credits_heard = Some(("Some Film (2019).mkv".into(), 3480.0));
+        film.credits_heard = Some(("Some Film (2019).mkv".into(), vec![(3480.0, 3600.0)]));
         assert!(!film.credits_rolling());
+    }
+
+    #[test]
+    fn a_scene_heard_after_the_credits_is_skipped_to() {
+        let mut state = at(playing(EPISODE, -1, &[]), 3500.0);
+        state.credits_heard = Some((EPISODE.into(), vec![(3480.0, 3560.0)]));
+        // A moment before the music stops, which the scene may start under.
+        assert_eq!(state.after_credits(), Some(3557.0));
+        assert!(state.credits_rolling());
+        // From there the scene is the episode's, and nothing is offered.
+        assert!(!at(state.clone(), 3557.0).credits_rolling());
+        // Credits that run to the end have nothing after them, though the
+        // length they were heard against is a little off mpv's.
+        state.credits_heard = Some((EPISODE.into(), vec![(3480.0, 3599.6)]));
+        assert_eq!(state.after_credits(), None);
+        assert!(at(state, 3590.0).credits_rolling());
+    }
+
+    #[test]
+    fn credits_heard_to_stop_for_a_scene_skip_to_it_and_go_on_after() {
+        let mut state = at(playing(EPISODE, -1, &[]), 3320.0);
+        state.credits_heard = Some((EPISODE.into(), vec![(3300.0, 3350.0), (3440.0, 3600.0)]));
+        assert_eq!(state.after_credits(), Some(3347.0));
+        assert!(state.credits_rolling());
+        // The scene is the episode's.
+        assert!(!at(state.clone(), 3400.0).credits_rolling());
+        // The rest of the credits run to the end, and go on from there.
+        let resumed = at(state, 3450.0);
+        assert!(resumed.credits_rolling());
+        assert_eq!(resumed.after_credits(), None);
+    }
+
+    /// Credits, a scene after them, and a look at the next episode.
+    const SCENE: &[(f64, &str)] = &[
+        (0.0, "Episode"),
+        (3400.0, "End Credits"),
+        (3500.0, "Post-Credits Scene"),
+        (3550.0, "Preview"),
+    ];
+
+    #[test]
+    fn a_chapter_after_the_credits_is_a_scene_to_skip_to() {
+        let state = playing(EPISODE, 1, SCENE);
+        assert!(state.credits_rolling());
+        assert_eq!(state.after_credits(), Some(3500.0));
+        assert!(!playing(EPISODE, 2, SCENE).credits_rolling());
+        // The preview after the scene is the way on again.
+        let preview = playing(EPISODE, 3, SCENE);
+        assert!(preview.credits_rolling());
+        assert_eq!(preview.after_credits(), None);
+        // A preview straight after the credits is more of the way on.
+        assert_eq!(playing(EPISODE, 1, MARKS).after_credits(), None);
+    }
+
+    #[test]
+    fn a_film_has_its_credits_skipped_only_to_a_scene_after_them() {
+        assert!(playing("Some Film (2019).mkv", 1, SCENE).credits_rolling());
+        assert!(!playing("Some Film (2019).mkv", 1, MARKS).credits_rolling());
     }
 
     #[test]
     fn chapters_are_believed_over_credits_that_were_heard() {
         let mut state = at(playing(EPISODE, 0, MARKS), 3300.0);
-        state.credits_heard = Some((EPISODE.into(), 3200.0));
+        state.credits_heard = Some((EPISODE.into(), vec![(3200.0, 3600.0)]));
         assert!(state.credits_marked());
         assert!(!state.credits_rolling());
     }

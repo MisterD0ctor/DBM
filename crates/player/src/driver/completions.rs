@@ -126,10 +126,14 @@ impl Driver {
             Completion::Titles(heard) => {
                 // Kept with its path, so an answer for a file that has since
                 // been replaced is simply about something else.
-                if let Some(span) = heard.span {
+                if let Some(pieces) = heard.pieces {
                     match heard.end {
-                        End::Opening => self.player.intro_heard = Some((heard.path, span)),
-                        End::Closing => self.player.credits_heard = Some((heard.path, span.0)),
+                        // A title sequence is heard as the one piece.
+                        End::Opening => {
+                            self.player.intro_heard =
+                                pieces.first().map(|&span| (heard.path, span));
+                        }
+                        End::Closing => self.player.credits_heard = Some((heard.path, pieces)),
                     }
                     // Pushed here, since a paused film reports nothing else
                     // that would.
