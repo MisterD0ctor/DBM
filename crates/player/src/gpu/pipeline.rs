@@ -203,9 +203,6 @@ fn luminance(encoded: f32) -> f32 {
     }
 }
 
-/// The Blur slider's default.
-const DEFAULT_BLUR: f32 = 10.0;
-
 /// How much wider the dispersion fringe is drawn than the dispersive power
 /// alone makes it, over a backdrop blurred by `sigma`: none wider over a
 /// sharp one, and with the square root of the blur past that.
@@ -220,7 +217,7 @@ pub fn fringe_scale(sigma: f32) -> f32 {
 impl Default for GlassParams {
     fn default() -> Self {
         Self {
-            blur_sigma: DEFAULT_BLUR,
+            blur_sigma: 10.0,
             // The glass is as thick as the rim is wide; see `BEVEL`.
             refract: 1.0,
             aberration: 0.3,
