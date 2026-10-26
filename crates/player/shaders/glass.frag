@@ -109,11 +109,12 @@ uniform float u_ior;
 /// As dispersive power, the reciprocal of the Abbe number glass is specified
 /// by, that top is about 2.16, where real glass runs from 1/70 for crown to
 /// 1/20 for dense flint: here the fringe is meant to be seen. That is the
-/// fringe at the default blur; see `u_fringe_scale`.
+/// fringe over a sharp backdrop; see `u_fringe_scale`.
 uniform float u_aberration;
 /// How far each wavelength's ray is moved off the d line's, against what
-/// `u_aberration` alone gives: in step with how wide the blurred backdrop's
-/// edges are, which a fringe is seen against (see `pipeline::fringe_scale`).
+/// `u_aberration` alone gives: further over a blurred backdrop, whose wider
+/// edges a fringe is seen against, though not as far as they have widened
+/// (see `pipeline::fringe_scale`).
 uniform float u_fringe_scale;
 uniform vec3 u_tint;
 /// Global tint strength. The per-panel value in `u_panel_style` says whether
@@ -629,8 +630,8 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // d-line ray is the answer, as across every flat middle, where the slope
     // and every offset are zero. Past that, about one wavelength per pixel of
     // smear, since fewer would show as bands, or per as many pixels as the
-    // fringe is widened: over edges that much wider, neighbouring wavelengths
-    // land on that much more alike values.
+    // fringe is widened: over the blur that widens it, neighbouring
+    // wavelengths land on that much more alike values.
     float spread = length(reach) * abs(ratio_violet - ratio_red) * u_fringe_scale;
     int bands = int(clamp(ceil(spread / max(u_fringe_scale, 1.0)), 1.0, float(budget)));
 

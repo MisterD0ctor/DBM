@@ -679,12 +679,12 @@ visible band under the CIE 1931 observer and D65 — the illuminant sRGB white
 already is. The Dispersion slider runs to the most the glass can disperse with
 every wavelength still bending: at 1 the band's red end, 705nm, is at an index
 of exactly 1, a dispersive power of about 2.16 (an Abbe number of 0.46, where
-dense flint is 20). That is at the default blur. A fringe is seen against the
-edges it splits, so
-at any other blur each wavelength's ray is moved off the d line's in step with
-how wide the blurred backdrop's edges are (`pipeline::fringe_scale`): the same
-setting is the same look at any blur, a perceptual slider rather than a
-physical one. One offset scaled three ways reads as a coloured edge while
+dense flint is 20). That is over a sharp backdrop. A fringe is seen against
+the edges it splits, which a blur widens, so over a blurred backdrop each
+wavelength's ray is moved further off the d line's, with the square root of
+the blur (`pipeline::fringe_scale`). Not in step with the edges: a heavy
+blur's run tens of pixels, and a fringe kept as wide is a wash of colour
+rather than an edge. One offset scaled three ways reads as a coloured edge while
 subtle and as three coloured copies past a pixel or two, so the band is sampled
 as finely as the smear is wide against those edges: one wavelength across the
 flat middle of every panel, where the slope and so the spread are zero, up to

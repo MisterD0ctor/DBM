@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-24T19:58:52Z",
+  "generatedAt": "2026-10-26T01:56:37Z",
   "title": "Design System: Death by MPV",
   "extensions": {
     "colorMeta": {
@@ -330,15 +330,15 @@
     "material": {
       "note": "The glass and ambient-border values as the code ships them (gpu/pipeline.rs). Not expressible as Stitch tokens: they are shader uniforms. Most are sliders on the settings panel's glass and ambient-border pages; bevel and ior are constants and deliberately not adjustable (see `fixed` below).",
       "glass": {
-        "blurSigma": 3,
+        "blurSigma": 10,
         "bevel": 1,
         "cornerSoftness": 1.25,
         "refract": 1,
         "ior": 2,
-        "aberration": 0.1,
+        "aberration": 0.3,
         "rim": 0.2,
         "tint": 0,
-        "absorb": 0.5,
+        "absorb": 0.35,
         "shadow": 0.2,
         "tintColor": [
           0.0,

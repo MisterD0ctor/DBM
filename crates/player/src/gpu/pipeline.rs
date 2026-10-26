@@ -103,8 +103,8 @@ pub struct GlassParams {
     /// every visible wavelength still bending, where the band's red end meets
     /// an index of 1 (a dispersive power of about 2.16, whatever the index).
     /// The shader integrates the transmitted ray over wavelength with it, so
-    /// this is the width of the prismatic fringe at the default blur, and in
-    /// step with the blur at any other (see [`fringe_scale`]).
+    /// this is the width of the prismatic fringe over a sharp backdrop, and
+    /// wider over a blurred one (see [`fringe_scale`]).
     pub aberration: f32,
     /// How strongly the rim light shows: white added round each pane's
     /// outermost edge, where the surface has turned past 45 degrees. Zero
@@ -203,19 +203,18 @@ fn luminance(encoded: f32) -> f32 {
     }
 }
 
-/// The Blur slider's default, and the blur at which Dispersion is the glass's
-/// own dispersive power; see [`fringe_scale`].
+/// The Blur slider's default.
 const DEFAULT_BLUR: f32 = 10.0;
 
 /// How much wider the dispersion fringe is drawn than the dispersive power
-/// alone makes it, over a backdrop blurred by `sigma`.
+/// alone makes it, over a backdrop blurred by `sigma`: none wider over a
+/// sharp one, and with the square root of the blur past that.
 ///
-/// A fringe is seen against the edges it splits, so it widens in step with
-/// them: their width here, √(σ² + 1px²), over their width at the default blur.
-/// Dispersion is then one look at any blur.
+/// A fringe is seen against the edges it splits, which a blur widens, so it
+/// widens too, but more slowly than they do: a heavy blur's edges run tens
+/// of pixels, and a fringe kept as wide is a wash of colour, not an edge.
 pub fn fringe_scale(sigma: f32) -> f32 {
-    let edge = |s: f32| (s + 1.0).sqrt();
-    edge(sigma.max(0.0))
+    (sigma.max(0.0) + 1.0).sqrt()
 }
 
 impl Default for GlassParams {
@@ -974,16 +973,16 @@ impl Pipeline {
 
 #[cfg(test)]
 mod tests {
-    use super::{fringe_scale, legible_ceiling, luminance, stricter, DEFAULT_BLUR, LEGIBLE};
+    use super::{fringe_scale, legible_ceiling, luminance, stricter, LEGIBLE};
 
     #[test]
-    fn the_fringe_is_the_glass_own_at_the_default_blur_and_widens_past_it() {
-        assert!((fringe_scale(DEFAULT_BLUR) - 1.0).abs() < 1e-6);
-        // Narrower under it, to a pixel's edge at no blur at all.
-        assert!((fringe_scale(0.0) - 1.0 / 10f32.sqrt()).abs() < 1e-6);
-        // And about in step with the blur well past it.
-        let wide = fringe_scale(100.0) / fringe_scale(50.0);
-        assert!((wide - 2.0).abs() < 0.01, "{wide}");
+    fn the_fringe_is_the_glass_own_when_sharp_and_widens_with_the_root_of_the_blur() {
+        assert!((fringe_scale(0.0) - 1.0).abs() < 1e-6);
+        // Four times the blur, twice the fringe.
+        let wide = fringe_scale(99.0) / fringe_scale(24.0);
+        assert!((wide - 2.0).abs() < 1e-6, "{wide}");
+        // Never narrower than the glass's own.
+        assert!((fringe_scale(-1.0) - 1.0).abs() < 1e-6);
     }
 
     /// The brightest 8-bit grey under a ceiling.
