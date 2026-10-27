@@ -783,13 +783,139 @@ export component MainWindow inherits Window {
     /// rect. Out so a test can say which page a key left it on.
     out property <int> settings-page: 0;
     in-out property <bool> fullscreen: false;
-    // Rust owns the idle clock; what it means is decided here. The bar stays
-    // up while a panel is open, while a film is paused, since pausing is
-    // stopping to look at where you are, and while an open is in flight,
-    // since "Opening …" in the title pill is the only sign a slow scan hasn't
-    // been ignored.
+    // Rust owns the idle clock; what it means is decided here. The chrome
+    // stays up while a panel is open, while a film is paused, since pausing
+    // is stopping to look at where you are, and under a pointer resting on
+    // the bar or the window's buttons, rather than leaving from under the
+    // hand about to use them.
     property <bool> controls-visible: !Chrome.idle || root.panel-open
-        || (root.paused && root.has-file) || root.opening;
+        || (root.paused && root.has-file && !root.stepped)
+        || root.bar-hovered || root.window-hovered;
+    /// Whether the pointer is on the bar: its pane, its two tracks or one
+    /// of its buttons.
+    property <bool> bar-hovered: bar-pane.has-hover || scrub.has-hover || vol.has-hover
+        || playlist-button.hovered || files-button.hovered || back-button.hovered
+        || previous-button.hovered || play-button.hovered || next-button.hovered
+        || forward-button.hovered || mute-button.hovered || audio-button.hovered
+        || subs-button.hovered || settings-button.hovered || panscan-button.hovered
+        || fullscreen-button.hovered;
+    property <bool> window-hovered: window-pane.has-hover || minimize-button.hovered
+        || maximize-button.hovered || close-button.hovered;
+
+    /// Whether the pause is one a frame step made. Stepping is looking at
+    /// the picture, which the bar would cover the foot of, not at where you
+    /// are, so the bar isn't held for it.
+    property <bool> stepped: false;
+    /// A step sent and not yet landed. mpv steps from a pause by playing a
+    /// frame and pausing again, and that moment of play is no one resuming.
+    property <bool> step-landing: false;
+    // Given up on after a while, since a step that never shows as play
+    // would otherwise outlast it and keep a later resume from counting.
+    Timer {
+        interval: 500ms;
+        running: root.step-landing;
+        triggered => {
+            root.step-landing = false;
+        }
+    }
+    changed paused => {
+        if (root.paused) {
+            root.step-landing = false;
+        } else if (!root.step-landing) {
+            root.stepped = false;
+        }
+    }
+
+    /// Whether the timeline is up on its own, after a seek from the keyboard:
+    /// the one thing a seek changes, without the buttons.
+    property <bool> timeline-glimpse: false;
+    glimpse-timer := Timer {
+        interval: Chrome.hide-after;
+        running: false;
+        triggered => {
+            glimpse-timer.stop();
+            root.timeline-glimpse = false;
+        }
+    }
+
+    /// Whether what is loaded is up on its own, the bar's title group without
+    /// the rest: as a file starts, since its name is the one thing worth
+    /// seeing then, and while an open is in flight, since "Opening …" there
+    /// is the only sign a slow scan hasn't been ignored.
+    property <bool> title-glimpse: root.opening || root.title-lingering;
+    /// A file's three seconds of that, as it starts; an open's last as long
+    /// as the open.
+    property <bool> title-lingering: false;
+    title-timer := Timer {
+        interval: Chrome.hide-after;
+        running: false;
+        triggered => {
+            title-timer.stop();
+            root.title-lingering = false;
+        }
+    }
+
+    // Ends `Chrome.settling`: long enough for a window going in or out of
+    // fullscreen to reach its new size, short enough that a hand reaching
+    // for the mouse straight after finds the chrome.
+    Timer {
+        interval: 500ms;
+        running: Chrome.settling;
+        triggered => {
+            Chrome.settling = false;
+        }
+    }
+
+    /// The seek is newer news than the file's name, so it takes the title's
+    /// place.
+    function glimpse-timeline() {
+        root.key-wake = 1;
+        root.timeline-glimpse = true;
+        glimpse-timer.stop();
+        glimpse-timer.start();
+        root.title-lingering = false;
+        title-timer.stop();
+    }
+
+    function glimpse-title() {
+        root.title-lingering = true;
+        title-timer.stop();
+        title-timer.start();
+    }
+
+    /// Put the chrome away for a key or a double-click that asked for the
+    /// picture, glimpses and all.
+    function put-away() {
+        Chrome.rest();
+        root.timeline-glimpse = false;
+        glimpse-timer.stop();
+        root.title-lingering = false;
+        title-timer.stop();
+    }
+
+    /// What the key being handled does to the chrome: 0 wakes it; 1 brings
+    /// up nothing, for a key whose own answer is enough (its flash, the
+    /// timeline, the picture), though it keeps up what is; 2 puts it away,
+    /// for a key that asked for the picture: more of it, or the film going
+    /// on.
+    property <int> key-wake: 0;
+
+    /// Shift and the rest pressed alone, which arrive as keys of their own
+    /// ahead of the key they modify, and would wake the bar before a Shift+→
+    /// could decide it shouldn't.
+    function lone-modifier(text: string) -> bool {
+        return text == Key.Shift || text == Key.ShiftR || text == Key.Control
+            || text == Key.ControlR || text == Key.Alt || text == Key.AltGr
+            || text == Key.Meta || text == Key.MetaR;
+    }
+
+    function after-key(text: string) {
+        if (root.key-wake == 2) {
+            root.put-away();
+        } else if ((root.key-wake == 0 && !root.lone-modifier(text)) || !Chrome.idle) {
+            Chrome.bump();
+        }
+    }
 
     /// Whether the pointer should be off screen: over a film with the chrome
     /// gone, but never on an empty window, where it is how the way in is
@@ -816,6 +942,42 @@ export component MainWindow inherits Window {
             root.bar-resume = Chrome.focus-visible;
             Chrome.focus-visible = false;
         }
+        root.shape-bar();
+    }
+
+    changed timeline-glimpse => {
+        root.shape-bar();
+    }
+
+    changed title-glimpse => {
+        root.shape-bar();
+    }
+
+    /// Whether the bar is whole, or a part of it alone. Left as it is while
+    /// the bar leaves, so it fades out in the shape it had rather than
+    /// shrinking first.
+    property <bool> bar-whole: true;
+    /// Which part is up when the bar isn't whole: 0 the timeline, 1 what is
+    /// loaded.
+    property <int> bar-part: 0;
+    /// Whether the bar takes its new shape at once, as it does when it was
+    /// gone, rather than growing into it.
+    property <bool> bar-snap: false;
+
+    function shape-bar() {
+        if (!(root.controls-visible || root.timeline-glimpse || root.title-glimpse)) {
+            return;
+        }
+        // From one part alone to the other there is nothing to grow through.
+        root.bar-snap = root.bar-shown < root.shown-epsilon
+            || (!root.bar-whole && root.bar-part != root.part-alone());
+        root.bar-part = root.part-alone();
+        root.bar-whole = root.controls-visible;
+    }
+
+    /// The part to show alone, the seek's before the file's.
+    pure function part-alone() -> int {
+        return root.timeline-glimpse ? 0 : root.title-glimpse ? 1 : root.bar-part;
     }
 
     /// Scroll whichever list the ring is in to keep its row in view.
@@ -911,13 +1073,13 @@ export component MainWindow inherits Window {
         }
     }
 
-    // The credits or the title sequence starting wakes the bar once and asks
-    // nothing more, so doing nothing is watching them. The ring goes to the
+    // The credits or the title sequence starting brings up their pill alone,
+    // not the bar: the pill is the one thing on offer, and the bar would only
+    // cover the names. Doing nothing is watching them. The ring goes to the
     // pill so Enter skips them, and leaves with the pill, or Enter would skip
     // the episode that just started.
     changed corner-offered => {
         if (root.corner-offered) {
-            Chrome.bump();
             root.bar-focus = root.pill-stop;
             Chrome.focus-visible = true;
         } else if (root.bar-focus >= root.pill-stop && !root.centre-up) {
@@ -941,7 +1103,22 @@ export component MainWindow inherits Window {
     property <length> lift: 6px;
 
     // Hidden with no film loaded, when most of its buttons can do nothing.
-    property <float> bar-shown: root.controls-visible && root.has-file ? 1.0 : 0.0;
+    property <float> bar-shown: (root.controls-visible || root.timeline-glimpse
+        || root.title-glimpse) && root.has-file ? 1.0 : 0.0;
+    /// 1 with the bar whole, 0 with a part alone (see `bar-sink`).
+    property <float> bar-full: root.bar-whole ? 1.0 : 0.0;
+    animate bar-full {
+        duration: root.bar-snap ? 0ms : Motion.surface;
+        easing: ease-out;
+    }
+    /// The buttons' row, which comes in over the second half of the bar's
+    /// growing, once the timeline has mostly risen out of its way.
+    property <float> pills-shown: root.bar-shown * clamp(2 * root.bar-full - 1, 0, 1);
+    /// What is loaded, which is up alone as a file starts.
+    property <float> loaded-shown: root.bar-part == 1 ? root.bar-shown : root.pills-shown;
+    /// The timeline's row, which is up alone after a seek, and comes in
+    /// like the buttons as the bar grows from what is loaded.
+    property <float> timeline-shown: root.bar-part == 1 ? root.pills-shown : root.bar-shown;
     property <float> menu-shown: root.menu-open ? 1.0 : 0.0;
     property <float> audio-shown: root.audio-open ? 1.0 : 0.0;
     property <float> playlist-shown: root.playlist-open ? 1.0 : 0.0;
@@ -1104,6 +1281,27 @@ export component MainWindow inherits Window {
     /// The top of the bar's glass, which panels, the tip and the seek
     /// preview open above.
     property <length> bar-top: root.timeline-y - root.bar-pad;
+    /// How far below its place the bar's top is drawn with a part alone: by
+    /// the buttons' row under the timeline, so it rests where the buttons
+    /// would and covers as little of the picture as it can; by the timeline
+    /// over what is loaded, which keeps its place.
+    property <length> bar-sink: (1.0 - root.bar-full)
+        * (root.bar-part == 1 ? root.timeline-h : root.pill-h);
+    /// The top of the bar's glass as drawn, which is what the subtitles and
+    /// the corner pill keep above.
+    property <length> bar-edge: root.bar-top + root.bar-sink;
+    property <length> bar-drawn-h: root.bar-h - root.bar-sink;
+    /// The pane's width: the window's, less the margins, or what is loaded
+    /// with `bar-pad` round it, growing to the right from there.
+    property <length> bar-drawn-w: root.bar-part == 1
+        ? root.loaded-pane-w + (root.width - 2 * root.panel-margin - root.loaded-pane-w)
+            * root.bar-full
+        : root.width - 2 * root.panel-margin;
+    property <length> loaded-pane-w: root.left-w + 2 * root.bar-pad;
+    /// How far below its place the timeline's row is drawn: with the bar's
+    /// top when it is up alone, and in place while the bar grows over it
+    /// from what is loaded.
+    property <length> timeline-sink: root.bar-part == 1 ? 0px : root.bar-sink;
 
     /// Transport: previous, back, play, forward, next.
     property <length> center-w: 2 * root.pill-pad + 5 * root.btn + 4 * root.btn-gap;
@@ -1406,9 +1604,12 @@ export component MainWindow inherits Window {
         2 * root.pill-text-pad + 24px + root.end-gap + credits-measure.preferred-width,
         root.right-w);
     property <length> credits-x: root.width - root.panel-margin - root.credits-w;
-    /// Driven by the bar's own fade, so it moves exactly with the bar.
+    /// Driven by the bar's own fade, so it moves exactly with the bar. What
+    /// is loaded alone never reaches the pill's column, so the pill rises
+    /// only as the bar grows from it.
     property <length> credits-y: root.height - root.panel-margin - root.pill-h
-        - root.bar-shown * (root.height - root.panel-margin - root.bar-top + Rows.offset);
+        - (root.bar-part == 1 ? root.bar-shown * root.bar-full : root.bar-shown)
+            * (root.height - root.panel-margin - root.bar-edge + Rows.offset);
     /// The seek preview reaching the pill's column. The preview is what the
     /// pointer asked for, so the pill is the one that goes.
     property <bool> credits-crowded: root.preview-open
@@ -1446,6 +1647,11 @@ export component MainWindow inherits Window {
     property <string> flash-audio-label: root.audio-current >= 0
         && root.audio-current < root.audio-tracks.length
         ? root.audio-tracks[root.audio-current].label : @tr("No audio");
+    /// The level as words, for the volume's label and its keys' flash. Muted,
+    /// it says so, since the level is then a number nothing is heard at.
+    property <string> volume-said: root.muted
+        ? @tr("Muted")
+        : @tr("Volume {}%", Math.round(root.volume));
     /// Set once a notice has had its dwell: it then stays until the next key
     /// or pointer event, so a failure glanced away from is still there.
     property <bool> flash-waiting: false;
@@ -1463,6 +1669,7 @@ export component MainWindow inherits Window {
         : Flash.figure == 2 ? root.chapter-label
         : Flash.figure == 3 ? root.flash-sub-label
         : Flash.figure == 4 ? root.flash-audio-label
+        : Flash.figure == 5 ? root.volume-said
         : Flash.icon == Flash.delay ? root.sub-delay-text : "";
     property <length> flash-text-h: 28px;
     property <length> flash-text-pad: 14px;
@@ -1632,7 +1839,7 @@ export component MainWindow inherits Window {
     /// bar, it can't outlive the button it names.
     property <float> tip-on: root.panel-open || root.tip-cut
         ? 0.0
-        : root.tip-shown * root.bar-shown;
+        : root.tip-shown * root.pills-shown;
     property <length> tip-rise: (1.0 - root.tip-shown) * root.lift;
 
     /// What the tip shows, copied from `Tip` only when a tip goes up, so a
@@ -1725,15 +1932,15 @@ export component MainWindow inherits Window {
     /// mpv's bottom margin above the bar, so the bar arriving reads as
     /// the floor rising. The Rust side takes the lower of this and the
     /// person's own Position (see `subline`).
-    out property <float> subtitle-ceiling: 100 * root.bar-top / root.height;
+    out property <float> subtitle-ceiling: 100 * root.bar-edge / root.height;
     /// How much of that applies this frame, faded with the bar so the line
     /// climbs and settles rather than leaping.
     ///
     /// Not while Position is being set: held at the ceiling, the line wouldn't
     /// visibly move for small steps, so it drops to where it rests until
     /// Size or Timing is used or the page is left.
-    out property <float> subtitle-lift: root.controls-visible && root.has-file
-        && !(root.placing-subtitles && root.menu-open
+    out property <float> subtitle-lift: (root.controls-visible || root.timeline-glimpse
+        || root.title-glimpse) && root.has-file && !(root.placing-subtitles && root.menu-open
             && root.subs-page == 2) ? 1.0 : 0.0;
     /// Whether Position was the last of the subtitles' three adjustments used.
     property <bool> placing-subtitles: false;
@@ -2175,7 +2382,7 @@ export component MainWindow inherits Window {
         {
             x: root.bar-x + root.lp-title,
             y: root.pills-y + root.bar-rise + root.pill-pad,
-            width: root.bar-shown > root.shown-epsilon ? root.title-room : 0px,
+            width: root.loaded-shown > root.shown-epsilon ? root.title-room : 0px,
             height: root.pill-h - 2 * root.pill-pad,
             top: 0,
             bottom: 0,
@@ -2203,16 +2410,17 @@ export component MainWindow inherits Window {
         // than a capsule for each row and group, because the rim is as wide as
         // the corner (`BEVEL`), so a capsule is rim the whole way through; a
         // pane taller than its corners has a flat middle for the rim to roll
-        // down from.
+        // down from. A part alone is too short for that, and is a capsule
+        // like the pills.
         {
             x: root.panel-margin,
-            y: root.bar-top + root.bar-rise,
-            width: root.bar-shown > root.shown-epsilon ? root.width - 2 * root.panel-margin : 0,
-            height: root.bar-shown > root.shown-epsilon ? root.bar-h : 0,
+            y: root.bar-edge + root.bar-rise,
+            width: root.bar-shown > root.shown-epsilon ? root.bar-drawn-w : 0,
+            height: root.bar-shown > root.shown-epsilon ? root.bar-drawn-h : 0,
             opacity: root.bar-shown,
             // Opt in to tinting; the strength is the global slider.
             tint: 1.0,
-            radius: root.panel-radius,
+            radius: min(root.panel-radius, root.bar-drawn-h / 2),
         },
         // The window's own buttons, on one pane.
         {
@@ -2229,9 +2437,9 @@ export component MainWindow inherits Window {
         {
             x: root.ring-disc-x,
             y: root.pills-y + root.bar-rise + root.pill-pad,
-            width: root.bar-shown * root.ring-disc-on > root.shown-epsilon ? root.btn : 0,
-            height: root.bar-shown * root.ring-disc-on > root.shown-epsilon ? root.btn : 0,
-            opacity: root.bar-shown * root.ring-disc-on,
+            width: root.pills-shown * root.ring-disc-on > root.shown-epsilon ? root.btn : 0,
+            height: root.pills-shown * root.ring-disc-on > root.shown-epsilon ? root.btn : 0,
+            opacity: root.pills-shown * root.ring-disc-on,
             radius: root.btn / 2,
             tint: 1.0,
             nested: true,
@@ -2241,9 +2449,9 @@ export component MainWindow inherits Window {
         {
             x: root.open-disc-x,
             y: root.pills-y + root.bar-rise + root.pill-pad,
-            width: root.bar-shown * root.open-disc-on > root.shown-epsilon ? root.btn : 0,
-            height: root.bar-shown * root.open-disc-on > root.shown-epsilon ? root.btn : 0,
-            opacity: root.bar-shown * root.open-disc-on,
+            width: root.pills-shown * root.open-disc-on > root.shown-epsilon ? root.btn : 0,
+            height: root.pills-shown * root.open-disc-on > root.shown-epsilon ? root.btn : 0,
+            opacity: root.pills-shown * root.open-disc-on,
             radius: root.btn / 2,
             tint: 1.0,
             nested: true,
@@ -2725,13 +2933,17 @@ export component MainWindow inherits Window {
 
     // The timing is a file's alone, so what would take a sync or a reset of it
     // back goes when another file opens under the menu, rather than put one
-    // film's timing on the next.
+    // film's timing on the next. So does a pause a frame step made: a file
+    // that opens paused is one to see where you are in. And the file says
+    // what it is, by itself, however it came.
     changed current-path => {
         root.forget-sync();
         if (root.reset-armed == 3 || root.reset-undoable == 3) {
             root.reset-armed = 0;
             root.reset-undoable = 0;
         }
+        root.stepped = false;
+        root.glimpse-title();
     }
 
     // --- syncing subtitles to speech ----------------------------------------
@@ -3185,6 +3397,9 @@ export component MainWindow inherits Window {
 
     function on-playback(text: string) -> bool {
         if (text == " ") {
+            // Playing, every way, is the film going on, which the chrome
+            // would only cover; pausing is looking for where you are.
+            root.key-wake = root.paused || root.at-end ? 2 : 0;
             // As the play button: at the end of a file there is nothing to
             // unpause, and on a saved place, playing goes on from it.
             if (root.arriving) {
@@ -3201,19 +3416,24 @@ export component MainWindow inherits Window {
         // rather than restart the film.
         if (text == Key.Home && !root.panel-open && root.arriving) {
             root.arrival-answer(true);
+            root.key-wake = 2;
             return true;
         }
         if (text == Key.Home && !root.panel-open) {
             root.restart();
             Flash.show(Flash.restart, 0.5);
+            root.glimpse-timeline();
             return true;
         }
         return false;
     }
 
+    // A seek shows the timeline alone, which is where the change is; the
+    // buttons beside it would only cover more of the picture.
     function on-seek(text: string, ctrl: bool, shift: bool) -> bool {
         if (text == Key.LeftArrow) {
             if (ctrl) {
+                root.key-wake = 1;
                 // At either end mpv does nothing, so neither does the flash.
                 if (!root.at-first) {
                     root.playlist-step(-1);
@@ -3223,14 +3443,17 @@ export component MainWindow inherits Window {
                 // The small seek, for a missed line. No flash, since its glyph
                 // means ten seconds and the timeline shows the change.
                 root.seek-relative(-root.fine-seek-step);
+                root.glimpse-timeline();
             } else {
                 root.seek-relative(-root.seek-step);
                 Flash.show(Flash.seek-back, 0.2);
+                root.glimpse-timeline();
             }
             return true;
         }
         if (text == Key.RightArrow) {
             if (ctrl) {
+                root.key-wake = 1;
                 if (!root.at-last) {
                     root.playlist-step(1);
                     Flash.show(Flash.next, 0.5);
@@ -3239,6 +3462,7 @@ export component MainWindow inherits Window {
                 // From the end, forward is the end pill's first offer: the
                 // next file or season. Never the folder dialog, since an arrow
                 // held a moment too long is not deliberate enough for one.
+                root.key-wake = 2;
                 if (!root.at-last) {
                     root.play-next();
                 } else if (root.onward-path != "") {
@@ -3246,31 +3470,35 @@ export component MainWindow inherits Window {
                 }
             } else if (shift) {
                 root.seek-relative(root.fine-seek-step);
+                root.glimpse-timeline();
             } else {
                 root.seek-relative(root.seek-step);
                 Flash.show(Flash.seek-forward, 0.8);
+                root.glimpse-timeline();
             }
             return true;
         }
         return false;
     }
 
+    // Every key here answers with its flash rather than the bar.
     function on-volume(text: string) -> bool {
-        if (text == Key.UpArrow) {
-            root.nudge-volume(root.volume-step);
-            return true;
-        }
-        if (text == Key.DownArrow) {
-            root.nudge-volume(-root.volume-step);
+        if (text == Key.UpArrow || text == Key.DownArrow) {
+            root.nudge-volume(text == Key.UpArrow ? root.volume-step : -root.volume-step);
+            root.key-wake = 1;
+            Flash.show-figure(5);
             return true;
         }
         if (text == "m" || text == "M") {
             root.toggle-mute();
+            root.key-wake = 1;
+            Flash.show-figure(5);
             return true;
         }
         // mpv's own key for it.
         if (text == "#") {
             root.cycle-track(false, 1);
+            root.key-wake = 1;
             Flash.show-figure(4);
             return true;
         }
@@ -3285,6 +3513,7 @@ export component MainWindow inherits Window {
             // Shown, because nothing else shows it: the subtitles button has no
             // state, and a scene with no dialogue doesn't either. The same
             // caption as J, read live.
+            root.key-wake = 1;
             Flash.show-figure(3);
             return true;
         }
@@ -3292,16 +3521,19 @@ export component MainWindow inherits Window {
         // which one it landed on.
         if (text == "j" || text == "J") {
             root.cycle-track(true, text == "j" ? 1 : -1);
+            root.key-wake = 1;
             Flash.show-figure(3);
             return true;
         }
         if (text == "z") {
             root.nudge-sub-delay(-root.delay-step);
+            root.key-wake = 1;
             Flash.show(Flash.delay, 0.5);
             return true;
         }
         if (text == "Z") {
             root.nudge-sub-delay(root.delay-step);
+            root.key-wake = 1;
             Flash.show(Flash.delay, 0.5);
             return true;
         }
@@ -3346,20 +3578,26 @@ export component MainWindow inherits Window {
     function on-pace(text: string) -> bool {
         if (text == "[" || text == "]") {
             root.step-speed(root.speed, text == "]" ? 1 : -1);
+            root.key-wake = 1;
             Flash.show-figure(1);
             return true;
         }
         if (text == Key.Backspace) {
             root.reset-speed();
+            root.key-wake = 1;
             Flash.show-figure(1);
             return true;
         }
         if (text == "," || text == ".") {
             root.frame-step(text == "." ? 1 : -1);
+            root.stepped = true;
+            root.step-landing = true;
+            root.key-wake = 1;
             return true;
         }
         // Only with no panel open, for the reason Home gives above.
         if ((text == Key.PageUp || text == Key.PageDown) && !root.panel-open) {
+            root.key-wake = 1;
             // No flash for a file with no chapters to go to.
             if (root.chapter-marks.length > 0) {
                 root.chapter-step(text == Key.PageDown ? 1 : -1);
@@ -3491,13 +3729,19 @@ export component MainWindow inherits Window {
             return false;
         }
         if (text == Key.Return) {
+            // Every choice on a pill is the way back to the film.
+            if (root.bar-focus >= root.pill-stop) {
+                root.key-wake = 2;
+            }
             root.bar-activate(root.bar-focus);
             return true;
         }
         if (text == Key.Escape) {
             // Only puts the ring away, so an Escape meant to clear it doesn't
-            // also leave fullscreen. The next press does that.
+            // also leave fullscreen. The next press does that. Done with the
+            // bar, so the bar goes with it.
             Chrome.focus-visible = false;
+            root.key-wake = 2;
             return true;
         }
         return false;
@@ -3644,12 +3888,18 @@ export component MainWindow inherits Window {
     }
 
     function on-window(text: string) -> bool {
+        // In or out, what was asked for is the picture at a new size, not
+        // the bar over it, so the chrome goes.
         if (text == "f" || text == "F" || text == Key.F11) {
             root.toggle-fullscreen();
+            root.key-wake = 2;
+            Chrome.settling = true;
             return true;
         }
+        // The picture answers, as it does a frame step.
         if (root.has-file && (text == "t" || text == "T")) {
             root.toggle-panscan();
+            root.key-wake = 1;
             return true;
         }
         // Straight to the shortcuts page, the player's one reference. Pressed
@@ -3657,6 +3907,7 @@ export component MainWindow inherits Window {
         if (root.keys-act && text == "?") {
             if (root.settings-open && root.settings-page == 4) {
                 root.open-settings(false);
+                root.key-wake = 2;
             } else {
                 root.open-settings-page(4);
                 root.focus-show(0);
@@ -3669,6 +3920,8 @@ export component MainWindow inherits Window {
             root.open-settings(!root.settings-open);
             if (root.settings-open) {
                 root.focus-show(0);
+            } else {
+                root.key-wake = 2;
             }
             return true;
         }
@@ -3679,6 +3932,8 @@ export component MainWindow inherits Window {
             root.open-audio(!root.audio-open);
             if (root.audio-open) {
                 root.focus-show(root.focus-row);
+            } else {
+                root.key-wake = 2;
             }
             return true;
         }
@@ -3686,6 +3941,8 @@ export component MainWindow inherits Window {
             root.open-menu(!root.menu-open);
             if (root.menu-open) {
                 root.focus-show(root.focus-row);
+            } else {
+                root.key-wake = 2;
             }
             return true;
         }
@@ -3693,14 +3950,17 @@ export component MainWindow inherits Window {
             root.open-playlist(!root.playlist-open);
             if (root.playlist-open) {
                 root.focus-show(root.focus-row);
+            } else {
+                root.key-wake = 2;
             }
             return true;
         }
         if (root.keys-act && (text == "b" || text == "B")) {
             // Kept on a key as well as on its settings page, as the one effect
-            // worth toggling mid-film.
+            // worth toggling mid-film. The picture's border answers it.
             root.ambience-on = !root.ambience-on;
             root.set-ambience(root.ambience-on);
+            root.key-wake = 1;
             return true;
         }
         if (text == Key.Delete && (root.menu-open || root.audio-open)
@@ -3708,11 +3968,13 @@ export component MainWindow inherits Window {
             return root.remove-focused-track();
         }
         // One Escape dismisses one thing, innermost first: a page within a
-        // panel (see `page-back`), then the panel, then fullscreen.
+        // panel (see `page-back`), then the panel, then fullscreen. Closing a
+        // panel is back to the film, and the chrome goes with it.
         if (text == Key.Escape) {
             if (root.page-back()) {
                 return true;
             }
+            root.key-wake = 2;
             if (root.settings-open) {
                 root.settings-open = false;
             } else if (root.playlist-open) {
@@ -3724,6 +3986,13 @@ export component MainWindow inherits Window {
             } else if (root.audio-open) {
                 root.audio-open = false;
             } else {
+                // Out of fullscreen as into it, and with nothing to leave,
+                // nothing to bring up.
+                if (root.fullscreen) {
+                    Chrome.settling = true;
+                } else {
+                    root.key-wake = 1;
+                }
                 root.leave-fullscreen();
             }
             return true;
@@ -3859,9 +4128,11 @@ export component MainWindow inherits Window {
     }
 
     keys := FocusScope {
+        // The chrome is woken after the key is handled, since the handler
+        // says how far (`key-wake`).
         key-pressed(event) => {
-            Chrome.bump();
             Chrome.input-seq += 1;
+            root.key-wake = 0;
             // The film's own keys only with a film, or they would flash over
             // the way in and change a volume nothing shows.
             if (root.on-bar(event.text, event.modifiers.shift)
@@ -3874,10 +4145,51 @@ export component MainWindow inherits Window {
                         || root.on-volume(event.text)
                         || root.on-subtitles(event.text)))
                 || root.on-window(event.text)) {
+                root.after-key(event.text);
                 return EventResult.accept;
             }
+            root.after-key(event.text);
             return EventResult.reject;
         }
+    }
+
+    // --- the pointer over the picture ---
+
+    /// How far a hidden pointer must travel within `twitch-timer` to count.
+    /// A knocked desk or a mouse set down moves it a few pixels, and in a
+    /// dark room that is nobody asking for anything.
+    property <length> twitch: 12px;
+    /// Where that is measured from: the first move after it was hidden.
+    property <length> twitch-x: 0px;
+    property <length> twitch-y: 0px;
+    property <bool> twitch-armed: false;
+    twitch-timer := Timer {
+        interval: 400ms;
+        running: false;
+        triggered => {
+            twitch-timer.stop();
+            root.twitch-armed = false;
+        }
+    }
+
+    /// The pointer over the picture. A press always counts.
+    function film-pointed(down: bool, x: length, y: length) {
+        if (!down && root.pointer-hidden) {
+            if (!root.twitch-armed) {
+                root.twitch-x = x;
+                root.twitch-y = y;
+                root.twitch-armed = true;
+                twitch-timer.start();
+                return;
+            }
+            if (Math.sqrt(Math.pow((x - root.twitch-x) / 1px, 2)
+                    + Math.pow((y - root.twitch-y) / 1px, 2)) < root.twitch / 1px) {
+                return;
+            }
+        }
+        root.twitch-armed = false;
+        twitch-timer.stop();
+        Chrome.pointed(down);
     }
 
     // Video, ambient border and glass, already composited by the pipeline.
@@ -3902,10 +4214,24 @@ export component MainWindow inherits Window {
         // event is routed, never when the pointer should go (see
         // `pointer-hidden`).
         video-surface := TouchArea {
+            /// `Chrome.input-seq` as of this area's last pointer event.
+            property <int> seen: -1;
+
             width: 100%;
             height: 100%;
             pointer-event(event) => {
-                Chrome.pointed(event.kind == PointerEventKind.down);
+                root.film-pointed(event.kind == PointerEventKind.down,
+                    self.mouse-x, self.mouse-y);
+                self.seen = Chrome.input-seq;
+            }
+            // A pointer leaving the picture for somewhere in the window lands
+            // on chrome, which counts its arrival as input in the same event.
+            // With nothing counted, it left the window, and the chrome goes
+            // with it rather than waiting out the clock.
+            changed has-hover => {
+                if (!self.has-hover && Chrome.input-seq == self.seen) {
+                    Chrome.rest();
+                }
             }
             clicked => {
                 // A click away from an open panel closes it, as a desktop menu
@@ -3916,8 +4242,11 @@ export component MainWindow inherits Window {
                     root.video-clicked();
                 }
             }
+            // In or out of fullscreen, so the chrome goes, as for F.
             double-clicked => {
                 root.video-double-clicked();
+                root.put-away();
+                Chrome.settling = true;
             }
             // The wheel over the picture only wakes the bar: a brushed wheel or
             // a touchpad shouldn't change the volume, which has its own track.
@@ -4988,12 +5317,12 @@ export component MainWindow inherits Window {
     // doesn't reach the film underneath.
     Rectangle {
         x: root.panel-margin;
-        y: root.bar-top + root.bar-rise;
-        width: root.width - 2 * root.panel-margin;
-        height: root.bar-h;
+        y: root.bar-edge + root.bar-rise;
+        width: root.bar-drawn-w;
+        height: root.bar-drawn-h;
         visible: root.bar-shown > root.shown-epsilon;
 
-        TouchArea {
+        bar-pane := TouchArea {
             pointer-event(event) => {
                 Chrome.pointed(event.kind == PointerEventKind.down);
             }
@@ -5006,11 +5335,11 @@ export component MainWindow inherits Window {
 
     Rectangle {
         x: root.bar-x;
-        y: root.timeline-y + root.bar-rise;
+        y: root.timeline-y + root.timeline-sink + root.bar-rise;
         width: root.time-w;
         height: root.timeline-h;
-        visible: root.bar-shown > root.shown-epsilon;
-        opacity: root.bar-shown;
+        visible: root.timeline-shown > root.shown-epsilon;
+        opacity: root.timeline-shown;
 
         Text {
             width: 100%;
@@ -5028,11 +5357,11 @@ export component MainWindow inherits Window {
     // would be miserable to grab.
     Rectangle {
         x: root.scrub-x;
-        y: root.timeline-y + root.bar-rise;
+        y: root.timeline-y + root.timeline-sink + root.bar-rise;
         width: root.scrub-w;
         height: root.timeline-h;
-        visible: root.bar-shown > root.shown-epsilon;
-        opacity: root.bar-shown;
+        visible: root.timeline-shown > root.shown-epsilon;
+        opacity: root.timeline-shown;
 
         accessible-role: slider;
         accessible-label: @tr("Position");
@@ -5104,7 +5433,10 @@ export component MainWindow inherits Window {
                     root.seek-scrub(self.mouse-x / self.width);
                 }
             }
+            // A wheel raises no pointer event, and the seek doesn't count as
+            // activity, since a key's seek mustn't wake the bar.
             scroll-event(event) => {
+                Chrome.bump();
                 root.seek-relative(event.delta-y > 0
                     ? root.scroll-seek-step
                     : -root.scroll-seek-step);
@@ -5127,11 +5459,11 @@ export component MainWindow inherits Window {
 
     Rectangle {
         x: root.total-x;
-        y: root.timeline-y + root.bar-rise;
+        y: root.timeline-y + root.timeline-sink + root.bar-rise;
         width: root.time-w;
         height: root.timeline-h;
-        visible: root.bar-shown > root.shown-epsilon;
-        opacity: root.bar-shown;
+        visible: root.timeline-shown > root.shown-epsilon;
+        opacity: root.timeline-shown;
 
         Text {
             width: 100%;
@@ -5744,8 +6076,8 @@ export component MainWindow inherits Window {
         y: root.pills-y + root.bar-rise;
         width: root.left-w;
         height: root.pill-h;
-        visible: root.bar-shown > root.shown-epsilon;
-        opacity: root.bar-shown;
+        visible: root.loaded-shown > root.shown-epsilon;
+        opacity: root.loaded-shown;
         clip: true;
 
         HorizontalLayout {
@@ -5813,8 +6145,8 @@ export component MainWindow inherits Window {
         y: root.pills-y + root.bar-rise;
         width: root.center-w;
         height: root.pill-h;
-        visible: root.bar-shown > root.shown-epsilon;
-        opacity: root.bar-shown;
+        visible: root.pills-shown > root.shown-epsilon;
+        opacity: root.pills-shown;
 
         HorizontalLayout {
             padding: root.pill-pad;
@@ -5888,8 +6220,8 @@ export component MainWindow inherits Window {
         y: root.pills-y + root.bar-rise;
         width: root.right-w;
         height: root.pill-h;
-        visible: root.bar-shown > root.shown-epsilon;
-        opacity: root.bar-shown;
+        visible: root.pills-shown > root.shown-epsilon;
+        opacity: root.pills-shown;
 
         HorizontalLayout {
             padding: root.pill-pad;
@@ -5915,10 +6247,7 @@ export component MainWindow inherits Window {
 
                 // The level as a number, which nothing else on the bar gives:
                 // the track has 96px for 200 steps, and the glyph moves in tens.
-                // Muted, it says so, since the track is then drawn empty.
-                property <string> tip: root.muted
-                    ? @tr("Muted")
-                    : @tr("Volume {}%", Math.round(root.volume));
+                property <string> tip: root.volume-said;
                 property <string> tip-keys: root.muted ? "" : "↑ ↓";
                 property <length> tip-cx: self.absolute-position.x + self.width / 2;
                 /// This track's claim on the tip, as a button holds one.
@@ -6003,8 +6332,10 @@ export component MainWindow inherits Window {
                     clicked => {
                         root.set-volume(self.mouse-x / self.width * root.volume-max);
                     }
-                    // The one place the wheel is the volume.
+                    // The one place the wheel is the volume. Activity for the
+                    // timeline's wheel's reason.
                     scroll-event(event) => {
+                        Chrome.bump();
                         root.nudge-volume(event.delta-y > 0
                             ? root.volume-step
                             : -root.volume-step);
@@ -6095,13 +6426,13 @@ export component MainWindow inherits Window {
 
         // Under the buttons, so a click on the glass between them doesn't
         // reach the film.
-        TouchArea {
+        window-pane := TouchArea {
             pointer-event(event) => {
                 Chrome.pointed(event.kind == PointerEventKind.down);
             }
         }
 
-        IconButton {
+        minimize-button := IconButton {
             x: root.window-btn-pad;
             y: root.window-btn-pad;
             width: root.window-btn;
@@ -6114,7 +6445,7 @@ export component MainWindow inherits Window {
                 root.minimize();
             }
         }
-        IconButton {
+        maximize-button := IconButton {
             x: root.window-btn-pad + root.window-btn-step;
             y: root.window-btn-pad;
             width: root.window-btn;
@@ -6127,7 +6458,7 @@ export component MainWindow inherits Window {
                 root.maximized = !root.maximized;
             }
         }
-        IconButton {
+        close-button := IconButton {
             x: root.window-btn-pad + 2 * root.window-btn-step;
             y: root.window-btn-pad;
             width: root.window-btn;

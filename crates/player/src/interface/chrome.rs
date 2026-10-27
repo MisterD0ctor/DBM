@@ -56,6 +56,14 @@ impl Activity {
         self.0.set(Instant::now());
     }
 
+    /// Run the clock out, for the interface putting the chrome away at once
+    /// (`Chrome.rest`), so the next poll doesn't bring it back.
+    pub fn rest(&self) {
+        if let Some(then) = Instant::now().checked_sub(HIDE_AFTER) {
+            self.0.set(then);
+        }
+    }
+
     pub fn is_idle(&self) -> bool {
         self.0.get().elapsed() >= HIDE_AFTER
     }
@@ -83,6 +91,12 @@ pub fn install(ui: &MainWindow, activity: Activity) -> slint::Timer {
         let activity = activity.clone();
         ui.global::<Chrome>().on_activity(move || activity.bump());
     }
+    {
+        let activity = activity.clone();
+        ui.global::<Chrome>().on_rested(move || activity.rest());
+    }
+    ui.global::<Chrome>()
+        .set_hide_after(HIDE_AFTER.as_millis() as i64);
 
     {
         // The interface decides; this only carries it to the window. Held by

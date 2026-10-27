@@ -519,6 +519,23 @@ picture, with the played edge at 1.13:1 against the rail). It is the one place
 in this system where **the glass is sized by the window, not by what is
 written on it.**
 
+After a seek from the keyboard the timeline comes up alone (see A Key Brings
+Up Its Answer): the same row, lowered by the buttons' row
+(`MainWindow.bar-sink`) to rest where they would, on a pane as tall as the row
+and its padding, which, shorter than two corners, is a capsule. Brought up
+whole from there, the pane grows upward, the timeline rising with its top
+edge, and the buttons come in over the second half of it
+(`MainWindow.pills-shown`), once the timeline is out of their way.
+
+As a file starts, what is loaded comes up alone (see A File Says What It
+Is): the title group where it always stands, on a pane as tall as its row
+and its padding and as wide as the group (`MainWindow.bar-drawn-w`), a
+capsule as well. Brought up whole from there, the pane grows upward over the
+timeline and out to the right, and the timeline and the other two groups
+come in over the second half of it (`MainWindow.timeline-shown`). From one
+part alone to the other the pane changes at once, since there is nothing to
+grow through.
+
 The title group opens with its two buttons, Playlist and then Open, and the
 title follows them (`MainWindow.lp-title`). So the buttons, and the playlist
 and open panels that hang from them, stand in one place for every film, and
@@ -594,18 +611,56 @@ lands on top of it either.
 
 **The Bar Stays For A Pause.** The bar hides after three still seconds while a
 film plays, and not while it is paused. Pausing is stopping to look at where you
-are, which is the moment the bar is for. Nor while an open is in flight:
-*Opening …* takes the title's place, and it is the only sign anywhere that
-a folder on a share is still being read. The open is over when mpv finishes
-opening the new file — not when there is a file, which over a film already
-playing was true at once and cleared the line before it was ever drawn.
+are, which is the moment the bar is for. A
+pause a frame step made is not held (`MainWindow.stepped`): stepping is
+looking at the picture, whose foot the bar would cover, not at where you are.
+Nor does the chrome leave from under a pointer resting on the bar or on the
+window's buttons (`MainWindow.bar-hovered`, `MainWindow.window-hovered`): a
+hand that has stopped on a control is about to use it.
+
+**A File Says What It Is.** As a file starts, however it came — autoplay,
+Ctrl+→, the way on, a row of the playlist — what is loaded comes up on its
+own for three seconds (`MainWindow.title-glimpse`): its name is the one
+thing worth seeing then, and the rest of the bar would only cover the
+opening shot. So it does for as long as an open is in flight: *Opening …*
+takes the title's place, and it is the only sign anywhere that a folder on
+a share is still being read. The open is over when mpv finishes opening the
+new file — not when there is a file, which over a film already playing was
+true at once and cleared the line before it was ever drawn. A seek takes
+its place, being newer news.
+
+**A Knock Is Not A Hand.** A pointer gone from the screen has to travel
+`MainWindow.twitch` in a moment before it brings anything back: a knocked
+desk or a mouse set down brings up nothing in a dark room, while a hand
+reaching for the controls is past that at once. A press always counts. And
+a pointer leaving the window takes the chrome with it at once, rather than
+leaving it over the film to wait out the clock.
+
+**A Key Brings Up Its Answer.** A key calls up only what shows what it did. A
+seek, by the arrows with or without Shift or by Home, brings up the timeline
+alone, since where the film now is is the whole answer and the buttons
+beside it would only cover more of the picture. A key the flash answers
+brings up nothing else: the tracks, the subtitle delay, the speed, chapters,
+the next or previous file, and the volume and mute by their figure. One the
+picture answers brings up nothing at all: a frame step, T, B. F and a
+double-click on the picture put the chrome away at once, into fullscreen or
+out, and so does Escape leaving it, since what was asked for is the picture
+at a new size, not the bar over it; for half a second after, the pointer's moves don't bring it back, since a window
+changing size is sent moves no hand made (`Chrome.settling`). So does a key
+that sends you back to the film: Space playing on, from a pause, the end or
+a saved place; Escape, or a panel's own key, closing the panel; Escape
+putting the ring away; Enter on a pill's choice; → from the end. Every other
+key wakes the bar, as the pointer does, and no key takes away what is
+already up but those: pressed with the bar up, a key keeps it there
+(`MainWindow.key-wake`).
 
 **The Bar Is A Floor.** While the bar is up, subtitles rest above it. The line
 keeps its own place — the Position on the subtitles menu's Size & position
 page — and rises only as
 far as it must: to sit mpv's own bottom margin above the bar, the same air it
 keeps above the window's edge when nothing is in the way. It climbs on the
-bar's own fade and settles as the bar goes. A line already above the bar does
+bar's own fade and settles as the bar goes, and with the timeline or what is
+loaded up alone it rises only onto that. A line already above the bar does
 not move, and one resting in the letterbox comes all the way up. The case
 that made this necessary is pausing to read a line, which holds the bar up over
 exactly that line. The one exception is setting the Position: from its first
@@ -919,7 +974,9 @@ by under a pixel at the corner.
 ### The bar
 - **Shape:** one pane (`MainWindow.bar-h`) across the window inside its
   margins, at the panels' corner (`Rows.panel-radius`), `MainWindow.bar-pad`
-  of glass round its two rows
+  of glass round its two rows; after a seek from the keyboard, the timeline
+  row alone on a capsule where the buttons' row would be; as a file starts,
+  the title group alone on a capsule of its own width
 - **Background:** none. The pane is a glass rect published to the renderer; a
   fill here would paint over the material. A click on it that no control
   takes stops there, rather than pausing the film under it.
@@ -1006,7 +1063,8 @@ by under a pixel at the corner.
 - **Label:** the level as a number, which nothing else on the bar gives: the
   track is short for two hundred steps and the glyph beside it moves in tens.
   *Volume 84%* with ↑ ↓, or *Muted* alone, since a muted level is a number
-  nobody can hear and the track is drawn empty to match.
+  nobody can hear and the track is drawn empty to match. The same words are
+  the flash's figure for ↑, ↓ and M, which wake no bar to show them on.
 
 ### Menu rows
 - **Shape:** `Rows.row` tall; the wash is inset `Rows.gap` on both sides at
@@ -1578,9 +1636,10 @@ list arriving one row at a time where the question was asked.
 **The Label Cannot Outlive Its Control.** Whether a tip is drawn is an
 expression, never a decision taken when the pointer arrives. Both ways it can
 go wrong happen afterwards: a pointer resting on a button raises no events, so
-the idle clock runs out under a label that is already up and the bar leaves
-without it; and a panel can open underneath one, over the very row the tip
-covers, which a check run once on hover never sees. A tip a panel hid stays
+the bar can leave from under a label that is already up — put away by a key,
+or moved out from under it by fullscreen — without the label hearing of it;
+and a panel can open underneath one, over the very row the tip covers, which
+a check run once on hover never sees. A tip a panel hid stays
 gone when the panel closes, until the pointer next arrives; uncovered, it
 would show its fade-out in a place the hand may have left.
 
@@ -1615,9 +1674,9 @@ taking the ring off the edge of it.
 
 A **figure** replaces the ring with its words alone, and stays longer, since
 it is read rather than recognised: the speed after `[`, `]` or Backspace, the
-chapter after PgUp or PgDn, the track after J or #, and after C whether
+chapter after PgUp or PgDn, the track after J or #, after C whether
 subtitles are showing at all, which the subtitles button does not say, not
-being a switch. The icon set has no glyph for any of them and the figure is
+being a switch, and the volume after ↑, ↓ or M (`MainWindow.volume-said`). The icon set has no glyph for any of them and the figure is
 the whole answer. A frame step and the one-second seek raise nothing: the
 picture and the timeline already answer.
 
@@ -1760,13 +1819,15 @@ skip to a scene after its credits, which needs nowhere else.
 
 It keeps out of the middle, where the names roll, and sits at the bottom right
 on the bar's lines: at `MainWindow.panel-margin` while the bar is away, lifted
-`Rows.offset` above the bar while it is up, riding the bar's own fade
-between the two.
-Its arrival wakes the bar once and holds nothing up — the clock runs out, the
-bar leaves, the pill stays, and doing nothing is watching the credits. It also
+`Rows.offset` above the bar while it is up, or above the timeline when that is
+up alone (`MainWindow.bar-edge`), riding the bar's own fade between the two.
+What is loaded alone never reaches its column, so it stays down for that, and
+rises only as the bar grows from it.
+It arrives on its own, without the bar, which would only cover the names: the
+pill is the one thing on offer, and doing nothing is watching the credits. It
 takes the keyboard's ring, so Enter is the whole of going on; the ring stays
-with it after the bar leaves and goes when it does, so Enter never presses a
-pill that has gone. Like the
+with it whatever the bar does and goes when the pill does, so Enter never
+presses a pill that has gone. Like the
 end pill it is not tied to the idle clock. It stands aside for an open panel
 and for the seek preview when the preview reaches its column; a hover label
 that would land on it goes up a row instead. Glass never lies on glass.
@@ -1798,8 +1859,8 @@ its title sequence plays the capsule says *Skip intro*, with the Skip glyph —
 two arrowheads and no bar, further into this file rather than on to the next —
 in the same corner, on the same lines, and for the same reason — a sequence is
 something people watch, so the offer keeps out of its way and doing nothing is
-watching it. It arrives as the credits pill does: one wake of the bar, the
-ring, Enter. It lands on the first frame after the sequence, exactly, and goes
+watching it. It arrives as the credits pill does: on its own, with the
+ring, for Enter. It lands on the first frame after the sequence, exactly, and goes
 a moment before that (`state.INTRO_TAIL`): an offer that is over before it is
 read is noise.
 It needs nowhere to go, so the last episode of a season has it too; a film

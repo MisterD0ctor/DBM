@@ -525,6 +525,7 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
     let heard = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "heard");
     let scene = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "scene");
     let mid = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "mid");
+    let asleep = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "asleep");
     let played_at: Option<f64> = std::env::var("DBM_CREDITS_AT")
         .ok()
         .and_then(|at| at.parse().ok());
@@ -591,9 +592,16 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                     eprintln!("dbm: credits from {credits_at:.0}s of {duration:.0}s");
                     ui.invoke_open_path(ui.get_current_path(), true);
                 }
+                // The seek wakes the bar, as a click on the timeline does, so
+                // `=asleep` lands short of the credits for the bar to have
+                // gone by the time they start.
                 6 => {
                     let duration = f64::from(ui.get_duration()).max(1.0);
-                    let to = played_at.unwrap_or(credits_at + 5.0);
+                    let to = played_at.unwrap_or(if asleep {
+                        credits_at - 4.5
+                    } else {
+                        credits_at + 5.0
+                    });
                     ui.invoke_seek_fraction((to / duration) as f32);
                 }
                 7 => report_credits(&ui, "arrived"),

@@ -29,6 +29,8 @@ export component IconButton inherits Rectangle {
     /// playlist's first file. A disabled button is dimmed, so it doesn't
     /// promise what it can't do.
     in property <bool> enabled: true;
+    /// Whether the pointer is on it, which holds up what it stands on.
+    out property <bool> hovered: touch.has-hover;
     callback clicked();
 
     width: 40px;

@@ -11,6 +11,12 @@ pub(super) fn hover(ui: &MainWindow, x: f32, y: f32) {
     });
 }
 
+/// Take the pointer out of the window.
+pub(super) fn leave(ui: &MainWindow) {
+    ui.window()
+        .dispatch_event(slint::platform::WindowEvent::PointerExited);
+}
+
 /// Click a point, the way a mouse would.
 ///
 /// A real click, because a `Flickable` has to tell a drag from a tap, and a

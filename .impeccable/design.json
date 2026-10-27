@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-26T21:39:20Z",
+  "generatedAt": "2026-10-27T09:35:49Z",
   "title": "Design System: Death by MPV",
   "extensions": {
     "colorMeta": {
@@ -539,12 +539,27 @@
       {
         "name": "The Bar Stays For A Pause",
         "section": "layout",
-        "body": "The bar hides after three still seconds while a film plays, and not while it is paused. Pausing is stopping to look at where you are, which is the moment the bar is for. Nor while an open is in flight: *Opening …* takes the title's place, and it is the only sign anywhere that a folder on a share is still being read. The open is over when mpv finishes opening the new file — not when there is a file, which over a film already playing was true at once and cleared the line before it was ever drawn."
+        "body": "The bar hides after three still seconds while a film plays, and not while it is paused. Pausing is stopping to look at where you are, which is the moment the bar is for. A pause a frame step made is not held (`MainWindow.stepped`): stepping is looking at the picture, whose foot the bar would cover, not at where you are. Nor does the chrome leave from under a pointer resting on the bar or on the window's buttons (`MainWindow.bar-hovered`, `MainWindow.window-hovered`): a hand that has stopped on a control is about to use it."
+      },
+      {
+        "name": "A File Says What It Is",
+        "section": "layout",
+        "body": "As a file starts, however it came — autoplay, Ctrl+→, the way on, a row of the playlist — what is loaded comes up on its own for three seconds (`MainWindow.title-glimpse`): its name is the one thing worth seeing then, and the rest of the bar would only cover the opening shot. So it does for as long as an open is in flight: *Opening …* takes the title's place, and it is the only sign anywhere that a folder on a share is still being read. The open is over when mpv finishes opening the new file — not when there is a file, which over a film already playing was true at once and cleared the line before it was ever drawn. A seek takes its place, being newer news."
+      },
+      {
+        "name": "A Knock Is Not A Hand",
+        "section": "layout",
+        "body": "A pointer gone from the screen has to travel `MainWindow.twitch` in a moment before it brings anything back: a knocked desk or a mouse set down brings up nothing in a dark room, while a hand reaching for the controls is past that at once. A press always counts. And a pointer leaving the window takes the chrome with it at once, rather than leaving it over the film to wait out the clock."
+      },
+      {
+        "name": "A Key Brings Up Its Answer",
+        "section": "layout",
+        "body": "A key calls up only what shows what it did. A seek, by the arrows with or without Shift or by Home, brings up the timeline alone, since where the film now is is the whole answer and the buttons beside it would only cover more of the picture. A key the flash answers brings up nothing else: the tracks, the subtitle delay, the speed, chapters, the next or previous file, and the volume and mute by their figure. One the picture answers brings up nothing at all: a frame step, T, B. F and a double-click on the picture put the chrome away at once, into fullscreen or out, and so does Escape leaving it, since what was asked for is the picture at a new size, not the bar over it; for half a second after, the pointer's moves don't bring it back, since a window changing size is sent moves no hand made (`Chrome.settling`). So does a key that sends you back to the film: Space playing on, from a pause, the end or a saved place; Escape, or a panel's own key, closing the panel; Escape putting the ring away; Enter on a pill's choice; → from the end. Every other key wakes the bar, as the pointer does, and no key takes away what is already up but those: pressed with the bar up, a key keeps it there (`MainWindow.key-wake`)."
       },
       {
         "name": "The Bar Is A Floor",
         "section": "layout",
-        "body": "While the bar is up, subtitles rest above it. The line keeps its own place — the Position on the subtitles menu's Size & position page — and rises only as far as it must: to sit mpv's own bottom margin above the bar, the same air it keeps above the window's edge when nothing is in the way. It climbs on the bar's own fade and settles as the bar goes. A line already above the bar does not move, and one resting in the letterbox comes all the way up. The case that made this necessary is pausing to read a line, which holds the bar up over exactly that line. The one exception is setting the Position: from its first press the line goes down to where it rests, so the stepper moves what is being looked at, and it comes back up when Size or Timing is stepped, or the page is left — those two are set by reading the line. The readout always shows where the line was put, never where the bar has moved it."
+        "body": "While the bar is up, subtitles rest above it. The line keeps its own place — the Position on the subtitles menu's Size & position page — and rises only as far as it must: to sit mpv's own bottom margin above the bar, the same air it keeps above the window's edge when nothing is in the way. It climbs on the bar's own fade and settles as the bar goes, and with the timeline or what is loaded up alone it rises only onto that. A line already above the bar does not move, and one resting in the letterbox comes all the way up. The case that made this necessary is pausing to read a line, which holds the bar up over exactly that line. The one exception is setting the Position: from its first press the line goes down to where it rests, so the stepper moves what is being looked at, and it comes back up when Size or Timing is stepped, or the page is left — those two are set by reading the line. The readout always shows where the line was put, never where the bar has moved it."
       },
       {
         "name": "The Gap Goes Above Rule",
@@ -589,7 +604,7 @@
       {
         "name": "The Label Cannot Outlive Its Control",
         "section": "components",
-        "body": "Whether a tip is drawn is an expression, never a decision taken when the pointer arrives. Both ways it can go wrong happen afterwards: a pointer resting on a button raises no events, so the idle clock runs out under a label that is already up and the bar leaves without it; and a panel can open underneath one, over the very row the tip covers, which a check run once on hover never sees. A tip a panel hid stays gone when the panel closes, until the pointer next arrives; uncovered, it would show its fade-out in a place the hand may have left."
+        "body": "Whether a tip is drawn is an expression, never a decision taken when the pointer arrives. Both ways it can go wrong happen afterwards: a pointer resting on a button raises no events, so the bar can leave from under a label that is already up — put away by a key, or moved out from under it by fullscreen — without the label hearing of it; and a panel can open underneath one, over the very row the tip covers, which a check run once on hover never sees. A tip a panel hid stays gone when the panel closes, until the pointer next arrives; uncovered, it would show its fade-out in a place the hand may have left."
       }
     ],
     "dos": [

@@ -264,3 +264,127 @@ pub(super) fn read_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
     );
     timer
 }
+
+/// Let the chrome go to sleep over a playing film, press one key or move the
+/// pointer, and report what came up, a line a tick: the bar's glass (whole
+/// is 94px tall, the timeline alone 46px, what is loaded alone 64px and
+/// narrower), the window's buttons, the flash's words, and how far the
+/// subtitles were lifted.
+///
+/// No pointer event is sent but the mode's own. The key goes in five seconds
+/// after the start, by when the bar has slept.
+pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
+    use slint::platform::Key;
+
+    let mode = std::env::var("DBM_WAKE_TEST").unwrap_or_default();
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut tick = 0u32;
+    const PRESS: u32 = 20;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(250),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            tick += 1;
+            let key = |text: Key| chord(&ui, &[], slint::SharedString::from(text).as_str());
+            let size = ui.window().size().to_logical(ui.window().scale_factor());
+            // Two moves, far enough apart to be a hand rather than a twitch.
+            let reach = |x: f32, y: f32| {
+                super::drive::hover(&ui, x, y - 40.0);
+                super::drive::hover(&ui, x, y);
+            };
+            match (mode.as_str(), tick) {
+                // The bar is held by a pause, then let go by a frame step.
+                ("pause-step", t) if t == PRESS - 8 => chord(&ui, &[], " "),
+                ("pause-step", PRESS) => chord(&ui, &[], "."),
+                // Held by a pause, then played on, or by a panel, then closed.
+                ("space-play", t) if t == PRESS - 8 => chord(&ui, &[], " "),
+                ("space-play", PRESS) => chord(&ui, &[], " "),
+                ("escape-panel", t) if t == PRESS - 8 => chord(&ui, &[], "s"),
+                ("escape-panel", PRESS) => key(Key::Escape),
+                // A knock, then a hand: the first should bring up nothing.
+                ("twitch", PRESS) => {
+                    super::drive::hover(&ui, size.width / 2.0, size.height / 2.0);
+                    super::drive::hover(&ui, size.width / 2.0 + 4.0, size.height / 2.0 + 3.0);
+                }
+                ("twitch", t) if t == PRESS + 8 => reach(size.width / 2.0, size.height / 2.0),
+                // Onto the play button and left there, past the clock.
+                // Hover is only found on a move, so one more once the bar is
+                // under the pointer.
+                ("hover", PRESS) => reach(size.width / 2.0, ui.get_timeline_y() + 30.0 + 26.0),
+                ("hover", t) if t == PRESS + 2 => {
+                    super::drive::hover(&ui, size.width / 2.0 + 2.0, ui.get_timeline_y() + 30.0 + 26.0)
+                }
+                // What is loaded is up alone when the pointer comes low: the
+                // bar should grow from it.
+                ("next-move", t) if t == PRESS + 8 => reach(size.width / 2.0, size.height * 0.75),
+                ("leave", PRESS) => reach(size.width / 2.0, size.height * 0.75),
+                ("leave", t) if t == PRESS + 4 => super::drive::leave(&ui),
+                // Subtitles on, into a stretch with lines, while the open's
+                // bar is still up, for the line to rise onto the timeline.
+                ("seek-subs", 2) => {
+                    ui.invoke_seek_fraction(0.3);
+                    chord(&ui, &[], "c");
+                }
+                (_, PRESS) => {
+                    eprintln!("dbm: pressing {mode}");
+                    match mode.as_str() {
+                        "seek" | "seek-move" | "seek-subs" => key(Key::RightArrow),
+                        "fine" => chord(&ui, &[Key::Shift], slint::SharedString::from(Key::RightArrow).as_str()),
+                        "volume" => key(Key::UpArrow),
+                        "mute" => chord(&ui, &[], "m"),
+                        "subs" => chord(&ui, &[], "j"),
+                        "speed" => chord(&ui, &[], "]"),
+                        "step" => chord(&ui, &[], "."),
+                        "panscan" => chord(&ui, &[], "t"),
+                        "fullscreen" => chord(&ui, &[], "f"),
+                        "tab" => key(Key::Tab),
+                        "space" => chord(&ui, &[], " "),
+                        "next" | "next-move" => chord(&ui, &[Key::Control], slint::SharedString::from(Key::RightArrow).as_str()),
+                        "double-click" => {
+                            let size = ui.window().size().to_logical(ui.window().scale_factor());
+                            let (x, y) = (size.width / 2.0, size.height / 2.0);
+                            super::drive::click(&ui, x, y);
+                            super::drive::click(&ui, x, y);
+                        }
+                        _ => {}
+                    }
+                }
+                // The timeline is up alone when the pointer moves: the bar
+                // should grow from it rather than appear beside it.
+                ("seek-move", t) if t == PRESS + 2 => super::drive::hover(&ui, 40.0, 40.0),
+                _ => {}
+            }
+            if tick + 2 < PRESS || tick > PRESS + 20 {
+                if tick == PRESS + 21 {
+                    eprintln!("dbm: --- wake test done ---");
+                }
+                return;
+            }
+            let rects = ui.get_glass_rects();
+            let rect = |i: usize| rects.row_data(i).unwrap_or_default();
+            let (bar, window, words) = (rect(0), rect(1), rect(5));
+            let chrome = ui.global::<crate::Chrome>();
+            eprintln!(
+                "dbm: wake t={:+.2}s bar y={:.0} w={:.0} h={:.0} a={:.2} | window a={:.2} | flash w={:.0} a={:.2} | lift={:.2} ceiling={:.1} | idle={} pointer-hidden={} fullscreen={} paused={} panel={}",
+                (tick as f32 - PRESS as f32) * 0.25,
+                bar.y,
+                bar.width,
+                if bar.width > 0.0 { bar.height } else { 0.0 },
+                if bar.width > 0.0 { bar.opacity } else { 0.0 },
+                if window.width > 0.0 { window.opacity } else { 0.0 },
+                words.width,
+                if words.width > 0.0 { words.opacity } else { 0.0 },
+                ui.get_subtitle_lift(),
+                ui.get_subtitle_ceiling(),
+                chrome.get_idle(),
+                ui.get_pointer_hidden(),
+                ui.get_fullscreen(),
+                ui.get_paused(),
+                ui.get_settings_open(),
+            );
+        },
+    );
+    timer
+}

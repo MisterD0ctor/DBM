@@ -29,14 +29,14 @@ type Undo = Rc<Cell<Option<Before>>>;
 
 /// Bind a callback that is a single command.
 ///
-/// Every action also counts as activity, so working the toolbar keeps the
-/// chrome on screen even if the pointer never moves.
+/// Not counted as activity here: the interface counts the input that asked,
+/// and a key whose own answer is enough, like a seek's timeline or a track's
+/// flash, wakes no bar (`key-wake`).
 macro_rules! on {
     ($ui:expr, $app:expr, $setter:ident, |$m:ident $(, $arg:ident)*| $body:expr) => {{
-        let app = $app.clone();
+        let mpv = $app.mpv.clone();
         $ui.$setter(move |$($arg),*| {
-            app.activity.bump();
-            let $m = &*app.mpv;
+            let $m = &*mpv;
             $body
         });
     }};
@@ -83,10 +83,11 @@ fn wire_transport(ui: &MainWindow, app: &App) {
     on!(ui, app, on_replay, |m| commands::replay(m));
     // Every way of asking for another file on purpose goes through
     // `arrival`, which holds one with a place saved in it for the choice.
+    // Not activity, here or for the pills' two answers below: each is the way
+    // back to the film, and the file arriving shows its own title.
     {
         let app = app.clone();
         ui.on_play_next(move || {
-            app.activity.bump();
             app.arrival.step(&app.mpv, 1, Some(true));
         });
     }
@@ -98,8 +99,8 @@ fn wire_transport(ui: &MainWindow, app: &App) {
     ));
     {
         let app = app.clone();
+        // Not activity, for `on!`'s reason: Ctrl+arrows answer with a flash.
         ui.on_playlist_step(move |delta| {
-            app.activity.bump();
             app.arrival.step(&app.mpv, delta, None);
         });
     }
@@ -114,7 +115,6 @@ fn wire_transport(ui: &MainWindow, app: &App) {
     {
         let app = app.clone();
         ui.on_take_resume_offer(move || {
-            app.activity.bump();
             app.arrival.take_offer(&app.mpv);
         });
     }
@@ -122,7 +122,6 @@ fn wire_transport(ui: &MainWindow, app: &App) {
     {
         let app = app.clone();
         ui.on_arrival_answer(move |from_the_start| {
-            app.activity.bump();
             app.arrival.answer(&app.mpv, from_the_start);
         });
     }
@@ -210,8 +209,8 @@ fn wire_tracks(ui: &MainWindow, app: &App) {
     // than blocking a keypress behind mpv's core lock.
     {
         let app = app.clone();
+        // Not activity, for `on!`'s reason: C answers with a flash.
         ui.on_toggle_subtitles(move || {
-            app.activity.bump();
             app.worker.run(commands::toggle_subtitles);
         });
     }
@@ -400,8 +399,8 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
     // so the tuning survives switching an effect off.
     {
         let app = app.clone();
+        // Not activity, for `on!`'s reason: B is answered by the border.
         ui.on_set_ambience(move |on| {
-            app.activity.bump();
             app.settings.set_ambience(on);
         });
     }
@@ -603,9 +602,10 @@ fn wire_video_clicks(ui: &MainWindow, app: &App) {
     }
 
     {
-        let (app, weak, token) = (app.clone(), ui.as_weak(), token.clone());
+        // Not activity: the interface puts the chrome away after it, as it
+        // does for F (`Chrome.rest`).
+        let (weak, token) = (ui.as_weak(), token.clone());
         ui.on_video_double_clicked(move || {
-            app.activity.bump();
             // Invalidate whatever single click is pending.
             token.set(token.get().wrapping_add(1));
             if let Some(ui) = weak.upgrade() {

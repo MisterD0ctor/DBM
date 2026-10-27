@@ -23,12 +23,29 @@ export global Chrome {
     /// Bumped by every key and pointer event: input, as distinct from the
     /// activity a film ending also raises. A notice waits for the next one.
     in-out property <int> input-seq: 0;
+    /// How long the chrome stays after the last activity, which the Rust side
+    /// owns (`chrome::HIDE_AFTER`), for what keeps time beside the clock.
+    in-out property <duration> hide-after: 3000ms;
+    /// Set for a moment after going in or out of fullscreen, while the window
+    /// may still be changing size: a compositor moves the pointer within a
+    /// window that moved under it, and those moves are no hand's.
+    in-out property <bool> settling: false;
 
     /// Call on any activity. Wakes the interface at once and resets the clock.
     public function bump() {
         Chrome.idle = false;
         Chrome.activity();
     }
+
+    /// Put the chrome away at once, as though the clock had run out.
+    /// Whatever holds it up still does.
+    public function rest() {
+        Chrome.idle = true;
+        Chrome.rested();
+    }
+
+    /// Tells the Rust side's clock it has run out (see `rest`).
+    callback rested();
 
     /// Ask for the pointer to leave the screen, or to come back.
     ///
@@ -41,6 +58,9 @@ export global Chrome {
     /// Pointer activity, and whether a button went down with it. A press also
     /// clears the ring, since the hand has taken over.
     public function pointed(down: bool) {
+        if (Chrome.settling && !down) {
+            return;
+        }
         Chrome.bump();
         Chrome.input-seq += 1;
         if (down) {
@@ -55,6 +75,9 @@ export global Chrome {
     /// Enter presses. Only movement counts: a still pointer raises no events,
     /// so arrowing past it keeps the ring.
     public function pointed-at(down: bool, moved: bool, focused: bool) {
+        if (Chrome.settling && !down) {
+            return;
+        }
         Chrome.pointed(down);
         if (moved && !focused) {
             Chrome.focus-visible = false;
@@ -65,9 +88,9 @@ export global Chrome {
 /// Brief feedback for an action whose effect is otherwise off screen.
 ///
 /// Only for what nothing else shows: which way a seek went, that the file
-/// changed, where the subtitle delay landed, whether subtitles are on. Mute,
-/// volume and panscan move a control already on screen, since a key press
-/// wakes the bar.
+/// changed, where the subtitle delay landed, whether subtitles are on, and
+/// the volume, whose key wakes no bar to show it on. Panscan, frames and the
+/// ambient border are answered by the picture itself.
 export global Flash {
     // Indices into the window's own glyph list, because `@image-url` resolves
     // at compile time and the images can't live here. Named so the call sites
@@ -94,8 +117,9 @@ export global Flash {
     /// same action repeats, as it does for a held key.
     in-out property <int> seq: 0;
     /// A figure shown on its own, with no ring: 1 the speed, 2 the chapter,
-    /// 3 the subtitle track, 4 the audio track, 0 none. The icon set has no
-    /// glyph for these, and the figure is the whole answer anyway.
+    /// 3 the subtitle track, 4 the audio track, 5 the volume, 0 none. The
+    /// icon set has no glyph for these, and the figure is the whole answer
+    /// anyway.
     in-out property <int> figure: 0;
 
     public function show-figure(kind: int) {

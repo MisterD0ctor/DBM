@@ -114,6 +114,15 @@
 //!   should start with neither and the first should get its own back.
 //! * `DBM_KEY_TEST=1` — dispatches real key events into the window, for
 //!   shortcuts whose effect is otherwise off-screen.
+//! * `DBM_WAKE_TEST=<key>` — lets the chrome sleep over a playing film,
+//!   presses one key and reports what came up: `seek`, `fine`, `volume`,
+//!   `mute`, `subs`, `speed`, `step`, `panscan`, `fullscreen`, `tab`, `space`,
+//!   `next` or `double-click`; `seek-move` and `next-move` move the pointer
+//!   after the key, `seek-subs` turns subtitles on before it, `pause-step`
+//!   steps a frame from a pause, `space-play` plays on from one, and
+//!   `escape-panel` closes the settings. The pointer instead: `twitch` nudges
+//!   it before moving it, `hover` leaves it on the bar past the clock, and
+//!   `leave` takes it out of the window.
 //! * `DBM_READ_TEST=1` — opens the shortcuts page and presses the keys that
 //!   read it, with a film playing. They should scroll the page, not reach the
 //!   film, so `time-pos` either side is the check; the scroll itself is inside
@@ -168,8 +177,8 @@
 //!   autoplay is a saved preference.
 //! * `DBM_CREDITS_TEST=1` — gives the file a credits chapter over its last two
 //!   minutes and plays into it, so the credits pill comes up for real. It
-//!   reports as the bar arrives and again after it has gone, which the pill
-//!   must outlast, then presses Enter, which the pill's ring must answer, and
+//!   reports as the seek's bar is up and again after it has gone, which the
+//!   pill must outlast, then presses Enter, which the pill's ring must answer, and
 //!   reports the file that follows. Needs an episode, and a later file beside
 //!   it. `DBM_CREDITS_TEST=own` keeps the file's own chapters and plays into
 //!   the last of them. `=heard` gives it nothing and plays into its last
@@ -179,8 +188,10 @@
 //!   seconds short, at a chapter for a scene after them, which Enter must
 //!   skip to rather than go on. `=mid` stops them for a scene forty seconds
 //!   in, which Enter must skip to, and then plays into the forty seconds of
-//!   credits after it, which must offer the next episode again.
-//!   `DBM_CREDITS_AT` names the second it plays into instead.
+//!   credits after it, which must offer the next episode again. `=asleep`
+//!   plays in from short of them, so they start with the bar gone, and the
+//!   pill must come up without it. `DBM_CREDITS_AT` names the second it plays
+//!   into instead.
 //! * `DBM_INTRO_TEST=1` — waits for the episode's title sequence to be found,
 //!   by its chapters or by listening, and seeks into it so the pill offers to
 //!   skip it. Reports as it arrives and after the bar has gone, then presses
@@ -326,6 +337,9 @@ pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
     }
     if std::env::var_os("DBM_KEY_TEST").is_some() {
         timers.push(keys::key_test(ui));
+    }
+    if std::env::var_os("DBM_WAKE_TEST").is_some() {
+        timers.push(keys::wake_test(ui));
     }
     if std::env::var_os("DBM_READ_TEST").is_some() {
         timers.push(keys::read_test(ui, mpv.clone()));
