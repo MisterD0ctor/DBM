@@ -370,13 +370,12 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
             }
         });
     }
-    // Page numbers as the settings panel counts them: 1 glass, 2 ambient
-    // border, 3 subtitles. The subtitles' delay and speed come with the
-    // request because they are per-file state mpv owns, and the interface had
-    // them when the reset was pressed.
+    // Resets as the panels number them: 1 glass, 2 ambient border, and from
+    // the subtitles menu 4 their size and position. 3, their timing, is put
+    // back by the menu itself, since it was never a setting.
     {
         let (app, models, undo) = (app.clone(), models.clone(), undo.clone());
-        ui.on_undo_reset(move |page, delay, speed| {
+        ui.on_undo_reset(move |page| {
             app.activity.bump();
             let Some(was) = undo.take() else {
                 return;
@@ -384,9 +383,7 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
             match page {
                 1 => app.settings.restore(Section::Glass, &was),
                 2 => app.settings.restore(Section::Border, &was),
-                3 => {
-                    commands::set_sub_delay(&app.mpv, delay as f64);
-                    commands::set_sub_speed(&app.mpv, speed as f64);
+                4 => {
                     app.settings
                         .set_sub_scale(
                             commands::set_sub_scale(&app.mpv, was.sub_scale as f64) as f32
@@ -499,11 +496,6 @@ fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
         ui.on_reset_subtitles(move || {
             app.activity.bump();
             undo.set(Some(app.settings.before()));
-            // One row rather than three, matching the settings pages, so it
-            // resets the whole page: the delay too, though it isn't saved
-            // here, and the speed a sync may have set, which has no row.
-            commands::set_sub_delay(&app.mpv, 0.0);
-            commands::set_sub_speed(&app.mpv, 1.0);
             app.settings
                 .set_sub_scale(
                     commands::set_sub_scale(&app.mpv, commands::SUB_SCALE_DEFAULT) as f32,
@@ -522,11 +514,11 @@ fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
     }
     {
         let app = app.clone();
-        ui.on_undo_sync(move |delay, speed| {
+        ui.on_set_timing(move |delay, speed| {
             app.activity.bump();
             commands::set_sub_delay(&app.mpv, delay as f64);
             commands::set_sub_speed(&app.mpv, speed as f64);
-            // Saved at once, as the sync it takes back was.
+            // Saved at once, as a sync is.
             crate::playback::session::checkpoint(&app.mpv);
         });
     }

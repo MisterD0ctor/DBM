@@ -43,6 +43,12 @@ pub enum Completion {
     /// The light behind the empty window when no film can give it one (see
     /// `mark`).
     Mark(crate::library::preview::Still),
+    /// The light the end of `from` stands in, where its atlas has a frame to
+    /// give it (see `preview::lit_still`).
+    EndLight {
+        from: String,
+        still: Option<crate::library::preview::Still>,
+    },
     /// Where the way on goes once a list has run out, already named. `from`
     /// is the file that asked, so an answer that arrives after something
     /// else started is dropped, and `None` means there is nowhere to go.

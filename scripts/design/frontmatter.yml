@@ -15,6 +15,10 @@ colors:
   wash-strong: "{{ Paint.wash-strong }}"
   wash-button: "{{ Paint.wash-button }}"
   wash-soft: "{{ Paint.wash-soft }}"
+  on-ring: "{{ Paint.on-ring@then }}"
+  on-ring-rail: "{{ Paint.on-ring-rail@then }}"
+  on-ring-wash: "{{ Paint.on-ring-wash@then }}"
+  on-ring-knob: "{{ Paint.on-ring-knob@then }}"
 typography:
   title:
     fontFamily: "{{ Type.face }}"

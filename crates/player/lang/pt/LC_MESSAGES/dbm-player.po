@@ -245,10 +245,6 @@ msgid "Liquid glass"
 msgstr "Vidro líquido"
 
 msgctxt "MainWindow"
-msgid "Timing, size & position"
-msgstr "Atraso, tamanho e posição"
-
-msgctxt "MainWindow"
 msgid "INTERFACE"
 msgstr "INTERFACE"
 
@@ -887,3 +883,67 @@ msgstr "Procurar legendas"
 msgctxt "MainWindow"
 msgid "Skip credits"
 msgstr "Pular créditos"
+
+msgctxt "MainWindow"
+msgid "Reset timing"
+msgstr "Redefinir atraso"
+
+msgctxt "MainWindow"
+msgid "Size & position"
+msgstr "Tamanho e posição"
+
+msgctxt "player"
+msgid "loading failed"
+msgstr "falha ao carregar"
+
+msgctxt "player"
+msgid "unrecognized file format"
+msgstr "formato de arquivo não reconhecido"
+
+msgctxt "player"
+msgid "no audio or video data played"
+msgstr "nenhum áudio ou vídeo reproduzido"
+
+msgctxt "player"
+msgid "audio output initialization failed"
+msgstr "não foi possível iniciar a saída de áudio"
+
+msgctxt "player"
+msgid "video output initialization failed"
+msgstr "não foi possível iniciar a saída de vídeo"
+
+msgctxt "player"
+msgid "not supported"
+msgstr "não suportado"
+
+msgctxt "player"
+msgid "operation not implemented"
+msgstr "operação não implementada"
+
+msgctxt "player"
+msgid "something happened"
+msgstr "algo deu errado"
+
+msgctxt "player"
+msgid "unknown error"
+msgstr "erro desconhecido"
+
+msgctxt "player"
+msgid "Season {} finished"
+msgstr "Temporada {} concluída"
+
+msgctxt "player"
+msgid "{} s later"
+msgstr "{} s depois"
+
+msgctxt "player"
+msgid "{} s earlier"
+msgstr "{} s antes"
+
+msgctxt "MainWindow"
+msgid "TIMING"
+msgstr "ATRASO"
+
+msgctxt "MainWindow"
+msgid "SIZE & POSITION"
+msgstr "TAMANHO E POSIÇÃO"

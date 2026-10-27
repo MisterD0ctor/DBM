@@ -59,17 +59,17 @@ pub(super) fn reach_test(ui: &MainWindow) -> slint::Timer {
                         eprintln!("dbm: pressing S for the settings");
                         chord(&ui, &[], "s");
                     }
-                    // S lands the ring on the first row, so three Downs reach
+                    // S lands the ring on the first row, so two Downs reach
                     // Accessibility; Enter opens it; Down onto the switch.
-                    1..=3 | 5 => {
+                    1 | 2 | 4 => {
                         chord(&ui, &[], down.as_str());
                         eprintln!("dbm: down -> row {}", ui.get_focus_row());
                     }
-                    4 => {
+                    3 => {
                         chord(&ui, &[], enter.as_str());
                         eprintln!("dbm: enter, opening the accessibility page");
                     }
-                    6 | 7 => {
+                    5 | 6 => {
                         chord(&ui, &[], enter.as_str());
                         eprintln!(
                             "dbm: enter on row {} -> animations {}, surface {}ms",
@@ -78,7 +78,7 @@ pub(super) fn reach_test(ui: &MainWindow) -> slint::Timer {
                             ui.global::<Motion>().get_surface()
                         );
                     }
-                    8 => eprintln!("dbm: --- reach test done ---"),
+                    7 => eprintln!("dbm: --- reach test done ---"),
                     _ => {}
                 }
                 step += 1;

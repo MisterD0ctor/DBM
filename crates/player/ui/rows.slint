@@ -18,6 +18,8 @@ import { Squircle } from "squircle.slint";
 /// them touching.
 export component ActiveMark inherits Rectangle {
     in property <bool> on;
+    /// The keyboard's ring is on the row, so the mark stands on milk glass.
+    in property <bool> ring;
 
     width: 100%;
     height: 100%;
@@ -28,7 +30,7 @@ export component ActiveMark inherits Rectangle {
         width: 3px;
         height: 14px;
         border-radius: self.width / 2;
-        background: Paint.lit;
+        background: root.ring ? Paint.on-ring : Paint.lit;
         opacity: root.on ? 1.0 : 0.0;
         animate opacity { duration: Motion.highlight; easing: ease-out; }
     }
@@ -37,8 +39,8 @@ export component ActiveMark inherits Rectangle {
 /// The wash behind a hovered or focused row. It fills the row and insets
 /// itself, so the row only says why it is lit.
 ///
-/// Under the ring the wash is stronger and stands on a pane of glass of its
-/// own, whose lit rim is what tells it from the pointer's at 3:1 (see `Ring`).
+/// Under the ring there is a pane of milk glass of its own instead (see
+/// `Ring`), and the ring's wash only where there is no glass.
 export component RowHighlight inherits Rectangle {
     in property <bool> hovered;
     in property <bool> ring;
@@ -57,7 +59,8 @@ export component RowHighlight inherits Rectangle {
         x: Rows.gap;
         width: parent.width - 2 * Rows.gap;
         radius: Rows.radius;
-        fill: root.ring ? Paint.wash-ring : root.hovered ? Paint.wash-soft : transparent;
+        fill: root.ring ? (Paint.glass ? transparent : Paint.wash-ring)
+            : root.hovered ? Paint.wash-soft : transparent;
         animate fill { duration: Motion.highlight; easing: ease-out; }
     }
 
@@ -113,6 +116,7 @@ export component MenuRow inherits Rectangle {
 
     ActiveMark {
         on: root.active;
+        ring: root.ring;
     }
 
     // Placed and spaced like a stepper's icon, so the marks and the labels
@@ -124,7 +128,7 @@ export component MenuRow inherits Rectangle {
         width: 18px;
         height: 18px;
         image-fit: contain;
-        colorize: root.active || root.ring ? Paint.lit : Paint.body;
+        colorize: root.ring ? Paint.on-ring : root.active ? Paint.lit : Paint.body;
     }
 
     Text {
@@ -134,7 +138,7 @@ export component MenuRow inherits Rectangle {
             - self.x;
         height: 100%;
         text: root.label;
-        color: root.active || root.ring ? Paint.lit : Paint.body;
+        color: root.ring ? Paint.on-ring : root.active ? Paint.lit : Paint.body;
         font-size: Type.body;
         font-weight: root.active ? Type.weight-current : Type.weight-plain;
         vertical-alignment: center;
@@ -181,14 +185,14 @@ export component MenuRow inherits Rectangle {
         width: max(0px, self.full * root.asking);
         height: root.bin;
         border-radius: min(self.width, self.height) / 2;
-        background: Paint.wash-strong;
+        background: root.ring ? Paint.on-ring-wash : Paint.wash-strong;
     }
     question := Text {
         x: root.bin-x - self.width;
         height: 100%;
         visible: root.armed;
         text: @tr("Remove?");
-        color: Paint.lit;
+        color: root.ring ? Paint.on-ring : Paint.lit;
         font-size: Type.readout;
         vertical-alignment: center;
     }
@@ -213,7 +217,8 @@ export component MenuRow inherits Rectangle {
             height: root.bin;
             border-radius: self.width / 2;
             // The capsule is the wash while it asks.
-            background: bin-touch.has-hover && !root.armed ? Paint.wash-strong : transparent;
+            background: !bin-touch.has-hover || root.armed ? transparent
+                : root.ring ? Paint.on-ring-wash : Paint.wash-strong;
             animate background { duration: Motion.highlight; easing: ease-out; }
 
             Image {
@@ -224,7 +229,7 @@ export component MenuRow inherits Rectangle {
                 width: 18px;
                 height: 18px;
                 image-fit: contain;
-                colorize: bin-touch.has-hover || root.ring || root.armed ? Paint.lit : Paint.body;
+                colorize: root.ring ? Paint.on-ring : bin-touch.has-hover || root.armed ? Paint.lit : Paint.body;
             }
         }
 
@@ -269,6 +274,7 @@ export component FoundRow inherits Rectangle {
 
     ActiveMark {
         on: root.busy;
+        ring: root.ring;
     }
 
     // The detail takes what it needs and the release name the rest, because
@@ -280,7 +286,7 @@ export component FoundRow inherits Rectangle {
 
         Text {
             text: root.label;
-            color: root.busy || root.ring ? Paint.lit : Paint.body;
+            color: root.ring ? Paint.on-ring : root.busy ? Paint.lit : Paint.body;
             font-size: Type.body;
             vertical-alignment: center;
             overflow: elide;
@@ -290,7 +296,7 @@ export component FoundRow inherits Rectangle {
 
         Text {
             text: root.busy ? @tr("Downloading…") : root.detail;
-            color: root.ring ? Paint.lit : Paint.body;
+            color: root.ring ? Paint.on-ring : Paint.body;
             font-size: Type.readout;
             vertical-alignment: center;
             horizontal-alignment: right;
@@ -361,6 +367,7 @@ export component PlaylistRow inherits Rectangle {
 
     ActiveMark {
         on: root.active;
+        ring: root.ring;
     }
 
     Text {
@@ -371,7 +378,7 @@ export component PlaylistRow inherits Rectangle {
             - Rows.group-gap - (root.measured ? root.measure-w + Rows.group-gap : 0);
         height: 100%;
         text: root.label;
-        color: root.active || root.ring ? Paint.lit : Paint.body;
+        color: root.ring ? Paint.on-ring : root.active ? Paint.lit : Paint.body;
         font-size: Type.body;
         font-weight: root.active ? Type.weight-current : Type.weight-plain;
         vertical-alignment: center;
@@ -385,7 +392,7 @@ export component PlaylistRow inherits Rectangle {
         text: root.failed ? "" : root.length;
         // Lit under the ring, as the name is. The same in every row with a
         // figure.
-        color: root.ring ? Paint.lit : Paint.body;
+        color: root.ring ? Paint.on-ring : Paint.body;
         font-size: Type.readout;
         vertical-alignment: center;
     }
@@ -397,10 +404,10 @@ export component PlaylistRow inherits Rectangle {
         visible: root.failed;
         x: parent.width - root.trail - self.width;
         y: (parent.height - self.height) / 2;
-        width: 16px;
-        height: 16px;
+        width: 18px;
+        height: 18px;
         image-fit: contain;
-        colorize: root.ring ? Paint.lit : Paint.body;
+        colorize: root.ring ? Paint.on-ring : Paint.body;
     }
 
     // How far into it you got. A hairline rather than a bar, since it is
@@ -417,7 +424,7 @@ export component PlaylistRow inherits Rectangle {
         width: root.measure-w;
         height: 4px;
         visible: root.measured;
-        background: Paint.rail;
+        background: root.ring ? Paint.on-ring-rail : Paint.rail;
         border-radius: self.height / 2;
 
         Rectangle {
@@ -428,7 +435,7 @@ export component PlaylistRow inherits Rectangle {
             width: root.finished ? parent.width
                 : max(self.height, parent.width * root.progress);
             height: 100%;
-            background: Paint.strong;
+            background: root.ring ? Paint.on-ring : Paint.strong;
             border-radius: parent.border-radius;
         }
     }
@@ -482,6 +489,7 @@ export component GroupRow inherits Rectangle {
 
     ActiveMark {
         on: root.active;
+        ring: root.ring;
     }
 
     Text {
@@ -489,7 +497,7 @@ export component GroupRow inherits Rectangle {
         width: root.column-end - root.time-col - Rows.group-gap - self.x;
         height: 100%;
         text: root.label;
-        color: root.active || root.ring ? Paint.lit : Paint.body;
+        color: root.ring ? Paint.on-ring : root.active ? Paint.lit : Paint.body;
         font-size: Type.body;
         font-weight: root.active ? Type.weight-current : Type.weight-plain;
         vertical-alignment: center;
@@ -500,7 +508,7 @@ export component GroupRow inherits Rectangle {
         x: root.column-end - self.width;
         height: 100%;
         text: root.detail;
-        color: root.ring ? Paint.lit : Paint.body;
+        color: root.ring ? Paint.on-ring : Paint.body;
         font-size: Type.readout;
         vertical-alignment: center;
     }
@@ -512,7 +520,7 @@ export component GroupRow inherits Rectangle {
         width: root.chevron;
         height: root.chevron;
         image-fit: contain;
-        colorize: touch.has-hover || root.ring ? Paint.lit : Paint.body;
+        colorize: root.ring ? Paint.on-ring : touch.has-hover ? Paint.lit : Paint.body;
     }
 
     touch := TouchArea {
@@ -566,7 +574,7 @@ export component ResumeRow inherits Rectangle {
         width: root.icon-size;
         height: root.icon-size;
         image-fit: contain;
-        colorize: touch.has-hover || root.ring ? Paint.lit : Paint.body;
+        colorize: root.ring ? Paint.on-ring : touch.has-hover ? Paint.lit : Paint.body;
     }
 
     Text {
@@ -574,7 +582,7 @@ export component ResumeRow inherits Rectangle {
         width: left-text.x - Rows.group-gap - root.measure-w - Rows.group-gap - self.x;
         height: 100%;
         text: root.label;
-        color: root.ring ? Paint.lit : Paint.strong;
+        color: root.ring ? Paint.on-ring : Paint.strong;
         font-size: Type.body;
         vertical-alignment: center;
         overflow: elide;
@@ -587,7 +595,7 @@ export component ResumeRow inherits Rectangle {
         x: parent.width - Rows.trail-x - self.width;
         height: 100%;
         text: root.left;
-        color: root.ring ? Paint.lit : Paint.body;
+        color: root.ring ? Paint.on-ring : Paint.body;
         font-size: Type.readout;
         vertical-alignment: center;
     }
@@ -598,14 +606,14 @@ export component ResumeRow inherits Rectangle {
         y: (parent.height - self.height) / 2;
         width: root.measure-w;
         height: 4px;
-        background: Paint.rail;
+        background: root.ring ? Paint.on-ring-rail : Paint.rail;
         border-radius: self.height / 2;
 
         Rectangle {
             x: 0;
             width: max(self.height, parent.width * root.progress);
             height: 100%;
-            background: Paint.strong;
+            background: root.ring ? Paint.on-ring : Paint.strong;
             border-radius: parent.border-radius;
         }
     }
@@ -665,12 +673,12 @@ export component ShortcutRow inherits Rectangle {
             vertical-alignment: center;
             horizontal-stretch: 1;
             overflow: elide;
-            color: root.ring && !root.inert ? Paint.lit : Paint.body;
+            color: root.ring && !root.inert ? Paint.on-ring : Paint.body;
         }
 
         Text {
             text: root.shortcut;
-            color: root.ring && !root.inert ? Paint.lit : Paint.body;
+            color: root.ring && !root.inert ? Paint.on-ring : Paint.body;
             font-size: Type.readout;
             vertical-alignment: center;
         }
@@ -738,14 +746,14 @@ export component ParamSlider inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: root.ring ? Paint.lit : Paint.body;
+                colorize: root.ring ? Paint.on-ring : Paint.body;
             }
         }
 
         name-text := Text {
             width: root.name-w;
             text: root.label;
-            color: root.ring ? Paint.lit : Paint.body;
+            color: root.ring ? Paint.on-ring : Paint.body;
             font-size: Type.readout;
             vertical-alignment: center;
         }
@@ -758,7 +766,7 @@ export component ParamSlider inherits Rectangle {
                 width: 100%;
                 height: drag.has-hover || drag.pressed ? 6px : 4px;
                 border-radius: self.height / 2;
-                background: Paint.rail;
+                background: root.ring ? Paint.on-ring-rail : Paint.rail;
                 animate height { duration: Motion.track-grow; easing: ease-out; }
 
                 // A capsule never taller than it is long: below the track's
@@ -774,7 +782,7 @@ export component ParamSlider inherits Rectangle {
                     width: parent.width * clamp(root.fraction, 0, 1);
                     height: min(parent.height, self.width);
                     border-radius: self.height < 2px ? 0px : self.height / 2;
-                    background: Paint.fill;
+                    background: root.ring ? Paint.on-ring : Paint.fill;
                 }
             }
 
@@ -798,7 +806,7 @@ export component ParamSlider inherits Rectangle {
         value-text := Text {
             width: 46px;
             text: root.readout;
-            color: root.ring ? Paint.lit : Paint.body;
+            color: root.ring ? Paint.on-ring : Paint.body;
             font-size: Type.readout;
             horizontal-alignment: right;
             vertical-alignment: center;
@@ -865,7 +873,8 @@ export component ToggleRow inherits Rectangle {
                     width: 100%;
                     height: 100%;
                     source: @image-url("shapes/switch-track.svg");
-                    colorize: root.checked ? Paint.fill : Paint.rail;
+                    colorize: root.checked ? (root.ring ? Paint.on-ring : Paint.fill)
+                        : (root.ring ? Paint.on-ring-rail : Paint.rail);
                     animate colorize { duration: Motion.switch; easing: ease-out; }
                 }
                 knob := Image {
@@ -876,7 +885,8 @@ export component ToggleRow inherits Rectangle {
                     source: @image-url("shapes/switch-knob.svg");
                     // Dark on the lit track, light on the dark one: the knob
                     // reads as a hole punched in the switch either way.
-                    colorize: root.checked ? Paint.knob : Paint.fill;
+                    colorize: root.checked ? (root.ring ? Paint.on-ring-knob : Paint.knob)
+                        : (root.ring ? Paint.on-ring : Paint.fill);
                     animate x { duration: Motion.switch; easing: ease-out; }
                 }
             }
@@ -887,7 +897,7 @@ export component ToggleRow inherits Rectangle {
         // out-inked the episodes it governs.
         Text {
             text: root.label;
-            color: root.ring ? Paint.lit : Paint.body;
+            color: root.ring ? Paint.on-ring : Paint.body;
             font-size: Type.body;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -954,13 +964,13 @@ export component DrillRow inherits Rectangle {
                 image-fit: contain;
                 // With the words: the icon names the same subject, so the
                 // ring lights the two together.
-                colorize: root.ring ? Paint.lit : Paint.body;
+                colorize: root.ring ? Paint.on-ring : Paint.body;
             }
         }
 
         Text {
             text: root.label;
-            color: root.ring ? Paint.lit : Paint.body;
+            color: root.ring ? Paint.on-ring : Paint.body;
             font-size: Type.body;
             vertical-alignment: center;
             overflow: elide;
@@ -970,7 +980,7 @@ export component DrillRow inherits Rectangle {
 
         if root.detail != "": Text {
             text: root.detail;
-            color: root.ring ? Paint.lit : Paint.body;
+            color: root.ring ? Paint.on-ring : Paint.body;
             font-size: Type.readout;
             vertical-alignment: center;
             horizontal-stretch: 0;
@@ -986,7 +996,7 @@ export component DrillRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: touch.has-hover || root.ring ? Paint.lit : Paint.body;
+                colorize: root.ring ? Paint.on-ring : touch.has-hover ? Paint.lit : Paint.body;
             }
         }
     }
@@ -1004,7 +1014,7 @@ export component DrillRow inherits Rectangle {
 }
 
 /// An adjustment read as a number rather than a position, such as a subtitle
-/// delay of +0.30 s, where the useful move is one step at a time. Sliders are
+/// delay of 0.30 s later, where the useful move is one step at a time. Sliders are
 /// for the material parameters, where the eye judges the result.
 export component StepperRow inherits Rectangle {
     /// Whether the keyboard is on this row. Left and right step it.
@@ -1013,6 +1023,8 @@ export component StepperRow inherits Rectangle {
     in property <image> icon;
     in property <string> label;
     in property <string> value;
+    /// How wide the value is set, for one that reads wider than a number.
+    in property <length> value-w: 62px;
     /// -1 or +1; the caller owns the step size.
     callback stepped(float);
 
@@ -1049,13 +1061,13 @@ export component StepperRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: root.ring ? Paint.lit : Paint.body;
+                colorize: root.ring ? Paint.on-ring : Paint.body;
             }
         }
 
         Text {
             text: root.label;
-            color: root.ring ? Paint.lit : Paint.body;
+            color: root.ring ? Paint.on-ring : Paint.body;
             font-size: Type.readout;
             vertical-alignment: center;
             horizontal-stretch: 1;
@@ -1076,9 +1088,9 @@ export component StepperRow inherits Rectangle {
         }
 
         value-text := Text {
-            width: 62px;
+            width: root.value-w;
             text: root.value;
-            color: root.ring ? Paint.lit : Paint.strong;
+            color: root.ring ? Paint.on-ring : Paint.strong;
             font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -1143,13 +1155,13 @@ export component BackRow inherits Rectangle {
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 image-fit: contain;
-                colorize: touch.has-hover || root.ring ? Paint.lit : Paint.body;
+                colorize: root.ring ? Paint.on-ring : touch.has-hover ? Paint.lit : Paint.body;
             }
         }
 
         Text {
             text: root.label;
-            color: touch.has-hover || root.ring ? Paint.lit : Paint.body;
+            color: root.ring ? Paint.on-ring : touch.has-hover ? Paint.lit : Paint.body;
             font-size: root.titular ? Type.named : Type.label;
             font-weight: Type.weight-plain;
             letter-spacing: root.titular ? 0 : Type.label-track;

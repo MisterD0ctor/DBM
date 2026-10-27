@@ -34,8 +34,10 @@ export component IconButton inherits Rectangle {
     width: 40px;
     height: 40px;
     border-radius: self.height / 2;
-    background: root.ring ? Paint.wash-ring
-        : root.open ? Paint.wash-strong
+    // Under glass the ring and the open state are the disc the window lays
+    // under the button (`MainWindow.ring-disc`, `MainWindow.open-disc`).
+    background: root.ring ? (Paint.glass ? transparent : Paint.wash-ring)
+        : root.open ? (Paint.glass ? transparent : Paint.wash-strong)
         : touch.has-hover && root.enabled ? Paint.wash-button
         : transparent;
     animate background { duration: Motion.highlight; easing: ease-out; }
@@ -57,10 +59,10 @@ export component IconButton inherits Rectangle {
         y: (parent.height - self.height) / 2;
         image-fit: contain;
         // Full white whenever it can be pressed, because over a bright frame
-        // anything less reads as greyed out. Hover and the ring are shown by
-        // the wash, and the ring by the disc of glass the window lays under
-        // it too (`MainWindow.ring-disc`).
-        colorize: !root.enabled ? Paint.dim : Paint.lit;
+        // anything less reads as greyed out; dark on the milk disc the window
+        // lays under the ring or an open panel's button.
+        colorize: !root.enabled ? Paint.dim
+            : root.ring || root.open ? Paint.on-ring : Paint.lit;
     }
 
     // The keyboard gets the same tip as the pointer, or a bar walked with Tab
@@ -144,12 +146,13 @@ export component StepButton inherits Rectangle {
     width: 26px;
     height: 26px;
     border-radius: self.height / 2;
-    background: touch.has-hover ? Paint.wash-strong : Paint.wash-soft;
+    background: root.lit ? (touch.has-hover ? Paint.on-ring-wash : Paint.on-ring-rail)
+        : touch.has-hover ? Paint.wash-strong : Paint.wash-soft;
     animate background { duration: Motion.highlight; easing: ease-out; }
 
     Text {
         text: root.glyph;
-        color: root.lit ? Paint.lit : Paint.strong;
+        color: root.lit ? Paint.on-ring : Paint.strong;
         font-size: Type.glyph;
         width: 100%;
         height: 100%;
@@ -195,14 +198,14 @@ export component EndChoice inherits Rectangle {
     Squircle {
         radius: root.height / 2;
         inset: root.inset;
-        fill: root.ring ? Paint.wash-ring
+        fill: root.ring ? (Paint.glass ? transparent : Paint.wash-ring)
             : touch.has-hover ? Paint.wash-button
             : transparent;
         animate fill { duration: Motion.highlight; easing: ease-out; }
     }
 
-    // As under a row: the pane's lit rim is what tells the ring from the
-    // pointer's wash, which on its own is faint against the pill's glass.
+    // As under a row: the ring is this pane of milk glass, and its wash is
+    // only for when there is no glass.
     RingPane {
         radius: root.height / 2;
         on: root.ring;
@@ -220,11 +223,11 @@ export component EndChoice inherits Rectangle {
             height: 24px;
             y: (parent.height - self.height) / 2;
             image-fit: contain;
-            colorize: Paint.lit;
+            colorize: root.ring ? Paint.on-ring : Paint.lit;
         }
         Text {
             text: root.label;
-            color: Paint.lit;
+            color: root.ring ? Paint.on-ring : Paint.lit;
             font-size: Type.prompt;
             font-weight: Type.weight-title;
             vertical-alignment: center;

@@ -244,10 +244,6 @@ msgid "Liquid glass"
 msgstr "Verre liquide"
 
 msgctxt "MainWindow"
-msgid "Timing, size & position"
-msgstr "Décalage, taille et position"
-
-msgctxt "MainWindow"
 msgid "INTERFACE"
 msgstr "INTERFACE"
 
@@ -886,3 +882,67 @@ msgstr "Chercher des sous-titres"
 msgctxt "MainWindow"
 msgid "Skip credits"
 msgstr "Passer le générique"
+
+msgctxt "MainWindow"
+msgid "Reset timing"
+msgstr "Réinitialiser le décalage"
+
+msgctxt "MainWindow"
+msgid "Size & position"
+msgstr "Taille et position"
+
+msgctxt "player"
+msgid "loading failed"
+msgstr "échec du chargement"
+
+msgctxt "player"
+msgid "unrecognized file format"
+msgstr "format de fichier non reconnu"
+
+msgctxt "player"
+msgid "no audio or video data played"
+msgstr "aucune donnée audio ou vidéo lue"
+
+msgctxt "player"
+msgid "audio output initialization failed"
+msgstr "impossible de démarrer la sortie audio"
+
+msgctxt "player"
+msgid "video output initialization failed"
+msgstr "impossible de démarrer la sortie vidéo"
+
+msgctxt "player"
+msgid "not supported"
+msgstr "non pris en charge"
+
+msgctxt "player"
+msgid "operation not implemented"
+msgstr "opération non implémentée"
+
+msgctxt "player"
+msgid "something happened"
+msgstr "une erreur s'est produite"
+
+msgctxt "player"
+msgid "unknown error"
+msgstr "erreur inconnue"
+
+msgctxt "player"
+msgid "Season {} finished"
+msgstr "Saison {} terminée"
+
+msgctxt "player"
+msgid "{} s later"
+msgstr "{} s plus tard"
+
+msgctxt "player"
+msgid "{} s earlier"
+msgstr "{} s plus tôt"
+
+msgctxt "MainWindow"
+msgid "TIMING"
+msgstr "DÉCALAGE"
+
+msgctxt "MainWindow"
+msgid "SIZE & POSITION"
+msgstr "TAILLE ET POSITION"

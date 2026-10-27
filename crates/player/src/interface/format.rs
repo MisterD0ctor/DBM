@@ -45,15 +45,26 @@ pub fn speed(speed: f64) -> String {
     format!("{text}×")
 }
 
-/// A subtitle delay. Signed, because the sign says whether the subtitles run
-/// early or late. Zero has none, so the untouched case doesn't read as a
-/// setting someone made.
+/// A subtitle delay, saying which way the subtitles were moved, since a sign
+/// leaves that to be remembered. Zero has no way, so the untouched case
+/// doesn't read as a setting someone made.
 pub fn delay(seconds: f64) -> String {
     if seconds.abs() < 0.005 {
         "0.00 s".into()
     } else {
-        format!("{seconds:+.2} s")
+        let pattern = if seconds > 0.0 {
+            tr("{} s later")
+        } else {
+            tr("{} s earlier")
+        };
+        fill(pattern, &[&format!("{:.2}", seconds.abs())])
     }
+}
+
+/// The widest a delay reads, either way, a line each, for its readout to be
+/// as wide as in the language spoken.
+pub fn delay_widest() -> String {
+    format!("{}\n{}", delay(10.0), delay(-10.0))
 }
 
 /// A subtitle size, as a multiple of the default: `1.15×`.
@@ -132,8 +143,8 @@ mod tests {
     fn a_delay_is_signed_except_at_zero() {
         assert_eq!(delay(0.0), "0.00 s");
         assert_eq!(delay(0.001), "0.00 s");
-        assert_eq!(delay(0.3), "+0.30 s");
-        assert_eq!(delay(-1.25), "-1.25 s");
+        assert_eq!(delay(0.3), "0.30 s later");
+        assert_eq!(delay(-1.25), "1.25 s earlier");
     }
 
     #[test]

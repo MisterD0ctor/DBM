@@ -58,7 +58,8 @@
 //!   list is every 20ms of the glide.
 //!   `current-hover` rests the pointer on the angle, for its circle.
 //! * `DBM_SHOWCASE=arrival` opens a file with a place saved in it, which is
-//!   held there with the choice of going on or starting over; `arrival-step`
+//!   held there with the choice of going on or starting over, and
+//!   `arrival-enter` presses Enter on it, which should go on; `arrival-step`
 //!   gets there by the Next button instead, and `arrival-answer` then answers
 //!   from the beginning. Each prints what it sees. Seed the watch-later
 //!   entries in a scratch `APPDATA` first.
@@ -80,6 +81,11 @@
 //! * `DBM_SHOWCASE=armed` opens the subtitles menu and presses Delete once on
 //!   the first subtitle loaded from its own file, so the row asks for the
 //!   second press. Open a film with a downloaded subtitle.
+//! * `DBM_SHOWCASE=timing` and `placing` turn on a film's first subtitle and
+//!   open the subtitles menu's page for its timing, or for its size and
+//!   position; with `DBM_FIND_FAKE`, after a search. `subs-drill` goes in
+//!   and out of Size & position by its keys, a move a tick, as `drill` does,
+//!   and `timing-drill` in and out of Timing.
 //! * `DBM_SHOWCASE=sideways` presses Left and Right in the settings and the
 //!   playlist and prints the page each left behind and the film's position,
 //!   which neither should move. Open a file from the middle of a season.

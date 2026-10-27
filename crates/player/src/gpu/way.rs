@@ -70,6 +70,7 @@ impl Way {
             // Drawn over the rows on its own, so its shadow falls on them.
             nested: false,
             ring: false,
+            milk: 0.0,
         };
         (pane, self.clip)
     }

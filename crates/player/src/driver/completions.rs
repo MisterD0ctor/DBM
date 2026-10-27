@@ -116,6 +116,11 @@ impl Driver {
             }
             Completion::Preview(atlas) => {
                 self.show_atlas(ui, atlas);
+                // An end reached before its atlas was built had no frame to be
+                // lit with, and now may.
+                if self.end_lit != self.player.path {
+                    self.end_light_asked = None;
+                }
                 false
             }
             Completion::Mark(still) => {
@@ -164,6 +169,15 @@ impl Driver {
                     for (file, language) in files {
                         commands::add_subtitle(&self.app.mpv, &file, &language, false);
                     }
+                }
+                false
+            }
+            Completion::EndLight { from, still } => {
+                if let (Some(still), true) =
+                    (still, self.player.path.as_deref() == Some(from.as_str()))
+                {
+                    gpu.pipeline.set_backdrop(&gpu.gl, &still);
+                    self.end_lit = Some(from);
                 }
                 false
             }

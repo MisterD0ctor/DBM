@@ -217,10 +217,6 @@ msgid "Liquid glass"
 msgstr "Flytande glas"
 
 msgctxt "MainWindow"
-msgid "Timing, size & position"
-msgstr "Fördröjning, storlek och position"
-
-msgctxt "MainWindow"
 msgid "INTERFACE"
 msgstr "GRÄNSSNITT"
 
@@ -883,3 +879,67 @@ msgstr "Hitta undertexter"
 msgctxt "MainWindow"
 msgid "Skip credits"
 msgstr "Hoppa över eftertexter"
+
+msgctxt "MainWindow"
+msgid "Reset timing"
+msgstr "Återställ fördröjning"
+
+msgctxt "MainWindow"
+msgid "Size & position"
+msgstr "Storlek och position"
+
+msgctxt "player"
+msgid "loading failed"
+msgstr "inläsningen misslyckades"
+
+msgctxt "player"
+msgid "unrecognized file format"
+msgstr "okänt filformat"
+
+msgctxt "player"
+msgid "no audio or video data played"
+msgstr "varken ljud eller bild spelades"
+
+msgctxt "player"
+msgid "audio output initialization failed"
+msgstr "ljudutgången kunde inte startas"
+
+msgctxt "player"
+msgid "video output initialization failed"
+msgstr "videoutgången kunde inte startas"
+
+msgctxt "player"
+msgid "not supported"
+msgstr "stöds inte"
+
+msgctxt "player"
+msgid "operation not implemented"
+msgstr "åtgärden finns inte"
+
+msgctxt "player"
+msgid "something happened"
+msgstr "något gick fel"
+
+msgctxt "player"
+msgid "unknown error"
+msgstr "okänt fel"
+
+msgctxt "player"
+msgid "Season {} finished"
+msgstr "Säsong {} färdig"
+
+msgctxt "player"
+msgid "{} s later"
+msgstr "{} s senare"
+
+msgctxt "player"
+msgid "{} s earlier"
+msgstr "{} s tidigare"
+
+msgctxt "MainWindow"
+msgid "TIMING"
+msgstr "FÖRDRÖJNING"
+
+msgctxt "MainWindow"
+msgid "SIZE & POSITION"
+msgstr "STORLEK OCH POSITION"

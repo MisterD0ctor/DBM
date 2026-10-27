@@ -8,10 +8,34 @@
 use std::rc::Rc;
 
 use crate::interface::format;
-use crate::lang::{fill, tr};
+use crate::lang::{fill, marked, tr};
 use crate::playback::audio::Watchdog;
 use crate::playback::mpv::{Event, Mpv};
 use crate::playback::state::PlayerState;
+
+/// mpv's own words for why a file stopped, as `mpv_error_string` gives them,
+/// marked so each language can say them too. One mpv adds later is shown as
+/// mpv says it.
+const REASONS: [&str; 9] = [
+    marked("loading failed"),
+    marked("unrecognized file format"),
+    marked("no audio or video data played"),
+    marked("audio output initialization failed"),
+    marked("video output initialization failed"),
+    marked("not supported"),
+    marked("operation not implemented"),
+    marked("something happened"),
+    marked("unknown error"),
+];
+
+/// mpv's description in the language being spoken, where it is one of
+/// [`REASONS`].
+fn said(reason: &str) -> &str {
+    REASONS
+        .iter()
+        .find(|known| **known == reason)
+        .map_or(reason, |known| tr(known))
+}
 
 /// Drain mpv's event queue into the mirrored state.
 ///
@@ -57,7 +81,7 @@ pub fn drain(
                 .iter()
                 .find(|e| e.id == *entry)
                 .map(|e| e.filename.clone());
-            let reason = format::sentence(reason);
+            let reason = format::sentence(said(reason));
             notices.push(match &path {
                 Some(path) => fill(
                     tr("{} — could not play {}"),

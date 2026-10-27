@@ -39,6 +39,7 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     );
     ui.set_panscan(player.panscan > 0.5);
     ui.set_sub_delay_text(format::delay(player.sub_delay).into());
+    ui.set_sub_delay_widest(format::delay_widest().into());
     ui.set_sub_scale_text(format::scale(player.sub_scale).into());
     // Whether anything is loaded, derived from mpv every frame, since a file
     // can arrive by the dialog, a drop or the command line.

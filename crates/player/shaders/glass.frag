@@ -71,12 +71,12 @@ uniform vec4 u_panel_rect[MAX_PANELS];
 /// it, and past that pane's edge it would fall on the picture. Nor does it
 /// reach past that edge itself (see `main`).
 uniform vec4 u_panel_style[MAX_PANELS];
-/// (ceiling, rim, unused, unused): the brightest luminance the pane may pass,
-/// 0 for no limit (see legibility, below), and how strongly its rim light
-/// shows: white added round its outermost edge, where the surface has turned
-/// past 45 degrees and the mirrored ray points back down. Per pane, because
-/// the pane under the keyboard's ring is held darker and lit harder than the
-/// rest.
+/// (ceiling, rim, milk, unused): the brightest luminance the pane may pass,
+/// 0 for no limit (see legibility, below); how strongly its rim light shows,
+/// white added round its outermost edge, where the surface has turned past 45
+/// degrees and the mirrored ray points back down; and how milky it is, 0 for
+/// clear glass (see milk glass, below). Per pane, because the pane under the
+/// keyboard's ring is milk glass and lit harder than the rest.
 uniform vec4 u_panel_light[MAX_PANELS];
 
 // --- Material parameters ---------------------------------------------------
@@ -201,6 +201,15 @@ const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
 // the lights, so the rim keeps its edge.
 
 const float KNEE = 0.7;
+
+// --- milk glass ---------------------------------------------------------------
+//
+// The pane under the keyboard's ring, and the disc under a bar button whose
+// panel is open, are milk glass: what they pass is lifted toward white by a
+// share of their own, after the hold above. So they are lighter than the
+// glass around them over every frame, the same way round on all of them, and
+// still carry a little of the frame's colour. What stands on them is drawn
+// dark (`Paint.on-ring`).
 
 float decode_sRGB(float c) {
     return mix(c / 12.92, pow((c + 0.055) / 1.055, 2.4), step(0.04045, c));
@@ -683,6 +692,13 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // legibility, above.
     refracted = mix(refracted, legible(refracted, light.x), tinted);
 
+    // Then lifted, where the pane is milk glass; see milk glass, above. Its
+    // colour is deepened first, so the milk doesn't wash it out, and by how
+    // coloured it already is, as absorption's lift is, so a grey stays grey.
+    float milk_s = 0.7 * light.z * (1.0 - pow(1.0 - saturation(refracted), 4.0));
+    refracted = saturate(refracted, milk_s);
+    refracted = mix(refracted, vec3(1.0), light.z);
+
     // Mirror direction for the same vertical view ray:
     // reflect((0,-1), n) = (-2*slope, 1 - slope^2) / (1 + slope^2),
     // which is exactly unit length at every slope. `mirror.x` is how far
@@ -696,14 +712,12 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // and power is floored at zero, since rounding can take what it is given a
     // hair below, and `sqrt` or `pow` of a negative is NaN.
     float key = sqrt(max(0.5 + 0.5 * dot(mirror3, vec3(0.0, -0.866, 0.5)), 0.0)) 
-                * pow(max(0.0, 1.0 - rel_uv.y), 1.0)
-                * 0.1;
+                * pow(max(0.0, 1.0 - rel_uv.y), 1.0);
 
     float fill = sqrt(max(0.5 + 0.5 * dot(mirror3, vec3(0.0, 0.866, 0.5)), 0.0)) 
-                 * pow(max(0.0, rel_uv.y), 7.0) 
-                 * 0.08;
+                 * pow(max(0.0, rel_uv.y), 7.0);
 
-    float sheen = (key + fill) * (1.0 - min(1.0, 20.0 * luma));
+    float sheen = (key * 0.1 + fill * 0.08) * (1.0 - min(1.0, 20.0 * luma));
 
     // The rim light, where the mirrored ray has tipped over and points back
     // down. Nothing while the surface is under 45 degrees and the ray still

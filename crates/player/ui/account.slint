@@ -78,7 +78,7 @@ component Field inherits Rectangle {
 
         Text {
             text: root.label;
-            color: root.ring || input.has-focus ? Paint.lit : Paint.body;
+            color: root.ring ? Paint.on-ring : input.has-focus ? Paint.lit : Paint.body;
             font-size: Type.body;
             vertical-alignment: center;
             width: root.label-w;
@@ -95,7 +95,7 @@ component Field inherits Rectangle {
                 y: (parent.height - self.height) / 2;
                 height: parent.well-h;
                 border-radius: self.height / 2;
-                background: Paint.wash-soft;
+                background: root.ring ? Paint.on-ring-rail : Paint.wash-soft;
             }
 
             FocusScope {
@@ -124,9 +124,9 @@ component Field inherits Rectangle {
                 input := TextInput {
                     single-line: true;
                     input-type: root.password ? InputType.password : InputType.text;
-                    color: Paint.lit;
-                    selection-foreground-color: Paint.lit;
-                    selection-background-color: Paint.wash-strong;
+                    color: root.ring ? Paint.on-ring : Paint.lit;
+                    selection-foreground-color: root.ring ? Paint.on-ring : Paint.lit;
+                    selection-background-color: root.ring ? Paint.on-ring-wash : Paint.wash-strong;
                     font-size: Type.body;
                     vertical-alignment: center;
                     accessible-label: root.label;

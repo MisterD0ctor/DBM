@@ -244,10 +244,6 @@ msgid "Liquid glass"
 msgstr "Vloeibaar glas"
 
 msgctxt "MainWindow"
-msgid "Timing, size & position"
-msgstr "Vertraging, grootte en positie"
-
-msgctxt "MainWindow"
 msgid "INTERFACE"
 msgstr "INTERFACE"
 
@@ -886,3 +882,67 @@ msgstr "Ondertitels zoeken"
 msgctxt "MainWindow"
 msgid "Skip credits"
 msgstr "Aftiteling overslaan"
+
+msgctxt "MainWindow"
+msgid "Reset timing"
+msgstr "Vertraging herstellen"
+
+msgctxt "MainWindow"
+msgid "Size & position"
+msgstr "Grootte en positie"
+
+msgctxt "player"
+msgid "loading failed"
+msgstr "laden mislukt"
+
+msgctxt "player"
+msgid "unrecognized file format"
+msgstr "onbekende bestandsindeling"
+
+msgctxt "player"
+msgid "no audio or video data played"
+msgstr "geen audio of video afgespeeld"
+
+msgctxt "player"
+msgid "audio output initialization failed"
+msgstr "audio-uitvoer kon niet starten"
+
+msgctxt "player"
+msgid "video output initialization failed"
+msgstr "video-uitvoer kon niet starten"
+
+msgctxt "player"
+msgid "not supported"
+msgstr "niet ondersteund"
+
+msgctxt "player"
+msgid "operation not implemented"
+msgstr "bewerking niet geïmplementeerd"
+
+msgctxt "player"
+msgid "something happened"
+msgstr "er ging iets mis"
+
+msgctxt "player"
+msgid "unknown error"
+msgstr "onbekende fout"
+
+msgctxt "player"
+msgid "Season {} finished"
+msgstr "Seizoen {} uitgekeken"
+
+msgctxt "player"
+msgid "{} s later"
+msgstr "{} s later"
+
+msgctxt "player"
+msgid "{} s earlier"
+msgstr "{} s eerder"
+
+msgctxt "MainWindow"
+msgid "TIMING"
+msgstr "VERTRAGING"
+
+msgctxt "MainWindow"
+msgid "SIZE & POSITION"
+msgstr "GROOTTE EN POSITIE"

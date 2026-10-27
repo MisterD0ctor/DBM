@@ -113,6 +113,25 @@ export global Paint {
     out property <color> wash-button: #ffffff24;
     /// A hovered row of any kind; a stepper disc at rest; a scroll bar's rail.
     out property <color> wash-soft: #ffffff14;
+
+    // --- on the keyboard's ring --------------------------------------------------
+    //
+    // Under glass the ring is milk glass, lighter than the glass around it
+    // over every frame, so what stands on it is drawn dark, as the knob is on
+    // a lit switch track: the marks above, turned over. With no glass the ring
+    // is its wash, and what stands on it keeps the colours above.
+
+    /// Whether the panes are drawn as glass, which the driver says: switched
+    /// off, or with nothing to draw them after a failure, they are not.
+    in-out property <bool> glass: true;
+    /// Words, glyphs, fills and the active mark on the ring.
+    out property <color> on-ring: Paint.glass ? Paint.knob : Paint.lit;
+    /// A rail on the ring, a well, or a disc at rest.
+    out property <color> on-ring-rail: Paint.glass ? #1010102e : Paint.rail;
+    /// A wash on the ring: a hovered disc, the question a remove asks.
+    out property <color> on-ring-wash: Paint.glass ? #10101034 : Paint.wash-strong;
+    /// A lit switch's knob on the ring, light on its dark track.
+    out property <color> on-ring-knob: Paint.glass ? Paint.lit : Paint.knob;
 }
 
 /// The type scale, as roles rather than sizes, so a role can change without

@@ -303,20 +303,53 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             // button: held there, and then answered from the beginning. Seed
             // the next file's watch-later entry first. Prints what happens.
             if surface.starts_with("arrival") {
-                if tick == 6 && surface != "arrival" {
+                if tick == 6 && surface != "arrival" && surface != "arrival-enter" {
                     ui.invoke_playlist_step(1);
                 }
                 if tick == 12 && surface == "arrival-answer" {
                     ui.invoke_arrival_answer(true);
                 }
+                // Enter, as a hand would press it, on the ring the question
+                // took as the file opened.
+                if tick == 12 && surface == "arrival-enter" {
+                    arrow(&ui, slint::platform::Key::Return);
+                }
                 if tick.is_multiple_of(2) && (6..=16).contains(&tick) {
                     eprintln!(
-                        "dbm: arrival t{tick:<2} arriving={} from={:?} paused={} at {}",
+                        "dbm: arrival t{tick:<2} arriving={} from={:?} paused={} at {} ring={}@{}",
                         ui.get_arriving(),
                         ui.get_arrival_from(),
                         ui.get_paused(),
                         ui.get_elapsed(),
+                        ui.global::<crate::Chrome>().get_focus_visible(),
+                        ui.get_bar_focus(),
                     );
+                }
+            }
+
+            // Once the track chosen on tick 4 is showing. With answers made up
+            // on the spot, a search first, which leaves its page's list
+            // behind these.
+            if tick == 5
+                && (surface == "timing" || surface == "placing")
+                && std::env::var_os("DBM_FIND_FAKE").is_some()
+            {
+                ui.invoke_open_find();
+            }
+            if tick == 6 && (surface == "timing" || surface == "placing") {
+                ui.invoke_open_subs_page(if surface == "timing" { 1 } else { 2 });
+            }
+
+            // The subtitles menu's way into Size & position, or Timing, and
+            // back, by its keys, a move a tick as `drill` does. The way back
+            // puts the ring on the row that opened the page while the panel
+            // grows round it.
+            if surface == "subs-drill" || surface == "timing-drill" {
+                match tick {
+                    6 => ui.invoke_open_subs_page(if surface == "subs-drill" { 2 } else { 1 }),
+                    7 => arrow(&ui, Key::DownArrow),
+                    t if t > 7 => arrow(&ui, if t % 2 == 0 { Key::Escape } else { Key::Return }),
+                    _ => {}
                 }
             }
 
@@ -408,10 +441,17 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 "settings" => ui.invoke_open_settings_page(0),
                 "glass" => ui.invoke_open_settings_page(1),
                 "ambience" => ui.invoke_open_settings_page(2),
-                "subs" => ui.invoke_open_settings_page(3),
-                "accessibility" => ui.invoke_open_settings_page(4),
-                "shortcuts" => ui.invoke_open_settings_page(5),
-                "language" | "language-walk" => ui.invoke_open_settings_page(6),
+                "accessibility" => ui.invoke_open_settings_page(3),
+                "shortcuts" => ui.invoke_open_settings_page(4),
+                "language" | "language-walk" => ui.invoke_open_settings_page(5),
+                // The subtitles menu's two pages, which want a subtitle on
+                // before they open (below).
+                "timing" | "placing" | "subs-drill" | "timing-drill" => {
+                    ui.invoke_open_menu(true);
+                    if let Some(first) = ui.get_sub_tracks().row_data(0) {
+                        ui.invoke_select_subtitle(first.id);
+                    }
+                }
                 _ => {}
             }
             eprintln!("dbm: showcase ready ({surface})");

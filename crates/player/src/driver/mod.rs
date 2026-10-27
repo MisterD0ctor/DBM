@@ -113,6 +113,10 @@ pub struct Driver {
     playlist_open: bool,
     /// The file the way on was last looked for on behalf of.
     onward_asked: Option<String>,
+    /// The file whose end was last given a light, and the file whose end has
+    /// one now (see `light_the_end`).
+    end_light_asked: Option<String>,
+    end_lit: Option<String>,
     /// The file whose title sequence and credits were last looked for, so
     /// each is looked for once.
     titles_asked: Option<String>,
@@ -183,6 +187,8 @@ impl Driver {
             neighbours: crate::library::shelf::Neighbours::default(),
             playlist_open: false,
             onward_asked: None,
+            end_light_asked: None,
+            end_lit: None,
             titles_asked: None,
             kept_asked: None,
             replies: Vec::new(),
@@ -331,6 +337,8 @@ impl Driver {
         let Some(failure) = &self.failure else {
             return;
         };
+        // Nothing renders after a failure, so the ring has only its wash.
+        ui.global::<crate::Paint>().set_glass(false);
         ui.set_fatal(tr(failure.reason).into());
         ui.set_fatal_detail(fill(tr(failure.detail), &[&failure.cause]).into());
         ui.set_fatal_note(tr(failure.note).into());
@@ -643,6 +651,7 @@ impl Driver {
         }
 
         self.look_onward(ui);
+        self.light_the_end();
         self.listen_for_the_titles();
         self.put_back_downloads(ui);
         self.say_it_again(ui);
@@ -732,6 +741,7 @@ impl Driver {
             ui.set_onward_path("".into());
             ui.set_onward_label("".into());
             ui.set_onward_season(false);
+            ui.set_season_done("".into());
         }
         if !ending || self.onward_asked.is_some() {
             return;
@@ -740,9 +750,35 @@ impl Driver {
             return;
         };
         self.onward_asked = Some(path.clone());
+        // Season 0 is the specials, which no one finishes as a season.
+        if let crate::library::naming::Media::Episode {
+            season: Some(season @ 1..),
+            ..
+        } = crate::library::naming::parse(&path)
+        {
+            ui.set_season_done(fill(tr("Season {} finished"), &[&season]).into());
+        }
         self.app.worker.submit(move |_mpv| {
             let to = crate::library::onward::after(&path);
             Some(Completion::Onward { from: path, to })
+        });
+    }
+
+    /// Light the end of a file as the empty window is lit, once per file, so
+    /// the glass has a picture to bend where the film has left it black: with
+    /// the most lit frame of the file itself, before its credits. Never of
+    /// what comes next, whose frame would show a scene before it is watched.
+    fn light_the_end(&mut self) {
+        let Some(path) = self.player.path.clone() else {
+            return;
+        };
+        if !self.player.eof_reached || self.end_light_asked.as_deref() == Some(path.as_str()) {
+            return;
+        }
+        self.end_light_asked = Some(path.clone());
+        self.app.worker.submit(move |_mpv| {
+            let still = crate::library::preview::lit_still(std::path::Path::new(&path), 0.9);
+            Some(Completion::EndLight { from: path, still })
         });
     }
 
@@ -805,16 +841,21 @@ impl Driver {
             gpu.pipeline.params = border;
             gpu.pipeline.border_enabled = self.app.settings.ambience_on();
             gpu.pipeline.glass_enabled = self.app.settings.glass_on();
+            ui.global::<crate::Paint>()
+                .set_glass(self.app.settings.glass_on());
             gpu.pipeline.animate = self.app.settings.animations();
             gpu.pipeline.legible = self.app.settings.legible_glass();
             params_dirty = true;
         }
 
-        // The backdrop stands in only while nothing is loaded.
-        gpu.pipeline.show_backdrop = self.player.path.is_none();
+        // The backdrop stands in while nothing is loaded, and at the end of a
+        // file once its light has come.
+        let ended = self.player.eof_reached && self.end_lit.is_some()
+            && self.end_lit == self.player.path;
+        gpu.pipeline
+            .show_backdrop(self.player.path.is_none() || ended, self.player.path.is_some());
         let paint = ui.global::<crate::Paint>();
         gpu.pipeline.text_floor = f32::from(paint.get_body().alpha()) / 255.0;
-        gpu.pipeline.ring_wash = f32::from(paint.get_wash_ring().alpha()) / 255.0;
 
         let size = ui.window().size();
         // For the size being rendered at, not the one mpv last reported on.

@@ -114,7 +114,12 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                     }
                 }
                 10 => report_subs(&ui, &mpv, "position held down"),
-                11 => ui.invoke_reset_subtitles(),
+                // Both resets of the subtitles menu's pages: size and
+                // position, which are saved, and the timing, the film's own.
+                11 => {
+                    ui.invoke_reset_subtitles();
+                    ui.invoke_set_timing(0.0, 1.0);
+                }
                 12 => report_subs(&ui, &mpv, "after reset"),
                 13 => eprintln!("dbm: --- subtitle test done ---"),
                 _ => {}
@@ -381,9 +386,10 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
 /// only check that the timing went the right way, since a sync five seconds
 /// the wrong way reports the same number.
 ///
-/// The row is reached with real keys (S, down to the subtitles page, in, and
-/// down to the row above the reset), the path `focus-activate-settings`
-/// answers and a click never touches. Then Enter again takes the sync back.
+/// The row is reached with real keys (V for the subtitles menu, End to its
+/// last track, down once to Timing under the tracks, Enter into its page and
+/// down once to the sync), the path the menu's Enter answers and a click
+/// never touches. Then Enter again takes the sync back.
 pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
     use super::drive::chord;
     use slint::platform::Key;
@@ -410,6 +416,7 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
         move || {
             let Some(ui) = weak.upgrade() else { return };
             let down = slint::SharedString::from(Key::DownArrow);
+            let end = slint::SharedString::from(Key::End);
             let enter = slint::SharedString::from(Key::Return);
             match step {
                 // Let the film open first: there is no track to pick before.
@@ -424,10 +431,9 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                     let _ = mpv.command_async(0, &["seek", &at, "absolute+exact"]);
                 }
                 6 => report(&ui, &mpv, "before"),
-                7 => chord(&ui, &[], "s"),
-                // S puts the ring on the first row; two more reach the
-                // subtitles page, and one inside it the row under its name.
-                8 | 9 | 11 => chord(&ui, &[], down.as_str()),
+                7 => chord(&ui, &[], "v"),
+                8 => chord(&ui, &[], end.as_str()),
+                9 | 11 => chord(&ui, &[], down.as_str()),
                 10 => chord(&ui, &[], enter.as_str()),
                 15 => {
                     eprintln!("dbm: sync enter on row {}", ui.get_focus_row());

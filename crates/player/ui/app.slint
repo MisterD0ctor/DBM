@@ -104,6 +104,9 @@ export component MainWindow inherits Window {
     /// offer it: skipping an episode's credits for the next one is expected,
     /// but skipping a film's credits for another film is not.
     in property <bool> onward-season;
+    /// At the end of the last file, where it is an episode, the season it
+    /// ends: *Season 4 finished*. Empty otherwise.
+    in property <string> season-done;
     /// The playing file, for the dialogs to open near.
     in property <string> current-path;
     in property <float> duration;
@@ -147,6 +150,9 @@ export component MainWindow inherits Window {
 
     // Subtitle adjustments, formatted on the Rust side, which owns the units.
     in property <string> sub-delay-text: "0.00 s";
+    /// The widest the delay reads, either way, on a line each, for Timing's
+    /// readout to be as wide as in the language spoken.
+    in property <string> sub-delay-widest;
     in property <string> sub-scale-text: "1.00×";
     in property <string> sub-pos-text: "100%";
     in property <[TrackItem]> sub-tracks;
@@ -218,7 +224,7 @@ export component MainWindow inherits Window {
             }
             return false;
         }
-        if (root.find-open) {
+        if (root.find-open || root.subs-page != 0) {
             return false;
         }
         if (root.focus-row >= 1 && root.focus-row <= root.sub-tracks.length
@@ -235,6 +241,8 @@ export component MainWindow inherits Window {
     /// a list found a moment ago is still good. Public for the test that
     /// walks it.
     public function open-find() {
+        root.subs-page = 0;
+        root.menu-leaf = 3;
         root.find-open = true;
         root.focus-row = 0;
         if (root.find-state != 1 && root.find-state != 2) {
@@ -343,16 +351,99 @@ export component MainWindow inherits Window {
         : 4 + (root.sign-in-said != "" ? 1 : 0))
         + (!root.signed-in && root.sign-in-why != ""
             ? 2 * Rows.note-line + Rows.group-gap : 0px);
+    // --- the subtitles' own pages ---------------------------------------------
+    //
+    // While a subtitle is showing, two rows under the tracks lead to a page
+    // each: its timing, which is this film's alone, and the size and position
+    // every film's subtitles take. Both are judged by eye, so neither is
+    // offered with nothing on screen to judge.
+
+    /// The page the menu shows when it isn't the search's: 0 the tracks,
+    /// 1 timing, 2 size and position.
+    property <int> subs-page: 0;
+    /// Which page the pane one step in draws: 1 timing, 2 size and position,
+    /// 3 the search. Held rather than read from `subs-page` and `find-open`,
+    /// which have gone back to the tracks while the page sliding out still
+    /// has to draw.
+    property <int> menu-leaf: 3;
+    /// The timing's page: its way back, Sync to speech and Timing, then a gap
+    /// and the reset while there is something to reset.
+    property <length> timing-page-h: root.panel-pad + 2 * root.row-h + Rows.stepper-row
+        + (root.timing-resettable ? Rows.group-gap + root.row-h : 0px);
+    /// The size and position's page: its way back, the two steppers, a gap
+    /// and the reset.
+    property <length> placing-page-h: root.panel-pad + 2 * root.row-h
+        + 2 * Rows.stepper-row + Rows.group-gap;
+    /// The rows of whichever of the two is showing, counted the same way. The
+    /// reset is the fourth row on both.
+    property <int> subs-page-count: root.subs-page == 1 && !root.timing-resettable ? 3 : 4;
+    /// What the reset on that page resets (see "resetting a page").
+    property <int> subs-page-reset: root.subs-page == 1 ? 3 : 4;
+
+    /// The ring is on the tracks' page, where the rows go by `focus-row`
+    /// alone; on any other page the same number is another page's row.
+    property <bool> on-tracks: root.menu-open && !root.find-open && root.subs-page == 0;
+    /// The ring is on `row` of page `page` of the two.
+    pure function subs-ring(page: int, row: int) -> bool {
+        return root.menu-open && !root.find-open && root.subs-page == page
+            && root.focus-row == row;
+    }
+
+    /// Open one of the two pages on its way back, as a settings page opens.
+    /// Public so a test can show one.
+    public function open-subs-page(page: int) {
+        if (!root.menu-open) {
+            root.open-menu(true);
+        }
+        if (!root.subs-showing) {
+            return;
+        }
+        root.find-open = false;
+        root.account-open = false;
+        root.menu-leaf = page;
+        root.subs-page = page;
+        root.focus-row = 0;
+    }
+
+    /// Back to the tracks, on the row that opened the page.
+    function close-subs-page() {
+        root.focus-row = root.subs-pages-at + root.subs-page - 1;
+        root.subs-page = 0;
+    }
+
+    /// Enter on one of the two pages. The steppers are moved by left and
+    /// right, and Enter on one does nothing.
+    function subs-page-activate() {
+        if (root.focus-row == 0) {
+            root.close-subs-page();
+        } else if (root.subs-page == 1 && root.focus-row == 1) {
+            root.sync-row();
+        } else if (root.focus-row == 3) {
+            root.reset-row(root.subs-page-reset);
+        }
+    }
+
     /// The subtitles menu's height: whichever of its pages is showing.
-    property <length> menu-h: !root.find-open ? root.subs-h
-        : root.account-open ? root.account-h : root.find-h;
-    /// The search's page sliding in over the tracks, as a settings page does,
-    /// and the account's over the search's.
-    property <float> menu-drill: !root.find-open ? 0.0 : root.account-open ? 2.0 : 1.0;
+    property <length> menu-h: root.find-open
+        ? (root.account-open ? root.account-h : root.find-h)
+        : root.subs-page == 1 ? root.timing-page-h
+        : root.subs-page == 2 ? root.placing-page-h
+        : root.subs-h;
+    /// A page sliding in over the tracks, as a settings page does, and the
+    /// account's over the search's.
+    property <float> menu-drill: root.find-open ? (root.account-open ? 2.0 : 1.0)
+        : root.subs-page != 0 ? 1.0 : 0.0;
     animate menu-drill {
         duration: root.resizing ? 0ms : Motion.drill;
         easing: ease-in-out;
     }
+    /// Between the tracks and one of their pages. Both then hang from the
+    /// menu's bottom edge, which stays put, rather than from its top, which
+    /// moves: the row the ring comes back to is near the bottom, and hung
+    /// from the top it would rise into the panel from under it. At rest they
+    /// hang from the top, where both ways agree, so a row a page gains in
+    /// place shows at its foot as the panel grows to it.
+    property <bool> menu-moving: root.menu-drill > 0.0 && root.menu-drill < 1.0;
     /// The playlist in the parts the panel shows: its seasons, or the shows
     /// and films of a folder holding several (see `shelf`). A single part is
     /// shown as a plain list; several get a page listing them, and a page each.
@@ -444,17 +535,20 @@ export component MainWindow inherits Window {
     /// Which row the keyboard is on inside whatever is open. `out` for the
     /// tests, since the ring is only a wash and gives them nothing to read.
     out property <int> focus-row: 0;
-    /// The subtitles menu's rows. `Off` counts as a row, since it is the one
-    /// people reach for.
-    property <int> subs-focus-count:
-        (root.has-subs ? 1 + root.sub-tracks.length : 0)
-        // The search, after the tracks.
+    /// The subtitles menu's rows: the tracks, `Off` among them since it is
+    /// the one people reach for, then the ways to the pages of the one
+    /// showing, then the search.
+    property <int> subs-focus-count: root.subs-track-rows + (root.subs-showing ? 2 : 0)
         + (root.find-offered ? 1 : 0);
+    property <int> subs-track-rows: root.has-subs ? 1 + root.sub-tracks.length : 0;
+    /// Where the ways to the pages start: Timing, then Size & position.
+    property <int> subs-pages-at: root.subs-track-rows;
     /// How many rows what is on screen offers the keyboard. Zero, as when a
     /// film plays with nothing open, means the keys ignore the ring.
     property <int> focus-count:
-        root.menu-open ? (!root.find-open ? root.subs-focus-count
-            : root.account-open ? root.account-focus-count : root.find-focus-count)
+        root.menu-open ? (root.find-open
+            ? (root.account-open ? root.account-focus-count : root.find-focus-count)
+            : root.subs-page != 0 ? root.subs-page-count : root.subs-focus-count)
         : root.audio-open ? root.audio-tracks.length
         : root.playlist-open ? root.playlist-lead + root.playlist-rows + 1
         : root.files-open ? 2
@@ -469,22 +563,23 @@ export component MainWindow inherits Window {
     /// would press, but Continue is what the window was opened to get back to.
     property <bool> continue-sure: !root.has-file && root.fatal == ""
         && !root.panel-open && root.has-resume && root.focus-row == 0;
-    /// A settings page whose last row is its reset. The ring stops at the
-    /// ends of these rather than wrapping, so Up from the top can't land on
-    /// the row that throws a page of tuning away.
+    /// A page whose last row is its reset. The ring stops at the ends of
+    /// these rather than wrapping, so Up from the top can't land on the row
+    /// that throws a page of tuning away.
     property <bool> focus-has-reset: root.settings-open
-        && root.settings-page >= 1 && root.settings-page <= 3;
+        ? root.settings-page == 1 || root.settings-page == 2
+        : root.menu-open && !root.find-open && root.subs-page != 0
+            && root.subs-page-count == 4;
     /// Per page: the rows, the way back, and the reset after them, plus the
-    /// sync on the subtitles page and the switch on the ambient border's.
+    /// switch on the ambient border's.
     /// Accessibility has no reset, since each switch undoes itself, and the
     /// shortcuts page has only the way back.
     property <int> settings-focus-count:
-        root.settings-page == 0 ? 6
+        root.settings-page == 0 ? 5
         : root.settings-page == 1 ? 2 + root.glass-params.length
         : root.settings-page == 2 ? 3 + root.border-params.length
-        : root.settings-page == 3 ? 6
-        : root.settings-page == 4 ? 5
-        : root.settings-page == 6 ? 1 + root.language-count
+        : root.settings-page == 3 ? 5
+        : root.settings-page == 5 ? 1 + root.language-count
         : 1;
     /// The same count for `leaf-page`, which on the way back out isn't the
     /// page the keyboard is on. Counting off the live page would light the
@@ -492,9 +587,8 @@ export component MainWindow inherits Window {
     property <int> leaf-focus-count:
         root.leaf-page == 1 ? 2 + root.glass-params.length
         : root.leaf-page == 2 ? 3 + root.border-params.length
-        : root.leaf-page == 3 ? 6
-        : root.leaf-page == 4 ? 5
-        : root.leaf-page == 6 ? 1 + root.language-count
+        : root.leaf-page == 3 ? 5
+        : root.leaf-page == 5 ? 1 + root.language-count
         : 1;
 
     /// The bundled languages besides English, each by its own name. Nothing
@@ -528,9 +622,8 @@ export component MainWindow inherits Window {
     /// Restore one section to its defaults: 0 glass, 1 ambient border, as in
     /// `settings::Section`.
     callback reset-section(int);
-    /// Take back the last reset: the page it was on, as the settings panel
-    /// numbers them, and the subtitle delay and speed that stood before it.
-    callback undo-reset(int, float, float);
+    /// Take back the last reset of a settings page, as the panel numbers them.
+    callback undo-reset(int);
     /// One rung of the speed ladder from the speed shown, -1 or +1.
     callback step-speed(float, int);
     callback reset-speed();
@@ -595,13 +688,15 @@ export component MainWindow inherits Window {
     callback nudge-sub-delay(float);
     callback nudge-sub-scale(float);
     callback nudge-sub-pos(float);
-    /// Timing, size and placement all back to their defaults.
+    /// The subtitles' size and position back to their defaults.
     callback reset-subtitles();
     /// Listen to the film and move the subtitles onto its speech. The answer
     /// arrives some seconds later, as `sync-state` leaving 1.
     callback sync-subtitles();
-    /// Take back the last sync: the delay and speed that stood before it.
-    callback undo-sync(float, float);
+    /// Put this film's subtitles at a delay and a speed, and keep its place
+    /// at once: what stood before a sync or a reset of the timing, or the
+    /// reset itself.
+    callback set-timing(float, float);
     /// -1 previous, +1 next.
     callback playlist-step(int);
     /// Ask for a video, or for a folder to play through.
@@ -682,8 +777,8 @@ export component MainWindow inherits Window {
     in-out property <bool> files-open: false;
     in-out property <bool> settings-open: false;
     /// Which page the settings panel shows: 0 the list, then its rows in
-    /// order (1 glass, 2 ambient border, 3 subtitles, 4 accessibility,
-    /// 5 shortcuts, 6 language), so the focused row plus one is its page.
+    /// order (1 glass, 2 ambient border, 3 accessibility, 4 shortcuts,
+    /// 5 language), so the focused row plus one is its page.
     /// Pages replace each other in place, so there is only one settings glass
     /// rect. Out so a test can say which page a key left it on.
     out property <int> settings-page: 0;
@@ -731,7 +826,7 @@ export component MainWindow inherits Window {
                 find-list.reveal((root.focus-row - 1) * root.row-h, root.row-h);
             }
         } else if (root.menu-open) {
-            if (root.focus-row < root.subs-focus-count - (root.find-offered ? 1 : 0)) {
+            if (root.subs-page == 0 && root.focus-row < root.subs-track-rows) {
                 subs-list.reveal(root.focus-row * root.row-h, root.row-h);
             }
         } else if (root.audio-open) {
@@ -744,7 +839,7 @@ export component MainWindow inherits Window {
                 playlist-leaf-list.reveal(
                     (root.focus-row - root.playlist-lead) * root.row-h, root.row-h);
             }
-        } else if (root.settings-open && root.settings-page != 5
+        } else if (root.settings-open && root.settings-page != 4
                 && (root.settings-page == 0 || root.focus-row > 0)) {
             root.settings-reveal-top =
                 root.settings-row-top(root.settings-page, root.focus-row);
@@ -773,9 +868,14 @@ export component MainWindow inherits Window {
         && root.sub-current >= 0 ? root.sub-current + 1 : 0;
 
     // Otherwise a ring left up by the way in would land on the bar as a film
-    // arrives, on a button nobody chose.
+    // arrives, on a button nobody chose. A ring a pill has taken stays: a file
+    // opened from outside arrives with its question in the same frame, and the
+    // two handlers run in no promised order.
     changed has-file => {
-        Chrome.focus-visible = false;
+        if (root.bar-focus < root.pill-stop
+                || !(root.arriving || root.at-end || root.corner-offered)) {
+            Chrome.focus-visible = false;
+        }
         root.bar-resume = false;
     }
 
@@ -1373,7 +1473,7 @@ export component MainWindow inherits Window {
         root.bar-w);
     /// A failure's warning mark and the gap after it; nothing otherwise.
     property <bool> flash-warns: root.flash-is-notice && Flash.warning;
-    property <length> flash-mark: 16px;
+    property <length> flash-mark: 18px;
     property <length> flash-mark-w: root.flash-warns ? root.flash-mark + 8px : 0px;
     /// Centred on `Flash.at`, kept inside the window's margins.
     function flash-x(w: length) -> length {
@@ -1459,7 +1559,8 @@ export component MainWindow inherits Window {
             : root.files-open ? 3
             : root.settings-open ? 4
             : root.audio-open ? 5 : 0;
-        root.flash-row = root.flash-panel == 4 ? root.asked-row : -1px;
+        root.flash-row = root.flash-panel == 4 || root.flash-panel == 1
+            ? root.asked-row : -1px;
         root.flash-shown = 1.0;
         root.flash-waiting = false;
         flash-timer.stop();
@@ -1630,11 +1731,11 @@ export component MainWindow inherits Window {
     ///
     /// Not while Position is being set: held at the ceiling, the line wouldn't
     /// visibly move for small steps, so it drops to where it rests until
-    /// Timing or Size is used or the page is left.
+    /// Size or Timing is used or the page is left.
     out property <float> subtitle-lift: root.controls-visible && root.has-file
-        && !(root.placing-subtitles && root.settings-open
-            && root.settings-page == 3) ? 1.0 : 0.0;
-    /// Whether Position was the last of the page's three adjustments used.
+        && !(root.placing-subtitles && root.menu-open
+            && root.subs-page == 2) ? 1.0 : 0.0;
+    /// Whether Position was the last of the subtitles' three adjustments used.
     property <bool> placing-subtitles: false;
     animate subtitle-lift {
         duration: Motion.surface;
@@ -1830,25 +1931,21 @@ export component MainWindow inherits Window {
             return root.sliders-top(2) + root.border-params.length * Rows.slider-row
                 + Rows.group-gap + root.row-h;
         }
-        // The sync, the three steppers, the gap and the reset.
         if (page == 3) {
-            return root.row-h + 3 * Rows.stepper-row + Rows.group-gap + root.row-h;
-        }
-        if (page == 4) {
             return 4 * root.toggle-h;
         }
-        if (page == 5) {
+        if (page == 4) {
             return root.shortcuts-natural;
         }
-        if (page == 6) {
+        if (page == 5) {
             return root.language-count * root.row-h;
         }
         return 0px;
     }
-    /// The first page: three headings and six rows that lead somewhere. Two
-    /// of the headings follow a group and take the gap.
-    property <length> front-natural: 3 * root.heading-h + 6 * root.row-h
-        + 2 * Rows.group-gap;
+    /// The first page: two headings and five rows that lead somewhere. The
+    /// second heading follows a group and takes the gap.
+    property <length> front-natural: 2 * root.heading-h + 5 * root.row-h
+        + Rows.group-gap;
     /// What is left of the panel for each list: all of it on the first page,
     /// and what the way back leaves on the others.
     property <length> front-list-h: max(0px, settings.height - root.panel-pad);
@@ -1887,10 +1984,9 @@ export component MainWindow inherits Window {
     /// the list.
     pure function settings-row-top(page: int, row: int) -> length {
         if (page == 0) {
-            // A heading over rows 0, 2 and 3, the last two after a gap.
+            // A heading over rows 0 and 2, the second after a gap.
             return row * root.row-h + root.heading-h
-                + (row >= 2 ? root.heading-h + Rows.group-gap : 0px)
-                + (row >= 3 ? root.heading-h + Rows.group-gap : 0px);
+                + (row >= 2 ? root.heading-h + Rows.group-gap : 0px);
         }
         // The ambient border's switch, the sliders, then the gap and the reset.
         if (page == 2 && row == 1) {
@@ -1902,11 +1998,6 @@ export component MainWindow inherits Window {
                 : root.sliders-on(page) * Rows.slider-row + Rows.group-gap);
         }
         if (page == 3) {
-            return row == 1 ? 0px
-                : row <= 4 ? root.row-h + (row - 2) * Rows.stepper-row
-                : root.row-h + 3 * Rows.stepper-row + Rows.group-gap;
-        }
-        if (page == 4) {
             return (row - 1) * root.toggle-h;
         }
         return (row - 1) * root.row-h;
@@ -1918,10 +2009,7 @@ export component MainWindow inherits Window {
         if (page == 2 && row == 1) {
             return root.toggle-h;
         }
-        if (page == 3 && row >= 2 && row <= 4) {
-            return Rows.stepper-row;
-        }
-        if (page == 4) {
+        if (page == 3) {
             return root.toggle-h;
         }
         return root.row-h;
@@ -1939,10 +2027,24 @@ export component MainWindow inherits Window {
     out property <length> subs-natural: root.has-subs
         ? (1 + root.sub-tracks.length) * root.row-h
         : root.subs-empty ? root.row-h : 0px;
-    /// Under the list, the search, a group gap below the tracks when there
-    /// are any to set it off from.
-    property <length> subs-fixed: root.find-offered
-        ? root.row-h + (root.has-subs ? Rows.group-gap : 0px) : 0px;
+    /// Under the list, a group gap below the tracks when there are any to
+    /// set it off from, then the ways to the pages of the one showing and
+    /// to the search.
+    property <length> subs-fixed: (root.subs-showing ? 2 * root.row-h : 0px)
+        + (root.find-offered ? root.row-h : 0px)
+        + (root.has-subs && (root.subs-showing || root.find-offered) ? Rows.group-gap : 0px);
+    /// A subtitle is showing, so there is a timing to sync and to set, and a
+    /// size and position to judge.
+    property <bool> subs-showing: root.has-subs && root.subs-visible && root.sub-current >= 0;
+    /// The timing is off zero, as the way to its page says.
+    property <bool> timing-moved: abs(root.sub-delay) >= 0.005
+        || abs(root.sub-speed - 1) >= 0.0005;
+    /// The timing's reset is offered while there is something to reset, and
+    /// stays to be taken back.
+    property <bool> timing-resettable: root.timing-moved
+        || root.reset-armed == 3 || root.reset-undoable == 3;
+    /// Timing's readout, as wide as the delay reads at its widest.
+    property <length> timing-value-w: max(62px, delay-measure.preferred-width + 4px);
     out property <length> audio-natural: root.has-audio
         ? root.audio-tracks.length * root.row-h : root.row-h;
     out property <length> subs-h: min(
@@ -2050,11 +2152,13 @@ export component MainWindow inherits Window {
 
     /// Every scrolling list, for the soft edge on its ends (see `ScrollFade`).
     out property <[ScrollFade]> scroll-fades: [
-        root.fade-within(subs-list.fade, root.menu-shown,
+        // Each of the menu's lists only while its page is drawn: the search's
+        // rests where the other pages do, and would soften their rows.
+        root.fade-within(subs-list.fade, root.menu-drill < 1.0 ? root.menu-shown : 0,
             menu.x, menu.y, menu.width, menu.height),
         root.fade-within(audio-list.fade, root.audio-shown,
             audio-panel.x, audio-panel.y, audio-panel.width, audio-panel.height),
-        root.fade-within(find-list.fade, root.menu-shown,
+        root.fade-within(find-list.fade, root.menu-leaf == 3 ? root.menu-shown : 0,
             menu.x, menu.y, menu.width, menu.height),
         root.fade-within(playlist-top-list.fade, root.playlist-shown,
             playlist-panel.x, playlist-panel.y,
@@ -2132,6 +2236,18 @@ export component MainWindow inherits Window {
             tint: 1.0,
             nested: true,
             ring: true,
+        },
+        // The disc under the button whose panel is open (see `open-disc`).
+        {
+            x: root.open-disc-x,
+            y: root.pills-y + root.bar-rise + root.pill-pad,
+            width: root.bar-shown * root.open-disc-on > root.shown-epsilon ? root.btn : 0,
+            height: root.bar-shown * root.open-disc-on > root.shown-epsilon ? root.btn : 0,
+            opacity: root.bar-shown * root.open-disc-on,
+            radius: root.btn / 2,
+            tint: 1.0,
+            nested: true,
+            open: true,
         },
         {
             x: root.flash-x(root.flash-ring),
@@ -2265,6 +2381,8 @@ export component MainWindow inherits Window {
             tint: 1.0,
             nested: true,
             ring: true,
+            host-y: root.ring-host-y,
+            host-height: root.ring-host-h,
         },
     ];
 
@@ -2284,6 +2402,24 @@ export component MainWindow inherits Window {
         : root.centre-up ? root.end-shown
         : root.corner-offered ? root.credits-shown
         : root.invite-shown;
+    /// Where that surface's glass is, top and height, for the pane to be cut
+    /// to (see `GlassRect.host-y`).
+    property <length> ring-host-y: root.menu-open ? menu.y
+        : root.audio-open ? audio-panel.y
+        : root.playlist-open ? playlist-panel.y
+        : root.settings-open ? settings.y
+        : root.files-open ? files-panel.y
+        : root.centre-up ? root.end-y + root.end-rise
+        : root.corner-offered ? root.credits-y + root.credits-rise
+        : root.invite-y + root.invite-rise;
+    property <length> ring-host-h: root.menu-open ? menu.height
+        : root.audio-open ? audio-panel.height
+        : root.playlist-open ? playlist-panel.height
+        : root.settings-open ? settings.height
+        : root.files-open ? files-panel.height
+        : root.centre-up ? root.end-h
+        : root.corner-offered ? root.pill-h
+        : root.invite-h;
 
     title: "Death by MPV";
     // No frame: the film runs to the window's edges, the window's buttons
@@ -2351,12 +2487,16 @@ export component MainWindow inherits Window {
                 } else {
                     root.fetch-row(root.focus-row - 1);
                 }
+            } else if (root.subs-page != 0) {
+                root.subs-page-activate();
             } else if (root.find-offered && root.focus-row == root.subs-focus-count - 1) {
                 root.open-find();
-            } else if (root.has-subs) {
+            } else if (root.focus-row < root.subs-track-rows) {
                 root.select-subtitle(root.focus-row == 0
                     ? -1
                     : root.sub-tracks[root.focus-row - 1].id);
+            } else {
+                root.open-subs-page(root.focus-row - root.subs-pages-at + 1);
             }
             return true;
         }
@@ -2403,7 +2543,7 @@ export component MainWindow inherits Window {
             } else if (root.focus-row == root.invite-first + 2) {
                 root.open-settings(true);
             } else {
-                root.open-settings-page(5);
+                root.open-settings-page(4);
             }
             return true;
         }
@@ -2425,7 +2565,7 @@ export component MainWindow inherits Window {
             root.settings-page = 0;
             return true;
         }
-        if (root.settings-page == 4) {
+        if (root.settings-page == 3) {
             if (root.focus-row == 1) {
                 root.set-motion(!Motion.enabled);
             } else if (root.focus-row == 2) {
@@ -2437,12 +2577,8 @@ export component MainWindow inherits Window {
             }
             return true;
         }
-        if (root.settings-page == 6) {
+        if (root.settings-page == 5) {
             root.pick-language(root.focus-row - 1);
-            return true;
-        }
-        if (root.settings-page == 3 && root.focus-row == 1) {
-            root.sync-row();
             return true;
         }
         if (root.settings-page == 2 && root.focus-row == 1) {
@@ -2466,17 +2602,24 @@ export component MainWindow inherits Window {
     // second will do; after the second, the same row offers to undo it until
     // the page is left.
     //
-    // Pages as `settings-page` numbers them: 1 glass, 2 ambient border,
-    // 3 subtitles. Zero is none.
+    // What each reset row resets: 1 the glass and 2 the ambient border, as
+    // `settings-page` numbers their pages; then, from the subtitles menu,
+    // 3 the timing, which is the film's alone and is undone from here rather
+    // than from what the settings saved, and 4 the size and position. Zero is
+    // none.
     property <int> reset-armed: 0;
     property <int> reset-undoable: 0;
-    /// The subtitle delay and speed that stood when the reset went through.
+    /// The subtitle delay and speed that stood when the timing was reset.
     property <float> reset-delay: 0;
     property <float> reset-sub-speed: 1;
 
     function reset-row(page: int) {
         if (root.reset-undoable == page) {
-            root.undo-reset(page, root.reset-delay, root.reset-sub-speed);
+            if (page == 3) {
+                root.set-timing(root.reset-delay, root.reset-sub-speed);
+            } else {
+                root.undo-reset(page);
+            }
             root.reset-undoable = 0;
             return;
         }
@@ -2494,6 +2637,8 @@ export component MainWindow inherits Window {
             root.reset-section(0);
         } else if (page == 2) {
             root.reset-section(1);
+        } else if (page == 3) {
+            root.set-timing(0, 1);
         } else {
             root.reset-subtitles();
         }
@@ -2532,7 +2677,32 @@ export component MainWindow inherits Window {
     }
 
     changed menu-open => {
+        root.leave-subs-page();
+    }
+    changed subs-page => {
+        root.leave-subs-page();
+    }
+
+    /// What a page of the subtitles menu armed or offered to take back goes
+    /// with it, as a settings page's reset does.
+    function leave-subs-page() {
         root.remove-armed = -1;
+        root.asked-row = -1px;
+        root.placing-subtitles = false;
+        root.forget-sync();
+        if (root.reset-armed >= 3 || root.reset-undoable >= 3) {
+            root.reset-armed = 0;
+            root.reset-undoable = 0;
+        }
+    }
+
+    // A page of the subtitle showing goes with it, whichever way it goes: C,
+    // another file, or its track removed. It stays on the tracks, at Off.
+    changed subs-showing => {
+        if (!root.subs-showing && root.subs-page != 0) {
+            root.subs-page = 0;
+            root.focus-row = root.subs-open-row;
+        }
     }
     changed audio-open => {
         root.remove-armed = -1;
@@ -2550,6 +2720,18 @@ export component MainWindow inherits Window {
 
     changed find-open => {
         root.remove-armed = -1;
+        root.asked-row = -1px;
+    }
+
+    // The timing is a file's alone, so what would take a sync or a reset of it
+    // back goes when another file opens under the menu, rather than put one
+    // film's timing on the next.
+    changed current-path => {
+        root.forget-sync();
+        if (root.reset-armed == 3 || root.reset-undoable == 3) {
+            root.reset-armed = 0;
+            root.reset-undoable = 0;
+        }
     }
 
     // --- syncing subtitles to speech ----------------------------------------
@@ -2557,19 +2739,19 @@ export component MainWindow inherits Window {
     // One row with three states, like the reset's: what it does, that it is
     // doing it, and that it can be taken back. Listening takes seconds, so
     // the row says so meanwhile and ignores presses, which would only start
-    // it over. Undo is offered until the page is left, since the timing it
+    // it over. Undo is offered until its page is left, since the timing it
     // replaced may have been set by ear.
 
-    /// How far down the settings panel the middle of the row that last asked
-    /// for something slow is, so the answer can be put beside it. Negative
-    /// once the page is left.
+    /// How far down the open panel the middle of the row that last asked for
+    /// something slow is, so the answer can be put beside it. Negative once
+    /// that row is gone.
     property <length> asked-row: -1px;
 
     function sync-row() {
-        // The sync is the first row under the way back.
+        // The sync is the timing page's first row, under its way back.
         root.asked-row = Rows.panel-pad + root.row-h + root.row-h / 2;
         if (root.sync-state == 2) {
-            root.undo-sync(root.sync-was-delay, root.sync-was-speed);
+            root.set-timing(root.sync-was-delay, root.sync-was-speed);
             root.sync-state = 0;
         } else if (root.sync-state == 0) {
             root.sync-state = 1;
@@ -2667,6 +2849,7 @@ export component MainWindow inherits Window {
     pure function reset-label(page: int) -> string {
         return root.reset-undoable == page ? @tr("Undo reset")
             : root.reset-armed == page ? @tr("Press again to reset")
+            : page == 3 ? @tr("Reset timing")
             : @tr("Reset to defaults");
     }
 
@@ -2688,8 +2871,6 @@ export component MainWindow inherits Window {
         root.asked-row = -1px;
         root.reset-armed = 0;
         root.reset-undoable = 0;
-        root.forget-sync();
-        root.placing-subtitles = false;
         // Only on the way in, so the departing page stays drawn while it
         // slides out.
         if (root.settings-page != 0) {
@@ -2700,8 +2881,6 @@ export component MainWindow inherits Window {
     changed settings-open => {
         root.reset-armed = 0;
         root.reset-undoable = 0;
-        root.forget-sync();
-        root.placing-subtitles = false;
         if (root.settings-open) {
             settings-rest.stop();
         } else {
@@ -2722,7 +2901,7 @@ export component MainWindow inherits Window {
         }
     }
 
-    /// The subtitles page's three adjustments, from its rows and its keys.
+    /// The subtitles' three adjustments, from their rows and their keys.
     /// Position lets the line down to where it rests while it is set; the
     /// other two lift it back up (see `subtitle-lift`).
     function step-sub-delay(dir: float) {
@@ -2743,6 +2922,9 @@ export component MainWindow inherits Window {
     /// Left and right, only where the row under the ring is something they
     /// can move. Elsewhere this returns false, and `focus-sideways` decides.
     function focus-adjust(delta: int) -> bool {
+        if (root.menu-open && !root.find-open && root.subs-page != 0) {
+            return root.subs-page-adjust(delta);
+        }
         if (!root.settings-open || root.focus-row < 1) {
             return false;
         }
@@ -2759,20 +2941,23 @@ export component MainWindow inherits Window {
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
-        if (root.settings-page == 3) {
-            // Row 1 is the sync, which has nothing to step.
-            if (root.focus-row == 2) {
-                root.step-sub-delay(delta);
-                return true;
-            }
-            if (root.focus-row == 3) {
-                root.step-sub-scale(delta);
-                return true;
-            }
-            if (root.focus-row == 4) {
-                root.step-sub-pos(delta);
-                return true;
-            }
+        return false;
+    }
+
+    /// The same on the subtitles menu's pages, whose steppers are Timing's
+    /// second row, and Size and Position's first two.
+    function subs-page-adjust(delta: int) -> bool {
+        if (root.subs-page == 1 && root.focus-row == 2) {
+            root.step-sub-delay(delta);
+            return true;
+        }
+        if (root.subs-page == 2 && root.focus-row == 1) {
+            root.step-sub-scale(delta);
+            return true;
+        }
+        if (root.subs-page == 2 && root.focus-row == 2) {
+            root.step-sub-pos(delta);
+            return true;
         }
         return false;
     }
@@ -2791,7 +2976,7 @@ export component MainWindow inherits Window {
         // The shortcuts page is read, not walked, so the arrows scroll its
         // list. Nested rather than one `&&` chain, because `on-read` acts, and
         // a call with an effect doesn't belong beside the test that guards it.
-        if (root.settings-open && root.settings-page == 5) {
+        if (root.settings-open && root.settings-page == 4) {
             if (root.on-read(text)) {
                 return true;
             }
@@ -2882,11 +3067,15 @@ export component MainWindow inherits Window {
             root.close-find();
             return true;
         }
+        if (root.menu-open && root.subs-page != 0) {
+            root.close-subs-page();
+            return true;
+        }
         return false;
     }
 
-    /// Right on a row with a chevron: a settings page, a season, the search
-    /// for subtitles. Enter does the same; a row that plays or picks
+    /// Right on a row with a chevron: a settings page, a season, a page of the
+    /// subtitles menu. Enter does the same; a row that plays or picks
     /// something is left to Enter alone.
     function focus-enter() {
         if (root.settings-open && root.settings-page == 0) {
@@ -2895,9 +3084,9 @@ export component MainWindow inherits Window {
                 && root.focus-row < root.playlist-rows
                 && !root.playlist-groups[root.focus-row].leaf) {
             root.playlist-enter(root.focus-row);
-        } else if (root.menu-open && !root.find-open && root.find-offered
-                && root.focus-row == root.subs-focus-count - 1) {
-            root.open-find();
+        } else if (root.menu-open && !root.find-open && root.subs-page == 0
+                && root.focus-row >= root.subs-track-rows) {
+            root.focus-activate();
         } else if (root.menu-open && root.find-open && !root.account-open
                 && root.signed-in && root.focus-row == root.find-account-at) {
             root.open-account();
@@ -2931,15 +3120,15 @@ export component MainWindow inherits Window {
     }
 
     /// The list's own rows: not the way back above a part's page, nor the
-    /// autoplay switch under the playlist, nor the search under the tracks,
-    /// nor the account under the search's results.
+    /// autoplay switch under the playlist, nor the pages and the search under
+    /// the tracks, nor the account under the search's results.
     property <bool> find-listing: root.menu-open && root.find-open && !root.account-open;
     property <int> list-first: root.playlist-open ? root.playlist-lead
         : root.find-listing ? 1 : 0;
     property <int> list-last: root.playlist-open
         ? root.playlist-lead + root.playlist-rows - 1
         : root.find-listing ? root.find-hit-count
-        : root.menu-open && !root.find-open && root.has-subs ? root.sub-tracks.length
+        : root.on-tracks && root.has-subs ? root.sub-tracks.length
         : root.focus-count - 1;
     /// A page is what the list shows less one row, so the row a jump left
     /// stays on screen to read against.
@@ -3352,6 +3541,25 @@ export component MainWindow inherits Window {
     /// it.
     property <length> ring-disc-x: root.bar-button-x(root.bar-focus);
 
+    // The button whose panel is open stands on a disc of glass too, a step
+    // short of the ring's, which says which button the panel belongs to over
+    // any frame; a held wash went unseen over a bright one.
+    /// That button's place on the bar, or -1 with no panel open.
+    property <int> open-button: root.playlist-open ? 0 : root.files-open ? 1
+        : root.audio-open ? 8 : root.menu-open ? 9 : root.settings-open ? 10 : -1;
+    /// Where the disc last stood, kept as it fades so it doesn't go to the
+    /// bar's start on the way out.
+    property <int> open-disc-at: 0;
+    changed open-button => {
+        if (root.open-button >= 0) {
+            root.open-disc-at = root.open-button;
+        }
+    }
+    property <bool> open-disc: root.open-button >= 0;
+    property <float> open-disc-on: root.open-disc ? 1 : 0;
+    animate open-disc-on { duration: Motion.highlight; easing: ease-out; }
+    property <length> open-disc-x: root.bar-button-x(root.open-disc-at);
+
     pure function bar-button-x(index: int) -> length {
         if (index < 7) {
             return index == 0 ? playlist-button.absolute-position.x
@@ -3447,10 +3655,10 @@ export component MainWindow inherits Window {
         // Straight to the shortcuts page, the player's one reference. Pressed
         // again there, it closes the panel, as S does.
         if (root.keys-act && text == "?") {
-            if (root.settings-open && root.settings-page == 5) {
+            if (root.settings-open && root.settings-page == 4) {
                 root.open-settings(false);
             } else {
-                root.open-settings-page(5);
+                root.open-settings-page(4);
                 root.focus-show(0);
             }
             return true;
@@ -3534,6 +3742,7 @@ export component MainWindow inherits Window {
             root.menu-open = true;
             root.find-open = false;
             root.account-open = false;
+            root.subs-page = 0;
             root.focus-row = root.subs-open-row;
             subs-list.centre(root.focus-row * root.row-h, root.row-h);
         }
@@ -3726,6 +3935,12 @@ export component MainWindow inherits Window {
     // from, and the panel eases to the new height, so the change can be
     // followed rather than happening in one frame. Back reverses it.
 
+    /// The corner the panels that drill clip their pages to, so a page
+    /// sliding past a corner is cut where the glass is. A circle, which
+    /// stands at most two thirds of a pixel proud of the glass's own corner,
+    /// inside the glass's soft edge.
+    property <length> drill-corner: root.panel-radius;
+
     /// 0 on the front page, 1 on a page behind it. One number is enough
     /// because the tree is two deep.
     property <float> drill: root.settings-page == 0 ? 0.0 : 1.0;
@@ -3766,6 +3981,7 @@ export component MainWindow inherits Window {
         visible: root.settings-shown > root.shown-epsilon;
         opacity: root.settings-shown;
         clip: true;
+        border-radius: root.drill-corner;
 
         // Catches what the rows don't, so a click on the padding doesn't
         // reach the play/pause handler underneath.
@@ -3832,23 +4048,10 @@ export component MainWindow inherits Window {
                         }
                     }
 
-                    // No switch: subtitles are turned on and off with C and the
-                    // subtitles menu's Off row. This is the tuning.
-                    MenuHeading {
-                        text: @tr("SUBTITLES");
-                        after-content: true;
-                    }
-                    DrillRow {
-                        icon: @image-url("../../../public/icons/subtitle-time.svg");
-                        label: @tr("Timing, size & position");
-                        focused: root.settings-open && root.focus-row == 2;
-                        opened => {
-                            root.settings-page = 3;
-                        }
-                    }
-
-                    // The player itself, where the groups above are about the
+                    // The player itself, where the group above is about the
                     // picture: how the interface behaves and how to drive it.
+                    // The subtitles' own tuning is in their menu, beside the
+                    // line it changes.
                     MenuHeading {
                         text: @tr("INTERFACE");
                         after-content: true;
@@ -3856,25 +4059,25 @@ export component MainWindow inherits Window {
                     DrillRow {
                         icon: @image-url("../../../public/icons/accessibility.svg");
                         label: @tr("Accessibility");
+                        focused: root.settings-open && root.focus-row == 2;
+                        opened => {
+                            root.settings-page = 3;
+                        }
+                    }
+                    DrillRow {
+                        icon: @image-url("../../../public/icons/shortcuts.svg");
+                        label: @tr("Shortcuts");
                         focused: root.settings-open && root.focus-row == 3;
                         opened => {
                             root.settings-page = 4;
                         }
                     }
                     DrillRow {
-                        icon: @image-url("../../../public/icons/shortcuts.svg");
-                        label: @tr("Shortcuts");
+                        icon: @image-url("../../../public/icons/language.svg");
+                        label: @tr("Language");
                         focused: root.settings-open && root.focus-row == 4;
                         opened => {
                             root.settings-page = 5;
-                        }
-                    }
-                    DrillRow {
-                        icon: @image-url("../../../public/icons/language.svg");
-                        label: @tr("Language");
-                        focused: root.settings-open && root.focus-row == 5;
-                        opened => {
-                            root.settings-page = 6;
                         }
                     }
                 }
@@ -3998,84 +4201,9 @@ export component MainWindow inherits Window {
                     }
                 }
 
-                // Steppers, since these are read as numbers (see `StepperRow`).
-                if root.leaf-page == 3: VerticalLayout {
-                    BackRow {
-                        label: @tr("SUBTITLES");
-                        focused: root.focus-row == 0;
-                        back => {
-                            root.settings-page = 0;
-                        }
-                    }
-                    ScrollList {
-                        height: root.leaf-list-h;
-                        rest-height: root.leaf-rest-h;
-                        content-height: root.page-natural(3);
-                        init => {
-                            root.leaf-fade = self.fade;
-                        }
-                        changed fade => {
-                            root.leaf-fade = self.fade;
-                        }
-                        reveal-top: root.settings-reveal-top;
-                        reveal-h: root.settings-reveal-h;
-                        reveal-tick: root.settings-reveal-tick;
-
-                        // Above Timing, as the thing to try before setting the
-                        // delay by hand; what it settles on shows in that row.
-                        MenuRow {
-                            // A speech icon, since it listens to the film.
-                            icon: @image-url("../../../public/icons/speaking.svg");
-                            label: root.sync-label();
-                            focused: root.focus-row == 1;
-                            picked => {
-                                root.sync-row();
-                            }
-                        }
-                        StepperRow {
-                            icon: @image-url("../../../public/icons/clock.svg");
-                            label: @tr("Timing");
-                            focused: root.focus-row == 2;
-                            value: root.sub-delay-text;
-                            stepped(dir) => {
-                                root.step-sub-delay(dir);
-                            }
-                        }
-                        StepperRow {
-                            icon: @image-url("../../../public/icons/text-size.svg");
-                            label: @tr("Size");
-                            focused: root.focus-row == 3;
-                            value: root.sub-scale-text;
-                            stepped(dir) => {
-                                root.step-sub-scale(dir);
-                            }
-                        }
-                        StepperRow {
-                            icon: @image-url("../../../public/icons/arrows-up-down.svg");
-                            label: @tr("Position");
-                            focused: root.focus-row == 4;
-                            value: root.sub-pos-text;
-                            stepped(dir) => {
-                                root.step-sub-pos(dir);
-                            }
-                        }
-                        Rectangle {
-                            height: Rows.group-gap;
-                        }
-                        MenuRow {
-                            icon: root.reset-icon(3);
-                            label: root.reset-label(3);
-                            focused: root.focus-row == root.leaf-focus-count - 1;
-                            picked => {
-                                root.reset-row(3);
-                            }
-                        }
-                    }
-                }
-
                 // How much the interface does on its own: moving, keeping its
                 // words readable, and explaining itself.
-                if root.leaf-page == 4: VerticalLayout {
+                if root.leaf-page == 3: VerticalLayout {
                     BackRow {
                         label: @tr("ACCESSIBILITY");
                         focused: root.focus-row == 0;
@@ -4086,7 +4214,7 @@ export component MainWindow inherits Window {
                     ScrollList {
                         height: root.leaf-list-h;
                         rest-height: root.leaf-rest-h;
-                        content-height: root.page-natural(4);
+                        content-height: root.page-natural(3);
                         init => {
                             root.leaf-fade = self.fade;
                         }
@@ -4147,7 +4275,7 @@ export component MainWindow inherits Window {
                 // The system's language first, which the player speaks until
                 // told otherwise, then English, which it is written in, then
                 // the bundled ones, each under its own untranslated name.
-                if root.leaf-page == 6: VerticalLayout {
+                if root.leaf-page == 5: VerticalLayout {
                     BackRow {
                         label: @tr("LANGUAGE");
                         focused: root.focus-row == 0;
@@ -4158,7 +4286,7 @@ export component MainWindow inherits Window {
                     ScrollList {
                         height: root.leaf-list-h;
                         rest-height: root.leaf-rest-h;
-                        content-height: root.page-natural(6);
+                        content-height: root.page-natural(5);
                         init => {
                             root.leaf-fade = self.fade;
                         }
@@ -4200,7 +4328,7 @@ export component MainWindow inherits Window {
                     }
                 }
 
-                if root.leaf-page == 5: VerticalLayout {
+                if root.leaf-page == 4: VerticalLayout {
                     BackRow {
                         label: @tr("SHORTCUTS");
                         focused: root.focus-row == 0;
@@ -4211,7 +4339,7 @@ export component MainWindow inherits Window {
                     ScrollList {
                         height: root.leaf-list-h;
                         rest-height: root.leaf-rest-h;
-                        content-height: root.page-natural(5);
+                        content-height: root.page-natural(4);
                         init => {
                             root.leaf-fade = self.fade;
                         }
@@ -4253,6 +4381,7 @@ export component MainWindow inherits Window {
         width: 380px;
         height: root.menu-h;
         clip: true;
+        border-radius: root.drill-corner;
         // With `menu-drill`, as a settings page's height is with its slide.
         animate height {
             duration: root.resizing ? 0ms : Motion.drill;
@@ -4276,7 +4405,7 @@ export component MainWindow inherits Window {
             x: -root.menu-drill * parent.width;
             width: parent.width;
             height: root.subs-h;
-            y: 0;
+            y: root.menu-moving ? parent.height - self.height : 0;
             visible: root.menu-drill < 1.0;
 
             VerticalLayout {
@@ -4301,7 +4430,7 @@ export component MainWindow inherits Window {
                     if root.has-subs: MenuRow {
                         label: @tr("Off");
                         active: !root.subs-visible;
-                        focused: root.menu-open && root.focus-row == 0;
+                        focused: root.on-tracks && root.focus-row == 0;
                         picked => {
                             root.select-subtitle(-1);
                         }
@@ -4312,7 +4441,7 @@ export component MainWindow inherits Window {
                         // `sid`, so turning them on returns to this track, and mpv
                         // goes on reporting it as selected while it is hidden.
                         active: track.selected && root.subs-visible;
-                        focused: root.menu-open && root.focus-row == idx + 1;
+                        focused: root.on-tracks && root.focus-row == idx + 1;
                         removable: track.external;
                         armed: root.remove-armed == track.id && root.remove-armed-sub;
                         armed-for: root.armed-for;
@@ -4324,22 +4453,136 @@ export component MainWindow inherits Window {
                         }
                     }
                 }
-                // Under the list rather than in it, as the way to a page of
-                // its own rather than one more track, so it stays in reach
-                // however many a film has.
-                if root.find-offered && root.has-subs: Rectangle {
+                // Under the list rather than in it, so they stay in reach
+                // however many tracks a film has and are never read as one
+                // more: the ways to the pages of the one showing, and to a
+                // page of other subtitles.
+                if root.has-subs && (root.subs-showing || root.find-offered): Rectangle {
                     height: Rows.group-gap;
+                }
+                // Says how far off the timing is, as its page's stepper
+                // does, so a film synced last week reads so from here.
+                if root.subs-showing: DrillRow {
+                    icon: @image-url("../../../public/icons/clock.svg");
+                    label: @tr("Timing");
+                    detail: abs(root.sub-delay) >= 0.005 ? root.sub-delay-text : "";
+                    focused: root.on-tracks && root.focus-row == root.subs-pages-at;
+                    opened => {
+                        root.open-subs-page(1);
+                    }
+                }
+                if root.subs-showing: DrillRow {
+                    icon: @image-url("../../../public/icons/text-size.svg");
+                    label: @tr("Size & position");
+                    focused: root.on-tracks && root.focus-row == root.subs-pages-at + 1;
+                    opened => {
+                        root.open-subs-page(2);
+                    }
                 }
                 if root.find-offered: DrillRow {
                     icon: @image-url("../../../public/icons/search.svg");
                     label: @tr("Find subtitles");
-                    focused: root.menu-open && !root.find-open
-                        && root.focus-row == root.subs-focus-count - 1;
+                    focused: root.on-tracks && root.focus-row == root.subs-focus-count - 1;
                     opened => {
                         root.open-find();
                     }
                 }
+            }
+        }
 
+        // Timing, or size and position, sliding in over the tracks as the
+        // search's page does. Only built while one shows.
+        if root.menu-drill > 0.0 && root.menu-leaf != 3: Rectangle {
+            x: (1.0 - root.menu-drill) * parent.width;
+            width: parent.width;
+            height: root.menu-leaf == 1 ? root.timing-page-h : root.placing-page-h;
+            y: root.menu-moving ? parent.height - self.height : 0;
+
+            VerticalLayout {
+                padding-top: Rows.panel-pad;
+                padding-bottom: Rows.panel-pad;
+                alignment: start;
+
+                if root.menu-leaf == 1: VerticalLayout {
+                    BackRow {
+                        label: @tr("TIMING");
+                        focused: root.subs-ring(1, 0);
+                        back => {
+                            root.close-subs-page();
+                        }
+                    }
+                    // Above Timing, as the thing to try before setting the
+                    // delay by hand; what it settles on shows in that row.
+                    MenuRow {
+                        icon: @image-url("../../../public/icons/subtitle-time.svg");
+                        label: root.sync-label();
+                        focused: root.subs-ring(1, 1);
+                        picked => {
+                            root.sync-row();
+                        }
+                    }
+                    StepperRow {
+                        icon: @image-url("../../../public/icons/clock.svg");
+                        label: @tr("Timing");
+                        focused: root.subs-ring(1, 2);
+                        value: root.sub-delay-text;
+                        value-w: root.timing-value-w;
+                        stepped(dir) => {
+                            root.step-sub-delay(dir);
+                        }
+                    }
+                    if root.timing-resettable: Rectangle {
+                        height: Rows.group-gap;
+                    }
+                    if root.timing-resettable: MenuRow {
+                        icon: root.reset-icon(3);
+                        label: root.reset-label(3);
+                        focused: root.subs-ring(1, 3);
+                        picked => {
+                            root.reset-row(3);
+                        }
+                    }
+                }
+
+                // Steppers, since these are read as numbers (see `StepperRow`).
+                if root.menu-leaf == 2: VerticalLayout {
+                    BackRow {
+                        label: @tr("SIZE & POSITION");
+                        focused: root.subs-ring(2, 0);
+                        back => {
+                            root.close-subs-page();
+                        }
+                    }
+                    StepperRow {
+                        icon: @image-url("../../../public/icons/text-size.svg");
+                        label: @tr("Size");
+                        focused: root.subs-ring(2, 1);
+                        value: root.sub-scale-text;
+                        stepped(dir) => {
+                            root.step-sub-scale(dir);
+                        }
+                    }
+                    StepperRow {
+                        icon: @image-url("../../../public/icons/arrows-up-down.svg");
+                        label: @tr("Position");
+                        focused: root.subs-ring(2, 2);
+                        value: root.sub-pos-text;
+                        stepped(dir) => {
+                            root.step-sub-pos(dir);
+                        }
+                    }
+                    Rectangle {
+                        height: Rows.group-gap;
+                    }
+                    MenuRow {
+                        icon: root.reset-icon(4);
+                        label: root.reset-label(4);
+                        focused: root.subs-ring(2, 3);
+                        picked => {
+                            root.reset-row(4);
+                        }
+                    }
+                }
             }
         }
 
@@ -4348,7 +4591,7 @@ export component MainWindow inherits Window {
             x: (1.0 - root.menu-drill) * parent.width;
             width: parent.width;
             height: parent.height;
-            visible: root.menu-drill > 0.0 && root.menu-drill < 2.0;
+            visible: root.menu-drill > 0.0 && root.menu-drill < 2.0 && root.menu-leaf == 3;
 
             VerticalLayout {
                 padding-top: Rows.panel-pad;
@@ -4554,6 +4797,7 @@ export component MainWindow inherits Window {
         width: 380px;
         height: root.playlist-h;
         clip: true;
+        border-radius: root.drill-corner;
 
         // With `playlist-drill`, as the settings panel's height is with
         // `drill`, so the box and its pages move as one. Not while the window
@@ -5098,7 +5342,7 @@ export component MainWindow inherits Window {
                 shortcut: "?";
                 focused: !root.has-file && root.focus-row == root.invite-first + 3;
                 picked => {
-                    root.open-settings-page(5);
+                    root.open-settings-page(4);
                 }
             }
 
@@ -5198,6 +5442,20 @@ export component MainWindow inherits Window {
         height: 0px;
     }
 
+    // A season's end is said once, over its way on: the one thing at the end
+    // the interface states rather than offers. No glass of its own, as the end
+    // is lit by a frame dimmed far enough for white words to read on it.
+    Text {
+        text: root.season-done;
+        visible: root.at-end && root.at-last && root.season-done != ""
+            && root.end-shown > root.shown-epsilon;
+        opacity: root.end-shown;
+        x: root.end-x + (root.end-w - self.width) / 2;
+        y: root.end-y + root.end-rise - Rows.offset - self.height;
+        color: Paint.body;
+        font-size: Type.hint;
+    }
+
     // --- the button a finished film leaves behind ---------------------------
     //
     // Not tied to `controls-visible`: the bar hides after a few still seconds,
@@ -5221,7 +5479,9 @@ export component MainWindow inherits Window {
             inset: root.end-inset;
             pad: root.end-choice-pad;
             gap: root.end-gap;
-            focused: root.bar-reach && root.bar-focus == root.pill-stop;
+            // Only while the pill is up, so the choice takes the ring's pane as
+            // it arrives rather than holding it unseen behind the credits pill.
+            focused: root.centre-up && root.bar-reach && root.bar-focus == root.pill-stop;
             icon: root.arriving ? @image-url("../../../public/icons/play.svg")
                 : !root.end-two || root.onward-path != ""
                 ? @image-url("../../../public/icons/step-forward.svg")
@@ -5240,7 +5500,7 @@ export component MainWindow inherits Window {
             inset: root.end-inset;
             pad: root.end-choice-pad;
             gap: root.end-gap;
-            focused: root.bar-reach && root.bar-focus == root.pill-stop + 1;
+            focused: root.centre-up && root.bar-reach && root.bar-focus == root.pill-stop + 1;
             icon: @image-url("../../../public/icons/rewind.svg");
             label: root.end-label;
             picked => {
@@ -5384,6 +5644,14 @@ export component MainWindow inherits Window {
 
     speed-measure := Text {
         text: root.speed-text;
+        font-size: Type.readout;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    delay-measure := Text {
+        text: root.sub-delay-widest;
         font-size: Type.readout;
         visible: false;
         width: 0px;

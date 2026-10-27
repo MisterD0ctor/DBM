@@ -380,6 +380,26 @@ impl ScreenQuad {
         }
     }
 
+    /// Draw over what `target` already holds, by the alpha the pass writes:
+    /// the one pass that lays a picture on another rather than replacing it.
+    pub fn blend_to(&self, gl: &glow::Context, target: &Target) {
+        let (Some(fbo), (w, h)) = (target.fbo(), target.size()) else {
+            return;
+        };
+        unsafe {
+            gl.bind_framebuffer(glow::FRAMEBUFFER, Some(fbo));
+            gl.viewport(0, 0, w as i32, h as i32);
+            gl.bind_vertex_array(Some(self.vao));
+            gl.enable(glow::BLEND);
+            gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+            gl.disable(glow::DEPTH_TEST);
+            gl.disable(glow::SCISSOR_TEST);
+            gl.draw_arrays(glow::TRIANGLES, 0, 3);
+            gl.disable(glow::BLEND);
+            gl.bind_vertex_array(None);
+        }
+    }
+
     /// Draw into a rectangle of a framebuffer that is not one of ours — the
     /// window's. `rect` is x, y, width and height as GL counts them, from
     /// the bottom-left, and `v_uv` spans 0..1 across it.

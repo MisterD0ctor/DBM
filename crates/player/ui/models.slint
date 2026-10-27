@@ -20,10 +20,18 @@ export struct GlassRect {
     /// It casts no shadow, which would fall on the picture past the edge of
     /// the pane beneath, and doesn't reach past that edge itself.
     nested: bool,
-    /// Under the keyboard's ring: held darker, so Lit words on the ring's
-    /// wash keep their contrast, and its rim lit hard enough to stand out at
-    /// 3:1 from the glass beside it.
+    /// Under the keyboard's ring: milk glass, lighter than the glass it lies
+    /// on over every frame, with its rim lit hard.
     ring: bool,
+    /// Under a bar button whose panel is open: milk glass as the ring's pane
+    /// is, a step less milky.
+    open: bool,
+    /// For the pane under the ring, the top and height of the surface its
+    /// row is in, which it is cut to: a page rising into a panel growing to
+    /// fit it is partly outside the panel, where the pane would lie on the
+    /// bar. Zero high for every other pane.
+    host-y: length,
+    host-height: length,
 }
 
 /// A scrolling list, or a line of words too long for its place, for the

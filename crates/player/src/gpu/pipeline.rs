@@ -81,9 +81,13 @@ pub struct GlassPanel {
     pub opacity: f32,
     /// Laid on another pane, so it casts no shadow; see `GlassRect.nested`.
     pub nested: bool,
-    /// Under the keyboard's ring, so it is held darker, for Lit words on the
-    /// ring's wash, and its rim is lit at [`RING_RIM`]; see `GlassRect.ring`.
+    /// Under the keyboard's ring, so its rim is lit at [`RING_RIM`]; see
+    /// `GlassRect.ring`.
     pub ring: bool,
+    /// How far what it passes is lifted toward white, 0..1: [`RING_MILK`]
+    /// under the keyboard's ring, [`OPEN_MILK`] under a bar button whose panel
+    /// is open, and 0 for every other pane, which is clear glass.
+    pub milk: f32,
 }
 
 /// Look of the glass: what the settings panel's glass page adjusts, plus the
@@ -155,14 +159,12 @@ pub const IOR: f32 = 2.0;
 pub const LEGIBLE: f32 = 5.0;
 
 /// The most light the glass may let through, as a luminance: that of the
-/// brightest grey on which white at `text` alpha still reads at `ratio`,
-/// standing on white at `wash` alpha laid over that grey. Zero where no grey
-/// would do, which leaves the glass as it is.
-pub fn legible_ceiling(text: f32, wash: f32, ratio: f32) -> f32 {
+/// brightest grey on which white at `text` alpha still reads at `ratio`.
+/// Zero where no grey would do, which leaves the glass as it is.
+pub fn legible_ceiling(text: f32, ratio: f32) -> f32 {
     let contrast = |grey: f32| {
-        let under = wash + (1.0 - wash) * grey;
-        let words = text + (1.0 - text) * under;
-        (luminance(words) + 0.05) / (luminance(under) + 0.05)
+        let words = text + (1.0 - text) * grey;
+        (luminance(words) + 0.05) / (luminance(grey) + 0.05)
     };
     if contrast(0.0) < ratio {
         return 0.0;
@@ -180,19 +182,19 @@ pub fn legible_ceiling(text: f32, wash: f32, ratio: f32) -> f32 {
     luminance(lo)
 }
 
-/// The lower of two ceilings from [`legible_ceiling`], where zero sets none.
-fn stricter(a: f32, b: f32) -> f32 {
-    match (a > 0.0, b > 0.0) {
-        (true, true) => a.min(b),
-        (true, false) => a,
-        _ => b,
-    }
-}
-
 /// The rim light on the pane under the keyboard's ring, whatever the rim
-/// slider says: its edge is what tells the ring from the pointer's wash, which
-/// a wash alone can't do at 3:1 and keep its words at 4.5:1 too.
+/// slider says, so the edge of the milk is as sure as its middle.
 pub const RING_RIM: f32 = 1.0;
+
+/// How milky the pane under the keyboard's ring is: the share of white mixed
+/// into what it passes. Enough to stand 3:1 lighter than glass held to its
+/// ceiling over a white frame, and to keep dark words on it past 5:1 over a
+/// black one, where it is that share of white alone.
+pub const RING_MILK: f32 = 0.72;
+
+/// The same for the disc under a bar button whose panel is open: a step short
+/// of the ring's, as the open state is a step under the ring everywhere.
+pub const OPEN_MILK: f32 = 0.45;
 
 /// An encoded channel's share of light, as WCAG decodes it.
 fn luminance(encoded: f32) -> f32 {
@@ -311,23 +313,31 @@ pub struct Pipeline {
     /// The alpha of the lowest step of text, `Paint.body`, which the glass
     /// never grows too bright for; see [`legible_ceiling`].
     pub text_floor: f32,
-    /// The alpha of the ring's wash, `Paint.wash-ring`, which the pane under
-    /// the ring is held dark enough for, with Lit words on it.
-    pub ring_wash: f32,
     /// Whether it is held to that at all: off, the glass is only what its
     /// sliders make it.
     pub legible: bool,
 
     prog_backdrop: Program,
-    /// A frame of the last film left unfinished (see [`Pipeline::set_backdrop`]).
+    /// A frame of the last film left unfinished, or at the end of a file of
+    /// what comes next (see [`Pipeline::set_backdrop`]).
     backdrop: Option<Backdrop>,
-    /// Whether that frame stands in for mpv's picture, which is while no file
-    /// is loaded.
-    pub show_backdrop: bool,
+    /// Whether that frame stands in for mpv's picture: while no file is
+    /// loaded, and at the end of one (see [`Pipeline::show_backdrop`]).
+    show_backdrop: bool,
+    /// Whether it arrives over a film's held frame rather than over black.
+    backdrop_over_film: bool,
+    /// The backdrop has just gone, so mpv's frame is drawn again whether or
+    /// not it has a new one.
+    film_wanted: bool,
     /// Whether the backdrop fades up or is simply there: the Animations
     /// setting, for the one movement the pipeline draws itself.
     pub animate: bool,
 }
+
+/// The mip level the end of a file reads its backdrop from: a quarter of the
+/// tile's size each way, past the point where a face in it reads as one with
+/// nothing over the middle of the window to cover it.
+const END_SOFTENING: f32 = 2.0;
 
 /// How long the backdrop takes to come up. Longer than a surface's 120ms,
 /// because it is the window's light changing, and a whole picture arriving
@@ -375,12 +385,13 @@ impl Pipeline {
             border_enabled: true,
             glass_enabled: true,
             text_floor: 0.0,
-            ring_wash: 0.0,
             legible: true,
             prog_backdrop: Program::new(gl, vert, include_str!("../../shaders/backdrop.frag"))
                 .map_err(|e| format!("backdrop: {e}"))?,
             backdrop: None,
             show_backdrop: false,
+            backdrop_over_film: false,
+            film_wanted: false,
             animate: true,
         })
     }
@@ -406,8 +417,10 @@ impl Pipeline {
                 glow::UNSIGNED_BYTE,
                 glow::PixelUnpackData::Slice(Some(&still.rgba)),
             );
+            // With its smaller levels, for the end of a file to read from.
+            gl.generate_mipmap(glow::TEXTURE_2D);
             for (k, v) in [
-                (glow::TEXTURE_MIN_FILTER, glow::LINEAR),
+                (glow::TEXTURE_MIN_FILTER, glow::LINEAR_MIPMAP_LINEAR),
                 (glow::TEXTURE_MAG_FILTER, glow::LINEAR),
                 (glow::TEXTURE_WRAP_S, glow::CLAMP_TO_EDGE),
                 (glow::TEXTURE_WRAP_T, glow::CLAMP_TO_EDGE),
@@ -427,6 +440,20 @@ impl Pipeline {
             arrived: std::time::Instant::now(),
             settled: false,
         });
+    }
+
+    /// Whether the backdrop stands in for mpv's picture, and whether there is
+    /// a film's frame under it. Each time it is shown it arrives again.
+    pub fn show_backdrop(&mut self, on: bool, over_film: bool) {
+        if on && !self.show_backdrop {
+            if let Some(b) = self.backdrop.as_mut() {
+                b.arrived = std::time::Instant::now();
+                b.settled = false;
+            }
+        }
+        self.film_wanted |= self.show_backdrop && !on;
+        self.show_backdrop = on;
+        self.backdrop_over_film = over_film;
     }
 
     /// Whether the backdrop still has frames of its arrival to draw, so the
@@ -455,8 +482,39 @@ impl Pipeline {
         self.prog_backdrop
             .set_vec2(gl, "u_image_size", iw as f32, ih as f32);
         self.prog_backdrop.set_f32(gl, "u_level", level);
+        let (over, lod) = if self.backdrop_over_film {
+            (1.0, END_SOFTENING)
+        } else {
+            (0.0, 0.0)
+        };
+        self.prog_backdrop.set_f32(gl, "u_over", over);
+        self.prog_backdrop.set_f32(gl, "u_lod", lod);
         bind_texture(gl, &self.prog_backdrop, "u_image", 0, Some(tex));
-        self.quad.draw_to(gl, &self.video);
+        if self.backdrop_over_film {
+            self.quad.blend_to(gl, &self.video);
+        } else {
+            self.quad.draw_to(gl, &self.video);
+        }
+    }
+
+    /// mpv's picture, into the video target. It re-renders the frame it holds
+    /// when asked, so a paused film is drawn again as well as a playing one.
+    fn render_film(&mut self, gl: &glow::Context, ctx: &RenderContext, w: u32, h: u32)
+        -> Result<bool, String> {
+        let Some(fbo) = self.video.fbo() else {
+            return Ok(false);
+        };
+        let saved = saved_draw_fbo(gl);
+        unsafe {
+            gl.bind_framebuffer(glow::FRAMEBUFFER, Some(fbo));
+            let mut viewport = [0i32; 4];
+            gl.get_parameter_i32_slice(glow::VIEWPORT, &mut viewport);
+            let res = ctx.render_to_fbo(fbo.0.get(), w as i32, h as i32);
+            gl.bind_framebuffer(glow::FRAMEBUFFER, saved);
+            gl.viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+            res.map_err(|e| e.to_string())?;
+        }
+        Ok(true)
     }
 
     /// The image Slint draws: video, ambient border and glass panels, all
@@ -564,30 +622,27 @@ impl Pipeline {
         // cleared, so a paused player would show black and the border would
         // grow out of it. mpv happily re-renders the frame it holds.
         //
-        // With nothing loaded and a backdrop on hand, that stands in for the
-        // frame instead: drawn when it arrives, while it fades up, and after a
+        // With a backdrop shown and on hand, that stands in for the frame
+        // instead: drawn when it arrives, while it fades up, and after a
         // resize. mpv's `new_frame` is ignored meanwhile, since with no file it
-        // would only render black over it.
+        // would only render black over it, and at a file's end it has nothing
+        // new. Over a film the held frame is drawn under it each time, for it
+        // to arrive over.
         let mut drew_backdrop = false;
+        let mut drew_film_again = false;
         if self.show_backdrop && self.backdrop.is_some() {
             if resized || self.backdrop_arriving() {
+                if self.backdrop_over_film && !self.render_film(gl, ctx, w, h)? {
+                    return Ok(false);
+                }
                 self.draw_backdrop(gl, w, h);
                 drew_backdrop = true;
             }
-        } else if new_frame || resized {
-            let Some(fbo) = self.video.fbo() else {
+        } else if new_frame || resized || self.film_wanted {
+            if !self.render_film(gl, ctx, w, h)? {
                 return Ok(false);
-            };
-            let saved = saved_draw_fbo(gl);
-            unsafe {
-                gl.bind_framebuffer(glow::FRAMEBUFFER, Some(fbo));
-                let mut viewport = [0i32; 4];
-                gl.get_parameter_i32_slice(glow::VIEWPORT, &mut viewport);
-                let res = ctx.render_to_fbo(fbo.0.get(), w as i32, h as i32);
-                gl.bind_framebuffer(glow::FRAMEBUFFER, saved);
-                gl.viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-                res.map_err(|e| e.to_string())?;
             }
+            drew_film_again = std::mem::take(&mut self.film_wanted);
         }
 
         // Nothing downstream changes unless mpv produced a frame, the targets
@@ -601,7 +656,8 @@ impl Pipeline {
         // often arrives a frame or two after the resize. Paused, no next frame
         // would redraw the border, which would keep the old geometry.
         let rect_changed = self.rect != rect;
-        let full = new_frame || resized || params_dirty || rect_changed || drew_backdrop;
+        let full = new_frame || resized || params_dirty || rect_changed || drew_backdrop
+            || drew_film_again;
         if !full && !panels_changed {
             return Ok(true);
         }
@@ -697,13 +753,10 @@ impl Pipeline {
 
         // Uniform arrays are uploaded whole; unused slots are simply never
         // read, since the shader loop stops at `u_panel_count`.
-        let (ceiling, ring_ceiling) = if self.legible {
-            (
-                legible_ceiling(self.text_floor, 0.0, LEGIBLE),
-                legible_ceiling(1.0, self.ring_wash, LEGIBLE),
-            )
+        let ceiling = if self.legible {
+            legible_ceiling(self.text_floor, LEGIBLE)
         } else {
-            (0.0, 0.0)
+            0.0
         };
         let count = panels.len().min(MAX_PANELS);
         let mut rects = [0.0f32; MAX_PANELS * 4];
@@ -715,16 +768,13 @@ impl Pipeline {
             styles[i * 4 + 1] = panel.tint_alpha;
             styles[i * 4 + 2] = panel.opacity;
             styles[i * 4 + 3] = if panel.nested { 1.0 } else { 0.0 };
-            lights[i * 4] = if panel.ring {
-                stricter(ceiling, ring_ceiling)
-            } else {
-                ceiling
-            };
+            lights[i * 4] = ceiling;
             lights[i * 4 + 1] = if panel.ring {
                 g.rim.max(RING_RIM)
             } else {
                 g.rim
             };
+            lights[i * 4 + 2] = panel.milk;
         }
         self.prog_glass.set_i32(gl, "u_panel_count", count as i32);
         self.prog_glass
@@ -970,7 +1020,7 @@ impl Pipeline {
 
 #[cfg(test)]
 mod tests {
-    use super::{fringe_scale, legible_ceiling, luminance, stricter, LEGIBLE};
+    use super::{fringe_scale, legible_ceiling, luminance, LEGIBLE, RING_MILK};
 
     #[test]
     fn the_fringe_is_the_glass_own_when_sharp_and_widens_with_the_root_of_the_blur() {
@@ -994,7 +1044,7 @@ mod tests {
     #[test]
     fn body_text_keeps_its_contrast_on_glass_at_the_ceiling() {
         let body = 224.0 / 255.0;
-        let ceiling = legible_ceiling(body, 0.0, LEGIBLE);
+        let ceiling = legible_ceiling(body, LEGIBLE);
         // A mid grey, nowhere near white.
         assert!((0.08..0.16).contains(&ceiling), "{ceiling}");
         let grey = grey_at(ceiling);
@@ -1004,29 +1054,32 @@ mod tests {
     }
 
     #[test]
-    fn lit_text_keeps_its_contrast_on_the_ring_wash_at_its_ceiling() {
-        let wash = 84.0 / 255.0;
-        let ceiling = legible_ceiling(1.0, wash, LEGIBLE);
-        // Darker than the glass elsewhere has to be, since the wash lightens it.
-        assert!(
-            ceiling < legible_ceiling(224.0 / 255.0, 0.0, LEGIBLE),
-            "{ceiling}"
-        );
-        let under = wash + (1.0 - wash) * grey_at(ceiling);
-        let contrast = 1.05 / (luminance(under) + 0.05);
+    fn the_ring_is_lighter_than_glass_at_its_ceiling() {
+        // Over a white frame, where the glass around it is as light as it
+        // ever gets.
+        let grey = grey_at(legible_ceiling(1.0, LEGIBLE));
+        let milk = grey + (1.0 - grey) * RING_MILK;
+        let contrast = (luminance(milk) + 0.05) / (luminance(grey) + 0.05);
+        assert!(contrast >= 3.0, "{contrast}");
+    }
+
+    #[test]
+    fn dark_words_read_on_the_ring_over_black() {
+        // Over black the milk is its share of white alone, the least it is,
+        // and the words are `Paint.knob`, #101010 at 0xe6.
+        let alpha = 230.0 / 255.0;
+        let words = alpha * 16.0 / 255.0 + (1.0 - alpha) * RING_MILK;
+        let contrast = (luminance(RING_MILK) + 0.05) / (luminance(words) + 0.05);
         assert!(contrast >= LEGIBLE, "{contrast}");
     }
 
     #[test]
     fn brighter_text_lets_the_glass_be_brighter() {
-        assert!(legible_ceiling(1.0, 0.0, LEGIBLE) > legible_ceiling(224.0 / 255.0, 0.0, LEGIBLE));
+        assert!(legible_ceiling(1.0, LEGIBLE) > legible_ceiling(224.0 / 255.0, LEGIBLE));
     }
 
     #[test]
     fn text_that_could_never_read_leaves_the_glass_alone() {
-        assert_eq!(legible_ceiling(0.0, 0.0, LEGIBLE), 0.0);
-        assert_eq!(stricter(0.0, 0.0), 0.0);
-        assert_eq!(stricter(0.05, 0.0), 0.05);
-        assert_eq!(stricter(0.05, 0.02), 0.02);
+        assert_eq!(legible_ceiling(0.0, LEGIBLE), 0.0);
     }
 }
