@@ -24,7 +24,7 @@ mod completions;
 mod events;
 
 use std::num::NonZeroU32;
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 
 use slint::{
     private_unstable_api::re_exports::IntSize, BorrowedOpenGLTextureBuilder,
@@ -39,7 +39,7 @@ use crate::lang::{fill, marked, tr};
 use crate::library::playlist;
 use crate::platform::modal_loop;
 use crate::playback::commands;
-use crate::playback::mpv::{self, Mpv};
+use crate::playback::mpv;
 use crate::playback::state::PlayerState;
 use crate::worker::Completion;
 use crate::{diagnostics, MainWindow};
@@ -50,9 +50,6 @@ type Published = (NonZeroU32, u32, u32, u32, u32);
 
 /// Everything that only exists once the GL context does.
 struct Gpu {
-    // Declaration order is drop order: the render context must die before the
-    // `Mpv` whose symbol table it points into. Holding the `Rc` here makes
-    // that hold even if the closure is torn down without a teardown notify.
     ctx: mpv::RenderContext,
     gl: glow::Context,
     pipeline: Pipeline,
@@ -70,7 +67,6 @@ struct Gpu {
     /// then square.
     corners: Option<crate::gpu::corners::Corners>,
     published: Option<Published>,
-    _mpv: Arc<Mpv>,
 }
 
 pub struct Driver {
@@ -210,8 +206,9 @@ impl Driver {
             RenderingState::AfterRendering => {
                 if let Some(gpu) = self.gpu.as_mut() {
                     // Tells mpv the frame reached the screen, which is what
-                    // keeps its frame timing honest.
-                    gpu.ctx.report_swap();
+                    // keeps its frame timing honest. Slint keeps the context
+                    // current through its notifier.
+                    unsafe { gpu.ctx.report_swap() };
                     // Here rather than in `frame`, because here the interface
                     // is already drawn over the video and the picture is the
                     // whole thing. Does nothing unless asked.
@@ -383,7 +380,7 @@ impl Driver {
         // event would otherwise sit unnoticed.
         self.app.mpv.set_wakeup(self.waker());
 
-        match unsafe { mpv::RenderContext::new(&self.app.mpv, get_proc_address, notify) } {
+        match unsafe { mpv::RenderContext::new(self.app.mpv.clone(), get_proc_address, notify) } {
             Ok(ctx) => {
                 eprintln!("dbm: mpv render context created on Slint's GL context");
                 // Open only now. With `vo=libmpv` there is no video output
@@ -427,7 +424,6 @@ impl Driver {
                     shadow,
                     corners,
                     published: None,
-                    _mpv: self.app.mpv.clone(),
                 });
             }
             Err(e) => self.fatal(Failure {
@@ -861,8 +857,9 @@ impl Driver {
         // For the size being rendered at, not the one mpv last reported on.
         let rect = self.player.video_rect(size.width, size.height);
         // Poll exactly once: reading the update flag also clears it, so a
-        // second call would swallow the frame it reported.
-        let new_frame = gpu.ctx.wants_redraw();
+        // second call would swallow the frame it reported. The context is
+        // current, this being Slint's rendering notifier.
+        let new_frame = unsafe { gpu.ctx.wants_redraw() };
 
         // None without the shadow, since nothing would give back what the
         // glass pass held.

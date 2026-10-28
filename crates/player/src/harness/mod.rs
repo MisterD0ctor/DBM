@@ -98,6 +98,9 @@
 //!   of the others. The widths worth looking at are 1060, where the transport
 //!   starts giving way to the right pill, and the 960×540 floor. Pair it with
 //!   `DBM_CAPTURE`.
+//! * `DBM_QUIT_AFTER=<ms>` — quits that long after starting, as the window's
+//!   close button does, for what runs on the way out: the render context and
+//!   then mpv are let go, and the player should exit cleanly.
 //! * `DBM_FADE_TEST=1` — samples how the bar fades out when the chrome goes
 //!   idle. Nothing asks for frames once the interface is gone, so the question
 //!   is whether the animation still gets any.
@@ -292,6 +295,24 @@ pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
         ))
     }) {
         timers.push(layout::window_size(ui, size));
+    }
+    if let Some(after) = std::env::var("DBM_QUIT_AFTER")
+        .ok()
+        .and_then(|ms| ms.parse().ok())
+    {
+        use slint::ComponentHandle;
+        let timer = slint::Timer::default();
+        let weak = ui.as_weak();
+        timer.start(
+            slint::TimerMode::SingleShot,
+            std::time::Duration::from_millis(after),
+            move || {
+                if let Some(ui) = weak.upgrade() {
+                    ui.invoke_quit();
+                }
+            },
+        );
+        timers.push(timer);
     }
     if std::env::var_os("DBM_INPUT_TEST").is_some() {
         timers.push(playback::input_test(ui));

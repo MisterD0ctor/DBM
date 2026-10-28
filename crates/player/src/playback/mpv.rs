@@ -13,6 +13,7 @@
 
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex, PoisonError};
 
 // ---------------------------------------------------------------------------
 // Raw types - mirrors client.h / render.h / render_gl.h
@@ -249,6 +250,9 @@ macro_rules! sym {
 }
 
 impl Lib {
+    /// # Safety
+    /// `path` must name a real libmpv: loading it runs its start-up code, and
+    /// its symbols are taken to have the signatures above.
     unsafe fn load(path: &Path) -> Result<Self> {
         let library = unsafe { libloading::Library::new(path) }
             .map_err(|e| Error::Load(format!("{}: {e}", path.display())))?;
@@ -303,19 +307,21 @@ fn libmpv_path() -> PathBuf {
 pub struct Mpv {
     lib: Lib,
     handle: *mut MpvHandle,
+    /// The closure `set_wakeup` handed mpv, freed once mpv can no longer
+    /// call it.
+    wakeup: Mutex<*mut Box<dyn Fn() + Send + Sync>>,
 }
 
 // SAFETY: libmpv's client API is thread-safe for properties and commands, so
-// a handle may be shared. Two things are *not*, and both are kept on one
-// thread by construction rather than by convention:
+// a handle may be shared. What is not is kept out of the safe methods:
 //
-//   * `poll_event` wraps `mpv_wait_event`, which mpv documents as callable
-//     from a single thread only. It is called from the render driver, which
-//     only ever runs on the UI thread.
+//   * `poll_event` wraps `mpv_wait_event`, which only one thread may call at
+//     a time, so it is `unsafe` and its caller keeps it to one thread.
 //   * the render context (`RenderContext`) belongs to the GL thread, and is
 //     not reachable from here.
+//   * the wakeup closure is only replaced or freed under its lock.
 //
-// Anything else (`get_property`, `set_property`, `command`, `command_async`)
+// Anything else (`get_property`, `set_property`, `observe`, `command_async`)
 // is safe to call from the worker thread.
 unsafe impl Send for Mpv {}
 unsafe impl Sync for Mpv {}
@@ -336,7 +342,11 @@ impl Mpv {
         if handle.is_null() {
             return Err(Error::Create);
         }
-        let mpv = Self { lib, handle };
+        let mpv = Self {
+            lib,
+            handle,
+            wakeup: Mutex::new(std::ptr::null_mut()),
+        };
 
         // `vo=libmpv` is the one option that must land. The rest are tuning,
         // and which exist varies across mpv versions (the transparent-padding
@@ -439,19 +449,26 @@ impl Mpv {
     /// UI loop into draining.
     pub fn set_wakeup(&self, notify: Box<dyn Fn() + Send + Sync>) {
         let raw = Box::into_raw(Box::new(notify));
+        let mut held = self.wakeup.lock().unwrap_or_else(PoisonError::into_inner);
         unsafe {
             (self.lib.mpv_set_wakeup_callback)(self.handle, Some(wakeup_thunk), raw as *mut c_void)
         };
+        // mpv calls the closure under the lock it replaces it under, so the
+        // one replaced can't still be running.
+        let replaced = std::mem::replace(&mut *held, raw);
+        if !replaced.is_null() {
+            drop(unsafe { Box::from_raw(replaced) });
+        }
     }
 
     /// Drain one queued event, or `None` when the queue is empty.
     ///
-    /// **UI thread only.** `mpv_wait_event` must not be called concurrently;
-    /// see the `Send`/`Sync` note above.
-    ///
     /// Non-blocking. The struct mpv hands back is only valid until the next
     /// call on this handle, so everything is copied out before returning.
-    pub fn poll_event(&self) -> Option<Event> {
+    ///
+    /// # Safety
+    /// Never on two threads at once: mpv hands every caller the same struct.
+    pub unsafe fn poll_event(&self) -> Option<Event> {
         let raw = unsafe { (self.lib.mpv_wait_event)(self.handle, 0.0) };
         if raw.is_null() {
             return None;
@@ -548,8 +565,16 @@ impl Mpv {
 
 impl Drop for Mpv {
     fn drop(&mut self) {
-        // The render context borrows this handle, so it must already be gone.
+        // The render context holds this handle, so it is already gone.
         unsafe { (self.lib.mpv_terminate_destroy)(self.handle) };
+        // Only now, since mpv can still wake while it terminates.
+        let wakeup = *self
+            .wakeup
+            .get_mut()
+            .unwrap_or_else(PoisonError::into_inner);
+        if !wakeup.is_null() {
+            drop(unsafe { Box::from_raw(wakeup) });
+        }
     }
 }
 
@@ -584,8 +609,13 @@ unsafe extern "C" fn update_thunk(ctx: *mut c_void) {
     notify();
 }
 
+/// mpv drawing into Slint's GL context. Every call into it, dropping it
+/// included, needs that context current, as it is inside Slint's rendering
+/// notifier.
 pub struct RenderContext {
-    lib: *const Lib,
+    /// Held so the handle outlives the render context, which mpv requires
+    /// to be freed first.
+    mpv: Arc<Mpv>,
     ctx: *mut MpvRenderCtx,
     /// Kept alive as long as mpv might invoke it, and freed in `Drop` only
     /// after the update callback has been unregistered.
@@ -598,10 +628,9 @@ impl RenderContext {
     /// context is current and `get_proc_address` is live.
     ///
     /// # Safety
-    /// The caller guarantees a current OpenGL context, and that `mpv`
-    /// outlives the returned `RenderContext`.
+    /// The caller guarantees a current OpenGL context.
     pub unsafe fn new(
-        mpv: &Mpv,
+        mpv: Arc<Mpv>,
         get_proc_address: &dyn Fn(&CStr) -> *const c_void,
         notify: Box<dyn Fn() + Send + Sync>,
     ) -> Result<Self> {
@@ -640,19 +669,18 @@ impl RenderContext {
             )
         };
 
-        Ok(Self {
-            lib: &mpv.lib as *const Lib,
-            ctx,
-            notify,
-        })
+        Ok(Self { mpv, ctx, notify })
     }
 
     fn lib(&self) -> &Lib {
-        unsafe { &*self.lib }
+        &self.mpv.lib
     }
 
-    /// True when mpv has a new frame waiting. Cheap; safe to poll every frame.
-    pub fn wants_redraw(&self) -> bool {
+    /// True when mpv has a new frame waiting. Cheap enough to poll every frame.
+    ///
+    /// # Safety
+    /// Requires the same current GL context the render context was made on.
+    pub unsafe fn wants_redraw(&self) -> bool {
         unsafe { (self.lib().mpv_render_context_update)(self.ctx) & UPDATE_FRAME != 0 }
     }
 
@@ -703,7 +731,10 @@ impl RenderContext {
     }
 
     /// Tell mpv the frame reached the screen, so its frame timing stays honest.
-    pub fn report_swap(&self) {
+    ///
+    /// # Safety
+    /// Requires the same current GL context the render context was made on.
+    pub unsafe fn report_swap(&self) {
         unsafe { (self.lib().mpv_render_context_report_swap)(self.ctx) };
     }
 }

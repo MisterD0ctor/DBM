@@ -52,7 +52,8 @@ pub fn drain(
     let mut dirty = false;
     replies.clear();
     notices.clear();
-    while let Some(event) = mpv.poll_event() {
+    // The one place the queue is read, and only ever on the UI thread.
+    while let Some(event) = unsafe { mpv.poll_event() } {
         // Command completions are not state; they belong to whoever issued
         // the command, so they are collected for the driver to route.
         if let Event::CommandReply { id } = event {
