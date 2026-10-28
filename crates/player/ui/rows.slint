@@ -5,7 +5,7 @@
 
 import { Chrome } from "globals.slint";
 import { Motion, Paint, Rows, Type } from "theme.slint";
-import { StepButton } from "controls.slint";
+import { Glyph, StepButton } from "controls.slint";
 import { RingPane } from "ring.slint";
 import { Squircle } from "squircle.slint";
 
@@ -121,14 +121,13 @@ export component MenuRow inherits Rectangle {
 
     // Placed and spaced like a stepper's icon, so the marks and the labels
     // down a page each stay in one column.
-    if root.iconic: Image {
+    if root.iconic: Glyph {
         source: root.icon;
         x: Rows.label-x;
         y: (parent.height - self.height) / 2;
         width: 18px;
         height: 18px;
-        image-fit: contain;
-        colorize: root.ring ? Paint.on-ring : root.active ? Paint.lit : Paint.body;
+        shade: root.ring ? 2 : root.active ? 1 : 0;
     }
 
     Text {
@@ -221,15 +220,14 @@ export component MenuRow inherits Rectangle {
                 : root.ring ? Paint.on-ring-wash : Paint.wash-strong;
             animate background { duration: Motion.highlight; easing: ease-out; }
 
-            Image {
+            Glyph {
                 source: root.armed ? @image-url("../../../public/icons/warning.svg")
                     : @image-url("../../../public/icons/trash.svg");
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
                 width: 18px;
                 height: 18px;
-                image-fit: contain;
-                colorize: root.ring ? Paint.on-ring : bin-touch.has-hover || root.armed ? Paint.lit : Paint.body;
+                shade: root.ring ? 2 : bin-touch.has-hover || root.armed ? 1 : 0;
             }
         }
 
@@ -399,15 +397,14 @@ export component PlaylistRow inherits Rectangle {
 
     // The warning in the time's place. Why the file wouldn't play was said
     // when it failed, and words here would take width from the title.
-    Image {
+    Glyph {
         source: @image-url("../../../public/icons/warning.svg");
         visible: root.failed;
         x: parent.width - root.trail - self.width;
         y: (parent.height - self.height) / 2;
         width: 18px;
         height: 18px;
-        image-fit: contain;
-        colorize: root.ring ? Paint.on-ring : Paint.body;
+        shade: root.ring ? 2 : 0;
     }
 
     // How far into it you got. A hairline rather than a bar, since it is
@@ -513,14 +510,13 @@ export component GroupRow inherits Rectangle {
         vertical-alignment: center;
     }
 
-    Image {
+    Glyph {
         source: @image-url("../../../public/icons/angle-small-right.svg");
         x: parent.width - Rows.trail-x - root.chevron;
         y: (parent.height - self.height) / 2;
         width: root.chevron;
         height: root.chevron;
-        image-fit: contain;
-        colorize: root.ring ? Paint.on-ring : touch.has-hover ? Paint.lit : Paint.body;
+        shade: root.ring ? 2 : touch.has-hover ? 1 : 0;
     }
 
     touch := TouchArea {
@@ -567,14 +563,13 @@ export component ResumeRow inherits Rectangle {
         ring: root.ring;
     }
 
-    Image {
+    Glyph {
         source: @image-url("../../../public/icons/play.svg");
         x: Rows.label-x;
         y: (parent.height - self.height) / 2;
         width: root.icon-size;
         height: root.icon-size;
-        image-fit: contain;
-        colorize: root.ring ? Paint.on-ring : touch.has-hover ? Paint.lit : Paint.body;
+        shade: root.ring ? 2 : touch.has-hover ? 1 : 0;
     }
 
     Text {
@@ -739,14 +734,13 @@ export component ParamSlider inherits Rectangle {
         Rectangle {
             width: 18px;
 
-            Image {
+            Glyph {
                 source: root.icon;
                 width: 18px;
                 height: 18px;
                 x: 0;
                 y: (parent.height - self.height) / 2;
-                image-fit: contain;
-                colorize: root.ring ? Paint.on-ring : Paint.body;
+                shade: root.ring ? 2 : 0;
             }
         }
 
@@ -944,16 +938,15 @@ export component DrillRow inherits Rectangle {
         Rectangle {
             width: 18px;
 
-            Image {
+            Glyph {
                 source: root.icon;
                 width: 18px;
                 height: 18px;
                 x: 0;
                 y: (parent.height - self.height) / 2;
-                image-fit: contain;
                 // With the words: the icon names the same subject, so the
                 // ring lights the two together.
-                colorize: root.ring ? Paint.on-ring : Paint.body;
+                shade: root.ring ? 2 : 0;
             }
         }
 
@@ -978,14 +971,13 @@ export component DrillRow inherits Rectangle {
         Rectangle {
             width: 18px;
 
-            Image {
+            Glyph {
                 source: @image-url("../../../public/icons/angle-small-right.svg");
                 width: 18px;
                 height: 18px;
                 x: 0;
                 y: (parent.height - self.height) / 2;
-                image-fit: contain;
-                colorize: root.ring ? Paint.on-ring : touch.has-hover ? Paint.lit : Paint.body;
+                shade: root.ring ? 2 : touch.has-hover ? 1 : 0;
             }
         }
     }
@@ -1043,14 +1035,13 @@ export component StepperRow inherits Rectangle {
         Rectangle {
             width: 18px;
 
-            Image {
+            Glyph {
                 source: root.icon;
                 width: 18px;
                 height: 18px;
                 x: 0;
                 y: (parent.height - self.height) / 2;
-                image-fit: contain;
-                colorize: root.ring ? Paint.on-ring : Paint.body;
+                shade: root.ring ? 2 : 0;
             }
         }
 
@@ -1137,14 +1128,13 @@ export component BackRow inherits Rectangle {
         Rectangle {
             width: 18px;
 
-            Image {
+            Glyph {
                 source: @image-url("../../../public/icons/angle-small-left.svg");
                 width: 18px;
                 height: 18px;
                 x: 0;
                 y: (parent.height - self.height) / 2;
-                image-fit: contain;
-                colorize: root.ring ? Paint.on-ring : touch.has-hover ? Paint.lit : Paint.body;
+                shade: root.ring ? 2 : touch.has-hover ? 1 : 0;
             }
         }
 

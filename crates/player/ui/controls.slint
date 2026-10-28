@@ -6,6 +6,31 @@ import { Motion, Paint, Type } from "theme.slint";
 import { RingPane } from "ring.slint";
 import { Squircle } from "squircle.slint";
 
+/// A glyph in one of the interface's fixed colours: a picture per colour, the
+/// one wanted shown, rather than one picture recoloured.
+///
+/// Slint draws a recoloured picture into a texture of its own, and draws it
+/// again whenever anything its colour was worked out from changes, even to
+/// the same colour. A ring hangs on where the keyboard is and the bar's on
+/// whether a panel is open, so recoloured, every panel opening would draw
+/// every glyph on the bar and in the panel again, a texture and a framebuffer
+/// each: 6ms of the opening's first frame here, where these take under one
+/// (`DBM_FIRST_OPEN`). These never change colour.
+export component Glyph inherits Rectangle {
+    in property <image> source;
+    /// 0 Body, 1 Lit, 2 dark on the ring's milk glass, 3 Dim.
+    in property <int> shade;
+
+    for colour[index] in [Paint.body, Paint.lit, Paint.on-ring, Paint.dim]: Image {
+        source: root.source;
+        width: 100%;
+        height: 100%;
+        image-fit: contain;
+        colorize: colour;
+        visible: root.shade == index;
+    }
+}
+
 /// A round glyph button: the bar's, and the window's own at its top.
 ///
 /// A state the button controls, like mute, is shown by the caller swapping
@@ -53,18 +78,16 @@ export component IconButton inherits Rectangle {
         }
     }
 
-    Image {
+    Glyph {
         source: root.icon;
         width: root.glyph;
         height: root.glyph;
         x: (parent.width - self.width) / 2;
         y: (parent.height - self.height) / 2;
-        image-fit: contain;
-        // Full white whenever it can be pressed, because over a bright frame
+        // Lit whenever it can be pressed, because over a bright frame
         // anything less reads as greyed out; dark on the milk disc the window
         // lays under the ring or an open panel's button.
-        colorize: !root.enabled ? Paint.dim
-            : root.ring || root.open ? Paint.on-ring : Paint.lit;
+        shade: !root.enabled ? 3 : root.ring || root.open ? 2 : 1;
     }
 
     // The keyboard gets the same tip as the pointer, or a bar walked with Tab
@@ -219,13 +242,12 @@ export component EndChoice inherits Rectangle {
         spacing: root.gap;
         alignment: center;
 
-        glyph := Image {
+        glyph := Glyph {
             source: root.icon;
             width: 24px;
             height: 24px;
             y: (parent.height - self.height) / 2;
-            image-fit: contain;
-            colorize: root.ring ? Paint.on-ring : Paint.lit;
+            shade: root.ring ? 2 : 1;
         }
         Text {
             text: root.label;
