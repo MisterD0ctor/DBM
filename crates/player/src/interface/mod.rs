@@ -10,6 +10,7 @@
 //!   and `fades` the ends of each scrolling list. `squircle` draws the glass's
 //!   corner for the shapes Slint puts on it.
 //! * `chrome` is the idle clock the bar and the pointer hide on.
+//! * `warm` draws each panel once, unseen, so its first opening is smooth.
 //! * `subline` places the subtitle line, which the person and the bar both get
 //!   a say in.
 //! * `format` writes every figure the interface shows.
@@ -24,3 +25,4 @@ pub mod sliders;
 pub mod squircle;
 pub mod subline;
 pub mod sync;
+pub mod warm;

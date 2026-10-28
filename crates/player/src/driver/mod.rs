@@ -99,6 +99,8 @@ pub struct Driver {
     /// How much is left of the film the way in offers, kept so that line can
     /// be said again too.
     resume_left: Option<f64>,
+    /// The panels to draw unseen before they are opened.
+    warm: crate::interface::warm::WarmUp,
     /// Keeps the duration cache the playlist reads from up to date.
     durations: crate::library::durations::Recorder,
     /// Describes the playlist's other files without playing them.
@@ -178,6 +180,7 @@ impl Driver {
             panel: playlist_panel::Panel::default(),
             language_seen: 0,
             resume_left: None,
+            warm: crate::interface::warm::WarmUp::default(),
             durations: crate::library::durations::Recorder::default(),
             scan: crate::library::probe::Scan::default(),
             neighbours: crate::library::shelf::Neighbours::default(),
@@ -384,6 +387,10 @@ impl Driver {
         match unsafe { mpv::RenderContext::new(self.app.mpv.clone(), get_proc_address, notify) } {
             Ok(ctx) => {
                 eprintln!("dbm: mpv render context created on Slint's GL context");
+                // The two panels whose words are the player's own, drawn
+                // unseen once now there is something to draw them with.
+                self.warm.ask(crate::interface::warm::SETTINGS);
+                self.warm.ask(crate::interface::warm::FILES);
                 // Open only now. With `vo=libmpv` there is no video output
                 // until the render context exists, so a file loaded earlier
                 // starts against a VO that cannot present and never produces
@@ -500,6 +507,7 @@ impl Driver {
         glass::collect(&ui, &mut self.panels);
         let t = self.diag.mark_panels(t);
         self.diag.panels_changed(&self.panels);
+        self.warm.frame(&ui);
 
         self.draw(&ui, &mut gpu, t);
         self.gpu = Some(gpu);
@@ -693,6 +701,10 @@ impl Driver {
         sync::push_lists(ui, &self.player);
         sync::push_scalars(ui, &self.player);
         self.panel.request(&self.player, &self.app.worker);
+        // Every panel's words have changed for ones it may not have drawn.
+        for panel in crate::interface::warm::ALL {
+            self.warm.ask(panel);
+        }
         if let Some(seconds) = self.resume_left {
             ui.set_resume_left(format::left(seconds).into());
         }

@@ -76,15 +76,16 @@ impl Panel {
         });
     }
 
-    /// Show a finished layout.
+    /// Show a finished layout. Returns whether the rows were built anew,
+    /// rather than written into or left alone.
     ///
     /// Rows are written in place when the list is the one on show and only
     /// what they say has moved, such as a length just read. Replacing the
     /// model would rebuild every row and restart whatever was moving, many
     /// times a second while a folder is first described.
-    pub fn show(&mut self, ui: &MainWindow, shelf: Shelf) {
+    pub fn show(&mut self, ui: &MainWindow, shelf: Shelf) -> bool {
         if self.shown.as_ref() == Some(&shelf) {
-            return;
+            return false;
         }
         ui.set_next_label(next_label(&shelf).into());
         ui.set_playlist_named(shelf.heading.is_some());
@@ -109,6 +110,7 @@ impl Panel {
             );
         }
         self.shown = Some(shelf);
+        !rewritten
     }
 
     /// Write what moved into the rows on show. `false` when the list is not

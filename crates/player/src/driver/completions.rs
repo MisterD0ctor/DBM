@@ -30,6 +30,10 @@ impl Driver {
         match completion {
             Completion::Lists(lists) => {
                 let mut moved = self.lists.apply(ui, &mut self.player, lists);
+                if moved {
+                    self.warm.ask(crate::interface::warm::MENU);
+                    self.warm.ask(crate::interface::warm::AUDIO);
+                }
                 // A read the lists have since moved past is thrown away, so the
                 // newer one is asked for now: the poll in the frame has already
                 // run, and a paused film may draw no other.
@@ -66,7 +70,9 @@ impl Driver {
                 moved
             }
             Completion::Shelved(shelf) => {
-                self.panel.show(ui, shelf);
+                if self.panel.show(ui, shelf) {
+                    self.warm.ask(crate::interface::warm::PLAYLIST);
+                }
                 false
             }
             Completion::Opened(Ok(list)) => {

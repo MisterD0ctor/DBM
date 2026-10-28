@@ -1817,6 +1817,11 @@ export component MainWindow inherits Window {
     /// would land under it.
     property <bool> panel-open: root.menu-open || root.audio-open
         || root.playlist-open || root.files-open || root.settings-open;
+    /// The panel drawn unseen this frame, at no opacity, so that its first
+    /// opening does not also pay for drawing it the first time (see `warm`):
+    /// 0 the subtitles menu, 1 audio, 2 the playlist, 3 settings, 4 opening a
+    /// file, -1 none.
+    in property <int> warming: -1;
 
     property <length> tip-h: 28px;
     property <length> tip-pad: 12px;
@@ -4360,7 +4365,7 @@ export component MainWindow inherits Window {
             duration: root.resizing ? 0ms : Motion.drill;
             easing: ease-in-out;
         }
-        visible: root.settings-shown > root.shown-epsilon;
+        visible: root.settings-shown > root.shown-epsilon || root.warming == 3;
         opacity: root.settings-shown;
         clip: true;
         border-radius: root.drill-corner;
@@ -4772,7 +4777,7 @@ export component MainWindow inherits Window {
         }
         x: root.anchored-x(root.subs-anchor, self.width);
         y: root.bar-top - self.height - Rows.offset + root.menu-rise;
-        visible: root.menu-shown > root.shown-epsilon;
+        visible: root.menu-shown > root.shown-epsilon || root.warming == 0;
         opacity: root.menu-shown;
 
         // Catches what the rows don't, so a click on the padding doesn't
@@ -5116,7 +5121,7 @@ export component MainWindow inherits Window {
         clip: true;
         x: root.anchored-x(root.audio-anchor, self.width);
         y: root.bar-top - self.height - Rows.offset + root.audio-rise;
-        visible: root.audio-shown > root.shown-epsilon;
+        visible: root.audio-shown > root.shown-epsilon || root.warming == 1;
         opacity: root.audio-shown;
 
         TouchArea {
@@ -5168,7 +5173,7 @@ export component MainWindow inherits Window {
         clip: true;
         x: root.anchored-x(root.files-anchor, self.width);
         y: root.bar-top - self.height - Rows.offset + root.files-rise;
-        visible: root.files-shown > root.shown-epsilon;
+        visible: root.files-shown > root.shown-epsilon || root.warming == 4;
         opacity: root.files-shown;
 
         TouchArea {
@@ -5219,7 +5224,7 @@ export component MainWindow inherits Window {
         }
         x: root.anchored-x(root.playlist-anchor, self.width);
         y: root.bar-top - self.height - Rows.offset + root.playlist-rise;
-        visible: root.playlist-shown > root.shown-epsilon;
+        visible: root.playlist-shown > root.shown-epsilon || root.warming == 2;
         opacity: root.playlist-shown;
 
         TouchArea {
