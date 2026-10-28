@@ -147,6 +147,52 @@ pub(super) fn paused_resize_test(ui: &MainWindow) -> slint::Timer {
     timer
 }
 
+/// A tooltip, then another long after it went, then one just after. The
+/// second should wait `Motion.tip-delay` as the first did, and only the third
+/// come up at once, the bar being read. Reports the tip's glass a tenth of a
+/// second apart from each arrival.
+pub(super) fn tip_test(ui: &MainWindow) -> slint::Timer {
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut tick = 0u32;
+    // The settings and fullscreen buttons at the default size, and the
+    // picture clear of the bar.
+    let (gear, fullscreen, film) = ((1132.0, 664.0), (1224.0, 664.0), (640.0, 300.0));
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(100),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            tick += 1;
+            let (at, label) = match tick {
+                10 => (Some(film), ""),
+                11 => (Some(gear), "first"),
+                25 | 55 => (Some(film), ""),
+                40 => (Some(fullscreen), "long after"),
+                57 => (Some(gear), "just after"),
+                _ => (None, ""),
+            };
+            if let Some((x, y)) = at {
+                super::drive::hover(&ui, x, y);
+                if !label.is_empty() {
+                    eprintln!("dbm: tip onto a button, {label}");
+                }
+            }
+            if [(11..=18), (40..=47), (57..=61)]
+                .iter()
+                .any(|r| r.contains(&tick))
+            {
+                let tip = ui.get_glass_rects().row_data(6).unwrap_or_default();
+                eprintln!(
+                    "dbm: tip t{tick} a={:.2}",
+                    if tip.width > 0.0 { tip.opacity } else { 0.0 }
+                );
+            }
+        },
+    );
+    timer
+}
+
 /// How tall each tracks panel came out, against what its list wanted.
 fn report_lists(ui: &MainWindow, label: &str) {
     eprintln!(

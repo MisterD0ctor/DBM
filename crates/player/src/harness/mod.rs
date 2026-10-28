@@ -112,6 +112,9 @@
 //!   so anything drawn from state that arrives late stays wrong.
 //! * `DBM_PREVIEW_TEST=1` — hovers along the timeline and reports what the seek
 //!   preview would show at each point.
+//! * `DBM_TIP_TEST=1` — raises a tooltip, then another long after it went
+//!   and one just after, and reports how each arrived: the second should
+//!   wait as the first did, and only the third come up at once.
 //! * `DBM_SCROLL_TEST=1` — checks how tall the tracks and playlist panels
 //!   come out against their lists, that a wheel over one actually moves it,
 //!   and that its scroll bar can be pressed and dragged.
@@ -357,6 +360,9 @@ pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
     }
     if std::env::var_os("DBM_PREVIEW_TEST").is_some() {
         timers.push(playback::preview_test(ui));
+    }
+    if std::env::var_os("DBM_TIP_TEST").is_some() {
+        timers.push(layout::tip_test(ui));
     }
     if std::env::var_os("DBM_SCROLL_TEST").is_some() {
         timers.push(layout::scroll_test(ui));

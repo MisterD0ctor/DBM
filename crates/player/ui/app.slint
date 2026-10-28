@@ -1884,7 +1884,7 @@ export component MainWindow inherits Window {
         if (Tip.label == "") {
             if (root.tip-up && !root.tip-cut) {
                 root.tip-warm = true;
-                tip-cool.restart();
+                tip-cool.start();
             }
             root.tip-up = false;
             root.tip-shown = 0.0;
