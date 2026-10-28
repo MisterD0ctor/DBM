@@ -1471,9 +1471,12 @@ doing in it.
   accessibility page — a page of switches and no reset, because each switch is
   its own undo. B still turns the border on and off from anywhere, as the one
   effect worth changing mid-film
-- **Unavailable:** a switch about something another switch has turned off
-  fades to half, takes no pointer and no wash, and keeps its position —
-  Shortcuts in tooltips while Tooltips is off
+- **Dependent:** a switch about something another switch has turned off is
+  not there, rather than faded: a faded label would be the one word on the
+  page under Body, which the glass is not held for, and turning the first
+  back on brings the second up under it, where the eye already is. The panel
+  grows and shrinks for it as it does between pages — Shortcuts in tooltips
+  only while Tooltips is on
 
 ### Drill rows
 - **Row:** `Rows.row`; a row icon and the label, both at Body, with a chevron
@@ -1626,7 +1629,7 @@ list arriving one row at a time where the question was asked.
   two places.
 - **Both halves can be turned off**, on the accessibility page: *Tooltips*
   for the whole label, the volume's reading included, and *Shortcuts in
-  tooltips* for the key alone. Someone who knows the bar has learned what the
+  tooltips*, under it while it is on, for the key alone. Someone who knows the bar has learned what the
   tips teach, and from then on a pill rising over the film wherever the
   pointer rests is in the way. The controls keep their names for a screen
   reader either way.

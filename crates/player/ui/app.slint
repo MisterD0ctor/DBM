@@ -578,7 +578,7 @@ export component MainWindow inherits Window {
         root.settings-page == 0 ? 5
         : root.settings-page == 1 ? 2 + root.glass-params.length
         : root.settings-page == 2 ? 3 + root.border-params.length
-        : root.settings-page == 3 ? 5
+        : root.settings-page == 3 ? 1 + root.access-switches
         : root.settings-page == 5 ? 1 + root.language-count
         : 1;
     /// The same count for `leaf-page`, which on the way back out isn't the
@@ -587,9 +587,12 @@ export component MainWindow inherits Window {
     property <int> leaf-focus-count:
         root.leaf-page == 1 ? 2 + root.glass-params.length
         : root.leaf-page == 2 ? 3 + root.border-params.length
-        : root.leaf-page == 3 ? 5
+        : root.leaf-page == 3 ? 1 + root.access-switches
         : root.leaf-page == 5 ? 1 + root.language-count
         : 1;
+    /// The accessibility page's switches. Shortcuts in tooltips is there only
+    /// while there are tooltips to put them in.
+    property <int> access-switches: Tip.enabled ? 4 : 3;
 
     /// The bundled languages besides English, each by its own name. Nothing
     /// here names one, so a build can hold any set.
@@ -2139,7 +2142,7 @@ export component MainWindow inherits Window {
                 + Rows.group-gap + root.row-h;
         }
         if (page == 3) {
-            return 4 * root.toggle-h;
+            return root.access-switches * root.toggle-h;
         }
         if (page == 4) {
             return root.shortcuts-natural;
@@ -2780,7 +2783,7 @@ export component MainWindow inherits Window {
                 root.set-legible(!root.legible-glass);
             } else if (root.focus-row == 3) {
                 root.set-tips-shown(!Tip.enabled);
-            } else if (Tip.enabled) {
+            } else {
                 root.set-tip-keys-shown(!Tip.with-keys);
             }
             return true;
@@ -2916,11 +2919,11 @@ export component MainWindow inherits Window {
         root.remove-armed = -1;
     }
 
-    // Taking out a panel's last track would leave the ring on no row, with
-    // Enter pressing nothing and its pane where the row was. It goes to the
-    // row that is last now.
+    // Taking out a panel's last track, or the switch under Tooltips, would
+    // leave the ring on no row, with Enter pressing nothing and its pane where
+    // the row was. It goes to the row that is last now.
     changed focus-count => {
-        if (((root.menu-open && !root.find-open) || root.audio-open)
+        if (((root.menu-open && !root.find-open) || root.audio-open || root.settings-open)
                 && root.focus-count > 0 && root.focus-row >= root.focus-count) {
             root.focus-row = root.focus-count - 1;
         }
@@ -4588,11 +4591,9 @@ export component MainWindow inherits Window {
                             }
                         }
                         // For someone who wants the names but knows the keys.
-                        // Faded while tips are off.
-                        ToggleRow {
+                        if Tip.enabled: ToggleRow {
                             label: @tr("Shortcuts in tooltips");
                             checked: Tip.with-keys;
-                            enabled: Tip.enabled;
                             focused: root.focus-row == 4;
                             toggled(on) => {
                                 root.set-tip-keys-shown(on);

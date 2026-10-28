@@ -226,6 +226,27 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 arrow(&ui, Key::DownArrow);
             }
 
+            // The ring walked down to Shortcuts in tooltips, then Tooltips
+            // turned off above it by the pointer, at the default size: the
+            // row goes, and the ring must come up to the row that is last now
+            // rather than stay on nothing for Enter to press.
+            if surface == "tips-off" {
+                match tick {
+                    6..=10 | 14 => arrow(&ui, Key::DownArrow),
+                    12 => click(&ui, 1017.0, 514.0),
+                    _ => {}
+                }
+                if (10..=15).contains(&tick) {
+                    eprintln!(
+                        "dbm: tips-off t{tick:<2} tips={} keys={} row={} ring={}",
+                        ui.global::<crate::Tip>().get_enabled(),
+                        ui.global::<crate::Tip>().get_with_keys(),
+                        ui.get_focus_row(),
+                        ui.global::<crate::Chrome>().get_focus_visible(),
+                    );
+                }
+            }
+
             // A track loaded from its own file, pressed once to remove it:
             // the ring is walked down to the first such subtitle and Delete
             // pressed, and never again, so the row stays armed. Open a film
@@ -441,7 +462,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 "settings" => ui.invoke_open_settings_page(0),
                 "glass" => ui.invoke_open_settings_page(1),
                 "ambience" => ui.invoke_open_settings_page(2),
-                "accessibility" => ui.invoke_open_settings_page(3),
+                "accessibility" | "tips-off" => ui.invoke_open_settings_page(3),
                 "shortcuts" => ui.invoke_open_settings_page(4),
                 "language" | "language-walk" => ui.invoke_open_settings_page(5),
                 // The subtitles menu's two pages, which want a subtitle on
