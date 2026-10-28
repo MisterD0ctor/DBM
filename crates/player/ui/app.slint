@@ -2386,8 +2386,7 @@ export component MainWindow inherits Window {
         root.fade-within(playlist-leaf-list.fade, root.playlist-shown,
             playlist-panel.x, playlist-panel.y,
             playlist-panel.width, playlist-panel.height),
-        root.fade-within(root.front-fade,
-            root.settings-page == 0 && root.drill < 1.0 ? root.settings-shown : 0,
+        root.fade-within(root.front-fade, root.drill < 1.0 ? root.settings-shown : 0,
             settings.x, settings.y, settings.width, settings.height),
         root.fade-within(root.leaf-fade, root.drill > 0.0 ? root.settings-shown : 0,
             settings.x, settings.y, settings.width, settings.height),
@@ -4371,7 +4370,7 @@ export component MainWindow inherits Window {
                 // height animates.
                 alignment: start;
 
-                if root.settings-page == 0: ScrollList {
+                ScrollList {
                     height: root.front-list-h;
                     rest-height: root.front-rest-h;
                     content-height: root.front-natural;
