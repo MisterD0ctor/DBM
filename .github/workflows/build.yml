@@ -21,8 +21,8 @@ env:
 
 jobs:
     # The Linux side, which is also what the Flatpak builds: formatting, the
-    # lints, and the tests. Nothing is packaged here — the Flatpak is built
-    # and attached by hand with packaging/flatpak/build.sh.
+    # lints, and the tests. Nothing is packaged here — that is the Flatpak
+    # job's.
     linux:
         name: Linux
         runs-on: ubuntu-latest
@@ -156,12 +156,76 @@ jobs:
                   path: target/installer/*
                   if-no-files-found: error
 
+    # The same manifest packaging/flatpak/build.sh builds, inside Flathub's
+    # image of the SDK. The libraries before the player are cached under the
+    # manifest's hash, so only a changed manifest builds them again.
+    flatpak:
+        name: Flatpak
+        runs-on: ubuntu-latest
+        container:
+            image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-25.08
+            # flatpak-builder sandboxes every build with bubblewrap, which
+            # needs namespaces a container isn't given by default.
+            options: --privileged
+
+        steps:
+            - uses: actions/checkout@v4
+
+            # The key the Windows build gets, as the file build.rs also reads:
+            # flatpak-builder passes none of the runner's environment into
+            # its sandbox. A fork's pull request has none, and builds without
+            # search.
+            - name: Key
+              env:
+                  DBM_OPENSUBTITLES_KEY: ${{ secrets.OPENSUBTITLES }}
+              run: |
+                  if [ -n "$DBM_OPENSUBTITLES_KEY" ]; then
+                      printf '%s' "$DBM_OPENSUBTITLES_KEY" > crates/player/keys/opensubtitles
+                  fi
+
+            # Software centres show the metainfo's newest release as the
+            # version, so a tag it doesn't list would ship a Flatpak calling
+            # itself the release before.
+            - name: Check the tag against the metainfo
+              if: startsWith(github.ref, 'refs/tags/v')
+              run: |
+                  newest=$(grep -o -m1 '<release version="[^"]*"' \
+                      packaging/flatpak/io.github.MisterD0ctor.DBM.metainfo.xml | cut -d'"' -f2)
+                  if [ "$newest" != "${GITHUB_REF_NAME#v}" ]; then
+                      echo "tag ${GITHUB_REF_NAME#v} is not the metainfo's newest release, $newest" >&2
+                      exit 1
+                  fi
+
+            # Its folders go under target/, which the manifest leaves out of
+            # the checkout it copies in, so the cache isn't copied into the
+            # build.
+            - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+              with:
+                  manifest-path: packaging/flatpak/io.github.MisterD0ctor.DBM.yml
+                  bundle: death-by-mpv.flatpak
+                  artifact-name: death-by-mpv-linux
+                  build-dir: target/flatpak/build
+                  repo-dir: target/flatpak/repo
+                  state-dir: target/flatpak/state
+
+    # A tag's release, with what both platforms built, and only once
+    # everything has passed: the Flatpak ships what the Linux job tests.
+    release:
+        name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        needs: [linux, build, flatpak]
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/download-artifact@v4
+              with:
+                  path: release
+                  merge-multiple: true
+
             # Draft, so the release notes are written before anyone sees it.
             - name: Publish release
-              if: startsWith(github.ref, 'refs/tags/v')
-              shell: pwsh
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               run: |
-                  gh release create $env:GITHUB_REF_NAME (Get-Item target/installer/*) `
-                      --title $env:GITHUB_REF_NAME --draft
+                  gh release create "$GITHUB_REF_NAME" release/* \
+                      --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --draft

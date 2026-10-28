@@ -185,8 +185,9 @@ Tauri leaves in `%LOCALAPPDATA%` if that's what you have. The whole installer
 is in `packaging/death-by-mpv.nsi`.
 
 CI does the same on every push to `main`. Pushing a `v*` tag also creates a
-draft release with the installer and the portable zip attached. The tag has
-to match the version in `crates/player/Cargo.toml`.
+draft release with the installer, the portable zip and the Flatpak attached.
+The tag has to match the version in `crates/player/Cargo.toml` and the newest
+release in the Flatpak's metainfo.
 
 ### Flatpak
 
@@ -195,16 +196,18 @@ packaging/flatpak/build.sh --bundle
 ```
 
 This builds the Flatpak from your working tree, installs it for your user,
-and writes `target/flatpak/death-by-mpv.flatpak`. CI only builds for Windows,
-so this file has to be attached to a release by hand. You need
+and writes `target/flatpak/death-by-mpv.flatpak`. CI builds the same bundle
+from the same manifest on every push, and attaches it to a tag's release. You
+need
 `flatpak-builder` (or the `org.flatpak.Builder` Flatpak) and the Flathub
 remote. The SDK and the Rust extension are downloaded the first time. The
 manifest, `packaging/flatpak/io.github.MisterD0ctor.DBM.yml`, builds libass,
 libplacebo and libmpv, and uses the runtime's FFmpeg.
 
 The build runs offline, so every Rust crate is listed in
-`packaging/flatpak/cargo-sources.json`. Regenerate that file whenever a crate
-in `Cargo.lock` is added, removed or updated, using
+`packaging/flatpak/cargo-sources.json`. CI's Flatpak build fails when that
+file falls behind. Regenerate it whenever a crate in `Cargo.lock` is added,
+removed or updated, using
 `flatpak-cargo-generator.py` from
 [flatpak-builder-tools](https://github.com/flatpak/flatpak-builder-tools):
 
