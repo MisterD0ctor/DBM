@@ -41,6 +41,8 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 ),
                 // The settings gear.
                 "tip" | "tip-idle" | "tip-open" => (1132.0, 664.0),
+                // The Open button, at the bar's left end.
+                "open-click" | "open-after" | "open-switch" => (102.0, 664.0),
                 // The last button there is, to see the clamp hold a tip
                 // inside the margin rather than off the window.
                 "tip-edge" => (1224.0, 664.0),
@@ -97,6 +99,26 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     arrow(&ui, Key::LeftArrow);
                 } else {
                     ui.invoke_open_find();
+                }
+            }
+
+            // The Open button pressed by the pointer resting on it, its tip
+            // up, as a hand opens the panel.
+            if surface == "open-click" && tick == 12 {
+                eprintln!("dbm: clicking Open");
+                click(&ui, 102.0, 664.0);
+            }
+            // The same after the playlist has been open: shut again first by
+            // its own button, or left open for Open to replace.
+            if surface == "open-after" || surface == "open-switch" {
+                match tick {
+                    6 => click(&ui, 56.0, 664.0),
+                    12 if surface == "open-after" => click(&ui, 56.0, 664.0),
+                    16 => {
+                        eprintln!("dbm: clicking Open");
+                        click(&ui, 102.0, 664.0);
+                    }
+                    _ => {}
                 }
             }
 

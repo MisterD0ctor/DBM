@@ -92,6 +92,10 @@
 //! * `DBM_SHOWCASE=pages-flip` opens the subtitles menu and turns subtitles
 //!   on and off every half second, for a capture to land while the ways to
 //!   their pages open or close under the tracks.
+//! * `DBM_SHOWCASE=open-click` rests the pointer on the Open button until its
+//!   tip is up and presses it; `open-after` does the same once the playlist
+//!   has been opened and shut by its own button, and `open-switch` with the
+//!   playlist still open, for Open's panel to arrive as the playlist's goes.
 //! * `DBM_SHOWCASE=tips-off` walks the ring to Shortcuts in tooltips on the
 //!   accessibility page and turns Tooltips off with the pointer, and prints
 //!   where the ring went when the row did.

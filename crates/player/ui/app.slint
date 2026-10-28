@@ -2365,14 +2365,18 @@ export component MainWindow inherits Window {
     property <ScrollFade> leaf-fade;
 
     /// A list's `fade`, clipped to its panel and faded with it, including the
-    /// angle back to its current row. Zero-sized for a panel that is gone.
-    pure function fade-within(list: ScrollFade, shown: float,
+    /// angle back to its current row. Zero-sized for a panel that is gone,
+    /// and for one going while another opens: the edge is drawn over
+    /// whatever ends up under it, and the panel arriving in the same corner
+    /// would have the top of its first row softened away (`DBM_SHOWCASE=
+    /// open-switch`).
+    pure function fade-within(list: ScrollFade, open: bool, shown: float,
         x: length, y: length, w: length, h: length) -> ScrollFade {
         return {
             x: list.x,
             y: list.y,
-            width: shown > root.shown-epsilon ? list.width : 0px,
-            height: shown > root.shown-epsilon ? list.height : 0px,
+            width: root.edge-shown(open, shown) > root.shown-epsilon ? list.width : 0px,
+            height: root.edge-shown(open, shown) > root.shown-epsilon ? list.height : 0px,
             top: list.top,
             bottom: list.bottom,
             right: 0,
@@ -2380,7 +2384,7 @@ export component MainWindow inherits Window {
             clip-y: y,
             clip-width: w,
             clip-height: h,
-            way: shown > root.shown-epsilon ? list.way * shown : 0,
+            way: root.edge-shown(open, shown) > root.shown-epsilon ? list.way * shown : 0,
             way-x: list.way-x,
             way-y: list.way-y,
             way-up: list.way-up,
@@ -2388,25 +2392,35 @@ export component MainWindow inherits Window {
         };
     }
 
+    /// How much of a panel's soft edges is drawn: as much as the panel is
+    /// shown, unless another panel is open (see `fade-within`).
+    pure function edge-shown(open: bool, shown: float) -> float {
+        return open || !root.panel-open ? shown : 0;
+    }
+
     /// Every scrolling list, for the soft edge on its ends (see `ScrollFade`).
     out property <[ScrollFade]> scroll-fades: [
         // Each of the menu's lists only while its page is drawn: the search's
         // rests where the other pages do, and would soften their rows.
-        root.fade-within(subs-list.fade, root.menu-drill < 1.0 ? root.menu-shown : 0,
+        root.fade-within(subs-list.fade, root.menu-open,
+            root.menu-drill < 1.0 ? root.menu-shown : 0,
             menu.x, menu.y, menu.width, menu.height),
-        root.fade-within(audio-list.fade, root.audio-shown,
+        root.fade-within(audio-list.fade, root.audio-open, root.audio-shown,
             audio-panel.x, audio-panel.y, audio-panel.width, audio-panel.height),
-        root.fade-within(find-list.fade, root.menu-leaf == 3 ? root.menu-shown : 0,
+        root.fade-within(find-list.fade, root.menu-open,
+            root.menu-leaf == 3 ? root.menu-shown : 0,
             menu.x, menu.y, menu.width, menu.height),
-        root.fade-within(playlist-top-list.fade, root.playlist-shown,
+        root.fade-within(playlist-top-list.fade, root.playlist-open, root.playlist-shown,
             playlist-panel.x, playlist-panel.y,
             playlist-panel.width, playlist-panel.height),
-        root.fade-within(playlist-leaf-list.fade, root.playlist-shown,
+        root.fade-within(playlist-leaf-list.fade, root.playlist-open, root.playlist-shown,
             playlist-panel.x, playlist-panel.y,
             playlist-panel.width, playlist-panel.height),
-        root.fade-within(root.front-fade, root.drill < 1.0 ? root.settings-shown : 0,
+        root.fade-within(root.front-fade, root.settings-open,
+            root.drill < 1.0 ? root.settings-shown : 0,
             settings.x, settings.y, settings.width, settings.height),
-        root.fade-within(root.leaf-fade, root.drill > 0.0 ? root.settings-shown : 0,
+        root.fade-within(root.leaf-fade, root.settings-open,
+            root.drill > 0.0 ? root.settings-shown : 0,
             settings.x, settings.y, settings.width, settings.height),
         // The title, which isn't a list but runs out of its room the same way.
         {
