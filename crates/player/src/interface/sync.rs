@@ -31,12 +31,7 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_paused(player.paused);
     ui.set_muted(player.muted);
     ui.set_volume(player.volume as f32);
-    // mpv's `sub-visibility` can be on with no subtitle track selected, which
-    // shows nothing, so the interface is told whether subtitles are actually
-    // showing, for the subtitles menu's Off row.
-    ui.set_subs_visible(
-        player.sub_visibility && tracks::selected(&player.tracks, TrackKind::Sub).is_some(),
-    );
+    ui.set_subs_visible(subs_showing(player));
     ui.set_panscan(player.panscan > 0.5);
     ui.set_sub_delay_text(format::delay(player.sub_delay).into());
     ui.set_sub_delay_widest(format::delay_widest().into());
@@ -165,6 +160,10 @@ pub fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_audio_tracks(track_model(player, TrackKind::Audio));
     ui.set_sub_current(selected_row(player, TrackKind::Sub));
     ui.set_audio_current(selected_row(player, TrackKind::Audio));
+    // Here as well as with the scalars, since it hangs on the selection,
+    // which arrives with the list, and a paused film reports nothing else
+    // that would push it.
+    ui.set_subs_visible(subs_showing(player));
     ui.set_chapter_marks(ModelRc::new(VecModel::from(
         player
             .chapters
@@ -178,6 +177,13 @@ pub fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_intro_rolling(player.intro_rolling());
     ui.set_intro_end(player.intro().map_or(0.0, |(_, end)| end as f32));
     ui.set_after_credits(player.after_credits().map_or(0.0, |at| at as f32));
+}
+
+/// Whether subtitles are actually showing, for the subtitles menu's Off row
+/// and the pages that tune a line. mpv's `sub-visibility` can be on with no
+/// subtitle track selected, which shows nothing.
+fn subs_showing(player: &PlayerState) -> bool {
+    player.sub_visibility && tracks::selected(&player.tracks, TrackKind::Sub).is_some()
 }
 
 /// Which row of a track list is the selected one, or -1.

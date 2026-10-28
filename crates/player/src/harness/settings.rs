@@ -378,6 +378,46 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
     timer
 }
 
+/// Adds a subtitle file to a paused film the way a finished download does,
+/// with the subtitles menu open, and then touches nothing, reporting what the
+/// menu knows of it. A paused film draws no frames of its own, so the menu
+/// has only the wake-ups to learn from.
+pub(super) fn added_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
+    let file = std::env::var("DBM_ADDED_TEST").unwrap_or_default();
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut tick = 0u32;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(250),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            tick += 1;
+            match tick {
+                12 => crate::playback::commands::set_pause(&mpv, true),
+                16 => ui.invoke_open_menu(true),
+                20 => crate::playback::commands::add_subtitle(
+                    &mpv,
+                    std::path::Path::new(&file),
+                    "en",
+                    true,
+                ),
+                _ => {}
+            }
+            if (20..=40).contains(&tick) && tick % 2 == 0 {
+                eprintln!(
+                    "dbm: added t+{:.1}s tracks={} current={} visible={}",
+                    (tick - 20) as f32 * 0.25,
+                    ui.get_sub_tracks().row_count(),
+                    ui.get_sub_current(),
+                    ui.get_subs_visible(),
+                );
+            }
+        },
+    );
+    timer
+}
+
 /// Sync the subtitles to the film's speech, from the keyboard, and read back
 /// what mpv then shows.
 ///

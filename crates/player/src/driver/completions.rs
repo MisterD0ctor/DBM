@@ -30,6 +30,10 @@ impl Driver {
         match completion {
             Completion::Lists(lists) => {
                 let mut moved = self.lists.apply(ui, &mut self.player, lists);
+                // A read the lists have since moved past is thrown away, so the
+                // newer one is asked for now: the poll in the frame has already
+                // run, and a paused film may draw no other.
+                self.lists.poll(&self.app.worker, &self.player);
                 // What is saved for each entry, for choosing one on purpose.
                 self.app.arrival.learn(
                     (0..self.player.playlist.len())

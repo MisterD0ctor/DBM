@@ -154,6 +154,9 @@
 //!   out the listening, and reports the delay and speed it settled on with
 //!   the line mpv shows at `DBM_SYNC_AT` seconds (19 if unset). Then takes
 //!   the sync back and reports again, unless `DBM_SYNC_KEEP` is set.
+//! * `DBM_ADDED_TEST=<file>` — pauses, opens the subtitles menu and adds that
+//!   subtitle file as a finished download does, then touches nothing, and
+//!   reports the menu's tracks, the one in use and whether it is showing.
 //! * `DBM_FIND_TEST=1` — opens the subtitles menu and its search,
 //!   takes the first result with the keyboard, removes it again with Delete,
 //!   and reports the menu and the line on screen at each step. Pair it with
@@ -381,6 +384,9 @@ pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
     }
     if std::env::var_os("DBM_SUBS_TEST").is_some() {
         timers.push(settings::subs_test(ui, mpv.clone()));
+    }
+    if std::env::var_os("DBM_ADDED_TEST").is_some() {
+        timers.push(settings::added_test(ui, mpv.clone()));
     }
     if std::env::var_os("DBM_SYNC_TEST").is_some() {
         timers.push(settings::sync_test(ui, mpv.clone()));
