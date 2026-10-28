@@ -499,8 +499,13 @@ impl Pipeline {
 
     /// mpv's picture, into the video target. It re-renders the frame it holds
     /// when asked, so a paused film is drawn again as well as a playing one.
-    fn render_film(&mut self, gl: &glow::Context, ctx: &RenderContext, w: u32, h: u32)
-        -> Result<bool, String> {
+    fn render_film(
+        &mut self,
+        gl: &glow::Context,
+        ctx: &RenderContext,
+        w: u32,
+        h: u32,
+    ) -> Result<bool, String> {
         let Some(fbo) = self.video.fbo() else {
             return Ok(false);
         };
@@ -656,7 +661,11 @@ impl Pipeline {
         // often arrives a frame or two after the resize. Paused, no next frame
         // would redraw the border, which would keep the old geometry.
         let rect_changed = self.rect != rect;
-        let full = new_frame || resized || params_dirty || rect_changed || drew_backdrop
+        let full = new_frame
+            || resized
+            || params_dirty
+            || rect_changed
+            || drew_backdrop
             || drew_film_again;
         if !full && !panels_changed {
             return Ok(true);

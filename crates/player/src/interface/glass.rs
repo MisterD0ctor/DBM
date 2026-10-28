@@ -164,14 +164,23 @@ mod tests {
     /// list, as the subtitles menu's way to a page is.
     #[test]
     fn a_row_below_its_panel_has_no_pane() {
-        let (_, opacity) = within([40.0, 380.0, 340.0, 414.0], 1.0, Some((20.0, 360.0)), &list());
+        let (_, opacity) = within(
+            [40.0, 380.0, 340.0, 414.0],
+            1.0,
+            Some((20.0, 360.0)),
+            &list(),
+        );
         assert_eq!(opacity, 0.0);
     }
 
     #[test]
     fn a_row_rising_into_its_panel_fades_in() {
-        let (cut, opacity) =
-            within([40.0, 335.0, 340.0, 369.0], 1.0, Some((20.0, 360.0)), &list());
+        let (cut, opacity) = within(
+            [40.0, 335.0, 340.0, 369.0],
+            1.0,
+            Some((20.0, 360.0)),
+            &list(),
+        );
         assert_eq!(cut, [40.0, 335.0, 340.0, 360.0]);
         assert!(opacity > 0.0 && opacity < 1.0, "{opacity}");
     }

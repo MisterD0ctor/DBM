@@ -859,10 +859,12 @@ impl Driver {
 
         // The backdrop stands in while nothing is loaded, and at the end of a
         // file once its light has come.
-        let ended = self.player.eof_reached && self.end_lit.is_some()
-            && self.end_lit == self.player.path;
-        gpu.pipeline
-            .show_backdrop(self.player.path.is_none() || ended, self.player.path.is_some());
+        let ended =
+            self.player.eof_reached && self.end_lit.is_some() && self.end_lit == self.player.path;
+        gpu.pipeline.show_backdrop(
+            self.player.path.is_none() || ended,
+            self.player.path.is_some(),
+        );
         let paint = ui.global::<crate::Paint>();
         gpu.pipeline.text_floor = f32::from(paint.get_body().alpha()) / 255.0;
 

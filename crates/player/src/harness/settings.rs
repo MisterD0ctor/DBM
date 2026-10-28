@@ -404,7 +404,7 @@ pub(super) fn added_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Ti
                 ),
                 _ => {}
             }
-            if (20..=40).contains(&tick) && tick % 2 == 0 {
+            if (20..=40).contains(&tick) && tick.is_multiple_of(2) {
                 eprintln!(
                     "dbm: added t+{:.1}s tracks={} current={} visible={}",
                     (tick - 20) as f32 * 0.25,

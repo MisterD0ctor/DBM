@@ -475,12 +475,14 @@ pub fn lit_still(video: &Path, within: f32) -> Option<Still> {
         (y..y + height)
             .flat_map(|row| {
                 let start = row as usize * stride + x as usize * 4;
-                atlas[start..start + width as usize * 4].chunks_exact(4)
+                atlas[start..start + width as usize * 4].as_chunks::<4>().0
             })
             .map(|px| 2126 * px[0] as u64 + 7152 * px[1] as u64 + 722 * px[2] as u64)
             .sum()
     };
-    let tiles = ((grid * grid) as f32 * within.clamp(0.0, 1.0)).ceil().max(1.0) as u32;
+    let tiles = ((grid * grid) as f32 * within.clamp(0.0, 1.0))
+        .ceil()
+        .max(1.0) as u32;
     let (x, y) = corner((0..tiles).max_by_key(|&index| light(index))?);
     let mut rgba = Vec::with_capacity((width * height * 4) as usize);
     for row in y..y + height {
