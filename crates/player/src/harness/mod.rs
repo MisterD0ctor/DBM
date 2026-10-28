@@ -86,6 +86,9 @@
 //!   position; with `DBM_FIND_FAKE`, after a search. `subs-drill` goes in
 //!   and out of Size & position by its keys, a move a tick, as `drill` does,
 //!   and `timing-drill` in and out of Timing.
+//! * `DBM_SHOWCASE=pages-flip` opens the subtitles menu and turns subtitles
+//!   on and off every half second, for a capture to land while the ways to
+//!   their pages open or close under the tracks.
 //! * `DBM_SHOWCASE=tips-off` walks the ring to Shortcuts in tooltips on the
 //!   accessibility page and turns Tooltips off with the pointer, and prints
 //!   where the ring went when the row did.

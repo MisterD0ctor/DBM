@@ -2240,9 +2240,19 @@ export component MainWindow inherits Window {
     /// Under the list, a group gap below the tracks when there are any to
     /// set it off from, then the ways to the pages of the one showing and
     /// to the search.
-    property <length> subs-fixed: (root.subs-showing ? 2 * root.row-h : 0px)
-        + (root.find-offered ? root.row-h : 0px)
+    property <length> subs-fixed: (root.subs-showing ? 2 * root.row-h : 0px) + root.subs-below;
+    /// The gap and the search, which come and go at once.
+    property <length> subs-below: (root.find-offered ? root.row-h : 0px)
         + (root.has-subs && (root.subs-showing || root.find-offered) ? Rows.group-gap : 0px);
+    /// The tracks and the ways to the pages as the menu eases to fit them, so
+    /// they open and close with it, and the search under them keeps its place
+    /// rather than dropping out of the menu and rising back.
+    property <length> subs-natural-live: root.subs-natural;
+    property <length> subs-pages-h: root.subs-showing ? 2 * root.row-h : 0px;
+    animate subs-natural-live, subs-pages-h {
+        duration: root.resizing ? 0ms : Motion.drill;
+        easing: ease-in-out;
+    }
     /// A subtitle is showing, so there is a timing to sync and to set, and a
     /// size and position to judge.
     property <bool> subs-showing: root.has-subs && root.subs-visible && root.sub-current >= 0;
@@ -2260,8 +2270,8 @@ export component MainWindow inherits Window {
     out property <length> subs-h: min(
         root.panel-pad + root.heading-h + root.subs-natural + root.subs-fixed,
         root.panel-max-h);
-    out property <length> subs-list-h:
-        max(0px, root.subs-h - root.panel-pad - root.heading-h - root.subs-fixed);
+    out property <length> subs-list-h: max(0px, min(root.subs-natural-live,
+        root.panel-max-h - root.panel-pad - root.heading-h - root.subs-pages-h - root.subs-below));
     out property <length> audio-h: min(
         root.panel-pad + root.heading-h + root.audio-natural, root.panel-max-h);
     out property <length> audio-list-h:
@@ -4753,11 +4763,12 @@ export component MainWindow inherits Window {
             }
         }
 
-        // The tracks, the menu's own page.
+        // The tracks, the menu's own page. As tall as the menu while it eases
+        // to fit them, so the search at its foot stays on the menu's edge.
         Rectangle {
             x: -root.menu-drill * parent.width;
             width: parent.width;
-            height: root.subs-h;
+            height: root.menu-moving ? root.subs-h : parent.height;
             y: root.menu-moving ? parent.height - self.height : 0;
             visible: root.menu-drill < 1.0;
 
@@ -4771,6 +4782,10 @@ export component MainWindow inherits Window {
                 }
                 subs-list := ScrollList {
                     height: root.subs-list-h;
+                    // Where it is going, so a list easing open shows no
+                    // scroll bar for the length of it.
+                    rest-height: max(0px,
+                        root.subs-h - root.panel-pad - root.heading-h - root.subs-fixed);
                     content-height: root.subs-natural;
                     // Off while none is showing, as the rows below light it.
                     current-top: (root.subs-visible ? root.sub-current + 1 : 0) * root.row-h;
@@ -4813,23 +4828,44 @@ export component MainWindow inherits Window {
                 if root.has-subs && (root.subs-showing || root.find-offered): Rectangle {
                     height: Rows.group-gap;
                 }
-                // Says how far off the timing is, as its page's stepper
-                // does, so a film synced last week reads so from here.
-                if root.subs-showing: DrillRow {
-                    icon: @image-url("../../../public/icons/clock.svg");
-                    label: @tr("Timing");
-                    detail: abs(root.sub-delay) >= 0.005 ? root.sub-delay-text : "";
-                    focused: root.on-tracks && root.focus-row == root.subs-pages-at;
-                    opened => {
-                        root.open-subs-page(1);
-                    }
-                }
-                if root.subs-showing: DrillRow {
-                    icon: @image-url("../../../public/icons/text-size.svg");
-                    label: @tr("Size & position");
-                    focused: root.on-tracks && root.focus-row == root.subs-pages-at + 1;
-                    opened => {
-                        root.open-subs-page(2);
+                // Opened and closed with the menu, each row standing where it
+                // rests while the edge above uncovers it, so nothing moves but
+                // the tracks rising and falling with the menu's top. Kept
+                // until closed, and answering only while a track shows.
+                if root.has-subs: Rectangle {
+                    height: root.subs-pages-h;
+                    clip: true;
+
+                    if root.subs-pages-h > 0: VerticalLayout {
+                        y: parent.height - self.height;
+                        height: 2 * root.row-h;
+
+                        // Says how far off the timing is, as its page's
+                        // stepper does, so a film synced last week reads so
+                        // from here.
+                        DrillRow {
+                            icon: @image-url("../../../public/icons/clock.svg");
+                            label: @tr("Timing");
+                            detail: abs(root.sub-delay) >= 0.005 ? root.sub-delay-text : "";
+                            focused: root.subs-showing && root.on-tracks
+                                && root.focus-row == root.subs-pages-at;
+                            opened => {
+                                if (root.subs-showing) {
+                                    root.open-subs-page(1);
+                                }
+                            }
+                        }
+                        DrillRow {
+                            icon: @image-url("../../../public/icons/text-size.svg");
+                            label: @tr("Size & position");
+                            focused: root.subs-showing && root.on-tracks
+                                && root.focus-row == root.subs-pages-at + 1;
+                            opened => {
+                                if (root.subs-showing) {
+                                    root.open-subs-page(2);
+                                }
+                            }
+                        }
                     }
                 }
                 if root.find-offered: DrillRow {

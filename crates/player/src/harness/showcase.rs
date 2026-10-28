@@ -226,6 +226,18 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 arrow(&ui, Key::DownArrow);
             }
 
+            // Subtitles turned on and off every half second with the menu
+            // open, for a capture to land while the ways to their pages open
+            // or close: Find subtitles under them should hold its place.
+            if surface == "pages-flip" && tick >= 8 && tick.is_multiple_of(2) {
+                let id = if tick.is_multiple_of(4) {
+                    ui.get_sub_tracks().row_data(0).map_or(-1, |t| t.id)
+                } else {
+                    -1
+                };
+                ui.invoke_select_subtitle(id);
+            }
+
             // The ring walked down to Shortcuts in tooltips, then Tooltips
             // turned off above it by the pointer, at the default size: the
             // row goes, and the ring must come up to the row that is last now
@@ -403,7 +415,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 | "current-half" | "current-back" | "current-hover" | "ring-row" => {
                     ui.invoke_open_playlist(true)
                 }
-                "armed" => ui.invoke_open_menu(true),
+                "armed" | "pages-flip" => ui.invoke_open_menu(true),
                 "ring-slider" => ui.invoke_open_settings_page(1),
                 // The list of parts rather than the page the panel opens on.
                 "seasons" => {

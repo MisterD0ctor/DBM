@@ -1103,7 +1103,12 @@ by under a pixel at the corner.
   panel from under it; at rest they hang from the top, as every page does. Both only
   while a track is showing, since both are judged by eye and with subtitles
   off there is nothing to judge; a page whose track goes, by C or by another
-  file, slides back to the tracks with it. None of it is in the settings: the
+  file, slides back to the tracks with it. They open and close with the
+  menu's own growth (`MainWindow.subs-pages-h`), each standing where it rests
+  while the edge above uncovers it, and a track added or taken away opens or
+  closes its row the same way, so *Find subtitles* never moves: only the
+  tracks rise and fall with the menu's top, or, in a menu at its cap, the
+  list gives way. None of it is in the settings: the
   timing is the film's own and the next file starts without it, and the size
   and position, though every film's, are read off the line beside them
 - **Timing's row** says how far off the timing is, as a figure before its
