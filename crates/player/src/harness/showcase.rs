@@ -86,6 +86,20 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 });
             }
 
+            // The same for the settings, between the front page and the
+            // glass's, and for the subtitles menu, between its tracks and the
+            // search's page (with `DBM_FIND_FAKE`), Left taking it back.
+            if surface == "settings-drill" && tick > 4 {
+                ui.invoke_open_settings_page(if tick.is_multiple_of(2) { 0 } else { 1 });
+            }
+            if surface == "find-drill" && tick > 5 {
+                if tick.is_multiple_of(2) {
+                    arrow(&ui, Key::LeftArrow);
+                } else {
+                    ui.invoke_open_find();
+                }
+            }
+
             // The pill moving aside for a panel opened over it.
             if tick == 8 {
                 match surface.as_str() {
@@ -415,7 +429,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 | "current-half" | "current-back" | "current-hover" | "ring-row" => {
                     ui.invoke_open_playlist(true)
                 }
-                "armed" | "pages-flip" => ui.invoke_open_menu(true),
+                "armed" | "pages-flip" | "find-drill" => ui.invoke_open_menu(true),
                 "ring-slider" => ui.invoke_open_settings_page(1),
                 // The list of parts rather than the page the panel opens on.
                 "seasons" => {

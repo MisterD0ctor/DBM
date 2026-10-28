@@ -2016,11 +2016,18 @@ for a moment (`MainWindow.copied-timer.interval`), and *Close the player*.
     in place rather than coming from nowhere. The panel and the page are one
     number, so the box and what is in it arrive together. **Both trees move,
     and by the same number**: the settings pages behind their rows, the
-    subtitles menu's pages behind its tracks, and the playlist between its
-    list of parts and a part's page. A panel with two
+    subtitles menu's pages behind its tracks and the search's, the account's
+    behind the search's, and the playlist between its list of parts and a
+    part's page. A panel with two
     levels that changes which one it shows in a single frame leaves no
     account of what happened, and that is as true of a season as of a page of
-    sliders. Never to a new window, though: while the window is being resized,
+    sliders. **The pages only move sideways**: while the panel moves, both hang
+    from its bottom edge, which stays on the line every panel sits on, each at
+    its own height, and the panel's top uncovers or covers them as it eases;
+    at rest they hang from the top, where both ways agree. Hung from the top,
+    they would ride its edge up or down as they crossed, and the row the ring
+    comes back to would rise into the panel from under it. Never to a new
+    window, though: while the window is being resized,
     the panels' heights take their new size in the frame they are given it,
     since eased they would trail the window's edge for as long as the drag
     lasted;

@@ -338,8 +338,9 @@ export component MainWindow inherits Window {
         + (root.signed-in ? root.row-h : 0px) + root.credit-h;
     property <length> find-h: min(root.panel-pad + root.find-fixed + root.find-natural,
         root.panel-max-h);
-    property <length> find-list-h: root.find-state == 2
-        ? max(0px, menu.height - root.panel-pad - root.find-fixed) : 0px;
+    property <length> find-list-h: root.find-state != 2 ? 0px
+        : root.menu-moving ? root.find-rest-h
+        : max(0px, menu.height - root.panel-pad - root.find-fixed);
     property <length> find-rest-h: min(root.find-natural,
         max(0px, root.panel-max-h - root.panel-pad - root.find-fixed));
     /// The account's page: its way back, then why it opened, the two fields
@@ -437,13 +438,15 @@ export component MainWindow inherits Window {
         duration: root.resizing ? 0ms : Motion.drill;
         easing: ease-in-out;
     }
-    /// Between the tracks and one of their pages. Both then hang from the
-    /// menu's bottom edge, which stays put, rather than from its top, which
-    /// moves: the row the ring comes back to is near the bottom, and hung
+    /// Between two pages: the tracks and one of theirs, or the search and the
+    /// account's. Both then hang from the menu's bottom edge, which stays
+    /// put, rather than from its top, which moves, so their rows move only
+    /// sideways: the row the ring comes back to is near the bottom, and hung
     /// from the top it would rise into the panel from under it. At rest they
     /// hang from the top, where both ways agree, so a row a page gains in
     /// place shows at its foot as the panel grows to it.
-    property <bool> menu-moving: root.menu-drill > 0.0 && root.menu-drill < 1.0;
+    property <bool> menu-moving: root.menu-drill > 0.0 && root.menu-drill < 2.0
+        && root.menu-drill != 1.0;
     /// The playlist in the parts the panel shows: its seasons, or the shows
     /// and films of a folder holding several (see `shelf`). A single part is
     /// shown as a plain list; several get a page listing them, and a page each.
@@ -468,6 +471,10 @@ export component MainWindow inherits Window {
         duration: Motion.drill;
         easing: ease-in-out;
     }
+    /// Between the list of parts and a part's page. Both then hang from the
+    /// bottom of the room they share, over the switch, which stays put, so
+    /// their rows move only sideways, as the settings pages' do.
+    property <bool> playlist-moving: root.playlist-drill > 0.0 && root.playlist-drill < 1.0;
     /// Which part the drilled-in page draws.
     ///
     /// Held rather than read from `playlist-page`, which is -1 during the way
@@ -2157,9 +2164,12 @@ export component MainWindow inherits Window {
     property <length> front-natural: 2 * root.heading-h + 5 * root.row-h
         + Rows.group-gap;
     /// What is left of the panel for each list: all of it on the first page,
-    /// and what the way back leaves on the others.
-    property <length> front-list-h: max(0px, settings.height - root.panel-pad);
-    property <length> leaf-list-h: max(0px, settings.height - root.panel-pad - root.row-h);
+    /// and what the way back leaves on the others. Each list's own height at
+    /// rest while the panel moves between the two (see `settings-moving`).
+    property <length> front-list-h: root.settings-moving ? root.front-rest-h
+        : max(0px, settings.height - root.panel-pad);
+    property <length> leaf-list-h: root.settings-moving ? root.leaf-rest-h
+        : max(0px, settings.height - root.panel-pad - root.row-h);
     /// The same once the panel has finished moving (see `rest-height` on the
     /// list).
     property <length> front-rest-h: min(root.front-natural,
@@ -2298,12 +2308,15 @@ export component MainWindow inherits Window {
     /// Each page's list under its own head: a heading on the list of parts,
     /// a way back on a part's page. Both are needed while the two slide past
     /// each other.
-    property <length> playlist-top-list-h:
-        max(0px, root.playlist-pages-h - root.heading-h);
+    /// Each at its height at rest while the panel moves between the two (see
+    /// `playlist-moving`).
+    property <length> playlist-top-list-h: root.playlist-moving ? root.playlist-top-rest-h
+        : max(0px, root.playlist-pages-h - root.heading-h);
     /// Under a way back when there are parts to go back to, otherwise under
     /// the panel's heading, which is shorter than a row.
-    property <length> playlist-leaf-list-h: max(0px, root.playlist-pages-h
-        - (root.playlist-tiered ? root.row-h : root.heading-h));
+    property <length> playlist-leaf-list-h: root.playlist-moving ? root.playlist-leaf-rest-h
+        : max(0px, root.playlist-pages-h
+            - (root.playlist-tiered ? root.row-h : root.heading-h));
     /// Each list's height once the panel has finished moving to its page:
     /// all of its rows, or what the tallest panel leaves for them (see
     /// `rest-height` on the list).
@@ -4319,6 +4332,11 @@ export component MainWindow inherits Window {
         duration: Motion.drill;
         easing: ease-in-out;
     }
+    /// Between the front page and one behind it. Both then hang from the
+    /// panel's bottom edge, which stays put, each at its own height, so
+    /// their rows move only sideways while the panel's top uncovers or
+    /// covers them. At rest they hang from the top, where both ways agree.
+    property <bool> settings-moving: root.drill > 0.0 && root.drill < 1.0;
 
     // Settings: a front page listing what can be adjusted, each with a page
     // of its own, so everything tunable is in one place. The slider rows come
@@ -4361,7 +4379,8 @@ export component MainWindow inherits Window {
         if root.drill < 1.0: Rectangle {
             x: -root.drill * parent.width;
             width: parent.width;
-            height: parent.height;
+            height: root.settings-moving ? root.panel-pad + root.front-list-h : parent.height;
+            y: root.settings-moving ? parent.height - self.height : 0;
 
             VerticalLayout {
                 padding-top: Rows.panel-pad;
@@ -4451,7 +4470,9 @@ export component MainWindow inherits Window {
         if root.drill > 0.0: Rectangle {
             x: (1.0 - root.drill) * parent.width;
             width: parent.width;
-            height: parent.height;
+            height: root.settings-moving ? root.panel-pad + root.row-h + root.leaf-list-h
+                : parent.height;
+            y: root.settings-moving ? parent.height - self.height : 0;
 
             VerticalLayout {
                 padding-top: Rows.panel-pad;
@@ -4978,7 +4999,8 @@ export component MainWindow inherits Window {
         Rectangle {
             x: (1.0 - root.menu-drill) * parent.width;
             width: parent.width;
-            height: parent.height;
+            height: root.menu-moving ? root.find-h : parent.height;
+            y: root.menu-moving ? parent.height - self.height : 0;
             visible: root.menu-drill > 0.0 && root.menu-drill < 2.0 && root.menu-leaf == 3;
 
             VerticalLayout {
@@ -5043,7 +5065,8 @@ export component MainWindow inherits Window {
         if root.menu-drill > 1.0: AccountPage {
             x: (2.0 - root.menu-drill) * parent.width;
             width: parent.width;
-            height: parent.height;
+            height: root.menu-moving ? root.account-h : parent.height;
+            y: root.menu-moving ? parent.height - self.height : 0;
             signed-in: root.signed-in;
             account: root.find-account;
             left: root.find-left;
@@ -5223,7 +5246,9 @@ export component MainWindow inherits Window {
                 Rectangle {
                     x: -root.playlist-drill * parent.width;
                     width: parent.width;
-                    height: parent.height;
+                    height: root.playlist-moving ? root.heading-h + root.playlist-top-list-h
+                        : parent.height;
+                    y: root.playlist-moving ? parent.height - self.height : 0;
 
                     VerticalLayout {
                         alignment: start;
@@ -5290,7 +5315,9 @@ export component MainWindow inherits Window {
                 Rectangle {
                     x: (1.0 - root.playlist-drill) * parent.width;
                     width: parent.width;
-                    height: parent.height;
+                    height: root.playlist-moving ? root.row-h + root.playlist-leaf-list-h
+                        : parent.height;
+                    y: root.playlist-moving ? parent.height - self.height : 0;
 
                     VerticalLayout {
                         alignment: start;

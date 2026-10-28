@@ -75,6 +75,9 @@
 //!   part's page on every tick, so a capture lands inside the 220ms move rather
 //!   than at either end. Like `flash`, a movement can't be held, so it is
 //!   restarted instead.
+//! * `DBM_SHOWCASE=settings-drill` and `find-drill` do the same for the
+//!   settings, between the front page and the glass's, and for the subtitles
+//!   menu, between the tracks and the search's page (with `DBM_FIND_FAKE`).
 //! * `DBM_SHOWCASE=ring-bar` walks the ring with Tab to the settings button,
 //!   for the disc of glass under it; `ring-row` and `ring-slider` put it on a
 //!   playlist row and on a glass slider.
