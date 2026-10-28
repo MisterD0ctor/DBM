@@ -11,6 +11,9 @@
 //!   the pipeline outright.
 //! * `DBM_BORDER_WATCH=1` — reports, every frame, how far the rect the border
 //!   was drawn against is from where the picture really is. No readback.
+//! * `DBM_FRAME_LOG=1` — a line for every frame: how long since the last one
+//!   began, and how much of that the driver's own phases took, so a stutter
+//!   can be put down to the player or to Slint's drawing between.
 //! * `DBM_CAPTURE=<path.bmp>` — one picture of the finished frame, interface
 //!   and all, read off the framebuffer; `DBM_CAPTURE_AFTER=<ms>` is how long
 //!   to let things settle first. See [`Capture`].
@@ -35,6 +38,24 @@ use crate::playback::tracks::{self, TrackKind};
 pub fn trace() -> bool {
     static TRACE: OnceLock<bool> = OnceLock::new();
     *TRACE.get_or_init(|| std::env::var_os("DBM_TRACE").is_some())
+}
+
+/// Where the system's monotonic clock stands, for lining the frame log up
+/// with a profiler recording on the same clock (`perf record -k mono`).
+#[cfg(unix)]
+fn monotonic() -> String {
+    let mut now = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    // SAFETY: `now` is a valid timespec for the call to write into.
+    unsafe { libc::clock_gettime(libc::CLOCK_MONOTONIC, &mut now) };
+    format!(" at {}.{:09}", now.tv_sec, now.tv_nsec)
+}
+
+#[cfg(not(unix))]
+fn monotonic() -> String {
+    String::new()
 }
 
 #[derive(Default)]
@@ -76,6 +97,11 @@ pub struct Probe {
     /// arrived, not that the pass stopped running — so a change here takes
     /// another reading.
     sampled_enables: Option<(bool, bool)>,
+    frame_log: bool,
+    /// When this frame and the one before it began, and its own phases.
+    began: Instant,
+    began_before: Option<Instant>,
+    frame: Phases,
 }
 
 impl Probe {
@@ -100,6 +126,10 @@ impl Probe {
             probed: false,
             warned_stale_rect: false,
             sampled_enables: None,
+            frame_log: std::env::var_os("DBM_FRAME_LOG").is_some(),
+            began: Instant::now(),
+            began_before: None,
+            frame: Phases::default(),
         }
     }
 
@@ -121,27 +151,46 @@ impl Probe {
     // Each `mark` closes one phase and opens the next, so the call sites read
     // as a straight line through the frame.
 
-    pub fn begin(&self) -> Instant {
-        Instant::now()
+    pub fn begin(&mut self) -> Instant {
+        let now = Instant::now();
+        self.began_before = Some(self.began);
+        self.began = now;
+        self.frame = Phases::default();
+        now
     }
 
     pub fn mark_events(&mut self, t: Instant) -> Instant {
         self.phases.events += t.elapsed();
+        self.frame.events += t.elapsed();
         Instant::now()
     }
 
     pub fn mark_lists(&mut self, t: Instant) -> Instant {
         self.phases.lists += t.elapsed();
+        self.frame.lists += t.elapsed();
         Instant::now()
     }
 
     pub fn mark_panels(&mut self, t: Instant) -> Instant {
         self.phases.panels += t.elapsed();
+        self.frame.panels += t.elapsed();
         Instant::now()
     }
 
     pub fn mark_render(&mut self, t: Instant) {
         self.phases.render += t.elapsed();
+        self.frame.render += t.elapsed();
+    }
+
+    /// Slint has drawn the interface over the frame begun in `begin`.
+    pub fn drawn(&self) {
+        if self.frame_log {
+            eprintln!(
+                "dbm: frame drawn {:.1}ms after it began{}",
+                self.began.elapsed().as_secs_f64() * 1000.0,
+                monotonic(),
+            );
+        }
     }
 
     pub fn panels_changed(&mut self, panels: &[GlassPanel]) {
@@ -169,6 +218,19 @@ impl Probe {
         h: u32,
     ) {
         self.frames += 1;
+        if self.frame_log {
+            let ms = |d: Duration| d.as_secs_f64() * 1000.0;
+            let since = self.began_before.map_or(0.0, |b| ms(self.began - b));
+            eprintln!(
+                "dbm: frame +{since:.1}ms own {:.1}ms (events {:.1} lists {:.1} panels {:.1} render {:.1}){}",
+                ms(self.began.elapsed()),
+                ms(self.frame.events),
+                ms(self.frame.lists),
+                ms(self.frame.panels),
+                ms(self.frame.render),
+                monotonic(),
+            );
+        }
         if self.watch_border {
             self.watch_rect(player, w, h);
         }

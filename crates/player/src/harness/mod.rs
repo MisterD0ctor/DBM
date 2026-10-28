@@ -118,6 +118,10 @@
 //! * `DBM_TIP_TEST=1` — raises a tooltip, then another long after it went
 //!   and one just after, and reports how each arrived: the second should
 //!   wait as the first did, and only the third come up at once.
+//! * `DBM_FIRST_OPEN=<playlist|menu|audio|settings|files>` — opens that panel
+//!   six seconds in, then closes and opens it again every two seconds,
+//!   `DBM_OPEN_CYCLES` times in all (twice if unset), saying when, for
+//!   `DBM_FRAME_LOG` to compare the first opening with the rest.
 //! * `DBM_SCROLL_TEST=1` — checks how tall the tracks and playlist panels
 //!   come out against their lists, that a wheel over one actually moves it,
 //!   and that its scroll bar can be pressed and dragged.
@@ -366,6 +370,12 @@ pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
     }
     if std::env::var_os("DBM_TIP_TEST").is_some() {
         timers.push(layout::tip_test(ui));
+    }
+    if let Some(panel) = std::env::var_os("DBM_FIRST_OPEN") {
+        timers.push(layout::first_open_test(
+            ui,
+            panel.to_string_lossy().into_owned(),
+        ));
     }
     if std::env::var_os("DBM_SCROLL_TEST").is_some() {
         timers.push(layout::scroll_test(ui));

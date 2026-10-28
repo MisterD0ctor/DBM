@@ -193,6 +193,55 @@ pub(super) fn tip_test(ui: &MainWindow) -> slint::Timer {
     timer
 }
 
+/// Opens one panel six seconds in, with nothing having asked for it before,
+/// then closes and opens it again every two seconds, `DBM_OPEN_CYCLES` times
+/// in all (twice if unset), saying when, for `DBM_FRAME_LOG` to show what the
+/// first opening costs against the rest. The pointer moves over the picture
+/// half a second before each, as a hand reaching for the button would, so
+/// the bar is already up and only the panel arrives.
+pub(super) fn first_open_test(ui: &MainWindow, panel: String) -> slint::Timer {
+    let cycles: u32 = std::env::var("DBM_OPEN_CYCLES")
+        .ok()
+        .and_then(|n| n.parse().ok())
+        .unwrap_or(2);
+    let timer = slint::Timer::default();
+    let weak = ui.as_weak();
+    let mut tick = 0u32;
+    timer.start(
+        slint::TimerMode::Repeated,
+        Duration::from_millis(250),
+        move || {
+            let Some(ui) = weak.upgrade() else { return };
+            tick += 1;
+            // Two moves well apart, which the twitch filter lets through.
+            if tick >= 22 && tick % 4 == 2 {
+                super::drive::hover(&ui, 560.0, 300.0);
+                super::drive::hover(&ui, 640.0, 340.0);
+            }
+            let Some(step) = tick.checked_sub(24).filter(|t| t % 4 == 0) else {
+                return;
+            };
+            if step / 8 >= cycles {
+                return;
+            }
+            let open = step % 8 == 0;
+            eprintln!(
+                "dbm: --- {} {panel} ---",
+                if open { "opening" } else { "closing" }
+            );
+            match panel.as_str() {
+                "playlist" => ui.invoke_open_playlist(open),
+                "menu" => ui.invoke_open_menu(open),
+                "audio" => ui.invoke_open_audio(open),
+                "settings" => ui.invoke_open_settings(open),
+                "files" => ui.invoke_open_files(open),
+                _ => {}
+            }
+        },
+    );
+    timer
+}
+
 /// How tall each tracks panel came out, against what its list wanted.
 fn report_lists(ui: &MainWindow, label: &str) {
     eprintln!(

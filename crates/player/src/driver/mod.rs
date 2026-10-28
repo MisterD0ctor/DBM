@@ -204,6 +204,7 @@ impl Driver {
             RenderingState::RenderingSetup => self.setup(api),
             RenderingState::BeforeRendering => self.frame(),
             RenderingState::AfterRendering => {
+                self.diag.drawn();
                 if let Some(gpu) = self.gpu.as_mut() {
                     // Tells mpv the frame reached the screen, which is what
                     // keeps its frame timing honest. Slint keeps the context
