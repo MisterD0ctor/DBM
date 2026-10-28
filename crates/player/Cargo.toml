@@ -3,7 +3,7 @@ name = "dbm-player"
 # The product's version line continues from the Tauri build, which released
 # 0.2.0. This is the same player to anyone installing it, and a version that
 # went backwards would be a lie to the installer and to anyone updating.
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "A video player built on mpv"
 # The toolkit and the bundled libmpv both require it; see THIRD-PARTY.md.
