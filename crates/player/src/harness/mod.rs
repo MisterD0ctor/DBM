@@ -127,8 +127,10 @@
 //!   after the key, `seek-subs` turns subtitles on before it, `pause-step`
 //!   steps a frame from a pause, `space-play` plays on from one, and
 //!   `escape-panel` closes the settings. The pointer instead: `twitch` nudges
-//!   it before moving it, `hover` leaves it on the bar past the clock, and
-//!   `leave` takes it out of the window.
+//!   it before moving it, `hover` leaves it on the bar past the clock,
+//!   `leave` takes it out of the window, and `overshoot` and `return` bring
+//!   it back over the edge by a few pixels, a moment later or once the
+//!   chrome has gone.
 //! * `DBM_READ_TEST=1` — opens the shortcuts page and presses the keys that
 //!   read it, with a film playing. They should scroll the page, not reach the
 //!   film, so `time-pos` either side is the check; the scroll itself is inside

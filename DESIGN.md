@@ -632,9 +632,12 @@ its place, being newer news.
 **A Knock Is Not A Hand.** A pointer gone from the screen has to travel
 `MainWindow.twitch` in a moment before it brings anything back: a knocked
 desk or a mouse set down brings up nothing in a dark room, while a hand
-reaching for the controls is past that at once. A press always counts. And
-a pointer leaving the window takes the chrome with it at once, rather than
-leaving it over the film to wait out the clock.
+reaching for the controls is past that at once. A press always counts, and
+so does a pointer coming back into the window, since no knock carries it in
+from outside. And a pointer leaving the window takes the chrome with it,
+rather than leaving it over the film to wait out the clock — once it has
+stayed out for `MainWindow.leave-grace`, since reaching for an edge to
+resize the window overshoots it.
 
 **A Key Brings Up Its Answer.** A key calls up only what shows what it did. A
 seek, by the arrows with or without Shift or by Home, brings up the timeline

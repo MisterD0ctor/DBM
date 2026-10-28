@@ -4174,10 +4174,25 @@ export component MainWindow inherits Window {
             root.twitch-armed = false;
         }
     }
+    /// How long a pointer may be out of the window before the chrome goes
+    /// with it. Reaching for an edge to resize the window overshoots it, and
+    /// that is nobody leaving.
+    property <duration> leave-grace: 500ms;
+    leave-timer := Timer {
+        interval: root.leave-grace;
+        running: false;
+        triggered => {
+            leave-timer.stop();
+            if (video-surface.away && Chrome.input-seq == video-surface.seen) {
+                Chrome.rest();
+            }
+        }
+    }
 
-    /// The pointer over the picture. A press always counts.
-    function film-pointed(down: bool, x: length, y: length) {
-        if (!down && root.pointer-hidden) {
+    /// The pointer over the picture. A press always counts, and so does a
+    /// pointer coming back into the window: no knock carries it in.
+    function film-pointed(down: bool, entering: bool, x: length, y: length) {
+        if (!down && !entering && root.pointer-hidden) {
             if (!root.twitch-armed) {
                 root.twitch-x = x;
                 root.twitch-y = y;
@@ -4219,21 +4234,29 @@ export component MainWindow inherits Window {
         video-surface := TouchArea {
             /// `Chrome.input-seq` as of this area's last pointer event.
             property <int> seen: -1;
+            /// Whether the pointer has left the window since it was last here.
+            property <bool> away: false;
 
             width: 100%;
             height: 100%;
             pointer-event(event) => {
-                root.film-pointed(event.kind == PointerEventKind.down,
+                if (self.away) {
+                    leave-timer.stop();
+                }
+                root.film-pointed(event.kind == PointerEventKind.down, self.away,
                     self.mouse-x, self.mouse-y);
+                self.away = false;
                 self.seen = Chrome.input-seq;
             }
             // A pointer leaving the picture for somewhere in the window lands
             // on chrome, which counts its arrival as input in the same event.
             // With nothing counted, it left the window, and the chrome goes
-            // with it rather than waiting out the clock.
+            // with it if it stays away (`leave-grace`) rather than waiting out
+            // the clock.
             changed has-hover => {
                 if (!self.has-hover && Chrome.input-seq == self.seen) {
-                    Chrome.rest();
+                    self.away = true;
+                    leave-timer.start();
                 }
             }
             clicked => {

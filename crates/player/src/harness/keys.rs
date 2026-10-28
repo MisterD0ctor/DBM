@@ -319,8 +319,22 @@ pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
                 // What is loaded is up alone when the pointer comes low: the
                 // bar should grow from it.
                 ("next-move", t) if t == PRESS + 8 => reach(size.width / 2.0, size.height * 0.75),
-                ("leave", PRESS) => reach(size.width / 2.0, size.height * 0.75),
-                ("leave", t) if t == PRESS + 4 => super::drive::leave(&ui),
+                ("leave" | "overshoot" | "return", PRESS) => {
+                    reach(size.width / 2.0, size.height * 0.75)
+                }
+                ("leave" | "overshoot" | "return", t) if t == PRESS + 4 => {
+                    super::drive::leave(&ui)
+                }
+                // Back over the edge a moment later, or after the chrome has
+                // gone, by the few pixels of finding the edge to resize from.
+                ("overshoot", t) if t == PRESS + 5 => {
+                    super::drive::hover(&ui, size.width - 4.0, size.height * 0.75);
+                    super::drive::hover(&ui, size.width - 6.0, size.height * 0.75 + 1.0);
+                }
+                ("return", t) if t == PRESS + 10 => {
+                    super::drive::hover(&ui, size.width - 4.0, size.height * 0.75);
+                    super::drive::hover(&ui, size.width - 6.0, size.height * 0.75 + 1.0);
+                }
                 // Subtitles on, into a stretch with lines, while the open's
                 // bar is still up, for the line to rise onto the timeline.
                 ("seek-subs", 2) => {
