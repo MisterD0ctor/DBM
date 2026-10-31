@@ -65,6 +65,13 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     (ui.get_panel_left() + ui.get_panel_right()) / 2.0,
                     ui.get_playlist_list_top() + 17.0,
                 ),
+                // Above the middle of the picture, clear of every panel: a
+                // pointer moving over a row stands the ring down, and a long
+                // season's playlist reaches the top left corner.
+                "ring-row" | "ring-slider" => {
+                    let size = ui.window().size().to_logical(ui.window().scale_factor());
+                    (size.width / 2.0, 40.0)
+                }
                 _ => (40.0, 40.0),
             };
             // Everything else here keeps hovering so the chrome stays up.
@@ -201,11 +208,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
 
             // Finding subtitles, with `DBM_FIND_FAKE=spent`: the search's page;
             // the sign-in a refused download opens, with a name and a password
-            // typed; the search's page signed in, the account under the
-            // results; and the account's page.
+            // typed, and then with the ring on the name; the search's page
+            // signed in, the account under the results; and the account's page.
             if matches!(
                 surface.as_str(),
-                "find" | "sign-in" | "signed-in" | "account"
+                "find" | "sign-in" | "sign-in-ring" | "signed-in" | "account"
             ) {
                 let typed = |text: &str| {
                     for c in text.chars() {
@@ -224,6 +231,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                         typed(if signs_in { "fake" } else { "secret" });
                     }
                     11 if signs_in => arrow(&ui, Key::Return),
+                    11 if surface == "sign-in-ring" => arrow(&ui, Key::UpArrow),
                     14 if signs_in => {
                         ui.invoke_open_menu(true);
                         ui.invoke_open_find();
@@ -262,6 +270,15 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 arrow(&ui, Key::DownArrow);
             }
 
+            // A click far along the timeline, or the 7 key, for the way back
+            // either offers.
+            if surface == "back" && tick == 6 {
+                ui.invoke_seek_fraction(0.6);
+            }
+            if surface == "back-key" && tick == 6 {
+                chord(&ui, &[], "7");
+            }
+
             // Subtitles turned on and off every half second with the menu
             // open, for a capture to land while the ways to their pages open
             // or close: Find subtitles under them should hold its place.
@@ -280,7 +297,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             // rather than stay on nothing for Enter to press.
             if surface == "tips-off" {
                 match tick {
-                    6..=10 | 14 => arrow(&ui, Key::DownArrow),
+                    6..=11 | 14 => arrow(&ui, Key::DownArrow),
                     12 => click(&ui, 1017.0, 514.0),
                     _ => {}
                 }
@@ -513,6 +530,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 "accessibility" | "tips-off" => ui.invoke_open_settings_page(3),
                 "shortcuts" => ui.invoke_open_settings_page(4),
                 "language" | "language-walk" => ui.invoke_open_settings_page(5),
+                "video" => ui.invoke_open_settings_page(6),
                 // The subtitles menu's two pages, which want a subtitle on
                 // before they open (below).
                 "timing" | "placing" | "subs-drill" | "timing-drill" => {

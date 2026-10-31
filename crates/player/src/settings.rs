@@ -1,12 +1,12 @@
 //! What the person has set, kept between runs.
 //!
-//! Two kinds of thing, in one file. The material parameters (the glass and
-//! the ambient border) are a registry that both the UI and the pipeline read,
-//! so adding a knob is one entry here: it gets a slider with the right range
-//! and reaches the shader without touching the UI or the render code. Beside
-//! them sit the preferences that aren't sliders: whether each effect runs,
-//! autoplay, animations, darkening bright glass and tips, and the subtitles'
-//! size and place.
+//! Two kinds of thing, in one file. The parameters the sliders set (the
+//! glass, the ambient border and the picture) are a registry that the UI, the
+//! pipeline and mpv read, so adding a knob is one entry here: it gets a slider
+//! with the right range and reaches the shader, or mpv, without touching the
+//! UI. Beside them sit the preferences that aren't sliders: whether each
+//! effect runs, autoplay, the time left, animations, the interface's size,
+//! darkening bright glass and tips, and the subtitles' size and place.
 //!
 //! Values live in a shared store because the two ends run at different
 //! times: the UI writes whenever a slider moves, the pipeline reads once a
@@ -26,6 +26,21 @@ const ANIMATIONS: &str = "accessibility.animations";
 const LEGIBLE_GLASS: &str = "accessibility.legible-glass";
 const TIPS: &str = "accessibility.tooltips";
 const TIP_KEYS: &str = "accessibility.tooltip-keys";
+const REMAINING: &str = "playback.remaining";
+const SCALE: &str = "accessibility.scale";
+/// The sizes the interface can be set to, as a multiple of the system's.
+/// No smaller, since the type is already at its floor; no larger than fits
+/// the window's own floor on a 1080p screen in fullscreen.
+pub const SCALE_MIN: f32 = 1.0;
+pub const SCALE_MAX: f32 = 1.5;
+pub const SCALE_STEP: f32 = 0.1;
+
+/// `scale` kept to the sizes offered, to a tenth, so a file edited by hand
+/// can't set one the stepper never reaches.
+pub fn offered_scale(scale: f32) -> f32 {
+    ((scale / SCALE_STEP).round() * SCALE_STEP).clamp(SCALE_MIN, SCALE_MAX)
+}
+
 /// What a chosen language is saved under, its code after the dot. The file is
 /// a list of numbers, so the choice is in the name and the number is a one.
 const LANGUAGE: &str = "language.";
@@ -62,6 +77,11 @@ pub enum Key {
     Spread,
     Falloff,
     Softness,
+    // Picture, which mpv draws rather than the pipeline.
+    Brightness,
+    Contrast,
+    Saturation,
+    Gamma,
 }
 
 /// Which panel page a parameter appears on, and so what a reset applies to.
@@ -69,6 +89,7 @@ pub enum Key {
 pub enum Section {
     Glass,
     Border,
+    Picture,
 }
 
 impl Section {
@@ -76,8 +97,32 @@ impl Section {
         match i {
             0 => Some(Self::Glass),
             1 => Some(Self::Border),
+            2 => Some(Self::Picture),
             _ => None,
         }
+    }
+}
+
+/// How mpv draws the picture: each in its own terms, -100 to 100, and none
+/// by default. A preference rather than a film's, as the subtitles' size is:
+/// what a screen or a room needs, every film needs.
+#[derive(Clone, Copy, Default, PartialEq, Debug)]
+pub struct PictureParams {
+    pub brightness: f32,
+    pub contrast: f32,
+    pub saturation: f32,
+    pub gamma: f32,
+}
+
+impl PictureParams {
+    /// Each with the mpv property it sets.
+    pub fn properties(&self) -> [(&'static str, f32); 4] {
+        [
+            ("brightness", self.brightness),
+            ("contrast", self.contrast),
+            ("saturation", self.saturation),
+            ("gamma", self.gamma),
+        ]
     }
 }
 
@@ -90,6 +135,9 @@ pub struct Param {
     /// Shown in the panel, in English; translated where it is shown. Grouped
     /// by the headings below.
     pub label: &'static str,
+    /// What it does, for someone who doesn't know the word: shown beside the
+    /// panel when the row is rested on. Empty where the name says it.
+    pub hint: &'static str,
     pub min: f32,
     pub max: f32,
 }
@@ -98,17 +146,21 @@ pub struct Param {
 /// row's icon by its index here.
 #[rustfmt::skip]
 pub const REGISTRY: &[Param] = &[
-    Param { key: Key::Blur, name: "glass.blur", section: Section::Glass, label: marked("Blur"), min: 0.0, max: 100.0 },
-    Param { key: Key::Refract, name: "glass.refract_ratio", section: Section::Glass, label: marked("Refraction"), min: 0.0, max: 1.0 },
-    Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: marked("Dispersion"), min: 0.0, max: 1.0 },
-    Param { key: Key::Rim, name: "glass.rim", section: Section::Glass, label: marked("Edge light"), min: 0.0, max: 1.0 },
-    Param { key: Key::Tint, name: "glass.tint", section: Section::Glass, label: marked("Tint"), min: 0.0, max: 1.0 },
-    Param { key: Key::Absorb, name: "glass.absorb", section: Section::Glass, label: marked("Dimming"), min: 0.0, max: 1.0 },
-    Param { key: Key::Shadow, name: "glass.shadow", section: Section::Glass, label: marked("Shadow"), min: 0.0, max: 1.0 },
-    Param { key: Key::EdgeBlur, name: "border.edge_blur", section: Section::Border, label: marked("Edge blur"), min: 0.0, max: 0.1 },
-    Param { key: Key::Spread, name: "border.spread", section: Section::Border, label: marked("Spread"), min: 0.0, max: 5.0 },
-    Param { key: Key::Falloff, name: "border.falloff", section: Section::Border, label: marked("Falloff"), min: 0.0, max: 12.0 },
-    Param { key: Key::Softness, name: "border.softness", section: Section::Border, label: marked("Softness"), min: 0.0, max: 1.0 },
+    Param { key: Key::Blur, name: "glass.blur", section: Section::Glass, label: marked("Blur"), hint: marked("How much the glass blurs the picture behind it"), min: 0.0, max: 100.0 },
+    Param { key: Key::Refract, name: "glass.refract_ratio", section: Section::Glass, label: marked("Refraction"), hint: marked("How far each pane's rim bends the picture behind it"), min: 0.0, max: 1.0 },
+    Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: marked("Dispersion"), hint: marked("How widely the rim splits light into its colours, as a prism does"), min: 0.0, max: 1.0 },
+    Param { key: Key::Rim, name: "glass.rim", section: Section::Glass, label: marked("Edge light"), hint: marked("How brightly each pane's rim catches the light"), min: 0.0, max: 1.0 },
+    Param { key: Key::Tint, name: "glass.tint", section: Section::Glass, label: marked("Smoke"), hint: marked("How far the glass darkens toward black, as smoked glass does"), min: 0.0, max: 1.0 },
+    Param { key: Key::Absorb, name: "glass.absorb", section: Section::Glass, label: marked("Dimming"), hint: marked("How much of a bright scene the glass holds back, more the brighter it is"), min: 0.0, max: 1.0 },
+    Param { key: Key::Shadow, name: "glass.shadow", section: Section::Glass, label: marked("Shadow"), hint: marked("How dark the shadow each pane casts on the picture"), min: 0.0, max: 1.0 },
+    Param { key: Key::EdgeBlur, name: "border.edge_blur", section: Section::Border, label: marked("Edge blur"), hint: marked("How much the picture's edge is softened before it spreads"), min: 0.0, max: 0.1 },
+    Param { key: Key::Spread, name: "border.spread", section: Section::Border, label: marked("Spread"), hint: marked("How far the picture's light reaches into the black bars"), min: 0.0, max: 5.0 },
+    Param { key: Key::Falloff, name: "border.falloff", section: Section::Border, label: marked("Falloff"), hint: marked("How quickly that light fades away from the picture"), min: 0.0, max: 12.0 },
+    Param { key: Key::Softness, name: "border.softness", section: Section::Border, label: marked("Softness"), hint: marked("How gently the light begins to fade"), min: 0.0, max: 1.0 },
+    Param { key: Key::Brightness, name: "picture.brightness", section: Section::Picture, label: marked("Brightness"), hint: "", min: -100.0, max: 100.0 },
+    Param { key: Key::Contrast, name: "picture.contrast", section: Section::Picture, label: marked("Contrast"), hint: "", min: -100.0, max: 100.0 },
+    Param { key: Key::Saturation, name: "picture.saturation", section: Section::Picture, label: marked("Saturation"), hint: "", min: -100.0, max: 100.0 },
+    Param { key: Key::Gamma, name: "picture.gamma", section: Section::Picture, label: marked("Gamma"), hint: marked("How light the picture's middle tones are, leaving black and white"), min: -100.0, max: 100.0 },
 ];
 
 /// What a settings page held just before it was reset.
@@ -119,6 +171,7 @@ pub const REGISTRY: &[Param] = &[
 pub struct Before {
     glass: GlassParams,
     border: BorderParams,
+    picture: PictureParams,
     pub sub_scale: f32,
     pub sub_pos: f32,
 }
@@ -127,6 +180,7 @@ pub struct Before {
 pub struct Store {
     glass: Cell<GlassParams>,
     border: Cell<BorderParams>,
+    picture: Cell<PictureParams>,
     /// Whether each effect runs at all, kept apart from the parameters so
     /// turning an effect off doesn't lose its tuning.
     ambience_on: Cell<bool>,
@@ -143,6 +197,12 @@ pub struct Store {
     /// whether the names come with their keys (see `Tip` in globals.slint).
     tips: Cell<bool>,
     tip_keys: Cell<bool>,
+    /// Whether the timeline's right end says what is left rather than the
+    /// whole length.
+    remaining: Cell<bool>,
+    /// The interface's size, as a multiple of what the system sets (see
+    /// `interface::scale`).
+    scale: Cell<f32>,
     /// Subtitle size and vertical placement. Preferences rather than per-file
     /// state, unlike the delay: a size that suits your eyes suits every file,
     /// and a delay never does.
@@ -161,6 +221,7 @@ impl Default for Store {
         Self {
             glass: Cell::new(GlassParams::default()),
             border: Cell::new(BorderParams::default()),
+            picture: Cell::new(PictureParams::default()),
             ambience_on: Cell::new(true),
             glass_on: Cell::new(true),
             autoplay: Cell::new(true),
@@ -168,6 +229,8 @@ impl Default for Store {
             legible_glass: Cell::new(true),
             tips: Cell::new(true),
             tip_keys: Cell::new(true),
+            remaining: Cell::new(false),
+            scale: Cell::new(SCALE_MIN),
             sub_scale: Cell::new(commands::SUB_SCALE_DEFAULT as f32),
             sub_pos: Cell::new(commands::SUB_POS_DEFAULT as f32),
             // So the first frame pushes the defaults through, rather than
@@ -181,7 +244,7 @@ impl Default for Store {
 
 impl Store {
     pub fn value(&self, index: usize) -> f32 {
-        let (glass, border) = (self.glass.get(), self.border.get());
+        let (glass, border, picture) = (self.glass.get(), self.border.get(), self.picture.get());
         let Some(param) = REGISTRY.get(index) else {
             return 0.0;
         };
@@ -199,6 +262,10 @@ impl Store {
             Key::Spread => border.spread,
             Key::Falloff => border.falloff,
             Key::Softness => border.falloff_softness,
+            Key::Brightness => picture.brightness,
+            Key::Contrast => picture.contrast,
+            Key::Saturation => picture.saturation,
+            Key::Gamma => picture.gamma,
         }
     }
 
@@ -209,6 +276,7 @@ impl Store {
         let v = v.clamp(param.min, param.max);
         let mut glass = self.glass.get();
         let mut border = self.border.get();
+        let mut picture = self.picture.get();
         match param.key {
             Key::Blur => glass.blur_sigma = v,
             Key::Refract => glass.refract = v,
@@ -221,10 +289,20 @@ impl Store {
             Key::Spread => border.spread = v,
             Key::Falloff => border.falloff = v,
             Key::Softness => border.falloff_softness = v,
+            Key::Brightness => picture.brightness = v,
+            Key::Contrast => picture.contrast = v,
+            Key::Saturation => picture.saturation = v,
+            Key::Gamma => picture.gamma = v,
         }
         self.glass.set(glass);
         self.border.set(border);
+        self.picture.set(picture);
         self.touch();
+    }
+
+    /// How mpv is to draw the picture, which the caller tells it.
+    pub fn picture(&self) -> PictureParams {
+        self.picture.get()
     }
 
     /// Take the current values if anything moved since the last call.
@@ -240,6 +318,7 @@ impl Store {
         match section {
             Section::Glass => self.glass.set(glass),
             Section::Border => self.border.set(border),
+            Section::Picture => self.picture.set(PictureParams::default()),
         }
         self.touch();
     }
@@ -249,6 +328,7 @@ impl Store {
         Before {
             glass: self.glass.get(),
             border: self.border.get(),
+            picture: self.picture.get(),
             sub_scale: self.sub_scale.get(),
             sub_pos: self.sub_pos.get(),
         }
@@ -260,6 +340,7 @@ impl Store {
         match section {
             Section::Glass => self.glass.set(before.glass),
             Section::Border => self.border.set(before.border),
+            Section::Picture => self.picture.set(before.picture),
         }
         self.touch();
     }
@@ -336,6 +417,27 @@ impl Store {
         self.touch();
     }
 
+    pub fn remaining(&self) -> bool {
+        self.remaining.get()
+    }
+
+    pub fn set_remaining(&self, on: bool) {
+        self.remaining.set(on);
+        self.touch();
+    }
+
+    pub fn scale(&self) -> f32 {
+        self.scale.get()
+    }
+
+    /// Kept to the sizes offered (see [`offered_scale`]).
+    pub fn set_scale(&self, scale: f32) -> f32 {
+        let scale = offered_scale(scale);
+        self.scale.set(scale);
+        self.touch();
+        scale
+    }
+
     /// The language chosen, by code. Empty for the system's.
     pub fn language(&self) -> String {
         self.language.borrow().clone()
@@ -398,6 +500,8 @@ impl Store {
         out.push((LEGIBLE_GLASS.into(), self.legible_glass.get() as u8 as f32));
         out.push((TIPS.into(), self.tips.get() as u8 as f32));
         out.push((TIP_KEYS.into(), self.tip_keys.get() as u8 as f32));
+        out.push((REMAINING.into(), self.remaining.get() as u8 as f32));
+        out.push((SCALE.into(), self.scale.get()));
         out.push((SUB_SCALE.into(), self.sub_scale.get()));
         out.push((SUB_POS.into(), self.sub_pos.get()));
         let language = self.language.borrow();
@@ -435,6 +539,10 @@ impl Store {
                 LEGIBLE_GLASS => self.legible_glass.set(*value >= 0.5),
                 TIPS => self.tips.set(*value >= 0.5),
                 TIP_KEYS => self.tip_keys.set(*value >= 0.5),
+                REMAINING => self.remaining.set(*value >= 0.5),
+                SCALE => {
+                    self.set_scale(*value);
+                }
                 other => {
                     if let Some(code) = other.strip_prefix(LANGUAGE) {
                         *self.language.borrow_mut() = code.to_string();

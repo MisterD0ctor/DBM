@@ -7,6 +7,7 @@
 use super::{say, warn, Driver, Gpu};
 use crate::interface::format;
 use crate::lang::{fill, tr};
+use crate::library::naming::{self, Media};
 use crate::library::opensubtitles::account::Account;
 use crate::library::opensubtitles::{self, Fetched, Found, Hit};
 use crate::library::preview::Atlas;
@@ -93,6 +94,7 @@ impl Driver {
                 eprintln!("dbm: cannot open: {e}");
                 // Nothing was found to load, so no file is coming.
                 ui.set_opening(false);
+                self.stumbled = true;
                 warn(ui, e);
                 false
             }
@@ -126,9 +128,9 @@ impl Driver {
             }
             Completion::Preview(atlas) => {
                 self.show_atlas(ui, atlas);
-                // An end reached before its atlas was built had no frame to be
-                // lit with, and now may.
-                if self.end_lit != self.player.path {
+                // An end reached before its atlas was built had no frame of its
+                // own to be lit with, and now may.
+                if self.end_lit != self.player.path || self.end_marked {
                     self.end_light_asked = None;
                 }
                 false
@@ -182,12 +184,16 @@ impl Driver {
                 }
                 false
             }
+            // With no frame of its own, the end is lit by the mark, as a fresh
+            // install's empty window is: it still dims a last frame that may
+            // be a white one, and the season's line still has that to read on.
             Completion::EndLight { from, still } => {
-                if let (Some(still), true) =
-                    (still, self.player.path.as_deref() == Some(from.as_str()))
-                {
-                    gpu.pipeline.set_backdrop(&gpu.gl, &still);
-                    self.end_lit = Some(from);
+                if self.player.path.as_deref() == Some(from.as_str()) {
+                    self.end_marked = still.is_none();
+                    if let Some(still) = still.or_else(crate::gpu::mark::still) {
+                        gpu.pipeline.set_backdrop(&gpu.gl, &still);
+                        self.end_lit = Some(from);
+                    }
                 }
                 false
             }
@@ -260,7 +266,7 @@ impl Driver {
                     } else {
                         tr("Subtitles moved {} s later")
                     },
-                    &[&format!("{:.1}", moved.abs())],
+                    &[&format::decimal(&format!("{:.1}", moved.abs()))],
                 )
             } else {
                 // No figure, since at another speed the subtitles have moved
@@ -279,7 +285,9 @@ impl Driver {
         }
         match found.hits {
             Ok(hits) => {
-                let rows: Vec<FoundItem> = hits.iter().map(found_row).collect();
+                let playing = naming::parse(&found.path);
+                let rows: Vec<FoundItem> =
+                    hits.iter().map(|hit| found_row(hit, &playing)).collect();
                 ui.set_find_hits(ModelRc::new(VecModel::from(rows)));
                 ui.set_find_state(if hits.is_empty() { 3 } else { 2 });
                 *self.app.found.borrow_mut() = hits;
@@ -375,9 +383,9 @@ impl Driver {
         self.app.preview.set_sprite(Some(sprite));
         // The pointer may already be on the timeline, in which case it is
         // showing a timestamp and an empty frame.
-        let (_, x, y) = self.app.preview.again();
-        ui.set_preview_clip_x(x);
-        ui.set_preview_clip_y(y);
+        let answer = self.app.preview.again();
+        ui.set_preview_clip_x(answer.x);
+        ui.set_preview_clip_y(answer.y);
     }
 
     /// Put the film left unfinished on the way in, and its frame behind it.
@@ -423,8 +431,8 @@ fn show_account(ui: &MainWindow, account: Option<&Account>) {
     );
 }
 
-fn found_row(hit: &Hit) -> FoundItem {
-    let mut detail = vec![crate::library::naming::language_name(&hit.language)];
+fn found_row(hit: &Hit, playing: &Media) -> FoundItem {
+    let mut detail = vec![naming::language_name(&hit.language)];
     if hit.exact {
         detail.push(tr("Exact").to_string());
     }
@@ -435,7 +443,7 @@ fn found_row(hit: &Hit) -> FoundItem {
         detail.push(tr("Machine").to_string());
     }
     FoundItem {
-        label: hit.release.as_str().into(),
+        label: naming::past_named(&hit.release, playing).into(),
         detail: detail.join(" · ").into(),
         exact: hit.exact,
     }
@@ -457,6 +465,12 @@ fn unsynced(why: Failure) -> &'static str {
 ///
 /// Parsing and rasterising an SVG only takes a millisecond, but the frame
 /// path must never stall, and the rule is easiest kept without exceptions.
+/// Find what the empty window can offer to pick back up. A stat per played
+/// file and one ffmpeg run, so on the worker.
+pub(super) fn look_for_resume(worker: &Worker) {
+    worker.submit(|_mpv| Some(Completion::Resume(crate::library::resume::last_watched())));
+}
+
 fn light_with_the_mark(worker: &Worker) {
     worker.submit(|_mpv| crate::gpu::mark::still().map(Completion::Mark));
 }

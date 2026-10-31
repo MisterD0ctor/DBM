@@ -61,7 +61,6 @@ pub fn labelled(tracks: &[Track], kind: TrackKind) -> Vec<(&Track, String)> {
     let infos: Vec<crate::library::naming::TrackInfo> = of_kind
         .iter()
         .map(|t| crate::library::naming::TrackInfo {
-            id: t.id,
             title: t.title.as_deref(),
             language: t.lang.as_deref(),
             external: t.external,

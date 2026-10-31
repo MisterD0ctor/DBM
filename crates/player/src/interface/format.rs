@@ -42,7 +42,7 @@ pub fn speed(speed: f64) -> String {
     let speed = if speed > 0.0 { speed } else { 1.0 };
     let text = format!("{speed:.2}");
     let text = text.trim_end_matches('0').trim_end_matches('.');
-    format!("{text}×")
+    format!("{}×", decimal(text))
 }
 
 /// A subtitle delay, saying which way the subtitles were moved, since a sign
@@ -50,14 +50,14 @@ pub fn speed(speed: f64) -> String {
 /// doesn't read as a setting someone made.
 pub fn delay(seconds: f64) -> String {
     if seconds.abs() < 0.005 {
-        "0.00 s".into()
+        format!("{} s", decimal("0.00"))
     } else {
         let pattern = if seconds > 0.0 {
             tr("{} s later")
         } else {
             tr("{} s earlier")
         };
-        fill(pattern, &[&format!("{:.2}", seconds.abs())])
+        fill(pattern, &[&decimal(&format!("{:.2}", seconds.abs()))])
     }
 }
 
@@ -67,9 +67,16 @@ pub fn delay_widest() -> String {
     format!("{}\n{}", delay(10.0), delay(-10.0))
 }
 
+/// What is left of a film, as the timeline's right end says it when asked
+/// to: `−12:34`, a minus sign rather than a hyphen, to stand as wide as the
+/// digits do.
+pub fn remaining(seconds: f64) -> String {
+    format!("\u{2212}{}", time(seconds.max(0.0)))
+}
+
 /// A subtitle size, as a multiple of the default: `1.15×`.
 pub fn scale(multiple: f64) -> String {
-    format!("{multiple:.2}×")
+    format!("{}×", decimal(&format!("{multiple:.2}")))
 }
 
 /// A subtitle position, in mpv's own percent of the window: `100%`.
@@ -77,24 +84,38 @@ pub fn position(percent: f64) -> String {
     format!("{percent:.0}%")
 }
 
-/// A slider's value, with enough precision to tune by and without a column
-/// of noise.
+/// A slider's value, as how far along its range it is: `35%`.
 ///
-/// From the parameter's range rather than its value: 5.000 is three
-/// meaningless digits on a blur that runs to 100, and 0.010 is the whole story
-/// on an edge blur that runs to 0.1.
+/// The values themselves are the shader's units, an edge blur of 0.007 or a
+/// falloff of 4.0, which say nothing to anyone tuning by eye, and each slider
+/// would need its own precision to say even that. How far along is what the
+/// track already shows, so the figure and the fill agree.
+///
+/// A value either side of nothing, such as a picture's brightness, says how
+/// far and which way in its own units instead, `+10` or `−20`, since half
+/// way along is where none of it is.
 pub fn readout(value: f32, min: f32, max: f32) -> String {
-    let span = (max - min).abs();
-    let decimals = if span >= 100.0 {
-        0
-    } else if span >= 10.0 {
-        1
-    } else if span >= 1.0 {
-        2
-    } else {
-        3
-    };
-    format!("{value:.decimals$}")
+    if min < 0.0 {
+        let v = value.round();
+        return if v > 0.0 {
+            format!("+{v:.0}")
+        } else if v < 0.0 {
+            format!("\u{2212}{:.0}", -v)
+        } else {
+            "0".into()
+        };
+    }
+    let span = (max - min).abs().max(f32::EPSILON);
+    let share = ((value - min) / span).clamp(0.0, 1.0) * 100.0;
+    format!("{share:.0}%")
+}
+
+/// A figure written with a full stop, with the decimal mark of the language
+/// spoken instead: `1.25` or `1,25`.
+pub fn decimal(figure: &str) -> String {
+    // The mark is its own entry, which each language's file gives as the one
+    // it writes.
+    figure.replace('.', tr("."))
 }
 
 /// A fragment as the start of a sentence, since mpv's reasons are lower-case
@@ -148,11 +169,18 @@ mod tests {
     }
 
     #[test]
-    fn a_readout_is_as_precise_as_its_range() {
-        assert_eq!(readout(5.0, 0.0, 40.0), "5.0");
-        assert_eq!(readout(0.01, 0.0, 0.1), "0.010");
-        assert_eq!(readout(124.0, 0.0, 1024.0), "124");
-        assert_eq!(readout(0.68, 0.0, 5.0), "0.68");
+    fn a_readout_is_how_far_along_its_range() {
+        assert_eq!(readout(10.0, 0.0, 100.0), "10%");
+        assert_eq!(readout(0.007, 0.0, 0.1), "7%");
+        assert_eq!(readout(4.0, 0.0, 12.0), "33%");
+        assert_eq!(readout(1.0, 0.0, 1.0), "100%");
+    }
+
+    #[test]
+    fn a_readout_either_side_of_nothing_says_which_way() {
+        assert_eq!(readout(10.0, -100.0, 100.0), "+10");
+        assert_eq!(readout(-20.4, -100.0, 100.0), "\u{2212}20");
+        assert_eq!(readout(0.2, -100.0, 100.0), "0");
     }
 
     #[test]

@@ -11,6 +11,7 @@
 //!   corner for the shapes Slint puts on it.
 //! * `chrome` is the idle clock the bar and the pointer hide on.
 //! * `warm` draws each panel once, unseen, so its first opening is smooth.
+//! * `scale` sizes the whole interface at the multiple the settings choose.
 //! * `subline` places the subtitle line, which the person and the bar both get
 //!   a say in.
 //! * `format` writes every figure the interface shows.
@@ -21,6 +22,7 @@ pub mod fades;
 pub mod format;
 pub mod glass;
 pub mod playlist_panel;
+pub mod scale;
 pub mod sliders;
 pub mod squircle;
 pub mod subline;

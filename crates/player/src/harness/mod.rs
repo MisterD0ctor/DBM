@@ -41,11 +41,14 @@
 //!   right-hand pill instead of in the corner, so the hover label shows.
 //!   `tip-volume` rests it on the volume track, whose label is the level.
 //! * `DBM_SHOWCASE=window-max` presses the window's own maximize button.
+//! * `DBM_SHOWCASE=settings`, `video`, `glass`, `ambience`, `accessibility`,
+//!   `shortcuts` and `language` open the settings on that page.
 //! * `DBM_SHOWCASE=muted` mutes, for the volume track with its fill gone.
-//! * `DBM_SHOWCASE=find`, `sign-in`, `signed-in` and `account`, with
-//!   `DBM_FIND_FAKE=spent`: the search's page, the sign-in a refused download
-//!   opens with a name and a password typed, the search's page once signed
-//!   in with the account under the results, and the account's page.
+//! * `DBM_SHOWCASE=find`, `sign-in`, `sign-in-ring`, `signed-in` and
+//!   `account`, with `DBM_FIND_FAKE=spent`: the search's page, the sign-in a
+//!   refused download opens with a name and a password typed, the same with
+//!   the ring then on the name, the search's page once signed in with the
+//!   account under the results, and the account's page.
 //! * `DBM_SHOWCASE=scroll-bar` opens the playlist and rests the pointer on its
 //!   scroll bar, to draw the bar at its grown width.
 //! * `DBM_SHOWCASE=current-above`, `current-below` and `current-half` open the
@@ -96,6 +99,9 @@
 //!   tip is up and presses it; `open-after` does the same once the playlist
 //!   has been opened and shut by its own button, and `open-switch` with the
 //!   playlist still open, for Open's panel to arrive as the playlist's goes.
+//! * `DBM_SHOWCASE=back` releases the pointer far along the timeline, as a
+//!   click there does, for the way back the corner pill then offers;
+//!   `back-key` presses 7 instead.
 //! * `DBM_SHOWCASE=tips-off` walks the ring to Shortcuts in tooltips on the
 //!   accessibility page and turns Tooltips off with the pointer, and prints
 //!   where the ring went when the row did.

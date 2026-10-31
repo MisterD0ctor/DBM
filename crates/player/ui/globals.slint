@@ -121,11 +121,17 @@ export global Flash {
     /// icon set has no glyph for these, and the figure is the whole answer
     /// anyway.
     in-out property <int> figure: 0;
+    /// The sentence is a hint, which stays for as long as it is wanted rather
+    /// than for a dwell, and goes when `drop` takes it back.
+    in-out property <bool> held: false;
+    /// Bumped when a hint is taken back, for the window to put it away.
+    in-out property <int> dropped: 0;
 
     public function show-figure(kind: int) {
         Flash.figure = kind;
         Flash.message = "";
         Flash.at = 0.5;
+        Flash.held = false;
         Flash.seq += 1;
     }
 
@@ -134,6 +140,7 @@ export global Flash {
         Flash.figure = 0;
         Flash.message = "";
         Flash.at = at;
+        Flash.held = false;
         Flash.seq += 1;
     }
 
@@ -145,7 +152,24 @@ export global Flash {
         Flash.warning = false;
         Flash.figure = 0;
         Flash.at = 0.5;
+        Flash.held = false;
         Flash.seq += 1;
+    }
+
+    /// Say what a row does, beside its panel, for as long as the row is
+    /// rested on. Returns the claim `drop` takes it back by.
+    public function hint(text: string) -> int {
+        Flash.notice(text);
+        Flash.held = true;
+        return Flash.seq;
+    }
+
+    /// Take a hint back, if it is still the one up.
+    public function drop(claim: int) {
+        if (Flash.held && Flash.seq == claim) {
+            Flash.held = false;
+            Flash.dropped += 1;
+        }
     }
 
     /// Say that something went wrong: a notice, marked as one.

@@ -27,6 +27,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::library::cache::Folder;
 use crate::library::ffmpeg;
+use crate::playback::tracks::Chapter;
 use crate::worker::{Completion, Reporter};
 
 /// Tiles across and down. 64 frames is roughly one per two minutes of a
@@ -516,11 +517,30 @@ pub struct Preview {
     /// timeline is already hovered can fill in the tile straight away instead
     /// of waiting for the pointer to move.
     last: std::cell::Cell<f32>,
+    /// The file's chapters, to name the one under the pointer.
+    chapters: std::cell::RefCell<Vec<Chapter>>,
+}
+
+/// What the preview says for a place on the timeline.
+pub struct Answer {
+    pub time: String,
+    /// The chapter it is in, where the file names it; empty otherwise.
+    pub chapter: String,
+    /// The tile's corner in the atlas.
+    pub x: i32,
+    pub y: i32,
 }
 
 impl Preview {
     pub fn set_duration(&self, seconds: f64) {
         self.duration.set(seconds);
+    }
+
+    /// Only copied when they differ, since this is asked every frame.
+    pub fn set_chapters(&self, chapters: &[Chapter]) {
+        if *self.chapters.borrow() != chapters {
+            *self.chapters.borrow_mut() = chapters.to_vec();
+        }
     }
 
     pub fn set_sprite(&self, sprite: Option<Sprite>) {
@@ -540,20 +560,40 @@ impl Preview {
 
     /// The answer for wherever the pointer last was. For when what is known
     /// changes rather than where the pointer is.
-    pub fn again(&self) -> (String, i32, i32) {
+    pub fn again(&self) -> Answer {
         self.answer(self.last.get())
     }
 
-    /// The timestamp under the pointer, and the tile to show with it.
-    pub fn answer(&self, fraction: f32) -> (String, i32, i32) {
+    /// The timestamp under the pointer, the chapter it is in, and the tile
+    /// to show with them.
+    pub fn answer(&self, fraction: f32) -> Answer {
         self.last.set(fraction);
         let seconds = self.duration.get() * fraction.clamp(0.0, 1.0) as f64;
         let (x, y) = match self.sprite.borrow().as_ref() {
             Some(sprite) => sprite.tile_at(fraction),
             None => (0, 0),
         };
-        (crate::interface::format::time(seconds), x as i32, y as i32)
+        Answer {
+            time: crate::interface::format::time(seconds),
+            chapter: named_chapter(&self.chapters.borrow(), seconds),
+            x: x as i32,
+            y: y as i32,
+        }
     }
+}
+
+/// The title of the chapter `seconds` falls in, unless it is only a
+/// placeholder a muxer wrote, its number or its start time, which says
+/// nothing the time beside it doesn't.
+fn named_chapter(chapters: &[Chapter], seconds: f64) -> String {
+    chapters
+        .iter()
+        .take_while(|c| c.time <= seconds + 1e-3)
+        .last()
+        .and_then(|c| c.title.as_deref())
+        .filter(|title| !crate::library::naming::is_unnamed_chapter(title))
+        .unwrap_or_default()
+        .to_string()
 }
 
 #[cfg(test)]
@@ -599,5 +639,24 @@ mod tests {
         let text = "Video: h264, yuv420p, 960x400, 30 fps";
         let ratio = parse_aspect(text).unwrap();
         assert!((ratio - 2.4).abs() < 0.001, "{ratio}");
+    }
+
+    #[test]
+    fn a_chapter_is_named_only_where_the_file_names_it() {
+        let chapter = |time, title: Option<&str>| Chapter {
+            time,
+            title: title.map(str::to_string),
+        };
+        let chapters = [
+            chapter(0.0, Some("Prologue")),
+            chapter(90.0, Some("Chapter 2")),
+            chapter(300.0, Some("The Heist")),
+            chapter(900.0, None),
+        ];
+        assert_eq!(named_chapter(&chapters, 30.0), "Prologue");
+        assert_eq!(named_chapter(&chapters, 120.0), "");
+        assert_eq!(named_chapter(&chapters, 300.0), "The Heist");
+        assert_eq!(named_chapter(&chapters, 1000.0), "");
+        assert_eq!(named_chapter(&[], 10.0), "");
     }
 }

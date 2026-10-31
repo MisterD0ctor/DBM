@@ -84,8 +84,10 @@ component Field inherits Rectangle {
             width: root.label-w;
         }
 
-        // A capsule, since it is a track for words, and a wash rather than a
-        // line round it, since nothing here is drawn with one.
+        // A capsule, since it is a track for words, in a dark tint with a rim:
+        // the one outline in the interface. Over a bright frame the tint
+        // stands off the glass, but over a dark one it sinks into it, and the
+        // rim is then all that says where the words go.
         Rectangle {
             property <length> well-h: self.height - 8px;
 
@@ -95,7 +97,9 @@ component Field inherits Rectangle {
                 y: (parent.height - self.height) / 2;
                 height: parent.well-h;
                 border-radius: self.height / 2;
-                background: root.ring ? Paint.on-ring-rail : Paint.wash-soft;
+                background: root.ring ? Paint.on-ring-rail : Paint.well;
+                border-width: 1px;
+                border-color: root.ring ? Paint.on-ring-rail : Paint.rail;
             }
 
             FocusScope {
@@ -237,7 +241,10 @@ component SignInForm inherits Rectangle {
                 root.pointed(2);
             }
         }
+        // Marked as the account's action, since at rest a row with no mark
+        // under two fields reads as one more line of the note above them.
         MenuRow {
+            icon: @image-url("../../../public/icons/account.svg");
             label: root.busy ? @tr("Signing in…") : @tr("Sign in and download");
             focused: root.active && root.ring-row == 3;
             picked => {

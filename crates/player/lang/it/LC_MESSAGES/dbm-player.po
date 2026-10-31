@@ -104,10 +104,6 @@ msgid "Subtitles earlier / later"
 msgstr "Sottotitoli prima / dopo"
 
 msgctxt "MainWindow"
-msgid "Next / previous subtitle track"
-msgstr "Sottotitoli: successivi / precedenti"
-
-msgctxt "MainWindow"
 msgid "PICTURE"
 msgstr "IMMAGINE"
 
@@ -500,10 +496,6 @@ msgid "Commentary"
 msgstr "Commento"
 
 msgctxt "player"
-msgid "Track {}"
-msgstr "Traccia {}"
-
-msgctxt "player"
 msgid "Timed text"
 msgstr "Testo temporizzato"
 
@@ -656,10 +648,6 @@ msgid "Edge light"
 msgstr "Luce di bordo"
 
 msgctxt "player"
-msgid "Tint"
-msgstr "Tinta"
-
-msgctxt "player"
 msgid "Dimming"
 msgstr "Oscuramento"
 
@@ -688,20 +676,12 @@ msgid "Darken bright glass"
 msgstr "Scurisci il vetro chiaro"
 
 msgctxt "MainWindow"
-msgid "Space"
-msgstr "Spazio"
-
-msgctxt "MainWindow"
 msgid "Shift+← →"
 msgstr "Maiusc+← →"
 
 msgctxt "MainWindow"
 msgid "Home"
 msgstr "Home"
-
-msgctxt "MainWindow"
-msgid "Ctrl+← →"
-msgstr "Ctrl+← →"
 
 msgctxt "MainWindow"
 msgid "PgUp PgDn"
@@ -714,10 +694,6 @@ msgstr "Backspace"
 msgctxt "MainWindow"
 msgid "Z / Shift+Z"
 msgstr "Z / Maiusc+Z"
-
-msgctxt "MainWindow"
-msgid "J / Shift+J"
-msgstr "J / Maiusc+J"
 
 msgctxt "MainWindow"
 msgid "Home End"
@@ -746,14 +722,6 @@ msgstr "Ctrl+O"
 msgctxt "MainWindow"
 msgid "Ctrl+Shift+O"
 msgstr "Ctrl+Maiusc+O"
-
-msgctxt "MainWindow"
-msgid "Ctrl+←"
-msgstr "Ctrl+←"
-
-msgctxt "MainWindow"
-msgid "Ctrl+→"
-msgstr "Ctrl+→"
 
 msgctxt "player"
 msgid "The player cannot show video on this computer."
@@ -946,3 +914,171 @@ msgstr "RITARDO"
 msgctxt "MainWindow"
 msgid "SIZE & POSITION"
 msgstr "DIMENSIONE E POSIZIONE"
+
+msgctxt "MainWindow"
+msgid "Back to {}"
+msgstr "Torna a {}"
+
+msgctxt "MainWindow"
+msgid "Shift"
+msgstr "Spostamento"
+
+msgctxt "player"
+msgid "Untitled {}"
+msgstr "Senza titolo {}"
+
+msgctxt "player"
+msgid "Untitled"
+msgstr "Senza titolo"
+
+msgctxt "player"
+msgid "Smoke"
+msgstr "Fumo"
+
+msgctxt "MainWindow"
+msgid "Space / K"
+msgstr "Spazio / K"
+
+msgctxt "MainWindow"
+msgid "Jump to 0%–90%"
+msgstr "Salta allo 0–90%"
+
+msgctxt "MainWindow"
+msgid "Skip intro or credits"
+msgstr "Salta intro o titoli di coda"
+
+msgctxt "MainWindow"
+msgid "Shift+P / Shift+N"
+msgstr "Maiusc+P / Maiusc+N"
+
+msgctxt "MainWindow"
+msgid "Ctrl+← → / PgUp PgDn"
+msgstr "Ctrl+← → / PagSu PagGiù"
+
+msgctxt "MainWindow"
+msgid "Smaller / larger subtitles"
+msgstr "Sottotitoli più piccoli / più grandi"
+
+msgctxt "MainWindow"
+msgid "Next subtitle track"
+msgstr "Traccia sottotitoli successiva"
+
+msgctxt "MainWindow"
+msgid "Shift+C"
+msgstr "Maiusc+C"
+
+msgctxt "MainWindow"
+msgid "Reset the picture"
+msgstr "Ripristina l'immagine"
+
+msgctxt "MainWindow"
+msgid "Video"
+msgstr "Video"
+
+msgctxt "MainWindow"
+msgid "Interface size"
+msgstr "Dimensioni interfaccia"
+
+msgctxt "MainWindow"
+msgid "Off while your system asks for less motion"
+msgstr "Disattivate finché il sistema chiede meno movimento"
+
+msgctxt "MainWindow"
+msgid "VIDEO"
+msgstr "VIDEO"
+
+msgctxt "MainWindow"
+msgid "Speed"
+msgstr "Velocità"
+
+msgctxt "MainWindow"
+msgid "Show the time left"
+msgstr "Mostra il tempo rimanente"
+
+msgctxt "MainWindow"
+msgid "Listens to the film and moves the subtitles to match what is said"
+msgstr "Ascolta il film e sposta i sottotitoli per farli coincidere con il parlato"
+
+msgctxt "MainWindow"
+msgid "Show the length"
+msgstr "Mostra la durata"
+
+msgctxt "MainWindow"
+msgid "Shift+P"
+msgstr "Maiusc+P"
+
+msgctxt "MainWindow"
+msgid "Shift+N"
+msgstr "Maiusc+N"
+
+msgctxt "player"
+msgid "How much the glass blurs the picture behind it"
+msgstr "Quanto il vetro sfoca l'immagine dietro"
+
+msgctxt "player"
+msgid "How far each pane's rim bends the picture behind it"
+msgstr "Quanto il bordo di ogni pannello piega l'immagine dietro"
+
+msgctxt "player"
+msgid "How widely the rim splits light into its colours, as a prism does"
+msgstr "Quanto il bordo scompone la luce nei suoi colori, come un prisma"
+
+msgctxt "player"
+msgid "How brightly each pane's rim catches the light"
+msgstr "Quanto il bordo di ogni pannello cattura la luce"
+
+msgctxt "player"
+msgid "How far the glass darkens toward black, as smoked glass does"
+msgstr "Quanto il vetro si scurisce verso il nero, come un vetro fumé"
+
+msgctxt "player"
+msgid "How much of a bright scene the glass holds back, more the brighter it is"
+msgstr "Quanto il vetro trattiene di una scena luminosa, di più quanto più è luminosa"
+
+msgctxt "player"
+msgid "How dark the shadow each pane casts on the picture"
+msgstr "Quanto è scura l'ombra che ogni pannello proietta sull'immagine"
+
+msgctxt "player"
+msgid "How much the picture's edge is softened before it spreads"
+msgstr "Quanto il bordo dell'immagine viene ammorbidito prima di diffondersi"
+
+msgctxt "player"
+msgid "How far the picture's light reaches into the black bars"
+msgstr "Fin dove la luce dell'immagine arriva nelle bande nere"
+
+msgctxt "player"
+msgid "How quickly that light fades away from the picture"
+msgstr "Quanto rapidamente quella luce svanisce allontanandosi dall'immagine"
+
+msgctxt "player"
+msgid "How gently the light begins to fade"
+msgstr "Con quanta dolcezza la luce inizia a svanire"
+
+msgctxt "player"
+msgid "Brightness"
+msgstr "Luminosità"
+
+msgctxt "player"
+msgid "Contrast"
+msgstr "Contrasto"
+
+msgctxt "player"
+msgid "Saturation"
+msgstr "Saturazione"
+
+msgctxt "player"
+msgid "Gamma"
+msgstr "Gamma"
+
+msgctxt "player"
+msgid "How light the picture's middle tones are, leaving black and white"
+msgstr "Quanto sono chiari i toni medi dell'immagine, senza toccare il nero e il bianco"
+
+msgctxt "MainWindow"
+msgid "Enter"
+msgstr "Invio"
+
+msgctxt "player"
+msgid "."
+msgstr ","

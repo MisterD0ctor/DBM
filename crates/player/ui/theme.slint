@@ -13,8 +13,14 @@ import "../fonts/IBMPlexMono-Medium.ttf";
 /// on the accessibility page can turn all of them to zero at once. The two
 /// tip delays are not motion, and keep their length.
 export global Motion {
-    /// Written only from the saved setting at startup and by the switch.
-    in-out property <bool> enabled: true;
+    /// The settings' Animations switch: written from the saved setting at
+    /// startup and by the switch.
+    in-out property <bool> chosen: true;
+    /// Whether the desktop asks for less motion (see `platform::motion`).
+    in-out property <bool> system-still: false;
+    /// Whether anything moves: only if neither asks for stillness, since
+    /// either is somebody saying motion is a problem for them.
+    out property <bool> enabled: Motion.chosen && !Motion.system-still;
 
     /// The wash arriving under the pointer, for every hover highlight alike:
     /// one gesture at different speeds makes an interface feel loose. Short,
@@ -47,27 +53,26 @@ export global Motion {
     out property <duration> tip-grace: 300ms;
 }
 
-/// Every colour in the interface: white at a few alphas, and one dark knob.
+/// Every colour in the interface: white at a few alphas, and one dark, for a
+/// switch's knob and a field's well.
 /// Kept in one place because values written at each use drift apart.
 export global Paint {
     // --- text and glyphs ------------------------------------------------------
     //
-    // Every word is on one of two steps, Lit or the one Strong and Body share,
-    // because the glass is held dark enough for the lowest step of text to
-    // read on it over a bright frame (see `legible_ceiling`), and a dimmer
-    // step held it darker than the glass should look. Below them, Quiet is for
-    // marks and Dim for a glyph with nowhere to go, and neither is ever text.
-    //
-    // Roles that already differ by place, case, size or tracking share a step
-    // rather than get a near-copy of one.
+    // Every word is the same full white. The glass is held dark enough for
+    // the dimmest word to read on it over a bright frame (see
+    // `legible_ceiling`), and any word a step under white held it darker than
+    // the glass should look. Lit, Strong and Body name what a word is for, so
+    // a call site says so; weight, size and place are what tell them apart on
+    // screen. Below them, Quiet is for marks and Dim for a glyph with nowhere
+    // to go, and neither is ever text.
 
     /// The active state, and where the pointer or the keyboard is: the current
-    /// row, a hovered chevron, the flash, the end-of-file prompt. Also every bar
-    /// glyph that can be pressed, which at a lower step reads as greyed out
-    /// over a bright frame.
+    /// row, the flash, the end-of-file prompt. Also every bar glyph that can be
+    /// pressed, which at a lower step reads as greyed out over a bright frame.
     out property <color> lit: #ffffff;
-    /// Text that leads: the media title, times and values, a fatal headline,
-    /// and a resume measure's fill.
+    /// Text that leads: the media title, times and values, a fatal headline;
+    /// and a resume measure's fill and an off switch's knob.
     out property <color> strong: #ffffff;
     /// Every other word: row labels, section headings, a show's name, a row's
     /// icon, and what sits beside or under them, such as a shortcut's keys, a
@@ -75,7 +80,8 @@ export global Paint {
     /// the glass's ceiling is worked out from.
     out property <color> body: #ffffff;
     /// A mark on or beside a track: a chapter's dot ahead of the played
-    /// length, the volume's unity dot off the fill, a scroll thumb.
+    /// length, the volume's unity dot off the fill and a picture slider's
+    /// middle at none, a scroll thumb.
     out property <color> quiet: #ffffffa0;
     /// A bar button with nowhere to go, the one mark meant to look greyed out.
     out property <color> dim: #ffffff80;
@@ -87,10 +93,16 @@ export global Paint {
     out property <color> played: #fffffff2;
     /// The filled length of a slider or the volume; a lit switch track.
     out property <color> fill: #ffffffcc;
-    /// The unfilled length of every track, switch and measure.
+    /// The unfilled length of every track, switch and measure, and the rim
+    /// round a field's well.
     out property <color> rail: #ffffff2e;
     /// Dark on a lit switch track, so the knob reads as a hole punched in it.
     out property <color> knob: #101010e6;
+    /// A field's well, the slot words are typed into: a smoke of the knob's
+    /// dark over the glass, which darkens what is under it by the same share
+    /// over every frame, so the frame still shows through and the words stand
+    /// further off it than off the glass.
+    out property <color> well: #1010104d;
     /// The window before a frame exists.
     out property <color> ground: #000000;
 
@@ -101,17 +113,19 @@ export global Paint {
     // alike and nothing shows which row Enter will press.
 
     /// Where the keyboard is, on a row or a pill's choice. A wash rather than
-    /// a ring, because nothing else in the interface draws an outline; on a
-    /// bar button it also stands on a disc of glass of its own.
+    /// a ring, because nothing in the interface draws an outline but a
+    /// field's rim; on a bar button it also stands on a disc of glass of its
+    /// own.
     out property <color> wash-ring: #ffffff54;
     /// A button whose panel is open, a hovered stepper disc. A step under the
     /// ring's, so the button a panel came from and the keyboard's place can't
     /// be taken for each other.
     out property <color> wash-strong: #ffffff34;
-    /// A hovered icon button, or a choice on the end-of-file pill. Never on a
-    /// row, so it never has to be told apart from the row washes.
+    /// A hovered icon button, a stepper's disc at rest, or a choice on the
+    /// end-of-file pill. Never a row's, so it never has to be told apart from
+    /// the row washes.
     out property <color> wash-button: #ffffff24;
-    /// A hovered row of any kind; a stepper disc at rest; a scroll bar's rail.
+    /// A hovered row of any kind; a scroll bar's rail.
     out property <color> wash-soft: #ffffff14;
 
     // --- on the keyboard's ring --------------------------------------------------
@@ -126,7 +140,7 @@ export global Paint {
     in-out property <bool> glass: true;
     /// Words, glyphs, fills and the active mark on the ring.
     out property <color> on-ring: Paint.glass ? Paint.knob : Paint.lit;
-    /// A rail on the ring, a well, or a disc at rest.
+    /// A rail on the ring, a well and its rim, or a disc at rest.
     out property <color> on-ring-rail: Paint.glass ? #1010102e : Paint.rail;
     /// A wash on the ring: a hovered disc, the question a remove asks.
     out property <color> on-ring-wash: Paint.glass ? #10101034 : Paint.wash-strong;
@@ -185,7 +199,7 @@ export global Type {
     /// because at 400 the 13–14px lines read thin over glass, and Plex's 450
     /// Text weight was not quite enough.
     out property <int> weight-plain: 500;
-    /// Title and Prompt.
+    /// Title and Prompt, and the way in's *Continue*.
     out property <int> weight-title: 600;
     /// The current row in a list.
     out property <int> weight-current: 700;
@@ -212,6 +226,10 @@ export global Rows {
     /// so text sits inside the wash rather than on its rim.
     out property <length> label-x: Rows.gap + 14px;
     out property <length> trail-x: Rows.gap + 10px;
+    /// How far a row's chevron or Play glyph leans the way the row goes while
+    /// the pointer is on it. Words and glyphs are already full white, so a
+    /// hover can't light them; a lean is a change you see without one.
+    out property <length> lean: 2px;
     /// Space before a row that isn't part of the list above it, such as a
     /// reset or a setting about the list, so it isn't read as one more entry.
     /// The row gap, since that is already the space between ideas.

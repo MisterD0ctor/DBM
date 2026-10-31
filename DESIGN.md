@@ -11,6 +11,7 @@ colors:
   fill: "#ffffffcc"  # Paint.fill
   rail: "#ffffff2e"  # Paint.rail
   knob: "#101010e6"  # Paint.knob
+  well: "#1010104d"  # Paint.well
   ground: "#000000"  # Paint.ground
   wash-ring: "#ffffff54"  # Paint.wash-ring
   wash-strong: "#ffffff34"  # Paint.wash-strong
@@ -149,7 +150,7 @@ components:
   stepper-button:
     size: "26px"  # StepButton.width
     rounded: "13px"  # StepButton.width / 2
-    backgroundColor: "{colors.wash-soft}"
+    backgroundColor: "{colors.wash-button}"
     textColor: "{colors.strong}"
   stepper-button-hover:
     backgroundColor: "{colors.wash-strong}"
@@ -210,7 +211,8 @@ parameters, and the rim behaves like a rim because it is one.
 
 The consequence is that this system has almost no palette. Colour comes from
 whatever is playing. The interface is white at a handful of alphas and full
-white, a single near-black switch knob, and — before anything is loaded — the
+white, one near-black for a switch's knob and a field's well, and — before
+anything is loaded — the
 dimmed light of the last film left unfinished. Even the
 letterbox is not neutral: the ambient border extends the frame's own edge
 colours outward, so a red scene bleeds red into the bars. Nothing here is tinted
@@ -225,50 +227,52 @@ sides of every row, and panels that hold at most a heading and a list.
 **Key Characteristics:**
 - Real per-pixel refraction, not a translucent blur panel
 - No palette of its own; colour is the film's
-- Text on five alpha steps, 0x20 apart, from a floor that does not move; the
-  ordinary run of it shares the second step from the top
+- Every word in one white, told apart by weight, size and place; alpha steps
+  are for marks, built up from a floor that does not move
 - One radius rule: every corner nests concentrically inside its parent
 - Motion is short, eased out, and never bounces
 - Uppercase for the interface's own labels, natural case for the user's content
 
 ## Colors
 
-A single hue — white — at an alpha ladder, over live video. The ladder *is* the
-hierarchy; there is no second colour to promote anything with. Every colour
+A single hue — white — over live video. Every word is full white, and what tells
+one from another is weight, size and place; under the words, marks step down in
+alpha to a floor. There is no second colour to promote anything with. Every colour
 is named once, in the `Paint` global in `theme.slint`, and nowhere else in the
 interface is one written out. The values are in the front matter.
 
 ### Primary
-- **Lit** (`Paint.lit`): the active state, and where the hand or the keyboard
-  is. A selected track, the playing episode, a hovered chevron, the words of
-  the row the keyboard is on, the flash and the end-of-file prompt; and every
-  bar glyph that can be pressed, since over a bright frame anything less reads
-  as greyed out. Full white is the system's only emphasis.
+- **Lit** (`Paint.lit`): full white. Named for the active state and where the
+  hand or the keyboard is — a selected track, the playing episode, the flash
+  and the end-of-file prompt — and every bar glyph that can be pressed, since
+  over a bright frame anything less reads as greyed out. It is the white every
+  word is, so none of these is told by colour: the active state by weight and
+  the active mark, the hand's place by a wash or a lean, the keyboard's by its
+  pane.
 
 ### Neutral
 
-**Text and glyphs**: steps 0x20 of alpha apart, built upward from the floor,
-Dim. The top step falls one short: Lit is full white, and 0x20 above Strong
-does not exist in eight bits. Every step that can keep the rule does. Words use
-only the top two, Lit and the step Strong and Body share; the two under them
-are marks (see The Bright Text Rule):
+**Text and glyphs**: every word is Lit's white. Strong and Body are roles, named
+for what they hold so the code says what each word is for, and both are full
+white (see The Bright Text Rule). Under them, two steps for marks, 0x20 of alpha
+apart and built upward from the floor, Dim:
 
 - **Strong** (`Paint.strong`): text that leads. The media title, the elapsed
   and total times, the timestamp under a seek preview, a stepper's value and
-  its minus and plus, a fatal headline, and the fill of a resume measure.
+  its minus and plus, a fatal headline; and two marks, the fill of a resume
+  measure and an off switch's knob.
 - **Body** (`Paint.body`, Strong's step): every other word. Row labels and
   menu items, switch labels, a hover label's name and key, a slider's label and
   value, a stepper's label, a driver's error text; every section heading and its
   icon, and a show's name in the same slot; back rows and drill rows; and what
   sits beside or under any of them: a shortcut's keys, a playlist row's running
   time, a search result's language, the speed beside the title, the prose hints,
-  and text stating an absence. It shares Strong's step because it is the text
-  there is most of, and a step lower read grey over a bright frame; a role moves
-  on this ladder onto an existing step, never between two. Leading text is told
-  from it by place, size and weight, and what sits beside it by place and size.
+  and text stating an absence. It is the text there is most of, and a step
+  under white read grey over a bright frame. Leading text is told from it by
+  place, size and weight, and what sits beside it by place and size.
 - **Quiet** (`Paint.quiet`): a mark on or beside a track. A chapter's dot ahead
-  of the played length, the unity dot where it sits off the volume fill, a
-  scroll thumb. Never text.
+  of the played length, the unity dot where it sits off the volume fill and a
+  picture slider's middle while it is at none, a scroll thumb. Never text.
 - **Dim** (`Paint.dim`): the glyph of a bar button with nowhere to go
   (Previous on the first file, Next on the last) and nothing else: the one
   mark meant to look greyed out. **The floor**: see below.
@@ -278,13 +282,19 @@ are marks (see The Bright Text Rule):
 - **Played** (`Paint.played`): the played length of the timeline — the one
   near-solid white that reads as a measurement rather than as text.
 - **Fill** (`Paint.fill`): the filled length of the volume track and every
-  settings slider, a lit switch track, and an unlit switch's knob.
+  settings slider, and a lit switch track.
 - **Rail** (`Paint.rail`): the unfilled length of every track, switch and
-  measure.
-- **Knob** (`Paint.knob`): the only non-white in the system. A dark disc on a lit
+  measure, and the rim round a field's well.
+- **Knob** (`Paint.knob`): the one dark in the system, which Well only thins. A dark disc on a lit
   switch track, so the knob reads as a hole punched through it; the unity dot
   where it sits on the fill; and everything that stands on the keyboard's
   ring, which is milk glass (see On the ring, below).
+- **Well** (`Paint.well`): the knob's dark, thinner, as the slot a field's words
+  are typed into: a smoke of 30% laid over the glass, after its hold, so it
+  darkens what is under it by the same share over every frame and the frame
+  still shows through. A light wash there sank into the glass over a bright
+  frame and lightened what the white words stood on; a dark one stands off the
+  glass and puts the words further from it.
 - **Ground** (`Paint.ground`): the window before a frame exists.
 
 **Washes** — four, and the three a row or a bar button can wear sit 0x20 apart:
@@ -296,11 +306,12 @@ are marks (see The Bright Text Rule):
 - **Strong wash** (`Paint.wash-strong`): a hovered stepper disc or remove disc;
   and with no glass, the held background of a button whose panel is open,
   which under glass is a disc of its own (see Icon buttons).
-- **Button wash** (`Paint.wash-button`): a hovered icon button, and a hovered choice on
-  the end-of-file pill. Never on a row, so it never has to be told apart from
-  the washes either side of it.
+- **Button wash** (`Paint.wash-button`): a hovered icon button, a stepper's disc
+  at rest, and a hovered choice on the end-of-file pill. Never a row's, so it
+  never has to be told apart from the washes either side of it. The disc took
+  it from the Soft wash, under which it all but vanished over a bright frame.
 - **Soft wash** (`Paint.wash-soft`): the inset highlight behind a hovered row of any
-  kind; a stepper disc at rest; a scroll bar's rail; and the one panel fill in
+  kind; a scroll bar's rail; and the one panel fill in
   the system, on the way in where there is no glass (see Elevation & Depth).
 
 **On the ring** — the keyboard's ring is milk glass, light over every frame
@@ -311,14 +322,14 @@ while `Paint.glass` holds:
 
 - **On ring** (`Paint.on-ring`): words, glyphs, fills and the active mark on
   the ring — Knob.
-- **On ring rail** (`Paint.on-ring-rail`): a rail, a well, or a stepper's disc
-  at rest on the ring.
+- **On ring rail** (`Paint.on-ring-rail`): a rail, a well and its rim, or a
+  stepper's disc at rest on the ring.
 - **On ring wash** (`Paint.on-ring-wash`): a hovered disc on the ring, and the
   question a remove asks.
 - **On ring knob** (`Paint.on-ring-knob`): a lit switch's knob on the ring,
   light on its dark track.
 
-The row washes keep the Two-Step Rule the text keeps: closer, a hand resting in
+The row washes keep the Two-Step Rule: closer, a hand resting in
 a panel and the keyboard walking it would light two rows in one colour, and
 nothing would say which one Enter presses; and on the bar the keyboard's place
 would look like a panel left open. The rail is a mark with a value of its own,
@@ -331,21 +342,17 @@ a brand colour, a semantic red/green, or an accent to this palette is a proposal
 to stop the film from being the only source of colour on screen. Status is
 carried by alpha and by glyph, never by hue.
 
-**The Two-Step Rule.** Adjacent text steps differ by at least 0x20 of alpha,
-with the one exception arithmetic forces on the ladder's top rung — see above,
-and do not "fix" it by moving Strong down, which would spend a real step to
-satisfy a rule about the one gap nobody can widen.
-Closer than that and the hierarchy stops reading over moving video, where the
-backdrop changes faster than the eye can calibrate.
+**The Two-Step Rule.** Adjacent alpha steps — the marks', the washes' — differ
+by at least 0x20. Closer than that and the difference stops reading over moving
+video, where the backdrop changes faster than the eye can calibrate.
 
-Two steps cannot give every text role a value of its own, and should not:
-**a new role takes an existing step.** Roles that sit in different places, or that differ by
-case, size or tracking, share one rather than wear a near-copy of it. A new step
-is only admissible with 0x20 clear on both sides, and there is no room left for
-one.
+Words have no steps to keep apart, and should not get them back: **a new text
+role is white**, told from the others by case, size, weight, tracking or place,
+never by a near-copy of the white. A new mark step is only admissible with 0x20
+clear on both sides.
 
-**The Bright Text Rule.** No word sits under Body's step. The glass is held dark
-enough for the lowest step of text to read on it over a bright frame, so every
+**The Bright Text Rule.** No word is less than full white. The glass is held dark
+enough for the dimmest word to read on it over a bright frame, so every
 step lower darkens every pane over every bright scene: with a row's running time
 and a shortcut's keys at Quiet, the glass over white would be held to a dark
 smoked grey that reads as tint rather than as glass. How the glass looks comes before a
@@ -353,13 +360,16 @@ second, quieter level of words. What sits beside a row's name is told from it
 by place and by size instead, at Readout or Hint, a size under Body. The one
 place words are dark is the keyboard's ring, which is not a dimmer step but the
 ladder turned over on milk glass, and holds no glass down: the milk is lifted
-after the hold, not held for them.
+after the hold, not held for them. The one time words fade is while an open is
+in flight, when the way in's rows that would start another stand at half (see
+the way in): not a step but a moment's pause, over a backdrop the pass has
+already dimmed, beside a line naming what is arriving.
 
 **The Fixed Floor Rule.** The ladder is built upward from Dim (`Paint.dim`), and
 Dim does not move: retuning the ladder means moving the steps above the floor,
 never the floor. Dim is the one step meant to look greyed out and Quiet is for
-marks, so neither is what the glass is held to; that is Body, the lowest step
-that is ever text (see The Legible Glass Rule).
+marks, so neither is what the glass is held to; that is Body, the white every
+word is (see The Legible Glass Rule).
 
 ## Typography
 
@@ -373,8 +383,8 @@ display type anywhere in the product.
 interface read thin over glass, where the picture behind eats into every
 stroke. Plex's in-between Text weight was not quite enough; Medium gives the
 rows body without looking bold. It does bring plain within a step of the
-Title's weight, so the Title and the playing row lean on their Lit alpha and
-their place as well as on weight.
+Title's weight, so the Title and the playing row lean on their place, and the
+playing row on its active mark, as well as on weight.
 
 **Character:** quiet, not anonymous; an instrument's lettering rather than a
 brand's. The interface never speaks above the film, so the type is sized,
@@ -553,8 +563,13 @@ room the title could have, not the room it has, which the choice itself would
 change.
 
 **Panels** open `Rows.offset` above the bar, anchored to the button
-that opened them and kept inside the same margins. Their widths are the
-`width` of `menu`, `audio-panel`, `playlist-panel`, `settings` and
+that opened them and kept inside the same margins. The tracks', the audio's
+and the playlist's rows are names someone else wrote, an episode's title or a
+release's, so those three are `MainWindow.list-w` wide: a third of the window,
+never narrower than `MainWindow.list-min-w` nor wider than
+`MainWindow.list-max-w`, so a bigger window shows more of each name rather
+than more film beside a cut-off one. The settings and Open hold the
+interface's own short words and keep the `width` of `settings` and
 `files-panel` in `MainWindow`. Only one is ever open. Each is capped at the
 space between the bar and the window's top, less the same margin it keeps from
 the window's sides, so a panel at its tallest is framed evenly. Any list inside
@@ -668,7 +683,7 @@ not move, and one resting in the letterbox comes all the way up. The case
 that made this necessary is pausing to read a line, which holds the bar up over
 exactly that line. The one exception is setting the Position: from its first
 press the line goes down to where it rests, so the stepper moves what is being
-looked at, and it comes back up when Size or Timing is stepped, or the page
+looked at, and it comes back up when Size or Shift is stepped, or the page
 is left — those two are set by reading the line. The readout always shows where
 the line was put, never where the bar has moved it.
 
@@ -699,7 +714,9 @@ a bright frame, too little to read as a smudge over a dark one.
 Every surface opts into the tint, and with it absorption: the transmitted part
 of the glass darkens as the frame behind it brightens, on a smooth curve rather
 than a threshold, so white text keeps a ground over a white scene. Both are
-settings: the pull toward the tint colour, and Dimming — how much of a white
+settings: Smoke, the pull toward the tint colour, which is black, so the slider
+is named for the glass it makes rather than for an amount of an unnamed
+colour; and Dimming — how much of a white
 backdrop the pane absorbs, a darker one losing less along a hyperbola and black
 losing nothing. Turned down, the pane clears.
 
@@ -888,10 +905,10 @@ then. On Windows, Windows 11 rounds them itself. Nothing inside nests with
 them: the bar and the window's buttons stand far enough in that no corner of
 theirs comes near the cut.
 
-There are no borders anywhere, and no hairlines. Where a state would
-conventionally be drawn as an outline — the keyboard's position — it is carried
-by a pane of milk glass of its own instead, lighter than the glass it lies on
-over every frame.
+There are no borders and no hairlines, but one: the rim round the sign-in's
+fields (see Fields). Where a state would conventionally be drawn as an
+outline — the keyboard's position — it is carried by a pane of milk glass of
+its own instead, lighter than the glass it lies on over every frame.
 
 ### Named Rules
 
@@ -903,10 +920,15 @@ white one, where that glass is as light as it ever gets — and still carries a
 little of the frame's colour. What stands on it is drawn dark (see On the
 ring). With white words it could not be done: the glass is held as light as
 white words allow, so a ring as light as that matched it and showed only its
-lit rim, an outline, the one thing this interface does not draw; and a ring
+lit rim, an outline, which this interface draws only round a field; and a ring
 that went darker over bright glass and lighter over dark turned over as the
 frame changed, and at one grey was that grey. Milk glass with dark words is
-the same way round on every frame. Its rim is lit at `pipeline.RING_RIM`
+the same way round on every frame. It shows while the keyboard is in use,
+and on one more occasion: a pill that arrives with an offer — the title
+sequence's, the credits', the way back after a jump, the question at a file
+left part way, the end of a file — arrives with the pane on it, so where Enter
+goes is shown before a key is pressed. The way in's *Continue* does without,
+being the first row of a panel nothing else is in. Its rim is lit at `pipeline.RING_RIM`
 whatever the Rim slider says, and the pane is real glass, refracting the frame
 on its own. It casts no shadow, and never
 reaches past the pane it lies on, which a page sliding in would otherwise
@@ -952,10 +974,12 @@ by under a pixel at the corner.
   A held wash went unseen over a bright frame, where the bar's glass is
   already as light as it may be. With the glass switched off it is the Strong
   wash and the glyph stays Lit.
-  A button that opens something does not also show a state, because a glyph
-  that lights like a switch is clicked like one. The subtitles button wears the
-  plain subtitles mark, and its menu's *Off* row is where subtitles go off;
-  the audio button wears Speaking, the mark over its panel's heading.
+  A button that opens something shows a state only where the state is worth
+  seeing without opening it. The subtitles button wears the solid subtitles
+  mark while they show and the outline while they don't, as YouTube's does,
+  since whether they are on is the one thing about them people look for; it
+  still opens the menu, whose *Off* row and C are the switch. The audio button
+  wears Speaking, the mark over its panel's heading, and no state.
 - **Focus:** a disc of glass laid on the bar (`MainWindow.ring-disc`), while
   the keyboard is on it: see The Ring Pane Rule. With the glass switched off
   the Ring wash is the whole of it, a step over the open one.
@@ -1026,7 +1050,10 @@ by under a pixel at the corner.
   `MainWindow.glyph-inset` either side: a time at its full width starts and
   ends where the end buttons' drawings do, and one past the hour keeps the same
   air. Sized from the length rather than the time played, so it is set when a
-  film opens and the row does not shift when the time played passes the hour
+  film opens and the row does not shift when the time played passes the hour.
+  A click on the right one turns it between the film's length and what is
+  left of it, `−12:34`, as most players do, and the choice is kept; so is it
+  on the video page's *Show the time left*
 - **Track:** at Rail, growing under the pointer or a drag (`MainWindow.timeline-rail`,
   over `Motion.track-grow`); the played length at Played, sized by
   width so it stays crisp, and never taller than it is long, as a slider's
@@ -1048,18 +1075,28 @@ by under a pixel at the corner.
 - **Chapters:** a dot at each chapter start, the unity dot's shape and its
   rule — Knob where the played length covers it, Quiet ahead of it. None at
   the very start, which is the start rather than a boundary, and none at all
-  for the many files without chapters.
+  for the many files without chapters. The seek preview names the chapter
+  under the pointer, where the file names it.
 
 ### Volume
 - **Track:** `MainWindow.vol-w` long, at Rail, growing like the timeline's
   (`MainWindow.vol-rail`), filled at Fill across mpv's full 0–200% range, never taller
-  than it is long; empty at zero or muted. A mute fades the fill out and an
+  than it is long; empty at zero or muted. Normal, 0–100%, takes the first
+  three quarters, where nearly every film is listened to, and the boost for a
+  quiet one the last quarter. A mute fades the fill out and an
   unmute fades it back in, over `Motion.switch` as a switch's track turns,
   so the press is answered on the track as well as by the glyph.
-- **Unity dot:** a dot, not a line, at 100%. A line the height of the track
-  divides it into two ranges; a dot is a landmark on one. It reverses against
-  the fill the way the switch knob does: Knob on the fill, Quiet off it, and
-  turns as the fill fades.
+- **Dragging:** a press puts the level under the pointer; a drag from there
+  moves it at one rate the whole way, the rate normal is drawn at, so the
+  same move of the hand always changes it by the same amount. The boost is a
+  quarter of the track for as much again, so it is reached by dragging on past
+  the track's end, which a drag can, and the fill moves slower than the hand
+  there. Passing 100% it holds there for a few pixels, so normal is easy to
+  land on and the boost a step to take.
+- **Unity dot:** a dot, not a line, at 100%, three quarters along. A line the
+  height of the track divides it into two ranges; a dot is a landmark on one.
+  It reverses against the fill the way the switch knob does: Knob on the fill,
+  Quiet off it, and turns as the fill fades.
 - **Wheel:** `commands.VOLUME_STEP` a notch, over the track and nowhere else. Over the
   picture the wheel wakes the bar and changes nothing, so a brushed wheel or
   fingers resting on a touchpad can't reach the loudest control in the player.
@@ -1114,7 +1151,8 @@ by under a pixel at the corner.
 - **Timing's row** says how far off the timing is, as a figure before its
   chevron — *0.30 s later* — so a film synced last week reads so without
   opening the page; nothing while it is untouched
-- **TIMING:** *Sync to speech*, then *Timing*, a stepper
+- **TIMING:** *Sync to speech*, then *Shift*, a stepper: named for what its
+  discs do to the line rather than again for the page it stands on
 - **SIZE & POSITION:** *Size* and *Position*, steppers, then *Reset to
   defaults* under a group gap
 - **The readout says which way:** *0.30 s later*, *0.30 s earlier*, and
@@ -1141,7 +1179,12 @@ by under a pixel at the corner.
   the results or what came of it: *No subtitles found*, or why it could not
   ask, in a line rather than a notice, since the page that asked is the
   one on screen
-- **A result:** the release it was timed against at Body, eliding, and beside
+- **A result:** the release it was timed against at Body, eliding, from
+  where it stops naming what is playing: past the show and an episode marker
+  that is this episode's, or past a film's title and year
+  (`naming::past_named`), since every result shares that and releases differ
+  only after it, so read whole each line was cut off before the part that
+  tells it from the next. A marker for another episode stays. Beside
   it at Body in Readout size its language by its own name and what sets it
   apart: *Exact* for one found by the file's hash, timed for this very copy,
   which all come first; SDH; *Machine* for a machine translation. Pressed, the
@@ -1177,7 +1220,9 @@ by under a pixel at the corner.
 - **The page:** SIGN IN TO OPENSUBTITLES, so it is plain whose account it
   wants; then why it opened, the refusal in the Hint role on as many as two
   lines; then, a group gap below, a field for the username and one for the
-  password, *Sign in and download*, and under them why the last try failed.
+  password, *Sign in and download* with the Account icon, which marks it as
+  the thing to press rather than one more line of the note, and under them
+  why the last try failed.
   The ring opens on the username, which has the keyboard, since typing is
   what comes next
 - **Then:** signing in goes back to the search, on the result that asked,
@@ -1192,9 +1237,13 @@ by under a pixel at the corner.
 
 ### Fields
 - **Shape:** a row, `Rows.row` tall, its label at Body and beside it a well
-  to type in: a capsule of the Soft wash, with no line round it, since
-  nothing here is drawn with one. The labels share one column, as wide as
-  the wider of them in the language spoken, so the wells start together
+  to type in: a capsule of Well with a one-pixel rim of Rail, the one outline
+  in the interface (see the Don'ts). The tint stands off the glass over a
+  bright frame and sinks into it over a dark one, where nothing else would say
+  where the words go; Rail is light enough to show there and faint enough to
+  stay a mark. On the ring both are On ring rail. The labels share one column,
+  as wide as the wider of them in the language spoken, so the wells start
+  together
 - **Typing:** the words in Lit, and the label lit while the field has the
   keyboard. The ring's keys stay the ring's: Up, Down and Tab walk the page,
   Enter moves from the name to the password and from the password sends,
@@ -1211,15 +1260,17 @@ by under a pixel at the corner.
 ### Removing a track
 - **Which:** any track that came from a file of its own — fetched, dropped,
   or found beside the film — subtitle or audio. A film's own tracks have none
-- **The button:** Trash at the row's trailing edge, in a disc: at Body, Lit
-  with a Strong wash under the pointer. What takes the click is the row's full
+- **The button:** Trash at the row's trailing edge, in a disc: at Body, with
+  a Strong wash under the pointer. What takes the click is the row's full
   height from just before the disc to the row's end, since a click just off a
   small disc would choose the track instead, the one miss that does the
   opposite. It sits over the row's own press, so taking a track out
   never chooses it first; the label elides short of it
 - **Keyboard:** Delete on the row the ring is on. Listed with the shortcuts
 - **Two presses:** the first asks *Remove?* beside the button, with Warning in
-  the disc, for `MainWindow.armed-for`; the second removes. The name stays,
+  the disc, for `MainWindow.armed-for` once nobody is reading it: the wait
+  holds while the pointer or the ring is on the row and starts once they
+  leave, so nobody is timed out of an answer; the second removes. The name stays,
   since it is what says which track the press would take; it elides short of
   the question, and a press on the question is a press on the button. The
   question stands on a Strong wash running from it to the button, which drains
@@ -1240,7 +1291,10 @@ by under a pixel at the corner.
   reads as a column; empty for a file never opened and not yet described.
   A file that would not play wears the Warning mark there instead, without
   the measure, for the rest of the run: the mark alone, since words would take
-  width from the title
+  width from the title. Why it would not play is said again, as the notice
+  that said it the first time, beside the panel, once the pointer or the ring
+  has rested on the row as long as a tip waits (`Motion.tip-delay`): once each
+  time the row is come to, so passing down the list raises nothing
 - **Order:** the order a person watches in. A show's files by season and
   episode, kept together where the first of them falls by name; everything
   else by name with digit runs read as numbers and case ignored, so two
@@ -1385,7 +1439,7 @@ the ends of its rail.
 playing, the season holding it, the track in use — but the wheel takes it
 away, and then nothing on the panel says which way it went. So while it is
 out of sight an angle points to it (`way.ICON`), centred across the list and
-level with the row at that end, at Body, and Lit with a circle of Button wash
+level with the row at that end, at Body, with a circle of Button wash
 (`way.CIRCLE`) behind it under the pointer, eased in over `Motion.highlight`.
 It fades by
 where the row is, not on a clock: it starts going as the row's nearer edge
@@ -1417,6 +1471,37 @@ It is drawn by the player rather than by Slint, on the finished frame — see
 rows: what they thin away to is the frame underneath, whatever the film is
 doing in it.
 
+### The settings tree
+- **The first page:** three groups of drill rows. PLAYBACK, first, since how
+  the film plays is what is most often reached for mid-film: *Video*. Then
+  EFFECTS, the player's own look: *Liquid glass* and *Ambient border*. Then
+  INTERFACE: *Accessibility*, *Shortcuts* and *Language*
+- **VIDEO:** *Speed*, a stepper on the ladder `<` and `>` climb, so the
+  pointer has a way to it too; *Fill the window*, the bar's T as a switch; and
+  *Show the time left*, the timeline's right end as a switch. Then, between
+  group gaps, the picture as mpv draws it, *Brightness*, *Contrast*,
+  *Saturation* and *Gamma*, each from -100 to 100 and none by default, read
+  as `+10` or `−20` and filled out from the middle of the track, where none of
+  it is, which a dot marks as the volume's unity is marked: Quiet off the fill,
+  Knob where the fill runs out of it; and *Reset the picture*, which leaves the rows above it alone. A
+  preference, as the subtitles' size is, not a film's: what a screen or a
+  room needs, every film needs
+- **ACCESSIBILITY:** *Interface size*, a stepper from 100% to 150% in tenths,
+  on top of whatever the system's display scaling does (`interface::scale`):
+  everything grows together, the glass with it, and the window's own floor
+  grows in step, the window growing to it where it is smaller. The stepper
+  stops at the largest size whose floor the display holds, which on a 1080p
+  screen is all of them and on a 1366×768 one is 140%, so the layout is never
+  drawn smaller than it is laid out for, even in fullscreen. Then
+  a group gap and the switches, with a line under Animations while the
+  desktop is the one holding motion off (see Motion)
+- **Hints:** a slider whose name is a word of the trade, the glass's and the
+  border's and Gamma, says what it does once the pointer or the ring has
+  rested on its row as long as a tip waits (`Motion.tip-delay`): a sentence
+  beside the panel, level with the row, on the surface notices use, held while
+  the row is rested on and gone when it is left. *Sync to speech* has one too.
+  They are tips, so Tooltips turns them off with the rest
+
 ### Sliders
 - **Row:** `Rows.slider-row`; a row icon at Body, as a stepper has, then the
   label at Body in Readout size, in one column on both pages as wide as the
@@ -1436,13 +1521,14 @@ doing in it.
   inside. Its edge is at the value all the way down, and at zero there is
   nothing. The smallest are drawn square, with nothing left to round. The
   timeline and the volume follow the same rule
-- **Readout:** precision taken from the parameter's *range* rather than its
-  value — three decimals on a 0–0.1 edge blur, none on a 0–100 blur
+- **Readout:** how far along its range the slider is, in whole per cent —
+  *Edge blur 7%*, not the shader's 0.007, which says nothing to someone tuning
+  by eye, so the figure and the fill always agree
 - **Focus:** the row takes the ring's pane, and its icon, name, value, rail
   and fill go dark on it; the sliders have no hover wash, since the growing track
   already answers the pointer
-- **Keys:** ← and → move it a hundredth of its range, which the readout's
-  precision always shows
+- **Keys:** ← and → move it a hundredth of its range, one per cent of the
+  readout
 
 ### Steppers
 - **Row:** `Rows.stepper-row`; a row icon and the label at Body in Readout
@@ -1466,18 +1552,21 @@ doing in it.
   capsule one of those meetings is the middle of each end, so at this size the
   ends come to a point. A picture is rendered at the size it is shown, curve
   and all
-- **On:** track at Fill, knob at Knob; **off:** track at Rail, knob at Fill —
+- **On:** track at Fill, knob at Knob; **off:** track at Rail, knob at Strong —
   dark on the lit track, light on the dark one, so the knob reads as a hole
-  punched through it either way. On the keyboard's ring the switch is turned
+  punched through it either way. Full white off, since over a bright frame the
+  Rail track all but sinks into the glass and the knob is what is left to read
+  the switch by: at Fill it stood 2.65:1 off the track, at white 3.5:1. On the keyboard's ring the switch is turned
   over with everything else on it: on, track at On ring and knob at On ring
   knob; off, track at On ring rail and knob at On ring
 - **Motion:** `Motion.switch` ease-out on the knob and on the track colour
 - **Hover:** Soft wash; one target for the whole row
 - **Use:** Autoplay under the playlist; Ambient border at the head of its own
-  page, over the sliders that tune it, since whether comes before how; and
+  page, over the sliders that tune it, since whether comes before how; *Fill
+  the window* and *Show the time left* under the speed on the video page; and
   Animations, Darken bright glass, Tooltips and Shortcuts in tooltips on the
-  accessibility page — a page of switches and no reset, because each switch is
-  its own undo. B still turns the border on and off from anywhere, as the one
+  accessibility page under its *Interface size* — a page with no reset,
+  because each row is its own undo. B still turns the border on and off from anywhere, as the one
   effect worth changing mid-film
 - **Dependent:** a switch about something another switch has turned off is
   not there, rather than faded: a faded label would be the one word on the
@@ -1488,7 +1577,11 @@ doing in it.
 
 ### Drill rows
 - **Row:** `Rows.row`; a row icon and the label, both at Body, with a chevron
-  at the end: Body at rest, Lit on hover, and dark under the ring. The ring
+  at the end: at Body, leaning `Rows.lean` toward the page it opens while the
+  pointer is on the row, over `Motion.highlight`, and dark under the ring.
+  Every word and glyph is already full white, so a hover can't light one; the
+  lean is the change you see without it, and a part's chevron in the playlist
+  and the way in's play glyph lean the same way. The ring
   takes the icon with the words, since both name the same subject. A figure
   about where it leads may stand before the chevron in Readout size, going
   with them: the
@@ -1502,8 +1595,8 @@ doing in it.
 
 ### Back rows
 - **Row:** `Rows.row`, the page's heading and the way out of it at once
-- **Text:** Label role at Body, starting on the row-label line; Lit on hover,
-  over a Soft wash
+- **Text:** Label role at Body, starting on the row-label line, over a Soft
+  wash on hover, when its chevron leans back toward the page it returns to
 - **Chevron:** a row icon in the icon column, laid out exactly as a drill row
   lays out its icon and with the same air after it. A back row is the way out of
   a page of those, and the pair read as one movement only when they are built
@@ -1557,7 +1650,11 @@ doing in it.
   under a row that does nothing when clicked is an offer the row cannot keep.
   The page lists what the pointer does as well, under POINTER — click, double
   click, the two wheels and, where the platform has one, a drop — because it is
-  the one reference the player has
+  the one reference the player has. The panel widens for it
+  (`MainWindow.settings.width@then`), as it grows and shrinks between the other
+  pages: the one page with two columns of words, a name and its keys, where at
+  the others' width the longest pairs were cut in every language, and at this
+  one in none
 - **A page that is read, not walked.** Every row of the reference is a
   statement, so the ring has only the way back to stand on and the arrows have
   nowhere to go. They move the list instead: ↑ and ↓ by a row, PgUp and PgDn by
@@ -1575,21 +1672,28 @@ doing in it.
   one, as Escape's first press does. Anywhere else they do nothing, by the
   rule above: the film jumping ten seconds behind a menu is a key pressed in
   the wrong place. Held with Shift or Ctrl they are the film's again, a
-  second's seek and the next file
-- **The keys beyond the bar** are mpv's own where mpv has one for the same
-  thing, so that habit carries over: Shift with an arrow for a one-second
-  seek, `[` `]` and Backspace for speed on a fixed ladder (0.25× to 4×), `,`
-  `.` for a frame, PgUp PgDn for chapters, J and Shift+J through the subtitle
-  tracks, # through the audio, Z and Shift+Z for the subtitle delay. The rest
-  are the player's own, and several of them sit on a key mpv uses for
-  something else: ← → seek ten seconds where mpv's seek five, ↑ ↓ are the
-  volume where mpv's seek a minute, Ctrl with an arrow is the previous or
-  next file where mpv's steps to the previous or next subtitle line, S opens
-  the settings where mpv's takes a screenshot, V the subtitles panel where
-  mpv's hides them, and T is panscan where mpv's keeps the window on top. A
-  opens the audio, and `?` goes straight to this page, which is also a row on
-  the way in. Q is mpv's quit and is bound to nothing here: the window's own
-  Close quits, and so does the desktop's key for closing a window
+  second's seek and the next chapter
+- **The keys are YouTube's** wherever YouTube has one, since nearly everyone
+  already has them in their hands, then Netflix's where YouTube has none, and
+  the player's own only where neither has a key. This is a player for shows
+  and films, not a front end for mpv, so mpv's keys carry no weight: Space and
+  K play and pause, ← → and J L seek ten seconds (Netflix's step and the bar's
+  buttons', where YouTube's arrows take five), 0 to 9 jump to a tenth of the
+  way, ↑ ↓ the volume, M mute, C subtitles on and off, − and + their size,
+  < and > the speed on a fixed ladder (0.25× to 4×), `,` `.` a frame, Shift+N
+  and Shift+P the next and previous file, Ctrl with an arrow the next or
+  previous chapter, F fullscreen and `?` this page, which is also a row on
+  the way in. S opens the settings, always: Netflix's S skips while there is
+  something to skip, but a key that skips the credits one moment and opens a
+  panel the next can't be pressed without looking first, and the corner pill
+  arrives with the ring, so Enter is its key. Shift is read as the modifier,
+  never from the letter's case, so Caps Lock changes no key. The player's
+  own: Shift with an arrow for a one-second seek, Shift+C through the subtitle
+  tracks, # through the audio, Z and Shift+Z for the subtitle delay,
+  Backspace back to normal speed, PgUp PgDn for chapters too, T fill or fit, B
+  the ambient border, and V, A and P for the subtitles, the audio and the
+  playlist. Q is bound to nothing: the window's own Close quits, and so does
+  the desktop's key for closing a window
 - **Language:** the last row of the settings' INTERFACE group opens a page of
   menu rows, one lit: *System language* first, which is what the player speaks
   until told otherwise, then English, then each language built in under its
@@ -1660,7 +1764,9 @@ The signature component. A thumbnail from an ffmpeg sprite atlas
 glass panel (`MainWindow.preview-radius`, `MainWindow.preview-pad` of padding)
 whose tile's corners are concentric with it (`MainWindow.preview-tile-radius`),
 with the timestamp beneath it at Strong in a caption
-(`MainWindow.preview-caption`). It floats just above the bar, centred on
+(`MainWindow.preview-caption`), and over that, where the file names the
+chapter under the pointer, its name at Body, as YouTube's preview has it. A
+chapter named only by its number or its start time is not named at all. It floats just above the bar, centred on
 the pointer and clamped inside the bar's margins, and takes no pointer events
 of its own. It falls back to the timestamp alone, in a capsule, when no atlas
 exists, which is the state it sits in for the first seconds of every unseen
@@ -1684,10 +1790,10 @@ the panel margins, so the throw shortens on a narrow window rather than
 taking the ring off the edge of it.
 
 A **figure** replaces the ring with its words alone, and stays longer, since
-it is read rather than recognised: the speed after `[`, `]` or Backspace, the
-chapter after PgUp or PgDn, the track after J or #, after C whether
-subtitles are showing at all, which the subtitles button does not say, not
-being a switch, and the volume after ↑, ↓ or M (`MainWindow.volume-said`). The icon set has no glyph for any of them and the figure is
+it is read rather than recognised: the speed after <, > or Backspace, the
+chapter after PgUp, PgDn or Ctrl with an arrow, the track after Shift+C or #,
+after C whether subtitles are showing at all, which the subtitles button only
+says while the bar is up, and the volume after ↑, ↓ or M (`MainWindow.volume-said`). The icon set has no glyph for any of them and the figure is
 the whole answer. A frame step and the one-second seek raise nothing: the
 picture and the timeline already answer.
 
@@ -1742,7 +1848,11 @@ finished*, at the end of the last file where that file is an episode of a
 numbered season. The one thing at the end the interface states rather than
 offers, so a season watched through is marked as over before the way on is
 read. It has no glass of its own: the end is lit (see The end of a file is lit
-the same way), and the dimmed light behind it keeps white words past 5:1.
+the same way), and the dimmed light behind it keeps white words past 5:1. So
+it waits for that light and fades in with it: until the
+file's own still arrives the frame it stopped on is behind it, and a white one
+left the line at 1:1. A file with no atlas never gets the light, and the pill
+says the way on without it.
 
 **The way on is always named, where the player can name it.** This is the
 loudest the interface ever speaks, and it is the last thing it says about a
@@ -1755,7 +1865,9 @@ still unfinished, by name, which is the same film the way in offers to
 continue and the only other thing the player can name without being told; and
 only when it can name neither, *Open folder…*, opening on the shelf above this
 file's folder. A noun in every case, as *Season 8* is: the thing you are going
-to, not a verb about going there.
+to, not a verb about going there. The glyph says how: Next's for the next
+season, Play's for the other film, as the way in's *Continue* has it, since
+under Next's it would read as this show's next episode.
 
 The credits pill does **not** take the second of those. It is the offer to
 skip the credits into the next episode, and only another episode of the same
@@ -1890,6 +2002,21 @@ frame and over *Skip intro*, which usually starts the file too — going on from
 the place is past the sequence as well, and after that the sequence has the
 corner back. Seconds of the file, not of the clock: paused, the offer waits.
 
+**Going back after a jump.** The same pill once more, for seconds of the film
+(`retrace.OFFER_FOR`) after a click or a drag on the timeline, or a number
+key, moved it further than `retrace.WORTH_OFFERING`: *Back to 35:06*, with
+Reset's glyph, the arrow that turns back on itself, and pressing it goes there.
+The timeline lies straight along the row of buttons, so a hand on its way to
+one can land on it instead, and a number key goes a tenth of the film at a
+time in one press; either throws away the place a film had been watched to,
+the one thing the player keeps that nothing on screen shows again. Jumping
+again while it is offered keeps the first place, the one that was lost; going
+anywhere else, or playing on past its seconds, ends it, and a pause keeps it.
+It takes the corner from every other offer, being the answer to what the hand
+just did. The arrows seek by steps someone chose, and offer nothing; nor does a
+jump from the film's first minute (`retrace.WORTH_KEEPING`), a place Home goes
+back to, and as early as a saved place is never asked about.
+
 The sequence is a chapter named for it — *Opening*, *Intro*, *OP*, *Main
 Titles*, *Theme Song* — in the file's first half, to the next mark, and no
 longer than five minutes. A *Recap*, *Previously On* or *Cold Open* is the
@@ -1917,8 +2044,10 @@ the panel is about the player rather than a film, and the first window anyone
 ever sees should say what is asking before it says *Open file…*:
 
 - **Continue**, first, when there is a film to continue: a play glyph at Body,
-  the film's name at Strong in Body size — the one line on the window about a
-  film rather than the player — then the resume measure and, where a playlist
+  the film's name at Strong in Body size and at the Title's weight — the one
+  line on the window about a film rather than the player, and what the window
+  is most often opened for, which with every word the same white only weight
+  can say — then the resume measure and, where a playlist
   row keeps its running time, what is left at Body in Readout size: *43 min left*. It is the
   newest file mpv still holds a position for that is still on disk; the same
   thing the backdrop is a frame of. A group gap follows it, because it is a
@@ -1995,9 +2124,10 @@ for a moment (`MainWindow.copied-timer.interval`), and *Close the player*.
   with no render context to draw it. A window with no film to light it is not
   that case — the mark lights it, and the way in is glass. See Elevation &
   Depth.
-- **Don't** draw a border, a ring or a hairline. There is no outline anywhere in
-  this interface, and a focus ring would make the keyboard the only thing that
-  draws one.
+- **Don't** draw a border, a ring or a hairline. The one outline in this
+  interface is the rim round a field to type into (see Fields), which over a
+  dark frame is all that says where the words go; a focus ring would make the
+  keyboard a second thing that draws one.
 - **Don't** let it drift toward the utilitarian player — VLC, MPC-HC, mpv's own
   OSC. Grey chrome, system widgets and dense toolbars are the failure mode that
   function-first reasoning always argues for, and the reason this was rebuilt.
@@ -2041,8 +2171,11 @@ for a moment (`MainWindow.copied-timer.interval`), and *Close the player*.
     belonging to it.
 
   **All of it stops with one switch**: Animations, on the settings panel's
-  accessibility page. Every duration that moves something is a token in the
-  `Motion` global, and each is zero with the switch off, so surfaces, pages,
+  accessibility page, or the desktop's own setting for less motion, which
+  is read and heard as it changes (`platform::motion`): either one asking for
+  stillness is enough, and while the desktop is the one asking a line under
+  the switch says so. Every duration that moves something is a token in the
+  `Motion` global, and each is zero when either asks, so surfaces, pages,
   washes, tracks and switches arrive in the frame they were asked for; the
   backdrop, which the pipeline fades rather than Slint, is simply there. The
   waits stay — the tip's delay and grace, the flash's dwell, the reset's

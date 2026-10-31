@@ -101,6 +101,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         found: Rc::default(),
         waiting: Rc::default(),
         arrival: Rc::default(),
+        retrace: Rc::default(),
+        scale: Rc::default(),
     };
     // Observing the device list is what starts mpv's hotplug monitor, so this
     // has to be armed whether or not anything ever disappears.

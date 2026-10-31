@@ -86,8 +86,14 @@ export struct ParamItem {
     /// doesn't identify the parameter.
     index: int,
     label: string,
+    /// What it does, shown beside the panel when the row is rested on;
+    /// empty where the name says it.
+    hint: string,
     /// Normalised 0..1, so the slider needs no knowledge of the real range.
     fraction: float,
+    /// Where none of it is, 0..1: 0 for most, the middle for a value either
+    /// side of nothing, which the fill grows out from.
+    origin: float,
     /// Formatted for display by the Rust side, which owns the range.
     readout: string,
 }
@@ -119,8 +125,9 @@ export struct PlaylistItem {
     /// `progress` is zero for both, so this is what tells a finished episode
     /// from one never started.
     finished: bool,
-    /// It failed to play during this run.
-    failed: bool,
+    /// Why it failed to play during this run, as the notice said it; empty
+    /// for a file that played or hasn't been tried.
+    why: string,
 }
 
 /// One part of a playlist, as the panel shows it (see `playlist-groups`).

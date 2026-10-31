@@ -11,7 +11,12 @@ license = "GPL-3.0-or-later"
 repository = "https://github.com/MisterD0ctor/DBM"
 
 [dependencies]
-slint = { version = "1.18", features = ["raw-window-handle-06"] }
+# The winit window behind Slint's is reached for what Slint has no say in: the
+# window's floor once the interface's size has changed it, the display's size
+# that sizes are offered up to, and, everywhere but Windows, hiding the
+# pointer and minimizing. The winit backend is already the default, so the
+# feature only widens what is reachable.
+slint = { version = "1.18", features = ["raw-window-handle-06", "unstable-winit-030"] }
 glow = "0.16"
 libloading = "0.8"
 raw-window-handle = "0.6"
@@ -36,18 +41,12 @@ sys-locale = "0.3"
 # already renders its SVG icons with it, so this adds no crate to the build.
 resvg = { version = "0.47", default-features = false }
 
-# Hiding the pointer over a film needs the winit window behind Slint's, and
-# the accessor for it is gated behind this. Asked for only where it is used:
-# on Windows the Win32 display count does the same job, so that build carries
-# no unstable API at all. The feature is additive — the winit backend is
-# already the default here — so this only widens what is reachable.
 [target.'cfg(not(windows))'.dependencies]
 # Talking to OpenSubtitles — see `opensubtitles`. Blocking, which is what a
 # thread of its own wants. TLS through rustls with Mozilla's roots compiled
 # in, so a Flatpak with no host certificates reaches it the same as anything
 # else; on Windows the system's own TLS instead, below.
 ureq = { version = "2", default-features = false, features = ["tls", "json"] }
-slint = { version = "1.18", features = ["unstable-winit-030"] }
 # The media keys and the desktop's media widget, which here means MPRIS over
 # D-Bus - see `mpris`. Default features: that is the blocking API over
 # `async-io`, so nothing drags in an async runtime the rest of the player

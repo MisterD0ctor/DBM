@@ -26,7 +26,8 @@ pub struct Item<'a> {
     pub index: i64,
     pub current: bool,
     pub progress: Progress,
-    pub failed: bool,
+    /// Why it failed to play during this run, or empty.
+    pub why: &'a str,
 }
 
 /// A season of the playing show, found in a folder beside the playlist's own.
@@ -46,7 +47,8 @@ pub struct Entry {
     pub index: Option<i64>,
     pub current: bool,
     pub progress: Progress,
-    pub failed: bool,
+    /// Why it failed to play during this run, or empty.
+    pub why: String,
 }
 
 /// One part of the list.
@@ -174,7 +176,7 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
                         index: Some(item.index),
                         current: item.current,
                         progress: item.progress,
-                        failed: item.failed,
+                        why: item.why.to_owned(),
                     }
                 })
                 .collect();
@@ -214,7 +216,7 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
                         index: None,
                         current: false,
                         progress: *progress,
-                        failed: false,
+                        why: String::new(),
                     })
                     .collect(),
             });
@@ -347,7 +349,7 @@ mod tests {
             index,
             current: false,
             progress: Progress::default(),
-            failed: false,
+            why: "",
         }
     }
 
@@ -439,7 +441,7 @@ mod tests {
             index: None,
             current: false,
             progress,
-            failed: false,
+            why: String::new(),
         };
         let half = Progress {
             fraction: 0.5,

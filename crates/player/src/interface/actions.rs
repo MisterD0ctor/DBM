@@ -58,6 +58,18 @@ pub fn wire(ui: &MainWindow, app: &App) {
     wire_video_clicks(ui, app);
     wire_window(ui);
     restore_preferences(ui, app);
+    watch_motion(ui);
+}
+
+/// Tell `Motion` whether the desktop asks for less motion, now and whenever
+/// that changes.
+fn watch_motion(ui: &MainWindow) {
+    let weak = ui.as_weak();
+    crate::platform::motion::watch(move |still| {
+        let _ = weak.upgrade_in_event_loop(move |ui| {
+            ui.global::<Motion>().set_system_still(still);
+        });
+    });
 }
 
 /// Values `commands` owns, handed to the UI so they are defined once.
@@ -111,11 +123,18 @@ fn wire_transport(ui: &MainWindow, app: &App) {
             app.arrival.play_index(&app.mpv, i64::from(index), None);
         });
     }
-    // The corner pill's offer, for a file autoplay started over.
+    // The corner pill's offers: for a file autoplay started over, and back
+    // from a click on the timeline.
     {
         let app = app.clone();
         ui.on_take_resume_offer(move || {
             app.arrival.take_offer(&app.mpv);
+        });
+    }
+    {
+        let app = app.clone();
+        ui.on_take_back_offer(move || {
+            app.retrace.take(&app.mpv);
         });
     }
     // The centre pill's answer, for a file held on its saved place.
@@ -152,6 +171,23 @@ fn wire_timeline(ui: &MainWindow, app: &App) {
         on_seek_relative,
         |m, secs| commands::seek_relative(m, secs as f64)
     );
+    // A number key's jump: anywhere in the film from one press, which loses a
+    // place as easily as a click on the timeline, so the way back is offered
+    // the same way. Not activity, for `on!`'s reason: the timeline answers.
+    {
+        let (app, weak) = (app.clone(), ui.as_weak());
+        ui.on_jump_to(move |fraction| {
+            let Some(ui) = weak.upgrade() else { return };
+            let duration = f64::from(ui.get_duration());
+            let to = f64::from(fraction) * duration;
+            app.retrace.landed(
+                &ui.get_current_path(),
+                f64::from(ui.get_progress()) * duration,
+                to,
+            );
+            commands::seek_to(&app.mpv, to);
+        });
+    }
     // Past the title sequence, to where it was found to end, or past the
     // credits, to the scene after them.
     on!(ui, app, on_skip_to, |m, to| commands::seek_to(
@@ -161,9 +197,17 @@ fn wire_timeline(ui: &MainWindow, app: &App) {
     // Release: land exactly, and drop any coalesced drag update, which is
     // now stale by definition.
     {
-        let app = app.clone();
+        let (app, weak) = (app.clone(), ui.as_weak());
         ui.on_seek_fraction(move |f| {
             app.activity.bump();
+            if let Some(ui) = weak.upgrade() {
+                let duration = f64::from(ui.get_duration());
+                app.retrace.landed(
+                    &ui.get_current_path(),
+                    f64::from(ui.get_progress()) * duration,
+                    f64::from(f) * duration,
+                );
+            }
             app.scrubber.release(&app.mpv, f);
         });
     }
@@ -172,19 +216,25 @@ fn wire_timeline(ui: &MainWindow, app: &App) {
         ui.on_seek_scrub(move |f| {
             app.activity.bump();
             // From the mirrored state, the cheapest source: whether it is
-            // paused, which matters on a drag's first update, and the film's
-            // length, which turns distance along the track into speed.
-            let (paused, duration) = weak
-                .upgrade()
-                .map_or((false, 0.0), |ui| (ui.get_paused(), ui.get_duration()));
+            // paused, which matters on a drag's first update, the film's
+            // length, which turns distance along the track into speed, and
+            // where it was, which is where a drag's first update leaves.
+            let (paused, duration, progress) = weak.upgrade().map_or((false, 0.0, 0.0), |ui| {
+                (ui.get_paused(), ui.get_duration(), ui.get_progress())
+            });
+            app.retrace.hold(f64::from(progress) * f64::from(duration));
             app.scrubber
                 .drag_to(&app.mpv, f, paused, f64::from(duration));
         });
     }
     {
-        let app = app.clone();
+        let (app, weak) = (app.clone(), ui.as_weak());
         ui.on_seek_held(move |f| {
             app.activity.bump();
+            if let Some(ui) = weak.upgrade() {
+                app.retrace
+                    .hold(f64::from(ui.get_progress()) * f64::from(ui.get_duration()));
+            }
             app.scrubber.held_at(&app.mpv, f);
         });
     }
@@ -195,10 +245,11 @@ fn wire_timeline(ui: &MainWindow, app: &App) {
         let (app, weak) = (app.clone(), ui.as_weak());
         ui.on_preview_at(move |fraction| {
             let Some(ui) = weak.upgrade() else { return };
-            let (time, x, y) = app.preview.answer(fraction);
-            ui.set_preview_time(time.into());
-            ui.set_preview_clip_x(x);
-            ui.set_preview_clip_y(y);
+            let answer = app.preview.answer(fraction);
+            ui.set_preview_time(answer.time.into());
+            ui.set_preview_chapter(answer.chapter.into());
+            ui.set_preview_clip_x(answer.x);
+            ui.set_preview_clip_y(answer.y);
         });
     }
 }
@@ -353,6 +404,9 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
                 index,
                 param.min + fraction.clamp(0.0, 1.0) * (param.max - param.min),
             );
+            if param.section == Section::Picture {
+                commands::set_picture(&app.mpv, &app.settings.picture());
+            }
             models.update(&app.settings, index);
         });
     }
@@ -363,15 +417,19 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
             if let Some(section) = Section::from_index(section) {
                 undo.set(Some(app.settings.before()));
                 app.settings.reset(section);
+                if section == Section::Picture {
+                    commands::set_picture(&app.mpv, &app.settings.picture());
+                }
                 // Every row moved and no drag can be in progress, so a full
                 // refresh is both safe and simplest.
                 models.refresh_all(&app.settings);
             }
         });
     }
-    // Resets as the panels number them: 1 glass, 2 ambient border, and from
-    // the subtitles menu 4 their size and position. 3, their timing, is put
-    // back by the menu itself, since it was never a setting.
+    // Resets as the panels number them: 1 glass, 2 ambient border, 6 the
+    // picture, and from the subtitles menu 4 their size and position. 3,
+    // their timing, is put back by the menu itself, since it was never a
+    // setting.
     {
         let (app, models, undo) = (app.clone(), models.clone(), undo.clone());
         ui.on_undo_reset(move |page| {
@@ -382,6 +440,10 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
             match page {
                 1 => app.settings.restore(Section::Glass, &was),
                 2 => app.settings.restore(Section::Border, &was),
+                6 => {
+                    app.settings.restore(Section::Picture, &was);
+                    commands::set_picture(&app.mpv, &app.settings.picture());
+                }
                 4 => {
                     app.settings
                         .set_sub_scale(
@@ -420,6 +482,27 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
         ui.on_set_animations(move |on| {
             app.activity.bump();
             app.settings.set_animations(on);
+        });
+    }
+    // The right end of the timeline, the whole length or what is left, from
+    // a click on it or the video page's switch.
+    {
+        let app = app.clone();
+        ui.on_set_show_remaining(move |on| {
+            app.activity.bump();
+            app.settings.set_remaining(on);
+        });
+    }
+    {
+        let (app, weak) = (app.clone(), ui.as_weak());
+        ui.on_step_scale(move |direction| {
+            app.activity.bump();
+            let Some(ui) = weak.upgrade() else { return };
+            // From the size shown, which is under the one saved on a display
+            // without room for that, so a step down is always one.
+            let wanted = ui.get_interface_scale() + direction as f32 * crate::settings::SCALE_STEP;
+            let drawn = app.scale.apply(&ui, crate::settings::offered_scale(wanted));
+            app.settings.set_scale(drawn);
         });
     }
     // Saved, and handed the pipeline by the driver with the material.
@@ -676,7 +759,7 @@ fn restore_preferences(ui: &MainWindow, app: &App) {
     let settings = &app.settings;
     ui.set_ambience_on(settings.ambience_on());
     ui.set_autoplay(settings.autoplay());
-    ui.global::<Motion>().set_enabled(settings.animations());
+    ui.global::<Motion>().set_chosen(settings.animations());
     ui.set_legible_glass(settings.legible_glass());
     let tip = ui.global::<Tip>();
     tip.set_enabled(settings.tips());
@@ -684,6 +767,11 @@ fn restore_preferences(ui: &MainWindow, app: &App) {
     commands::set_autoplay(&app.mpv, settings.autoplay());
     commands::set_sub_scale(&app.mpv, settings.sub_scale() as f64);
     app.subline.set(&app.mpv, settings.sub_pos() as f64);
+    commands::set_picture(&app.mpv, &settings.picture());
+    ui.set_show_remaining(settings.remaining());
+    // Given the window on the first frame (see `Scale::frame`), once the
+    // system has given it its own.
+    ui.set_interface_scale(settings.scale());
 }
 
 /// Speak the language that was saved, and list the ones it can be changed to.

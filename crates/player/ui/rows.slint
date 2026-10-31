@@ -3,7 +3,7 @@
 // fills its panel's width and insets its own wash, so the rows at the ends of
 // a list are no special case (see `Rows`).
 
-import { Chrome } from "globals.slint";
+import { Chrome, Flash, Tip } from "globals.slint";
 import { Motion, Paint, Rows, Type } from "theme.slint";
 import { Glyph, StepButton } from "controls.slint";
 import { RingPane } from "ring.slint";
@@ -96,10 +96,36 @@ export component MenuRow inherits Rectangle {
     /// How long it waits for that press, for the wash behind the question
     /// to drain over.
     in property <duration> armed-for;
+    /// What it does, for the window to say beside the panel once the row has
+    /// been rested on as long as a tip waits; empty for most rows.
+    in property <string> hint;
     callback picked();
     callback removed();
+    /// The question is being read: the pointer or the ring is on its row, so
+    /// the wait for the second press holds until they leave.
+    callback held(bool);
+    /// The row has been rested on long enough for its hint, or left.
+    callback explained(bool);
 
     height: Rows.row;
+
+    private property <bool> dwelt: root.hint != "" && Tip.enabled
+        && (touch.has-hover || root.ring);
+    private property <bool> said;
+    changed dwelt => {
+        if (!root.dwelt && root.said) {
+            root.said = false;
+            root.explained(false);
+        }
+    }
+    Timer {
+        interval: Motion.tip-delay;
+        running: root.dwelt && !root.said;
+        triggered => {
+            root.said = true;
+            root.explained(true);
+        }
+    }
 
     accessible-role: button;
     accessible-checkable: true;
@@ -127,7 +153,7 @@ export component MenuRow inherits Rectangle {
         y: (parent.height - self.height) / 2;
         width: 18px;
         height: 18px;
-        shade: root.ring ? 2 : root.active ? 1 : 0;
+        shade: root.ring ? 1 : 0;
     }
 
     Text {
@@ -168,14 +194,22 @@ export component MenuRow inherits Rectangle {
 
     // While armed, the question stands on a capsule that drains towards the
     // button as the wait runs out, so how long the row will go on asking is
-    // in sight. With animations off it stays full.
+    // in sight. It stays full while it is being read, and with animations
+    // off.
     private property <length> ask-x: root.bin-x - question.width - 12px;
+    private property <bool> bin-hovered;
+    private property <bool> hold: root.armed
+        && (touch.has-hover || root.bin-hovered || root.ring);
+    changed hold => {
+        root.held(root.hold);
+    }
+    private property <bool> draining: root.armed && !root.hold && Motion.enabled;
     // Set rather than bound, since nothing reads a bound one until the row is
     // armed, and an animation needs the value it starts from.
     private property <float> asking: 1;
-    animate asking { duration: root.armed ? root.armed-for : 0ms; }
-    changed armed => {
-        root.asking = root.armed && Motion.enabled ? 0 : 1;
+    animate asking { duration: root.draining ? root.armed-for : 0ms; }
+    changed draining => {
+        root.asking = root.draining ? 0 : 1;
     }
     if root.armed: Rectangle {
         private property <length> full: root.bin-x + root.bin - root.ask-x;
@@ -227,7 +261,7 @@ export component MenuRow inherits Rectangle {
                 y: (parent.height - self.height) / 2;
                 width: 18px;
                 height: 18px;
-                shade: root.ring ? 2 : bin-touch.has-hover || root.armed ? 1 : 0;
+                shade: root.ring ? 1 : 0;
             }
         }
 
@@ -239,6 +273,9 @@ export component MenuRow inherits Rectangle {
             }
             clicked => {
                 root.removed();
+            }
+            changed has-hover => {
+                root.bin-hovered = self.has-hover;
             }
         }
     }
@@ -327,9 +364,11 @@ export component PlaylistRow inherits Rectangle {
     in property <string> length;
     in property <float> progress;
     in property <bool> active;
-    /// It failed to play. The row shows the warning where its running time
-    /// goes, and keeps it after the notice has gone.
-    in property <bool> failed;
+    /// Why it failed to play, as the notice said it; empty for a file that
+    /// played or hasn't been tried. The row shows the warning where its
+    /// running time goes, and keeps it after the notice has gone.
+    in property <string> why;
+    private property <bool> failed: root.why != "";
     in property <bool> finished;
     /// Whether the measure is drawn: something started, or something done.
     private property <bool> measured: (root.progress > 0.001 || root.finished) && !root.failed;
@@ -396,7 +435,26 @@ export component PlaylistRow inherits Rectangle {
     }
 
     // The warning in the time's place. Why the file wouldn't play was said
-    // when it failed, and words here would take width from the title.
+    // when it failed, and words here would take width from the title, so it
+    // is said again beside the panel once the pointer or the ring has rested
+    // on the row as long as a tip waits: once each time it comes, so passing
+    // down the list raises nothing.
+    private property <bool> dwelt: root.failed && (touch.has-hover || root.ring);
+    private property <bool> said;
+    changed dwelt => {
+        if (!root.dwelt) {
+            root.said = false;
+        }
+    }
+    Timer {
+        interval: Motion.tip-delay;
+        running: root.dwelt && !root.said;
+        triggered => {
+            root.said = true;
+            Flash.warn(root.why);
+        }
+    }
+
     Glyph {
         source: @image-url("../../../public/icons/warning.svg");
         visible: root.failed;
@@ -404,7 +462,7 @@ export component PlaylistRow inherits Rectangle {
         y: (parent.height - self.height) / 2;
         width: 18px;
         height: 18px;
-        shade: root.ring ? 2 : 0;
+        shade: root.ring ? 1 : 0;
     }
 
     // How far into it you got. A hairline rather than a bar, since it is
@@ -457,6 +515,10 @@ export component PlaylistRow inherits Rectangle {
 /// page leave empty so the columns line up. It has no watched measure: the
 /// page it opens says that better.
 export component GroupRow inherits Rectangle {
+    /// Under the pointer its glyph leans the way it goes (`Rows.lean`).
+    private property <length> lean: touch.has-hover ? Rows.lean : 0px;
+    animate lean { duration: Motion.highlight; easing: ease-out; }
+
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
@@ -512,11 +574,11 @@ export component GroupRow inherits Rectangle {
 
     Glyph {
         source: @image-url("../../../public/icons/angle-small-right.svg");
-        x: parent.width - Rows.trail-x - root.chevron;
+        x: parent.width - Rows.trail-x - root.chevron + root.lean;
         y: (parent.height - self.height) / 2;
         width: root.chevron;
         height: root.chevron;
-        shade: root.ring ? 2 : touch.has-hover ? 1 : 0;
+        shade: root.ring ? 1 : 0;
     }
 
     touch := TouchArea {
@@ -539,6 +601,10 @@ export component GroupRow inherits Rectangle {
 /// at Strong, as the one line on the window about a film rather than the
 /// player.
 export component ResumeRow inherits Rectangle {
+    /// Under the pointer its glyph leans the way it goes (`Rows.lean`).
+    private property <length> lean: touch.has-hover ? Rows.lean : 0px;
+    animate lean { duration: Motion.highlight; easing: ease-out; }
+
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
@@ -565,13 +631,15 @@ export component ResumeRow inherits Rectangle {
 
     Glyph {
         source: @image-url("../../../public/icons/play.svg");
-        x: Rows.label-x;
+        x: Rows.label-x + root.lean;
         y: (parent.height - self.height) / 2;
         width: root.icon-size;
         height: root.icon-size;
-        shade: root.ring ? 2 : touch.has-hover ? 1 : 0;
+        shade: root.ring ? 1 : 0;
     }
 
+    // At the title's weight: it is what the window is most often opened
+    // for, and every word is the same white, so weight is what can say so.
     Text {
         x: Rows.label-x + root.icon-size + root.icon-gap;
         width: left-text.x - Rows.group-gap - root.measure-w - Rows.group-gap - self.x;
@@ -579,6 +647,7 @@ export component ResumeRow inherits Rectangle {
         text: root.label;
         color: root.ring ? Paint.on-ring : Paint.strong;
         font-size: Type.body;
+        font-weight: Type.weight-title;
         vertical-alignment: center;
         overflow: elide;
     }
@@ -702,13 +771,41 @@ export component ParamSlider inherits Rectangle {
     in property <string> label;
     in property <image> icon;
     in property <float> fraction;
+    /// Where none of it is, 0..1, which the fill grows out from: the start,
+    /// or the middle for a value either side of nothing.
+    in property <float> origin;
     in property <string> readout;
     /// How wide the name is set: the widest of a page's names, so the tracks
     /// down a page start together whatever the language makes of them.
     in property <length> name-w;
+    /// What it does, for the window to say beside the panel once the row has
+    /// been rested on as long as a tip waits; empty where the name says it.
+    in property <string> hint;
     callback moved(float);
+    /// The row has been rested on long enough for its hint, or left.
+    callback explained(bool);
 
     height: Rows.slider-row;
+
+    // As a tip waits on the bar, and only while there are tips: what the
+    // glass page's words mean is a tip's question.
+    private property <bool> dwelt: root.hint != "" && Tip.enabled
+        && (drag.has-hover || root.ring);
+    private property <bool> said;
+    changed dwelt => {
+        if (!root.dwelt && root.said) {
+            root.said = false;
+            root.explained(false);
+        }
+    }
+    Timer {
+        interval: Motion.tip-delay;
+        running: root.dwelt && !root.said;
+        triggered => {
+            root.said = true;
+            root.explained(true);
+        }
+    }
 
     accessible-role: slider;
     accessible-label: root.label;
@@ -740,7 +837,7 @@ export component ParamSlider inherits Rectangle {
                 height: 18px;
                 x: 0;
                 y: (parent.height - self.height) / 2;
-                shade: root.ring ? 2 : 0;
+                shade: root.ring ? 1 : 0;
             }
         }
 
@@ -771,12 +868,29 @@ export component ParamSlider inherits Rectangle {
                 // Under 2px there is nothing to round, and the renderer draws
                 // the attempt as a cross, so the smallest are square.
                 Rectangle {
-                    x: 0;
+                    x: parent.width * min(root.origin, clamp(root.fraction, 0, 1));
                     y: (parent.height - self.height) / 2;
-                    width: parent.width * clamp(root.fraction, 0, 1);
+                    width: parent.width * abs(clamp(root.fraction, 0, 1) - root.origin);
                     height: min(parent.height, self.width);
                     border-radius: self.height < 2px ? 0px : self.height / 2;
                     background: root.ring ? Paint.on-ring : Paint.fill;
+                }
+
+                // Where none is, on a track either side of it: at none the
+                // fill has no length, and over a bright frame the rail alone
+                // doesn't say where the middle is. A dot, as the volume's
+                // unity is, as tall as the rail at rest so it stays round as
+                // the rail grows, and dark once the fill runs out of it.
+                if root.origin > 0: Rectangle {
+                    property <bool> filled: abs(clamp(root.fraction, 0, 1) - root.origin) > 0.005;
+
+                    x: parent.width * root.origin - self.width / 2;
+                    y: (parent.height - self.height) / 2;
+                    width: self.height;
+                    height: 4px;
+                    border-radius: self.height / 2;
+                    background: root.ring ? (self.filled ? Paint.on-ring-knob : Paint.on-ring)
+                        : (self.filled ? Paint.knob : Paint.quiet);
                 }
             }
 
@@ -869,9 +983,12 @@ export component ToggleRow inherits Rectangle {
                     height: 14px;
                     source: @image-url("shapes/switch-knob.svg");
                     // Dark on the lit track, light on the dark one: the knob
-                    // reads as a hole punched in the switch either way.
+                    // reads as a hole punched in the switch either way. Full
+                    // white off, since over a bright frame the rail's track
+                    // all but sinks into the glass and the knob is what is
+                    // left to read the switch by.
                     colorize: root.checked ? (root.ring ? Paint.on-ring-knob : Paint.knob)
-                        : (root.ring ? Paint.on-ring : Paint.fill);
+                        : (root.ring ? Paint.on-ring : Paint.strong);
                     animate x { duration: Motion.switch; easing: ease-out; }
                 }
             }
@@ -907,6 +1024,10 @@ export component ToggleRow inherits Rectangle {
 /// chevron. An effect that can be off shows it with its glyph rather than a
 /// switch, because a switch beside a chevron is two things to press in one row.
 export component DrillRow inherits Rectangle {
+    /// Under the pointer its glyph leans the way it goes (`Rows.lean`).
+    private property <length> lean: touch.has-hover ? Rows.lean : 0px;
+    animate lean { duration: Motion.highlight; easing: ease-out; }
+
     /// Whether the keyboard is on this row.
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
@@ -946,7 +1067,7 @@ export component DrillRow inherits Rectangle {
                 y: (parent.height - self.height) / 2;
                 // With the words: the icon names the same subject, so the
                 // ring lights the two together.
-                shade: root.ring ? 2 : 0;
+                shade: root.ring ? 1 : 0;
             }
         }
 
@@ -975,9 +1096,9 @@ export component DrillRow inherits Rectangle {
                 source: @image-url("../../../public/icons/angle-small-right.svg");
                 width: 18px;
                 height: 18px;
-                x: 0;
+                x: root.lean;
                 y: (parent.height - self.height) / 2;
-                shade: root.ring ? 2 : touch.has-hover ? 1 : 0;
+                shade: root.ring ? 1 : 0;
             }
         }
     }
@@ -1041,7 +1162,7 @@ export component StepperRow inherits Rectangle {
                 height: 18px;
                 x: 0;
                 y: (parent.height - self.height) / 2;
-                shade: root.ring ? 2 : 0;
+                shade: root.ring ? 1 : 0;
             }
         }
 
@@ -1051,6 +1172,7 @@ export component StepperRow inherits Rectangle {
             font-size: Type.readout;
             vertical-alignment: center;
             horizontal-stretch: 1;
+            overflow: elide;
         }
 
         Rectangle {
@@ -1094,6 +1216,10 @@ export component StepperRow inherits Rectangle {
 /// The header of a page that has one above it, doubling as the way back,
 /// since a title bar is where the eye already is when leaving a page.
 export component BackRow inherits Rectangle {
+    /// Under the pointer its glyph leans the way it goes (`Rows.lean`).
+    private property <length> lean: touch.has-hover ? Rows.lean : 0px;
+    animate lean { duration: Motion.highlight; easing: ease-out; }
+
     /// Whether the keyboard is on this row.
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
@@ -1132,9 +1258,9 @@ export component BackRow inherits Rectangle {
                 source: @image-url("../../../public/icons/angle-small-left.svg");
                 width: 18px;
                 height: 18px;
-                x: 0;
+                x: -root.lean;
                 y: (parent.height - self.height) / 2;
-                shade: root.ring ? 2 : touch.has-hover ? 1 : 0;
+                shade: root.ring ? 1 : 0;
             }
         }
 

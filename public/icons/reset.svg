@@ -24,14 +24,14 @@
      inkscape:deskcolor="#505050"
      inkscape:document-units="px"
      showgrid="false"
-     inkscape:zoom="32"
-     inkscape:cx="2.515625"
-     inkscape:cy="10.640625"
+     inkscape:zoom="22.627417"
+     inkscape:cx="-6.0325047"
+     inkscape:cy="15.534252"
      inkscape:window-width="3440"
      inkscape:window-height="1403"
-     inkscape:window-x="0"
-     inkscape:window-y="0"
-     inkscape:window-maximized="1"
+     inkscape:window-x="26"
+     inkscape:window-y="23"
+     inkscape:window-maximized="0"
      inkscape:current-layer="layer1">
     <inkscape:grid
        id="grid3"
@@ -76,11 +76,11 @@
      id="layer1">
     <path
        style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:round;stroke-miterlimit:100;stroke-dasharray:none"
-       d="M 5.5563696,1.323 H 2.1155434 A 1.5863767,1.5863767 135 0 0 0.52916666,2.9093767 v 0.00225 A 1.5863767,1.5863767 45 0 0 2.1155434,4.498 h 3.4408262"
+       d="M 5.5563696,1.323 H 2.1155434 A 1.5863767,1.5863767 135 0 0 0.52916666,2.9093767 v 0.00225 A 1.5863767,1.5863767 45 0 0 2.1155434,4.498 h 2.6470762"
        id="path1"
        sodipodi:nodetypes="cccc"
        inkscape:path-effect="#path-effect2"
-       inkscape:original-d="M 5.5563696,1.323 H 0.52916666 V 4.498 H 5.5563696"
+       inkscape:original-d="M 5.5563696,1.323 H 0.52916666 V 4.498 H 4.7626196"
        transform="matrix(-1,0,0,1,6.3501196,0.26449999)" />
     <path
        style="fill:none;stroke:#ffffff;stroke-width:0.529;stroke-linecap:round;stroke-miterlimit:100;stroke-dasharray:none"

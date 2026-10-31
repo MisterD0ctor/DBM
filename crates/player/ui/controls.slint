@@ -18,10 +18,10 @@ import { Squircle } from "squircle.slint";
 /// (`DBM_FIRST_OPEN`). These never change colour.
 export component Glyph inherits Rectangle {
     in property <image> source;
-    /// 0 Body, 1 Lit, 2 dark on the ring's milk glass, 3 Dim.
+    /// 0 white, as every word is; 1 dark on the ring's milk glass; 2 Dim.
     in property <int> shade;
 
-    for colour[index] in [Paint.body, Paint.lit, Paint.on-ring, Paint.dim]: Image {
+    for colour[index] in [Paint.lit, Paint.on-ring, Paint.dim]: Image {
         source: root.source;
         width: 100%;
         height: 100%;
@@ -87,7 +87,7 @@ export component IconButton inherits Rectangle {
         // Lit whenever it can be pressed, because over a bright frame
         // anything less reads as greyed out; dark on the milk disc the window
         // lays under the ring or an open panel's button.
-        shade: !root.enabled ? 3 : root.ring || root.open ? 2 : 1;
+        shade: !root.enabled ? 2 : root.ring || root.open ? 1 : 0;
     }
 
     // The keyboard gets the same tip as the pointer, or a bar walked with Tab
@@ -172,7 +172,7 @@ export component StepButton inherits Rectangle {
     height: 26px;
     border-radius: self.height / 2;
     background: root.lit ? (touch.has-hover ? Paint.on-ring-wash : Paint.on-ring-rail)
-        : touch.has-hover ? Paint.wash-strong : Paint.wash-soft;
+        : touch.has-hover ? Paint.wash-strong : Paint.wash-button;
     animate background { duration: Motion.highlight; easing: ease-out; }
 
     Text {
@@ -247,7 +247,7 @@ export component EndChoice inherits Rectangle {
             width: 24px;
             height: 24px;
             y: (parent.height - self.height) / 2;
-            shade: root.ring ? 2 : 1;
+            shade: root.ring ? 1 : 0;
         }
         Text {
             text: root.label;

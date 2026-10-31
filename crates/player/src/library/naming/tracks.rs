@@ -100,9 +100,6 @@ pub fn parse_track_name(title: &str, language: Option<&str>) -> TrackName {
 /// One track, as much of it as naming a track needs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TrackInfo<'a> {
-    /// Only for the last-resort label. mpv numbers tracks within a type, so
-    /// an id is not unique across a file and cannot key anything.
-    pub id: i64,
     pub title: Option<&'a str>,
     pub language: Option<&'a str>,
     pub external: bool,
@@ -131,14 +128,24 @@ pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
         }
     }
 
-    let mut seen: HashMap<String, usize> = HashMap::new();
-    let mut out = Vec::with_capacity(tracks.len());
-    for t in tracks {
-        let parsed = t
-            .title
-            .map(|title| parse_track_name(title, t.language))
-            .unwrap_or_default();
+    let parsed: Vec<TrackName> = tracks
+        .iter()
+        .map(|t| {
+            t.title
+                .map(|title| parse_track_name(title, t.language))
+                .unwrap_or_default()
+        })
+        .collect();
+    let untitled = tracks
+        .iter()
+        .zip(&parsed)
+        .filter(|(t, p)| key(t).is_none() && p.text.is_none())
+        .count();
 
+    let mut seen: HashMap<String, usize> = HashMap::new();
+    let mut unnamed = 0;
+    let mut out = Vec::with_capacity(tracks.len());
+    for (t, parsed) in tracks.iter().zip(&parsed) {
         let mut label = match (key(t), &parsed.text) {
             (Some(l), Some(text)) => format!("{} — {text}", language_name(&l)),
             (Some(l), None) => {
@@ -153,9 +160,23 @@ pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
                 }
             }
             (None, Some(text)) => text.clone(),
-            // No language and no title: named by its format, since "AAC 5.1"
-            // tells two tracks apart where "Track 1" wouldn't.
-            (None, None) => by_format(t).unwrap_or_else(|| fill(tr("Track {}"), &[&t.id])),
+            // No language and no title: said to have none, since a format
+            // alone, "SRT", reads as a name the track was given. Numbered
+            // among the others like it, and the format after, which is what
+            // tells "AAC 5.1" from "AC-3 stereo".
+            (None, None) => {
+                unnamed += 1;
+                let mut label = if untitled > 1 {
+                    fill(tr("Untitled {}"), &[&unnamed])
+                } else {
+                    tr("Untitled").to_string()
+                };
+                if let Some(format) = by_format(t) {
+                    label.push_str(" · ");
+                    label.push_str(&format);
+                }
+                label
+            }
         };
 
         for flag in &parsed.flags {
@@ -233,13 +254,8 @@ mod tests {
         assert_eq!(parsed.flags, vec![Flag::Forced]);
         assert_eq!(parsed.text, None);
     }
-    fn track(
-        id: i64,
-        title: Option<&'static str>,
-        lang: Option<&'static str>,
-    ) -> TrackInfo<'static> {
+    fn track(title: Option<&'static str>, lang: Option<&'static str>) -> TrackInfo<'static> {
         TrackInfo {
-            id,
             title,
             language: lang,
             external: false,
@@ -248,45 +264,43 @@ mod tests {
         }
     }
     #[test]
-    fn a_track_that_says_nothing_is_named_by_its_format() {
+    fn a_track_that_says_nothing_is_untitled_in_its_format() {
         let bare = |codec, channels| TrackInfo {
-            id: 1,
             title: None,
             language: None,
             external: false,
             codec: Some(codec),
             channels,
         };
-        assert_eq!(track_labels(&[bare("aac", Some(6))]), ["AAC 5.1"]);
-        assert_eq!(track_labels(&[bare("subrip", None)]), ["SRT"]);
-        assert_eq!(track_labels(&[bare("eac3", Some(2))]), ["E-AC-3 stereo"]);
+        assert_eq!(
+            track_labels(&[bare("aac", Some(6))]),
+            ["Untitled · AAC 5.1"]
+        );
+        assert_eq!(track_labels(&[bare("subrip", None)]), ["Untitled · SRT"]);
+        assert_eq!(
+            track_labels(&[bare("subrip", None), bare("ass", None)]),
+            ["Untitled 1 · SRT", "Untitled 2 · ASS"]
+        );
+        assert_eq!(track_labels(&[track(None, None)]), ["Untitled"]);
     }
     #[test]
     fn one_track_per_language_is_not_numbered() {
-        let labels = track_labels(&[track(1, None, Some("eng")), track(2, None, Some("swe"))]);
+        let labels = track_labels(&[track(None, Some("eng")), track(None, Some("swe"))]);
         assert_eq!(labels, ["English", "Svenska"]);
     }
     #[test]
     fn several_of_one_language_are_numbered() {
-        let labels = track_labels(&[track(1, None, Some("eng")), track(2, None, Some("en-US"))]);
+        let labels = track_labels(&[track(None, Some("eng")), track(None, Some("en-US"))]);
         assert_eq!(labels, ["English 1", "English 2"]);
     }
     #[test]
-    fn ids_repeat_across_a_file_and_must_not_key_anything() {
-        // mpv numbers within a type, so the subtitle list has its own id 1.
-        // Labels come back positionally for exactly this reason.
-        let labels = track_labels(&[track(1, None, Some("eng")), track(1, None, Some("swe"))]);
-        assert_eq!(labels, ["English", "Svenska"]);
-    }
-    #[test]
     fn a_title_keeps_its_own_words() {
-        let labels = track_labels(&[track(1, Some("Director's commentary"), Some("eng"))]);
+        let labels = track_labels(&[track(Some("Director's commentary"), Some("eng"))]);
         assert_eq!(labels, ["English — Director's commentary"]);
     }
     #[test]
     fn flags_ride_along() {
         let labels = track_labels(&[TrackInfo {
-            id: 1,
             title: Some("forced"),
             language: Some("eng"),
             external: true,

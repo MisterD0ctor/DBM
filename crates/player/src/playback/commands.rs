@@ -23,7 +23,7 @@ pub const SCROLL_SEEK_STEP: f64 = 1.0;
 /// Shift with an arrow: the small seek, for a line of dialogue missed.
 pub const FINE_SEEK_STEP: f64 = 1.0;
 
-/// The speeds `[` and `]` step through.
+/// The speeds `<` and `>` step through.
 ///
 /// A ladder rather than mpv's own multiply-by-1.1, which lands on 1.21 and
 /// 1.331, numbers nobody asked for or can get back from exactly. Steps go
@@ -343,6 +343,18 @@ pub fn set_sub_scale(mpv: &Mpv, value: f64) -> f64 {
     let value = value.clamp(SUB_SCALE_MIN, SUB_SCALE_MAX);
     set_prop(mpv, "sub-scale", &fmt(value));
     value
+}
+
+/// How the picture is drawn: its brightness, contrast, saturation and gamma,
+/// each a whole number from -100 to 100, as mpv takes them.
+pub fn set_picture(mpv: &Mpv, picture: &crate::settings::PictureParams) {
+    for (name, value) in picture.properties() {
+        set_prop(
+            mpv,
+            name,
+            &fmt(f64::from(value.round()).clamp(-100.0, 100.0)),
+        );
+    }
 }
 
 pub fn set_sub_pos(mpv: &Mpv, value: f64) -> f64 {

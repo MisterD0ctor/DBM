@@ -17,6 +17,7 @@ use crate::{MainWindow, ParamItem};
 pub struct ParamModels {
     glass: Rc<VecModel<ParamItem>>,
     border: Rc<VecModel<ParamItem>>,
+    picture: Rc<VecModel<ParamItem>>,
 }
 
 impl ParamModels {
@@ -24,14 +25,16 @@ impl ParamModels {
         let models = Self {
             glass: section_model(store, Section::Glass),
             border: section_model(store, Section::Border),
+            picture: section_model(store, Section::Picture),
         };
         ui.set_glass_params(ModelRc::from(models.glass.clone()));
         ui.set_border_params(ModelRc::from(models.border.clone()));
+        ui.set_picture_params(ModelRc::from(models.picture.clone()));
         ui.set_param_names(names());
         models
     }
 
-    /// Both pages again, in the language now spoken.
+    /// Every page again, in the language now spoken.
     pub fn say_again(&self, ui: &MainWindow, store: &Store) {
         self.refresh_all(store);
         ui.set_param_names(names());
@@ -51,12 +54,13 @@ impl ParamModels {
         }
     }
 
-    /// Rebuild both pages. For a reset, where every row moved at once and no
+    /// Rebuild every page. For a reset, where every row moved at once and no
     /// drag is in progress.
     pub fn refresh_all(&self, store: &Store) {
         for (section, model) in [
             (Section::Glass, &self.glass),
             (Section::Border, &self.border),
+            (Section::Picture, &self.picture),
         ] {
             for (row, index) in rows_of(section).enumerate() {
                 model.set_row_data(row, param_row(store, index));
@@ -68,12 +72,13 @@ impl ParamModels {
         match section {
             Section::Glass => &self.glass,
             Section::Border => &self.border,
+            Section::Picture => &self.picture,
         }
     }
 }
 
-/// Every slider's name, one to a line, for the interface to measure: both
-/// pages set their names in one column, as wide as the widest of them in the
+/// Every slider's name, one to a line, for the interface to measure: every
+/// page sets its names in one column, as wide as the widest of them in the
 /// language spoken.
 fn names() -> SharedString {
     let names: Vec<&str> = settings::REGISTRY.iter().map(|p| tr(p.label)).collect();
@@ -99,7 +104,15 @@ fn param_row(store: &Store, index: usize) -> ParamItem {
     ParamItem {
         index: index as i32,
         label: tr(param.label).into(),
+        hint: if param.hint.is_empty() {
+            Default::default()
+        } else {
+            tr(param.hint).into()
+        },
         fraction: ((value - param.min) / span).clamp(0.0, 1.0),
+        // Where none of it is: the start, or for a value either side of
+        // nothing, the middle.
+        origin: ((0.0 - param.min) / span).clamp(0.0, 1.0),
         readout: format::readout(value, param.min, param.max).into(),
     }
 }

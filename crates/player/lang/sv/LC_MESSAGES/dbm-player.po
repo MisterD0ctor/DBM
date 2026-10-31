@@ -97,10 +97,6 @@ msgid "Subtitles earlier / later"
 msgstr "Undertexter tidigare / senare"
 
 msgctxt "MainWindow"
-msgid "Next / previous subtitle track"
-msgstr "Nästa / föregående undertextspår"
-
-msgctxt "MainWindow"
 msgid "Fill or fit the window"
 msgstr "Fyll eller anpassa till fönstret"
 
@@ -473,10 +469,6 @@ msgid "Commentary"
 msgstr "Kommentarspår"
 
 msgctxt "player"
-msgid "Track {}"
-msgstr "Spår {}"
-
-msgctxt "player"
 msgid "Timed text"
 msgstr "Tidsatt text"
 
@@ -653,10 +645,6 @@ msgid "Edge light"
 msgstr "Kantljus"
 
 msgctxt "player"
-msgid "Tint"
-msgstr "Toning"
-
-msgctxt "player"
 msgid "Dimming"
 msgstr "Dämpning"
 
@@ -685,20 +673,12 @@ msgid "Darken bright glass"
 msgstr "Tona ner ljust glas"
 
 msgctxt "MainWindow"
-msgid "Space"
-msgstr "Blanksteg"
-
-msgctxt "MainWindow"
 msgid "Shift+← →"
 msgstr "Skift+← →"
 
 msgctxt "MainWindow"
 msgid "Home"
 msgstr "Home"
-
-msgctxt "MainWindow"
-msgid "Ctrl+← →"
-msgstr "Ctrl+← →"
 
 msgctxt "MainWindow"
 msgid "PgUp PgDn"
@@ -711,10 +691,6 @@ msgstr "Backsteg"
 msgctxt "MainWindow"
 msgid "Z / Shift+Z"
 msgstr "Z / Skift+Z"
-
-msgctxt "MainWindow"
-msgid "J / Shift+J"
-msgstr "J / Skift+J"
 
 msgctxt "MainWindow"
 msgid "Home End"
@@ -743,14 +719,6 @@ msgstr "Ctrl+O"
 msgctxt "MainWindow"
 msgid "Ctrl+Shift+O"
 msgstr "Ctrl+Skift+O"
-
-msgctxt "MainWindow"
-msgid "Ctrl+←"
-msgstr "Ctrl+←"
-
-msgctxt "MainWindow"
-msgid "Ctrl+→"
-msgstr "Ctrl+→"
 
 msgctxt "player"
 msgid "The player cannot show video on this computer."
@@ -943,3 +911,171 @@ msgstr "FÖRDRÖJNING"
 msgctxt "MainWindow"
 msgid "SIZE & POSITION"
 msgstr "STORLEK OCH POSITION"
+
+msgctxt "MainWindow"
+msgid "Back to {}"
+msgstr "Tillbaka till {}"
+
+msgctxt "MainWindow"
+msgid "Shift"
+msgstr "Förskjutning"
+
+msgctxt "player"
+msgid "Untitled {}"
+msgstr "Namnlös {}"
+
+msgctxt "player"
+msgid "Untitled"
+msgstr "Namnlös"
+
+msgctxt "player"
+msgid "Smoke"
+msgstr "Rök"
+
+msgctxt "MainWindow"
+msgid "Space / K"
+msgstr "Blanksteg / K"
+
+msgctxt "MainWindow"
+msgid "Jump to 0%–90%"
+msgstr "Hoppa till 0–90 %"
+
+msgctxt "MainWindow"
+msgid "Skip intro or credits"
+msgstr "Hoppa över intro eller eftertexter"
+
+msgctxt "MainWindow"
+msgid "Shift+P / Shift+N"
+msgstr "Skift+P / Skift+N"
+
+msgctxt "MainWindow"
+msgid "Ctrl+← → / PgUp PgDn"
+msgstr "Ctrl+← → / PgUp PgDn"
+
+msgctxt "MainWindow"
+msgid "Smaller / larger subtitles"
+msgstr "Mindre / större undertexter"
+
+msgctxt "MainWindow"
+msgid "Next subtitle track"
+msgstr "Nästa undertextspår"
+
+msgctxt "MainWindow"
+msgid "Shift+C"
+msgstr "Skift+C"
+
+msgctxt "MainWindow"
+msgid "Reset the picture"
+msgstr "Återställ bilden"
+
+msgctxt "MainWindow"
+msgid "Video"
+msgstr "Video"
+
+msgctxt "MainWindow"
+msgid "Interface size"
+msgstr "Gränssnittets storlek"
+
+msgctxt "MainWindow"
+msgid "Off while your system asks for less motion"
+msgstr "Av medan systemet ber om mindre rörelse"
+
+msgctxt "MainWindow"
+msgid "VIDEO"
+msgstr "VIDEO"
+
+msgctxt "MainWindow"
+msgid "Speed"
+msgstr "Hastighet"
+
+msgctxt "MainWindow"
+msgid "Show the time left"
+msgstr "Visa återstående tid"
+
+msgctxt "MainWindow"
+msgid "Listens to the film and moves the subtitles to match what is said"
+msgstr "Lyssnar på filmen och flyttar undertexterna så att de stämmer med det som sägs"
+
+msgctxt "MainWindow"
+msgid "Show the length"
+msgstr "Visa längden"
+
+msgctxt "MainWindow"
+msgid "Shift+P"
+msgstr "Skift+P"
+
+msgctxt "MainWindow"
+msgid "Shift+N"
+msgstr "Skift+N"
+
+msgctxt "player"
+msgid "How much the glass blurs the picture behind it"
+msgstr "Hur mycket glaset gör bilden bakom suddig"
+
+msgctxt "player"
+msgid "How far each pane's rim bends the picture behind it"
+msgstr "Hur långt varje rutas kant böjer bilden bakom"
+
+msgctxt "player"
+msgid "How widely the rim splits light into its colours, as a prism does"
+msgstr "Hur brett kanten delar upp ljuset i färger, som ett prisma"
+
+msgctxt "player"
+msgid "How brightly each pane's rim catches the light"
+msgstr "Hur starkt varje rutas kant fångar ljuset"
+
+msgctxt "player"
+msgid "How far the glass darkens toward black, as smoked glass does"
+msgstr "Hur mycket glaset mörknar mot svart, som rökat glas"
+
+msgctxt "player"
+msgid "How much of a bright scene the glass holds back, more the brighter it is"
+msgstr "Hur mycket av en ljus scen glaset håller tillbaka, mer ju ljusare den är"
+
+msgctxt "player"
+msgid "How dark the shadow each pane casts on the picture"
+msgstr "Hur mörk skuggan är som varje ruta kastar på bilden"
+
+msgctxt "player"
+msgid "How much the picture's edge is softened before it spreads"
+msgstr "Hur mycket bildens kant mjukas upp innan den sprids"
+
+msgctxt "player"
+msgid "How far the picture's light reaches into the black bars"
+msgstr "Hur långt bildens ljus når ut i de svarta fälten"
+
+msgctxt "player"
+msgid "How quickly that light fades away from the picture"
+msgstr "Hur snabbt ljuset klingar av bort från bilden"
+
+msgctxt "player"
+msgid "How gently the light begins to fade"
+msgstr "Hur mjukt ljuset börjar klinga av"
+
+msgctxt "player"
+msgid "Brightness"
+msgstr "Ljusstyrka"
+
+msgctxt "player"
+msgid "Contrast"
+msgstr "Kontrast"
+
+msgctxt "player"
+msgid "Saturation"
+msgstr "Mättnad"
+
+msgctxt "player"
+msgid "Gamma"
+msgstr "Gamma"
+
+msgctxt "player"
+msgid "How light the picture's middle tones are, leaving black and white"
+msgstr "Hur ljusa bildens mellantoner är, utan att röra svart och vitt"
+
+msgctxt "MainWindow"
+msgid "Enter"
+msgstr "Retur"
+
+msgctxt "player"
+msgid "."
+msgstr ","

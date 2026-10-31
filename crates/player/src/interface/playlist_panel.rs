@@ -24,7 +24,7 @@ struct Row {
     index: i64,
     current: bool,
     progress: Progress,
-    failed: bool,
+    why: String,
 }
 
 /// The playlist panel: asks for its layout, and shows the answer.
@@ -56,7 +56,7 @@ impl Panel {
                 index: e.index,
                 current: e.current,
                 progress: player.known_progress(row),
-                failed: player.failed.contains(&e.id),
+                why: player.failed.get(&e.id).cloned().unwrap_or_default(),
             })
             .collect();
         let beside: Vec<Beside> = player.beside.clone();
@@ -69,7 +69,7 @@ impl Panel {
                     index: row.index,
                     current: row.current,
                     progress: row.progress,
-                    failed: row.failed,
+                    why: &row.why,
                 })
                 .collect();
             Some(Completion::Shelved(shelf::arrange(&items, &beside)))
@@ -271,7 +271,7 @@ fn entry_item(entry: &Entry) -> PlaylistItem {
         },
         progress: entry.progress.fraction,
         finished: entry.progress.finished,
-        failed: entry.failed,
+        why: entry.why.as_str().into(),
     }
 }
 
@@ -286,7 +286,7 @@ mod tests {
             index,
             current,
             progress: Progress::default(),
-            failed: false,
+            why: "",
         }
     }
 

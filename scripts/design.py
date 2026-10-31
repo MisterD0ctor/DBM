@@ -44,6 +44,7 @@ MODULES = {
     "commands": PLAYER / "src/playback/commands.rs",
     "state": PLAYER / "src/playback/state.rs",
     "arrival": PLAYER / "src/playback/arrival.rs",
+    "retrace": PLAYER / "src/playback/retrace.rs",
     "preview": PLAYER / "src/library/preview.rs",
     "window": PLAYER / "src/platform/window.rs",
     "glass": PLAYER / "shaders/glass.frag",

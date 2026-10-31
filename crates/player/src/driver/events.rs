@@ -83,14 +83,15 @@ pub fn drain(
                 .find(|e| e.id == *entry)
                 .map(|e| e.filename.clone());
             let reason = format::sentence(said(reason));
-            notices.push(match &path {
+            let notice = match &path {
                 Some(path) => fill(
                     tr("{} — could not play {}"),
                     &[&reason, &crate::library::naming::titled(path, None)],
                 ),
                 None => fill(tr("{} — could not play that file"), &[&reason]),
-            });
-            player.failed.insert(*entry);
+            };
+            player.failed.insert(*entry, notice.clone());
+            notices.push(notice);
         }
         // Not everything mpv reports is state the interface shows. The
         // watchdog reads the same stream for the device list and the audio

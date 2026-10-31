@@ -587,12 +587,12 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
                 // `animate` reads should be zero with it off, and back with it
                 // on.
                 7 => {
-                    ui.global::<Motion>().set_enabled(false);
+                    ui.global::<Motion>().set_chosen(false);
                     ui.invoke_set_animations(false);
                     report_motion(&ui, "animations off");
                 }
                 8 => {
-                    ui.global::<Motion>().set_enabled(true);
+                    ui.global::<Motion>().set_chosen(true);
                     ui.invoke_set_animations(true);
                     report_motion(&ui, "animations on");
                 }

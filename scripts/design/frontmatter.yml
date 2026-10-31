@@ -10,6 +10,7 @@ colors:
   fill: "{{ Paint.fill }}"
   rail: "{{ Paint.rail }}"
   knob: "{{ Paint.knob }}"
+  well: "{{ Paint.well }}"
   ground: "{{ Paint.ground }}"
   wash-ring: "{{ Paint.wash-ring }}"
   wash-strong: "{{ Paint.wash-strong }}"
@@ -148,7 +149,7 @@ components:
   stepper-button:
     size: "{{ StepButton.width }}"
     rounded: "{{ StepButton.width / 2 }}"
-    backgroundColor: "{colors.wash-soft}"
+    backgroundColor: "{colors.wash-button}"
     textColor: "{colors.strong}"
   stepper-button-hover:
     backgroundColor: "{colors.wash-strong}"

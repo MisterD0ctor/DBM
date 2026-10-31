@@ -12,12 +12,14 @@ use std::rc::Rc;
 use std::sync::Arc;
 
 use crate::interface::chrome::Activity;
+use crate::interface::scale::Scale;
 use crate::interface::subline::Subline;
 use crate::library::opensubtitles::Hit;
 use crate::library::preview::Preview;
 use crate::playback::arrival::Arrival;
 use crate::playback::audio::Watchdog;
 use crate::playback::mpv::Mpv;
+use crate::playback::retrace::Retrace;
 use crate::playback::scrub::Scrubber;
 use crate::settings::Store;
 use crate::worker::Worker;
@@ -58,4 +60,10 @@ pub struct App {
     /// files through it, the frame loop tells it what the playlist knows and
     /// when a file has loaded.
     pub arrival: Rc<Arrival>,
+    /// A seek the pointer made: the callbacks tell it where the film was and
+    /// where it went, the frame loop asks whether the way back is offered.
+    pub retrace: Rc<Retrace>,
+    /// The interface's size: the settings choose it, the frame loop keeps it
+    /// on top of whatever the system sets.
+    pub scale: Rc<Scale>,
 }

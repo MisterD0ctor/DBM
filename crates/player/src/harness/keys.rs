@@ -348,14 +348,14 @@ pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
                         "fine" => chord(&ui, &[Key::Shift], slint::SharedString::from(Key::RightArrow).as_str()),
                         "volume" => key(Key::UpArrow),
                         "mute" => chord(&ui, &[], "m"),
-                        "subs" => chord(&ui, &[], "j"),
-                        "speed" => chord(&ui, &[], "]"),
+                        "subs" => chord(&ui, &[Key::Shift], "C"),
+                        "speed" => chord(&ui, &[Key::Shift], ">"),
                         "step" => chord(&ui, &[], "."),
                         "panscan" => chord(&ui, &[], "t"),
                         "fullscreen" => chord(&ui, &[], "f"),
                         "tab" => key(Key::Tab),
                         "space" => chord(&ui, &[], " "),
-                        "next" | "next-move" => chord(&ui, &[Key::Control], slint::SharedString::from(Key::RightArrow).as_str()),
+                        "next" | "next-move" => chord(&ui, &[Key::Shift], "N"),
                         "double-click" => {
                             let size = ui.window().size().to_logical(ui.window().scale_factor());
                             let (x, y) = (size.width / 2.0, size.height / 2.0);

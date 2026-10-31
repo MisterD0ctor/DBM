@@ -27,6 +27,7 @@ pub const OBSERVED: &[(&str, c_int)] = &[
     ("mute", FORMAT_FLAG),
     ("volume", FORMAT_DOUBLE),
     ("eof-reached", FORMAT_FLAG),
+    ("idle-active", FORMAT_FLAG),
     ("playlist-pos", FORMAT_DOUBLE),
     ("playlist-count", FORMAT_DOUBLE),
     ("sub-visibility", FORMAT_FLAG),
@@ -69,6 +70,9 @@ pub struct PlayerState {
     pub muted: bool,
     pub volume: f64,
     pub eof_reached: bool,
+    /// Nothing loaded and nothing on its way, which is where a file that
+    /// wouldn't play leaves mpv when it was the last.
+    pub idle: bool,
     pub playlist_pos: i64,
     pub playlist_count: i64,
     pub sub_visibility: bool,
@@ -99,10 +103,11 @@ pub struct PlayerState {
     /// pieces, with a scene of the file's own between two, or after the last
     /// where it stops short of the end.
     pub credits_heard: Option<(String, Vec<(f64, f64)>)>,
-    /// Playlist entries that wouldn't play, by mpv's id, so their rows can
-    /// say so after the notice has gone. By id rather than path, since a file
-    /// that fails at once has no path reported yet.
-    pub failed: std::collections::HashSet<i64>,
+    /// Playlist entries that wouldn't play, by mpv's id, with the notice
+    /// that said so, so their rows can say it again after it has gone. By id
+    /// rather than path, since a file that fails at once has no path reported
+    /// yet.
+    pub failed: std::collections::HashMap<i64, String>,
     /// The entry that last played to its end, by mpv's id, for the frame to
     /// take: what autoplay is moving on from (see `arrival`).
     pub played_out: Option<i64>,
@@ -188,6 +193,7 @@ impl PlayerState {
             "mute" => set(&mut self.muted, flag),
             "volume" => set(&mut self.volume, num.unwrap_or(0.0)),
             "eof-reached" => set(&mut self.eof_reached, flag),
+            "idle-active" => set(&mut self.idle, flag),
             "playlist-pos" => set(&mut self.playlist_pos, num.unwrap_or(-1.0) as i64),
             "playlist-count" => {
                 if set(&mut self.playlist_count, num.unwrap_or(0.0) as i64) {

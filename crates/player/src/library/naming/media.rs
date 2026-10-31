@@ -272,6 +272,61 @@ fn parse_episode(stem: &str) -> Option<Media> {
     None
 }
 
+/// A release's name from where it stops naming what is playing: past the
+/// show and the episode marker, or past a film's title and year. Releases of
+/// one episode differ only after that, so a list of them read whole would
+/// repeat the same words on every line and cut off the part that tells them
+/// apart.
+///
+/// A marker for another episode is part of what the line says, so only the
+/// show before it goes. The whole name where nothing it starts with is known
+/// to be the playing film, or nothing would be left.
+pub fn past_named<'a>(release: &'a str, playing: &Media) -> &'a str {
+    let chars: Vec<(usize, char)> = release.char_indices().collect();
+    let plain: Vec<char> = chars.iter().map(|&(_, c)| c).collect();
+    let from = match playing {
+        Media::Episode {
+            season: Some(season),
+            episode,
+            ..
+        } => (0..plain.len()).find_map(|i| {
+            let (s, e, _, end) = match_marker(&plain, i)?;
+            Some(if (s, e) == (*season, *episode) {
+                past_word(&plain, end)
+            } else {
+                i
+            })
+        }),
+        Media::Movie {
+            year: Some(year), ..
+        } => past_year(&plain, *year),
+        _ => None,
+    };
+    match from.and_then(|i| chars.get(i)) {
+        Some(&(byte, _)) if byte > 0 => &release[byte..],
+        _ => release,
+    }
+}
+
+/// Where a name goes on past `year`, standing as a word of its own after
+/// the title, as `split_year` finds a film's.
+fn past_year(chars: &[char], year: u32) -> Option<usize> {
+    let digits: Vec<char> = year.to_string().chars().collect();
+    (1..chars.len()).find_map(|i| {
+        let end = i + digits.len();
+        let alone =
+            !chars[i - 1].is_alphanumeric() && chars.get(end).is_none_or(|c| !c.is_alphanumeric());
+        (chars.get(i..end)? == digits.as_slice() && alone).then(|| past_word(chars, end))
+    })
+}
+
+/// Past a bracket closing on the word that ends at `i`, as `(2021)` and
+/// `[S01E02]` do, and the separators after it.
+fn past_word(chars: &[char], i: usize) -> usize {
+    let closed = chars.get(i).is_some_and(|c| matches!(c, ')' | ']'));
+    skip_separators(chars, i + usize::from(closed))
+}
+
 /// `Show - 01`: an episode numbered without a season.
 ///
 /// The fansub convention, which the season markers miss entirely.
@@ -871,6 +926,50 @@ mod tests {
         assert_eq!(
             titled("Some.Movie.2019.1080p.mkv", None),
             "Some Movie (2019)"
+        );
+    }
+    #[test]
+    fn a_release_of_the_episode_playing_keeps_what_differs() {
+        let playing = parse("The.Walking.Dead.S04E06.Live.Bait.1080p.mkv");
+        assert_eq!(
+            past_named("The.Walking.Dead.S04E06.720p.HDTV.x264-KILLERS", &playing),
+            "720p.HDTV.x264-KILLERS"
+        );
+        assert_eq!(
+            past_named("The Walking Dead - 04x06 - Live Bait.HDTV.ASAP", &playing),
+            "Live Bait.HDTV.ASAP"
+        );
+        assert_eq!(past_named("[S04E06] WEB-DL", &playing), "WEB-DL");
+    }
+    #[test]
+    fn a_release_of_another_episode_says_which() {
+        let playing = parse("The.Walking.Dead.S04E06.mkv");
+        assert_eq!(
+            past_named("The.Walking.Dead.S04E07.720p.HDTV", &playing),
+            "S04E07.720p.HDTV"
+        );
+    }
+    #[test]
+    fn a_film_release_starts_past_its_year() {
+        let playing = parse("Dune.Part.Two.2024.2160p.mkv");
+        assert_eq!(
+            past_named("Dune.Part.Two.2024.1080p.WEB", &playing),
+            "1080p.WEB"
+        );
+        assert_eq!(
+            past_named("Dune Part Two (2024) BluRay", &playing),
+            "BluRay"
+        );
+    }
+    #[test]
+    fn a_release_that_shares_nothing_known_stays_whole() {
+        let playing = parse("The.Walking.Dead.S04E06.mkv");
+        assert_eq!(past_named("show.en.srt", &playing), "show.en.srt");
+        assert_eq!(past_named("S04E06", &playing), "S04E06");
+        let film = parse("holiday clip.mp4");
+        assert_eq!(
+            past_named("holiday.clip.2019.WEB", &film),
+            "holiday.clip.2019.WEB"
         );
     }
 }

@@ -115,6 +115,8 @@ pub struct Driver {
     /// one now (see `light_the_end`).
     end_light_asked: Option<String>,
     end_lit: Option<String>,
+    /// Whether that light is the mark, for want of a frame of the file's own.
+    end_marked: bool,
     /// The file whose title sequence and credits were last looked for, so
     /// each is looked for once.
     titles_asked: Option<String>,
@@ -129,6 +131,10 @@ pub struct Driver {
     /// Whether a `loadlist` is on its way, so that its reply knows to start
     /// playback.
     loading_list: bool,
+    /// Whether an open came to nothing since a file last loaded, so that if
+    /// nothing plays now, the empty window looks for what to offer as it
+    /// does at launch.
+    stumbled: bool,
     /// `PlayerState::loads` as of the last frame — see where it is compared.
     loads_seen: u64,
     /// The media keys and the desktop's media widget, told what is playing
@@ -188,11 +194,13 @@ impl Driver {
             onward_asked: None,
             end_light_asked: None,
             end_lit: None,
+            end_marked: false,
             titles_asked: None,
             kept_asked: None,
             replies: Vec::new(),
             notices: Vec::new(),
             loading_list: false,
+            stumbled: false,
             loads_seen: 0,
             media_keys,
             awake: crate::platform::awake::Awake::default(),
@@ -263,11 +271,13 @@ impl Driver {
                         }
                         // ...and last the window's corners, cut from all of it.
                         if let Some(corners) = gpu.corners.as_mut() {
+                            // At the system's size, not the interface's, since
+                            // they are the desktop's corners.
                             let radius = crate::platform::window::corner_radius(ui.window());
                             corners.run(
                                 &gpu.gl,
                                 (size.width, size.height),
-                                radius * ui.window().scale_factor(),
+                                radius * self.app.scale.system(&ui),
                             );
                         }
                         self.capture.maybe(&gpu.gl, size.width, size.height);
@@ -404,12 +414,8 @@ impl Driver {
                         .worker
                         .submit(move |_mpv| Some(Completion::Opened(playlist::prepare(&path))));
                 } else {
-                    // Nothing named, so the empty window is what is coming:
-                    // find what it can offer to pick back up. A stat per
-                    // played file and one ffmpeg run, so on the worker.
-                    self.app.worker.submit(|_mpv| {
-                        Some(Completion::Resume(crate::library::resume::last_watched()))
-                    });
+                    // Nothing named, so the empty window is what is coming.
+                    completions::look_for_resume(&self.app.worker);
                 }
                 let fader = crate::gpu::fade::Fader::new(&gl)
                     .inspect_err(|e| eprintln!("dbm: no soft edge on scrolling lists: {e}"))
@@ -508,6 +514,7 @@ impl Driver {
         let t = self.diag.mark_panels(t);
         self.diag.panels_changed(&self.panels);
         self.warm.frame(&ui);
+        self.app.scale.frame(&ui, self.app.settings.scale());
 
         self.draw(&ui, &mut gpu, t);
         self.gpu = Some(gpu);
@@ -525,7 +532,9 @@ impl Driver {
         );
         // A failure marks its playlist row, which the list otherwise only
         // hears about on the next read.
-        if !self.notices.is_empty() {
+        let failed = !self.notices.is_empty();
+        if failed {
+            self.stumbled = true;
             self.panel.request(&self.player, &self.app.worker);
         }
         for notice in std::mem::take(&mut self.notices) {
@@ -576,13 +585,25 @@ impl Driver {
             .arrival
             .offered(self.player.path.as_deref(), self.player.time_pos);
         ui.set_resume_offer(offered.map(format::time).unwrap_or_default().into());
+        let back = self
+            .app
+            .retrace
+            .offered(self.player.path.as_deref(), self.player.time_pos);
+        ui.set_back_offer(back.map(format::time).unwrap_or_default().into());
         // An open is over when mpv finishes opening a file, not when it has
         // one, which is already true while a film plays. Failures end it their
         // own ways: a scan that found nothing where the scan reports back, and
         // a file mpv couldn't play by its notice, above.
         if self.player.loads != self.loads_seen {
             self.loads_seen = self.player.loads;
+            self.stumbled = false;
             ui.set_opening(false);
+        }
+        // Back on the empty window after an open that came to nothing, which
+        // offers what it would have at launch rather than the bare fill.
+        if self.stumbled && self.player.idle && self.player.path.is_none() {
+            self.stumbled = false;
+            completions::look_for_resume(&self.app.worker);
         }
         for id in std::mem::take(&mut self.replies) {
             match id {
@@ -599,6 +620,14 @@ impl Driver {
                 }
                 _ => {}
             }
+        }
+        // mpv goes on from a file that wouldn't play as from one that ended,
+        // but with autoplay off nothing starts that wasn't asked for: the
+        // next file waits, paused, under the notice saying why. After the
+        // replies, so a list's own start can't undo it.
+        if failed && !self.app.settings.autoplay() {
+            self.loading_list = false;
+            commands::set_pause(&self.app.mpv, true);
         }
         moved
     }
@@ -718,6 +747,7 @@ impl Driver {
     fn poll_preview(&self, ui: &MainWindow) {
         let preview = &self.app.preview;
         preview.set_duration(self.player.duration);
+        preview.set_chapters(&self.player.chapters);
         let Some(path) = self.player.path.as_deref() else {
             return;
         };
@@ -852,15 +882,18 @@ impl Driver {
             gpu.pipeline.glass_enabled = self.app.settings.glass_on();
             ui.global::<crate::Paint>()
                 .set_glass(self.app.settings.glass_on());
-            gpu.pipeline.animate = self.app.settings.animations();
             gpu.pipeline.legible = self.app.settings.legible_glass();
             params_dirty = true;
         }
+        // What the interface moves by, the switch and the system together
+        // (see `Motion.enabled`), which can change without the settings.
+        gpu.pipeline.animate = ui.global::<crate::Motion>().get_enabled();
 
         // The backdrop stands in while nothing is loaded, and at the end of a
         // file once its light has come.
         let ended =
             self.player.eof_reached && self.end_lit.is_some() && self.end_lit == self.player.path;
+        ui.set_end_lit(ended);
         gpu.pipeline.show_backdrop(
             self.player.path.is_none() || ended,
             self.player.path.is_some(),

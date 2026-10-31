@@ -109,8 +109,7 @@ pub fn minimize(window: &slint::Window) {
     window.with_winit_window(|w| w.set_minimized(true));
 }
 
-/// Windows says when the window is restored, so Slint's own property keeps up
-/// and this build needs no unstable API for it.
+/// Windows says when the window is restored, so Slint's own property keeps up.
 #[cfg(windows)]
 pub fn minimize(window: &slint::Window) {
     window.set_minimized(true);

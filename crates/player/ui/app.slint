@@ -107,6 +107,9 @@ export component MainWindow inherits Window {
     /// At the end of the last file, where it is an episode, the season it
     /// ends: *Season 4 finished*. Empty otherwise.
     in property <string> season-done;
+    /// The end of the file is lit by its own most lit frame, covered and
+    /// dimmed, rather than showing the frame it stopped on.
+    in property <bool> end-lit;
     /// The playing file, for the dialogs to open near.
     in property <string> current-path;
     in property <float> duration;
@@ -142,6 +145,9 @@ export component MainWindow inherits Window {
     // The thumbnail is one tile of a sprite atlas, picked with `source-clip`
     // as the video is. Nothing here knows how the atlas was made.
     in property <string> preview-time: "0:00";
+    /// The chapter the pointer is over, where the file names it; empty
+    /// otherwise. Said over the time, as YouTube's preview does.
+    in property <string> preview-chapter;
     in property <image> preview-sprite;
     in property <int> preview-tile-w;
     in property <int> preview-tile-h;
@@ -506,8 +512,9 @@ export component MainWindow inherits Window {
     // straight to its own rows.
     in property <[ParamItem]> glass-params;
     in property <[ParamItem]> border-params;
+    in property <[ParamItem]> picture-params;
     /// Every slider's name on a line of its own, measured by `param-measure`
-    /// for the column both pages set their names in.
+    /// for the column every page sets its names in.
     in property <string> param-names;
     /// 2px wider than the widest name, so with the row's 8px spacing the
     /// track sits 10px off the words.
@@ -574,19 +581,20 @@ export component MainWindow inherits Window {
     /// these rather than wrapping, so Up from the top can't land on the row
     /// that throws a page of tuning away.
     property <bool> focus-has-reset: root.settings-open
-        ? root.settings-page == 1 || root.settings-page == 2
+        ? root.settings-page == 1 || root.settings-page == 2 || root.settings-page == 6
         : root.menu-open && !root.find-open && root.subs-page != 0
             && root.subs-page-count == 4;
     /// Per page: the rows, the way back, and the reset after them, plus the
-    /// switch on the ambient border's.
-    /// Accessibility has no reset, since each switch undoes itself, and the
-    /// shortcuts page has only the way back.
+    /// switch on the ambient border's, and on the video page the speed and
+    /// its two switches. Accessibility has no reset, since each row undoes
+    /// itself, and the shortcuts page has only the way back.
     property <int> settings-focus-count:
-        root.settings-page == 0 ? 5
+        root.settings-page == 0 ? 6
         : root.settings-page == 1 ? 2 + root.glass-params.length
         : root.settings-page == 2 ? 3 + root.border-params.length
-        : root.settings-page == 3 ? 1 + root.access-switches
+        : root.settings-page == 3 ? 2 + root.access-switches
         : root.settings-page == 5 ? 1 + root.language-count
+        : root.settings-page == 6 ? 5 + root.picture-params.length
         : 1;
     /// The same count for `leaf-page`, which on the way back out isn't the
     /// page the keyboard is on. Counting off the live page would light the
@@ -594,7 +602,8 @@ export component MainWindow inherits Window {
     property <int> leaf-focus-count:
         root.leaf-page == 1 ? 2 + root.glass-params.length
         : root.leaf-page == 2 ? 3 + root.border-params.length
-        : root.leaf-page == 3 ? 1 + root.access-switches
+        : root.leaf-page == 3 ? 2 + root.access-switches
+        : root.leaf-page == 6 ? 5 + root.picture-params.length
         : root.leaf-page == 5 ? 1 + root.language-count
         : 1;
     /// The accessibility page's switches. Shortcuts in tooltips is there only
@@ -629,8 +638,8 @@ export component MainWindow inherits Window {
     in-out property <bool> autoplay: true;
     /// Registry index and its new normalised position.
     callback set-param(int, float);
-    /// Restore one section to its defaults: 0 glass, 1 ambient border, as in
-    /// `settings::Section`.
+    /// Restore one section to its defaults: 0 glass, 1 ambient border, 2 the
+    /// picture, as in `settings::Section`.
     callback reset-section(int);
     /// Take back the last reset of a settings page, as the panel numbers them.
     callback undo-reset(int);
@@ -647,10 +656,20 @@ export component MainWindow inherits Window {
     callback minimize();
     callback set-ambience(bool);
     callback set-autoplay(bool);
-    /// The accessibility page's switch. `Motion.enabled` is already set when
-    /// this runs; it saves the choice and tells the pipeline, which draws the
-    /// backdrop's fade.
+    /// The accessibility page's switch. `Motion.chosen` is already set when
+    /// this runs; it saves the choice.
     callback set-animations(bool);
+    /// The interface's size, as a multiple of the system's, and a step of it
+    /// from the same page, which Rust keeps to the sizes offered that the
+    /// display has room for.
+    in property <float> interface-scale: 1;
+    callback step-scale(int);
+    /// Whether the timeline's right end says what is left of the film rather
+    /// than its length, and what that is: `−12:34`. A click on it or the
+    /// video page's switch changes it here, and Rust saves it.
+    in-out property <bool> show-remaining;
+    in property <string> remaining;
+    callback set-show-remaining(bool);
     /// Whether the glass is held dark enough for its words over a bright
     /// frame, from the same page; Rust saves it and tells the pipeline.
     in-out property <bool> legible-glass: true;
@@ -678,6 +697,9 @@ export component MainWindow inherits Window {
     /// Past the title sequence or the credits: seconds from the start,
     /// landing exactly.
     callback skip-to(float);
+    /// A number key's jump, as a share of the film: as far as a click on the
+    /// timeline goes, and offered back the same way.
+    callback jump-to(float);
     /// Seconds, signed.
     callback seek-relative(float);
     /// Absolute position as 0..1 of the file, landing exactly.
@@ -729,6 +751,13 @@ export component MainWindow inherits Window {
     /// otherwise. The corner pill offers to go on from there.
     in property <string> resume-offer;
     callback take-resume-offer();
+    /// Where the film was before a click or drag on the timeline, or a number
+    /// key, moved it more than half a minute, for ten seconds of the film
+    /// after, as the
+    /// timeline writes a time; empty otherwise. The corner pill offers to go
+    /// back there (see `playback::retrace`).
+    in property <string> back-offer;
+    callback take-back-offer();
     /// Track id, or -1 to turn subtitles off.
     callback select-subtitle(int);
     callback select-audio(int);
@@ -1264,7 +1293,8 @@ export component MainWindow inherits Window {
     /// type rather than a 24px glyph.
     property <length> timeline-h: 30px;
     /// Wide enough for the longest either time can read, which is the total,
-    /// and never narrower than "00:00", with `glyph-inset` either side.
+    /// with its minus while it says what is left, and never narrower than
+    /// "00:00", with `glyph-inset` either side.
     ///
     /// A time at its full width then starts and ends where the end buttons'
     /// drawings do. Measured rather than assumed, since a figure's width is up
@@ -1472,6 +1502,10 @@ export component MainWindow inherits Window {
     /// nothing, because this is the loudest the interface speaks.
     property <string> end-onward-label: root.onward-path != ""
         ? root.onward-label : @tr("Open folder…");
+    /// The way on is another film rather than more of this show: something to
+    /// go back to, under Play's glyph as on the way in, since under Next's it
+    /// would read as this show's next episode.
+    property <bool> end-onward-elsewhere: root.onward-path != "" && !root.onward-season;
     /// The widest the pill grows before its words elide: half the bar, since
     /// a film's name can run to a sentence, and this is a capsule in the
     /// picture rather than a banner across it.
@@ -1567,15 +1601,22 @@ export component MainWindow inherits Window {
     /// `playback::arrival`).
     property <bool> resume-offered: root.resume-offer != "" && root.has-file
         && !root.at-end && !root.arriving && root.fatal == "";
+    /// And for ten seconds after a click on the timeline or a number key
+    /// moved the film far: the way back to where it was.
+    property <bool> back-offered: root.back-offer != "" && root.has-file
+        && !root.at-end && !root.arriving && root.fatal == "";
     /// Any of them. Intro and credits fall in different halves of a file;
     /// should a file say both, the credits win. The passed-over place wins
     /// over the intro, since going on from it skips the intro too, and it
-    /// only lasts ten seconds.
+    /// only lasts ten seconds. The way back wins over all of them, being an
+    /// answer to what the hand just did.
     property <bool> corner-offered: root.credits-offered || root.intro-offered
-        || root.resume-offered;
+        || root.resume-offered || root.back-offered;
     /// Which: 0 the way on, 1 past the title sequence, 2 the place passed
-    /// over, 3 past the credits to the scene after them; -1 for none.
-    property <int> corner-offer: root.resume-offered ? 2
+    /// over, 3 past the credits to the scene after them, 4 back to where a
+    /// jump took the film from; -1 for none.
+    property <int> corner-offer: root.back-offered ? 4
+        : root.resume-offered ? 2
         : root.credits-offered ? (root.credits-skip ? 3 : 0)
         : root.intro-offered ? 1
         : -1;
@@ -1598,10 +1639,18 @@ export component MainWindow inherits Window {
             root.resume-offer-said = root.resume-offer;
         }
     }
+    property <string> back-offer-said;
+    changed back-offer => {
+        if (root.back-offer != "") {
+            root.back-offer-said = root.back-offer;
+        }
+    }
     /// Named like the end pill's way on: the next file as its row says it,
     /// or the next season at the end of one. *Next episode* when neither can
     /// be said.
-    out property <string> credits-label: root.corner-says == 2
+    out property <string> credits-label: root.corner-says == 4
+        ? @tr("Back to {}", root.back-offer-said)
+        : root.corner-says == 2
         ? @tr("Continue from {}", root.resume-offer-said)
         : root.corner-says == 1 ? @tr("Skip intro")
         : root.corner-says == 3 ? @tr("Skip credits")
@@ -1781,7 +1830,14 @@ export component MainWindow inherits Window {
         root.flash-shown = 1.0;
         root.flash-waiting = false;
         flash-timer.stop();
-        flash-timer.start();
+        // A hint has no dwell: it stays while its row is rested on.
+        if (!Flash.held) {
+            flash-timer.start();
+        }
+    }
+    property <int> flash-dropped: Flash.dropped;
+    changed flash-dropped => {
+        root.flash-shown = 0.0;
     }
 
     /// A notice beside a panel goes when the panel does, or left beside
@@ -1987,12 +2043,18 @@ export component MainWindow inherits Window {
     /// the radii differ by the padding between them.
     property <length> preview-tile-radius: root.preview-radius - root.preview-pad;
     property <length> preview-caption: 22px;
+    /// A line for the chapter's name over the time, where there is one.
+    property <length> preview-chapter-h: root.preview-chapter != "" ? Rows.note-line : 0px;
+    /// Without a thumbnail, as wide as the chapter's name needs, up to a
+    /// line that still reads as a label rather than a banner.
     property <length> preview-w: root.preview-has-tile
         ? root.preview-tile-w * 1px + 2 * root.preview-pad
-        : 74px;
+        : max(74px, min(preview-chapter-measure.preferred-width + 2 * root.preview-pad + 8px,
+            320px));
     property <length> preview-h: root.preview-has-tile
         ? root.preview-tile-h * 1px + 2 * root.preview-pad + root.preview-caption
-        : 26px;
+            + root.preview-chapter-h
+        : 26px + root.preview-chapter-h;
     /// Where along the track the pointer is, in the track's own coordinates.
     property <length> preview-cursor: clamp(scrub.mouse-x, 0px, root.scrub-w);
     /// Centred on the pointer and kept inside the bar's margins.
@@ -2042,6 +2104,16 @@ export component MainWindow inherits Window {
     property <length> panel-max-h:
         root.bar-top - Rows.offset - root.panel-margin;
 
+    /// The width of the panels whose rows are names someone else wrote, the
+    /// tracks and the playlist: a third of the window, so a bigger window
+    /// shows more of an episode's title and a release's name, between the
+    /// narrowest that leaves the floor's film in view and the widest an eye
+    /// takes in one sweep. The settings and Open hold the interface's own
+    /// short words, and keep theirs.
+    property <length> list-min-w: 380px;
+    property <length> list-max-w: 540px;
+    property <length> list-w: clamp(root.width * 0.34, root.list-min-w, root.list-max-w);
+
     // --- list panels ---
     //
     // A panel is capped at what fits above the bar, and its lists share what
@@ -2061,20 +2133,23 @@ export component MainWindow inherits Window {
     /// A row with a heading opens a section, and one without belongs to the
     /// section above, so moving a key between groups is moving one line. Keys
     /// for the two ends of one action stand side by side, `← →`, but take a
-    /// slash where either is a name or has a modifier, `J / Shift+J`, since a
-    /// space inside `Shift+J` would read as a third key.
+    /// slash where either is a name or has a modifier, `Z / Shift+Z`, since a
+    /// space inside `Shift+Z` would read as a third key. A slash also stands
+    /// between two ways to do one thing, `Space / K`.
     property <[{label: string, keys: string, heading: string, icon: image, dropping: bool}]> shortcuts: [
         { heading: @tr("PLAYBACK"), icon: @image-url("../../../public/icons/play-pause.svg"),
-          label: @tr("Play / pause"), keys: @tr("Space") },
-        { label: @tr("Back / forward {} seconds", root.seek-step), keys: "← →" },
+          label: @tr("Play / pause"), keys: @tr("Space / K") },
+        { label: @tr("Back / forward {} seconds", root.seek-step), keys: "← → / J L" },
         { label: @tr("Back / forward {} second", root.fine-seek-step), keys: @tr("Shift+← →") },
         { label: @tr("Restart"), keys: @tr("Home") },
-        { label: @tr("Previous / next file"), keys: @tr("Ctrl+← →") },
-        { label: @tr("Previous / next chapter"), keys: @tr("PgUp PgDn") },
+        { label: @tr("Jump to 0%–90%"), keys: "0–9" },
+        { label: @tr("Skip intro or credits"), keys: @tr("Enter") },
+        { label: @tr("Previous / next file"), keys: @tr("Shift+P / Shift+N") },
+        { label: @tr("Previous / next chapter"), keys: @tr("Ctrl+← → / PgUp PgDn") },
         // Named, because a comma and a full stop at readout size are specks
         // nobody can read as keys.
         { label: @tr("Frame back / forward"), keys: @tr("Comma / Period") },
-        { label: @tr("Slower / faster"), keys: "[ ]" },
+        { label: @tr("Slower / faster"), keys: "< >" },
         { label: @tr("Normal speed"), keys: @tr("Backspace") },
 
         { heading: @tr("AUDIO"), icon: @image-url("../../../public/icons/volume.svg"),
@@ -2085,7 +2160,8 @@ export component MainWindow inherits Window {
         { heading: @tr("SUBTITLES"), icon: @image-url("../../../public/icons/subtitles.svg"),
           label: @tr("Subtitles on / off"), keys: "C" },
         { label: @tr("Subtitles earlier / later"), keys: @tr("Z / Shift+Z") },
-        { label: @tr("Next / previous subtitle track"), keys: @tr("J / Shift+J") },
+        { label: @tr("Smaller / larger subtitles"), keys: "− +" },
+        { label: @tr("Next subtitle track"), keys: @tr("Shift+C") },
 
         { heading: @tr("PICTURE"), icon: @image-url("../../../public/icons/monitor.svg"),
           label: @tr("Fill or fit the window"), keys: "T" },
@@ -2153,8 +2229,11 @@ export component MainWindow inherits Window {
             return root.sliders-top(2) + root.border-params.length * Rows.slider-row
                 + Rows.group-gap + root.row-h;
         }
+        // The size, a gap, and the switches, with the note under Animations
+        // while the system holds it off.
         if (page == 3) {
-            return root.access-switches * root.toggle-h;
+            return Rows.stepper-row + Rows.group-gap + root.access-switches * root.toggle-h
+                + (root.motion-note ? root.note-h : 0px);
         }
         if (page == 4) {
             return root.shortcuts-natural;
@@ -2162,12 +2241,22 @@ export component MainWindow inherits Window {
         if (page == 5) {
             return root.language-count * root.row-h;
         }
+        // The speed and its two switches, then the picture's sliders between
+        // gaps, and their reset.
+        if (page == 6) {
+            return root.sliders-top(6) + root.picture-params.length * Rows.slider-row
+                + Rows.group-gap + root.row-h;
+        }
         return 0px;
     }
-    /// The first page: two headings and five rows that lead somewhere. The
-    /// second heading follows a group and takes the gap.
-    property <length> front-natural: 2 * root.heading-h + 5 * root.row-h
-        + Rows.group-gap;
+    /// The first page: three headings and six rows that lead somewhere. The
+    /// headings after the first follow a group and take the gap.
+    property <length> front-natural: 3 * root.heading-h + 6 * root.row-h
+        + 2 * Rows.group-gap;
+    /// A line of the system's under the Animations switch while it holds them
+    /// off, so the switch standing on doesn't read as broken.
+    property <bool> motion-note: Motion.system-still && Motion.chosen;
+    property <length> note-h: 2 * Rows.note-line;
     /// What is left of the panel for each list: all of it on the first page,
     /// and what the way back leaves on the others. Each list's own height at
     /// rest while the panel moves between the two (see `settings-moving`).
@@ -2191,17 +2280,21 @@ export component MainWindow inherits Window {
     /// How many sliders a page of them has, the row the first is, and how far
     /// down the list it starts: under the ambient border's switch and a gap.
     pure function sliders-on(page: int) -> int {
-        return page == 1 ? root.glass-params.length : root.border-params.length;
+        return page == 1 ? root.glass-params.length
+            : page == 6 ? root.picture-params.length
+            : root.border-params.length;
     }
     pure function sliders-from(page: int) -> int {
-        return page == 2 ? 2 : 1;
+        return page == 2 ? 2 : page == 6 ? 4 : 1;
     }
     pure function sliders-top(page: int) -> length {
-        return page == 2 ? root.toggle-h + Rows.group-gap : 0px;
+        return page == 2 ? root.toggle-h + Rows.group-gap
+            : page == 6 ? Rows.stepper-row + 2 * root.toggle-h + Rows.group-gap
+            : 0px;
     }
     /// Whether a row of a page of sliders is one of them.
     pure function is-slider(page: int, row: int) -> bool {
-        return (page == 1 || page == 2) && row >= root.sliders-from(page)
+        return (page == 1 || page == 2 || page == 6) && row >= root.sliders-from(page)
             && row < root.sliders-from(page) + root.sliders-on(page);
     }
     /// Where a row of a settings page is in its list, and how tall it is.
@@ -2209,21 +2302,29 @@ export component MainWindow inherits Window {
     /// the list.
     pure function settings-row-top(page: int, row: int) -> length {
         if (page == 0) {
-            // A heading over rows 0 and 2, the second after a gap.
+            // A heading over rows 0, 1 and 3, the later two after a gap.
             return row * root.row-h + root.heading-h
-                + (row >= 2 ? root.heading-h + Rows.group-gap : 0px);
+                + (row >= 1 ? root.heading-h + Rows.group-gap : 0px)
+                + (row >= 3 ? root.heading-h + Rows.group-gap : 0px);
         }
         // The ambient border's switch, the sliders, then the gap and the reset.
         if (page == 2 && row == 1) {
             return 0px;
         }
-        if (page == 1 || page == 2) {
+        // The speed, then its two switches.
+        if (page == 6 && row <= 3) {
+            return row == 1 ? 0px : Rows.stepper-row + (row - 2) * root.toggle-h;
+        }
+        if (page == 1 || page == 2 || page == 6) {
             return root.sliders-top(page) + (root.is-slider(page, row)
                 ? (row - root.sliders-from(page)) * Rows.slider-row
                 : root.sliders-on(page) * Rows.slider-row + Rows.group-gap);
         }
+        // The size, a gap, then the switches, the note under the first.
         if (page == 3) {
-            return (row - 1) * root.toggle-h;
+            return row == 1 ? 0px
+                : Rows.stepper-row + Rows.group-gap + (row - 2) * root.toggle-h
+                    + (row >= 3 && root.motion-note ? root.note-h : 0px);
         }
         return (row - 1) * root.row-h;
     }
@@ -2231,7 +2332,10 @@ export component MainWindow inherits Window {
         if (root.is-slider(page, row)) {
             return Rows.slider-row;
         }
-        if (page == 2 && row == 1) {
+        if ((page == 3 || page == 6) && row == 1) {
+            return Rows.stepper-row;
+        }
+        if ((page == 2 && row == 1) || (page == 6 && row <= 3)) {
             return root.toggle-h;
         }
         if (page == 3) {
@@ -2685,9 +2789,12 @@ export component MainWindow inherits Window {
     preferred-height: 720px;
     // The floor: 960×540, 16:9 at three quarters of the opening size, which
     // still leaves the title some room once the transport has given way to
-    // the right group.
-    min-width: 960px;
-    min-height: 540px;
+    // the right group. Read by `interface::scale`, which holds the window to
+    // it at a larger interface size too.
+    out property <length> floor-width: 960px;
+    out property <length> floor-height: 540px;
+    min-width: root.floor-width;
+    min-height: root.floor-height;
     background: Paint.ground;
     default-font-family: Type.face;
     // For text that names no weight, since Slint's default of 400 is not one
@@ -2807,7 +2914,9 @@ export component MainWindow inherits Window {
     /// stepper, which left and right move.
     function focus-activate-settings() -> bool {
         if (root.settings-page == 0) {
-            root.settings-page = root.focus-row + 1;
+            // The video page is the newest and the first row; the rest are in
+            // the order they were numbered.
+            root.settings-page = root.focus-row == 0 ? 6 : root.focus-row;
             // Start at the new page's top, since the row number that opened
             // it may not exist there.
             root.focus-row = 0;
@@ -2819,14 +2928,24 @@ export component MainWindow inherits Window {
         }
         if (root.settings-page == 3) {
             if (root.focus-row == 1) {
-                root.set-motion(!Motion.enabled);
+                return false;
             } else if (root.focus-row == 2) {
-                root.set-legible(!root.legible-glass);
+                root.set-motion(!Motion.chosen);
             } else if (root.focus-row == 3) {
+                root.set-legible(!root.legible-glass);
+            } else if (root.focus-row == 4) {
                 root.set-tips-shown(!Tip.enabled);
             } else {
                 root.set-tip-keys-shown(!Tip.with-keys);
             }
+            return true;
+        }
+        if (root.settings-page == 6 && root.focus-row == 2) {
+            root.toggle-panscan();
+            return true;
+        }
+        if (root.settings-page == 6 && root.focus-row == 3) {
+            root.set-remaining-shown(!root.show-remaining);
             return true;
         }
         if (root.settings-page == 5) {
@@ -2889,6 +3008,8 @@ export component MainWindow inherits Window {
             root.reset-section(0);
         } else if (page == 2) {
             root.reset-section(1);
+        } else if (page == 6) {
+            root.reset-section(2);
         } else if (page == 3) {
             root.set-timing(0, 1);
         } else {
@@ -2906,25 +3027,27 @@ export component MainWindow inherits Window {
     property <int> remove-armed: -1;
     property <bool> remove-armed-sub;
 
+    /// The armed row is being read: the pointer or the ring is on it.
+    property <bool> remove-held;
+
     function remove-row(id: int, subtitle: bool) {
         if (root.remove-armed == id && root.remove-armed-sub == subtitle) {
-            remove-timer.stop();
             root.remove-armed = -1;
             root.remove-track(id, subtitle);
             return;
         }
         root.remove-armed = id;
         root.remove-armed-sub = subtitle;
-        remove-timer.stop();
-        remove-timer.start();
     }
 
-    remove-timer := Timer {
+    // The wait for the second press holds while the question is being read
+    // and starts over once it is left, so nobody is timed out of an answer
+    // they were still reading.
+    Timer {
         interval: root.armed-for;
-        running: false;
+        running: root.remove-armed >= 0 && !root.remove-held;
         triggered => {
             root.remove-armed = -1;
-            remove-timer.stop();
         }
     }
 
@@ -3003,6 +3126,21 @@ export component MainWindow inherits Window {
     /// that row is gone.
     property <length> asked-row: -1px;
 
+    /// The claim on the flash of the hint up beside a page, if any.
+    property <int> hint-claim: -1;
+    /// Say what a settings row does beside the panel, level with it, while
+    /// it is rested on (see `ParamSlider.explained`), or stop saying it.
+    function explain-row(on: bool, text: string, row: int) {
+        if (!on) {
+            Flash.drop(root.hint-claim);
+            return;
+        }
+        root.asked-row = Rows.panel-pad + root.row-h
+            + root.settings-row-top(root.settings-page, row)
+            + root.settings-row-h(root.settings-page, row) / 2;
+        root.hint-claim = Flash.hint(text);
+    }
+
     function sync-row() {
         // The sync is the timing page's first row, under its way back.
         root.asked-row = Rows.panel-pad + root.row-h + root.row-h / 2;
@@ -3033,8 +3171,14 @@ export component MainWindow inherits Window {
     /// on its row. Set here first so the next frame shows it before Rust has
     /// heard.
     function set-motion(on: bool) {
-        Motion.enabled = on;
+        Motion.chosen = on;
         root.set-animations(on);
+    }
+
+    /// Which end of the film the timeline's right end says, the same way.
+    function set-remaining-shown(on: bool) {
+        root.show-remaining = on;
+        root.set-show-remaining(on);
     }
 
     /// Turn the tips on or off, the same way. None is visible while this page
@@ -3091,7 +3235,22 @@ export component MainWindow inherits Window {
         if (index == 9) {
             return @image-url("../../../public/icons/curve.svg");
         }
-        return @image-url("../../../public/icons/curve-soft.svg");
+        if (index == 10) {
+            return @image-url("../../../public/icons/curve-soft.svg");
+        }
+        // The picture's, borrowed from the glass and the border, whose marks
+        // are the usual ones for these: light, the half-lit disc of contrast,
+        // the drop of colour, and gamma's curve.
+        if (index == 11) {
+            return @image-url("../../../public/icons/brightness.svg");
+        }
+        if (index == 12) {
+            return @image-url("../../../public/icons/dimming.svg");
+        }
+        if (index == 13) {
+            return @image-url("../../../public/icons/tint.svg");
+        }
+        return @image-url("../../../public/icons/gamma.svg");
     }
 
     /// The warning while the row is armed, since the next press throws a
@@ -3106,6 +3265,7 @@ export component MainWindow inherits Window {
         return root.reset-undoable == page ? @tr("Undo reset")
             : root.reset-armed == page ? @tr("Press again to reset")
             : page == 3 ? @tr("Reset timing")
+            : page == 6 ? @tr("Reset the picture")
             : @tr("Reset to defaults");
     }
 
@@ -3195,6 +3355,21 @@ export component MainWindow inherits Window {
             root.set-param(root.border-params[root.focus-row - 2].index,
                 clamp(root.border-params[root.focus-row - 2].fraction
                     + delta * root.focus-step, 0.0, 1.0));
+            return true;
+        }
+        if (root.settings-page == 6 && root.is-slider(6, root.focus-row)) {
+            root.set-param(root.picture-params[root.focus-row - 4].index,
+                clamp(root.picture-params[root.focus-row - 4].fraction
+                    + delta * root.focus-step, 0.0, 1.0));
+            return true;
+        }
+        // The steppers: the speed, and the interface's size.
+        if (root.settings-page == 6 && root.focus-row == 1) {
+            root.step-speed(root.speed, delta);
+            return true;
+        }
+        if (root.settings-page == 3 && root.focus-row == 1) {
+            root.step-scale(delta);
             return true;
         }
         return false;
@@ -3439,8 +3614,13 @@ export component MainWindow inherits Window {
         root.read-tick += 1;
     }
 
-    function on-playback(text: string) -> bool {
-        if (text == " ") {
+    // The keys follow YouTube's first, since nearly everyone has them in
+    // their hands already, and Netflix's where YouTube has none; the player's
+    // own fill the gaps neither has a key for.
+    // Shift is read from the modifier, not from the letter's case, which
+    // Caps Lock turns over.
+    function on-playback(text: string, shift: bool) -> bool {
+        if (text == " " || text == "k" || text == "K") {
             // Playing, every way, is the film going on, which the chrome
             // would only cover; pausing is looking for where you are.
             root.key-wake = root.paused || root.at-end ? 2 : 0;
@@ -3469,21 +3649,37 @@ export component MainWindow inherits Window {
             root.glimpse-timeline();
             return true;
         }
+        // A tenth of the way per digit, 0 the start. Not with a panel open,
+        // whose rows are what the keyboard is in.
+        if (!root.panel-open && text.character-count == 1 && text.is-float()) {
+            root.jump-to(text.to-float() / 10);
+            root.glimpse-timeline();
+            return true;
+        }
+        // Shift+N and Shift+P, through the playlist. At either end mpv does
+        // nothing, so neither does the flash.
+        if (shift && (text == "n" || text == "N" || text == "p" || text == "P")) {
+            root.key-wake = 1;
+            if ((text == "n" || text == "N") && !root.at-last) {
+                root.playlist-step(1);
+                Flash.show(Flash.next, 0.5);
+            } else if ((text == "p" || text == "P") && !root.at-first) {
+                root.playlist-step(-1);
+                Flash.show(Flash.previous, 0.5);
+            }
+            return true;
+        }
         return false;
     }
 
     // A seek shows the timeline alone, which is where the change is; the
     // buttons beside it would only cover more of the picture.
     function on-seek(text: string, ctrl: bool, shift: bool) -> bool {
-        if (text == Key.LeftArrow) {
-            if (ctrl) {
-                root.key-wake = 1;
-                // At either end mpv does nothing, so neither does the flash.
-                if (!root.at-first) {
-                    root.playlist-step(-1);
-                    Flash.show(Flash.previous, 0.5);
-                }
-            } else if (shift) {
+        if ((text == Key.LeftArrow || text == Key.RightArrow) && ctrl) {
+            return root.chapter-key(text == Key.RightArrow ? 1 : -1);
+        }
+        if (text == Key.LeftArrow || text == "j" || text == "J") {
+            if (shift && text == Key.LeftArrow) {
                 // The small seek, for a missed line. No flash, since its glyph
                 // means ten seconds and the timeline shows the change.
                 root.seek-relative(-root.fine-seek-step);
@@ -3495,14 +3691,8 @@ export component MainWindow inherits Window {
             }
             return true;
         }
-        if (text == Key.RightArrow) {
-            if (ctrl) {
-                root.key-wake = 1;
-                if (!root.at-last) {
-                    root.playlist-step(1);
-                    Flash.show(Flash.next, 0.5);
-                }
-            } else if (root.at-end) {
+        if (text == Key.RightArrow || text == "l" || text == "L") {
+            if (root.at-end) {
                 // From the end, forward is the end pill's first offer: the
                 // next file or season. Never the folder dialog, since an arrow
                 // held a moment too long is not deliberate enough for one.
@@ -3512,7 +3702,7 @@ export component MainWindow inherits Window {
                 } else if (root.onward-path != "") {
                     root.end-onward();
                 }
-            } else if (shift) {
+            } else if (shift && text == Key.RightArrow) {
                 root.seek-relative(root.fine-seek-step);
                 root.glimpse-timeline();
             } else {
@@ -3549,34 +3739,35 @@ export component MainWindow inherits Window {
         return false;
     }
 
-    // Lower-case z pulls the subtitles earlier, shifted Z pushes them later —
-    // mpv's own convention, and the shift state is already in the character.
-    function on-subtitles(text: string) -> bool {
-        if (text == "c" || text == "C") {
+    // Z pulls the subtitles earlier and Shift+Z pushes them later, mpv's own
+    // convention.
+    function on-subtitles(text: string, shift: bool) -> bool {
+        if (!shift && (text == "c" || text == "C")) {
             root.toggle-subtitles();
-            // Shown, because nothing else shows it: the subtitles button has no
-            // state, and a scene with no dialogue doesn't either. The same
-            // caption as J, read live.
+            // Shown, because a scene with no dialogue shows nothing, and the
+            // button's mark is under the bar while the bar is away. The same
+            // caption as Shift+C, read live.
             root.key-wake = 1;
             Flash.show-figure(3);
             return true;
         }
-        // mpv's j and J: through the subtitle tracks, including none, saying
-        // which one it landed on.
-        if (text == "j" || text == "J") {
-            root.cycle-track(true, text == "j" ? 1 : -1);
+        // Through the subtitle tracks, including none, saying which one it
+        // landed on: C's own subject, one shift away.
+        if (shift && (text == "c" || text == "C")) {
+            root.cycle-track(true, 1);
             root.key-wake = 1;
             Flash.show-figure(3);
             return true;
         }
-        if (text == "z") {
-            root.nudge-sub-delay(-root.delay-step);
+        // YouTube's for the captions' size. = as well as +, which on most
+        // keyboards is the same key unshifted. The line itself answers.
+        if (text == "+" || text == "=" || text == "-") {
+            root.step-sub-scale(text == "-" ? -1 : 1);
             root.key-wake = 1;
-            Flash.show(Flash.delay, 0.5);
             return true;
         }
-        if (text == "Z") {
-            root.nudge-sub-delay(root.delay-step);
+        if (text == "z" || text == "Z") {
+            root.nudge-sub-delay(shift ? root.delay-step : -root.delay-step);
             root.key-wake = 1;
             Flash.show(Flash.delay, 0.5);
             return true;
@@ -3616,12 +3807,12 @@ export component MainWindow inherits Window {
 
     // --- pace -----------------------------------------------------------------
     //
-    // What the bar has no control for: speed, single frames, chapters, on
-    // mpv's own keys so the habit carries over. Speed and chapters answer with
-    // their figure, and frames with the picture itself.
+    // What the bar has no control for: speed, single frames, chapters. Speed
+    // and chapters answer with their figure, and frames with the picture
+    // itself.
     function on-pace(text: string) -> bool {
-        if (text == "[" || text == "]") {
-            root.step-speed(root.speed, text == "]" ? 1 : -1);
+        if (text == "<" || text == ">") {
+            root.step-speed(root.speed, text == ">" ? 1 : -1);
             root.key-wake = 1;
             Flash.show-figure(1);
             return true;
@@ -3641,15 +3832,20 @@ export component MainWindow inherits Window {
         }
         // Only with no panel open, for the reason Home gives above.
         if ((text == Key.PageUp || text == Key.PageDown) && !root.panel-open) {
-            root.key-wake = 1;
-            // No flash for a file with no chapters to go to.
-            if (root.chapter-marks.length > 0) {
-                root.chapter-step(text == Key.PageDown ? 1 : -1);
-                Flash.show-figure(2);
-            }
-            return true;
+            return root.chapter-key(text == Key.PageDown ? 1 : -1);
         }
         return false;
+    }
+
+    /// A chapter on or back, from PgUp and PgDn or from Ctrl and the arrows.
+    function chapter-key(direction: int) -> bool {
+        root.key-wake = 1;
+        // No flash for a file with no chapters to go to.
+        if (root.chapter-marks.length > 0) {
+            root.chapter-step(direction);
+            Flash.show-figure(2);
+        }
+        return true;
     }
 
     // --- the failure pane's two rows --------------------------------------------
@@ -3705,9 +3901,12 @@ export component MainWindow inherits Window {
 
     /// On to the next episode: the next file, or the next season when this
     /// was the last of one. Or, from the title sequence, on to the episode,
-    /// and from credits a scene follows, on to the scene.
+    /// from credits a scene follows, on to the scene, and after a jump, back
+    /// to where it was.
     function credits-activate() {
-        if (root.corner-offer == 2) {
+        if (root.corner-offer == 4) {
+            root.take-back-offer();
+        } else if (root.corner-offer == 2) {
             root.take-resume-offer();
         } else if (root.corner-offer == 1) {
             root.skip-to(root.intro-end);
@@ -3931,7 +4130,7 @@ export component MainWindow inherits Window {
         }
     }
 
-    function on-window(text: string) -> bool {
+    function on-window(text: string, shift: bool) -> bool {
         // In or out, what was asked for is the picture at a new size, not
         // the bar over it, so the chrome goes.
         if (text == "f" || text == "F" || text == Key.F11) {
@@ -3958,8 +4157,10 @@ export component MainWindow inherits Window {
             }
             return true;
         }
-        // The ring comes up only when this opens the panel, not when it
-        // closes it.
+        // Always the settings, even while the corner pill offers a skip, which
+        // Enter takes: a key that sometimes skips the credits and sometimes
+        // opens a panel can't be pressed without looking first. The ring comes
+        // up only when this opens the panel, not when it closes it.
         if (root.keys-act && (text == "s" || text == "S")) {
             root.open-settings(!root.settings-open);
             if (root.settings-open) {
@@ -3990,7 +4191,7 @@ export component MainWindow inherits Window {
             }
             return true;
         }
-        if (root.keys-act && root.has-file && (text == "p" || text == "P")) {
+        if (root.keys-act && root.has-file && !shift && (text == "p" || text == "P")) {
             root.open-playlist(!root.playlist-open);
             if (root.playlist-open) {
                 root.focus-show(root.focus-row);
@@ -4183,12 +4384,12 @@ export component MainWindow inherits Window {
                 || root.on-focus(event.text, event.modifiers.shift, event.modifiers.control)
                 || root.on-open(event.text, event.modifiers.control, event.modifiers.shift)
                 || (root.has-file
-                    && (root.on-playback(event.text)
+                    && (root.on-playback(event.text, event.modifiers.shift)
                         || root.on-seek(event.text, event.modifiers.control, event.modifiers.shift)
                         || root.on-pace(event.text)
                         || root.on-volume(event.text)
-                        || root.on-subtitles(event.text)))
-                || root.on-window(event.text)) {
+                        || root.on-subtitles(event.text, event.modifiers.shift)))
+                || root.on-window(event.text, event.modifiers.shift)) {
                 root.after-key(event.text);
                 return EventResult.accept;
             }
@@ -4366,7 +4567,10 @@ export component MainWindow inherits Window {
         property <length> body: root.settings-page == 0 ? root.front-natural
             : root.row-h + root.page-natural(root.settings-page);
 
-        width: 340px;
+        // Wider on the shortcuts page, the one page with two columns of
+        // words, a name and its keys: at the others' width the longest pairs
+        // are cut in every language, and at this one in none of them.
+        width: root.settings-page == 4 ? 440px : 340px;
         height: min(root.panel-pad + self.body, root.panel-max-h);
         x: root.anchored-x(root.settings-anchor, self.width);
         // From its own height, so the panel keeps its bottom edge and grows
@@ -4375,7 +4579,7 @@ export component MainWindow inherits Window {
 
         // With `drill`, by the same numbers, so the box and its pages move as
         // one. Not while the window is resized (see `resizing`).
-        animate height {
+        animate width, height {
             duration: root.resizing ? 0ms : Motion.drill;
             easing: ease-in-out;
         }
@@ -4422,8 +4626,23 @@ export component MainWindow inherits Window {
                     reveal-h: root.settings-reveal-h;
                     reveal-tick: root.settings-reveal-tick;
 
+                    // The film first, since how it plays is what is most often
+                    // reached for mid-film; the player's own look after it.
+                    MenuHeading {
+                        text: @tr("PLAYBACK");
+                    }
+                    DrillRow {
+                        icon: @image-url("../../../public/icons/video.svg");
+                        label: @tr("Video");
+                        focused: root.settings-open && root.focus-row == 0;
+                        opened => {
+                            root.settings-page = 6;
+                        }
+                    }
+
                     MenuHeading {
                         text: @tr("EFFECTS");
+                        after-content: true;
                     }
                     // No switch, because turning the glass off would erase
                     // this panel's own glass and leave its rows floating over
@@ -4432,7 +4651,7 @@ export component MainWindow inherits Window {
                     DrillRow {
                         icon: @image-url("../../../public/icons/glass.svg");
                         label: @tr("Liquid glass");
-                        focused: root.settings-open && root.focus-row == 0;
+                        focused: root.settings-open && root.focus-row == 1;
                         opened => {
                             root.settings-page = 1;
                         }
@@ -4442,9 +4661,9 @@ export component MainWindow inherits Window {
                     DrillRow {
                         icon: root.ambience-on
                             ? @image-url("../../../public/icons/ambience-on.svg")
-                            : @image-url("../../../public/icons/ambience-slash.svg");
+                            : @image-url("../../../public/icons/ambience-off.svg");
                         label: @tr("Ambient border");
-                        focused: root.settings-open && root.focus-row == 1;
+                        focused: root.settings-open && root.focus-row == 2;
                         opened => {
                             root.settings-page = 2;
                         }
@@ -4461,7 +4680,7 @@ export component MainWindow inherits Window {
                     DrillRow {
                         icon: @image-url("../../../public/icons/accessibility.svg");
                         label: @tr("Accessibility");
-                        focused: root.settings-open && root.focus-row == 2;
+                        focused: root.settings-open && root.focus-row == 3;
                         opened => {
                             root.settings-page = 3;
                         }
@@ -4469,7 +4688,7 @@ export component MainWindow inherits Window {
                     DrillRow {
                         icon: @image-url("../../../public/icons/shortcuts.svg");
                         label: @tr("Shortcuts");
-                        focused: root.settings-open && root.focus-row == 3;
+                        focused: root.settings-open && root.focus-row == 4;
                         opened => {
                             root.settings-page = 4;
                         }
@@ -4477,7 +4696,7 @@ export component MainWindow inherits Window {
                     DrillRow {
                         icon: @image-url("../../../public/icons/language.svg");
                         label: @tr("Language");
-                        focused: root.settings-open && root.focus-row == 4;
+                        focused: root.settings-open && root.focus-row == 5;
                         opened => {
                             root.settings-page = 5;
                         }
@@ -4524,11 +4743,16 @@ export component MainWindow inherits Window {
                             label: item.label;
                             name-w: root.param-name-w;
                             icon: root.param-icon(item.index);
+                            hint: item.hint;
+                            origin: item.origin;
                             fraction: item.fraction;
                             readout: item.readout;
                             focused: root.focus-row == idx + 1;
                             moved(f) => {
                                 root.set-param(item.index, f);
+                            }
+                            explained(on) => {
+                                root.explain-row(on, item.hint, idx + 1);
                             }
                         }
                         Rectangle {
@@ -4584,11 +4808,16 @@ export component MainWindow inherits Window {
                             label: item.label;
                             name-w: root.param-name-w;
                             icon: root.param-icon(item.index);
+                            hint: item.hint;
+                            origin: item.origin;
                             fraction: item.fraction;
                             readout: item.readout;
                             focused: root.focus-row == idx + 2;
                             moved(f) => {
                                 root.set-param(item.index, f);
+                            }
+                            explained(on) => {
+                                root.explain-row(on, item.hint, idx + 2);
                             }
                         }
                         Rectangle {
@@ -4629,15 +4858,38 @@ export component MainWindow inherits Window {
                         reveal-h: root.settings-reveal-h;
                         reveal-tick: root.settings-reveal-tick;
 
+                        // Everything at once, larger, on top of whatever the
+                        // system's display scaling already does.
+                        StepperRow {
+                            icon: @image-url("../../../public/icons/text-size.svg");
+                            label: @tr("Interface size");
+                            focused: root.focus-row == 1;
+                            value: Math.round(root.interface-scale * 100) + "%";
+                            // Set to a percentage rather than to a speed or a
+                            // time, which leaves the name, longer here than
+                            // anywhere else in the panel, room in every language.
+                            value-w: 44px;
+                            stepped(dir) => {
+                                root.step-scale(dir);
+                            }
+                        }
+                        Rectangle {
+                            height: Rows.group-gap;
+                        }
                         // Everything that moves (see `Motion`). Off, each change
-                        // lands in the frame it was asked for.
+                        // lands in the frame it was asked for. The switch is
+                        // this player's say; the system's comes on top.
                         ToggleRow {
                             label: @tr("Animations");
-                            checked: Motion.enabled;
-                            focused: root.focus-row == 1;
+                            checked: Motion.chosen;
+                            focused: root.focus-row == 2;
                             toggled(on) => {
                                 root.set-motion(on);
                             }
+                        }
+                        if root.motion-note: NoteRow {
+                            height: root.note-h;
+                            text: @tr("Off while your system asks for less motion");
                         }
                         // The glass held dark enough for its words over a
                         // bright frame (see The Legible Glass Rule). Off, it is
@@ -4646,7 +4898,7 @@ export component MainWindow inherits Window {
                         ToggleRow {
                             label: @tr("Darken bright glass");
                             checked: root.legible-glass;
-                            focused: root.focus-row == 2;
+                            focused: root.focus-row == 3;
                             toggled(on) => {
                                 root.set-legible(on);
                             }
@@ -4657,7 +4909,7 @@ export component MainWindow inherits Window {
                         ToggleRow {
                             label: @tr("Tooltips");
                             checked: Tip.enabled;
-                            focused: root.focus-row == 3;
+                            focused: root.focus-row == 4;
                             toggled(on) => {
                                 root.set-tips-shown(on);
                             }
@@ -4666,9 +4918,94 @@ export component MainWindow inherits Window {
                         if Tip.enabled: ToggleRow {
                             label: @tr("Shortcuts in tooltips");
                             checked: Tip.with-keys;
-                            focused: root.focus-row == 4;
+                            focused: root.focus-row == 5;
                             toggled(on) => {
                                 root.set-tip-keys-shown(on);
+                            }
+                        }
+                    }
+                }
+
+                // How the film plays and how it looks: what is otherwise only
+                // on keys, the speed, beside the bar's fill and the timeline's
+                // time left, then the picture as mpv draws it.
+                if root.leaf-page == 6: VerticalLayout {
+                    BackRow {
+                        label: @tr("VIDEO");
+                        focused: root.focus-row == 0;
+                        back => {
+                            root.settings-page = 0;
+                        }
+                    }
+                    ScrollList {
+                        height: root.leaf-list-h;
+                        rest-height: root.leaf-rest-h;
+                        content-height: root.page-natural(6);
+                        init => {
+                            root.leaf-fade = self.fade;
+                        }
+                        changed fade => {
+                            root.leaf-fade = self.fade;
+                        }
+                        reveal-top: root.settings-reveal-top;
+                        reveal-h: root.settings-reveal-h;
+                        reveal-tick: root.settings-reveal-tick;
+
+                        StepperRow {
+                            icon: @image-url("../../../public/icons/speed.svg");
+                            label: @tr("Speed");
+                            focused: root.focus-row == 1;
+                            value: root.speed-text;
+                            stepped(dir) => {
+                                root.step-speed(root.speed, dir);
+                            }
+                        }
+                        ToggleRow {
+                            label: @tr("Fill the window");
+                            checked: root.panscan;
+                            focused: root.focus-row == 2;
+                            toggled(on) => {
+                                if (on != root.panscan) {
+                                    root.toggle-panscan();
+                                }
+                            }
+                        }
+                        ToggleRow {
+                            label: @tr("Show the time left");
+                            checked: root.show-remaining;
+                            focused: root.focus-row == 3;
+                            toggled(on) => {
+                                root.set-remaining-shown(on);
+                            }
+                        }
+                        Rectangle {
+                            height: Rows.group-gap;
+                        }
+                        for item[idx] in root.picture-params: ParamSlider {
+                            label: item.label;
+                            name-w: root.param-name-w;
+                            icon: root.param-icon(item.index);
+                            hint: item.hint;
+                            origin: item.origin;
+                            fraction: item.fraction;
+                            readout: item.readout;
+                            focused: root.focus-row == idx + 4;
+                            moved(f) => {
+                                root.set-param(item.index, f);
+                            }
+                            explained(on) => {
+                                root.explain-row(on, item.hint, idx + 4);
+                            }
+                        }
+                        Rectangle {
+                            height: Rows.group-gap;
+                        }
+                        MenuRow {
+                            icon: root.reset-icon(6);
+                            label: root.reset-label(6);
+                            focused: root.focus-row == root.leaf-focus-count - 1;
+                            picked => {
+                                root.reset-row(6);
                             }
                         }
                     }
@@ -4780,7 +5117,7 @@ export component MainWindow inherits Window {
     // the same errand, getting a foreign film to say the right things. Sized
     // from row counts, so its glass rect matches what is drawn.
     menu := Rectangle {
-        width: 380px;
+        width: root.list-w;
         height: root.menu-h;
         clip: true;
         border-radius: root.drill-corner;
@@ -4852,6 +5189,9 @@ export component MainWindow inherits Window {
                         removable: track.external;
                         armed: root.remove-armed == track.id && root.remove-armed-sub;
                         armed-for: root.armed-for;
+                        held(on) => {
+                            root.remove-held = on;
+                        }
                         picked => {
                             root.select-subtitle(track.id);
                         }
@@ -4939,19 +5279,30 @@ export component MainWindow inherits Window {
                             root.close-subs-page();
                         }
                     }
-                    // Above Timing, as the thing to try before setting the
+                    // Above Shift, as the thing to try before setting the
                     // delay by hand; what it settles on shows in that row.
                     MenuRow {
                         icon: @image-url("../../../public/icons/subtitle-time.svg");
                         label: root.sync-label();
+                        hint: @tr("Listens to the film and moves the subtitles to match what is said");
                         focused: root.subs-ring(1, 1);
+                        explained(on) => {
+                            if (on) {
+                                root.asked-row = Rows.panel-pad + root.row-h + root.row-h / 2;
+                                root.hint-claim = Flash.hint(self.hint);
+                            } else {
+                                Flash.drop(root.hint-claim);
+                            }
+                        }
                         picked => {
                             root.sync-row();
                         }
                     }
+                    // Not *Timing*, which is the page it stands on: what the
+                    // discs do to the line, which its value says the way of.
                     StepperRow {
                         icon: @image-url("../../../public/icons/clock.svg");
-                        label: @tr("Timing");
+                        label: @tr("Shift");
                         focused: root.subs-ring(1, 2);
                         value: root.sub-delay-text;
                         value-w: root.timing-value-w;
@@ -5130,7 +5481,7 @@ export component MainWindow inherits Window {
 
     // The audio tracks, a panel of their own beside the subtitles' menu.
     audio-panel := Rectangle {
-        width: 380px;
+        width: root.list-w;
         height: root.audio-h;
         clip: true;
         x: root.anchored-x(root.audio-anchor, self.width);
@@ -5168,6 +5519,9 @@ export component MainWindow inherits Window {
                     removable: track.external;
                     armed: root.remove-armed == track.id && !root.remove-armed-sub;
                     armed-for: root.armed-for;
+                    held(on) => {
+                        root.remove-held = on;
+                    }
                     picked => {
                         root.select-audio(track.id);
                     }
@@ -5224,7 +5578,7 @@ export component MainWindow inherits Window {
     // Playlist: its own panel, since it is the one list that grows without
     // bound, and it has a setting of its own.
     playlist-panel := Rectangle {
-        width: 380px;
+        width: root.list-w;
         height: root.playlist-h;
         clip: true;
         border-radius: root.drill-corner;
@@ -5300,7 +5654,7 @@ export component MainWindow inherits Window {
                                         length: group.entries[0].length;
                                         progress: group.entries[0].progress;
                                         finished: group.entries[0].finished;
-                                        failed: group.entries[0].failed;
+                                        why: group.entries[0].why;
                                         active: group.current;
                                         // Leaves the chevron's column empty,
                                         // so this row's figures line up with
@@ -5378,7 +5732,7 @@ export component MainWindow inherits Window {
                                     length: entry.length;
                                     progress: entry.progress;
                                     finished: entry.finished;
-                                    failed: entry.failed;
+                                    why: entry.why;
                                     active: entry.current;
                                     focused: root.playlist-open
                                         && !root.playlist-top
@@ -5562,6 +5916,8 @@ export component MainWindow inherits Window {
         }
     }
 
+    // The film's length, or what is left of it: a click says which, as in
+    // most players.
     Rectangle {
         x: root.total-x;
         y: root.timeline-y + root.timeline-sink + root.bar-rise;
@@ -5570,15 +5926,31 @@ export component MainWindow inherits Window {
         visible: root.timeline-shown > root.shown-epsilon;
         opacity: root.timeline-shown;
 
+        accessible-role: button;
+        accessible-label: root.show-remaining ? @tr("Show the length") : @tr("Show the time left");
+        accessible-value: root.show-remaining ? root.remaining : root.total;
+        accessible-action-default => {
+            root.set-remaining-shown(!root.show-remaining);
+        }
+
         Text {
             width: 100%;
             height: 100%;
-            text: root.total;
+            text: root.show-remaining ? root.remaining : root.total;
             font-family: Type.numerals;
             color: Paint.strong;
             font-size: Type.readout;
             horizontal-alignment: center;
             vertical-alignment: center;
+        }
+        TouchArea {
+            mouse-cursor: pointer;
+            pointer-event(event) => {
+                Chrome.pointed(event.kind == PointerEventKind.down);
+            }
+            clicked => {
+                root.set-remaining-shown(!root.show-remaining);
+            }
         }
     }
 
@@ -5880,13 +6252,16 @@ export component MainWindow inherits Window {
     }
 
     // A season's end is said once, over its way on: the one thing at the end
-    // the interface states rather than offers. No glass of its own, as the end
-    // is lit by a frame dimmed far enough for white words to read on it.
+    // the interface states rather than offers. No glass of its own, so it
+    // waits for the end to be lit, by a frame dimmed far enough for white
+    // words to read on it: the frame the file stopped on can be a white one.
+    property <float> season-shown: root.end-lit ? root.end-shown : 0;
+    animate season-shown { duration: Motion.surface; easing: ease-out; }
     Text {
         text: root.season-done;
         visible: root.at-end && root.at-last && root.season-done != ""
-            && root.end-shown > root.shown-epsilon;
-        opacity: root.end-shown;
+            && root.season-shown > root.shown-epsilon;
+        opacity: root.season-shown;
         x: root.end-x + (root.end-w - self.width) / 2;
         y: root.end-y + root.end-rise - Rows.offset - self.height;
         color: Paint.body;
@@ -5919,7 +6294,8 @@ export component MainWindow inherits Window {
             // Only while the pill is up, so the choice takes the ring's pane as
             // it arrives rather than holding it unseen behind the credits pill.
             focused: root.centre-up && root.bar-reach && root.bar-focus == root.pill-stop;
-            icon: root.arriving ? @image-url("../../../public/icons/play.svg")
+            icon: root.arriving || (root.end-two && root.end-onward-elsewhere)
+                ? @image-url("../../../public/icons/play.svg")
                 : !root.end-two || root.onward-path != ""
                 ? @image-url("../../../public/icons/step-forward.svg")
                 : @image-url("../../../public/icons/folder-open.svg");
@@ -5952,8 +6328,16 @@ export component MainWindow inherits Window {
 
     /// The film's length as the timeline writes it, and the widest a time
     /// under an hour can read; `time-w` holds the wider of the two.
+    preview-chapter-measure := Text {
+        text: root.preview-chapter;
+        font-size: Type.readout;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
     time-measure := Text {
-        text: root.total;
+        text: root.show-remaining ? "\u{2212}" + root.total : root.total;
         font-family: Type.numerals;
         font-size: Type.readout;
         visible: false;
@@ -6008,7 +6392,9 @@ export component MainWindow inherits Window {
             focused: root.bar-reach && root.bar-focus == root.pill-stop && !root.centre-up;
             // Next's glyph for the next file, and Skip's for further into
             // this one; not Forward's, which has its ten seconds drawn in.
-            icon: root.corner-says == 2 ? @image-url("../../../public/icons/play.svg")
+            // The way back is Reset's, the arrow that turns back on itself.
+            icon: root.corner-says == 4 ? @image-url("../../../public/icons/reset.svg")
+                : root.corner-says == 2 ? @image-url("../../../public/icons/play.svg")
                 : root.corner-says-skip ? @image-url("../../../public/icons/skip.svg")
                 : @image-url("../../../public/icons/step-forward.svg");
             label: root.credits-label;
@@ -6159,13 +6545,29 @@ export component MainWindow inherits Window {
             }
         }
 
+        if root.preview-chapter != "": Text {
+            x: root.preview-pad;
+            y: root.preview-has-tile
+                ? root.preview-h - root.preview-caption - root.preview-pad
+                    - root.preview-chapter-h + 4px
+                : 6px;
+            width: parent.width - 2 * root.preview-pad;
+            height: root.preview-chapter-h;
+            text: root.preview-chapter;
+            color: Paint.body;
+            font-size: Type.readout;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
+        }
         Text {
             x: 0;
             y: root.preview-has-tile
                 ? root.preview-h - root.preview-caption - root.preview-pad
-                : 0;
+                : root.preview-chapter-h;
             width: 100%;
-            height: root.preview-has-tile ? root.preview-caption : root.preview-h;
+            height: root.preview-has-tile ? root.preview-caption
+                : root.preview-h - root.preview-chapter-h;
             text: root.preview-time;
             font-family: Type.numerals;
             color: Paint.strong;
@@ -6269,7 +6671,7 @@ export component MainWindow inherits Window {
             previous-button := IconButton {
                 icon: @image-url("../../../public/icons/step-backward.svg");
                 tip: root.at-first ? @tr("No earlier file") : @tr("Previous file");
-                keys: root.at-first ? "" : @tr("Ctrl+←");
+                keys: root.at-first ? "" : @tr("Shift+P");
                 enabled: !root.at-first;
                 focused: root.bar-reach && root.bar-focus == 3;
                 clicked => {
@@ -6287,7 +6689,7 @@ export component MainWindow inherits Window {
                 // The same three states, naming what pressing will do.
                 tip: root.at-end ? @tr("Restart")
                     : root.paused || !root.has-file ? @tr("Play") : @tr("Pause");
-                keys: root.at-end ? @tr("Home") : @tr("Space");
+                keys: root.at-end ? @tr("Home") : @tr("Space / K");
                 focused: root.bar-reach && root.bar-focus == 4;
                 clicked => {
                     if (root.at-end) {
@@ -6300,7 +6702,7 @@ export component MainWindow inherits Window {
             next-button := IconButton {
                 icon: @image-url("../../../public/icons/step-forward.svg");
                 tip: root.at-last ? @tr("No later file") : @tr("Next file");
-                keys: root.at-last ? "" : @tr("Ctrl+→");
+                keys: root.at-last ? "" : @tr("Shift+N");
                 enabled: !root.at-last;
                 focused: root.bar-reach && root.bar-focus == 5;
                 clicked => {
@@ -6346,9 +6748,46 @@ export component MainWindow inherits Window {
                 }
             }
 
-            // Volume, spanning mpv's full 0..200 range.
+            // Volume, spanning mpv's full 0..200 range: normal over the first
+            // three quarters, where nearly every film is listened to, and the
+            // boost for a quiet one in the last.
             vol-track := Rectangle {
                 width: root.vol-w;
+
+                /// Where 100% sits along the track.
+                property <float> unity: 0.75;
+                /// A drag holds at 100% for this much of the way past it, so
+                /// normal is easy to land on and the boost a step to take.
+                property <length> catch: 8px;
+                /// Where the drag started, and the level it set there.
+                property <length> from-x;
+                property <float> from-level;
+                /// How far along the track a level is drawn.
+                pure function at(level: float) -> float {
+                    return level <= 100 ? level / 100 * self.unity
+                        : self.unity + (level - 100) / (root.volume-max - 100) * (1 - self.unity);
+                }
+                /// The level drawn at a point along the track.
+                pure function level-at(along: float) -> float {
+                    return along <= self.unity ? along / self.unity * 100
+                        : 100 + (along - self.unity) / (1 - self.unity) * (root.volume-max - 100);
+                }
+                /// The level a drag has reached, at the rate normal is drawn
+                /// at the whole way, so the same move changes it the same
+                /// amount: the boost is a quarter of the track for twice as
+                /// much, so it reaches past the end, which a drag can. Held at
+                /// 100% for `catch` as it passes.
+                pure function dragged-to(x: length) -> float {
+                    let raw = self.from-level
+                        + (x - self.from-x) / (self.width * self.unity) * 100;
+                    let held = self.catch / (self.width * self.unity) * 100;
+                    let level = self.from-level < 100
+                        ? (raw <= 100 ? raw : raw <= 100 + held ? 100 : raw - held)
+                        : self.from-level > 100
+                        ? (raw >= 100 ? raw : raw >= 100 - held ? 100 : raw + held)
+                        : (abs(raw - 100) <= held ? 100 : raw > 100 ? raw - held : raw + held);
+                    return clamp(level, 0, root.volume-max);
+                }
 
                 // The level as a number, which nothing else on the bar gives:
                 // the track has 96px for 200 steps, and the glyph moves in tens.
@@ -6393,8 +6832,7 @@ export component MainWindow inherits Window {
                     Rectangle {
                         x: 0;
                         y: (parent.height - self.height) / 2;
-                        width: parent.width
-                            * clamp(root.volume / root.volume-max, 0, 1);
+                        width: parent.width * clamp(vol-track.at(root.volume), 0, 1);
                         height: min(parent.height, self.width);
                         border-radius: self.height < 2px ? 0px
                             : self.height / 2;
@@ -6409,7 +6847,7 @@ export component MainWindow inherits Window {
                     // like the switch knob. At exactly 100% that shows as a
                     // notch, where light would only lengthen the fill's cap.
                     Rectangle {
-                        x: (parent.width - self.width) / 2;
+                        x: parent.width * vol-track.unity - self.width / 2;
                         y: (parent.height - self.height) / 2;
                         width: self.height;
                         height: parent.height - 2px;
@@ -6424,18 +6862,24 @@ export component MainWindow inherits Window {
 
                 vol := TouchArea {
                     mouse-cursor: pointer;
+                    // A press puts the level where the pointer is; a drag from
+                    // there moves it at one rate, past the track if it must.
+                    // Unlike a button's, its tip stays on a press, since it
+                    // shows the result.
                     pointer-event(event) => {
                         Chrome.pointed(event.kind == PointerEventKind.down);
+                        if (event.kind == PointerEventKind.down
+                                && event.button == PointerEventButton.left) {
+                            vol-track.from-x = self.mouse-x;
+                            vol-track.from-level = vol-track.level-at(
+                                clamp(self.mouse-x / self.width, 0, 1));
+                            root.set-volume(vol-track.from-level);
+                        }
                     }
                     moved => {
                         if (self.pressed) {
-                            root.set-volume(self.mouse-x / self.width * root.volume-max);
+                            root.set-volume(vol-track.dragged-to(self.mouse-x));
                         }
-                    }
-                    // Unlike a button's, its tip stays on a press, since it
-                    // shows the result.
-                    clicked => {
-                        root.set-volume(self.mouse-x / self.width * root.volume-max);
                     }
                     // The one place the wheel is the volume. Activity for the
                     // timeline's wheel's reason.
@@ -6469,11 +6913,13 @@ export component MainWindow inherits Window {
                     root.open-audio(!root.audio-open);
                 }
             }
-            // Opens the subtitles menu. It shows no on/off state, because a
-            // button that looks like a switch gets clicked like one; the
-            // menu's Off row and C are the switch.
+            // Opens the subtitles menu. Solid while they show, as YouTube's
+            // is: whether they are on is the one thing about them worth
+            // seeing without opening the menu. C and the menu's Off row are
+            // still the switch.
             subs-button := IconButton {
-                icon: @image-url("../../../public/icons/subtitles.svg");
+                icon: root.subs-showing ? @image-url("../../../public/icons/subtitles-solid.svg")
+                    : @image-url("../../../public/icons/subtitles.svg");
                 tip: @tr("Subtitles");
                 keys: "V";
                 focused: root.bar-reach && root.bar-focus == 9;

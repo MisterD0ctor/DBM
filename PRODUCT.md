@@ -119,10 +119,10 @@ playing: seek-preview thumbnails, reading a playlist's lengths and titles,
 listening to a film to sync its subtitles, and listening to two episodes to
 find the title sequence and the closing credits they share.
 
-**Platforms.** Windows ships now. Linux is planned and the code is kept honest
-for it — Windows-only work such as the modal resize-loop hook stays isolated
-behind `cfg` — but it is not verified per change. macOS is explicitly out of
-scope.
+**Platforms.** Windows ships as the installer and a portable zip, Linux as a
+Flatpak, and CI builds both on every push. Windows-only work such as the modal
+resize-loop hook stays isolated behind `cfg`, and a few things are Windows-only
+still (see the README's Platforms). macOS is explicitly out of scope.
 
 **Standing rules**, stated by the user and treated as binding:
 
@@ -160,9 +160,10 @@ is told rides a drawn frame and a player with no film draws none.
 
 ## Evidence on Hand
 
-- Public repository `github.com/MisterD0ctor/DBM`; GitHub Actions builds on
-  push, pull request and `v*` tags, currently Windows-only.
-- Version 0.2.0.
+- Public repository `github.com/MisterD0ctor/DBM`; GitHub Actions builds the
+  Windows installer and zip and the Flatpak on push, pull request and `v*`
+  tags, and a tag's draft release carries all three.
+- Released as 0.4.0, the version `crates/player/Cargo.toml` holds.
 - The logo and icon set named above.
 - Licensed GPL-3.0-or-later, forced by Slint's open-source terms and by the
   GPLv3 builds of libmpv and ffmpeg that ship with it; `THIRD-PARTY.md`
