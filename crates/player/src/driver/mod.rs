@@ -765,6 +765,10 @@ impl Driver {
         // could be undone was this film's to undo.
         crate::library::subsync::supersede();
         ui.set_sync_state(0);
+        // The old file's decoders are gone by now, so what they held can go back.
+        self.app
+            .worker
+            .run(|_| crate::platform::memory::give_back());
 
         crate::library::preview::spawn(path, self.app.worker.reporter());
     }

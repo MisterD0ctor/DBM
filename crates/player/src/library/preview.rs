@@ -21,6 +21,7 @@
 //! A generation counter, bumped on every request, stops an abandoned file's
 //! ffmpeg processes from outliving it.
 
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -123,19 +124,43 @@ pub struct Atlas {
 fn decode(sprite: &Sprite) -> Option<slint::SharedPixelBuffer<slint::Rgba8Pixel>> {
     let ffmpeg = ffmpeg::path()?;
     let (width, height) = (sprite.tile_w * sprite.grid, sprite.tile_h * sprite.grid);
-    let rgba = cut(&ffmpeg, sprite, (0, 0), (width, height))?;
-    Some(slint::SharedPixelBuffer::clone_from_slice(
-        &rgba, width, height,
-    ))
+    let mut pixels = slint::SharedPixelBuffer::new(width, height);
+    cut_into(
+        &ffmpeg,
+        sprite,
+        (0, 0),
+        (width, height),
+        pixels.make_mut_bytes(),
+    )?;
+    Some(pixels)
 }
 
 /// A rectangle of the atlas as RGBA, top row first. **Blocking**: runs
-/// ffmpeg once, to cut it out of the JPEG onto stdout.
+/// ffmpeg once (see [`cut_into`]).
 fn cut(ffmpeg: &Path, sprite: &Sprite, at: (u32, u32), size: (u32, u32)) -> Option<Vec<u8>> {
+    let mut rgba = vec![0; (size.0 * size.1 * 4) as usize];
+    cut_into(ffmpeg, sprite, at, size, &mut rgba)?;
+    Some(rgba)
+}
+
+/// Cut a rectangle out of the atlas's JPEG into `rgba`, which is its size.
+/// **Blocking**: runs ffmpeg once, onto stdout.
+///
+/// Read straight into place, since the whole atlas is megabytes: gathered as
+/// it comes and copied after, it would take three times its size at the
+/// peak, which the allocator keeps (see `platform::memory`).
+fn cut_into(
+    ffmpeg: &Path,
+    sprite: &Sprite,
+    at: (u32, u32),
+    size: (u32, u32),
+    rgba: &mut [u8],
+) -> Option<()> {
     let ((x, y), (width, height)) = (at, size);
     let mut cmd = ffmpeg::command(ffmpeg);
-    let out = cmd
+    let mut child = cmd
         .stdout(Stdio::piped())
+        .stderr(Stdio::null())
         .arg("-nostdin")
         .arg("-loglevel")
         .arg("error")
@@ -150,10 +175,16 @@ fn cut(ffmpeg: &Path, sprite: &Sprite, at: (u32, u32), size: (u32, u32)) -> Opti
         .arg("-pix_fmt")
         .arg("rgba")
         .arg("-")
-        .output()
+        .spawn()
         .ok()?;
-    let expected = (width * height * 4) as usize;
-    (out.status.success() && out.stdout.len() == expected).then_some(out.stdout)
+    let mut stdout = child.stdout.take()?;
+    let filled = stdout.read_exact(rgba).is_ok();
+    // A byte more would be a picture of another size than the one asked for.
+    let over = stdout.read(&mut [0]).map_or(true, |n| n > 0);
+    // Closed before the wait, so an ffmpeg with more to write stops.
+    drop(stdout);
+    let succeeded = child.wait().is_ok_and(|status| status.success());
+    (filled && !over && succeeded).then_some(())
 }
 
 /// Build, or find, the atlas for one video. Runs off the UI thread.
