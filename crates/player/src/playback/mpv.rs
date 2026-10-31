@@ -596,9 +596,26 @@ fn cstr(s: &str) -> Result<CString> {
 /// stays alive for the duration of `mpv_render_context_create` - the only
 /// window in which mpv calls this.
 unsafe extern "C" fn get_proc_address_thunk(ctx: *mut c_void, name: *const c_char) -> *mut c_void {
-    let f = unsafe { &*(ctx as *const &dyn Fn(&CStr) -> *const c_void) };
     let name = unsafe { CStr::from_ptr(name) };
+    if name == c"glFenceSync" {
+        return no_fence as *mut c_void;
+    }
+    let f = unsafe { &*(ctx as *const &dyn Fn(&CStr) -> *const c_void) };
     f(name) as *mut c_void
+}
+
+/// What mpv is given for `glFenceSync`: no fence, ever.
+///
+/// Up to and including 0.41, mpv's GL renderer makes a fence for every frame
+/// it draws and deletes them only in a buffer swap, which the render API never
+/// does (fixed upstream in f74adc4, in no release yet). Each costs the driver
+/// some kilobytes, NVIDIA's about five, so a film grew the player by its frame
+/// rate times that, for as long as it played. A null fence is one mpv simply
+/// doesn't keep. Its only other fences guard the upload buffers of direct
+/// rendering, which libmpv uses only with `MPV_RENDER_PARAM_ADVANCED_CONTROL`,
+/// never asked for here; asking for it would need real fences back.
+unsafe extern "C" fn no_fence(_condition: u32, _flags: u32) -> *const c_void {
+    std::ptr::null()
 }
 
 /// mpv's "a frame is ready" notification. Fires on an mpv-owned thread, so it
