@@ -41,10 +41,12 @@ pub fn is_video_file(path: &Path) -> bool {
 ///
 /// Runs on the worker, since it reads a directory that may be huge or on a
 /// network share. The command line and the open dialog both arrive here, so
-/// there is one answer to what a path means. A path the document portal
-/// handed over means where it really is (see `platform::documents`).
+/// there is one answer to what a path means: where the file really is. A
+/// path the document portal handed over is looked up (see
+/// `platform::documents`), then every link in it followed (see
+/// `platform::links`).
 pub fn prepare(path: &Path) -> Result<Prepared, String> {
-    let path = crate::platform::documents::real(path);
+    let path = crate::platform::links::resolved(&crate::platform::documents::real(path));
     let selection = resolve(&path)?;
     let m3u = crate::paths::playlist_m3u();
     write_m3u(&selection.videos, &m3u)?;
