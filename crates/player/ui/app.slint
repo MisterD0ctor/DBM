@@ -24,6 +24,91 @@ import { Shapes, Squircle } from "squircle.slint";
 // the structs it fills in.
 export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem }
 
+/// The marks on the bar's tracks, a chapter's start and the volume's unity.
+/// Both keep their size as a track grows under the pointer.
+global Marks {
+    /// The dot ahead of the fill.
+    out property <length> dot: 3px;
+    /// The cut it leaves in the fill once passed: half a pixel of rail either
+    /// side.
+    out property <length> cut: 4px;
+}
+
+/// One run of a bar track's fill, between the cuts its marks leave in it. It
+/// covers the track and draws its run inside it.
+///
+/// The fill's end is always at the value. A run after a cut starts once the
+/// run before it has stopped, as a circle whose right edge is the fill's end,
+/// which slides across the cut and then stretches from the cut's far side.
+/// Where a run meets a cut its ends are half as round as the moving end.
+component TrackRun inherits Rectangle {
+    in property <length> from;
+    in property <length> to;
+    /// Whether a cut comes before `from` and after `to`; none at the track's ends.
+    in property <bool> cut-before;
+    in property <bool> cut-after;
+    /// How far along the track the fill reaches.
+    in property <length> reach;
+    in property <color> fill;
+
+    /// Where the run before this one stops.
+    private property <length> held: root.from - Marks.cut;
+    private property <length> end: min(root.reach, root.to);
+    private property <length> round: clamp(root.to - root.from, 0px, root.height);
+    private property <length> start: root.cut-before ? min(root.from, self.end - self.round) : root.from;
+
+    width: 100%;
+    height: 100%;
+
+    // A circle still over the round end of the run before it is split from
+    // it where the two are equally tall, so neither is drawn over the other,
+    // which a fill short of opaque would show as a brighter lens. On a whole
+    // pixel, so the scissor leaves no seam.
+    pure function overlapping(stop: length) -> bool {
+        return root.reach > stop && root.reach < stop + root.height;
+    }
+    pure function split(stop: length) -> length {
+        return Math.round((stop + root.reach - root.height) / 2 / 1phx) * 1phx;
+    }
+
+    // An end at a cut is round while the circle is still on it or the fill is
+    // still running from it, and eases to half over the next track's height,
+    // so it never changes shape at once.
+    pure function settled(edge: length) -> float {
+        return clamp((root.reach - edge) / root.height - 1, 0, 1);
+    }
+
+    Rectangle {
+        x: root.cut-before && root.overlapping(root.held) ? root.split(root.held) : 0;
+        width: (root.cut-after && root.overlapping(root.to) ? root.split(root.to) : parent.width)
+            - self.x;
+        height: 100%;
+        clip: true;
+
+        // Never taller than it is long, so a run's start isn't a sliver in a
+        // round end; under 2px there is nothing to round, and the renderer
+        // draws the attempt as a cross.
+        Rectangle {
+            property <length> round-end: self.height < 2px ? 0px : self.height / 2;
+            property <length> left-end: root.cut-before
+                ? self.round-end * (1 - root.settled(root.from) / 2) : self.round-end;
+            property <length> right-end: root.cut-after
+                ? self.round-end * (1 - root.settled(root.to) / 2) : self.round-end;
+
+            visible: !root.cut-before || root.reach > root.held;
+            x: root.start - parent.x;
+            y: (parent.height - self.height) / 2;
+            width: max(0px, root.end - root.start);
+            height: min(parent.height, self.width);
+            border-top-left-radius: self.left-end;
+            border-bottom-left-radius: self.left-end;
+            border-top-right-radius: self.right-end;
+            border-bottom-right-radius: self.right-end;
+            background: root.fill;
+        }
+    }
+}
+
 export component MainWindow inherits Window {
     // For the task bar and the window switcher, at 256px because window
     // managers scale down better than up. The Windows executable's icon is a
@@ -5840,30 +5925,49 @@ export component MainWindow inherits Window {
             background: Paint.rail;
             animate height { duration: Motion.track-grow; easing: ease-out; }
 
-            // Sized by width rather than clipped, so it stays crisp without a
-            // layer. Never taller than it is long, like a slider's fill, so
-            // the first seconds aren't a sliver in the rail's round end.
-            Rectangle {
-                x: 0;
+            property <length> played-x: self.width * clamp(root.progress, 0, 1);
+
+            // Chapter starts as dots ahead of the played length, gone as soon
+            // as it reaches one. A mark at the very start is left out, since
+            // it is the start, not a boundary.
+            for mark in root.chapter-marks: Rectangle {
+                property <length> at: parent.width * clamp(mark / max(root.duration, 1), 0, 1);
+
+                visible: root.duration > 0 && mark > 0.5
+                    && timeline-rail.played-x <= self.at - self.width / 2;
+                x: self.at - self.width / 2;
                 y: (parent.height - self.height) / 2;
-                width: parent.width * clamp(root.progress, 0, 1);
-                height: min(parent.height, self.width);
-                border-radius: self.height < 2px ? 0px : self.height / 2;
-                background: Paint.played;
+                width: Marks.dot;
+                height: Marks.dot;
+                border-radius: self.height / 2;
+                background: Paint.quiet;
             }
 
-            // Chapter starts as dots: Knob where the played length covers
-            // one, Quiet ahead of it. A mark at the very start is left out,
-            // since it is the start rather than a boundary.
-            for mark in root.chapter-marks: Rectangle {
-                visible: root.duration > 0 && mark > 0.5;
-                x: parent.width * clamp(mark / max(root.duration, 1), 0, 1) - self.width / 2;
-                y: (parent.height - self.height) / 2;
-                width: self.height;
-                height: parent.height - 2px;
-                border-radius: self.height / 2;
-                background: mark / max(root.duration, 1) <= root.progress
-                    ? Paint.knob : Paint.quiet;
+            // The played length, one run up to the first chapter and one from
+            // each chapter to the next. Sized by width rather than clipped, so
+            // it stays crisp without a layer.
+            TrackRun {
+                to: root.chapter-marks.length > 0
+                    ? parent.width * clamp(root.chapter-marks[0] / max(root.duration, 1), 0, 1)
+                        - Marks.cut / 2
+                    : parent.width;
+                cut-after: root.chapter-marks.length > 0 && root.chapter-marks[0] > 0.5;
+                reach: timeline-rail.played-x;
+                fill: Paint.played;
+            }
+            for mark[i] in root.chapter-marks: TrackRun {
+                property <bool> last: i + 1 >= root.chapter-marks.length;
+
+                from: mark > 0.5
+                    ? parent.width * clamp(mark / max(root.duration, 1), 0, 1) + Marks.cut / 2
+                    : 0px;
+                to: self.last ? parent.width
+                    : parent.width * clamp(root.chapter-marks[i + 1] / max(root.duration, 1), 0, 1)
+                        - Marks.cut / 2;
+                cut-before: mark > 0.5;
+                cut-after: !self.last;
+                reach: timeline-rail.played-x;
+                fill: Paint.played;
             }
         }
 
@@ -6798,7 +6902,7 @@ export component MainWindow inherits Window {
                 property <int> tip-claim: -1;
                 /// How far the level is heard. The fill fades out with a mute
                 /// and back in with an unmute, as a switch's track turns, and
-                /// the unity dot turns with it rather than ahead of it.
+                /// a unity dot the fill was cut round fades the other way.
                 property <float> heard: root.muted ? 0.0 : 1.0;
                 animate heard { duration: Motion.switch; easing: ease-out; }
 
@@ -6828,35 +6932,39 @@ export component MainWindow inherits Window {
                     background: Paint.rail;
                     animate height { duration: Motion.track-grow; easing: ease-out; }
 
-                    // Never taller than it is long, as a slider's fill is.
-                    Rectangle {
-                        x: 0;
-                        y: (parent.height - self.height) / 2;
-                        width: parent.width * clamp(vol-track.at(root.volume), 0, 1);
-                        height: min(parent.height, self.width);
-                        border-radius: self.height < 2px ? 0px
-                            : self.height / 2;
-                        background: Paint.fill;
-                        opacity: vol-track.heard;
-                    }
+                    property <length> unity-x: self.width * vol-track.unity;
+                    property <length> level-x: self.width * clamp(vol-track.at(root.volume), 0, 1);
 
                     // Unity gain: the track runs to mpv's 200%, so this marks
-                    // where normal is. A dot, because a line would divide the
-                    // track into two ranges. Inset a pixel so it stays round as
-                    // the track grows, it turns dark once the fill reaches it,
-                    // like the switch knob. At exactly 100% that shows as a
-                    // notch, where light would only lengthen the fill's cap.
+                    // where normal is. A dot rather than a line across the
+                    // track, which would divide it into two ranges. The fill
+                    // is cut round it as the timeline's is round a chapter,
+                    // and it comes back as a mute fades the fill out.
                     Rectangle {
-                        x: parent.width * vol-track.unity - self.width / 2;
+                        x: vol-rail.unity-x - self.width / 2;
                         y: (parent.height - self.height) / 2;
-                        width: self.height;
-                        height: parent.height - 2px;
+                        width: Marks.dot;
+                        height: Marks.dot;
                         border-radius: self.height / 2;
-                        // Keyed on the fill as drawn rather than the level, so
-                        // muted, with no fill, the dot stays light.
-                        background: root.volume >= 100
-                            ? Paint.knob.mix(Paint.quiet, vol-track.heard)
-                            : Paint.quiet;
+                        background: Paint.quiet;
+                        opacity: vol-rail.level-x > vol-rail.unity-x - self.width / 2
+                            ? 1 - vol-track.heard : 1;
+                    }
+
+                    TrackRun {
+                        to: vol-rail.unity-x - Marks.cut / 2;
+                        cut-after: true;
+                        reach: vol-rail.level-x;
+                        fill: Paint.fill;
+                        opacity: vol-track.heard;
+                    }
+                    TrackRun {
+                        from: vol-rail.unity-x + Marks.cut / 2;
+                        to: parent.width;
+                        cut-before: true;
+                        reach: vol-rail.level-x;
+                        fill: Paint.fill;
+                        opacity: vol-track.heard;
                     }
                 }
 

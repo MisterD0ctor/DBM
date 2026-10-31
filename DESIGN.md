@@ -270,9 +270,10 @@ apart and built upward from the floor, Dim:
   and text stating an absence. It is the text there is most of, and a step
   under white read grey over a bright frame. Leading text is told from it by
   place, size and weight, and what sits beside it by place and size.
-- **Quiet** (`Paint.quiet`): a mark on or beside a track. A chapter's dot ahead
-  of the played length, the unity dot where it sits off the volume fill and a
-  picture slider's middle while it is at none, a scroll thumb. Never text.
+- **Quiet** (`Paint.quiet`): a mark on or beside a track. A chapter's dot or
+  the volume's unity dot ahead of the fill, which is cut round it rather than
+  drawn over it (see Chapters, under The timeline); a scroll thumb. Never
+  text.
 - **Dim** (`Paint.dim`): the glyph of a bar button with nowhere to go
   (Previous on the first file, Next on the last) and nothing else: the one
   mark meant to look greyed out. **The floor**: see below.
@@ -286,9 +287,10 @@ apart and built upward from the floor, Dim:
 - **Rail** (`Paint.rail`): the unfilled length of every track, switch and
   measure, and the rim round a field's well.
 - **Knob** (`Paint.knob`): the one dark in the system, which Well only thins. A dark disc on a lit
-  switch track, so the knob reads as a hole punched through it; the unity dot
-  where it sits on the fill; and everything that stands on the keyboard's
-  ring, which is milk glass (see On the ring, below).
+  switch track, so the knob reads as a hole punched through it, and
+  everything that stands on the keyboard's ring, which is milk glass (see On
+  the ring, below). Never a mark on a fill: a dark dot there reads as a speck
+  of black, and half of one stands out past the fill's end as the fill passes.
 - **Well** (`Paint.well`): the knob's dark, thinner, as the slot a field's words
   are typed into: a smoke of 30% laid over the glass, after its hold, so it
   darkens what is under it by the same share over every frame and the frame
@@ -1072,11 +1074,25 @@ by under a pixel at the corner.
 - **Letting go** ends a drag wherever the pointer has got to, on the row or
   off it, since a drag wanders off a row this thin more often than it stays on
   it.
-- **Chapters:** a dot at each chapter start, the unity dot's shape and its
-  rule — Knob where the played length covers it, Quiet ahead of it. None at
-  the very start, which is the start rather than a boundary, and none at all
-  for the many files without chapters. The seek preview names the chapter
-  under the pointer, where the file names it.
+- **Chapters:** a dot at Quiet at each chapter start (`Marks.dot`), and a cut
+  in the played length round it (`Marks.cut`), half a pixel of Rail either
+  side; neither grows with the track, so the pointer coming onto it doesn't
+  widen the cuts. The played length is drawn as one run up to the first
+  chapter and one from each chapter to the next, and its end is always where
+  the time played is, never waiting at a cut. A run stops at the near side of its
+  cut; the next comes off its round end as a circle the track's height whose
+  right edge is the time played, slides across the cut, and once its left
+  edge is at the far side stays there and stretches. Where a run meets a cut
+  its ends are half as round as the moving end, so the runs read as parts of
+  one length rather than separate capsules; each end eases from round to half
+  over a track's height once the circle has left it or the run has started
+  stretching from it, rather than changing shape at once. The dot goes as
+  soon as the fill reaches it, so the two never overlap. While the circle is still
+  over the round end before it the two are drawn split where they are
+  equally tall, not one over the other, which at Fill would show as a
+  brighter lens. None at the very start, which is the start rather than a
+  boundary, and none at all for the many files without chapters. The seek
+  preview names the chapter under the pointer, where the file names it.
 
 ### Volume
 - **Track:** `MainWindow.vol-w` long, at Rail, growing like the timeline's
@@ -1095,8 +1111,8 @@ by under a pixel at the corner.
   land on and the boost a step to take.
 - **Unity dot:** a dot, not a line, at 100%, three quarters along. A line the
   height of the track divides it into two ranges; a dot is a landmark on one.
-  It reverses against the fill the way the switch knob does: Knob on the fill,
-  Quiet off it, and turns as the fill fades.
+  It and its cut are a chapter's, and the fill passes it as the played length
+  passes a chapter; it comes back as a mute fades the fill out.
 - **Wheel:** `commands.VOLUME_STEP` a notch, over the track and nowhere else. Over the
   picture the wheel wakes the bar and changes nothing, so a brushed wheel or
   fingers resting on a touchpad can't reach the loudest control in the player.
@@ -1482,8 +1498,7 @@ doing in it.
   group gaps, the picture as mpv draws it, *Brightness*, *Contrast*,
   *Saturation* and *Gamma*, each from -100 to 100 and none by default, read
   as `+10` or `−20` and filled out from the middle of the track, where none of
-  it is, which a dot marks as the volume's unity is marked: Quiet off the fill,
-  Knob where the fill runs out of it; and *Reset the picture*, which leaves the rows above it alone. A
+  it is (see Sliders); and *Reset the picture*, which leaves the rows above it alone. A
   preference, as the subtitles' size is, not a film's: what a screen or a
   room needs, every film needs
 - **ACCESSIBILITY:** *Interface size*, a stepper from 100% to 150% in tenths,
@@ -1521,6 +1536,12 @@ doing in it.
   inside. Its edge is at the value all the way down, and at zero there is
   nothing. The smallest are drawn square, with nothing left to round. The
   timeline and the volume follow the same rule
+- **Fill from the middle:** a slider either side of none, the picture's,
+  never shrinks below a circle the track's height at none, which says where
+  the middle is over a bright frame as a mark on the rail would; the least
+  move either way stretches it into a capsule. Its round ends are centred on
+  none and on the value, so the value travels the track less that circle, and
+  the pointer puts the value under itself rather than the fill's edge
 - **Readout:** how far along its range the slider is, in whole per cent —
   *Edge blur 7%*, not the shader's 0.007, which says nothing to someone tuning
   by eye, so the figure and the fill always agree

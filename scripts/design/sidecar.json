@@ -50,7 +50,7 @@
           "{{ Paint.lit }}"
         ],
         "rampNote": "Floor first: Dim, Quiet, then white. Every word is white: Lit, Strong and Body are one value, roles named for what each word is for, and told apart on screen by weight, size and place. Quiet and Dim are marks.",
-        "purpose": "A mark on or beside a track: a chapter's dot ahead of the played length, the volume's unity dot off the fill and a picture slider's middle at none, a scroll thumb. Never text."
+        "purpose": "A mark on or beside a track: a chapter's dot or the volume's unity dot ahead of the fill, which is cut round it rather than drawn over it; a scroll thumb. Never text."
       },
       "dim": {
         "role": "neutral",
@@ -112,7 +112,7 @@
           "{{ Paint.knob }}"
         ],
         "rampNote": "A ramp of one. This is the whole of the value the system owns here, and a synthesised scale would be steps no surface is allowed to draw.",
-        "purpose": "The one dark in the system: on a lit switch track, so the knob reads as a hole punched through it; the unity dot where it sits on the fill."
+        "purpose": "The one dark in the system: on a lit switch track, so the knob reads as a hole punched through it. Never a mark on a fill."
       },
       "well": {
         "role": "neutral",

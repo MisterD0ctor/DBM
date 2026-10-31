@@ -860,41 +860,40 @@ export component ParamSlider inherits Rectangle {
                 background: root.ring ? Paint.on-ring-rail : Paint.rail;
                 animate height { duration: Motion.track-grow; easing: ease-out; }
 
-                // A capsule never taller than it is long: below the track's
-                // height it is a circle as wide as the value, growing out of
-                // the rail's tip. At full height, a small value would stand in
-                // the rail's round end as a sliver wider than the curve.
+                /// A track either side of none keeps a circle the track's
+                /// height at none, so the value travels the track less that.
+                property <bool> centred: root.origin > 0;
+                property <length> travel: self.width - (self.centred ? self.height : 0px);
+
+                // From the start, a capsule never taller than it is long:
+                // below the track's height it is a circle as wide as the
+                // value, growing out of the rail's tip. At full height, a
+                // small value would stand in the rail's round end as a sliver
+                // wider than the curve. Under 2px there is nothing to round,
+                // and the renderer draws the attempt as a cross, so the
+                // smallest are square.
                 //
-                // Under 2px there is nothing to round, and the renderer draws
-                // the attempt as a cross, so the smallest are square.
+                // From the middle, never smaller than the circle at none,
+                // which over a bright frame says where the middle is, and
+                // which the least move away stretches into a capsule.
                 Rectangle {
-                    x: parent.width * min(root.origin, clamp(root.fraction, 0, 1));
+                    x: rail.travel * min(root.origin, clamp(root.fraction, 0, 1));
                     y: (parent.height - self.height) / 2;
-                    width: parent.width * abs(clamp(root.fraction, 0, 1) - root.origin);
+                    width: rail.travel * abs(clamp(root.fraction, 0, 1) - root.origin)
+                        + (rail.centred ? parent.height : 0px);
                     height: min(parent.height, self.width);
                     border-radius: self.height < 2px ? 0px : self.height / 2;
                     background: root.ring ? Paint.on-ring : Paint.fill;
                 }
-
-                // Where none is, on a track either side of it: at none the
-                // fill has no length, and over a bright frame the rail alone
-                // doesn't say where the middle is. A dot, as the volume's
-                // unity is, as tall as the rail at rest so it stays round as
-                // the rail grows, and dark once the fill runs out of it.
-                if root.origin > 0: Rectangle {
-                    property <bool> filled: abs(clamp(root.fraction, 0, 1) - root.origin) > 0.005;
-
-                    x: parent.width * root.origin - self.width / 2;
-                    y: (parent.height - self.height) / 2;
-                    width: self.height;
-                    height: 4px;
-                    border-radius: self.height / 2;
-                    background: root.ring ? (self.filled ? Paint.on-ring-knob : Paint.on-ring)
-                        : (self.filled ? Paint.knob : Paint.quiet);
-                }
             }
 
             drag := TouchArea {
+                /// The value under the pointer, the fill's round end centred
+                /// on it where the track is centred.
+                pure function at(x: length) -> float {
+                    return (x - (rail.width - rail.travel) / 2) / rail.travel;
+                }
+
                 mouse-cursor: pointer;
                 pointer-event(event) => {
                     Chrome.pointed-at(event.kind == PointerEventKind.down,
@@ -902,11 +901,11 @@ export component ParamSlider inherits Rectangle {
                 }
                 moved => {
                     if (self.pressed) {
-                        root.moved(self.mouse-x / self.width);
+                        root.moved(self.at(self.mouse-x));
                     }
                 }
                 clicked => {
-                    root.moved(self.mouse-x / self.width);
+                    root.moved(self.at(self.mouse-x));
                 }
             }
         }
