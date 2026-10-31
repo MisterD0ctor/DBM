@@ -1172,13 +1172,9 @@ export component MainWindow inherits Window {
     changed at-end => {
         if (root.at-end) {
             Chrome.bump();
-            if (root.bar-reach) {
-                root.bar-focus = root.pill-stop;
-                Chrome.focus-visible = true;
-            }
-        } else if (root.bar-focus >= root.pill-stop && !root.corner-offered && !root.arriving) {
-            Chrome.focus-visible = false;
-            root.bar-focus = 0;
+            root.ring-to-pill();
+        } else if (!root.corner-offered && !root.arriving) {
+            root.ring-off-pill();
         }
     }
 
@@ -1191,9 +1187,8 @@ export component MainWindow inherits Window {
             root.close-others();
             root.bar-focus = root.pill-stop;
             Chrome.focus-visible = true;
-        } else if (root.bar-focus >= root.pill-stop && !root.corner-offered && !root.at-end) {
-            Chrome.focus-visible = false;
-            root.bar-focus = 0;
+        } else if (!root.corner-offered && !root.at-end) {
+            root.ring-off-pill();
         }
     }
 
@@ -1204,12 +1199,38 @@ export component MainWindow inherits Window {
     // the episode that just started.
     changed corner-offered => {
         if (root.corner-offered) {
-            root.bar-focus = root.pill-stop;
-            Chrome.focus-visible = true;
-        } else if (root.bar-focus >= root.pill-stop && !root.centre-up) {
+            root.ring-to-pill();
+        } else if (!root.centre-up) {
             // At the end the end pill takes the same stop, and its first
             // choice is the same way on, so the ring stays for it.
-            Chrome.focus-visible = false;
+            root.ring-off-pill();
+        }
+    }
+
+    /// A pill came up while a panel was open, so the ring is owed to it once
+    /// the panel closes.
+    property <bool> pill-owed: false;
+
+    /// Put the ring on the pill that just came up. An open panel keeps the
+    /// ring, which is on one of its rows, and the pill gets it when the panel
+    /// closes instead.
+    function ring-to-pill() {
+        if (root.panel-open) {
+            root.pill-owed = true;
+        } else if (root.bar-reach) {
+            root.bar-focus = root.pill-stop;
+            Chrome.focus-visible = true;
+        }
+    }
+
+    /// The ring goes with the pill it was on, or Enter would press a choice
+    /// that is no longer there. Over a panel the ring is the panel's, and
+    /// stays.
+    function ring-off-pill() {
+        if (root.bar-focus >= root.pill-stop) {
+            if (!root.panel-open) {
+                Chrome.focus-visible = false;
+            }
             root.bar-focus = 0;
         }
     }
@@ -2027,6 +2048,11 @@ export component MainWindow inherits Window {
     changed panel-open => {
         if (root.panel-open) {
             root.tip-cut = true;
+        } else if (root.pill-owed) {
+            root.pill-owed = false;
+            if (root.corner-offered || root.centre-up) {
+                root.ring-to-pill();
+            }
         }
     }
 

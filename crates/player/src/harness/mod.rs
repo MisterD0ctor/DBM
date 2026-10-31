@@ -224,8 +224,10 @@
 //!   in, which Enter must skip to, and then plays into the forty seconds of
 //!   credits after it, which must offer the next episode again. `=asleep`
 //!   plays in from short of them, so they start with the bar gone, and the
-//!   pill must come up without it. `DBM_CREDITS_AT` names the second it plays
-//!   into instead.
+//!   pill must come up without it. `=panel` plays in from short of them with
+//!   the subtitles menu open, as a click opens it, which must keep the ring
+//!   off its rows; Escape then closes it, and the ring must be on the pill
+//!   for Enter. `DBM_CREDITS_AT` names the second it plays into instead.
 //! * `DBM_INTRO_TEST=1` — waits for the episode's title sequence to be found,
 //!   by its chapters or by listening, and seeks into it so the pill offers to
 //!   skip it. Reports as it arrives and after the bar has gone, then presses

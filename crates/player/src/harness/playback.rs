@@ -526,6 +526,7 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
     let scene = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "scene");
     let mid = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "mid");
     let asleep = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "asleep");
+    let panel = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "panel");
     let played_at: Option<f64> = std::env::var("DBM_CREDITS_AT")
         .ok()
         .and_then(|at| at.parse().ok());
@@ -592,12 +593,15 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                     eprintln!("dbm: credits from {credits_at:.0}s of {duration:.0}s");
                     ui.invoke_open_path(ui.get_current_path(), true);
                 }
+                // As a click on its button opens it, with no ring.
+                5 if panel => ui.invoke_open_menu(true),
                 // The seek wakes the bar, as a click on the timeline does, so
                 // `=asleep` lands short of the credits for the bar to have
-                // gone by the time they start.
+                // gone by the time they start, and `=panel` for them to start
+                // behind the menu.
                 6 => {
                     let duration = f64::from(ui.get_duration()).max(1.0);
-                    let to = played_at.unwrap_or(if asleep {
+                    let to = played_at.unwrap_or(if asleep || panel {
                         credits_at - 4.5
                     } else {
                         credits_at + 5.0
@@ -607,6 +611,19 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                 7 => report_credits(&ui, "arrived"),
                 // Past `HIDE_AFTER`, with nothing touched since.
                 12 => report_credits(&ui, "left alone"),
+                // The pill came up behind the menu, so closing it is what
+                // brings the ring to the pill.
+                13 if panel => {
+                    let escape = slint::SharedString::from(slint::platform::Key::Escape);
+                    chord(&ui, &[], &escape);
+                }
+                14 if panel => report_credits(&ui, "closed"),
+                15 if panel => {
+                    let enter = slint::SharedString::from(slint::platform::Key::Return);
+                    chord(&ui, &[], &enter);
+                }
+                17 if panel => report_credits(&ui, "after enter"),
+                18 if panel => eprintln!("dbm: --- credits test: holding ---"),
                 // The ring came to the pill on its own, so Enter alone goes on.
                 13 => {
                     let enter = slint::SharedString::from(slint::platform::Key::Return);
@@ -621,7 +638,7 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                     ui.invoke_seek_fraction(((duration - 35.0) / duration) as f32);
                 }
                 17 if mid => report_credits(&ui, "resumed"),
-                16 if !mid => eprintln!("dbm: --- credits test: holding ---"),
+                16 if !mid && !panel => eprintln!("dbm: --- credits test: holding ---"),
                 18 if mid => eprintln!("dbm: --- credits test: holding ---"),
                 _ => {}
             }
@@ -722,15 +739,17 @@ fn report_credits(ui: &MainWindow, label: &str) {
         .map(|r| format!("{}x{}@{},{}", r.width, r.height, r.x, r.y))
         .collect();
     eprintln!(
-        "dbm: credits {label:<11} rolling={} says={:?} scene={:.1} chapter={:?} at-last={} idle={} ring={}@{} t={} {:?} | {} rect(s) {}",
+        "dbm: credits {label:<11} rolling={} says={:?} scene={:.1} chapter={:?} at-last={} idle={} menu={} ring={}@{}/row {} t={} {:?} | {} rect(s) {}",
         ui.get_credits_rolling(),
         ui.get_credits_label(),
         ui.get_after_credits(),
         ui.get_chapter_label(),
         ui.get_at_last(),
         ui.global::<crate::Chrome>().get_idle(),
+        ui.get_menu_open(),
         ui.global::<crate::Chrome>().get_focus_visible(),
         ui.get_bar_focus(),
+        ui.get_focus_row(),
         ui.get_elapsed(),
         ui.get_current_path().rsplit(['\\', '/']).next().unwrap_or_default().to_string(),
         rects.len(),
