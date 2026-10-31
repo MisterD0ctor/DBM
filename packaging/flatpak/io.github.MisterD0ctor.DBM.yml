@@ -113,8 +113,19 @@ modules:
         CARGO_HOME: /run/build/dbm-player/cargo
         CARGO_NET_OFFLINE: 'true'
     build-commands:
-      - cargo --offline build --release -p dbm-player
-      - install -Dm755 target/release/dbm-player ${FLATPAK_DEST}/bin/dbm-player
+      # Cargo's output is kept between builds in a folder build.sh makes in
+      # flatpak-builder's state, which every build sees under /run/ccache.
+      # Without it, in CI and on Flathub, each build starts clean.
+      - |
+        if [ -d /run/ccache/cargo ]; then
+          export CARGO_TARGET_DIR=/run/ccache/cargo
+          # The crates are unpacked afresh for every build, which a build
+          # script watching its own files takes for a change, so they all get
+          # one old date.
+          find "$CARGO_HOME/vendor" -exec touch -h -d @0 {} +
+        fi
+        cargo --offline build --release -p dbm-player
+        install -Dm755 "${CARGO_TARGET_DIR:-target}/release/dbm-player" ${FLATPAK_DEST}/bin/dbm-player
       - install -Dm644 packaging/flatpak/${FLATPAK_ID}.desktop ${FLATPAK_DEST}/share/applications/${FLATPAK_ID}.desktop
       - install -Dm644 packaging/flatpak/${FLATPAK_ID}.metainfo.xml ${FLATPAK_DEST}/share/metainfo/${FLATPAK_ID}.metainfo.xml
       - install -Dm644 public/death-by-mpv.svg ${FLATPAK_DEST}/share/icons/hicolor/scalable/apps/${FLATPAK_ID}.svg

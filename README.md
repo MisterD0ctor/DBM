@@ -204,6 +204,11 @@ remote. The SDK and the Rust extension are downloaded the first time. The
 manifest, `packaging/flatpak/io.github.MisterD0ctor.DBM.yml`, builds libass,
 libplacebo and libmpv, and uses the runtime's FFmpeg.
 
+Builds after the first are quicker. Cargo's output is kept in
+`target/flatpak/state/ccache/cargo`, so only what changed compiles. Delete that
+folder to compile everything again. Sources already fetched aren't asked for
+again, unless the manifest pins a commit that hasn't been fetched yet.
+
 The build runs offline, so every Rust crate is listed in
 `packaging/flatpak/cargo-sources.json`. CI's Flatpak build fails when that
 file falls behind. Regenerate it whenever a crate in `Cargo.lock` is added,

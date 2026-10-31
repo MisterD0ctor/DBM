@@ -18,7 +18,28 @@ else
     builder="flatpak run --filesystem=host org.flatpak.Builder"
 fi
 
+# Cargo's output is kept here between builds (see the manifest's player
+# module), so a build compiles what changed rather than every crate.
+mkdir -p "$out/state/ccache/cargo"
+
+# Sources are fetched only when a commit the manifest pins isn't in
+# flatpak-builder's mirrors yet. Asking each repository whether its tag has
+# moved is the slowest step after Rust, and a new pin is fetched as before.
+mirrored=yes
+for commit in $(sed -n 's/^ *commit: *//p' "$here/$id.yml"); do
+    found=
+    for mirror in "$out"/state/git/*/; do
+        if git --git-dir="$mirror" cat-file -e "$commit" 2>/dev/null; then
+            found=yes
+            break
+        fi
+    done
+    [ -n "$found" ] || mirrored=
+done
+
 $builder --user --install --force-clean \
+    ${mirrored:+--disable-updates} \
+    --delete-build-dirs \
     --install-deps-from=flathub \
     --state-dir="$out/state" \
     --repo="$out/repo" \
