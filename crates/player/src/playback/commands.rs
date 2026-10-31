@@ -237,8 +237,18 @@ pub fn set_audio_track(mpv: &Mpv, id: Option<i64>) {
 /// mpv opens and leaves a moment later counts as stopped at the beginning, so
 /// mpv would delete its watch-later entry. Completion still arrives as
 /// [`REPLY_LOADLIST`], since other work waits on the list.
-pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize) {
+///
+/// `first`, the entry it starts on, says where the list's files are, since
+/// they all come from one folder.
+pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &str) {
     set_prop(mpv, "playlist-start", &start.to_string());
+    // The document portal is a FUSE mount, which mpv takes for a network
+    // share: it reads 150 MB ahead and keeps 50 MB behind, in memory, of files
+    // that are almost always on a local disk. Most of its paths are played from
+    // where they really are, but not one whose real place is out of reach (see
+    // `platform::documents`), which plays as a local file does.
+    let portal = crate::platform::documents::is_portal(std::path::Path::new(first));
+    set_prop(mpv, "cache", if portal { "no" } else { "auto" });
     let args = ["loadlist", &*m3u.to_string_lossy(), "replace"];
     if let Err(e) = mpv.command_async(REPLY_LOADLIST, &args) {
         eprintln!("dbm: loadlist failed: {e}");

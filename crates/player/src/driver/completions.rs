@@ -87,7 +87,7 @@ impl Driver {
                         .arrival
                         .open_list(&self.app.mpv, list.first.clone(), list.saved);
                 }
-                commands::load_list(&self.app.mpv, &list.m3u, list.start);
+                commands::load_list(&self.app.mpv, &list.m3u, list.start, &list.first);
                 false
             }
             Completion::Opened(Err(e)) => {

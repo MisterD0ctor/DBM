@@ -3,13 +3,15 @@
 //! Keeping the display awake, hiding the pointer, a native file dialog, files
 //! dropped on the window, frames during a Windows resize, minimizing, the
 //! window's round corners, whether the desktop asks for less motion, the
-//! media keys (SMTC on Windows, MPRIS on Linux), and handing freed memory
-//! back. Each module covers both platforms, even where one does nothing, so
-//! nothing outside this folder needs a `cfg`.
+//! media keys (SMTC on Windows, MPRIS on Linux), where the files a Flatpak is
+//! handed really are, and handing freed memory back. Each module covers both
+//! platforms, even where one does nothing, so nothing outside this folder
+//! needs a `cfg`.
 
 pub mod awake;
 pub mod cursor;
 pub mod dialog;
+pub mod documents;
 pub mod dropped;
 pub mod media_keys;
 pub mod memory;

@@ -32,8 +32,10 @@ finish-args:
   # Read-only access to everything, not a portal-scoped file. Opening one
   # episode makes the rest of its folder the playlist, and the resume point is
   # keyed by the real path mpv's watch-later files are named after; a
-  # document-portal path would break both. Nothing is written outside the
-  # app's own data directory.
+  # document-portal path would break both. The file chooser hands such paths
+  # over anyway, as it asks for writing too; the player looks up the real
+  # path and plays from there, which needs this. Nothing is written outside
+  # the app's own data directory.
   - --filesystem=host:ro
   # Finding subtitles on OpenSubtitles, the one thing the player fetches,
   # and signing in there once the downloads without an account are used up:
