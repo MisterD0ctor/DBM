@@ -12,6 +12,7 @@
 //! on Linux, or whatever `DBM_LIBMPV` names.
 
 use std::ffi::{c_char, c_int, c_void, CStr, CString};
+use std::mem::ManuallyDrop;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -208,7 +209,10 @@ fn check(call: &'static str, code: c_int) -> Result<()> {
 // ---------------------------------------------------------------------------
 
 struct Lib {
-    _library: libloading::Library,
+    /// Never unloaded: mpv's script threads are detached, and one can still
+    /// be on its way out of mpv's code after `mpv_terminate_destroy` returns.
+    /// Unloading then would pull that code from under it, a crash at quit.
+    _library: ManuallyDrop<libloading::Library>,
     mpv_create: unsafe extern "C" fn() -> *mut MpvHandle,
     mpv_initialize: unsafe extern "C" fn(*mut MpvHandle) -> c_int,
     mpv_terminate_destroy: unsafe extern "C" fn(*mut MpvHandle),
@@ -278,7 +282,7 @@ impl Lib {
             mpv_render_context_render: sym!(library, "mpv_render_context_render"),
             mpv_render_context_report_swap: sym!(library, "mpv_render_context_report_swap"),
             mpv_render_context_free: sym!(library, "mpv_render_context_free"),
-            _library: library,
+            _library: ManuallyDrop::new(library),
         })
     }
 }
