@@ -135,7 +135,7 @@ impl Controls {
             move || serve(heard, mpv, position)
         });
         if let Err(e) = &spawned {
-            eprintln!("dbm: no thread for the media controls ({e})");
+            log::warn!("no thread for the media controls ({e})");
         }
 
         Self {
@@ -648,8 +648,8 @@ fn serve(words: Receiver<Word>, mpv: Arc<Mpv>, position: Arc<AtomicI64>) {
     let conn = match claim(mpv, position) {
         Ok(conn) => conn,
         Err(e) => {
-            eprintln!(
-                "dbm: no media controls on the session bus ({e}); the media keys \
+            log::warn!(
+                "no media controls on the session bus ({e}); the media keys \
                  will reach whatever else is playing"
             );
             return;
@@ -724,7 +724,7 @@ fn claim(mpv: Arc<Mpv>, position: Arc<AtomicI64>) -> zbus::Result<Connection> {
     }
     asked?;
 
-    eprintln!("dbm: media keys registered as {name}");
+    log::info!("media keys registered as {name}");
     let _ = CLAIMED.set(name);
     Ok(conn)
 }

@@ -189,7 +189,7 @@ impl Arrival {
     /// the top instead, offering the place for a while. Paused at once, since
     /// mpv is already opening it, usually in time to play nothing from there.
     pub fn played_out(&self, mpv: &Mpv, next: &str) {
-        if crate::harness::armed() {
+        if crate::run_mode::armed() {
             return;
         }
         let mut state = self.state.borrow_mut();
@@ -255,7 +255,7 @@ impl Arrival {
         let row = usize::try_from(index)
             .ok()
             .and_then(|i| state.rows.get(i))
-            .filter(|_| !crate::harness::armed());
+            .filter(|_| !crate::run_mode::armed());
         let then = row.and_then(|(path, progress)| {
             let then = match Saved::of(progress) {
                 Saved::Nothing => return None,
@@ -314,7 +314,7 @@ impl Arrival {
         let mut state = self.state.borrow_mut();
         state.asking = None;
         let then = match saved {
-            _ if crate::harness::armed() => None,
+            _ if crate::run_mode::armed() => None,
             Saved::Nothing => None,
             Saved::Over => Some(Then::Over {
                 play: true,

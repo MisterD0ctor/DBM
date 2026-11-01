@@ -17,7 +17,7 @@ use std::path::{Path, PathBuf};
 pub fn resolved(path: &Path) -> PathBuf {
     match std::fs::canonicalize(path) {
         Ok(end) if end != path => {
-            eprintln!("dbm: {} is {}", path.display(), end.display());
+            log::info!("{} is {}", path.display(), end.display());
             end
         }
         _ => path.to_path_buf(),

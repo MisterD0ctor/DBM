@@ -93,15 +93,15 @@ impl Controls {
         if let State::Pending { mpv, until } = &mut *state {
             match until.poll(|| register(window, mpv.clone())) {
                 Attempt::Took(controls) => {
-                    eprintln!("dbm: media keys registered with Windows");
+                    log::info!("media keys registered with Windows");
                     *state = State::Live {
                         controls,
                         shown: None,
                     };
                 }
                 Attempt::GaveUp(e) => {
-                    eprintln!(
-                        "dbm: media keys unavailable ({e}); headset buttons \
+                    log::warn!(
+                        "media keys unavailable ({e}); headset buttons \
                          and the volume overlay will not reach the player"
                     );
                     *state = State::Off;
@@ -125,7 +125,7 @@ impl Controls {
         if let Err(e) = update(controls, &now, shown.as_ref()) {
             // Not recorded as shown, so the next frame tries again rather
             // than leaving the overlay wrong until something else moves.
-            eprintln!("dbm: media overlay update failed: {e}");
+            log::warn!("media overlay update failed: {e}");
             return;
         }
         *shown = Some(now);

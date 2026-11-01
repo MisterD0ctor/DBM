@@ -51,9 +51,7 @@ impl WarmUp {
             return;
         }
         let panel = self.due.remove(0);
-        if crate::diagnostics::trace() {
-            eprintln!("dbm: drawing panel {panel} unseen");
-        }
+        log::debug!("drawing panel {panel} unseen");
         ui.set_warming(panel);
         // Taken back once this frame is drawn, so the panel, unseen as it is,
         // is never left there to catch a click.

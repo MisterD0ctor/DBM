@@ -13,7 +13,7 @@
 //! tapered to nothing over its last deviation, and a cubic B-spline drawing
 //! it back past twice the size.
 
-use crate::gpu::gfx::{Program, ScreenQuad, Target, bind_texture};
+use crate::gpu::gfx::{Program, ScreenQuad, Target, bind_texture, program};
 
 /// The widest Gaussian run at any one level. Past it, the blur moves down a
 /// level, so a blur up to this stays at full size, exactly as sharp.
@@ -50,13 +50,11 @@ struct Level<'a> {
 }
 
 impl Blur {
-    pub fn new(gl: &glow::Context, vert: &str) -> Result<Self, String> {
-        let program =
-            |name: &str, src: &str| Program::new(gl, vert, src).map_err(|e| format!("{name}: {e}"));
+    pub fn new(gl: &glow::Context) -> Result<Self, String> {
         Ok(Self {
-            down: program("blur_down", include_str!("../../shaders/blur_down.frag"))?,
-            gauss: program("blur_gauss", include_str!("../../shaders/blur_gauss.frag"))?,
-            up: program("blur_up", include_str!("../../shaders/blur_up.frag"))?,
+            down: program!(gl, "blur_down")?,
+            gauss: program!(gl, "blur_gauss")?,
+            up: program!(gl, "blur_up")?,
             levels: Vec::new(),
             across: Target::new(),
             filtered: Target::new(),
@@ -181,17 +179,21 @@ fn draw_down(
 ) {
     p.bind(gl);
     set_alloc(gl, p, input.target);
-    p.set_vec2(gl, "u_src_size", input.size.0 as f32, input.size.1 as f32);
-    p.set_vec2(gl, "u_src_pad", input.pad.0 as f32, input.pad.1 as f32);
-    p.set_vec2(gl, "u_dst_size", out_size.0 as f32, out_size.1 as f32);
-    p.set_vec2(gl, "u_dst_pad", out_pad.0 as f32, out_pad.1 as f32);
+    p.set(gl, "u_src_size", [input.size.0 as f32, input.size.1 as f32]);
+    p.set(gl, "u_src_pad", [input.pad.0 as f32, input.pad.1 as f32]);
+    p.set(gl, "u_dst_size", [out_size.0 as f32, out_size.1 as f32]);
+    p.set(gl, "u_dst_pad", [out_pad.0 as f32, out_pad.1 as f32]);
     bind_texture(gl, p, "u_src", 0, input.target.texture());
     quad.draw_to(gl, out);
 }
 
 fn set_alloc(gl: &glow::Context, p: &Program, target: &Target) {
     let alloc = target.alloc();
-    p.set_vec2(gl, "u_alloc", alloc.0.max(1) as f32, alloc.1.max(1) as f32);
+    p.set(
+        gl,
+        "u_alloc",
+        [alloc.0.max(1) as f32, alloc.1.max(1) as f32],
+    );
 }
 
 fn draw_gauss(
@@ -206,12 +208,12 @@ fn draw_gauss(
     let (w, h) = src.size();
     p.bind(gl);
     set_alloc(gl, p, src);
-    p.set_vec2(gl, "u_size", w as f32, h as f32);
-    p.set_vec2(gl, "u_dir", dir.0, dir.1);
-    p.set_f32(gl, "u_center", kernel.center);
-    p.set_i32(gl, "u_taps", kernel.taps as i32);
-    p.set_f32_array(gl, "u_weight[0]", &kernel.weights);
-    p.set_f32_array(gl, "u_offset[0]", &kernel.offsets);
+    p.set(gl, "u_size", [w as f32, h as f32]);
+    p.set(gl, "u_dir", [dir.0, dir.1]);
+    p.set(gl, "u_center", kernel.center);
+    p.set(gl, "u_taps", kernel.taps as i32);
+    p.set(gl, "u_weight[0]", &kernel.weights);
+    p.set(gl, "u_offset[0]", &kernel.offsets);
     bind_texture(gl, p, "u_src", 0, src.texture());
     quad.draw_to(gl, dst);
 }
@@ -220,9 +222,9 @@ fn draw_up(gl: &glow::Context, quad: &ScreenQuad, p: &Program, src: Level, dst: 
     let (w, h) = dst.size();
     p.bind(gl);
     set_alloc(gl, p, src.target);
-    p.set_vec2(gl, "u_src_size", src.size.0 as f32, src.size.1 as f32);
-    p.set_vec2(gl, "u_src_pad", src.pad.0 as f32, src.pad.1 as f32);
-    p.set_vec2(gl, "u_dst_size", w as f32, h as f32);
+    p.set(gl, "u_src_size", [src.size.0 as f32, src.size.1 as f32]);
+    p.set(gl, "u_src_pad", [src.pad.0 as f32, src.pad.1 as f32]);
+    p.set(gl, "u_dst_size", [w as f32, h as f32]);
     bind_texture(gl, p, "u_src", 0, src.target.texture());
     quad.draw_to(gl, dst);
 }

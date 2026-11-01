@@ -128,7 +128,7 @@ fn update<V: Serialize + DeserializeOwned + PartialEq>(
         return;
     };
     if let Err(e) = std::fs::write(file, json) {
-        eprintln!("dbm: could not write {}: {e}", file.display());
+        log::warn!("could not write {}: {e}", file.display());
     }
 }
 
@@ -193,8 +193,8 @@ fn settle(dir: &Path, version: u32) {
             };
         }
     }
-    eprintln!(
-        "dbm: {} emptied: made by version {kept}, now {version}",
+    log::warn!(
+        "{} emptied: made by version {kept}, now {version}",
         dir.display()
     );
     say();

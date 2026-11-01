@@ -19,3 +19,47 @@ pub mod mark;
 pub mod pipeline;
 pub mod shadow;
 pub mod way;
+
+/// The four passes drawn over Slint's finished frame, each absent where its
+/// shader wouldn't build. The frame then goes without that one touch and
+/// everything else still draws.
+pub struct Overlays {
+    /// Without it, lists are cut square by their panel.
+    pub fader: Option<fade::Fader>,
+    /// Without it, nothing points back to a list's current row.
+    pub way: Option<way::Ways>,
+    pub shadow: Option<shadow::Shadow>,
+    /// Without it, the window's corners are square.
+    pub corners: Option<corners::Corners>,
+}
+
+impl Overlays {
+    pub fn new(gl: &glow::Context) -> Self {
+        Self {
+            fader: optional(fade::Fader::new(gl), "no soft edge on scrolling lists"),
+            way: optional(way::Ways::new(gl), "no way back to a list's current row"),
+            shadow: optional(shadow::Shadow::new(gl), "no shadow under the interface"),
+            corners: optional(corners::Corners::new(gl), "no round corners on the window"),
+        }
+    }
+
+    pub fn release(&mut self, gl: &glow::Context) {
+        if let Some(fader) = &mut self.fader {
+            fader.release(gl);
+        }
+        if let Some(way) = &mut self.way {
+            way.release(gl);
+        }
+        if let Some(shadow) = &mut self.shadow {
+            shadow.release(gl);
+        }
+        if let Some(corners) = &self.corners {
+            corners.release(gl);
+        }
+    }
+}
+
+/// A pass that built, or a line saying what the frame goes without.
+fn optional<T>(built: Result<T, String>, without: &str) -> Option<T> {
+    built.inspect_err(|e| log::warn!("{without}: {e}")).ok()
+}

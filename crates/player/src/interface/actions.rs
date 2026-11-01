@@ -16,7 +16,7 @@ use crate::app::App;
 use crate::interface::{sliders, squircle};
 use crate::platform::dialog;
 use crate::playback::commands;
-use crate::settings::{Before, REGISTRY, Section};
+use crate::settings::{Before, REGISTRY, Section, Toggle};
 use crate::{MainWindow, Motion, Shapes, Tip};
 
 /// A click on the video is held this long so a double-click can cancel it,
@@ -39,6 +39,15 @@ macro_rules! on {
             let $m = &*mpv;
             $body
         });
+    }};
+}
+
+/// Bind a callback that needs more of the player than mpv: the closure is
+/// handed its own clone of the `App`, as `app`.
+macro_rules! on_app {
+    ($ui:expr, $app:expr, $setter:ident, |$a:ident $(, $arg:ident)*| $body:expr) => {{
+        let $a = $app.clone();
+        $ui.$setter(move |$($arg),*| $body);
     }};
 }
 
@@ -97,12 +106,9 @@ fn wire_transport(ui: &MainWindow, app: &App) {
     // `arrival`, which holds one with a place saved in it for the choice.
     // Not activity, here or for the pills' two answers below: each is the way
     // back to the film, and the file arriving shows its own title.
-    {
-        let app = app.clone();
-        ui.on_play_next(move || {
-            app.arrival.step(&app.mpv, 1, Some(true));
-        });
-    }
+    on_app!(ui, app, on_play_next, |app| {
+        app.arrival.step(&app.mpv, 1, Some(true));
+    });
     on!(ui, app, on_nudge_volume, |m, d| commands::nudge_volume(
         m,
         f64::from(d)
@@ -111,41 +117,26 @@ fn wire_transport(ui: &MainWindow, app: &App) {
         m,
         f64::from(v)
     ));
-    {
-        let app = app.clone();
-        // Not activity, for `on!`'s reason: Ctrl+arrows answer with a flash.
-        ui.on_playlist_step(move |delta| {
-            app.arrival.step(&app.mpv, delta, None);
-        });
-    }
-    {
-        let app = app.clone();
-        ui.on_play_index(move |index| {
-            app.activity.bump();
-            app.arrival.play_index(&app.mpv, i64::from(index), None);
-        });
-    }
+    // Not activity, for `on!`'s reason: Ctrl+arrows answer with a flash.
+    on_app!(ui, app, on_playlist_step, |app, delta| {
+        app.arrival.step(&app.mpv, delta, None);
+    });
+    on_app!(ui, app, on_play_index, |app, index| {
+        app.activity.bump();
+        app.arrival.play_index(&app.mpv, i64::from(index), None);
+    });
     // The corner pill's offers: for a file autoplay started over, and back
     // from a click on the timeline.
-    {
-        let app = app.clone();
-        ui.on_take_resume_offer(move || {
-            app.arrival.take_offer(&app.mpv);
-        });
-    }
-    {
-        let app = app.clone();
-        ui.on_take_back_offer(move || {
-            app.retrace.take(&app.mpv);
-        });
-    }
+    on_app!(ui, app, on_take_resume_offer, |app| {
+        app.arrival.take_offer(&app.mpv);
+    });
+    on_app!(ui, app, on_take_back_offer, |app| {
+        app.retrace.take(&app.mpv);
+    });
     // The centre pill's answer, for a file held on its saved place.
-    {
-        let app = app.clone();
-        ui.on_arrival_answer(move |from_the_start| {
-            app.arrival.answer(&app.mpv, from_the_start);
-        });
-    }
+    on_app!(ui, app, on_arrival_answer, |app, from_the_start| {
+        app.arrival.answer(&app.mpv, from_the_start);
+    });
 
     // Speed steps from the value the interface is showing, so the ladder is
     // decided here and mpv is only told where to land.
@@ -260,47 +251,38 @@ fn wire_timeline(ui: &MainWindow, app: &App) {
 fn wire_tracks(ui: &MainWindow, app: &App) {
     // Reads the track list before deciding, so it goes to the worker rather
     // than blocking a keypress behind mpv's core lock.
-    {
-        let app = app.clone();
-        // Not activity, for `on!`'s reason: C answers with a flash.
-        ui.on_toggle_subtitles(move || {
-            app.worker.run(commands::toggle_subtitles);
-        });
-    }
+    // Not activity, for `on!`'s reason: C answers with a flash.
+    on_app!(ui, app, on_toggle_subtitles, |app| {
+        app.worker.run(commands::toggle_subtitles);
+    });
     // -1 is the menu's "Off" row rather than a real track id.
     on!(ui, app, on_select_subtitle, |m, id| {
         commands::set_subtitle_track(m, (id >= 0).then_some(i64::from(id)));
     });
     // The one selection the watchdog has to hear about: choosing "Off" is
     // the only silence it must not undo when a device reappears.
-    {
-        let app = app.clone();
-        ui.on_select_audio(move |id| {
-            app.activity.bump();
-            let id = (id >= 0).then_some(i64::from(id));
-            app.audio.note_user_selection(id);
-            commands::set_audio_track(&app.mpv, id);
-        });
-    }
+    on_app!(ui, app, on_select_audio, |app, id| {
+        app.activity.bump();
+        let id = (id >= 0).then_some(i64::from(id));
+        app.audio.note_user_selection(id);
+        commands::set_audio_track(&app.mpv, id);
+    });
     on!(ui, app, on_cycle_track, |m, subtitles, direction| {
         commands::cycle_track(m, subtitles, direction);
     });
     // A track out, and a fetched one forgotten with it so it doesn't come
     // back next time the film opens. Reads the track list, so on the worker.
-    {
-        let app = app.clone();
-        ui.on_remove_track(move |id, subtitle| {
-            app.activity.bump();
-            app.worker.run(move |mpv| {
-                let Some(file) = commands::remove_track(mpv, i64::from(id), subtitle) else {
-                    return;
-                };
-                if let Some(path) = mpv.get_property("path") {
-                    crate::library::opensubtitles::forget(&path, &file);
-                }
-            });
+    on_app!(ui, app, on_remove_track, |app, id, subtitle| {
+        app.activity.bump();
+        app.worker.run(move |mpv| {
+            let Some(file) = commands::remove_track(mpv, i64::from(id), subtitle) else {
+                return;
+            };
+            if let Some(path) = mpv.get_property("path") {
+                crate::library::opensubtitles::forget(&path, &file);
+            }
         });
-    }
+    });
     wire_finding(ui, app);
 }
 
@@ -461,40 +443,28 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
 
     // Effect toggles, separate from the sliders rather than a zero on one,
     // so the tuning survives switching an effect off.
-    {
-        let app = app.clone();
-        // Not activity, for `on!`'s reason: B is answered by the border.
-        ui.on_set_ambience(move |on| {
-            app.settings.set_ambience(on);
-        });
-    }
-    {
-        let app = app.clone();
-        ui.on_set_autoplay(move |on| {
-            app.activity.bump();
-            app.settings.set_autoplay(on);
-            commands::set_autoplay(&app.mpv, on);
-        });
-    }
+    // Not activity, for `on!`'s reason: B is answered by the border.
+    on_app!(ui, app, on_set_ambience, |app, on| {
+        app.settings.turn(Toggle::Ambience, on);
+    });
+    on_app!(ui, app, on_set_autoplay, |app, on| {
+        app.activity.bump();
+        app.settings.turn(Toggle::Autoplay, on);
+        commands::set_autoplay(&app.mpv, on);
+    });
     // `Motion.enabled` is already set on the Slint side, so this saves the
     // choice, which the driver also hands the pipeline for the backdrop's
     // fade.
-    {
-        let app = app.clone();
-        ui.on_set_animations(move |on| {
-            app.activity.bump();
-            app.settings.set_animations(on);
-        });
-    }
+    on_app!(ui, app, on_set_animations, |app, on| {
+        app.activity.bump();
+        app.settings.turn(Toggle::Animations, on);
+    });
     // The right end of the timeline, the whole length or what is left, from
     // a click on it or the video page's switch.
-    {
-        let app = app.clone();
-        ui.on_set_show_remaining(move |on| {
-            app.activity.bump();
-            app.settings.set_remaining(on);
-        });
-    }
+    on_app!(ui, app, on_set_show_remaining, |app, on| {
+        app.activity.bump();
+        app.settings.turn(Toggle::Remaining, on);
+    });
     {
         let (app, weak) = (app.clone(), ui.as_weak());
         ui.on_step_scale(move |direction| {
@@ -508,28 +478,19 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
         });
     }
     // Saved, and handed the pipeline by the driver with the material.
-    {
-        let app = app.clone();
-        ui.on_set_legible_glass(move |on| {
-            app.activity.bump();
-            app.settings.set_legible_glass(on);
-        });
-    }
+    on_app!(ui, app, on_set_legible_glass, |app, on| {
+        app.activity.bump();
+        app.settings.turn(Toggle::LegibleGlass, on);
+    });
     // The tooltips' two switches, likewise already acted on by `Tip`.
-    {
-        let app = app.clone();
-        ui.on_set_tips(move |on| {
-            app.activity.bump();
-            app.settings.set_tips(on);
-        });
-    }
-    {
-        let app = app.clone();
-        ui.on_set_tip_keys(move |on| {
-            app.activity.bump();
-            app.settings.set_tip_keys(on);
-        });
-    }
+    on_app!(ui, app, on_set_tips, |app, on| {
+        app.activity.bump();
+        app.settings.turn(Toggle::Tips, on);
+    });
+    on_app!(ui, app, on_set_tip_keys, |app, on| {
+        app.activity.bump();
+        app.settings.turn(Toggle::TipKeys, on);
+    });
 
     // The rows of the language page, as it numbers them: the system's, then
     // English, then each language built in. The row is already lit by the
@@ -558,27 +519,21 @@ fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
     on!(ui, app, on_nudge_sub_delay, |m, d| {
         commands::nudge_sub_delay(m, f64::from(d));
     });
-    {
-        let app = app.clone();
-        ui.on_nudge_sub_scale(move |delta| {
-            app.activity.bump();
-            let sent = commands::set_sub_scale(
-                &app.mpv,
-                f64::from(app.settings.sub_scale()) + f64::from(delta),
-            );
-            app.settings.set_sub_scale(sent as f32);
-        });
-    }
-    {
-        let app = app.clone();
-        ui.on_nudge_sub_pos(move |delta| {
-            app.activity.bump();
-            app.subline.set(
-                &app.mpv,
-                f64::from(app.settings.sub_pos()) + f64::from(delta),
-            );
-        });
-    }
+    on_app!(ui, app, on_nudge_sub_scale, |app, delta| {
+        app.activity.bump();
+        let sent = commands::set_sub_scale(
+            &app.mpv,
+            f64::from(app.settings.sub_scale()) + f64::from(delta),
+        );
+        app.settings.set_sub_scale(sent as f32);
+    });
+    on_app!(ui, app, on_nudge_sub_pos, |app, delta| {
+        app.activity.bump();
+        app.subline.set(
+            &app.mpv,
+            f64::from(app.settings.sub_pos()) + f64::from(delta),
+        );
+    });
     {
         let (app, undo) = (app.clone(), undo.clone());
         ui.on_reset_subtitles(move || {
@@ -593,23 +548,17 @@ fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
     }
     // Listening takes seconds and runs on a thread of its own; the answer
     // comes back as a completion, which is where the timing is applied.
-    {
-        let app = app.clone();
-        ui.on_sync_subtitles(move || {
-            app.activity.bump();
-            crate::library::subsync::spawn(app.mpv.clone(), app.worker.reporter());
-        });
-    }
-    {
-        let app = app.clone();
-        ui.on_set_timing(move |delay, speed| {
-            app.activity.bump();
-            commands::set_sub_delay(&app.mpv, f64::from(delay));
-            commands::set_sub_speed(&app.mpv, f64::from(speed));
-            // Saved at once, as a sync is.
-            crate::playback::session::checkpoint(&app.mpv);
-        });
-    }
+    on_app!(ui, app, on_sync_subtitles, |app| {
+        app.activity.bump();
+        crate::library::subsync::spawn(app.mpv.clone(), app.worker.reporter());
+    });
+    on_app!(ui, app, on_set_timing, |app, delay, speed| {
+        app.activity.bump();
+        commands::set_sub_delay(&app.mpv, f64::from(delay));
+        commands::set_sub_speed(&app.mpv, f64::from(speed));
+        // Saved at once, as a sync is.
+        crate::playback::session::checkpoint(&app.mpv);
+    });
 }
 
 /// Opening a file or a folder.
@@ -763,18 +712,19 @@ fn row_of(code: &str) -> i32 {
 /// the preferences mpv has to be told about.
 fn restore_preferences(ui: &MainWindow, app: &App) {
     let settings = &app.settings;
-    ui.set_ambience_on(settings.ambience_on());
-    ui.set_autoplay(settings.autoplay());
-    ui.global::<Motion>().set_chosen(settings.animations());
-    ui.set_legible_glass(settings.legible_glass());
+    ui.set_ambience_on(settings.is_on(Toggle::Ambience));
+    ui.set_autoplay(settings.is_on(Toggle::Autoplay));
+    ui.global::<Motion>()
+        .set_chosen(settings.is_on(Toggle::Animations));
+    ui.set_legible_glass(settings.is_on(Toggle::LegibleGlass));
     let tip = ui.global::<Tip>();
-    tip.set_enabled(settings.tips());
-    tip.set_with_keys(settings.tip_keys());
-    commands::set_autoplay(&app.mpv, settings.autoplay());
+    tip.set_enabled(settings.is_on(Toggle::Tips));
+    tip.set_with_keys(settings.is_on(Toggle::TipKeys));
+    commands::set_autoplay(&app.mpv, settings.is_on(Toggle::Autoplay));
     commands::set_sub_scale(&app.mpv, f64::from(settings.sub_scale()));
     app.subline.set(&app.mpv, f64::from(settings.sub_pos()));
     commands::set_picture(&app.mpv, &settings.picture());
-    ui.set_show_remaining(settings.remaining());
+    ui.set_show_remaining(settings.is_on(Toggle::Remaining));
     // Given the window on the first frame (see `Scale::frame`), once the
     // system has given it its own.
     ui.set_interface_scale(settings.scale());

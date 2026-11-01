@@ -33,8 +33,8 @@ pub enum Want {
 pub fn pick(want: Want, start: Option<std::path::PathBuf>, ui: slint::Weak<MainWindow>) {
     // A fresh thread per dialog rather than a kept one, since dialogs are rare
     // and a short-lived thread can't accumulate state.
-    eprintln!(
-        "dbm: file dialog requested ({})",
+    log::info!(
+        "file dialog requested ({})",
         match want {
             Want::File => "file",
             Want::Folder => "folder",
@@ -42,7 +42,7 @@ pub fn pick(want: Want, start: Option<std::path::PathBuf>, ui: slint::Weak<MainW
     );
     crate::threads::spawn("dbm-dialog", move || {
         let Some(path) = choose(want, start) else {
-            eprintln!("dbm: file dialog cancelled");
+            log::info!("file dialog cancelled");
             return;
         };
         let path = path.to_string_lossy().into_owned();

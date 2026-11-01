@@ -172,30 +172,18 @@ pub enum Event {
 // Errors
 // ---------------------------------------------------------------------------
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("failed to load libmpv: {0}")]
     Load(String),
+    #[error("mpv_create returned null")]
     Create,
     /// An mpv API call returned a negative status code.
-    Api {
-        call: &'static str,
-        code: c_int,
-    },
+    #[error("{call} failed with mpv error {code}")]
+    Api { call: &'static str, code: c_int },
+    #[error("string contained an interior NUL")]
     Nul,
 }
-
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Load(m) => write!(f, "failed to load libmpv: {m}"),
-            Self::Create => write!(f, "mpv_create returned null"),
-            Self::Api { call, code } => write!(f, "{call} failed with mpv error {code}"),
-            Self::Nul => write!(f, "string contained an interior NUL"),
-        }
-    }
-}
-
-impl std::error::Error for Error {}
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -332,8 +320,8 @@ fn mask_subtitles(mpv: &Mpv) {
                 .map_err(|e| e.to_string())
         });
     if let Err(e) = loaded {
-        eprintln!(
-            "dbm: no subtitle mask ({e}); a subtitle on the picture's edge will light the border"
+        log::warn!(
+            "no subtitle mask ({e}); a subtitle on the picture's edge will light the border"
         );
     }
 }
@@ -417,7 +405,7 @@ impl Mpv {
             ("sub-visibility", "yes"),
         ] {
             if let Err(e) = mpv.set_option(k, v) {
-                eprintln!("dbm: mpv rejected {k}={v} ({e}); continuing");
+                log::warn!("mpv rejected {k}={v} ({e}); continuing");
             }
         }
 
@@ -429,7 +417,7 @@ impl Mpv {
             .iter()
             .any(|k| mpv.set_option(k, CLEAR).is_ok());
         if !mpv.clear_surround {
-            eprintln!("dbm: mpv kept an opaque surround; the border will cover its letterbox");
+            log::warn!("mpv kept an opaque surround; the border will cover its letterbox");
         }
 
         configure(&mpv);

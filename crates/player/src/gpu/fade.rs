@@ -14,7 +14,7 @@
 
 use glow::HasContext;
 
-use super::gfx::{Program, ScreenQuad, Target, bind_texture, saved_draw_fbo};
+use super::gfx::{Program, ScreenQuad, Target, bind_texture, program, saved_draw_fbo};
 
 /// The side of its list, or its line, that a strip is at: where what is in
 /// it thins away to nothing.
@@ -56,12 +56,7 @@ impl Fader {
     pub fn new(gl: &glow::Context) -> Result<Self, String> {
         Ok(Self {
             quad: ScreenQuad::new(gl)?,
-            program: Program::new(
-                gl,
-                include_str!("../../shaders/fullscreen.vert"),
-                include_str!("../../shaders/scroll_fade.frag"),
-            )
-            .map_err(|e| format!("scroll_fade: {e}"))?,
+            program: program!(gl, "scroll_fade")?,
             copied: Target::new(),
             across: Target::new(),
         })
@@ -164,36 +159,35 @@ impl Fader {
         };
         let program = &self.program;
         program.bind(gl);
-        program.set_vec2(gl, "u_region", r_width as f32, r_height as f32);
-        program.set_vec3(gl, "u_edge", edge);
-        program.set_f32(gl, "u_band", band as f32);
-        program.set_f32(gl, "u_sigma", strip.sigma);
-        program.set_f32(gl, "u_strength", strip.strength.clamp(0.0, 1.0));
+        program.set(gl, "u_region", [r_width as f32, r_height as f32]);
+        program.set(gl, "u_edge", edge);
+        program.set(gl, "u_band", band as f32);
+        program.set(gl, "u_sigma", strip.sigma);
+        program.set(gl, "u_strength", strip.strength.clamp(0.0, 1.0));
 
         // Across, the whole region, into scratch.
         let scale = self.copied.scale();
-        program.set_vec2(gl, "u_src_scale", scale.0, scale.1);
-        program.set_vec2(gl, "u_dir", 1.0, 0.0);
-        program.set_vec2(gl, "u_at0", 0.0, 0.0);
-        program.set_vec2(gl, "u_span", r_width as f32, r_height as f32);
+        program.set(gl, "u_src_scale", [scale.0, scale.1]);
+        program.set(gl, "u_dir", [1.0, 0.0]);
+        program.set(gl, "u_at0", [0.0, 0.0]);
+        program.set(gl, "u_span", [r_width as f32, r_height as f32]);
         bind_texture(gl, program, "u_src", 0, self.copied.texture());
         self.quad.draw_to(gl, &self.across);
 
         // Down, the strip alone, back onto the window.
         let scale = self.across.scale();
         let ground_scale = ground.scale();
-        program.set_vec2(gl, "u_src_scale", scale.0, scale.1);
-        program.set_vec2(gl, "u_dir", 0.0, 1.0);
-        program.set_vec2(
+        program.set(gl, "u_src_scale", [scale.0, scale.1]);
+        program.set(gl, "u_dir", [0.0, 1.0]);
+        program.set(
             gl,
             "u_at0",
-            (left - r_left) as f32,
-            (r_bottom - bottom) as f32,
+            [(left - r_left) as f32, (r_bottom - bottom) as f32],
         );
-        program.set_vec2(gl, "u_span", width as f32, height as f32);
-        program.set_vec2(gl, "u_ground_scale", ground_scale.0, ground_scale.1);
-        program.set_vec2(gl, "u_origin", r_left as f32, r_bottom as f32);
-        program.set_vec2(gl, "u_window", win_w as f32, win_h as f32);
+        program.set(gl, "u_span", [width as f32, height as f32]);
+        program.set(gl, "u_ground_scale", [ground_scale.0, ground_scale.1]);
+        program.set(gl, "u_origin", [r_left as f32, r_bottom as f32]);
+        program.set(gl, "u_window", [win_w as f32, win_h as f32]);
         bind_texture(gl, program, "u_src", 0, self.across.texture());
         bind_texture(gl, program, "u_ground", 1, Some(ground_tex));
         self.quad

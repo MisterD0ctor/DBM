@@ -317,7 +317,7 @@ fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, String> {
 
     while let Some(current) = stack.pop() {
         let Ok(entries) = fs::read_dir(&current) else {
-            eprintln!("dbm: skipping unreadable {}", current.display());
+            log::warn!("skipping unreadable {}", current.display());
             continue;
         };
         for entry in entries.filter_map(Result::ok) {

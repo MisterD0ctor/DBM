@@ -47,7 +47,7 @@ pub fn path() -> Option<PathBuf> {
 /// to be answerable.
 pub fn announce(ffmpeg: &Path) {
     static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| eprintln!("dbm: ffmpeg at {}", ffmpeg.display()));
+    ONCE.call_once(|| log::info!("ffmpeg at {}", ffmpeg.display()));
 }
 
 /// Without this every ffmpeg flashes a console window on Windows.

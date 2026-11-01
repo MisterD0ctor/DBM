@@ -84,11 +84,22 @@ pub fn settings_file() -> PathBuf {
     // A run nobody is watching (an exercise, a showcase or a capture) keeps to
     // its own file, so it neither touches the real settings nor looks like
     // whatever they were last set to while trying something.
-    let name = if crate::harness::unattended() {
-        eprintln!("dbm: unattended - settings go to settings.test.conf");
+    let name = if crate::run_mode::unattended() {
+        log::info!("unattended - settings go to settings.test.conf");
         "settings.test.conf"
     } else {
         "settings.conf"
+    };
+    app_data_dir().join(name)
+}
+
+/// What the player said this run (see `logging`). A run nobody is watching
+/// keeps to its own, as it does for the settings.
+pub fn log_file() -> PathBuf {
+    let name = if crate::run_mode::unattended() {
+        "dbm.test.log"
+    } else {
+        "dbm.log"
     };
     app_data_dir().join(name)
 }

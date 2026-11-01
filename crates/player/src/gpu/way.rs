@@ -12,7 +12,7 @@
 
 use glow::HasContext;
 
-use super::gfx::{Program, ScreenQuad, bind_texture, saved_draw_fbo};
+use super::gfx::{Program, ScreenQuad, bind_texture, program, saved_draw_fbo};
 use super::pipeline::GlassPanel;
 
 const UP: &[u8] = include_bytes!("../../../../public/icons/angle-small-up.svg");
@@ -89,12 +89,7 @@ impl Ways {
     pub fn new(gl: &glow::Context) -> Result<Self, String> {
         Ok(Self {
             quad: ScreenQuad::new(gl)?,
-            program: Program::new(
-                gl,
-                include_str!("../../shaders/fullscreen.vert"),
-                include_str!("../../shaders/way.frag"),
-            )
-            .map_err(|e| format!("way: {e}"))?,
+            program: program!(gl, "way")?,
             up: None,
             down: None,
             px: 0,
@@ -153,16 +148,16 @@ impl Ways {
 
         let program = &self.program;
         program.bind(gl);
-        program.set_vec2(gl, "u_size", side as f32, side as f32);
-        program.set_vec2(gl, "u_centre", side as f32 / 2.0, side as f32 / 2.0);
-        program.set_f32(gl, "u_radius", diameter / 2.0);
-        program.set_vec2(gl, "u_icon_at", spare as f32, spare as f32);
-        program.set_f32(gl, "u_icon_px", px as f32);
-        program.set_f32(gl, "u_on", way.on.clamp(0.0, 1.0));
-        program.set_f32(gl, "u_lit", way.lit.clamp(0.0, 1.0));
-        program.set_f32(gl, "u_wash", way.wash);
-        program.set_f32(gl, "u_rest", way.rest);
-        program.set_f32(gl, "u_bright", way.bright);
+        program.set(gl, "u_size", [side as f32, side as f32]);
+        program.set(gl, "u_centre", [side as f32 / 2.0, side as f32 / 2.0]);
+        program.set(gl, "u_radius", diameter / 2.0);
+        program.set(gl, "u_icon_at", [spare as f32, spare as f32]);
+        program.set(gl, "u_icon_px", px as f32);
+        program.set(gl, "u_on", way.on.clamp(0.0, 1.0));
+        program.set(gl, "u_lit", way.lit.clamp(0.0, 1.0));
+        program.set(gl, "u_wash", way.wash);
+        program.set(gl, "u_rest", way.rest);
+        program.set(gl, "u_bright", way.bright);
         let icon = if way.up { self.up } else { self.down };
         bind_texture(gl, program, "u_icon", 0, icon);
         self.quad.blend_at(

@@ -21,7 +21,7 @@
 use glow::HasContext;
 
 use crate::gpu::blur::{self, Blur};
-use crate::gpu::gfx::{Program, ScreenQuad, Target, bind_texture, saved_draw_fbo};
+use crate::gpu::gfx::{Program, ScreenQuad, Target, bind_texture, program, saved_draw_fbo};
 use crate::gpu::shadow::HEADROOM;
 use crate::playback::mpv::RenderContext;
 
@@ -359,21 +359,17 @@ struct Backdrop {
 
 impl Pipeline {
     pub fn new(gl: &glow::Context) -> Result<Self, String> {
-        let vert = include_str!("../../shaders/fullscreen.vert");
         Ok(Self {
             quad: ScreenQuad::new(gl)?,
-            prog_extend: Program::new(gl, vert, include_str!("../../shaders/border_extend.frag"))
-                .map_err(|e| format!("border_extend: {e}"))?,
-            prog_spread: Program::new(gl, vert, include_str!("../../shaders/border_spread.frag"))
-                .map_err(|e| format!("border_spread: {e}"))?,
+            prog_extend: program!(gl, "border_extend")?,
+            prog_spread: program!(gl, "border_spread")?,
             video: Target::new(),
             extended: Target::new(),
             composite: Target::new(),
             blur_out: Target::new(),
             glassed: Target::new(),
-            prog_glass: Program::new(gl, vert, include_str!("../../shaders/glass.frag"))
-                .map_err(|e| format!("glass: {e}"))?,
-            blur_chain: Blur::new(gl, vert)?,
+            prog_glass: program!(gl, "glass")?,
+            blur_chain: Blur::new(gl)?,
             over_base: Target::new(),
             over_blur: Target::new(),
             over_out: Target::new(),
@@ -390,8 +386,7 @@ impl Pipeline {
             glass_enabled: true,
             text_floor: 0.0,
             legible: true,
-            prog_backdrop: Program::new(gl, vert, include_str!("../../shaders/backdrop.frag"))
-                .map_err(|e| format!("backdrop: {e}"))?,
+            prog_backdrop: program!(gl, "backdrop")?,
             backdrop: None,
             show_backdrop: false,
             backdrop_over_film: false,
@@ -482,18 +477,17 @@ impl Pipeline {
         let (tex, iw, ih) = (b.tex, b.width, b.height);
 
         self.prog_backdrop.bind(gl);
+        self.prog_backdrop.set(gl, "u_size", [w as f32, h as f32]);
         self.prog_backdrop
-            .set_vec2(gl, "u_size", w as f32, h as f32);
-        self.prog_backdrop
-            .set_vec2(gl, "u_image_size", iw as f32, ih as f32);
-        self.prog_backdrop.set_f32(gl, "u_level", level);
+            .set(gl, "u_image_size", [iw as f32, ih as f32]);
+        self.prog_backdrop.set(gl, "u_level", level);
         let (over, lod) = if self.backdrop_over_film {
             (1.0, END_SOFTENING)
         } else {
             (0.0, 0.0)
         };
-        self.prog_backdrop.set_f32(gl, "u_over", over);
-        self.prog_backdrop.set_f32(gl, "u_lod", lod);
+        self.prog_backdrop.set(gl, "u_over", over);
+        self.prog_backdrop.set(gl, "u_lod", lod);
         bind_texture(gl, &self.prog_backdrop, "u_image", 0, Some(tex));
         if self.backdrop_over_film {
             self.quad.blend_to(gl, &self.video);
@@ -760,13 +754,13 @@ impl Pipeline {
         let g = self.glass;
         self.prog_glass.bind(gl);
         self.prog_glass
-            .set_vec2(gl, "u_size", size.0 as f32, size.1 as f32);
+            .set(gl, "u_size", [size.0 as f32, size.1 as f32]);
 
         let (base_scale, blur_scale) = (base.scale(), blur.scale());
         self.prog_glass
-            .set_vec2(gl, "u_base_scale", base_scale.0, base_scale.1);
+            .set(gl, "u_base_scale", [base_scale.0, base_scale.1]);
         self.prog_glass
-            .set_vec2(gl, "u_blur_scale", blur_scale.0, blur_scale.1);
+            .set(gl, "u_blur_scale", [blur_scale.0, blur_scale.1]);
 
         // Uniform arrays are uploaded whole; unused slots are simply never
         // read, since the shader loop stops at `u_panel_count`.
@@ -776,52 +770,50 @@ impl Pipeline {
             0.0
         };
         let count = panels.len().min(MAX_PANELS);
-        let mut rects = [0.0f32; MAX_PANELS * 4];
-        let mut styles = [0.0f32; MAX_PANELS * 4];
-        let mut lights = [0.0f32; MAX_PANELS * 4];
+        let mut rects = [[0.0f32; 4]; MAX_PANELS];
+        let mut styles = [[0.0f32; 4]; MAX_PANELS];
+        let mut lights = [[0.0f32; 4]; MAX_PANELS];
         for (i, panel) in panels.iter().take(count).enumerate() {
-            rects[i * 4..i * 4 + 4].copy_from_slice(&panel.rect);
-            styles[i * 4] = panel.radius;
-            styles[i * 4 + 1] = panel.tint_alpha;
-            styles[i * 4 + 2] = panel.opacity;
-            styles[i * 4 + 3] = if panel.nested { 1.0 } else { 0.0 };
-            lights[i * 4] = ceiling;
-            lights[i * 4 + 1] = if panel.ring {
+            rects[i] = panel.rect;
+            styles[i] = [
+                panel.radius,
+                panel.tint_alpha,
+                panel.opacity,
+                if panel.nested { 1.0 } else { 0.0 },
+            ];
+            let rim = if panel.ring {
                 g.rim.max(RING_RIM)
             } else {
                 g.rim
             };
-            lights[i * 4 + 2] = panel.milk;
+            lights[i] = [ceiling, rim, panel.milk, 0.0];
         }
-        self.prog_glass.set_i32(gl, "u_panel_count", count as i32);
-        self.prog_glass
-            .set_vec4_array(gl, "u_panel_rect[0]", &rects);
-        self.prog_glass
-            .set_vec4_array(gl, "u_panel_style[0]", &styles);
-        self.prog_glass
-            .set_vec4_array(gl, "u_panel_light[0]", &lights);
+        self.prog_glass.set(gl, "u_panel_count", count as i32);
+        self.prog_glass.set(gl, "u_panel_rect[0]", &rects);
+        self.prog_glass.set(gl, "u_panel_style[0]", &styles);
+        self.prog_glass.set(gl, "u_panel_light[0]", &lights);
 
         let held = shaded.len().min(MAX_PANELS);
-        let mut regions = [0.0f32; MAX_PANELS * 4];
+        let mut regions = [[0.0f32; 4]; MAX_PANELS];
         for (i, region) in shaded.iter().take(held).enumerate() {
-            regions[i * 4..i * 4 + 4].copy_from_slice(&region.map(|v| v as f32));
+            regions[i] = region.map(|v| v as f32);
         }
-        self.prog_glass.set_i32(gl, "u_shaded_count", held as i32);
-        self.prog_glass.set_vec4_array(gl, "u_shaded[0]", &regions);
-        self.prog_glass.set_f32(gl, "u_headroom", HEADROOM);
+        self.prog_glass.set(gl, "u_shaded_count", held as i32);
+        self.prog_glass.set(gl, "u_shaded[0]", &regions);
+        self.prog_glass.set(gl, "u_headroom", HEADROOM);
 
-        self.prog_glass.set_f32(gl, "u_bevel", BEVEL);
+        self.prog_glass.set(gl, "u_bevel", BEVEL);
         self.prog_glass
-            .set_f32(gl, "u_corner_softness", CORNER_SOFTNESS as f32);
-        self.prog_glass.set_f32(gl, "u_refract", g.refract);
-        self.prog_glass.set_f32(gl, "u_ior", IOR);
-        self.prog_glass.set_f32(gl, "u_aberration", g.aberration);
+            .set(gl, "u_corner_softness", CORNER_SOFTNESS as f32);
+        self.prog_glass.set(gl, "u_refract", g.refract);
+        self.prog_glass.set(gl, "u_ior", IOR);
+        self.prog_glass.set(gl, "u_aberration", g.aberration);
         self.prog_glass
-            .set_f32(gl, "u_fringe_scale", fringe_scale(g.blur_sigma));
-        self.prog_glass.set_vec3(gl, "u_tint", g.tint);
-        self.prog_glass.set_f32(gl, "u_tint_amount", g.tint_amount);
-        self.prog_glass.set_f32(gl, "u_absorb", g.absorb);
-        self.prog_glass.set_f32(gl, "u_shadow", g.shadow);
+            .set(gl, "u_fringe_scale", fringe_scale(g.blur_sigma));
+        self.prog_glass.set(gl, "u_tint", g.tint);
+        self.prog_glass.set(gl, "u_tint_amount", g.tint_amount);
+        self.prog_glass.set(gl, "u_absorb", g.absorb);
+        self.prog_glass.set(gl, "u_shadow", g.shadow);
 
         bind_texture(gl, &self.prog_glass, "u_base", 0, base.texture());
         bind_texture(gl, &self.prog_glass, "u_blur", 1, blur.texture());
@@ -980,35 +972,35 @@ impl Pipeline {
         // spread pass then takes its short path and never reads `extended`.
         if self.border_enabled {
             self.prog_extend.bind(gl);
-            self.prog_extend.set_vec2(gl, "u_size", size.0, size.1);
-            self.prog_extend.set_vec2(gl, "u_texel", texel.0, texel.1);
-            self.prog_extend.set_vec4(gl, "u_rect", self.rect);
-            self.prog_extend.set_f32(gl, "edge_blur", p.edge_blur);
-            self.prog_extend.set_f32(gl, "max_taps", p.max_taps);
+            self.prog_extend.set(gl, "u_size", [size.0, size.1]);
+            self.prog_extend.set(gl, "u_texel", [texel.0, texel.1]);
+            self.prog_extend.set(gl, "u_rect", self.rect);
+            self.prog_extend.set(gl, "edge_blur", p.edge_blur);
+            self.prog_extend.set(gl, "max_taps", p.max_taps);
             let vs = self.video.scale();
-            self.prog_extend.set_vec2(gl, "u_src_scale", vs.0, vs.1);
+            self.prog_extend.set(gl, "u_src_scale", [vs.0, vs.1]);
             bind_texture(gl, &self.prog_extend, "u_src", 0, self.video.texture());
             self.quad.draw_to(gl, &self.extended);
         }
 
         // Pass 2 — light spread, then the video composited on top.
         self.prog_spread.bind(gl);
-        self.prog_spread.set_vec2(gl, "u_size", size.0, size.1);
-        self.prog_spread.set_vec2(gl, "u_texel", texel.0, texel.1);
-        self.prog_spread.set_vec4(gl, "u_rect", self.rect);
-        self.prog_spread.set_f32(gl, "edge_blur", p.edge_blur);
-        self.prog_spread.set_f32(gl, "spread", p.spread);
-        self.prog_spread.set_f32(gl, "grain", p.grain);
-        self.prog_spread.set_f32(gl, "falloff", p.falloff);
+        self.prog_spread.set(gl, "u_size", [size.0, size.1]);
+        self.prog_spread.set(gl, "u_texel", [texel.0, texel.1]);
+        self.prog_spread.set(gl, "u_rect", self.rect);
+        self.prog_spread.set(gl, "edge_blur", p.edge_blur);
+        self.prog_spread.set(gl, "spread", p.spread);
+        self.prog_spread.set(gl, "grain", p.grain);
+        self.prog_spread.set(gl, "falloff", p.falloff);
         self.prog_spread
-            .set_f32(gl, "falloff_softness", p.falloff_softness);
-        self.prog_spread.set_f32(gl, "max_taps", p.max_taps);
+            .set(gl, "falloff_softness", p.falloff_softness);
+        self.prog_spread.set(gl, "max_taps", p.max_taps);
         self.prog_spread
-            .set_f32(gl, "u_border", if self.border_enabled { 1.0 } else { 0.0 });
-        self.prog_spread.set_f32(gl, "u_surround", surround);
+            .set(gl, "u_border", if self.border_enabled { 1.0 } else { 0.0 });
+        self.prog_spread.set(gl, "u_surround", surround);
         let (es, vs) = (self.extended.scale(), self.video.scale());
-        self.prog_spread.set_vec2(gl, "u_src_scale", es.0, es.1);
-        self.prog_spread.set_vec2(gl, "u_video_scale", vs.0, vs.1);
+        self.prog_spread.set(gl, "u_src_scale", [es.0, es.1]);
+        self.prog_spread.set(gl, "u_video_scale", [vs.0, vs.1]);
         bind_texture(gl, &self.prog_spread, "u_src", 0, self.extended.texture());
         bind_texture(gl, &self.prog_spread, "u_video", 1, self.video.texture());
         self.quad.draw_to(gl, &self.composite);

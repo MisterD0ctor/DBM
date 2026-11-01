@@ -42,6 +42,11 @@ sys-locale = "0.3"
 # Draws the logo into the light behind an empty window — see `mark`. Slint
 # already renders its SVG icons with it, so this adds no crate to the build.
 resvg = { version = "0.47", default-features = false }
+# The player's own lines, to stderr and to a file — see `logging`. Slint and
+# zbus already build it, so this adds no crate to the build.
+log = "0.4"
+# Error types without hand-written `Display` impls. Slint already builds it.
+thiserror = "2"
 
 [target.'cfg(not(windows))'.dependencies]
 # Talking to OpenSubtitles — see `opensubtitles`. Blocking, which is what a

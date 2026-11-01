@@ -160,7 +160,7 @@ impl Rounding {
     #[cfg(windows)]
     pub fn poll(&mut self, window: &slint::Window) {
         if let Attempt::GaveUp(e) = self.until.poll(|| round_corners(window)) {
-            eprintln!("dbm: cannot round the window's corners ({e})");
+            log::warn!("cannot round the window's corners ({e})");
         }
     }
 
@@ -191,10 +191,8 @@ fn round_corners(window: &slint::Window) -> Result<(), String> {
     };
     // Windows 10 refuses it, having no round corners to give. That is an
     // answer too, so it is not asked again.
-    if let Err(e) = asked
-        && crate::diagnostics::trace()
-    {
-        eprintln!("dbm: the window's corners stay square ({e})");
+    if let Err(e) = asked {
+        log::debug!("the window's corners stay square ({e})");
     }
     Ok(())
 }

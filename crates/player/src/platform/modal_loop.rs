@@ -60,8 +60,8 @@ impl Hook {
 
     pub fn poll(&mut self, window: &slint::Window) {
         if let Attempt::GaveUp(e) = self.until.poll(|| keep_rendering_during_modal_loop(window)) {
-            eprintln!(
-                "dbm: modal-loop hook unavailable ({e}); holding a window edge will stall rendering"
+            log::warn!(
+                "modal-loop hook unavailable ({e}); holding a window edge will stall rendering"
             );
         }
     }
@@ -81,9 +81,7 @@ fn keep_rendering_during_modal_loop(window: &slint::Window) -> Result<(), String
     let hwnd = crate::platform::window::hwnd(window)?;
 
     if unsafe { SetWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID, 0) }.as_bool() {
-        if crate::diagnostics::trace() {
-            eprintln!("dbm: modal-loop hook installed");
-        }
+        log::debug!("modal-loop hook installed");
         Ok(())
     } else {
         Err(format!(
@@ -113,18 +111,14 @@ unsafe extern "system" fn subclass_proc(
         WM_ENTERSIZEMOVE => unsafe {
             SetTimer(Some(hwnd), TIMER_ID, TICK_MS, None);
             TICKS.store(0, Ordering::Relaxed);
-            if crate::diagnostics::trace() {
-                eprintln!("dbm: modal loop entered — heartbeat timer started");
-            }
+            log::debug!("modal loop entered — heartbeat timer started");
         },
         WM_EXITSIZEMOVE => unsafe {
             let _ = KillTimer(Some(hwnd), TIMER_ID);
-            if crate::diagnostics::trace() {
-                eprintln!(
-                    "dbm: modal loop exited after {} heartbeat ticks",
-                    TICKS.load(Ordering::Relaxed)
-                );
-            }
+            log::debug!(
+                "modal loop exited after {} heartbeat ticks",
+                TICKS.load(Ordering::Relaxed)
+            );
         },
         WM_TIMER if wparam.0 == TIMER_ID => {
             TICKS.fetch_add(1, Ordering::Relaxed);

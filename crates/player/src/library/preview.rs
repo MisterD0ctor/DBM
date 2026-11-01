@@ -18,17 +18,17 @@
 //! `ffmpeg::spawn_behind`), as builds mostly happen while a film is starting,
 //! when the player is busiest.
 //!
-//! A generation counter, bumped on every request, stops an abandoned file's
+//! A [`Supersede`], called on every request, stops an abandoned file's
 //! ffmpeg processes from outliving it.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::library::cache::Folder;
 use crate::library::ffmpeg;
 use crate::playback::tracks::Chapter;
+use crate::threads::{Supersede, Ticket};
 use crate::worker::{Completion, Reporter};
 
 /// Tiles across and down. 64 frames is roughly one per two minutes of a
@@ -78,19 +78,8 @@ impl Sprite {
     }
 }
 
-/// Bumped on every request. A worker captures the value it started with and
-/// stops as soon as the global one moves past it.
-static GENERATION: AtomicU64 = AtomicU64::new(0);
-
-/// Abandon any atlas still being built, and return the generation a new one
-/// should run under. Called on the UI thread when the file changes.
-pub fn supersede() -> u64 {
-    GENERATION.fetch_add(1, Ordering::SeqCst) + 1
-}
-
-fn current(generation: u64) -> bool {
-    GENERATION.load(Ordering::SeqCst) == generation
-}
+/// Called on every request.
+static BUILDS: Supersede = Supersede::new();
 
 /// Build the atlas for one video off the UI thread, and report it like any
 /// other background result when it is ready.
@@ -98,9 +87,9 @@ fn current(generation: u64) -> bool {
 /// Returns immediately. A build that produces nothing says nothing: see
 /// [`build`] for why that is the ordinary case rather than an error.
 pub fn spawn(video: PathBuf, reporter: Reporter) {
-    let generation = supersede();
+    let ticket = BUILDS.next();
     crate::threads::spawn("dbm-preview", move || {
-        let Some(sprite) = build(&video, generation) else {
+        let Some(sprite) = build(&video, ticket) else {
             return;
         };
         // Decoded here rather than on the UI thread, where it costs most of
@@ -108,7 +97,7 @@ pub fn spawn(video: PathBuf, reporter: Reporter) {
         let Some(pixels) = decode(&sprite) else {
             return;
         };
-        if current(generation) {
+        if ticket.current() {
             reporter.send(Completion::Preview(Atlas { sprite, pixels }));
         }
     });
@@ -192,13 +181,13 @@ fn cut_into(
 /// Returns `None` for every ordinary reason a thumbnail might not exist (no
 /// ffmpeg, an unreadable file, a superseded request), since none is worth
 /// interrupting playback over.
-pub fn build(video: &Path, generation: u64) -> Option<Sprite> {
+pub fn build(video: &Path, ticket: Ticket) -> Option<Sprite> {
     if let Some(cached) = cached(video) {
         return Some(cached);
     }
     let ffmpeg = ffmpeg::path()?;
     ffmpeg::announce(&ffmpeg);
-    if !current(generation) {
+    if !ticket.current() {
         return None;
     }
 
@@ -221,10 +210,10 @@ pub fn build(video: &Path, generation: u64) -> Option<Sprite> {
     std::fs::create_dir_all(&tiles).ok()?;
     let _cleanup = Cleanup(tiles.clone());
 
-    if !extract(&ffmpeg, video, &tiles, duration, tile_w, generation) {
+    if !extract(&ffmpeg, video, &tiles, duration, tile_w, ticket) {
         return None;
     }
-    if !assemble(&ffmpeg, &tiles, &sprite, tile_w, generation) {
+    if !assemble(&ffmpeg, &tiles, &sprite, tile_w, ticket) {
         return None;
     }
 
@@ -293,7 +282,7 @@ fn extract(
     into: &Path,
     duration: f64,
     tile_w: u32,
-    generation: u64,
+    ticket: Ticket,
 ) -> bool {
     let total = GRID * GRID;
     // Sampled at the midpoint of each slice, so the first tile is not the
@@ -302,7 +291,7 @@ fn extract(
     let keyframes = step >= KEYFRAME_SLICE;
     let mut pending = Vec::new();
     for index in 0..total {
-        if !current(generation) {
+        if !ticket.current() {
             return false;
         }
         let at = step * (f64::from(index) + 0.5);
@@ -352,7 +341,7 @@ fn extract(
     for mut child in pending {
         let _ = child.wait();
     }
-    current(generation)
+    ticket.current()
 }
 
 /// Stitch the tiles into one atlas.
@@ -360,7 +349,7 @@ fn extract(
 /// A frame missing from the middle would shift every later tile into the
 /// wrong slot, so a gap is filled with its predecessor: a repeated thumbnail
 /// is a smaller lie than an atlas offset by one.
-fn assemble(ffmpeg: &Path, tiles: &Path, sprite: &Path, tile_w: u32, generation: u64) -> bool {
+fn assemble(ffmpeg: &Path, tiles: &Path, sprite: &Path, tile_w: u32, ticket: Ticket) -> bool {
     let mut last: Option<PathBuf> = None;
     for index in 0..GRID * GRID {
         let path = tiles.join(format!("{:03}.jpg", index + 1));
@@ -378,7 +367,7 @@ fn assemble(ffmpeg: &Path, tiles: &Path, sprite: &Path, tile_w: u32, generation:
             None => return false,
         }
     }
-    if !current(generation) {
+    if !ticket.current() {
         return false;
     }
     let mut command = ffmpeg::command(ffmpeg);
@@ -397,7 +386,7 @@ fn assemble(ffmpeg: &Path, tiles: &Path, sprite: &Path, tile_w: u32, generation:
     let ok = ffmpeg::spawn_behind(&mut command)
         .and_then(|mut child| child.wait())
         .is_ok_and(|s| s.success());
-    ok && current(generation) && sprite.is_file()
+    ok && ticket.current() && sprite.is_file()
 }
 
 // ---------------------------------------------------------------------------

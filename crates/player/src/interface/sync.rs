@@ -32,7 +32,6 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_paused(player.paused);
     ui.set_muted(player.muted);
     ui.set_volume(player.volume as f32);
-    ui.set_subs_visible(subs_showing(player));
     ui.set_panscan(player.panscan > 0.5);
     ui.set_sub_delay_text(format::delay(player.sub_delay).into());
     ui.set_sub_delay_widest(format::delay_widest().into());
@@ -62,11 +61,7 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     });
     ui.set_speed_text(format::speed(player.speed).into());
     ui.set_duration(player.duration as f32);
-    ui.set_chapter_label(player.chapter_label().into());
-    ui.set_credits_rolling(player.credits_rolling());
-    ui.set_intro_rolling(player.intro_rolling());
-    ui.set_intro_end(player.intro().map_or(0.0, |(_, end)| end as f32));
-    ui.set_after_credits(player.after_credits().map_or(0.0, |at| at as f32));
+    push_what_the_lists_decide(ui, player);
     // Where the dialogs open: beside this file, or on the shelf above its
     // folder.
     ui.set_current_path(player.path.clone().unwrap_or_default().into());
@@ -165,10 +160,6 @@ pub fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_audio_removable_names(track_names(player, TrackKind::Audio, true));
     ui.set_sub_current(selected_row(player, TrackKind::Sub));
     ui.set_audio_current(selected_row(player, TrackKind::Audio));
-    // Here as well as with the scalars, since it hangs on the selection,
-    // which arrives with the list, and a paused film reports nothing else
-    // that would push it.
-    ui.set_subs_visible(subs_showing(player));
     ui.set_chapter_marks(ModelRc::new(VecModel::from(
         player
             .chapters
@@ -176,8 +167,16 @@ pub fn push_lists(ui: &MainWindow, player: &PlayerState) {
             .map(|c| c.time as f32)
             .collect::<Vec<_>>(),
     )));
+    push_what_the_lists_decide(ui, player);
+}
+
+/// What hangs on a scalar and on a list both, so it is pushed with either:
+/// whether subtitles show hangs on the selection, and the chapter's name on
+/// the chapter list, which arrives a moment after the chapter's number. A
+/// paused film reports nothing else that would push them.
+fn push_what_the_lists_decide(ui: &MainWindow, player: &PlayerState) {
+    ui.set_subs_visible(subs_showing(player));
     ui.set_chapter_label(player.chapter_label().into());
-    // The chapter's name arrives with the list, a moment after its number.
     ui.set_credits_rolling(player.credits_rolling());
     ui.set_intro_rolling(player.intro_rolling());
     ui.set_intro_end(player.intro().map_or(0.0, |(_, end)| end as f32));

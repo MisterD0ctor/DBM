@@ -8,7 +8,7 @@
 
 use glow::HasContext;
 
-use super::gfx::{Program, ScreenQuad, saved_draw_fbo};
+use super::gfx::{Program, ScreenQuad, program, saved_draw_fbo};
 
 pub struct Corners {
     quad: ScreenQuad,
@@ -22,12 +22,7 @@ impl Corners {
     pub fn new(gl: &glow::Context) -> Result<Self, String> {
         Ok(Self {
             quad: ScreenQuad::new(gl)?,
-            program: Program::new(
-                gl,
-                include_str!("../../shaders/fullscreen.vert"),
-                include_str!("../../shaders/window_corners.frag"),
-            )
-            .map_err(|e| format!("window_corners: {e}"))?,
+            program: program!(gl, "window_corners")?,
             alpha: None,
         })
     }
@@ -44,7 +39,7 @@ impl Corners {
         let alpha = *self.alpha.get_or_insert_with(|| {
             let alpha = has_alpha(gl, screen);
             if !alpha {
-                eprintln!("dbm: the window has no alpha channel, so its corners stay square");
+                log::warn!("the window has no alpha channel, so its corners stay square");
             }
             alpha
         });
@@ -55,8 +50,8 @@ impl Corners {
         unsafe { gl.get_parameter_i32_slice(glow::VIEWPORT, &mut viewport) };
         self.program.bind(gl);
         self.program
-            .set_vec2(gl, "u_window", width as f32, height as f32);
-        self.program.set_f32(gl, "u_radius", radius);
+            .set(gl, "u_window", [width as f32, height as f32]);
+        self.program.set(gl, "u_radius", radius);
         for (x, y) in [
             (0, 0),
             (width - side, 0),

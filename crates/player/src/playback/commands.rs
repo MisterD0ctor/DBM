@@ -114,7 +114,7 @@ pub const REPLY_MOVE: u64 = 3;
 /// exact seek holds the UI thread for about 200ms.
 fn run(mpv: &Mpv, args: &[&str]) {
     if let Err(e) = mpv.command_async(REPLY_IGNORED, args) {
-        eprintln!("dbm: mpv command {args:?} failed: {e}");
+        log::warn!("mpv command {args:?} failed: {e}");
     }
 }
 
@@ -254,7 +254,7 @@ pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &str) {
     set_prop(mpv, "cache", if portal { "no" } else { "auto" });
     let args = ["loadlist", &*m3u.to_string_lossy(), "replace"];
     if let Err(e) = mpv.command_async(REPLY_LOADLIST, &args) {
-        eprintln!("dbm: loadlist failed: {e}");
+        log::warn!("loadlist failed: {e}");
         crate::playback::session::settled();
     }
 }
@@ -270,7 +270,7 @@ pub fn playlist_play(mpv: &Mpv, index: i64) {
 fn move_to(mpv: &Mpv, args: &[&str]) {
     save_before_leaving(mpv);
     if let Err(e) = mpv.command_async(REPLY_MOVE, args) {
-        eprintln!("dbm: mpv command {args:?} failed: {e}");
+        log::warn!("mpv command {args:?} failed: {e}");
         crate::playback::session::settled();
     }
 }
@@ -323,7 +323,7 @@ pub fn seek_scrub(mpv: &Mpv, fraction: f32, exact: bool) {
     };
     let args = ["seek", &fmt(percent_of(fraction)), how];
     if let Err(e) = mpv.command_async(REPLY_SCRUB, &args) {
-        eprintln!("dbm: scrub seek failed: {e}");
+        log::warn!("scrub seek failed: {e}");
     }
 }
 

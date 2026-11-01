@@ -50,7 +50,7 @@ const CHECKPOINT: Duration = Duration::from_secs(10);
 pub fn configure(mpv: &Mpv) {
     let dir = paths::watch_later_dir();
     if let Err(e) = mpv.set_option("watch-later-directory", &dir.to_string_lossy()) {
-        eprintln!("dbm: watch-later directory: {e}");
+        log::info!("watch-later directory: {e}");
     }
     for (key, value) in [
         ("save-position-on-quit", "yes"),
@@ -68,7 +68,7 @@ pub fn configure(mpv: &Mpv) {
         ("reset-on-next-file", "sub-delay,sub-speed"),
     ] {
         if let Err(e) = mpv.set_option(key, value) {
-            eprintln!("dbm: {key}: {e}");
+            log::info!("{key}: {e}");
         }
     }
 }
@@ -95,7 +95,7 @@ pub fn checkpoint(mpv: &Mpv) {
         return;
     }
     if let Err(e) = mpv.command_async(0, &["write-watch-later-config"]) {
-        eprintln!("dbm: watch-later checkpoint: {e}");
+        log::info!("watch-later checkpoint: {e}");
     }
 }
 
@@ -108,6 +108,6 @@ pub fn save_before_quitting(mpv: &Mpv) {
         return;
     }
     if let Err(e) = mpv.command(&["write-watch-later-config"]) {
-        eprintln!("dbm: watch-later on quit: {e}");
+        log::info!("watch-later on quit: {e}");
     }
 }

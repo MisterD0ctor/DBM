@@ -22,18 +22,8 @@ pub(super) fn leave(ui: &MainWindow) {
 /// A real click, because a `Flickable` has to tell a drag from a tap, and a
 /// list can scroll correctly while its rows have stopped responding.
 pub(super) fn click(ui: &MainWindow, x: f32, y: f32) {
-    use slint::platform::{PointerEventButton, WindowEvent};
-    let position = slint::LogicalPosition::new(x, y);
-    let window = ui.window();
-    window.dispatch_event(WindowEvent::PointerMoved { position });
-    window.dispatch_event(WindowEvent::PointerPressed {
-        position,
-        button: PointerEventButton::Left,
-    });
-    window.dispatch_event(WindowEvent::PointerReleased {
-        position,
-        button: PointerEventButton::Left,
-    });
+    press(ui, x, y);
+    release(ui, x, y);
 }
 
 /// Put the button down at a point and leave it down, for a drag whose moves
@@ -63,25 +53,17 @@ pub(super) fn release(ui: &MainWindow, x: f32, y: f32) {
 /// The steps matter: a drag is read from the moves made while the button is
 /// down, and one jump from end to end would also pass for a click.
 pub(super) fn drag(ui: &MainWindow, from: (f32, f32), to: (f32, f32)) {
-    use slint::platform::{PointerEventButton, WindowEvent};
+    use slint::platform::WindowEvent;
     let at = |t: f32| {
         slint::LogicalPosition::new(from.0 + (to.0 - from.0) * t, from.1 + (to.1 - from.1) * t)
     };
-    let window = ui.window();
-    window.dispatch_event(WindowEvent::PointerMoved { position: at(0.0) });
-    window.dispatch_event(WindowEvent::PointerPressed {
-        position: at(0.0),
-        button: PointerEventButton::Left,
-    });
+    press(ui, from.0, from.1);
     for step in 1..=4 {
-        window.dispatch_event(WindowEvent::PointerMoved {
+        ui.window().dispatch_event(WindowEvent::PointerMoved {
             position: at(step as f32 / 4.0),
         });
     }
-    window.dispatch_event(WindowEvent::PointerReleased {
-        position: at(1.0),
-        button: PointerEventButton::Left,
-    });
+    release(ui, to.0, to.1);
 }
 
 /// Turn a wheel over a point, the way a mouse would.

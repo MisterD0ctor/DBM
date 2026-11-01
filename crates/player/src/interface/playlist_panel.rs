@@ -110,13 +110,11 @@ impl Panel {
         if !rewritten {
             self.replace(ui, &shelf);
         }
-        if crate::diagnostics::trace() {
-            eprintln!(
-                "dbm: playlist {} in {} part(s)",
-                if rewritten { "rewritten" } else { "rebuilt" },
-                shelf.groups.len()
-            );
-        }
+        log::debug!(
+            "playlist {} in {} part(s)",
+            if rewritten { "rewritten" } else { "rebuilt" },
+            shelf.groups.len()
+        );
         self.shown = Some(shelf);
         !rewritten
     }

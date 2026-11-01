@@ -32,6 +32,7 @@ use slint::{
 };
 
 use crate::app::App;
+use crate::gpu::Overlays;
 use crate::gpu::gfx::Target;
 use crate::gpu::pipeline::{Frame, GlassPanel, Pipeline};
 use crate::interface::subline::Picture;
@@ -43,6 +44,7 @@ use crate::playback::commands;
 use crate::playback::mpv;
 use crate::playback::state::PlayerState;
 use crate::playback::tracks::{self, TrackKind};
+use crate::settings::Toggle;
 use crate::worker::Completion;
 use crate::{MainWindow, diagnostics};
 
@@ -55,19 +57,7 @@ struct Gpu {
     ctx: mpv::RenderContext,
     gl: glow::Context,
     pipeline: Pipeline,
-    /// Softens the ends of scrolling lists once Slint has drawn them. Absent
-    /// where its shader wouldn't build, and the lists are then simply cut by
-    /// their panel.
-    fader: Option<crate::gpu::fade::Fader>,
-    /// The angle in a list's end pointing back to its current row, drawn
-    /// over the soft edge it sits in. Absent the same way: the lists still
-    /// scroll, and nothing points back.
-    way: Option<crate::gpu::way::Ways>,
-    /// The shadow under the interface's words and marks, the same way.
-    shadow: Option<crate::gpu::shadow::Shadow>,
-    /// Cuts the window's round corners. Absent the same way, and they are
-    /// then square.
-    corners: Option<crate::gpu::corners::Corners>,
+    overlays: Overlays,
     published: Option<Published>,
 }
 
@@ -151,11 +141,12 @@ pub struct Driver {
     failure: Option<Failure>,
 }
 
+/// The sentence every `Failure` is said under.
+const NO_VIDEO: &str = marked("The player cannot show video on this computer.");
+
 /// What `Driver::fatal` puts on the way in, kept in English so it can be said
 /// again in a language chosen after it.
 struct Failure {
-    /// The sentence that names it.
-    reason: &'static str,
     /// What went wrong, with a blank for `cause`: the driver's or mpv's own
     /// words, which are shown as they came.
     detail: &'static str,
@@ -232,7 +223,7 @@ impl Driver {
                         // First the soft ends of any list with rows past them,
                         // on the frame Slint has just drawn...
                         fades::collect(&ui, &mut self.fades, &mut self.ways);
-                        if let Some(fader) = gpu.fader.as_mut() {
+                        if let Some(fader) = gpu.overlays.fader.as_mut() {
                             fader.run(
                                 &gpu.gl,
                                 gpu.pipeline.output(),
@@ -254,7 +245,7 @@ impl Driver {
                             gpu.pipeline
                                 .glass_over(&gpu.gl, (size.width, size.height), &panes);
                         }
-                        if let Some(way) = gpu.way.as_mut() {
+                        if let Some(way) = gpu.overlays.way.as_mut() {
                             way.run(&gpu.gl, (size.width, size.height), &self.ways);
                             if self.ways.iter().any(|w| w.lit > 0.0 && w.lit < 1.0) {
                                 ui.window().request_redraw();
@@ -262,7 +253,7 @@ impl Driver {
                         }
                         // ...then the shadow, cast by what is left, so a row
                         // cut off at a list's edge casts nothing past it...
-                        if let Some(shadow) = gpu.shadow.as_mut() {
+                        if let Some(shadow) = gpu.overlays.shadow.as_mut() {
                             shadow.run(
                                 &gpu.gl,
                                 gpu.pipeline.output(),
@@ -272,7 +263,7 @@ impl Driver {
                             );
                         }
                         // ...and last the window's corners, cut from all of it.
-                        if let Some(corners) = gpu.corners.as_mut() {
+                        if let Some(corners) = gpu.overlays.corners.as_mut() {
                             // At the system's size, not the interface's, since
                             // they are the desktop's corners.
                             let radius = crate::platform::window::corner_radius(ui.window());
@@ -294,28 +285,8 @@ impl Driver {
             }
             RenderingState::RenderingTeardown => {
                 if let Some(mut gpu) = self.gpu.take() {
-                    let Gpu {
-                        gl,
-                        pipeline,
-                        fader,
-                        way,
-                        shadow,
-                        corners,
-                        ..
-                    } = &mut gpu;
-                    pipeline.release(gl);
-                    if let Some(fader) = fader {
-                        fader.release(gl);
-                    }
-                    if let Some(way) = way {
-                        way.release(gl);
-                    }
-                    if let Some(shadow) = shadow {
-                        shadow.release(gl);
-                    }
-                    if let Some(corners) = corners {
-                        corners.release(gl);
-                    }
+                    gpu.pipeline.release(&gpu.gl);
+                    gpu.overlays.release(&gpu.gl);
                 }
             }
             _ => {}
@@ -334,11 +305,7 @@ impl Driver {
     /// wouldn't give, or mpv couldn't use, is the driver's, but refused
     /// shaders may be a fault in the player's own GLSL.
     fn fatal(&mut self, failure: Failure) {
-        eprintln!(
-            "dbm: {} — {}",
-            failure.reason,
-            fill(failure.detail, &[&failure.cause])
-        );
+        log::error!("{} — {}", NO_VIDEO, fill(failure.detail, &[&failure.cause]));
         self.failure = Some(failure);
         if let Some(ui) = self.ui.upgrade() {
             self.say_failure(&ui);
@@ -352,7 +319,7 @@ impl Driver {
         };
         // Nothing renders after a failure, so the ring has only its wash.
         ui.global::<crate::Paint>().set_glass(false);
-        ui.set_fatal(tr(failure.reason).into());
+        ui.set_fatal(tr(NO_VIDEO).into());
         ui.set_fatal_detail(fill(tr(failure.detail), &[&failure.cause]).into());
         ui.set_fatal_note(tr(failure.note).into());
     }
@@ -360,7 +327,6 @@ impl Driver {
     fn setup(&mut self, api: &GraphicsAPI) {
         let GraphicsAPI::NativeOpenGL { get_proc_address } = api else {
             self.fatal(Failure {
-                reason: marked("The player cannot show video on this computer."),
                 detail: marked(
                     "Slint gave the player a renderer that is not OpenGL. The film \
                      and the glass are both drawn through OpenGL, so neither can be \
@@ -378,7 +344,6 @@ impl Driver {
             Ok(p) => p,
             Err(e) => {
                 self.fatal(Failure {
-                    reason: marked("The player cannot show video on this computer."),
                     detail: marked("The graphics driver would not build the player's shaders. {}"),
                     cause: e,
                     note: marked("If the driver is current, this is a bug in the player."),
@@ -399,7 +364,7 @@ impl Driver {
 
         match unsafe { mpv::RenderContext::new(self.app.mpv.clone(), get_proc_address, notify) } {
             Ok(ctx) => {
-                eprintln!("dbm: mpv render context created on Slint's GL context");
+                log::info!("mpv render context created on Slint's GL context");
                 // The two panels whose words are the player's own, drawn
                 // unseen once now there is something to draw them with.
                 self.warm.ask(crate::interface::warm::SETTINGS);
@@ -419,31 +384,15 @@ impl Driver {
                     // Nothing named, so the empty window is what is coming.
                     completions::look_for_resume(&self.app.worker);
                 }
-                let fader = crate::gpu::fade::Fader::new(&gl)
-                    .inspect_err(|e| eprintln!("dbm: no soft edge on scrolling lists: {e}"))
-                    .ok();
-                let way = crate::gpu::way::Ways::new(&gl)
-                    .inspect_err(|e| eprintln!("dbm: no way back to a list's current row: {e}"))
-                    .ok();
-                let shadow = crate::gpu::shadow::Shadow::new(&gl)
-                    .inspect_err(|e| eprintln!("dbm: no shadow under the interface: {e}"))
-                    .ok();
-                let corners = crate::gpu::corners::Corners::new(&gl)
-                    .inspect_err(|e| eprintln!("dbm: no round corners on the window: {e}"))
-                    .ok();
                 self.gpu = Some(Gpu {
+                    overlays: Overlays::new(&gl),
                     ctx,
                     gl,
                     pipeline,
-                    fader,
-                    way,
-                    shadow,
-                    corners,
                     published: None,
                 });
             }
             Err(e) => self.fatal(Failure {
-                reason: marked("The player cannot show video on this computer."),
                 detail: marked("mpv could not attach to the player's graphics context. {}"),
                 cause: e.to_string(),
                 note: marked("Updating the graphics driver is the usual fix."),
@@ -627,7 +576,7 @@ impl Driver {
         // but with autoplay off nothing starts that wasn't asked for: the
         // next file waits, paused, under the notice saying why. After the
         // replies, so a list's own start can't undo it.
-        if failed && !self.app.settings.autoplay() {
+        if failed && !self.app.settings.is_on(Toggle::Autoplay) {
             self.loading_list = false;
             commands::set_pause(&self.app.mpv, true);
         }
@@ -862,12 +811,7 @@ impl Driver {
         if ends.is_empty() {
             return;
         }
-        let paths: Vec<String> = self
-            .player
-            .playlist
-            .iter()
-            .map(|e| e.filename.clone())
-            .collect();
+        let paths = self.player.playlist_paths();
         let beside = titles::beside(path, &paths);
         if beside.is_empty() {
             return;
@@ -889,11 +833,11 @@ impl Driver {
         if let Some((glass, border)) = self.app.settings.take_changes() {
             gpu.pipeline.glass = glass;
             gpu.pipeline.params = border;
-            gpu.pipeline.border_enabled = self.app.settings.ambience_on();
-            gpu.pipeline.glass_enabled = self.app.settings.glass_on();
+            gpu.pipeline.border_enabled = self.app.settings.is_on(Toggle::Ambience);
+            gpu.pipeline.glass_enabled = self.app.settings.is_on(Toggle::Glass);
             ui.global::<crate::Paint>()
-                .set_glass(self.app.settings.glass_on());
-            gpu.pipeline.legible = self.app.settings.legible_glass();
+                .set_glass(self.app.settings.is_on(Toggle::Glass));
+            gpu.pipeline.legible = self.app.settings.is_on(Toggle::LegibleGlass);
             params_dirty = true;
         }
         // What the interface moves by, the switch and the system together
@@ -923,7 +867,7 @@ impl Driver {
         // None without the shadow, since nothing would give back what the
         // glass pass held.
         self.shaded.clear();
-        if gpu.shadow.is_some() {
+        if gpu.overlays.shadow.is_some() {
             crate::gpu::shadow::regions(
                 &self.panels,
                 (size.width, size.height),
@@ -943,7 +887,7 @@ impl Driver {
         let rendered = match gpu.pipeline.render(&gpu.gl, &gpu.ctx, &frame) {
             Ok(v) => v,
             Err(e) => {
-                eprintln!("dbm: pipeline: {e}");
+                log::info!("pipeline: {e}");
                 false
             }
         };
@@ -970,7 +914,7 @@ impl Driver {
 }
 
 /// Put one sentence on screen, in the action flash's capsule, since a packaged
-/// build has no console for `eprintln!`.
+/// build has no console, and nobody reads its log as it happens.
 fn say(ui: &MainWindow, text: String) {
     ui.global::<crate::Flash>().invoke_notice(text.into());
 }

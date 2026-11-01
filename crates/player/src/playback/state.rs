@@ -152,9 +152,8 @@ impl PlayerState {
             Event::Property { name, value } => self.apply_property(name, value),
             // A new file invalidates everything list-shaped.
             Event::FileLoaded => {
-                self.tracks_generation = self.tracks_generation.wrapping_add(1);
                 self.loads = self.loads.wrapping_add(1);
-                true
+                self.lists_moved(true)
             }
             Event::EndFile {
                 eof: true, entry, ..
@@ -196,11 +195,8 @@ impl PlayerState {
             "idle-active" => set(&mut self.idle, flag),
             "playlist-pos" => set(&mut self.playlist_pos, num.unwrap_or(-1.0) as i64),
             "playlist-count" => {
-                if set(&mut self.playlist_count, num.unwrap_or(0.0) as i64) {
-                    self.tracks_generation = self.tracks_generation.wrapping_add(1);
-                    return true;
-                }
-                false
+                let moved = set(&mut self.playlist_count, num.unwrap_or(0.0) as i64);
+                self.lists_moved(moved)
             }
             "sub-visibility" => set(&mut self.sub_visibility, flag),
             "sub-delay" => set(&mut self.sub_delay, num.unwrap_or(0.0)),
@@ -210,25 +206,16 @@ impl PlayerState {
             "speed" => set(&mut self.speed, num.unwrap_or(1.0)),
             "chapter" => set(&mut self.chapter, num.map_or(-1, |n| n as i64)),
             "chapter-list/count" => {
-                if set(&mut self.chapter_count, num.unwrap_or(0.0) as i64) {
-                    self.tracks_generation = self.tracks_generation.wrapping_add(1);
-                    return true;
-                }
-                false
+                let moved = set(&mut self.chapter_count, num.unwrap_or(0.0) as i64);
+                self.lists_moved(moved)
             }
             "sid" => {
-                if set(&mut self.sid, text) {
-                    self.tracks_generation = self.tracks_generation.wrapping_add(1);
-                    return true;
-                }
-                false
+                let moved = set(&mut self.sid, text);
+                self.lists_moved(moved)
             }
             "aid" => {
-                if set(&mut self.aid, text) {
-                    self.tracks_generation = self.tracks_generation.wrapping_add(1);
-                    return true;
-                }
-                false
+                let moved = set(&mut self.aid, text);
+                self.lists_moved(moved)
             }
             "dwidth" => set(&mut self.dwidth, num.unwrap_or(0.0)),
             "dheight" => set(&mut self.dheight, num.unwrap_or(0.0)),
@@ -240,14 +227,25 @@ impl PlayerState {
             "osd-dimensions/mb" => set(&mut self.osd[5], num.unwrap_or(0.0)),
             "track-list/count" => {
                 let n = num.unwrap_or(0.0) as i64;
-                if set(&mut self.track_count, n) {
-                    self.tracks_generation = self.tracks_generation.wrapping_add(1);
-                    return true;
-                }
-                false
+                let moved = set(&mut self.track_count, n);
+                self.lists_moved(moved)
             }
             _ => false,
         }
+    }
+
+    /// Have the track list, the playlist and the chapters read again when
+    /// `moved`, and pass `moved` on.
+    fn lists_moved(&mut self, moved: bool) -> bool {
+        if moved {
+            self.tracks_generation = self.tracks_generation.wrapping_add(1);
+        }
+        moved
+    }
+
+    /// The playlist's files, in order.
+    pub fn playlist_paths(&self) -> Vec<String> {
+        self.playlist.iter().map(|e| e.filename.clone()).collect()
     }
 
     /// Fold in lists read on the worker thread.

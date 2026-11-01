@@ -29,7 +29,9 @@
 //! | `settings`    | what the person has set, kept between runs                |
 //! | `threads`     | naming every thread the player starts                     |
 //! | `lang`        | the language it speaks, and the words in each             |
+//! | `logging`     | where the player's own lines go                           |
 //! | `paths`       | where the app keeps its own files                         |
+//! | `run_mode`    | whether a person is watching, or the harness is driving   |
 //! | `diagnostics` | opt-in instrumentation                                    |
 //! | `harness`     | opt-in automated exercises                                |
 //!
@@ -38,7 +40,7 @@
 //! Run with a video path: `cargo run -p dbm-player -- some/video.mkv`
 
 // Otherwise Windows opens a console beside the window. A debug build keeps
-// it, for what `eprintln!` has to say while working on the player.
+// it, to read the log as it is written while working on the player.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;
@@ -49,9 +51,11 @@ mod harness;
 mod interface;
 mod lang;
 mod library;
+mod logging;
 mod paths;
 mod platform;
 mod playback;
+mod run_mode;
 mod settings;
 mod threads;
 mod worker;
@@ -66,6 +70,7 @@ use crate::app::App;
 slint::include_modules!();
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    logging::install();
     // `args_os`, since `args` panics on a name that isn't valid Unicode, which
     // a file manager on Linux can hand over.
     let file = std::env::args_os().nth(1).map(std::path::PathBuf::from);
@@ -90,7 +95,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     })?);
     for (name, format) in playback::state::OBSERVED {
         if let Err(e) = mpv.observe(name, *format) {
-            eprintln!("dbm: cannot observe {name}: {e}");
+            log::warn!("cannot observe {name}: {e}");
         }
     }
 

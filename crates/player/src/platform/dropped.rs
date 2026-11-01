@@ -56,11 +56,9 @@ impl Accepting {
 
         match self.until.poll(|| accept(ui)) {
             Attempt::Took(()) => {
-                if crate::diagnostics::trace() {
-                    eprintln!("dbm: accepting dropped files");
-                }
+                log::debug!("accepting dropped files");
             }
-            Attempt::GaveUp(e) => eprintln!("dbm: cannot accept dropped files ({e})"),
+            Attempt::GaveUp(e) => log::warn!("cannot accept dropped files ({e})"),
             Attempt::Waiting => {}
         }
     }
@@ -150,7 +148,7 @@ fn open(path: String) {
     let Some(weak) = target else {
         return;
     };
-    eprintln!("dbm: dropped {path}");
+    log::info!("dropped {path}");
     let _ = weak.upgrade_in_event_loop(move |ui| ui.invoke_open_path(path.into(), true));
 }
 

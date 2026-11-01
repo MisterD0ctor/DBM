@@ -53,12 +53,7 @@ impl Driver {
                 // Here because this is where the playlist's paths become
                 // known. The scan compares them with the last request and
                 // does nothing when only the tracks moved.
-                let paths: Vec<String> = self
-                    .player
-                    .playlist
-                    .iter()
-                    .map(|e| e.filename.clone())
-                    .collect();
+                let paths = self.player.playlist_paths();
                 self.scan.request(&paths, &self.app.worker);
                 // What was found beside the old list is put away rather than
                 // shown around another show.
@@ -77,10 +72,7 @@ impl Driver {
                 false
             }
             Completion::Opened(Ok(list)) => {
-                eprintln!(
-                    "dbm: opened {} file(s), starting at {}",
-                    list.count, list.start
-                );
+                log::info!("opened {} file(s), starting at {}", list.count, list.start);
                 self.loading_list = true;
                 if list.ask {
                     self.app
@@ -91,7 +83,7 @@ impl Driver {
                 false
             }
             Completion::Opened(Err(e)) => {
-                eprintln!("dbm: cannot open: {e}");
+                log::warn!("cannot open: {e}");
                 // Nothing was found to load, so no file is coming.
                 ui.set_opening(false);
                 self.stumbled = true;
@@ -371,8 +363,8 @@ impl Driver {
     fn show_atlas(&self, ui: &MainWindow, atlas: Atlas) {
         let Atlas { sprite, pixels } = atlas;
         let image = slint::Image::from_rgba8(pixels);
-        eprintln!(
-            "dbm: preview atlas {g}x{g} tiles of {}x{}",
+        log::info!(
+            "preview atlas {g}x{g} tiles of {}x{}",
             sprite.tile_w,
             sprite.tile_h,
             g = sprite.grid
@@ -390,8 +382,8 @@ impl Driver {
 
     /// Put the film left unfinished on the way in, and its frame behind it.
     fn offer_resume(&mut self, ui: &MainWindow, gpu: &mut Gpu, resume: Resume) {
-        eprintln!(
-            "dbm: last unfinished {} at {:.0}%{}",
+        log::info!(
+            "last unfinished {} at {:.0}%{}",
             resume.path,
             resume.fraction * 100.0,
             if resume.still.is_some() {

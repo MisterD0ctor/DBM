@@ -15,13 +15,12 @@
 //!
 //! Everything here blocks on the network, so each search and each download
 //! runs on a thread of its own and reports back like any other background
-//! result. A generation counter stops a search for a file that has since
-//! been replaced, as the sync's does.
+//! result. A [`Supersede`] stops a search for a file that has since been
+//! replaced, as the sync's does.
 
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use serde_json::Value;
@@ -31,6 +30,7 @@ use zeroize::Zeroizing;
 use crate::lang::tr;
 use crate::library::cache::PathMap;
 use crate::library::naming::{self, Media};
+use crate::threads::Supersede;
 use crate::worker::{Completion, Reporter};
 
 pub mod account;
@@ -57,7 +57,7 @@ pub fn available() -> bool {
 /// Downloads kept, by the film they belong to.
 static KEPT: PathMap<Vec<String>> = PathMap::record("downloaded-subtitles.json");
 
-static GENERATION: AtomicU64 = AtomicU64::new(0);
+static SEARCHES: Supersede = Supersede::new();
 
 /// One subtitle OpenSubtitles holds for the film.
 #[derive(Debug, Clone, PartialEq)]
@@ -138,10 +138,10 @@ pub struct Fetched {
 
 /// Look for subtitles for `path` in `languages`, on a thread of its own.
 pub fn search(path: String, languages: Vec<String>, reporter: Reporter) {
-    let generation = GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+    let ticket = SEARCHES.next();
     crate::threads::spawn("dbm-search", move || {
         let hits = look(&path, &languages);
-        if GENERATION.load(Ordering::SeqCst) == generation {
+        if ticket.current() {
             let account = account::current();
             reporter.send(Completion::Found(Found {
                 path,

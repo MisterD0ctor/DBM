@@ -51,13 +51,13 @@ pub fn real(path: &Path) -> PathBuf {
                 host.join(within)
             };
             if real.exists() {
-                eprintln!("dbm: {} is {}", path.display(), real.display());
+                log::info!("{} is {}", path.display(), real.display());
                 return real;
             }
-            eprintln!("dbm: {} is out of reach", real.display());
+            log::warn!("{} is out of reach", real.display());
         }
-        Ok(None) => eprintln!("dbm: the portal has no {id}"),
-        Err(e) => eprintln!("dbm: cannot ask the portal where {id} is: {e}"),
+        Ok(None) => log::warn!("the portal has no {id}"),
+        Err(e) => log::warn!("cannot ask the portal where {id} is: {e}"),
     }
     path.to_path_buf()
 }

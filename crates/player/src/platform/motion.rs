@@ -17,14 +17,12 @@ pub fn watch(still: impl Fn(bool) + Send + 'static) {
     let spawned = std::thread::Builder::new()
         .name("dbm-motion".into())
         .spawn(move || {
-            if let Err(e) = listen(&still)
-                && crate::diagnostics::trace()
-            {
-                eprintln!("dbm: the desktop's motion setting: {e}");
+            if let Err(e) = listen(&still) {
+                log::debug!("the desktop's motion setting: {e}");
             }
         });
     if let Err(e) = spawned {
-        eprintln!("dbm: could not watch the desktop's motion setting: {e}");
+        log::warn!("could not watch the desktop's motion setting: {e}");
     }
 }
 

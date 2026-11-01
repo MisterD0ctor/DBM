@@ -4,6 +4,8 @@
 //! render target, a compiled program, and a fullscreen triangle to drive
 //! fragment shaders with. The passes themselves live in `pipeline`.
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::num::NonZeroU32;
 
 use glow::HasContext;
@@ -237,8 +239,26 @@ pub fn saved_draw_fbo(gl: &glow::Context) -> Option<glow::Framebuffer> {
 // Program
 // ---------------------------------------------------------------------------
 
+/// The fullscreen triangle with the fragment shader `shaders/<name>.frag`,
+/// which every pass is, its build errors named by the shader. A macro because
+/// `include_str!` takes only a literal path.
+macro_rules! program {
+    ($gl:expr, $name:literal) => {
+        $crate::gpu::gfx::Program::new(
+            $gl,
+            include_str!("../../shaders/fullscreen.vert"),
+            include_str!(concat!("../../shaders/", $name, ".frag")),
+        )
+        .map_err(|e| format!("{}: {e}", $name))
+    };
+}
+pub(crate) use program;
+
 pub struct Program {
     program: glow::Program,
+    /// Each uniform's location, looked up on first use: it is fixed once the
+    /// program links, and the passes set the same names every frame.
+    locations: RefCell<HashMap<String, Option<glow::UniformLocation>>>,
 }
 
 impl Program {
@@ -279,7 +299,10 @@ impl Program {
                 gl.delete_program(program);
                 return Err(format!("link: {log}"));
             }
-            Ok(Self { program })
+            Ok(Self {
+                program,
+                locations: RefCell::default(),
+            })
         }
     }
 
@@ -287,58 +310,76 @@ impl Program {
         unsafe { gl.use_program(Some(self.program)) };
     }
 
-    fn loc(&self, gl: &glow::Context, name: &str) -> Option<glow::UniformLocation> {
-        unsafe { gl.get_uniform_location(self.program, name) }
-    }
-
-    pub fn set_i32(&self, gl: &glow::Context, name: &str, v: i32) {
-        if let Some(l) = self.loc(gl, name) {
-            unsafe { gl.uniform_1_i32(Some(&l), v) };
+    fn location(&self, gl: &glow::Context, name: &str) -> Option<glow::UniformLocation> {
+        if let Some(known) = self.locations.borrow().get(name) {
+            return *known;
         }
+        let found = unsafe { gl.get_uniform_location(self.program, name) };
+        self.locations.borrow_mut().insert(name.to_owned(), found);
+        found
     }
 
-    pub fn set_f32(&self, gl: &glow::Context, name: &str, v: f32) {
-        if let Some(l) = self.loc(gl, name) {
-            unsafe { gl.uniform_1_f32(Some(&l), v) };
-        }
-    }
-
-    pub fn set_vec2(&self, gl: &glow::Context, name: &str, x: f32, y: f32) {
-        if let Some(l) = self.loc(gl, name) {
-            unsafe { gl.uniform_2_f32(Some(&l), x, y) };
-        }
-    }
-
-    pub fn set_vec3(&self, gl: &glow::Context, name: &str, v: [f32; 3]) {
-        if let Some(l) = self.loc(gl, name) {
-            unsafe { gl.uniform_3_f32(Some(&l), v[0], v[1], v[2]) };
-        }
-    }
-
-    pub fn set_vec4(&self, gl: &glow::Context, name: &str, v: [f32; 4]) {
-        if let Some(l) = self.loc(gl, name) {
-            unsafe { gl.uniform_4_f32(Some(&l), v[0], v[1], v[2], v[3]) };
-        }
-    }
-
-    /// Upload a `float[]` uniform, named by its first element as
-    /// `set_vec4_array` is.
-    pub fn set_f32_array(&self, gl: &glow::Context, name: &str, v: &[f32]) {
-        if let Some(l) = self.loc(gl, name) {
-            unsafe { gl.uniform_1_f32_slice(Some(&l), v) };
-        }
-    }
-
-    /// Upload a `vec4[]` uniform. `name` must be the first element (drivers
-    /// differ on whether the bare array name resolves, `name[0]` always does).
-    pub fn set_vec4_array(&self, gl: &glow::Context, name: &str, v: &[f32]) {
-        if let Some(l) = self.loc(gl, name) {
-            unsafe { gl.uniform_4_f32_slice(Some(&l), v) };
+    /// Set a uniform, or nothing where the shader has none of that name,
+    /// which is the case for one its compiler found unused.
+    pub fn set(&self, gl: &glow::Context, name: &str, value: impl Uniform) {
+        if let Some(at) = self.location(gl, name) {
+            value.upload(gl, &at);
         }
     }
 
     pub fn release(&self, gl: &glow::Context) {
         unsafe { gl.delete_program(self.program) };
+    }
+}
+
+/// A value a shader takes as a uniform: `f32` and `i32`, `[f32; 2..=4]` for
+/// its vectors, and references to arrays for its `float[]` and `vec4[]`.
+///
+/// An array is named by its first element, as `"u_weight[0]"`: drivers differ
+/// on whether the bare array name resolves, and `name[0]` always does.
+pub trait Uniform {
+    fn upload(self, gl: &glow::Context, at: &glow::UniformLocation);
+}
+
+impl Uniform for i32 {
+    fn upload(self, gl: &glow::Context, at: &glow::UniformLocation) {
+        unsafe { gl.uniform_1_i32(Some(at), self) };
+    }
+}
+
+impl Uniform for f32 {
+    fn upload(self, gl: &glow::Context, at: &glow::UniformLocation) {
+        unsafe { gl.uniform_1_f32(Some(at), self) };
+    }
+}
+
+impl Uniform for [f32; 2] {
+    fn upload(self, gl: &glow::Context, at: &glow::UniformLocation) {
+        unsafe { gl.uniform_2_f32(Some(at), self[0], self[1]) };
+    }
+}
+
+impl Uniform for [f32; 3] {
+    fn upload(self, gl: &glow::Context, at: &glow::UniformLocation) {
+        unsafe { gl.uniform_3_f32(Some(at), self[0], self[1], self[2]) };
+    }
+}
+
+impl Uniform for [f32; 4] {
+    fn upload(self, gl: &glow::Context, at: &glow::UniformLocation) {
+        unsafe { gl.uniform_4_f32(Some(at), self[0], self[1], self[2], self[3]) };
+    }
+}
+
+impl<const N: usize> Uniform for &[f32; N] {
+    fn upload(self, gl: &glow::Context, at: &glow::UniformLocation) {
+        unsafe { gl.uniform_1_f32_slice(Some(at), self) };
+    }
+}
+
+impl<const N: usize> Uniform for &[[f32; 4]; N] {
+    fn upload(self, gl: &glow::Context, at: &glow::UniformLocation) {
+        unsafe { gl.uniform_4_f32_slice(Some(at), self.as_flattened()) };
     }
 }
 
@@ -495,5 +536,5 @@ pub fn bind_texture(
         gl.active_texture(glow::TEXTURE0 + unit);
         gl.bind_texture(glow::TEXTURE_2D, tex);
     }
-    program.set_i32(gl, name, unit as i32);
+    program.set(gl, name, unit as i32);
 }

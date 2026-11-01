@@ -19,14 +19,69 @@ use crate::gpu::pipeline::{BorderParams, GlassParams};
 use crate::lang::marked;
 use crate::playback::commands;
 
-const AMBIENCE_ON: &str = "ambience.enabled";
-const GLASS_ON: &str = "glass.enabled";
-const AUTOPLAY: &str = "playback.autoplay";
-const ANIMATIONS: &str = "accessibility.animations";
-const LEGIBLE_GLASS: &str = "accessibility.legible-glass";
-const TIPS: &str = "accessibility.tooltips";
-const TIP_KEYS: &str = "accessibility.tooltip-keys";
-const REMAINING: &str = "playback.remaining";
+/// A preference that is a switch. Each rides in the saved file as 0 or 1, so
+/// the file stays one flat list of numbers.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Toggle {
+    /// Whether the ambient border runs at all, kept apart from its parameters
+    /// so turning it off doesn't lose their tuning.
+    Ambience,
+    /// The same for the glass. Never set from the interface, since a switch
+    /// for it would erase the panel it sits on; it is in the plain-text
+    /// settings file, for work on the shader.
+    Glass,
+    /// Advance through the playlist at the end of a file.
+    Autoplay,
+    /// Whether anything in the interface moves (see `Motion` in theme.slint),
+    /// including the backdrop the pipeline fades up.
+    Animations,
+    /// Whether the glass is held dark enough for its words over a bright frame
+    /// (see `pipeline::legible_ceiling`).
+    LegibleGlass,
+    /// Whether the bar's controls name themselves under the pointer (see
+    /// `Tip` in globals.slint).
+    Tips,
+    /// Whether those names come with their keys.
+    TipKeys,
+    /// Whether the timeline's right end says what is left rather than the
+    /// whole length.
+    Remaining,
+}
+
+impl Toggle {
+    /// Every switch, in the order the file lists them and in declaration
+    /// order, which indexes `Store::toggles`.
+    const ALL: [Self; 8] = [
+        Self::Ambience,
+        Self::Glass,
+        Self::Autoplay,
+        Self::Animations,
+        Self::LegibleGlass,
+        Self::Tips,
+        Self::TipKeys,
+        Self::Remaining,
+    ];
+
+    /// The name it is saved under, which outlives any label it is shown with.
+    const fn key(self) -> &'static str {
+        match self {
+            Self::Ambience => "ambience.enabled",
+            Self::Glass => "glass.enabled",
+            Self::Autoplay => "playback.autoplay",
+            Self::Animations => "accessibility.animations",
+            Self::LegibleGlass => "accessibility.legible-glass",
+            Self::Tips => "accessibility.tooltips",
+            Self::TipKeys => "accessibility.tooltip-keys",
+            Self::Remaining => "playback.remaining",
+        }
+    }
+
+    /// Before the person says otherwise.
+    const fn default_on(self) -> bool {
+        !matches!(self, Self::Remaining)
+    }
+}
+
 const SCALE: &str = "accessibility.scale";
 /// The sizes the interface can be set to, as a multiple of the system's.
 /// No smaller, since the type is already at its floor; no larger than fits
@@ -163,43 +218,64 @@ pub const REGISTRY: &[Param] = &[
     Param { key: Key::Gamma, name: "picture.gamma", section: Section::Picture, label: marked("Gamma"), hint: marked("How light the picture's middle tones are, leaving black and white"), min: -100.0, max: 100.0 },
 ];
 
+/// The three sets of values the sliders tune.
+#[derive(Clone, Copy, Default)]
+struct Params {
+    glass: GlassParams,
+    border: BorderParams,
+    picture: PictureParams,
+}
+
+impl Params {
+    /// The value `key` names.
+    fn slot(&mut self, key: Key) -> &mut f32 {
+        match key {
+            Key::Blur => &mut self.glass.blur_sigma,
+            Key::Refract => &mut self.glass.refract,
+            Key::Aberration => &mut self.glass.aberration,
+            Key::Rim => &mut self.glass.rim,
+            // The colour stays in code; how much of it shows is the part
+            // worth adjusting by eye.
+            Key::Tint => &mut self.glass.tint_amount,
+            Key::Absorb => &mut self.glass.absorb,
+            Key::Shadow => &mut self.glass.shadow,
+            Key::EdgeBlur => &mut self.border.edge_blur,
+            Key::Spread => &mut self.border.spread,
+            Key::Falloff => &mut self.border.falloff,
+            Key::Softness => &mut self.border.falloff_softness,
+            Key::Brightness => &mut self.picture.brightness,
+            Key::Contrast => &mut self.picture.contrast,
+            Key::Saturation => &mut self.picture.saturation,
+            Key::Gamma => &mut self.picture.gamma,
+        }
+    }
+
+    /// Take one section's values from `from`.
+    fn take_section(&mut self, section: Section, from: &Self) {
+        match section {
+            Section::Glass => self.glass = from.glass,
+            Section::Border => self.border = from.border,
+            Section::Picture => self.picture = from.picture,
+        }
+    }
+}
+
 /// What a settings page held just before it was reset.
 ///
 /// Kept for undo, because settings save at once and a look tuned by eye
 /// can't be typed back in.
 #[derive(Clone, Copy)]
 pub struct Before {
-    glass: GlassParams,
-    border: BorderParams,
-    picture: PictureParams,
+    params: Params,
     pub sub_scale: f32,
     pub sub_pos: f32,
 }
 
 /// Shared between the slider callbacks and the render driver.
 pub struct Store {
-    glass: Cell<GlassParams>,
-    border: Cell<BorderParams>,
-    picture: Cell<PictureParams>,
-    /// Whether each effect runs at all, kept apart from the parameters so
-    /// turning an effect off doesn't lose its tuning.
-    ambience_on: Cell<bool>,
-    glass_on: Cell<bool>,
-    /// Autoplay: advance through the playlist at the end of a file.
-    autoplay: Cell<bool>,
-    /// Whether anything in the interface moves (see `Motion` in theme.slint),
-    /// including the backdrop the pipeline fades up.
-    animations: Cell<bool>,
-    /// Whether the glass is held dark enough for its words over a bright frame
-    /// (see `pipeline::legible_ceiling`).
-    legible_glass: Cell<bool>,
-    /// Whether the bar's controls name themselves under the pointer, and
-    /// whether the names come with their keys (see `Tip` in globals.slint).
-    tips: Cell<bool>,
-    tip_keys: Cell<bool>,
-    /// Whether the timeline's right end says what is left rather than the
-    /// whole length.
-    remaining: Cell<bool>,
+    params: Cell<Params>,
+    /// By `Toggle`, in declaration order.
+    toggles: [Cell<bool>; Toggle::ALL.len()],
     /// The interface's size, as a multiple of what the system sets (see
     /// `interface::scale`).
     scale: Cell<f32>,
@@ -219,17 +295,8 @@ pub struct Store {
 impl Default for Store {
     fn default() -> Self {
         Self {
-            glass: Cell::new(GlassParams::default()),
-            border: Cell::new(BorderParams::default()),
-            picture: Cell::new(PictureParams::default()),
-            ambience_on: Cell::new(true),
-            glass_on: Cell::new(true),
-            autoplay: Cell::new(true),
-            animations: Cell::new(true),
-            legible_glass: Cell::new(true),
-            tips: Cell::new(true),
-            tip_keys: Cell::new(true),
-            remaining: Cell::new(false),
+            params: Cell::default(),
+            toggles: Toggle::ALL.map(|toggle| Cell::new(toggle.default_on())),
             scale: Cell::new(SCALE_MIN),
             sub_scale: Cell::new(commands::SUB_SCALE_DEFAULT as f32),
             sub_pos: Cell::new(commands::SUB_POS_DEFAULT as f32),
@@ -244,91 +311,43 @@ impl Default for Store {
 
 impl Store {
     pub fn value(&self, index: usize) -> f32 {
-        let (glass, border, picture) = (self.glass.get(), self.border.get(), self.picture.get());
-        let Some(param) = REGISTRY.get(index) else {
-            return 0.0;
-        };
-        match param.key {
-            Key::Blur => glass.blur_sigma,
-            Key::Refract => glass.refract,
-            Key::Aberration => glass.aberration,
-            Key::Rim => glass.rim,
-            // The colour stays in code; how much of it shows is the part
-            // worth adjusting by eye.
-            Key::Tint => glass.tint_amount,
-            Key::Absorb => glass.absorb,
-            Key::Shadow => glass.shadow,
-            Key::EdgeBlur => border.edge_blur,
-            Key::Spread => border.spread,
-            Key::Falloff => border.falloff,
-            Key::Softness => border.falloff_softness,
-            Key::Brightness => picture.brightness,
-            Key::Contrast => picture.contrast,
-            Key::Saturation => picture.saturation,
-            Key::Gamma => picture.gamma,
-        }
+        REGISTRY
+            .get(index)
+            .map_or(0.0, |param| *self.params.get().slot(param.key))
     }
 
     pub fn set(&self, index: usize, v: f32) {
         let Some(param) = REGISTRY.get(index) else {
             return;
         };
-        let v = v.clamp(param.min, param.max);
-        let mut glass = self.glass.get();
-        let mut border = self.border.get();
-        let mut picture = self.picture.get();
-        match param.key {
-            Key::Blur => glass.blur_sigma = v,
-            Key::Refract => glass.refract = v,
-            Key::Aberration => glass.aberration = v,
-            Key::Rim => glass.rim = v,
-            Key::Tint => glass.tint_amount = v,
-            Key::Absorb => glass.absorb = v,
-            Key::Shadow => glass.shadow = v,
-            Key::EdgeBlur => border.edge_blur = v,
-            Key::Spread => border.spread = v,
-            Key::Falloff => border.falloff = v,
-            Key::Softness => border.falloff_softness = v,
-            Key::Brightness => picture.brightness = v,
-            Key::Contrast => picture.contrast = v,
-            Key::Saturation => picture.saturation = v,
-            Key::Gamma => picture.gamma = v,
-        }
-        self.glass.set(glass);
-        self.border.set(border);
-        self.picture.set(picture);
+        let mut params = self.params.get();
+        *params.slot(param.key) = v.clamp(param.min, param.max);
+        self.params.set(params);
         self.touch();
     }
 
     /// How mpv is to draw the picture, which the caller tells it.
     pub fn picture(&self) -> PictureParams {
-        self.picture.get()
+        self.params.get().picture
     }
 
     /// Take the current values if anything moved since the last call.
     pub fn take_changes(&self) -> Option<(GlassParams, BorderParams)> {
-        self.dirty
-            .replace(false)
-            .then(|| (self.glass.get(), self.border.get()))
+        self.dirty.replace(false).then(|| {
+            let params = self.params.get();
+            (params.glass, params.border)
+        })
     }
 
     /// Restore one section to the built-in defaults.
     pub fn reset(&self, section: Section) {
-        let (glass, border) = (GlassParams::default(), BorderParams::default());
-        match section {
-            Section::Glass => self.glass.set(glass),
-            Section::Border => self.border.set(border),
-            Section::Picture => self.picture.set(PictureParams::default()),
-        }
-        self.touch();
+        self.take_section(section, &Params::default());
     }
 
     /// Everything a reset can change, as it stands now.
     pub fn before(&self) -> Before {
         Before {
-            glass: self.glass.get(),
-            border: self.border.get(),
-            picture: self.picture.get(),
+            params: self.params.get(),
             sub_scale: self.sub_scale.get(),
             sub_pos: self.sub_pos.get(),
         }
@@ -337,11 +356,13 @@ impl Store {
     /// Put one section back the way a snapshot had it. The subtitle values
     /// are applied by the caller, which is the one that can tell mpv.
     pub fn restore(&self, section: Section, before: &Before) {
-        match section {
-            Section::Glass => self.glass.set(before.glass),
-            Section::Border => self.border.set(before.border),
-            Section::Picture => self.picture.set(before.picture),
-        }
+        self.take_section(section, &before.params);
+    }
+
+    fn take_section(&self, section: Section, from: &Params) {
+        let mut params = self.params.get();
+        params.take_section(section, from);
+        self.params.set(params);
         self.touch();
     }
 
@@ -356,73 +377,12 @@ impl Store {
 // ---------------------------------------------------------------------------
 
 impl Store {
-    pub fn ambience_on(&self) -> bool {
-        self.ambience_on.get()
+    pub fn is_on(&self, toggle: Toggle) -> bool {
+        self.toggles[toggle as usize].get()
     }
 
-    /// Never set from the interface, since a switch for it would erase the
-    /// panel it sits on. The flag is in the plain-text settings file, for
-    /// work on the shader.
-    pub fn glass_on(&self) -> bool {
-        self.glass_on.get()
-    }
-
-    pub fn autoplay(&self) -> bool {
-        self.autoplay.get()
-    }
-
-    pub fn set_ambience(&self, on: bool) {
-        self.ambience_on.set(on);
-        self.touch();
-    }
-
-    pub fn set_autoplay(&self, on: bool) {
-        self.autoplay.set(on);
-        self.touch();
-    }
-
-    pub fn animations(&self) -> bool {
-        self.animations.get()
-    }
-
-    pub fn set_animations(&self, on: bool) {
-        self.animations.set(on);
-        self.touch();
-    }
-
-    pub fn legible_glass(&self) -> bool {
-        self.legible_glass.get()
-    }
-
-    pub fn set_legible_glass(&self, on: bool) {
-        self.legible_glass.set(on);
-        self.touch();
-    }
-
-    pub fn tips(&self) -> bool {
-        self.tips.get()
-    }
-
-    pub fn set_tips(&self, on: bool) {
-        self.tips.set(on);
-        self.touch();
-    }
-
-    pub fn tip_keys(&self) -> bool {
-        self.tip_keys.get()
-    }
-
-    pub fn set_tip_keys(&self, on: bool) {
-        self.tip_keys.set(on);
-        self.touch();
-    }
-
-    pub fn remaining(&self) -> bool {
-        self.remaining.get()
-    }
-
-    pub fn set_remaining(&self, on: bool) {
-        self.remaining.set(on);
+    pub fn turn(&self, toggle: Toggle, on: bool) {
+        self.toggles[toggle as usize].set(on);
         self.touch();
     }
 
@@ -485,31 +445,17 @@ impl Store {
         self.unsaved.replace(false)
     }
 
-    /// Current values, keyed for the saved file. Booleans are 0/1, so the
-    /// file stays one flat list of numbers.
+    /// Current values, keyed for the saved file.
     pub fn to_saved(&self) -> Vec<(String, f32)> {
         let mut out: Vec<(String, f32)> = REGISTRY
             .iter()
             .enumerate()
             .map(|(i, p)| (p.name.to_string(), self.value(i)))
             .collect();
-        out.push((
-            AMBIENCE_ON.into(),
-            f32::from(u8::from(self.ambience_on.get())),
-        ));
-        out.push((GLASS_ON.into(), f32::from(u8::from(self.glass_on.get()))));
-        out.push((AUTOPLAY.into(), f32::from(u8::from(self.autoplay.get()))));
-        out.push((
-            ANIMATIONS.into(),
-            f32::from(u8::from(self.animations.get())),
-        ));
-        out.push((
-            LEGIBLE_GLASS.into(),
-            f32::from(u8::from(self.legible_glass.get())),
-        ));
-        out.push((TIPS.into(), f32::from(u8::from(self.tips.get()))));
-        out.push((TIP_KEYS.into(), f32::from(u8::from(self.tip_keys.get()))));
-        out.push((REMAINING.into(), f32::from(u8::from(self.remaining.get()))));
+        for toggle in Toggle::ALL {
+            let on = f32::from(u8::from(self.is_on(toggle)));
+            out.push((toggle.key().into(), on));
+        }
         out.push((SCALE.into(), self.scale.get()));
         out.push((SUB_SCALE.into(), self.sub_scale.get()));
         out.push((SUB_POS.into(), self.sub_pos.get()));
@@ -535,20 +481,15 @@ impl Store {
                 }
                 continue;
             }
+            if let Some(toggle) = Toggle::ALL.into_iter().find(|t| t.key() == name) {
+                self.toggles[toggle as usize].set(*value >= 0.5);
+                continue;
+            }
             match name.as_str() {
                 LEGACY_BEVEL => legacy_bevel = Some(*value),
                 LEGACY_REFRACT => legacy_refract = Some(*value),
                 SUB_SCALE => self.sub_scale.set(*value),
                 SUB_POS => self.sub_pos.set(*value),
-                // Booleans ride in the same file as 0/1.
-                AMBIENCE_ON => self.ambience_on.set(*value >= 0.5),
-                GLASS_ON => self.glass_on.set(*value >= 0.5),
-                AUTOPLAY => self.autoplay.set(*value >= 0.5),
-                ANIMATIONS => self.animations.set(*value >= 0.5),
-                LEGIBLE_GLASS => self.legible_glass.set(*value >= 0.5),
-                TIPS => self.tips.set(*value >= 0.5),
-                TIP_KEYS => self.tip_keys.set(*value >= 0.5),
-                REMAINING => self.remaining.set(*value >= 0.5),
                 SCALE => {
                     self.set_scale(*value);
                 }
@@ -571,7 +512,7 @@ impl Store {
                 .max(f32::EPSILON);
             if let (Some(px), Some(i)) = (legacy_refract, index_of(Key::Refract)) {
                 self.set(i, px / was);
-                eprintln!("dbm: converted saved refract {px}px to a ratio of the bevel");
+                log::info!("converted saved refract {px}px to a ratio of the bevel");
             }
         }
         // Loaded values still have to reach the pipeline once.
@@ -629,7 +570,7 @@ impl Persister {
         let saved = load(&path);
         if !saved.is_empty() {
             store.apply_saved(&saved);
-            eprintln!("dbm: loaded {} saved setting(s)", saved.len());
+            log::info!("loaded {} saved setting(s)", saved.len());
         }
 
         let this = Self {
@@ -682,7 +623,7 @@ fn save(path: &std::path::Path, values: &[(String, f32)]) -> Result<(), String> 
         let _ = std::fs::create_dir_all(parent);
     }
     std::fs::write(path, out).map_err(|e| {
-        eprintln!("dbm: could not save settings: {e}");
+        log::warn!("could not save settings: {e}");
         crate::lang::fill(crate::lang::tr("Settings could not be saved — {}"), &[&e])
     })
 }
@@ -692,62 +633,75 @@ mod tests {
     use super::*;
 
     #[test]
+    fn every_toggle_indexes_its_own_cell() {
+        for (index, toggle) in Toggle::ALL.into_iter().enumerate() {
+            assert_eq!(toggle as usize, index, "{toggle:?}");
+        }
+    }
+
+    #[test]
     fn animations_survive_a_save_and_a_load() {
         let store = Store::default();
-        assert!(store.animations(), "the interface moves until told not to");
-        store.set_animations(false);
+        assert!(
+            store.is_on(Toggle::Animations),
+            "the interface moves until told not to"
+        );
+        store.turn(Toggle::Animations, false);
         let saved = store.to_saved();
-        assert!(saved.contains(&(ANIMATIONS.to_string(), 0.0)), "{saved:?}");
+        assert!(
+            saved.contains(&("accessibility.animations".to_string(), 0.0)),
+            "{saved:?}"
+        );
 
         let loaded = Store::default();
         loaded.apply_saved(&saved);
-        assert!(!loaded.animations());
+        assert!(!loaded.is_on(Toggle::Animations));
     }
 
     #[test]
     fn a_file_from_before_the_switch_keeps_the_interface_moving() {
         let store = Store::default();
-        store.apply_saved(&[(AUTOPLAY.to_string(), 0.0)]);
-        assert!(store.animations());
+        store.apply_saved(&[("playback.autoplay".to_string(), 0.0)]);
+        assert!(store.is_on(Toggle::Animations));
     }
 
     #[test]
     fn darkening_bright_glass_survives_a_save_and_a_load() {
         let store = Store::default();
         assert!(
-            store.legible_glass(),
+            store.is_on(Toggle::LegibleGlass),
             "the glass keeps its words readable until told not to"
         );
-        store.set_legible_glass(false);
+        store.turn(Toggle::LegibleGlass, false);
         let loaded = Store::default();
         loaded.apply_saved(&store.to_saved());
-        assert!(!loaded.legible_glass());
+        assert!(!loaded.is_on(Toggle::LegibleGlass));
 
         // A file from before the switch keeps it on.
         let older = Store::default();
-        older.apply_saved(&[(ANIMATIONS.to_string(), 0.0)]);
-        assert!(older.legible_glass());
+        older.apply_saved(&[("accessibility.animations".to_string(), 0.0)]);
+        assert!(older.is_on(Toggle::LegibleGlass));
     }
 
     #[test]
     fn tooltips_survive_a_save_and_a_load() {
         let store = Store::default();
         assert!(
-            store.tips() && store.tip_keys(),
+            store.is_on(Toggle::Tips) && store.is_on(Toggle::TipKeys),
             "tips name the key until told not to"
         );
-        store.set_tips(false);
-        store.set_tip_keys(false);
+        store.turn(Toggle::Tips, false);
+        store.turn(Toggle::TipKeys, false);
         let saved = store.to_saved();
 
         let loaded = Store::default();
         loaded.apply_saved(&saved);
-        assert!(!loaded.tips());
-        assert!(!loaded.tip_keys());
+        assert!(!loaded.is_on(Toggle::Tips));
+        assert!(!loaded.is_on(Toggle::TipKeys));
 
         // A file from before the switches keeps both.
         let older = Store::default();
-        older.apply_saved(&[(ANIMATIONS.to_string(), 0.0)]);
-        assert!(older.tips() && older.tip_keys());
+        older.apply_saved(&[("accessibility.animations".to_string(), 0.0)]);
+        assert!(older.is_on(Toggle::Tips) && older.is_on(Toggle::TipKeys));
     }
 }

@@ -19,7 +19,7 @@
 
 use glow::HasContext;
 
-use super::gfx::{Program, ScreenQuad, Target, bind_texture, saved_draw_fbo};
+use super::gfx::{Program, ScreenQuad, Target, bind_texture, program, saved_draw_fbo};
 use super::pipeline::GlassPanel;
 
 /// The shadow's spread, as a standard deviation in logical pixels.
@@ -45,12 +45,7 @@ impl Shadow {
     pub fn new(gl: &glow::Context) -> Result<Self, String> {
         Ok(Self {
             quad: ScreenQuad::new(gl)?,
-            program: Program::new(
-                gl,
-                include_str!("../../shaders/fullscreen.vert"),
-                include_str!("../../shaders/ui_shadow.frag"),
-            )
-            .map_err(|e| format!("ui_shadow: {e}"))?,
+            program: program!(gl, "ui_shadow")?,
             copied: Target::new(),
             across: Target::new(),
         })
@@ -131,26 +126,26 @@ impl Shadow {
         let copied = self.copied.scale();
         let ground_scale = ground.scale();
         program.bind(gl);
-        program.set_vec2(gl, "u_region", width as f32, height as f32);
-        program.set_f32(gl, "u_sigma", sigma);
-        program.set_f32(gl, "u_depth", DEPTH);
-        program.set_f32(gl, "u_headroom", HEADROOM);
-        program.set_vec2(gl, "u_ground_scale", ground_scale.0, ground_scale.1);
-        program.set_vec2(gl, "u_origin", left as f32, bottom as f32);
-        program.set_vec2(gl, "u_window", window.0 as f32, window.1 as f32);
+        program.set(gl, "u_region", [width as f32, height as f32]);
+        program.set(gl, "u_sigma", sigma);
+        program.set(gl, "u_depth", DEPTH);
+        program.set(gl, "u_headroom", HEADROOM);
+        program.set(gl, "u_ground_scale", [ground_scale.0, ground_scale.1]);
+        program.set(gl, "u_origin", [left as f32, bottom as f32]);
+        program.set(gl, "u_window", [window.0 as f32, window.1 as f32]);
         bind_texture(gl, program, "u_ground", 1, Some(ground_tex));
 
         // Across: what casts a shadow, blurred, into scratch.
-        program.set_vec2(gl, "u_dir", 1.0, 0.0);
-        program.set_vec2(gl, "u_src_scale", copied.0, copied.1);
+        program.set(gl, "u_dir", [1.0, 0.0]);
+        program.set(gl, "u_src_scale", [copied.0, copied.1]);
         bind_texture(gl, program, "u_src", 0, self.copied.texture());
         self.quad.draw_to(gl, &self.across);
 
         // Down, and laid under the interface on the window.
         let across = self.across.scale();
-        program.set_vec2(gl, "u_dir", 0.0, 1.0);
-        program.set_vec2(gl, "u_src_scale", across.0, across.1);
-        program.set_vec2(gl, "u_frame_scale", copied.0, copied.1);
+        program.set(gl, "u_dir", [0.0, 1.0]);
+        program.set(gl, "u_src_scale", [across.0, across.1]);
+        program.set(gl, "u_frame_scale", [copied.0, copied.1]);
         bind_texture(gl, program, "u_src", 0, self.across.texture());
         bind_texture(gl, program, "u_frame", 2, self.copied.texture());
         self.quad

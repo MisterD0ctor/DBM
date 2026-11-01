@@ -273,26 +273,6 @@ use slint::{Model, ModelRc};
 use crate::playback::mpv::Mpv;
 use crate::{MainWindow, TrackItem};
 
-/// Whether any exercise is armed: a `DBM_*_TEST` switch of any kind.
-///
-/// Any at all, rather than a list of the ones that seem to matter, which goes
-/// wrong: `DBM_KEY_TEST` presses B, and B is the ambience switch.
-pub fn armed() -> bool {
-    std::env::vars_os().any(|(k, _)| {
-        let k = k.to_string_lossy();
-        k.starts_with("DBM_") && k.ends_with("_TEST")
-    })
-}
-
-/// Whether the player is being driven or photographed rather than watched:
-/// an exercise, a showcase or a capture. Each of them plays a film, and
-/// nobody is listening to it.
-pub fn unattended() -> bool {
-    armed()
-        || std::env::var_os("DBM_SHOWCASE").is_some()
-        || std::env::var_os("DBM_CAPTURE").is_some()
-}
-
 /// Options for a run nobody is watching. Before `mpv_initialize`, like the
 /// rest of mpv's configuration.
 ///
@@ -301,7 +281,7 @@ pub fn unattended() -> bool {
 /// exercises press and read back. The levels, the selected track and the
 /// device list all stay as they would be.
 pub fn configure(mpv: &Mpv) {
-    if !unattended() {
+    if !crate::run_mode::unattended() {
         return;
     }
     match mpv.set_option("af", "lavfi=[volume=0]") {

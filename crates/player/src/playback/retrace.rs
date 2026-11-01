@@ -64,7 +64,7 @@ impl Retrace {
     pub fn landed(&self, path: &str, at: f64, to: f64) {
         // An exercise seeks to get somewhere, a file's credits or its end,
         // and the offer would take the corner from what it is there to see.
-        if crate::harness::armed() {
+        if crate::run_mode::armed() {
             return;
         }
         let mut state = self.state.borrow_mut();

@@ -17,16 +17,16 @@
 //! empty string means "looked, and there is none", so untitled files aren't
 //! asked again every launch.
 //!
-//! A generation counter stops a superseded scan between files, as it stops a
+//! A [`Supersede`] stops a superseded scan between files, as it stops a
 //! superseded atlas. A file ffmpeg is already reading is finished first,
 //! since a probe is short.
 
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
 
 use crate::library::cache::PathMap;
 use crate::library::ffmpeg;
+use crate::threads::{Supersede, Ticket};
 use crate::worker::{Completion, Reporter, Worker};
 
 /// One file, described.
@@ -43,7 +43,8 @@ pub struct Found {
 // Scanning
 // ---------------------------------------------------------------------------
 
-static GENERATION: AtomicU64 = AtomicU64::new(0);
+/// Calls off a scan begun for a list since replaced.
+static SCANS: Supersede = Supersede::new();
 
 /// How long a scan gathers what it has read before handing it over.
 const BATCH: Duration = Duration::from_secs(1);
@@ -66,7 +67,7 @@ impl Scan {
             return;
         }
         self.requested = paths.to_vec();
-        let generation = GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+        let ticket = SCANS.next();
         if paths.is_empty() {
             return;
         }
@@ -74,15 +75,14 @@ impl Scan {
         let reporter = worker.reporter();
         let spawned = std::thread::Builder::new()
             .name("dbm-probe".into())
-            .spawn(move || scan(paths, generation, reporter));
+            .spawn(move || scan(paths, ticket, reporter));
         if let Err(e) = spawned {
-            eprintln!("dbm: could not start the playlist scan: {e}");
+            log::warn!("could not start the playlist scan: {e}");
         }
     }
 }
 
-fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
-    let current = || GENERATION.load(Ordering::SeqCst) == generation;
+fn scan(paths: Vec<String>, ticket: Ticket, reporter: Reporter) {
     let lengths = crate::library::durations::load();
     let titles = TITLES.load();
 
@@ -103,7 +103,7 @@ fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
         return;
     }
 
-    if unknown.is_empty() || !current() {
+    if unknown.is_empty() || !ticket.current() {
         return;
     }
     // Without ffmpeg the rows stay as mpv alone can fill them.
@@ -117,7 +117,7 @@ fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
     let mut batch: Vec<Found> = Vec::new();
     let mut handed = Instant::now();
     for path in unknown {
-        if !current() {
+        if !ticket.current() {
             return;
         }
         let Some(found) = probe(&ffmpeg, &path) else {
@@ -135,7 +135,7 @@ fn scan(paths: Vec<String>, generation: u64, reporter: Reporter) {
             handed = Instant::now();
         }
     }
-    if !batch.is_empty() && current() {
+    if !batch.is_empty() && ticket.current() {
         reporter.send(Completion::Probed(batch));
     }
 }

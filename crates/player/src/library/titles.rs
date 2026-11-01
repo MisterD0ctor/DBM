@@ -20,12 +20,12 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
 use std::process::Stdio;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::library::cache::PathMap;
 use crate::library::ffmpeg;
 use crate::library::fingerprint::{self, Print};
 use crate::library::naming::{self, Media};
+use crate::threads::{Supersede, Ticket};
 use crate::worker::{Completion, Reporter};
 
 /// How many episodes of the season are tried before this one is taken to
@@ -140,12 +140,8 @@ pub struct Outcome {
     pub pieces: Option<Vec<Span>>,
 }
 
-/// Bumped by every run. One that finds the number has moved on stops.
-static GENERATION: AtomicU64 = AtomicU64::new(0);
-
-fn current(generation: u64) -> bool {
-    GENERATION.load(Ordering::SeqCst) == generation
-}
+/// Called on every run.
+static LISTENS: Supersede = Supersede::new();
 
 /// The episodes `path` could be compared with, and how many places from it
 /// each is: others of the same show and season in the playlist, nearest
@@ -224,11 +220,11 @@ pub fn spawn(
     duration: f64,
     reporter: Reporter,
 ) {
-    let generation = GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+    let ticket = LISTENS.next();
     crate::threads::spawn("dbm-titles", move || {
         for end in ends {
-            let found = find(&path, end, &beside, duration, generation);
-            if !current(generation) {
+            let found = find(&path, end, &beside, duration, ticket);
+            if !ticket.current() {
                 return;
             }
             let Some(pieces) = found else {
@@ -244,9 +240,9 @@ pub fn spawn(
                         .iter()
                         .map(|(start, to)| format!("from {start:.1} s to {to:.1} s"))
                         .collect();
-                    eprintln!("dbm: {what} {}", at.join(", then "));
+                    log::info!("{what} {}", at.join(", then "));
                 }
-                None => eprintln!("dbm: no {what} heard"),
+                None => log::info!("no {what} heard"),
             }
             let path = path.clone();
             reporter.send(Completion::Titles(Outcome { path, end, pieces }));
@@ -261,7 +257,7 @@ fn find(
     end: End,
     beside: &[(String, usize)],
     duration: f64,
-    generation: u64,
+    ticket: Ticket,
 ) -> Option<Option<Vec<Span>>> {
     let heard = end.heard();
     let known = heard.load();
@@ -278,7 +274,7 @@ fn find(
         End::Opening => 0.0,
         End::Closing => (length - reach).max(0.0),
     };
-    let ours = listen(&ffmpeg, Path::new(path), from(duration), reach, generation)?;
+    let ours = listen(&ffmpeg, Path::new(path), from(duration), reach, ticket)?;
 
     let mut compared = false;
     // A match shorter than a title sequence is held while the rest are
@@ -312,8 +308,8 @@ fn find(
             (_, Some(length)) => (from(length), reach),
             (_, None) => (0.0, reach),
         };
-        let Some(theirs) = listen(&ffmpeg, Path::new(other), theirs_from, long, generation) else {
-            if !current(generation) {
+        let Some(theirs) = listen(&ffmpeg, Path::new(other), theirs_from, long, ticket) else {
+            if !ticket.current() {
                 return None;
             }
             continue;
@@ -504,7 +500,7 @@ fn length(ffmpeg: &Path, file: &Path) -> Option<f64> {
 /// every dub and the neighbour's tracks aren't known without asking. `None`
 /// for a run that was superseded, an ffmpeg that wouldn't start, or a file
 /// with nothing to hear.
-fn listen(ffmpeg: &Path, file: &Path, from: f64, reach: f64, generation: u64) -> Option<Print> {
+fn listen(ffmpeg: &Path, file: &Path, from: f64, reach: f64, ticket: Ticket) -> Option<Print> {
     // A playlist can hold addresses as well as files, which aren't worth
     // downloading again for a pill.
     if !file.is_file() {
@@ -531,7 +527,7 @@ fn listen(ffmpeg: &Path, file: &Path, from: f64, reach: f64, generation: u64) ->
     let mut samples = Samples::default();
     let mut buffer = vec![0u8; 1 << 16];
     loop {
-        if !current(generation) {
+        if !ticket.current() {
             let _ = child.kill();
             let _ = child.wait();
             return None;

@@ -114,7 +114,7 @@ fn within(
 fn warn_overflow() {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
-        eprintln!("dbm: more than {MAX_PANELS} glass panels on screen; the rest get none");
+        log::warn!("more than {MAX_PANELS} glass panels on screen; the rest get none");
     });
 }
 

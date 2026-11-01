@@ -42,8 +42,8 @@ const SETTLE: Duration = Duration::from_millis(1200);
 /// side effect, since mpv doesn't track devices otherwise.
 pub fn observe(mpv: &Mpv) {
     if let Err(e) = mpv.observe("audio-device-list", FORMAT_STRING) {
-        eprintln!(
-            "dbm: cannot observe audio-device-list ({e}); audio will not recover \
+        log::warn!(
+            "cannot observe audio-device-list ({e}); audio will not recover \
              from a device disappearing"
         );
     }
@@ -111,8 +111,8 @@ impl Watchdog {
             return;
         }
         if self.trace {
-            eprintln!(
-                "dbm: audio devices: {}",
+            log::info!(
+                "audio devices: {}",
                 names.iter().cloned().collect::<Vec<_>>().join(", ")
             );
         }
@@ -127,7 +127,7 @@ impl Watchdog {
             // reconnection is acted on.
             return;
         }
-        eprintln!("dbm: audio device appeared: {}", appeared.join(", "));
+        log::info!("audio device appeared: {}", appeared.join(", "));
 
         let me = Rc::downgrade(self);
         // Restarting the timer cancels the pending fire, so a burst of
@@ -193,19 +193,19 @@ fn reopen(mpv: &Mpv, remembered: Option<&str>) -> Option<String> {
     // Deselect first, because writing back the id mpv holds is discarded as
     // a no-op, and the write is what reopens the output.
     if let Err(e) = mpv.set_property("aid", "no") {
-        eprintln!("dbm: audio recovery: could not drop the audio track: {e}");
+        log::warn!("audio recovery: could not drop the audio track: {e}");
         return None;
     }
     if let Err(e) = mpv.set_property("aid", &target) {
-        eprintln!("dbm: audio recovery: could not reselect track {target}: {e}");
+        log::warn!("audio recovery: could not reselect track {target}: {e}");
         // Leaving audio off would be worse than the state this started in, so
         // let mpv pick rather than giving up here.
         if let Err(e) = mpv.set_property("aid", "auto") {
-            eprintln!("dbm: audio recovery: falling back to auto failed too: {e}");
+            log::warn!("audio recovery: falling back to auto failed too: {e}");
         }
         return None;
     }
-    eprintln!("dbm: audio recovery: reselected audio track {target}");
+    log::info!("audio recovery: reselected audio track {target}");
     // Names what happened rather than the fix, which is the log's business.
     was_silent.then(|| tr("Sound is back").to_string())
 }
@@ -216,7 +216,7 @@ fn unexpected_shape(payload: &str) {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| {
         let sample: String = payload.chars().take(120).collect();
-        eprintln!("dbm: no device names in audio-device-list; audio recovery is off ({sample})");
+        log::warn!("no device names in audio-device-list; audio recovery is off ({sample})");
     });
 }
 

@@ -145,9 +145,9 @@ impl Scrubber {
     /// Any coalesced update is dropped, or it would seek away from where the
     /// user let go.
     pub fn release(&self, mpv: &Mpv, fraction: f32) {
-        if crate::diagnostics::trace() && self.requested.get() > 0 {
-            eprintln!(
-                "dbm: drag ended - {} updates coalesced into {} seeks, {} of them exact",
+        if self.requested.get() > 0 {
+            log::debug!(
+                "drag ended - {} updates coalesced into {} seeks, {} of them exact",
                 self.requested.get(),
                 self.issued.get(),
                 self.exact.get()

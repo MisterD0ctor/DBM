@@ -105,7 +105,7 @@ pub fn speak(choice: &str) {
     CHANGES.fetch_add(1, Ordering::Relaxed);
     let asked = if spoken == 0 { "" } else { code.as_str() };
     if let Err(e) = slint::select_bundled_translation(asked) {
-        eprintln!("dbm: could not switch the interface to {code:?}: {e}");
+        log::warn!("could not switch the interface to {code:?}: {e}");
     }
 }
 

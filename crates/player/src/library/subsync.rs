@@ -20,18 +20,18 @@
 //!
 //! Its own thread, like the seek preview's, since a feature is a quarter of a
 //! minute of decoding and the shared worker keeps the track lists current. A
-//! generation counter abandons a run whose film was replaced or which was
-//! asked for again.
+//! [`Supersede`] abandons a run whose film was replaced or which was asked
+//! for again.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::library::ffmpeg;
 use crate::playback::mpv::Mpv;
 use crate::playback::tracks;
+use crate::threads::{Supersede, Ticket};
 use crate::worker::{Completion, Reporter};
 
 /// What ffmpeg is asked for: mono at this rate, which keeps everything a
@@ -128,18 +128,12 @@ pub struct Outcome {
     pub result: Result<Fit, Failure>,
 }
 
-/// Bumped on every request and on every new file. A run captures the value it
-/// started with and stops once the global one has moved past it.
-static GENERATION: AtomicU64 = AtomicU64::new(0);
+/// Called on every request and on every new file.
+static RUNS: Supersede = Supersede::new();
 
-/// Abandon any run in progress, and return the generation a new one should
-/// carry. Called when the file changes and when a sync is asked for.
-pub fn supersede() -> u64 {
-    GENERATION.fetch_add(1, Ordering::SeqCst) + 1
-}
-
-fn current(generation: u64) -> bool {
-    GENERATION.load(Ordering::SeqCst) == generation
+/// Abandon any run in progress. Called when the file changes.
+pub fn supersede() {
+    RUNS.next();
 }
 
 /// Sync the selected subtitles to the playing film's speech, off the UI
@@ -149,22 +143,23 @@ fn current(generation: u64) -> bool {
 /// other one reports, because the interface is showing that it is listening
 /// and has to be told when to stop.
 pub fn spawn(mpv: Arc<Mpv>, reporter: Reporter) {
-    let generation = supersede();
+    let ticket = RUNS.next();
     crate::threads::spawn("dbm-subsync", move || {
         // Read here rather than handed over, since these block on mpv's core
         // lock, which the UI thread must not.
         let path = mpv.get_property("path").unwrap_or_default();
         let sid = mpv.get_property("sid");
-        let result = ask(&mpv, &path).and_then(|asked| run(&asked, generation));
-        if !current(generation) {
+        let result = ask(&mpv, &path).and_then(|asked| run(&asked, ticket));
+        if !ticket.current() {
             return;
         }
         match &result {
-            Ok(fit) => eprintln!(
-                "dbm: subtitles fit at {:+.1} s, speed {:.4}",
-                fit.delay, fit.speed
+            Ok(fit) => log::info!(
+                "subtitles fit at {:+.1} s, speed {:.4}",
+                fit.delay,
+                fit.speed
             ),
-            Err(why) => eprintln!("dbm: subtitles not synced: {why:?}"),
+            Err(why) => log::warn!("subtitles not synced: {why:?}"),
         }
         reporter.send(Completion::Synced(Outcome { path, sid, result }));
     });
@@ -241,14 +236,14 @@ fn has_centre(channels: i64) -> bool {
     channels >= 5
 }
 
-fn run(asked: &Asked, generation: u64) -> Result<Fit, Failure> {
+fn run(asked: &Asked, ticket: Ticket) -> Result<Fit, Failure> {
     let ffmpeg = ffmpeg::path().ok_or(Failure::NoFfmpeg)?;
     ffmpeg::announce(&ffmpeg);
 
     // A track inside the film is written out by the same ffmpeg that decodes
     // the audio, to a file that is gone again when this returns.
     let scratch = match asked.subtitles {
-        Source::Stream(_) => Some(Scratch::new(generation)),
+        Source::Stream(_) => Some(Scratch::new(ticket)),
         Source::File(_) => None,
     };
     let stream = match (&asked.subtitles, &scratch) {
@@ -256,13 +251,13 @@ fn run(asked: &Asked, generation: u64) -> Result<Fit, Failure> {
         _ => None,
     };
 
-    let mut loudness = listen(&ffmpeg, asked, asked.centre, stream, generation);
+    let mut loudness = listen(&ffmpeg, asked, asked.centre, stream, ticket);
     // The centre channel is where the voices are when there is one, and with
     // the music and the effects left in the others it is most of what makes
     // this work on a film. If it came back empty the track did not have one
     // after all, and everything mixed down is the fallback.
     if asked.centre && loudness.as_deref().is_some_and(is_silent) {
-        loudness = listen(&ffmpeg, asked, false, stream, generation);
+        loudness = listen(&ffmpeg, asked, false, stream, ticket);
     }
     let loudness = loudness.filter(|l| !is_silent(l)).ok_or(Failure::Silent)?;
 
@@ -280,8 +275,8 @@ fn run(asked: &Asked, generation: u64) -> Result<Fit, Failure> {
     let best = search(&speech(&loudness), &cues).ok_or(Failure::Unsure)?;
     // Logged whether or not it is believed, so "it would not sync" has
     // something to go on.
-    eprintln!(
-        "dbm: {} subtitle spans against {:.0} s of audio: best at {:+.2} s, \
+    log::info!(
+        "{} subtitle spans against {:.0} s of audio: best at {:+.2} s, \
          speed {:.4}, {:.1} clear of the rest",
         cues.len(),
         loudness.len() as f64 / PER_SECOND,
@@ -296,10 +291,11 @@ fn run(asked: &Asked, generation: u64) -> Result<Fit, Failure> {
 struct Scratch(PathBuf);
 
 impl Scratch {
-    fn new(generation: u64) -> Self {
+    fn new(ticket: Ticket) -> Self {
         Self(std::env::temp_dir().join(format!(
-            "dbm-subtitles-{}-{generation}.srt",
-            std::process::id()
+            "dbm-subtitles-{}-{}.srt",
+            std::process::id(),
+            ticket.number()
         )))
     }
 }
@@ -322,7 +318,7 @@ fn listen(
     asked: &Asked,
     centre: bool,
     stream: Option<(i64, &Path)>,
-    generation: u64,
+    ticket: Ticket,
 ) -> Option<Vec<f32>> {
     let mut command = ffmpeg::command(ffmpeg);
     command
@@ -359,7 +355,7 @@ fn listen(
     let mut loudness = Loudness::default();
     let mut buffer = vec![0u8; 1 << 16];
     loop {
-        if !current(generation) {
+        if !ticket.current() {
             let _ = child.kill();
             let _ = child.wait();
             return None;
