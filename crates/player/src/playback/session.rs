@@ -3,23 +3,42 @@
 //! mpv's `watch-later` writes a small file per title with the position and
 //! the selected tracks, and restores it when the file opens again. The work
 //! here is pointing it at our own directory, choosing what it records, and
-//! writing often enough that an unclean exit doesn't lose the evening.
+//! writing it at the moments that matter.
 //!
-//! mpv writes on a clean quit by itself, but not on a crash, a kill or a
-//! power cut, so this also writes periodically while something plays. The
-//! command is async and mpv only touches the disk when the position has
-//! moved, so doing it often costs next to nothing.
+//! mpv's own saving belongs to commands this player never sends (`quit`,
+//! `stop`, `loadfile`), and it deletes a file's entry as it resumes from it.
+//! So the player writes the entry itself: on leaving a file (see `commands`),
+//! on quitting, and every ten seconds while something plays, for a crash, a
+//! kill or a power cut. Each write is one small file, so doing it often costs
+//! next to nothing.
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
 use crate::paths;
 use crate::playback::mpv::Mpv;
 
+/// Whether a file is on its way in and hasn't loaded. mpv doesn't know its
+/// position until it has, and an entry written meanwhile would have none and
+/// replace the one it is resuming from, so nothing here writes until then.
+static OPENING: AtomicBool = AtomicBool::new(false);
+
+/// A file is about to open: one asked for (see `commands`), or one mpv has
+/// started by itself.
+pub fn opening() {
+    OPENING.store(true, Ordering::Relaxed);
+}
+
+/// Nothing is on its way in any more: the file loaded, or the move to it went
+/// nowhere.
+pub fn settled() {
+    OPENING.store(false, Ordering::Relaxed);
+}
+
 /// How often to checkpoint the position of the playing file.
 ///
-/// Ten seconds is the most anyone should lose to a crash, and is far longer
-/// than the interval at which mpv would consider the position unchanged.
+/// Ten seconds is the most anyone should lose to a crash.
 const CHECKPOINT: Duration = Duration::from_secs(10);
 
 /// Options that must be set before `mpv_initialize`.
@@ -66,13 +85,29 @@ pub fn checkpoint_periodically(mpv: Arc<Mpv>) -> slint::Timer {
 
 /// Write the playing file's entry now, rather than at the next tick.
 ///
-/// For a change that mustn't be lost to leaving the file in the next ten
-/// seconds: a subtitle sync, made once and on purpose (see `configure`).
+/// For what mustn't wait for it: leaving the file, and a subtitle sync, made
+/// once and on purpose (see `configure`), which a crash would otherwise take.
 ///
 /// Async, so this costs the UI thread a queue push. mpv skips the write when
-/// there is nothing loaded.
+/// nothing is playing.
 pub fn checkpoint(mpv: &Mpv) {
+    if OPENING.load(Ordering::Relaxed) {
+        return;
+    }
     if let Err(e) = mpv.command_async(0, &["write-watch-later-config"]) {
         eprintln!("dbm: watch-later checkpoint: {e}");
+    }
+}
+
+/// Write the playing file's entry as the player quits, and wait until mpv has.
+///
+/// Only once the event loop has returned, since it blocks (see
+/// [`Mpv::command`]). Taking mpv down doesn't save anything by itself.
+pub fn save_before_quitting(mpv: &Mpv) {
+    if OPENING.load(Ordering::Relaxed) {
+        return;
+    }
+    if let Err(e) = mpv.command(&["write-watch-later-config"]) {
+        eprintln!("dbm: watch-later on quit: {e}");
     }
 }

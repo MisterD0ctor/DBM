@@ -100,11 +100,13 @@ pub fn cycle_track(mpv: &Mpv, subtitles: bool, direction: i32) {
     }
 }
 
-/// Reply ids for async commands. Only the scrubber cares which of its own
-/// requests came back; everything else fires and forgets.
+/// Reply ids for async commands. The scrubber and the list's load wait on
+/// their own, and a move to another file is told apart for when it fails (see
+/// `move_to`); everything else fires and forgets.
 pub const REPLY_IGNORED: u64 = 0;
 pub const REPLY_SCRUB: u64 = 1;
 pub const REPLY_LOADLIST: u64 = 2;
+pub const REPLY_MOVE: u64 = 3;
 
 /// Queue a command. Never blocks.
 ///
@@ -241,6 +243,7 @@ pub fn set_audio_track(mpv: &Mpv, id: Option<i64>) {
 /// `first`, the entry it starts on, says where the list's files are, since
 /// they all come from one folder.
 pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &str) {
+    save_before_leaving(mpv);
     set_prop(mpv, "playlist-start", &start.to_string());
     // The document portal is a FUSE mount, which mpv takes for a network
     // share: it reads 150 MB ahead and keeps 50 MB behind, in memory, of files
@@ -252,11 +255,36 @@ pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &str) {
     let args = ["loadlist", &*m3u.to_string_lossy(), "replace"];
     if let Err(e) = mpv.command_async(REPLY_LOADLIST, &args) {
         eprintln!("dbm: loadlist failed: {e}");
+        crate::playback::session::settled();
     }
 }
 
 pub fn playlist_play(mpv: &Mpv, index: i64) {
-    run(mpv, &["playlist-play-index", &index.to_string()]);
+    move_to(mpv, &["playlist-play-index", &index.to_string()]);
+}
+
+/// Go to another entry in the playlist, saving the place in this one first.
+///
+/// One past either end goes nowhere, and mpv's refusal (`REPLY_MOVE`) is
+/// then the only sign that nothing is opening after all.
+fn move_to(mpv: &Mpv, args: &[&str]) {
+    save_before_leaving(mpv);
+    if let Err(e) = mpv.command_async(REPLY_MOVE, args) {
+        eprintln!("dbm: mpv command {args:?} failed: {e}");
+        crate::playback::session::settled();
+    }
+}
+
+/// Save the playing file's place before going to another. mpv writes nothing
+/// on its way out of a file, and deleted the entry it resumed from as the file
+/// opened, so moving on would leave the last checkpoint's place, or none.
+///
+/// Queued ahead of the move, and mpv runs queued commands in order, so it is
+/// still the old file's place. A move made while the last is still opening
+/// saves nothing, since that file has no place to save yet.
+fn save_before_leaving(mpv: &Mpv) {
+    crate::playback::session::checkpoint(mpv);
+    crate::playback::session::opening();
 }
 
 /// Set a property without waiting. Expressed as mpv `set` command so it can
@@ -430,7 +458,7 @@ pub fn advance(mpv: &Mpv, delta: i32) {
 }
 
 pub fn playlist_step(mpv: &Mpv, delta: i32) {
-    run(
+    move_to(
         mpv,
         if delta >= 0 {
             &["playlist-next"]

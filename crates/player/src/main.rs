@@ -129,14 +129,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ui.window()
         .set_rendering_notifier(move |state, api| driver.on(state, api))?;
 
-    // Checkpoint the resume position while playing. mpv writes on a clean
-    // quit by itself; this is what covers everything less tidy.
+    // Checkpoint the resume position while playing, for an end less tidy than
+    // the quit below.
     let checkpoint = playback::session::checkpoint_periodically(mpv.clone());
 
     ui.show()?;
     let harnesses = harness::install(&ui, &app);
 
     ui.run()?;
+
+    // First, so the place is on disk before anything slow.
+    playback::session::save_before_quitting(&mpv);
 
     // The window is gone by now, so a slow answer holds up nothing anyone
     // can see; OpenSubtitles asks for the token back when an app is done.

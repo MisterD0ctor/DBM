@@ -248,7 +248,7 @@ impl Driver {
         }
         commands::set_sub_delay(&self.app.mpv, fit.delay);
         commands::set_sub_speed(&self.app.mpv, fit.speed);
-        // Saved now, since the timing is this file's alone, and moving on
+        // Saved now, since the timing is this file's alone, and a crash
         // before the next checkpoint would lose it.
         crate::playback::session::checkpoint(&self.app.mpv);
         // What stood before, for the row to offer back.

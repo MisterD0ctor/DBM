@@ -141,9 +141,11 @@ pub enum Event {
         value: Value,
     },
     /// An async command finished. `id` is whatever was passed to
-    /// [`Mpv::command_async`], which is how a caller recognises its own.
+    /// [`Mpv::command_async`], which is how a caller recognises its own, and
+    /// `failed` says mpv refused it or couldn't carry it out.
     CommandReply {
         id: u64,
+        failed: bool,
     },
     StartFile,
     FileLoaded,
@@ -226,6 +228,7 @@ struct Lib {
     /// rather than "error -13".
     mpv_error_string: unsafe extern "C" fn(c_int) -> *const c_char,
     mpv_command_async: unsafe extern "C" fn(*mut MpvHandle, u64, *mut *const c_char) -> c_int,
+    mpv_command: unsafe extern "C" fn(*mut MpvHandle, *mut *const c_char) -> c_int,
     mpv_observe_property: unsafe extern "C" fn(*mut MpvHandle, u64, *const c_char, c_int) -> c_int,
     mpv_wait_event: unsafe extern "C" fn(*mut MpvHandle, f64) -> *mut RawEvent,
     mpv_set_wakeup_callback: unsafe extern "C" fn(
@@ -270,6 +273,7 @@ impl Lib {
             mpv_free: sym!(library, "mpv_free"),
             mpv_error_string: sym!(library, "mpv_error_string"),
             mpv_command_async: sym!(library, "mpv_command_async"),
+            mpv_command: sym!(library, "mpv_command"),
             mpv_observe_property: sym!(library, "mpv_observe_property"),
             mpv_wait_event: sym!(library, "mpv_wait_event"),
             mpv_set_wakeup_callback: sym!(library, "mpv_set_wakeup_callback"),
@@ -357,8 +361,8 @@ const CLEAR: &str = "0/0/0/0";
 //     not reachable from here.
 //   * the wakeup closure is only replaced or freed under its lock.
 //
-// Anything else (`get_property`, `set_property`, `observe`, `command_async`)
-// is safe to call from the worker thread.
+// Anything else (`get_property`, `set_property`, `observe`, `command_async`,
+// `command`) is safe to call from the worker thread.
 unsafe impl Send for Mpv {}
 unsafe impl Sync for Mpv {}
 
@@ -529,6 +533,7 @@ impl Mpv {
             EVENT_SHUTDOWN => Some(Event::Shutdown),
             EVENT_COMMAND_REPLY => Some(Event::CommandReply {
                 id: ev.reply_userdata,
+                failed: ev.error < 0,
             }),
             EVENT_START_FILE => Some(Event::StartFile),
             EVENT_FILE_LOADED => Some(Event::FileLoaded),
@@ -600,17 +605,41 @@ impl Mpv {
 
     /// Queue a command and return immediately.
     ///
-    /// No synchronous counterpart, since `mpv_command` waits for mpv's core,
-    /// which for an exact seek locks the UI thread for about 200ms. Completion
-    /// arrives as [`Event::CommandReply`] carrying `reply_id`.
+    /// What the UI thread uses while its event loop runs, since
+    /// [`Mpv::command`] waits for mpv's core, which for an exact seek locks it
+    /// for about 200ms. Completion arrives as [`Event::CommandReply`] carrying
+    /// `reply_id`.
     pub fn command_async(&self, reply_id: u64, args: &[&str]) -> Result<()> {
-        let owned: Vec<CString> = args.iter().map(|a| cstr(a)).collect::<Result<_>>()?;
-        let mut ptrs: Vec<*const c_char> = owned.iter().map(|c| c.as_ptr()).collect();
-        ptrs.push(std::ptr::null());
-        check("mpv_command_async", unsafe {
-            (self.lib.mpv_command_async)(self.handle, reply_id, ptrs.as_mut_ptr())
-        })
+        check(
+            "mpv_command_async",
+            with_argv(args, |argv| unsafe {
+                (self.lib.mpv_command_async)(self.handle, reply_id, argv)
+            })?,
+        )
     }
+
+    /// Run a command and wait until mpv has carried it out.
+    ///
+    /// Only where nothing is waiting on this thread: the worker, or the UI
+    /// thread once its event loop has returned. libmpv's render thread must
+    /// never wait on mpv while it still renders through it.
+    pub fn command(&self, args: &[&str]) -> Result<()> {
+        check(
+            "mpv_command",
+            with_argv(args, |argv| unsafe {
+                (self.lib.mpv_command)(self.handle, argv)
+            })?,
+        )
+    }
+}
+
+/// `args` as the null-terminated array of C strings mpv's commands take,
+/// alive for as long as `f` runs.
+fn with_argv<T>(args: &[&str], f: impl FnOnce(*mut *const c_char) -> T) -> Result<T> {
+    let owned: Vec<CString> = args.iter().map(|a| cstr(a)).collect::<Result<_>>()?;
+    let mut ptrs: Vec<*const c_char> = owned.iter().map(|c| c.as_ptr()).collect();
+    ptrs.push(std::ptr::null());
+    Ok(f(ptrs.as_mut_ptr()))
 }
 
 impl Drop for Mpv {

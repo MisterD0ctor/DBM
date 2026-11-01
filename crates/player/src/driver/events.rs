@@ -12,6 +12,7 @@ use crate::lang::{fill, marked, tr};
 use crate::playback::audio::Watchdog;
 use crate::playback::mpv::{Event, Mpv};
 use crate::playback::state::PlayerState;
+use crate::playback::{commands, session};
 
 /// mpv's own words for why a file stopped, as `mpv_error_string` gives them,
 /// marked so each language can say them too. One mpv adds later is shown as
@@ -56,7 +57,11 @@ pub fn drain(
     while let Some(event) = unsafe { mpv.poll_event() } {
         // Command completions are not state; they belong to whoever issued
         // the command, so they are collected for the driver to route.
-        if let Event::CommandReply { id } = event {
+        if let Event::CommandReply { id, failed } = event {
+            // A move or a list that went nowhere opens nothing.
+            if failed && (id == commands::REPLY_MOVE || id == commands::REPLY_LOADLIST) {
+                session::settled();
+            }
             replies.push(id);
             continue;
         }
@@ -95,8 +100,14 @@ pub fn drain(
         }
         // Not everything mpv reports is state the interface shows. The
         // watchdog reads the same stream for the device list and the audio
-        // track, neither of which belongs in `PlayerState`.
+        // track, neither of which belongs in `PlayerState`, and saving the
+        // resume position waits out a file opening.
         audio.on_event(&event);
+        match event {
+            Event::StartFile => session::opening(),
+            Event::FileLoaded => session::settled(),
+            _ => {}
+        }
         dirty |= player.apply(&event);
     }
     dirty
