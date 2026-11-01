@@ -248,6 +248,13 @@ export component MainWindow inherits Window {
     in property <string> sub-pos-text: "100%";
     in property <[TrackItem]> sub-tracks;
     in property <[TrackItem]> audio-tracks;
+    /// Each list's track names, one to a line, for the measures that size its
+    /// panel (see `subs-w`). Those loaded from their own files come apart,
+    /// since their rows end in a remove button.
+    in property <string> sub-names;
+    in property <string> sub-removable-names;
+    in property <string> audio-names;
+    in property <string> audio-removable-names;
 
     // --- finding subtitles on OpenSubtitles --------------------------------
     //
@@ -593,6 +600,12 @@ export component MainWindow inherits Window {
     in property <string> playlist-heading: "PLAYLIST";
     /// Whether that heading is a show's name or the generic label.
     in property <bool> playlist-named;
+    /// The list of parts' row names and its parts' counts, one to a line, for
+    /// the measures that size the panel to that page (see `playlist-w`). The
+    /// files listed as themselves that draw a resume measure come apart.
+    in property <string> playlist-names;
+    in property <string> playlist-measured-names;
+    in property <string> playlist-details;
     // One list per settings page, split on the Rust side so each page binds
     // straight to its own rows.
     in property <[ParamItem]> glass-params;
@@ -2214,15 +2227,55 @@ export component MainWindow inherits Window {
     property <length> panel-max-h:
         root.bar-top - Rows.offset - root.panel-margin;
 
-    /// The width of the panels whose rows are names someone else wrote, the
-    /// tracks and the playlist: a third of the window, so a bigger window
-    /// shows more of an episode's title and a release's name, between the
-    /// narrowest that leaves the floor's film in view and the widest an eye
-    /// takes in one sweep. The settings and Open hold the interface's own
-    /// short words, and keep theirs.
+    /// The most the panels whose rows are names someone else wrote, the
+    /// tracks and the playlist, may take: a third of the window, so a bigger
+    /// window shows more of an episode's title and a release's name, between
+    /// the narrowest that leaves the floor's film in view and the widest an
+    /// eye takes in one sweep.
     property <length> list-min-w: 380px;
     property <length> list-max-w: 540px;
     property <length> list-w: clamp(root.width * 0.34, root.list-min-w, root.list-max-w);
+    /// The settings' width, at which the interface's own words fit in every
+    /// language. A list panel holds some of those words too, so it is never
+    /// narrower.
+    property <length> words-w: 340px;
+    /// A list panel only as wide as its widest row asks, so two short track
+    /// names don't take a third of the window.
+    pure function list-fit(want: length) -> length {
+        return clamp(want, root.words-w, root.list-w);
+    }
+
+    // What a row puts around its name, added to the widest name measured
+    // (see "measures" at the bottom). Each follows its row in `rows.slint`.
+    property <length> track-fixed: Rows.label-x + Rows.trail-x;
+    property <length> bin-fixed: Rows.bin + Rows.group-gap;
+    property <length> file-fixed: Rows.label-x + Rows.group-gap + Rows.time-col
+        + Rows.trail-x;
+    property <length> measure-fixed: Rows.measure + Rows.group-gap;
+    property <length> part-fixed: Rows.label-x + Rows.group-gap
+        + max(Rows.time-col, playlist-details-measure.preferred-width)
+        + Rows.chevron-col + Rows.trail-x;
+    /// A way back's 18px arrow and 10px gap, a heading's mark taking 2px less.
+    property <length> heading-fixed: Rows.label-x + 28px + Rows.trail-x;
+
+    property <length> subs-w: root.list-fit(max(
+        sub-names-measure.preferred-width + root.track-fixed,
+        sub-removable-measure.preferred-width + root.track-fixed + root.bin-fixed));
+    property <length> audio-w: root.list-fit(max(
+        audio-names-measure.preferred-width + root.track-fixed,
+        audio-removable-measure.preferred-width + root.track-fixed + root.bin-fixed));
+    /// On the list of parts, a file listed as itself leaves the parts'
+    /// chevron column empty beside its time.
+    property <length> playlist-file-fixed: root.file-fixed
+        + (root.playlist-top && root.playlist-drills ? Rows.chevron-col : 0px);
+    /// For the page showing, so a season of long titles doesn't widen the
+    /// list of seasons.
+    property <length> playlist-w: root.list-fit(max(
+        playlist-heading-measure.preferred-width + root.heading-fixed,
+        playlist-names-measure.preferred-width + (root.playlist-top
+            ? max(root.part-fixed, root.playlist-file-fixed) : root.playlist-file-fixed),
+        playlist-measured-measure.preferred-width + root.playlist-file-fixed
+            + root.measure-fixed));
 
     // --- list panels ---
     //
@@ -4680,7 +4733,7 @@ export component MainWindow inherits Window {
         // Wider on the shortcuts page, the one page with two columns of
         // words, a name and its keys: at the others' width the longest pairs
         // are cut in every language, and at this one in none of them.
-        width: root.settings-page == 4 ? 440px : 340px;
+        width: root.settings-page == 4 ? 440px : root.words-w;
         height: min(root.panel-pad + self.body, root.panel-max-h);
         x: root.anchored-x(root.settings-anchor, self.width);
         // From its own height, so the panel keeps its bottom edge and grows
@@ -5227,12 +5280,14 @@ export component MainWindow inherits Window {
     // the same errand, getting a foreign film to say the right things. Sized
     // from row counts, so its glass rect matches what is drawn.
     menu := Rectangle {
-        width: root.list-w;
+        // The search's page takes all a list may, since the releases it finds
+        // arrive after it opens.
+        width: root.find-open ? root.list-w : root.subs-w;
         height: root.menu-h;
         clip: true;
         border-radius: root.drill-corner;
-        // With `menu-drill`, as a settings page's height is with its slide.
-        animate height {
+        // With `menu-drill`, as a settings page's size is with its slide.
+        animate width, height {
             duration: root.resizing ? 0ms : Motion.drill;
             easing: ease-in-out;
         }
@@ -5591,7 +5646,7 @@ export component MainWindow inherits Window {
 
     // The audio tracks, a panel of their own beside the subtitles' menu.
     audio-panel := Rectangle {
-        width: root.list-w;
+        width: root.audio-w;
         height: root.audio-h;
         clip: true;
         x: root.anchored-x(root.audio-anchor, self.width);
@@ -5688,15 +5743,15 @@ export component MainWindow inherits Window {
     // Playlist: its own panel, since it is the one list that grows without
     // bound, and it has a setting of its own.
     playlist-panel := Rectangle {
-        width: root.list-w;
+        width: root.playlist-w;
         height: root.playlist-h;
         clip: true;
         border-radius: root.drill-corner;
 
-        // With `playlist-drill`, as the settings panel's height is with
+        // With `playlist-drill`, as the settings panel's size is with
         // `drill`, so the box and its pages move as one. Not while the window
         // is resized (see `resizing`).
-        animate height {
+        animate width, height {
             duration: root.resizing ? 0ms : Motion.drill;
             easing: ease-in-out;
         }
@@ -5765,12 +5820,13 @@ export component MainWindow inherits Window {
                                         progress: group.entries[0].progress;
                                         finished: group.entries[0].finished;
                                         why: group.entries[0].why;
+                                        measured: group.entries[0].measured;
                                         active: group.current;
                                         // Leaves the chevron's column empty,
                                         // so this row's figures line up with
                                         // the parts' around it.
                                         trail: root.playlist-drills
-                                            ? Rows.trail-x + 28px : Rows.trail-x;
+                                            ? Rows.trail-x + Rows.chevron-col : Rows.trail-x;
                                         focused: root.playlist-open
                                             && root.playlist-top
                                             && root.focus-row == idx;
@@ -5843,6 +5899,7 @@ export component MainWindow inherits Window {
                                     progress: entry.progress;
                                     finished: entry.finished;
                                     why: entry.why;
+                                    measured: entry.measured;
                                     active: entry.current;
                                     focused: root.playlist-open
                                         && !root.playlist-top
@@ -6633,6 +6690,88 @@ export component MainWindow inherits Window {
         text: root.media-episode;
         font-size: Type.title;
         font-weight: Type.weight-title;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    // The list panels' widest names (see `list-fit`), at the current row's
+    // weight, which is the widest any of them is drawn.
+    sub-names-measure := Text {
+        text: root.sub-names;
+        font-size: Type.body;
+        font-weight: Type.weight-current;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    sub-removable-measure := Text {
+        text: root.sub-removable-names;
+        font-size: Type.body;
+        font-weight: Type.weight-current;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    audio-names-measure := Text {
+        text: root.audio-names;
+        font-size: Type.body;
+        font-weight: Type.weight-current;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    audio-removable-measure := Text {
+        text: root.audio-removable-names;
+        font-size: Type.body;
+        font-weight: Type.weight-current;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    playlist-names-measure := Text {
+        text: root.playlist-top ? root.playlist-names
+            : root.playlist-groups[root.playlist-shown-group].names;
+        font-size: Type.body;
+        font-weight: Type.weight-current;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    playlist-measured-measure := Text {
+        text: root.playlist-top ? root.playlist-measured-names
+            : root.playlist-groups[root.playlist-shown-group].measured-names;
+        font-size: Type.body;
+        font-weight: Type.weight-current;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    playlist-details-measure := Text {
+        text: root.playlist-details;
+        font-size: Type.readout;
+        visible: false;
+        width: 0px;
+        height: 0px;
+    }
+
+    playlist-heading-measure := Text {
+        // A part's page is headed by its way back; the list of parts, or a
+        // single part, by the playlist's heading.
+        property <bool> backs: root.playlist-tiered && !root.playlist-top;
+        property <bool> titular: self.backs
+            ? root.playlist-groups[root.playlist-shown-group].titular : root.playlist-named;
+        text: self.backs ? root.playlist-groups[root.playlist-shown-group].heading
+            : root.playlist-heading;
+        font-size: self.titular ? Type.named : Type.label;
+        font-weight: Type.weight-plain;
+        letter-spacing: self.titular ? 0 : Type.label-track;
         visible: false;
         width: 0px;
         height: 0px;

@@ -234,6 +234,17 @@ export global Rows {
     /// reset or a setting about the list, so it isn't read as one more entry.
     /// The row gap, since that is already the space between ideas.
     out property <length> group-gap: Rows.gap;
+    /// The trailing columns a list's rows line up: a remove button's disc, a
+    /// running time's column at its narrowest (an hour-long time), and a
+    /// drill row's chevron with its gap. Here so a panel can add up how wide
+    /// its rows ask to be.
+    out property <length> bin: 28px;
+    out property <length> time-col: 48px;
+    out property <length> chevron-col: 28px;
+    /// A resume measure's length. Fixed rather than a share of the row, so it
+    /// reads the same at any panel width and never grows into a rule; shorter
+    /// than any likely title, so it doesn't read as part of the words.
+    out property <length> measure: 44px;
 
     /// The air one surface keeps from the next: a panel or the hover label
     /// above the timeline, the credits pill above it, the flash's caption

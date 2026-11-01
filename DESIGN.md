@@ -567,14 +567,20 @@ change.
 **Panels** open `Rows.offset` above the bar, anchored to the button
 that opened them and kept inside the same margins. The tracks', the audio's
 and the playlist's rows are names someone else wrote, an episode's title or a
-release's, so those three are `MainWindow.list-w` wide: a third of the window,
-never narrower than `MainWindow.list-min-w` nor wider than
-`MainWindow.list-max-w`, so a bigger window shows more of each name rather
-than more film beside a cut-off one. The settings and Open hold the
-interface's own short words and keep the `width` of `settings` and
-`files-panel` in `MainWindow`. Only one is ever open. Each is capped at the
-space between the bar and the window's top, less the same margin it keeps from
-the window's sides, so a panel at its tallest is framed evenly. Any list inside
+release's, so those three are as wide as their widest row asks
+(`MainWindow.subs-w`, `MainWindow.audio-w`, `MainWindow.playlist-w`), and no
+wider: a film with two short tracks keeps its picture. They take up to `MainWindow.list-w`, a third of the window between
+`MainWindow.list-min-w` and `MainWindow.list-max-w`, so a bigger window shows
+more of a long name rather than more film beside a cut-off one, and never less
+than `MainWindow.words-w`, the settings' width, since they hold some of the
+interface's words too. The width follows the page showing: the subtitles'
+search takes all of `list-w`, as the releases it finds arrive after it opens,
+and the playlist's list of seasons is not widened by one season's long titles.
+The settings and Open hold the interface's own short words and keep the
+`width` of `settings` and `files-panel` in `MainWindow`. Only one is ever
+open. Each is capped at the space between the bar and the window's top, less
+the same margin it keeps from the window's sides, so a panel at its tallest is
+framed evenly. Any list inside
 it scrolls within that cap. Every page of the settings is such a list — the
 first page whole, the others under their way back — so on a small window
 nothing on any of them is out of reach; a page that fits does not scroll and
@@ -1384,7 +1390,7 @@ construction — a show's seasons, not the files in them.
 
 ### The resume measure
 
-A short capsule on a playlist row (`PlaylistRow.measure-w`), at Rail with a
+A short capsule on a playlist row (`Rows.measure`), at Rail with a
 fill at Strong, sitting on the row's own line a group gap before the running
 time's column, which is an hour-long time's width so a season's measures stand
 in one column however the digits beside them run. It says how far into that

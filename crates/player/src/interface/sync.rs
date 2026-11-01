@@ -12,7 +12,7 @@
 //! properties are read on the worker, and only when a count or selection
 //! actually moves.
 
-use slint::{ModelRc, VecModel};
+use slint::{ModelRc, SharedString, VecModel};
 
 use crate::interface::format;
 use crate::library::durations::Progress;
@@ -159,6 +159,10 @@ impl ListSync {
 pub fn push_lists(ui: &MainWindow, player: &PlayerState) {
     ui.set_sub_tracks(track_model(player, TrackKind::Sub));
     ui.set_audio_tracks(track_model(player, TrackKind::Audio));
+    ui.set_sub_names(track_names(player, TrackKind::Sub, false));
+    ui.set_sub_removable_names(track_names(player, TrackKind::Sub, true));
+    ui.set_audio_names(track_names(player, TrackKind::Audio, false));
+    ui.set_audio_removable_names(track_names(player, TrackKind::Audio, true));
     ui.set_sub_current(selected_row(player, TrackKind::Sub));
     ui.set_audio_current(selected_row(player, TrackKind::Audio));
     // Here as well as with the scalars, since it hangs on the selection,
@@ -196,6 +200,18 @@ fn selected_row(player: &PlayerState, kind: TrackKind) -> i32 {
         .iter()
         .position(|(t, _)| t.selected)
         .map_or(-1, |row| row as i32)
+}
+
+/// The names of the tracks carried in the film, or of those loaded from their
+/// own files, one to a line, for the measures that size their panel.
+fn track_names(player: &PlayerState, kind: TrackKind, external: bool) -> SharedString {
+    tracks::labelled(&player.tracks, kind)
+        .into_iter()
+        .filter(|(t, _)| t.external == external)
+        .map(|(_, label)| label)
+        .collect::<Vec<_>>()
+        .join("\n")
+        .into()
 }
 
 fn track_model(player: &PlayerState, kind: TrackKind) -> ModelRc<TrackItem> {

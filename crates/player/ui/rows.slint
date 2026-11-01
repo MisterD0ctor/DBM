@@ -189,7 +189,7 @@ export component MenuRow inherits Rectangle {
     // It takes clicks over the row's full height from just before the disc,
     // because a click just off the disc would choose the track instead, the
     // one miss that does the opposite.
-    private property <length> bin: 28px;
+    private property <length> bin: Rows.bin;
     private property <length> bin-x: root.width - Rows.trail-x - root.bin + 6px;
 
     // While armed, the question stands on a capsule that drains towards the
@@ -370,16 +370,12 @@ export component PlaylistRow inherits Rectangle {
     in property <string> why;
     private property <bool> failed: root.why != "";
     in property <bool> finished;
-    /// Whether the measure is drawn: something started, or something done.
-    private property <bool> measured: (root.progress > 0.001 || root.finished) && !root.failed;
-    /// Fixed rather than a share of the row, so the measure reads the same at
-    /// any panel width and never grows into a rule. Shorter than any likely
-    /// title, so it doesn't read as part of the words.
-    private property <length> measure-w: 44px;
+    /// Whether the measure is drawn (see `PlaylistItem.measured`).
+    in property <bool> measured;
     /// The running time's column, at least as wide as an hour-long time. A
     /// column sized to each row's own time would step the measures in and out
     /// with the digits, a zigzag down a season.
-    private property <length> time-col: max(48px, time.width);
+    private property <length> time-col: max(Rows.time-col, time.width);
     /// Where the row's trailing column ends: further in on a page whose
     /// other rows carry a chevron, so the time and the measure line up with
     /// theirs.
@@ -412,7 +408,7 @@ export component PlaylistRow inherits Rectangle {
         // Clear of the time on the trailing edge, so a long title elides
         // rather than running underneath it.
         width: parent.width - Rows.label-x - root.trail - root.time-col
-            - Rows.group-gap - (root.measured ? root.measure-w + Rows.group-gap : 0);
+            - Rows.group-gap - (root.measured ? Rows.measure + Rows.group-gap : 0);
         height: 100%;
         text: root.label;
         color: root.ring ? Paint.on-ring : root.active ? Paint.lit : Paint.body;
@@ -474,9 +470,9 @@ export component PlaylistRow inherits Rectangle {
     // title it read as a divider at the column's width, or as an underline
     // at the words' width.
     Rectangle {
-        x: parent.width - root.trail - root.time-col - Rows.group-gap - root.measure-w;
+        x: parent.width - root.trail - root.time-col - Rows.group-gap - Rows.measure;
         y: (parent.height - self.height) / 2;
-        width: root.measure-w;
+        width: Rows.measure;
         height: 4px;
         visible: root.measured;
         background: root.ring ? Paint.on-ring-rail : Paint.rail;
@@ -529,8 +525,8 @@ export component GroupRow inherits Rectangle {
     private property <length> chevron: 18px;
     /// Where the figure's column ends: clear of the chevron by a drill row's
     /// spacing. A file row beside this one is given the same end.
-    private property <length> column-end: root.width - Rows.trail-x - root.chevron - 10px;
-    private property <length> time-col: max(48px, detail-text.width);
+    private property <length> column-end: root.width - Rows.trail-x - Rows.chevron-col;
+    private property <length> time-col: max(Rows.time-col, detail-text.width);
     callback opened();
 
     height: Rows.row;
@@ -611,7 +607,6 @@ export component ResumeRow inherits Rectangle {
     in property <float> progress;
     /// How much is left, already worded: "43 min left".
     in property <string> left;
-    private property <length> measure-w: 44px;
     private property <length> icon-size: 18px;
     private property <length> icon-gap: 10px;
     callback picked();
@@ -642,7 +637,7 @@ export component ResumeRow inherits Rectangle {
     // for, and every word is the same white, so weight is what can say so.
     Text {
         x: Rows.label-x + root.icon-size + root.icon-gap;
-        width: left-text.x - Rows.group-gap - root.measure-w - Rows.group-gap - self.x;
+        width: left-text.x - Rows.group-gap - Rows.measure - Rows.group-gap - self.x;
         height: 100%;
         text: root.label;
         color: root.ring ? Paint.on-ring : Paint.strong;
@@ -666,9 +661,9 @@ export component ResumeRow inherits Rectangle {
 
     // The same resume measure as a playlist row's.
     measure := Rectangle {
-        x: left-text.x - Rows.group-gap - root.measure-w;
+        x: left-text.x - Rows.group-gap - Rows.measure;
         y: (parent.height - self.height) / 2;
-        width: root.measure-w;
+        width: Rows.measure;
         height: 4px;
         background: root.ring ? Paint.on-ring-rail : Paint.rail;
         border-radius: self.height / 2;

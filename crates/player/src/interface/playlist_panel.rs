@@ -4,6 +4,7 @@
 //! What the parts are is `shelf`'s business; this turns its answer into the
 //! structs the panel's rows bind to.
 
+use std::borrow::Borrow;
 use std::rc::Rc;
 
 use slint::{Model, ModelRc, VecModel};
@@ -97,6 +98,13 @@ impl Panel {
         let current = shelf.groups.iter().position(|g| g.current().is_some());
         ui.set_playlist_current_group(current.map_or(-1, |g| g as i32));
         ui.set_playlist_drills(shelf.groups.iter().any(|g| !g.leaf));
+        let (measured, plain): (Vec<&Group>, Vec<&Group>) = shelf
+            .groups
+            .iter()
+            .partition(|g| g.leaf && g.entries.first().is_some_and(draws_measure));
+        ui.set_playlist_names(lines(plain.into_iter().map(row_name)).into());
+        ui.set_playlist_measured_names(lines(measured.into_iter().map(row_name)).into());
+        ui.set_playlist_details(lines(shelf.groups.iter().filter(|g| !g.leaf).map(detail)).into());
 
         let rewritten = self.rewrite(&shelf);
         if !rewritten {
@@ -133,6 +141,7 @@ impl Panel {
             }
             if was.current().is_some() != now.current().is_some()
                 || was.open_row() != now.open_row()
+                || names(was) != names(now)
             {
                 groups.set_row_data(g, group_item(now, &self.pages[g]));
             }
@@ -232,7 +241,7 @@ fn next_label(shelf: &Shelf) -> String {
 
 /// One part of the list, as the panel draws it, over the rows of its page.
 fn group_item(group: &Group, page: &Rc<VecModel<PlaylistItem>>) -> PlaylistGroup {
-    let count = group.entries.len();
+    let (names, measured_names) = names(group);
     PlaylistGroup {
         label: group.label.as_str().into(),
         // Capitals for the interface's own words, never the user's: SEASON 7,
@@ -244,16 +253,55 @@ fn group_item(group: &Group, page: &Rc<VecModel<PlaylistItem>>) -> PlaylistGroup
         })
         .into(),
         titular: group.named,
-        detail: if count == 1 {
-            tr("1 episode").into()
-        } else {
-            fill(tr("{} episodes"), &[&count]).into()
-        },
+        detail: detail(group).into(),
         current: group.current().is_some(),
         leaf: group.leaf,
         open_row: group.open_row() as i32,
         entries: ModelRc::from(page.clone()),
+        names: names.into(),
+        measured_names: measured_names.into(),
     }
+}
+
+/// How many files a part holds, as its row says it: "10 episodes".
+fn detail(group: &Group) -> String {
+    let count = group.entries.len();
+    if count == 1 {
+        tr("1 episode").to_owned()
+    } else {
+        fill(tr("{} episodes"), &[&count])
+    }
+}
+
+/// What a part's row in the list of parts is called: a file listed as itself
+/// goes by its own row's name.
+fn row_name(group: &Group) -> &str {
+    match group.entries.first() {
+        Some(entry) if group.leaf => &entry.label,
+        _ => &group.label,
+    }
+}
+
+/// A part's files' names, for the measures that size the panel to its page:
+/// those whose rows draw no resume measure, then those that do.
+fn names(group: &Group) -> (String, String) {
+    let (measured, plain): (Vec<&Entry>, Vec<&Entry>) =
+        group.entries.iter().partition(|e| draws_measure(e));
+    (
+        lines(plain.iter().map(|e| e.label.as_str())),
+        lines(measured.iter().map(|e| e.label.as_str())),
+    )
+}
+
+/// Whether a file's row draws its resume measure: it was started or
+/// finished, and didn't fail to play.
+fn draws_measure(entry: &Entry) -> bool {
+    (entry.progress.fraction > 0.001 || entry.progress.finished) && entry.why.is_empty()
+}
+
+/// Names one to a line, which a measure reads as its widest.
+fn lines<S: Borrow<str>>(names: impl Iterator<Item = S>) -> String {
+    names.collect::<Vec<_>>().join("\n")
 }
 
 fn entry_item(entry: &Entry) -> PlaylistItem {
@@ -272,6 +320,7 @@ fn entry_item(entry: &Entry) -> PlaylistItem {
         progress: entry.progress.fraction,
         finished: entry.progress.finished,
         why: entry.why.as_str().into(),
+        measured: draws_measure(entry),
     }
 }
 

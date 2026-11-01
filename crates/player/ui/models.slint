@@ -128,6 +128,10 @@ export struct PlaylistItem {
     /// Why it failed to play during this run, as the notice said it; empty
     /// for a file that played or hasn't been tried.
     why: string,
+    /// Its row draws the resume measure: something started, or something
+    /// done, and nothing failed. Decided with the names that size the panel
+    /// (see `PlaylistGroup.measured-names`), so the two can't disagree.
+    measured: bool,
 }
 
 /// One part of a playlist, as the panel shows it (see `playlist-groups`).
@@ -147,4 +151,9 @@ export struct PlaylistGroup {
     /// The row its page opens on: the file playing, or the first unfinished.
     open-row: int,
     entries: [PlaylistItem],
+    /// Its files' names, one to a line, for the measures that size the panel
+    /// to its page (see `playlist-w`). Those whose rows draw a resume measure
+    /// come apart, since it takes room from the name.
+    names: string,
+    measured-names: string,
 }
