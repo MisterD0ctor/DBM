@@ -36,6 +36,10 @@
 //!
 //! Run with a video path: `cargo run -p dbm-player -- some/video.mkv`
 
+// Otherwise Windows opens a console beside the window. A debug build keeps
+// it, for what `eprintln!` has to say while working on the player.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod app;
 mod diagnostics;
 mod driver;
