@@ -1082,3 +1082,7 @@ msgstr "Intro"
 msgctxt "player"
 msgid "."
 msgstr ","
+
+msgctxt "MainWindow"
+msgid "{}%"
+msgstr "{} %"

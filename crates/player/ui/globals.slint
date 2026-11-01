@@ -186,8 +186,8 @@ export global Flash {
 /// only one tip is ever up. The accessibility page can turn tips and their
 /// keys off; screen readers get the controls' names either way.
 export global Tip {
-    /// Whether tips go up at all. Off, `point` and `show` put nothing up and
-    /// return a claim that never matches.
+    /// Whether tips go up. Off, `point` puts nothing up and returns a claim
+    /// that never matches; a reading (`read-out`) still goes up.
     in-out property <bool> enabled: true;
     /// Whether a tip names the key as well as the control.
     in-out property <bool> with-keys: true;
@@ -200,8 +200,8 @@ export global Tip {
     /// still the one it put up.
     in-out property <int> seq;
 
-    /// Whether the tip goes up without the wait. Set by `show`, cleared by
-    /// `point`.
+    /// Whether the tip goes up without the wait. Set by `read-out`, cleared
+    /// by `point`.
     in-out property <bool> now;
 
     /// Puts a tip up and returns the claim on it, for `release`.
@@ -217,13 +217,11 @@ export global Tip {
         return Tip.seq;
     }
 
-    /// The same, with no wait: for a reading that changes under the hand,
-    /// like the volume's. Each notch of the wheel would restart the wait, so
-    /// a reading that waited would never arrive while it was wanted.
-    public function show(label: string, keys: string, cx: length) -> int {
-        if (!Tip.enabled) {
-            return -1;
-        }
+    /// The same with no wait, and even with tips off: for a reading that
+    /// changes under the hand, like the volume's, which is a control's value
+    /// rather than a word about it. Each notch of the wheel would restart the
+    /// wait, so a reading that waited would never arrive while it was wanted.
+    public function read-out(label: string, keys: string, cx: length) -> int {
         Tip.label = label;
         Tip.keys = Tip.with-keys ? keys : "";
         Tip.cx = cx;

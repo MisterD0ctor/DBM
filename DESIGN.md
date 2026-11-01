@@ -1770,11 +1770,11 @@ list arriving one row at a time where the question was asked.
   hanging over the result is in the way of seeing it. A resize takes it at
   once, because every control has moved out from under it.
 - **A reading does not wait, and is not put away.** The volume track's label
-  is the level rather than a name. It opens after the same delay when the
-  pointer only rests there, but a level that moves under the pointer is said at
-  once — it is the answer to the wheel, the drag or the key that moved it, and
-  each notch would otherwise start the wait again. A press leaves it up: here
-  the label is the result, not something in front of it.
+  is the level rather than a name, and opens the moment the pointer reaches
+  the track: the bar shows the level nowhere else as a number, and a level
+  that moves under the pointer is the answer to the wheel, the drag or the key
+  that moved it, which each notch would otherwise make wait again. A press
+  leaves it up: here the label is the result, not something in front of it.
 - **Above the bar, on the line panels open from**, centred on its control
   and clamped inside the bar's margins. There is nowhere closer: the bar is
   one unbroken pane, and a tip laid over it would be glass on glass.
@@ -1785,11 +1785,13 @@ list arriving one row at a time where the question was asked.
   thirteen more rects published to the renderer for a thing that is never in
   two places.
 - **Both halves can be turned off**, on the accessibility page: *Tooltips*
-  for the whole label, the volume's reading included, and *Shortcuts in
-  tooltips*, under it while it is on, for the key alone. Someone who knows the bar has learned what the
-  tips teach, and from then on a pill rising over the film wherever the
-  pointer rests is in the way. The controls keep their names for a screen
-  reader either way.
+  for the whole label, and *Shortcuts in tooltips*, under it while it is on,
+  for the key alone. Someone who knows the bar has learned what the tips
+  teach, and from then on a pill rising over the film wherever the pointer
+  rests is in the way. The volume's reading stays, as the bare number, since
+  it is the level rather than a lesson, except while muted, when that number
+  isn't what is heard. The controls keep their names for a screen reader
+  either way.
 
 ### Named Rules
 

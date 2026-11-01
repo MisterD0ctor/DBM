@@ -7059,8 +7059,12 @@ export component MainWindow inherits Window {
 
                 // The level as a number, which nothing else on the bar gives:
                 // the track has 96px for 200 steps, and the glyph moves in tens.
-                property <string> tip: root.volume-said;
-                property <string> tip-keys: root.muted ? "" : "↑ ↓";
+                // With tips off it is still said, as the number alone, but not
+                // while muted, when the number isn't what is heard. An empty
+                // tip is none, so muting under the pointer takes it down.
+                property <string> tip: Tip.enabled ? root.volume-said
+                    : root.muted ? "" : @tr("{}%", Math.round(root.volume));
+                property <string> tip-keys: Tip.enabled && !root.muted ? "↑ ↓" : "";
                 property <length> tip-cx: self.absolute-position.x + self.width / 2;
                 /// This track's claim on the tip, as a button holds one.
                 property <int> tip-claim: -1;
@@ -7074,7 +7078,7 @@ export component MainWindow inherits Window {
                 // the wait, as the answer to whatever moved it.
                 changed tip => {
                     if (Tip.seq == self.tip-claim) {
-                        self.tip-claim = Tip.show(self.tip, self.tip-keys, self.tip-cx);
+                        self.tip-claim = Tip.read-out(self.tip, self.tip-keys, self.tip-cx);
                     }
                 }
 
@@ -7164,7 +7168,7 @@ export component MainWindow inherits Window {
                     }
                     changed has-hover => {
                         if (self.has-hover) {
-                            vol-track.tip-claim = Tip.point(vol-track.tip,
+                            vol-track.tip-claim = Tip.read-out(vol-track.tip,
                                 vol-track.tip-keys, vol-track.tip-cx);
                         } else {
                             Tip.release(vol-track.tip-claim);
