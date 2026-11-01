@@ -1,13 +1,14 @@
 //! The handles the parts of the player share.
 //!
 //! One value rather than a parameter apiece, since the interface's callbacks,
-//! the frame loop and the harness each need several. Every field is a
-//! reference-counted handle, so cloning an `App` is cheap and a closure can
-//! take the whole thing.
+//! the frame loop and the harness each need several. It is one `Rc`, so
+//! cloning an `App` is cheap and a closure can take the whole thing. The few
+//! fields handed out on their own are reference-counted themselves.
 //!
 //! UI thread only, like everything that holds one: the `Rc`s are not `Send`.
 //! The worker and the bus threads are given the `Arc<Mpv>` alone.
 
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -25,7 +26,23 @@ use crate::settings::Store;
 use crate::worker::Worker;
 
 #[derive(Clone)]
-pub struct App {
+pub struct App(Rc<Shared>);
+
+impl App {
+    pub fn new(shared: Shared) -> Self {
+        Self(Rc::new(shared))
+    }
+}
+
+impl std::ops::Deref for App {
+    type Target = Shared;
+
+    fn deref(&self) -> &Shared {
+        &self.0
+    }
+}
+
+pub struct Shared {
     /// `Arc` for two reasons: its address must stay put, because the render
     /// context keeps a raw pointer to the symbol table inside it; and the
     /// worker thread needs a share of it.
@@ -39,31 +56,31 @@ pub struct App {
     pub activity: Activity,
     /// Timeline drags: the callbacks feed it positions, the frame loop the
     /// replies that let the next seek go out.
-    pub scrubber: Rc<Scrubber>,
+    pub scrubber: Scrubber,
     /// What answering a hover over the timeline needs: the frame loop learns
     /// it, the callbacks answer the pointer from it.
-    pub preview: Rc<Preview>,
+    pub preview: Preview,
     /// Puts audio back when its device returns. Hears every mpv event, and
     /// about the one choice it must not undo.
     pub audio: Rc<Watchdog>,
     /// Where subtitles sit. The callbacks move the line when the person
     /// does, the frame loop when the bar does, and both go through here.
-    pub subline: Rc<Subline>,
+    pub subline: Subline,
     /// What the last search on OpenSubtitles found, in the order its rows
     /// are drawn: the frame loop puts it here, a pressed row reads it back.
-    pub found: Rc<std::cell::RefCell<Vec<Hit>>>,
+    pub found: RefCell<Vec<Hit>>,
     /// The result whose download was refused for want of an account, and the
     /// film it was for: fetched again once the person signs in, which is what
     /// they signed in for.
-    pub waiting: Rc<std::cell::RefCell<Option<(String, Hit)>>>,
+    pub waiting: RefCell<Option<(String, Hit)>>,
     /// Arriving at a file with a place saved in it: the callbacks ask for
     /// files through it, the frame loop tells it what the playlist knows and
     /// when a file has loaded.
-    pub arrival: Rc<Arrival>,
+    pub arrival: Arrival,
     /// A seek the pointer made: the callbacks tell it where the film was and
     /// where it went, the frame loop asks whether the way back is offered.
-    pub retrace: Rc<Retrace>,
+    pub retrace: Retrace,
     /// The interface's size: the settings choose it, the frame loop keeps it
     /// on top of whatever the system sets.
-    pub scale: Rc<Scale>,
+    pub scale: Scale,
 }

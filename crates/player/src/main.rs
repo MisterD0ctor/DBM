@@ -60,12 +60,13 @@ mod settings;
 mod threads;
 mod worker;
 
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use slint::ComponentHandle;
 
-use crate::app::App;
+use crate::app::{App, Shared};
 
 slint::include_modules!();
 
@@ -103,13 +104,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let worker = Rc::new(worker::Worker::spawn(mpv.clone(), ui.as_weak()));
     let settings = Rc::new(settings::Store::default());
-    let app = App {
+    let app = App::new(Shared {
         mpv: mpv.clone(),
         worker: worker.clone(),
         settings: settings.clone(),
         activity: interface::chrome::Activity::new(),
-        scrubber: Rc::new(playback::scrub::Scrubber::new()),
-        preview: Rc::new(library::preview::Preview::default()),
+        scrubber: playback::scrub::Scrubber::new(),
+        preview: library::preview::Preview::default(),
         // Watches for audio devices coming and going.
         audio: playback::audio::Watchdog::new({
             let worker = worker.clone();
@@ -120,13 +121,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 });
             }
         }),
-        subline: Rc::new(interface::subline::Subline::new(settings.clone())),
-        found: Rc::default(),
-        waiting: Rc::default(),
-        arrival: Rc::default(),
-        retrace: Rc::default(),
-        scale: Rc::default(),
-    };
+        subline: interface::subline::Subline::new(settings.clone()),
+        found: RefCell::default(),
+        waiting: RefCell::default(),
+        arrival: playback::arrival::Arrival::default(),
+        retrace: playback::retrace::Retrace::default(),
+        scale: interface::scale::Scale::default(),
+    });
 
     // Loads what was saved, then writes changes back once they settle, so the
     // defaults in `GlassParams` are only what a reset goes back to.
