@@ -99,11 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let mpv = Arc::new(mpv?);
     playback::session::mask_subtitles(&mpv);
-    for (name, format) in playback::state::OBSERVED {
-        if let Err(e) = mpv.observe(name, *format) {
-            log::warn!("cannot observe {name}: {e}");
-        }
-    }
+    playback::state::observe(&mpv);
 
     let worker = Rc::new(worker::Worker::spawn(mpv.clone(), ui.as_weak()));
     let settings = Rc::new(settings::Store::default());
@@ -131,9 +127,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         retrace: Rc::default(),
         scale: Rc::default(),
     };
-    // Observing the device list is what starts mpv's hotplug monitor, so this
-    // has to be armed whether or not anything ever disappears.
-    playback::audio::observe(&mpv);
 
     // Loads what was saved, then writes changes back once they settle, so the
     // defaults in `GlassParams` are only what a reset goes back to.

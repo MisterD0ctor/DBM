@@ -23,7 +23,8 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use crate::lang::tr;
-use crate::playback::mpv::{Event, FORMAT_STRING, Mpv, Value};
+use crate::playback::mpv::{Event, Mpv, Value};
+use crate::playback::state::Prop;
 use crate::playback::tracks::{self, TrackKind};
 
 /// How long the device list must stay still before the audio chain is touched.
@@ -33,20 +34,6 @@ use crate::playback::tracks::{self, TrackKind};
 /// Waiting for quiet collapses the churn into one reload and gives the device
 /// time to become real.
 const SETTLE: Duration = Duration::from_millis(1200);
-
-/// Start mpv's hotplug monitor.
-///
-/// Separate from [`crate::playback::state::OBSERVED`], the properties the
-/// interface binds to: this one is never displayed, and is observed for the
-/// side effect, since mpv doesn't track devices otherwise.
-pub fn observe(mpv: &Mpv) {
-    if let Err(e) = mpv.observe("audio-device-list", FORMAT_STRING) {
-        log::warn!(
-            "cannot observe audio-device-list ({e}); audio will not recover \
-             from a device disappearing"
-        );
-    }
-}
 
 pub struct Watchdog {
     /// Runs [`reopen`] where blocking is allowed, with the track to put
@@ -82,16 +69,16 @@ impl Watchdog {
     /// Route one mpv event. Called for every event, from the same drain that
     /// feeds the mirrored state.
     pub fn on_event(self: &Rc<Self>, event: &Event) {
-        let Event::Property { name, value } = event else {
+        let Event::Property { id, value } = event else {
             return;
         };
-        match (name.as_str(), value) {
+        match (Prop::of(*id), value) {
             // Only real ids are worth keeping, since `no` is either the
             // failure being recovered from or the user's own choice.
-            ("aid", Value::Str(id)) if id.parse::<u32>().is_ok() => {
-                *self.last_track.borrow_mut() = Some(id.clone());
+            (Some(Prop::Aid), Value::Str(track)) if track.parse::<u32>().is_ok() => {
+                *self.last_track.borrow_mut() = Some(track.clone());
             }
-            ("audio-device-list", Value::Str(payload)) => self.devices_changed(payload),
+            (Some(Prop::AudioDeviceList), Value::Str(payload)) => self.devices_changed(payload),
             _ => {}
         }
     }

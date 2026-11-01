@@ -73,12 +73,30 @@ struct OpenglFbo {
 /// free of a GL binding dependency.
 const GL_RGBA8: c_int = 0x8058;
 
-/// `mpv_format`. We only observe the scalar kinds; anything list-shaped
-/// (tracks, playlist) is pulled with a command when its count changes,
-/// which avoids marshalling a node tree across the FFI boundary.
-pub const FORMAT_STRING: c_int = 1;
-pub const FORMAT_FLAG: c_int = 3;
-pub const FORMAT_DOUBLE: c_int = 5;
+// `mpv_format`, the scalar kinds.
+const FORMAT_STRING: c_int = 1;
+const FORMAT_FLAG: c_int = 3;
+const FORMAT_DOUBLE: c_int = 5;
+
+/// What to receive an observed property as. Only the scalar kinds: anything
+/// list-shaped (tracks, playlist) is pulled with a command when its count
+/// changes, which avoids marshalling a node tree across the FFI boundary.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Format {
+    String,
+    Flag,
+    Double,
+}
+
+impl Format {
+    const fn code(self) -> c_int {
+        match self {
+            Self::String => FORMAT_STRING,
+            Self::Flag => FORMAT_FLAG,
+            Self::Double => FORMAT_DOUBLE,
+        }
+    }
+}
 
 // `mpv_event_id`, the handful we act on.
 const EVENT_SHUTDOWN: c_int = 1;
@@ -119,7 +137,8 @@ const END_FILE_REASON_EOF: c_int = 0;
 
 #[repr(C)]
 struct RawEventProperty {
-    name: *const c_char,
+    /// Unread: the id the property was observed under says which it is.
+    _name: *const c_char,
     format: c_int,
     data: *mut c_void,
 }
@@ -137,8 +156,10 @@ pub enum Value {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
+    /// An observed property changed. `id` is whatever it was observed
+    /// under (see [`Mpv::observe`]).
     Property {
-        name: String,
+        id: u64,
         value: Value,
     },
     /// An async command finished. `id` is whatever was passed to
@@ -457,12 +478,13 @@ impl Mpv {
     }
 
     /// Ask mpv to report changes to `name`. Values arrive through
-    /// [`Mpv::poll_event`] as [`Event::Property`].
-    pub fn observe(&self, name: &str, format: c_int) -> Result<()> {
+    /// [`Mpv::poll_event`] as [`Event::Property`], under `id`, which is
+    /// cheaper to tell apart than the name, copied out on every change.
+    pub fn observe(&self, id: u64, name: &str, format: Format) -> Result<()> {
         let n = cstr(name)?;
         // SAFETY: `handle` is live, and `n` outlives the call.
         check("mpv_observe_property", unsafe {
-            (self.lib.mpv_observe_property)(self.handle, 0, n.as_ptr(), format)
+            (self.lib.mpv_observe_property)(self.handle, id, n.as_ptr(), format.code())
         })
     }
 
@@ -536,13 +558,6 @@ impl Mpv {
                 }
                 // SAFETY: a property event's `data` is an `mpv_event_property`.
                 let prop = unsafe { &*ev.data.cast::<RawEventProperty>() };
-                if prop.name.is_null() {
-                    return None;
-                }
-                // SAFETY: non-null, NUL-terminated, and mpv's until the next event.
-                let name = unsafe { CStr::from_ptr(prop.name) }
-                    .to_string_lossy()
-                    .into_owned();
                 // A null `data` means the property has no value right now,
                 // which is normal and not an error.
                 let value = if prop.data.is_null() {
@@ -568,7 +583,10 @@ impl Mpv {
                         _ => Value::Unset,
                     }
                 };
-                Some(Event::Property { name, value })
+                Some(Event::Property {
+                    id: ev.reply_userdata,
+                    value,
+                })
             }
             // `MPV_EVENT_NONE` for an empty queue, or an event nothing here acts on.
             _ => None,

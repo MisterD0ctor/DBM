@@ -7,56 +7,196 @@
 //! reactivity, and duplicating it here would make two sources of truth.
 
 use crate::lang::{fill, tr};
-use crate::playback::mpv::{Event, FORMAT_DOUBLE, FORMAT_FLAG, FORMAT_STRING, Value};
+use crate::playback::mpv::{Event, Format, Mpv, Value};
 use crate::playback::tracks::{PlaylistEntry, Track};
-use std::ffi::c_int;
 
-/// Properties to observe, and the format to receive each in.
+/// Every property the player observes. Its position in [`Prop::ALL`] is the
+/// id mpv reports it under.
 ///
 /// List-shaped properties (`track-list`, `playlist`) are absent, since
 /// observing them as nodes would marshal a tree across FFI on every change.
 /// Their counts are observed instead, and the list is pulled when one moves.
-pub const OBSERVED: &[(&str, c_int)] = &[
-    ("filename", FORMAT_STRING),
-    ("media-title", FORMAT_STRING),
-    ("path", FORMAT_STRING),
-    ("duration", FORMAT_DOUBLE),
-    ("time-pos", FORMAT_DOUBLE),
-    ("percent-pos", FORMAT_DOUBLE),
-    ("pause", FORMAT_FLAG),
-    ("mute", FORMAT_FLAG),
-    ("volume", FORMAT_DOUBLE),
-    ("eof-reached", FORMAT_FLAG),
-    ("idle-active", FORMAT_FLAG),
-    ("playlist-pos", FORMAT_DOUBLE),
-    ("playlist-count", FORMAT_DOUBLE),
-    ("sub-visibility", FORMAT_FLAG),
-    ("sub-delay", FORMAT_DOUBLE),
-    ("sub-speed", FORMAT_DOUBLE),
-    ("sub-scale", FORMAT_DOUBLE),
-    ("panscan", FORMAT_DOUBLE),
-    ("speed", FORMAT_DOUBLE),
-    ("chapter", FORMAT_DOUBLE),
-    ("chapter-list/count", FORMAT_DOUBLE),
-    ("track-list/count", FORMAT_DOUBLE),
-    // Selecting a different track does not change the list's length, so
-    // these are what keep the `selected` flags from going stale.
-    ("sid", FORMAT_STRING),
-    ("aid", FORMAT_STRING),
-    // The video's own size after aspect correction. Enough, with `panscan`,
-    // to work out where a frame will land without waiting to be told.
-    ("dwidth", FORMAT_DOUBLE),
-    ("dheight", FORMAT_DOUBLE),
-    // Where mpv actually laid the video out. Observed rather than polled,
-    // since a blocking read on the render path cost 220ms a frame during a
-    // resize, when mpv's core lock is contended.
-    ("osd-dimensions/w", FORMAT_DOUBLE),
-    ("osd-dimensions/h", FORMAT_DOUBLE),
-    ("osd-dimensions/ml", FORMAT_DOUBLE),
-    ("osd-dimensions/mt", FORMAT_DOUBLE),
-    ("osd-dimensions/mr", FORMAT_DOUBLE),
-    ("osd-dimensions/mb", FORMAT_DOUBLE),
-];
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Prop {
+    Filename,
+    MediaTitle,
+    Path,
+    Duration,
+    TimePos,
+    PercentPos,
+    Pause,
+    Mute,
+    Volume,
+    EofReached,
+    IdleActive,
+    PlaylistPos,
+    PlaylistCount,
+    SubVisibility,
+    SubDelay,
+    SubSpeed,
+    SubScale,
+    Panscan,
+    Speed,
+    Chapter,
+    ChapterCount,
+    TrackCount,
+    /// Selecting a different track does not change the list's length, so
+    /// this and `Aid` are what keep the `selected` flags from going stale.
+    Sid,
+    Aid,
+    /// The video's own size after aspect correction. Enough, with `panscan`,
+    /// to work out where a frame will land without waiting to be told.
+    Dwidth,
+    Dheight,
+    /// Where mpv actually laid the video out. Observed rather than polled,
+    /// since a blocking read on the render path cost 220ms a frame during a
+    /// resize, when mpv's core lock is contended.
+    OsdW,
+    OsdH,
+    OsdMl,
+    OsdMt,
+    OsdMr,
+    OsdMb,
+    /// Never shown: observed because observing it is what starts mpv's
+    /// hotplug monitor, which the audio watchdog needs to put sound back
+    /// when a device returns (see `audio`).
+    AudioDeviceList,
+}
+
+impl Prop {
+    /// In declaration order, which makes each one's index its id.
+    pub const ALL: [Self; 33] = [
+        Self::Filename,
+        Self::MediaTitle,
+        Self::Path,
+        Self::Duration,
+        Self::TimePos,
+        Self::PercentPos,
+        Self::Pause,
+        Self::Mute,
+        Self::Volume,
+        Self::EofReached,
+        Self::IdleActive,
+        Self::PlaylistPos,
+        Self::PlaylistCount,
+        Self::SubVisibility,
+        Self::SubDelay,
+        Self::SubSpeed,
+        Self::SubScale,
+        Self::Panscan,
+        Self::Speed,
+        Self::Chapter,
+        Self::ChapterCount,
+        Self::TrackCount,
+        Self::Sid,
+        Self::Aid,
+        Self::Dwidth,
+        Self::Dheight,
+        Self::OsdW,
+        Self::OsdH,
+        Self::OsdMl,
+        Self::OsdMt,
+        Self::OsdMr,
+        Self::OsdMb,
+        Self::AudioDeviceList,
+    ];
+
+    pub const fn name(self) -> &'static str {
+        match self {
+            Self::Filename => "filename",
+            Self::MediaTitle => "media-title",
+            Self::Path => "path",
+            Self::Duration => "duration",
+            Self::TimePos => "time-pos",
+            Self::PercentPos => "percent-pos",
+            Self::Pause => "pause",
+            Self::Mute => "mute",
+            Self::Volume => "volume",
+            Self::EofReached => "eof-reached",
+            Self::IdleActive => "idle-active",
+            Self::PlaylistPos => "playlist-pos",
+            Self::PlaylistCount => "playlist-count",
+            Self::SubVisibility => "sub-visibility",
+            Self::SubDelay => "sub-delay",
+            Self::SubSpeed => "sub-speed",
+            Self::SubScale => "sub-scale",
+            Self::Panscan => "panscan",
+            Self::Speed => "speed",
+            Self::Chapter => "chapter",
+            Self::ChapterCount => "chapter-list/count",
+            Self::TrackCount => "track-list/count",
+            Self::Sid => "sid",
+            Self::Aid => "aid",
+            Self::Dwidth => "dwidth",
+            Self::Dheight => "dheight",
+            Self::OsdW => "osd-dimensions/w",
+            Self::OsdH => "osd-dimensions/h",
+            Self::OsdMl => "osd-dimensions/ml",
+            Self::OsdMt => "osd-dimensions/mt",
+            Self::OsdMr => "osd-dimensions/mr",
+            Self::OsdMb => "osd-dimensions/mb",
+            Self::AudioDeviceList => "audio-device-list",
+        }
+    }
+
+    const fn format(self) -> Format {
+        match self {
+            Self::Filename
+            | Self::MediaTitle
+            | Self::Path
+            | Self::Sid
+            | Self::Aid
+            | Self::AudioDeviceList => Format::String,
+            Self::Duration
+            | Self::TimePos
+            | Self::PercentPos
+            | Self::Volume
+            | Self::PlaylistPos
+            | Self::PlaylistCount
+            | Self::SubDelay
+            | Self::SubSpeed
+            | Self::SubScale
+            | Self::Panscan
+            | Self::Speed
+            | Self::Chapter
+            | Self::ChapterCount
+            | Self::TrackCount
+            | Self::Dwidth
+            | Self::Dheight
+            | Self::OsdW
+            | Self::OsdH
+            | Self::OsdMl
+            | Self::OsdMt
+            | Self::OsdMr
+            | Self::OsdMb => Format::Double,
+            Self::Pause
+            | Self::Mute
+            | Self::EofReached
+            | Self::IdleActive
+            | Self::SubVisibility => Format::Flag,
+        }
+    }
+
+    pub const fn id(self) -> u64 {
+        self as u64
+    }
+
+    /// Which property an [`Event::Property`] is about.
+    pub fn of(id: u64) -> Option<Self> {
+        usize::try_from(id)
+            .ok()
+            .and_then(|i| Self::ALL.get(i).copied())
+    }
+}
+
+/// Ask mpv for every [`Prop`], under its id.
+pub fn observe(mpv: &Mpv) {
+    for prop in Prop::ALL {
+        if let Err(e) = mpv.observe(prop.id(), prop.name(), prop.format()) {
+            log::warn!("cannot observe {}: {e}", prop.name());
+        }
+    }
+}
 
 /// Track, chapter and playlist contents, read together because they are
 /// invalidated together and a single job means a single round trip.
@@ -165,7 +305,9 @@ impl PlayerState {
     /// Fold one event in. Returns whether anything the UI shows changed.
     pub fn apply(&mut self, event: &Event) -> bool {
         match event {
-            Event::Property { name, value } => self.apply_property(name, value),
+            Event::Property { id, value } => {
+                Prop::of(*id).is_some_and(|prop| self.apply_property(prop, value))
+            }
             // A new file invalidates everything list-shaped.
             Event::FileLoaded => {
                 self.loads = self.loads.wrapping_add(1);
@@ -184,7 +326,7 @@ impl PlayerState {
         }
     }
 
-    fn apply_property(&mut self, name: &str, value: &Value) -> bool {
+    fn apply_property(&mut self, prop: Prop, value: &Value) -> bool {
         // `Unset` is normal (`time-pos` has no value until something plays),
         // so it clears the field rather than being an error.
         let num = match value {
@@ -197,56 +339,57 @@ impl PlayerState {
             _ => None,
         };
 
-        match name {
-            "filename" => set(&mut self.filename, text),
-            "media-title" => set(&mut self.media_title, text),
-            "path" => set(&mut self.path, text),
-            "duration" => set(&mut self.duration, num.unwrap_or(0.0)),
-            "time-pos" => set(&mut self.time_pos, num.unwrap_or(0.0)),
-            "percent-pos" => set(&mut self.percent_pos, num.unwrap_or(0.0)),
-            "pause" => set(&mut self.paused, flag),
-            "mute" => set(&mut self.muted, flag),
-            "volume" => set(&mut self.volume, num.unwrap_or(0.0)),
-            "eof-reached" => set(&mut self.eof_reached, flag),
-            "idle-active" => set(&mut self.idle, flag),
-            "playlist-pos" => set(&mut self.playlist_pos, num.unwrap_or(-1.0) as i64),
-            "playlist-count" => {
+        match prop {
+            Prop::Filename => set(&mut self.filename, text),
+            Prop::MediaTitle => set(&mut self.media_title, text),
+            Prop::Path => set(&mut self.path, text),
+            Prop::Duration => set(&mut self.duration, num.unwrap_or(0.0)),
+            Prop::TimePos => set(&mut self.time_pos, num.unwrap_or(0.0)),
+            Prop::PercentPos => set(&mut self.percent_pos, num.unwrap_or(0.0)),
+            Prop::Pause => set(&mut self.paused, flag),
+            Prop::Mute => set(&mut self.muted, flag),
+            Prop::Volume => set(&mut self.volume, num.unwrap_or(0.0)),
+            Prop::EofReached => set(&mut self.eof_reached, flag),
+            Prop::IdleActive => set(&mut self.idle, flag),
+            Prop::PlaylistPos => set(&mut self.playlist_pos, num.unwrap_or(-1.0) as i64),
+            Prop::PlaylistCount => {
                 let moved = set(&mut self.playlist_count, num.unwrap_or(0.0) as i64);
                 self.lists_moved(moved)
             }
-            "sub-visibility" => set(&mut self.sub_visibility, flag),
-            "sub-delay" => set(&mut self.sub_delay, num.unwrap_or(0.0)),
-            "sub-speed" => set(&mut self.sub_speed, num.unwrap_or(1.0)),
-            "sub-scale" => set(&mut self.sub_scale, num.unwrap_or(1.0)),
-            "panscan" => set(&mut self.panscan, num.unwrap_or(0.0)),
-            "speed" => set(&mut self.speed, num.unwrap_or(1.0)),
-            "chapter" => set(&mut self.chapter, num.map_or(-1, |n| n as i64)),
-            "chapter-list/count" => {
+            Prop::SubVisibility => set(&mut self.sub_visibility, flag),
+            Prop::SubDelay => set(&mut self.sub_delay, num.unwrap_or(0.0)),
+            Prop::SubSpeed => set(&mut self.sub_speed, num.unwrap_or(1.0)),
+            Prop::SubScale => set(&mut self.sub_scale, num.unwrap_or(1.0)),
+            Prop::Panscan => set(&mut self.panscan, num.unwrap_or(0.0)),
+            Prop::Speed => set(&mut self.speed, num.unwrap_or(1.0)),
+            Prop::Chapter => set(&mut self.chapter, num.map_or(-1, |n| n as i64)),
+            Prop::ChapterCount => {
                 let moved = set(&mut self.chapter_count, num.unwrap_or(0.0) as i64);
                 self.lists_moved(moved)
             }
-            "sid" => {
+            Prop::Sid => {
                 let moved = set(&mut self.sid, text);
                 self.lists_moved(moved)
             }
-            "aid" => {
+            Prop::Aid => {
                 let moved = set(&mut self.aid, text);
                 self.lists_moved(moved)
             }
-            "dwidth" => set(&mut self.dwidth, num.unwrap_or(0.0)),
-            "dheight" => set(&mut self.dheight, num.unwrap_or(0.0)),
-            "osd-dimensions/w" => set(&mut self.osd[0], num.unwrap_or(0.0)),
-            "osd-dimensions/h" => set(&mut self.osd[1], num.unwrap_or(0.0)),
-            "osd-dimensions/ml" => set(&mut self.osd[2], num.unwrap_or(0.0)),
-            "osd-dimensions/mt" => set(&mut self.osd[3], num.unwrap_or(0.0)),
-            "osd-dimensions/mr" => set(&mut self.osd[4], num.unwrap_or(0.0)),
-            "osd-dimensions/mb" => set(&mut self.osd[5], num.unwrap_or(0.0)),
-            "track-list/count" => {
+            Prop::Dwidth => set(&mut self.dwidth, num.unwrap_or(0.0)),
+            Prop::Dheight => set(&mut self.dheight, num.unwrap_or(0.0)),
+            Prop::OsdW => set(&mut self.osd[0], num.unwrap_or(0.0)),
+            Prop::OsdH => set(&mut self.osd[1], num.unwrap_or(0.0)),
+            Prop::OsdMl => set(&mut self.osd[2], num.unwrap_or(0.0)),
+            Prop::OsdMt => set(&mut self.osd[3], num.unwrap_or(0.0)),
+            Prop::OsdMr => set(&mut self.osd[4], num.unwrap_or(0.0)),
+            Prop::OsdMb => set(&mut self.osd[5], num.unwrap_or(0.0)),
+            Prop::TrackCount => {
                 let n = num.unwrap_or(0.0) as i64;
                 let moved = set(&mut self.track_count, n);
                 self.lists_moved(moved)
             }
-            _ => false,
+            // The audio watchdog's, not the interface's.
+            Prop::AudioDeviceList => false,
         }
     }
 
@@ -644,6 +787,14 @@ fn set<T: PartialEq>(slot: &mut T, value: T) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_property_is_observed_under_its_own_index() {
+        for (index, prop) in Prop::ALL.into_iter().enumerate() {
+            assert_eq!(prop.id(), index as u64, "{prop:?}");
+            assert_eq!(Prop::of(prop.id()), Some(prop));
+        }
+    }
     use crate::playback::tracks::Chapter;
 
     fn playing(path: &str, chapter: i64, marks: &[(f64, &str)]) -> PlayerState {

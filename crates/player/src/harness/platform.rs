@@ -147,7 +147,7 @@ pub(super) fn audio_test(
 /// An `audio-device-list` change as mpv would report it.
 fn device_list(payload: &str) -> crate::playback::mpv::Event {
     crate::playback::mpv::Event::Property {
-        name: "audio-device-list".into(),
+        id: crate::playback::state::Prop::AudioDeviceList.id(),
         value: crate::playback::mpv::Value::Str(payload.into()),
     }
 }
