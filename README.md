@@ -227,6 +227,29 @@ an exception for `--filesystem=host:ro`. Its linter rejects that permission
 by default, but the player needs it, because opening one episode means
 reading the rest of its folder.
 
+## Versioning
+
+Releases follow [Semantic Versioning](https://semver.org/). A patch release
+(0.5.0 → 0.5.1) only fixes bugs, a minor release (0.4.0 → 0.5.0) adds
+features without breaking anything below, and a major release changes
+something below in a way that isn't backward compatible. These are what the
+player promises to keep working across updates:
+
+- the command line: `dbm-player [path]` opens that video, or plays the
+  folder at that path
+- your settings, and the resume positions and watched marks the player keeps
+  for each video
+- media keys and the desktop's media controls, through SMTC on Windows and
+  MPRIS on Linux
+
+The caches the player keeps aren't part of it, since it rebuilds them on its
+own, and neither are the `DBM_*` environment variables, which exist for
+testing.
+
+The player is still at 0.x, which Semantic Versioning treats as early
+development where anything may change. Until 1.0, a release that breaks one
+of the promises above bumps the minor number and says so in its notes.
+
 ## Licence
 
 **GPL-3.0-or-later.** This wasn't a free choice. The Windows build ships
