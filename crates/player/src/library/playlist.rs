@@ -10,7 +10,7 @@
 //! Nothing here touches mpv or the UI; it produces a plain list.
 
 use crate::lang::{fill, tr};
-use crate::playback::arrival::Saved;
+use crate::library::resume::Saved;
 use std::cmp::Ordering;
 use std::fs;
 use std::io::{BufWriter, Write};

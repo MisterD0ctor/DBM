@@ -25,7 +25,6 @@ use std::time::Duration;
 use crate::lang::tr;
 use crate::playback::mpv::{Event, FORMAT_STRING, Mpv, Value};
 use crate::playback::tracks::{self, TrackKind};
-use crate::worker::{Completion, Worker};
 
 /// How long the device list must stay still before the audio chain is touched.
 ///
@@ -50,7 +49,9 @@ pub fn observe(mpv: &Mpv) {
 }
 
 pub struct Watchdog {
-    worker: Rc<Worker>,
+    /// Runs [`reopen`] where blocking is allowed, with the track to put
+    /// back, and says what it returns.
+    reopen_elsewhere: Box<dyn Fn(Option<String>)>,
     /// Device names from the last list seen. `None` until the first list
     /// arrives: that one is the baseline, never a reconnection.
     seen: RefCell<Option<BTreeSet<String>>>,
@@ -67,9 +68,9 @@ pub struct Watchdog {
 }
 
 impl Watchdog {
-    pub fn new(worker: Rc<Worker>) -> Rc<Self> {
+    pub fn new(reopen_elsewhere: impl Fn(Option<String>) + 'static) -> Rc<Self> {
         Rc::new(Self {
-            worker,
+            reopen_elsewhere: Box::new(reopen_elsewhere),
             seen: RefCell::new(None),
             last_track: RefCell::new(None),
             user_disabled: Cell::new(false),
@@ -148,8 +149,7 @@ impl Watchdog {
         // Reads the track list and writes properties, both of which block on
         // mpv's core lock. Returns a notice when it actually repaired
         // something, so the interface can say so.
-        self.worker
-            .submit(move |mpv| reopen(mpv, remembered.as_deref()).map(Completion::Notice));
+        (self.reopen_elsewhere)(remembered);
     }
 }
 
@@ -157,7 +157,7 @@ impl Watchdog {
 ///
 /// **Worker thread only.** Returns what to tell the person watching, or
 /// `None` when there was nothing to repair.
-fn reopen(mpv: &Mpv, remembered: Option<&str>) -> Option<String> {
+pub fn reopen(mpv: &Mpv, remembered: Option<&str>) -> Option<String> {
     let tracks = tracks::read_tracks(mpv);
     let audio: Vec<i64> = tracks::of_kind(&tracks, TrackKind::Audio)
         .iter()

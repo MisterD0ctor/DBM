@@ -25,8 +25,8 @@ use crate::library::cache::PathMap;
 use crate::library::ffmpeg;
 use crate::library::fingerprint::{self, Print};
 use crate::library::naming::{self, Media};
+use crate::threads::Reporter;
 use crate::threads::{Supersede, Ticket};
-use crate::worker::{Completion, Reporter};
 
 /// How many episodes of the season are tried before this one is taken to
 /// have nothing to find.
@@ -218,7 +218,7 @@ pub fn spawn(
     ends: Vec<End>,
     beside: Vec<(String, usize)>,
     duration: f64,
-    reporter: Reporter,
+    reporter: Reporter<Outcome>,
 ) {
     let ticket = LISTENS.next();
     crate::threads::spawn("dbm-titles", move || {
@@ -245,7 +245,7 @@ pub fn spawn(
                 None => log::info!("no {what} heard"),
             }
             let path = path.clone();
-            reporter.send(Completion::Titles(Outcome { path, end, pieces }));
+            reporter.send(Outcome { path, end, pieces });
         }
     });
 }

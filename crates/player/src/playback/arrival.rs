@@ -25,53 +25,16 @@
 use std::cell::RefCell;
 
 use crate::library::durations::Progress;
+use crate::library::resume::Saved;
 use crate::playback::commands;
 use crate::playback::mpv::Mpv;
 
-/// A place saved this early is a file opened and left again rather than
-/// one being watched, and it starts over rather than ask about seconds.
-const WORTH_ASKING: f64 = 60.0;
-/// Left this close to its end, a file has been watched to it in all but
-/// name (its credits never heard, or its last checkpoint a little short of
-/// them), and starts over as a finished one does. The last twentieth, but
-/// never less than its last minute, since an eleven-minute episode's credits
-/// run longer than a twentieth of it.
-const ENDING_SHARE: f64 = 0.05;
-const ENDING_LEAST: f64 = 60.0;
 /// How far the position may wander from the saved place, in seconds, before
 /// the choice is taken to have been made some other way: a seek, a skip.
 const WANDER: f64 = 2.0;
 /// How long into a file autoplay started over the offer to go on from its
 /// saved place lasts, in seconds of the file.
 const OFFER_FOR: f64 = 10.0;
-
-/// What a file's saved place says to do on arriving at it.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Saved {
-    /// Nothing saved, and mpv starts at the top by itself.
-    Nothing,
-    /// Watched through, or all but, or barely begun: from the top.
-    Over,
-    /// A place worth going back to, this many seconds in.
-    Place(f64),
-}
-
-impl Saved {
-    pub fn of(progress: &Progress) -> Self {
-        if progress.start <= 0.0 {
-            Self::Nothing
-        } else if progress.finished
-            || progress.seconds > 0.0
-                && progress.seconds - progress.start
-                    <= (progress.seconds * ENDING_SHARE).max(ENDING_LEAST)
-            || progress.start < WORTH_ASKING
-        {
-            Self::Over
-        } else {
-            Self::Place(progress.start)
-        }
-    }
-}
 
 /// What to do once the file asked for has loaded.
 #[derive(Debug, Clone, Copy, PartialEq)]

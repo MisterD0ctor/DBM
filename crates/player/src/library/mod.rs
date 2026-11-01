@@ -4,7 +4,9 @@
 //! and what each file is: its name read for the show, season and episode in
 //! it, how long it is and how far in you got, its title tag, and a sheet of
 //! its frames for the seek preview. And at either end of watching, what to
-//! offer: the film left unfinished, and where to go when a list runs out.
+//! offer: the film left unfinished, and where to go when a list runs out,
+//! and a still to light the window with, from the film or from the player's
+//! own logo (`mark`).
 //! In between, what can be heard in it: the timing its subtitles want, and
 //! where an episode's title sequence and closing credits are. And from
 //! outside: subtitles fetched from OpenSubtitles for a film without any.
@@ -16,6 +18,7 @@ pub mod cache;
 pub mod durations;
 pub mod ffmpeg;
 pub mod fingerprint;
+pub mod mark;
 pub mod naming;
 pub mod onward;
 pub mod opensubtitles;

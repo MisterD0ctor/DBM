@@ -17,6 +17,7 @@ use crate::interface::{sliders, squircle};
 use crate::platform::dialog;
 use crate::playback::commands;
 use crate::settings::{Before, REGISTRY, Section, Toggle};
+use crate::worker::Completion;
 use crate::{MainWindow, Motion, Shapes, Tip};
 
 /// A click on the video is held this long so a double-click can cancel it,
@@ -239,7 +240,7 @@ fn wire_timeline(ui: &MainWindow, app: &App) {
         ui.on_preview_at(move |fraction| {
             let Some(ui) = weak.upgrade() else { return };
             let answer = app.preview.answer(fraction);
-            ui.set_preview_time(answer.time.into());
+            ui.set_preview_time(crate::interface::format::time(answer.seconds).into());
             ui.set_preview_chapter(answer.chapter.into());
             ui.set_preview_clip_x(answer.x);
             ui.set_preview_clip_y(answer.y);
@@ -305,7 +306,11 @@ fn wire_finding(ui: &MainWindow, app: &App) {
             app.found.borrow_mut().clear();
             ui.set_find_hits(Default::default());
             ui.set_find_state(1);
-            opensubtitles::search(path, search_languages(), app.worker.reporter());
+            opensubtitles::search(
+                path,
+                search_languages(),
+                app.worker.reporter(Completion::Found),
+            );
         });
     }
     {
@@ -322,7 +327,7 @@ fn wire_finding(ui: &MainWindow, app: &App) {
                 return;
             };
             ui.set_find_fetching(row);
-            opensubtitles::fetch(path, hit, app.worker.reporter());
+            opensubtitles::fetch(path, hit, app.worker.reporter(Completion::Fetched));
         });
     }
     {
@@ -340,7 +345,11 @@ fn wire_finding(ui: &MainWindow, app: &App) {
             }
             ui.set_signing_in(true);
             ui.set_sign_in_said(Default::default());
-            opensubtitles::account::sign_in(name, password, app.worker.reporter());
+            opensubtitles::account::sign_in(
+                name,
+                password,
+                app.worker.reporter(Completion::SignedIn),
+            );
         });
     }
     {
@@ -550,7 +559,7 @@ fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
     // comes back as a completion, which is where the timing is applied.
     on_app!(ui, app, on_sync_subtitles, |app| {
         app.activity.bump();
-        crate::library::subsync::spawn(app.mpv.clone(), app.worker.reporter());
+        crate::library::subsync::spawn(app.mpv.clone(), app.worker.reporter(Completion::Synced));
     });
     on_app!(ui, app, on_set_timing, |app, delay, speed| {
         app.activity.bump();

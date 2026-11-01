@@ -22,6 +22,7 @@
 
 mod completions;
 mod events;
+mod feeds;
 
 use std::num::NonZeroU32;
 use std::sync::Mutex;
@@ -94,11 +95,11 @@ pub struct Driver {
     /// The panels to draw unseen before they are opened.
     warm: crate::interface::warm::WarmUp,
     /// Keeps the duration cache the playlist reads from up to date.
-    durations: crate::library::durations::Recorder,
+    durations: feeds::Recorder,
     /// Describes the playlist's other files without playing them.
-    scan: crate::library::probe::Scan,
+    scan: feeds::Scan,
     /// Looks for the seasons beside a playlist that is one season of a show.
-    neighbours: crate::library::shelf::Neighbours,
+    neighbours: feeds::Neighbours,
     /// Last seen state of the playlist panel, so its opening can be noticed.
     playlist_open: bool,
     /// The file the way on was last looked for on behalf of.
@@ -180,9 +181,9 @@ impl Driver {
             language_seen: 0,
             resume_left: None,
             warm: crate::interface::warm::WarmUp::default(),
-            durations: crate::library::durations::Recorder::default(),
-            scan: crate::library::probe::Scan::default(),
-            neighbours: crate::library::shelf::Neighbours::default(),
+            durations: feeds::Recorder::default(),
+            scan: feeds::Scan::default(),
+            neighbours: feeds::Neighbours::default(),
             playlist_open: false,
             onward_asked: None,
             end_light_asked: None,
@@ -726,7 +727,7 @@ impl Driver {
             .worker
             .run(|_| crate::platform::memory::give_back());
 
-        crate::library::preview::spawn(path, self.app.worker.reporter());
+        crate::library::preview::spawn(path, self.app.worker.reporter(Completion::Preview));
     }
 
     /// Look for the way on at the end of the last file, once per file — or in
@@ -821,7 +822,7 @@ impl Driver {
             ends,
             beside,
             self.player.duration,
-            self.app.worker.reporter(),
+            self.app.worker.reporter(Completion::Titles),
         );
     }
 

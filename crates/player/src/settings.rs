@@ -17,7 +17,7 @@ use std::cell::{Cell, RefCell};
 
 use crate::gpu::pipeline::{BorderParams, GlassParams};
 use crate::lang::marked;
-use crate::playback::commands;
+use crate::playback::commands::{self, PictureParams};
 
 /// A preference that is a switch. Each rides in the saved file as 0 or 1, so
 /// the file stays one flat list of numbers.
@@ -155,29 +155,6 @@ impl Section {
             2 => Some(Self::Picture),
             _ => None,
         }
-    }
-}
-
-/// How mpv draws the picture: each in its own terms, -100 to 100, and none
-/// by default. A preference rather than a film's, as the subtitles' size is:
-/// what a screen or a room needs, every film needs.
-#[derive(Clone, Copy, Default, PartialEq, Debug)]
-pub struct PictureParams {
-    pub brightness: f32,
-    pub contrast: f32,
-    pub saturation: f32,
-    pub gamma: f32,
-}
-
-impl PictureParams {
-    /// Each with the mpv property it sets.
-    pub fn properties(&self) -> [(&'static str, f32); 4] {
-        [
-            ("brightness", self.brightness),
-            ("contrast", self.contrast),
-            ("saturation", self.saturation),
-            ("gamma", self.gamma),
-        ]
     }
 }
 

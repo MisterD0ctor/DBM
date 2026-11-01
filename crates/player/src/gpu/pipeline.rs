@@ -399,7 +399,7 @@ impl Pipeline {
     ///
     /// Uploaded once and kept: it is a few hundred kilobytes, and the window
     /// only needs it until a film arrives.
-    pub fn set_backdrop(&mut self, gl: &glow::Context, still: &crate::library::preview::Still) {
+    pub fn set_backdrop(&mut self, gl: &glow::Context, rgba: &[u8], width: u32, height: u32) {
         let tex = unsafe {
             let Ok(tex) = gl.create_texture() else {
                 return;
@@ -409,12 +409,12 @@ impl Pipeline {
                 glow::TEXTURE_2D,
                 0,
                 glow::RGBA8 as i32,
-                still.width as i32,
-                still.height as i32,
+                width as i32,
+                height as i32,
                 0,
                 glow::RGBA,
                 glow::UNSIGNED_BYTE,
-                glow::PixelUnpackData::Slice(Some(&still.rgba)),
+                glow::PixelUnpackData::Slice(Some(rgba)),
             );
             // With its smaller levels, for the end of a file to read from.
             gl.generate_mipmap(glow::TEXTURE_2D);
@@ -434,8 +434,8 @@ impl Pipeline {
         };
         self.backdrop = Some(Backdrop {
             tex,
-            width: still.width,
-            height: still.height,
+            width,
+            height,
             arrived: std::time::Instant::now(),
             settled: false,
         });

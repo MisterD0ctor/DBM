@@ -58,6 +58,22 @@ pub const OBSERVED: &[(&str, c_int)] = &[
     ("osd-dimensions/mb", FORMAT_DOUBLE),
 ];
 
+/// Track, chapter and playlist contents, read together because they are
+/// invalidated together and a single job means a single round trip.
+pub struct Lists {
+    pub tracks: Vec<Track>,
+    pub playlist: Vec<PlaylistEntry>,
+    /// One per playlist entry, in the same order: how long it is and how far
+    /// in the resume point sits. Read here rather than in a job of its own,
+    /// because the lookup needs the playlist's paths, which are read here.
+    pub progress: Vec<crate::library::durations::Progress>,
+    /// The file's chapter marks. Invalidated with the tracks, by a new file.
+    pub chapters: Vec<crate::playback::tracks::Chapter>,
+    /// The generation this was read for, so a stale result can be discarded
+    /// if the lists moved again while the job was running.
+    pub generation: u64,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct PlayerState {
     pub filename: Option<String>,
@@ -253,7 +269,7 @@ impl PlayerState {
     /// A result is discarded if the lists moved again while it was read,
     /// since the newer request is on its way, and a stale snapshot would
     /// flicker the menu.
-    pub fn apply_lists(&mut self, lists: crate::interface::sync::Lists) -> bool {
+    pub fn apply_lists(&mut self, lists: Lists) -> bool {
         if lists.generation != self.tracks_generation {
             return false;
         }

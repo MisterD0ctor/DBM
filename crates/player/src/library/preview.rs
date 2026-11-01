@@ -28,8 +28,8 @@ use std::process::Stdio;
 use crate::library::cache::Folder;
 use crate::library::ffmpeg;
 use crate::playback::tracks::Chapter;
+use crate::threads::Reporter;
 use crate::threads::{Supersede, Ticket};
-use crate::worker::{Completion, Reporter};
 
 /// Tiles across and down. 64 frames is roughly one per two minutes of a
 /// feature: close enough to land on the right scene, cheap enough to build
@@ -86,7 +86,7 @@ static BUILDS: Supersede = Supersede::new();
 ///
 /// Returns immediately. A build that produces nothing says nothing: see
 /// [`build`] for why that is the ordinary case rather than an error.
-pub fn spawn(video: PathBuf, reporter: Reporter) {
+pub fn spawn(video: PathBuf, reporter: Reporter<Atlas>) {
     let ticket = BUILDS.next();
     crate::threads::spawn("dbm-preview", move || {
         let Some(sprite) = build(&video, ticket) else {
@@ -98,7 +98,7 @@ pub fn spawn(video: PathBuf, reporter: Reporter) {
             return;
         };
         if ticket.current() {
-            reporter.send(Completion::Preview(Atlas { sprite, pixels }));
+            reporter.send(Atlas { sprite, pixels });
         }
     });
 }
@@ -543,7 +543,8 @@ pub struct Preview {
 
 /// What the preview says for a place on the timeline.
 pub struct Answer {
-    pub time: String,
+    /// Where under the pointer is, in the film.
+    pub seconds: f64,
     /// The chapter it is in, where the file names it; empty otherwise.
     pub chapter: String,
     /// The tile's corner in the atlas.
@@ -594,7 +595,7 @@ impl Preview {
             None => (0, 0),
         };
         Answer {
-            time: crate::interface::format::time(seconds),
+            seconds,
             chapter: named_chapter(&self.chapters.borrow(), seconds),
             x: x as i32,
             y: y as i32,

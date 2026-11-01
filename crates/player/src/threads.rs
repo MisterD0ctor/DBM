@@ -59,3 +59,22 @@ impl Ticket {
         self.number
     }
 }
+
+/// Where a job on a thread of its own hands back what it found.
+///
+/// The job needs to know nothing of who listens: the worker builds each one
+/// to wrap the value into the message the frame drains, and to wake a paused
+/// loop so it is noticed.
+pub struct Reporter<T>(Box<dyn Fn(T) -> bool + Send>);
+
+impl<T> Reporter<T> {
+    pub fn new(deliver: impl Fn(T) -> bool + Send + 'static) -> Self {
+        Self(Box::new(deliver))
+    }
+
+    /// Deliver. `false` once nobody is listening, as when the player is
+    /// shutting down, which is the job's cue to stop.
+    pub fn send(&self, value: T) -> bool {
+        (self.0)(value)
+    }
+}

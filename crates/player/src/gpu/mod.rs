@@ -2,9 +2,7 @@
 //!
 //! `pipeline` is the chain of passes — the ambient border, the backdrop
 //! blur (`blur`), the glass — and `gfx` the few GL primitives they are built
-//! from.
-//! `mark` is the player's own logo, drawn as the light behind an empty
-//! window. Four things are drawn after Slint rather than under it, on the
+//! from. Four things are drawn after Slint rather than under it, on the
 //! finished frame: `fade`, the soft edge on a scrolling list; `way`, the
 //! angle pointing a list back to its current row, which sits in that edge;
 //! `shadow`, the thin dark rim under the interface's words and marks, the
@@ -15,7 +13,6 @@ pub mod blur;
 pub mod corners;
 pub mod fade;
 pub mod gfx;
-pub mod mark;
 pub mod pipeline;
 pub mod shadow;
 pub mod way;

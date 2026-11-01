@@ -30,8 +30,8 @@ use zeroize::Zeroizing;
 use crate::lang::tr;
 use crate::library::cache::PathMap;
 use crate::library::naming::{self, Media};
+use crate::threads::Reporter;
 use crate::threads::Supersede;
-use crate::worker::{Completion, Reporter};
 
 pub mod account;
 
@@ -137,33 +137,33 @@ pub struct Fetched {
 }
 
 /// Look for subtitles for `path` in `languages`, on a thread of its own.
-pub fn search(path: String, languages: Vec<String>, reporter: Reporter) {
+pub fn search(path: String, languages: Vec<String>, reporter: Reporter<Found>) {
     let ticket = SEARCHES.next();
     crate::threads::spawn("dbm-search", move || {
         let hits = look(&path, &languages);
         if ticket.current() {
             let account = account::current();
-            reporter.send(Completion::Found(Found {
+            reporter.send(Found {
                 path,
                 hits,
                 account,
-            }));
+            });
         }
     });
 }
 
 /// Fetch one subtitle for `path`, on a thread of its own, keep it, and say
 /// where it is.
-pub fn fetch(path: String, hit: Hit, reporter: Reporter) {
+pub fn fetch(path: String, hit: Hit, reporter: Reporter<Fetched>) {
     crate::threads::spawn("dbm-download", move || {
         let result = download(&path, &hit);
         let account = account::current();
-        reporter.send(Completion::Fetched(Fetched {
+        reporter.send(Fetched {
             path,
             hit,
             result,
             account,
-        }));
+        });
     });
 }
 

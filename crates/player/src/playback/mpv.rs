@@ -15,7 +15,7 @@
 
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::mem::ManuallyDrop;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex, PoisonError};
 
 // ---------------------------------------------------------------------------
@@ -283,49 +283,6 @@ impl Lib {
     }
 }
 
-/// Where to find libmpv.
-///
-/// `DBM_LIBMPV` wins, so a stock build can be dropped in without touching the
-/// tree. Otherwise the copy this app ships with, and failing that the bare
-/// name, which hands the search to the system loader.
-fn libmpv_path() -> PathBuf {
-    if let Some(p) = std::env::var_os("DBM_LIBMPV") {
-        return PathBuf::from(p);
-    }
-    let name = if cfg!(windows) {
-        "libmpv-2.dll"
-    } else {
-        "libmpv.so.2"
-    };
-    crate::paths::vendored(&[name]).unwrap_or_else(|| PathBuf::from(name))
-}
-
-/// Have mpv mark which of the picture's pixels are a subtitle's, so the
-/// ambient border can leave them out of the light it reads off the picture
-/// (subtitle_mask.glsl). Without it the border works as it always did, and a
-/// subtitle on the picture's edge lights it.
-///
-/// Written out each run, since mpv loads shaders only from files, and this
-/// one has to match the border pass it was built with.
-fn mask_subtitles(mpv: &Mpv) {
-    let path = crate::paths::subtitle_mask();
-    // A command rather than the option, which would split the path on the
-    // list separator: as an argument of its own, any path is taken as it is.
-    let loaded = std::fs::write(&path, include_str!("../../shaders/subtitle_mask.glsl"))
-        .map_err(|e| e.to_string())
-        .and_then(|()| {
-            let path = path.to_string_lossy();
-            let args = ["change-list", "glsl-shaders", "append", path.as_ref()];
-            mpv.command_async(crate::playback::commands::REPLY_IGNORED, &args)
-                .map_err(|e| e.to_string())
-        });
-    if let Err(e) = loaded {
-        log::warn!(
-            "no subtitle mask ({e}); a subtitle on the picture's edge will light the border"
-        );
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Player handle
 // ---------------------------------------------------------------------------
@@ -375,10 +332,13 @@ impl Mpv {
     /// `configure` runs after the built-in options and before
     /// `mpv_initialize`, the only window in which some options, like
     /// `watch-later-directory`, can be set.
-    pub fn new(configure: impl FnOnce(&Self)) -> Result<Self> {
-        // SAFETY: each place `libmpv_path` looks holds a libmpv, or one the
-        // person named in `DBM_LIBMPV`.
-        let lib = unsafe { Lib::load(&libmpv_path()) }?;
+    ///
+    /// # Safety
+    /// `library` must name a libmpv: loading it runs its start-up code, and
+    /// its symbols are taken to have the signatures client.h gives them.
+    pub unsafe fn new(library: &Path, configure: impl FnOnce(&Self)) -> Result<Self> {
+        // SAFETY: the caller vouches for `library`.
+        let lib = unsafe { Lib::load(library) }?;
         // SAFETY: takes nothing, and a null result is checked below.
         let handle = unsafe { (lib.mpv_create)() };
         if handle.is_null() {
@@ -426,7 +386,6 @@ impl Mpv {
         check("mpv_initialize", unsafe {
             (mpv.lib.mpv_initialize)(mpv.handle)
         })?;
-        mask_subtitles(&mpv);
         Ok(mpv)
     }
 

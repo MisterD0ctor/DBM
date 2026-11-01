@@ -110,7 +110,7 @@ pub fn playlist_m3u() -> PathBuf {
 }
 
 /// The shader mpv marks subtitles with, written out for it to load (see
-/// `mpv::mask_subtitles`).
+/// `session::mask_subtitles`).
 pub fn subtitle_mask() -> PathBuf {
     app_data_dir().join("subtitle-mask.glsl")
 }

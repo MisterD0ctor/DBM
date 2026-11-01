@@ -128,7 +128,8 @@ impl Driver {
                 false
             }
             Completion::Mark(still) => {
-                gpu.pipeline.set_backdrop(&gpu.gl, &still);
+                gpu.pipeline
+                    .set_backdrop(&gpu.gl, &still.rgba, still.width, still.height);
                 ui.set_backdrop(true);
                 false
             }
@@ -182,8 +183,9 @@ impl Driver {
             Completion::EndLight { from, still } => {
                 if self.player.path.as_deref() == Some(from.as_str()) {
                     self.end_marked = still.is_none();
-                    if let Some(still) = still.or_else(crate::gpu::mark::still) {
-                        gpu.pipeline.set_backdrop(&gpu.gl, &still);
+                    if let Some(still) = still.or_else(crate::library::mark::still) {
+                        gpu.pipeline
+                            .set_backdrop(&gpu.gl, &still.rgba, still.width, still.height);
                         self.end_lit = Some(from);
                     }
                 }
@@ -342,7 +344,7 @@ impl Driver {
                     return;
                 }
                 ui.set_find_fetching(self.row_of(&hit));
-                opensubtitles::fetch(path, hit, self.app.worker.reporter());
+                opensubtitles::fetch(path, hit, self.app.worker.reporter(Completion::Fetched));
             }
             Err(why) => ui.set_sign_in_said(why.sentence().into()),
         }
@@ -400,7 +402,8 @@ impl Driver {
         self.resume_left = Some(resume.seconds_left);
         match &resume.still {
             Some(still) => {
-                gpu.pipeline.set_backdrop(&gpu.gl, still);
+                gpu.pipeline
+                    .set_backdrop(&gpu.gl, &still.rgba, still.width, still.height);
                 // With no backdrop the way in's glass has nothing to bend and
                 // gives itself a ground, so this is set only where one was
                 // drawn.
@@ -464,5 +467,5 @@ pub(super) fn look_for_resume(worker: &Worker) {
 }
 
 fn light_with_the_mark(worker: &Worker) {
-    worker.submit(|_mpv| crate::gpu::mark::still().map(Completion::Mark));
+    worker.submit(|_mpv| crate::library::mark::still().map(Completion::Mark));
 }

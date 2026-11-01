@@ -36,7 +36,7 @@ use serde_json::Value;
 use zeroize::Zeroizing;
 
 use super::{Ask, Failure, Host, fake, send};
-use crate::worker::{Completion, Reporter};
+use crate::threads::Reporter;
 
 /// How long a token lasts, by OpenSubtitles' word, and the most the player
 /// keeps one for whatever it claims.
@@ -127,11 +127,15 @@ pub(super) fn left(signed: &Signed, left: i64) {
 }
 
 /// Sign in as `name`, on a thread of its own, and say how it went.
-pub fn sign_in(name: String, password: Zeroizing<String>, reporter: Reporter) {
+pub fn sign_in(
+    name: String,
+    password: Zeroizing<String>,
+    reporter: Reporter<Result<Account, Failure>>,
+) {
     crate::threads::spawn("dbm-sign-in", move || {
         let result = log_in(&name, &password);
         drop(password);
-        reporter.send(Completion::SignedIn(result));
+        reporter.send(result);
     });
 }
 

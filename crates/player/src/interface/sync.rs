@@ -15,9 +15,8 @@
 use slint::{ModelRc, SharedString, VecModel};
 
 use crate::interface::format;
-use crate::library::durations::Progress;
-use crate::playback::state::PlayerState;
-use crate::playback::tracks::{self, Chapter, PlaylistEntry, Track, TrackKind};
+use crate::playback::state::{Lists, PlayerState};
+use crate::playback::tracks::{self, TrackKind};
 use crate::worker::{Completion, Worker};
 use crate::{MainWindow, TrackItem};
 
@@ -68,22 +67,6 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     // Searching needs a key the player was built with, and a film to look
     // for.
     ui.set_find_offered(crate::library::opensubtitles::available() && player.path.is_some());
-}
-
-/// Track, chapter and playlist contents, read together because they are
-/// invalidated together and a single job means a single round trip.
-pub struct Lists {
-    pub tracks: Vec<Track>,
-    pub playlist: Vec<PlaylistEntry>,
-    /// One per playlist entry, in the same order: how long it is and how far
-    /// in the resume point sits. Read here rather than in a job of its own,
-    /// because the lookup needs the playlist's paths, which are read here.
-    pub progress: Vec<Progress>,
-    /// The file's chapter marks. Invalidated with the tracks, by a new file.
-    pub chapters: Vec<Chapter>,
-    /// The generation this was read for, so a stale result can be discarded
-    /// if the lists moved again while the job was running.
-    pub generation: u64,
 }
 
 /// Requests list reads and applies the results.

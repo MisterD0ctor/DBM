@@ -89,10 +89,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // dropping where something catches it.
     ui.set_drop_supported(platform::dropped::SUPPORTED);
 
-    let mpv = Arc::new(playback::mpv::Mpv::new(|mpv| {
-        playback::session::configure(mpv);
-        harness::configure(mpv);
-    })?);
+    // SAFETY: each place `libmpv_path` looks holds a libmpv, or the one the
+    // person named in `DBM_LIBMPV`.
+    let mpv = unsafe {
+        playback::mpv::Mpv::new(&playback::session::libmpv_path(), |mpv| {
+            playback::session::configure(mpv);
+            harness::configure(mpv);
+        })
+    };
+    let mpv = Arc::new(mpv?);
+    playback::session::mask_subtitles(&mpv);
     for (name, format) in playback::state::OBSERVED {
         if let Err(e) = mpv.observe(name, *format) {
             log::warn!("cannot observe {name}: {e}");
@@ -109,7 +115,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         scrubber: Rc::new(playback::scrub::Scrubber::new()),
         preview: Rc::new(library::preview::Preview::default()),
         // Watches for audio devices coming and going.
-        audio: playback::audio::Watchdog::new(worker.clone()),
+        audio: playback::audio::Watchdog::new({
+            let worker = worker.clone();
+            move |remembered| {
+                worker.submit(move |mpv| {
+                    playback::audio::reopen(mpv, remembered.as_deref())
+                        .map(worker::Completion::Notice)
+                });
+            }
+        }),
         subline: Rc::new(interface::subline::Subline::new(settings.clone())),
         found: Rc::default(),
         waiting: Rc::default(),

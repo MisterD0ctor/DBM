@@ -19,10 +19,11 @@ use std::thread::JoinHandle;
 
 use crate::MainWindow;
 use crate::playback::mpv::Mpv;
+use crate::threads::Reporter;
 
 /// Work that finished. Add a variant per kind of background job.
 pub enum Completion {
-    Lists(crate::interface::sync::Lists),
+    Lists(crate::playback::state::Lists),
     /// A path opened and scanned into a playlist, or why it could not be.
     Opened(Result<crate::library::playlist::Prepared, String>),
     /// Something the person watching should be told, raised from a background
@@ -103,34 +104,15 @@ pub struct Worker {
     results: Receiver<Completion>,
     thread: Option<JoinHandle<()>>,
     /// Kept so other threads can report through the same queue (see
-    /// [`Reporter`]).
+    /// [`Worker::reporter`]).
     reply: Sender<Completion>,
     waker: slint::Weak<MainWindow>,
 }
 
-/// A way for a thread of its own to hand results back as the worker does.
-///
-/// Some background work shouldn't queue behind the worker (a large folder's
-/// scan would hold the track menu empty until it finished), but its results
-/// still belong in the one enum drained each frame.
-#[derive(Clone)]
-pub struct Reporter {
-    reply: Sender<Completion>,
-    waker: slint::Weak<MainWindow>,
-}
-
-impl Reporter {
-    /// Deliver, and wake a paused loop so it is noticed. Returns `false` once
-    /// the player is shutting down, which is the sender's cue to stop.
-    pub fn send(&self, completion: Completion) -> bool {
-        if self.reply.send(completion).is_err() {
-            return false;
-        }
-        let _ = self
-            .waker
-            .upgrade_in_event_loop(|ui| slint::ComponentHandle::window(&ui).request_redraw());
-        true
-    }
+/// Nudge a paused loop, which draws no frames that would drain what just
+/// arrived.
+fn wake(ui: &slint::Weak<MainWindow>) {
+    let _ = ui.upgrade_in_event_loop(|ui| slint::ComponentHandle::window(&ui).request_redraw());
 }
 
 impl Worker {
@@ -152,11 +134,7 @@ impl Worker {
                     if results_tx.send(completion).is_err() {
                         break;
                     }
-                    // Nudge the loop, since while paused there are no frames
-                    // to drain the completion.
-                    let _ = ui.upgrade_in_event_loop(|ui| {
-                        slint::ComponentHandle::window(&ui).request_redraw();
-                    });
+                    wake(&ui);
                 }
             })
             .expect("spawning the worker thread");
@@ -193,11 +171,20 @@ impl Worker {
     }
 
     /// A handle another thread can report through.
-    pub fn reporter(&self) -> Reporter {
-        Reporter {
-            reply: self.reply.clone(),
-            waker: self.waker.clone(),
-        }
+    ///
+    /// Some background work shouldn't queue behind the worker (a large
+    /// folder's scan would hold the track menu empty until it finished), but
+    /// its results still belong in the one enum drained each frame, which
+    /// `wrap` puts them in.
+    pub fn reporter<T: 'static>(&self, wrap: fn(T) -> Completion) -> Reporter<T> {
+        let (reply, waker) = (self.reply.clone(), self.waker.clone());
+        Reporter::new(move |value| {
+            let delivered = reply.send(wrap(value)).is_ok();
+            if delivered {
+                wake(&waker);
+            }
+            delivered
+        })
     }
 }
 

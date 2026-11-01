@@ -26,8 +26,8 @@ use std::time::{Duration, Instant};
 
 use crate::library::cache::PathMap;
 use crate::library::ffmpeg;
+use crate::threads::Reporter;
 use crate::threads::{Supersede, Ticket};
-use crate::worker::{Completion, Reporter, Worker};
 
 /// One file, described.
 #[derive(Debug, Clone, PartialEq)]
@@ -49,40 +49,22 @@ static SCANS: Supersede = Supersede::new();
 /// How long a scan gathers what it has read before handing it over.
 const BATCH: Duration = Duration::from_secs(1);
 
-/// Keeps one scan running for whatever the playlist currently is.
-#[derive(Default)]
-pub struct Scan {
-    /// The paths the running scan was started for, so a list read that
-    /// changed only the tracks does not start the same scan over.
-    requested: Vec<String>,
-}
-
-impl Scan {
-    /// Describe every entry in this playlist that is not already known.
-    ///
-    /// Called when a list read lands, not per frame. Compares, and returns at
-    /// once when the paths are the ones already being scanned.
-    pub fn request(&mut self, paths: &[String], worker: &Worker) {
-        if paths == self.requested.as_slice() {
-            return;
-        }
-        self.requested = paths.to_vec();
-        let ticket = SCANS.next();
-        if paths.is_empty() {
-            return;
-        }
-        let paths = paths.to_vec();
-        let reporter = worker.reporter();
-        let spawned = std::thread::Builder::new()
-            .name("dbm-probe".into())
-            .spawn(move || scan(paths, ticket, reporter));
-        if let Err(e) = spawned {
-            log::warn!("could not start the playlist scan: {e}");
-        }
+/// Describe `paths` on a thread of its own, calling off any scan still
+/// running. An empty list only calls it off.
+pub fn scan(paths: Vec<String>, reporter: Reporter<Vec<Found>>) {
+    let ticket = SCANS.next();
+    if paths.is_empty() {
+        return;
+    }
+    let spawned = std::thread::Builder::new()
+        .name("dbm-probe".into())
+        .spawn(move || run(paths, ticket, reporter));
+    if let Err(e) = spawned {
+        log::warn!("could not start the playlist scan: {e}");
     }
 }
 
-fn scan(paths: Vec<String>, ticket: Ticket, reporter: Reporter) {
+fn run(paths: Vec<String>, ticket: Ticket, reporter: Reporter<Vec<Found>>) {
     let lengths = crate::library::durations::load();
     let titles = TITLES.load();
 
@@ -99,7 +81,7 @@ fn scan(paths: Vec<String>, ticket: Ticket, reporter: Reporter) {
             path,
         })
         .collect();
-    if !known.is_empty() && !reporter.send(Completion::Probed(known)) {
+    if !known.is_empty() && !reporter.send(known) {
         return;
     }
 
@@ -129,14 +111,14 @@ fn scan(paths: Vec<String>, ticket: Ticket, reporter: Reporter) {
         record_title(&path, found.title.as_deref());
         batch.push(found);
         if handed.elapsed() >= BATCH {
-            if !reporter.send(Completion::Probed(std::mem::take(&mut batch))) {
+            if !reporter.send(std::mem::take(&mut batch)) {
                 return;
             }
             handed = Instant::now();
         }
     }
     if !batch.is_empty() && ticket.current() {
-        reporter.send(Completion::Probed(batch));
+        reporter.send(batch);
     }
 }
 

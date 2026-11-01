@@ -31,8 +31,8 @@ use std::sync::Arc;
 use crate::library::ffmpeg;
 use crate::playback::mpv::Mpv;
 use crate::playback::tracks;
+use crate::threads::Reporter;
 use crate::threads::{Supersede, Ticket};
-use crate::worker::{Completion, Reporter};
 
 /// What ffmpeg is asked for: mono at this rate, which keeps everything a
 /// voice has below 4 kHz and is an eighth of the samples a film carries.
@@ -142,7 +142,7 @@ pub fn supersede() {
 /// Returns immediately. A run that is superseded reports nothing; every
 /// other one reports, because the interface is showing that it is listening
 /// and has to be told when to stop.
-pub fn spawn(mpv: Arc<Mpv>, reporter: Reporter) {
+pub fn spawn(mpv: Arc<Mpv>, reporter: Reporter<Outcome>) {
     let ticket = RUNS.next();
     crate::threads::spawn("dbm-subsync", move || {
         // Read here rather than handed over, since these block on mpv's core
@@ -161,7 +161,7 @@ pub fn spawn(mpv: Arc<Mpv>, reporter: Reporter) {
             ),
             Err(why) => log::warn!("subtitles not synced: {why:?}"),
         }
-        reporter.send(Completion::Synced(Outcome { path, sid, result }));
+        reporter.send(Outcome { path, sid, result });
     });
 }
 

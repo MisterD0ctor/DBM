@@ -383,9 +383,32 @@ pub fn set_sub_scale(mpv: &Mpv, value: f64) -> f64 {
     value
 }
 
+/// How mpv draws the picture: each in its own terms, -100 to 100, and none
+/// by default. A preference rather than a film's, as the subtitles' size is:
+/// what a screen or a room needs, every film needs.
+#[derive(Clone, Copy, Default, PartialEq, Debug)]
+pub struct PictureParams {
+    pub brightness: f32,
+    pub contrast: f32,
+    pub saturation: f32,
+    pub gamma: f32,
+}
+
+impl PictureParams {
+    /// Each with the mpv property it sets.
+    pub fn properties(&self) -> [(&'static str, f32); 4] {
+        [
+            ("brightness", self.brightness),
+            ("contrast", self.contrast),
+            ("saturation", self.saturation),
+            ("gamma", self.gamma),
+        ]
+    }
+}
+
 /// How the picture is drawn: its brightness, contrast, saturation and gamma,
 /// each a whole number from -100 to 100, as mpv takes them.
-pub fn set_picture(mpv: &Mpv, picture: &crate::settings::PictureParams) {
+pub fn set_picture(mpv: &Mpv, picture: &PictureParams) {
     for (name, value) in picture.properties() {
         set_prop(
             mpv,

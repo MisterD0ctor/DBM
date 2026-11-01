@@ -16,7 +16,6 @@ use std::path::Path;
 use crate::lang::{fill, tr};
 use crate::library::durations::Progress;
 use crate::library::naming::Media;
-use crate::worker::{Completion, Worker};
 
 /// A file as the playlist has it.
 pub struct Item<'a> {
@@ -256,40 +255,6 @@ fn part_label(season: Option<u32>, show: Option<&str>, one_show: bool) -> (Strin
 // ---------------------------------------------------------------------------
 // Looking beside the list
 // ---------------------------------------------------------------------------
-
-/// Asks for the seasons beside the playlist, once per list.
-#[derive(Default)]
-pub struct Neighbours {
-    asked: Vec<String>,
-    /// Ask again for the same list, since progress is written to disk without
-    /// an event, and opening the panel is when it is worth reading again.
-    stale: bool,
-}
-
-impl Neighbours {
-    pub fn refresh(&mut self) {
-        self.stale = true;
-    }
-
-    /// Look beside this list if it is a new one, or the last look is stale.
-    ///
-    /// Returns whether the list itself changed, so what was found beside the
-    /// old one can be put away rather than shown around another show.
-    pub fn request(&mut self, paths: &[String], worker: &Worker) -> bool {
-        let moved = paths != self.asked.as_slice();
-        if !moved && !self.stale {
-            return false;
-        }
-        self.stale = false;
-        self.asked = paths.to_vec();
-        let paths = paths.to_vec();
-        worker.submit(move |_mpv| {
-            let seasons = look_beside(&paths);
-            Some(Completion::Beside { paths, seasons })
-        });
-        moved
-    }
-}
 
 /// The other seasons of the show a playlist is one season of.
 ///
