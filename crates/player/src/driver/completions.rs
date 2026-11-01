@@ -30,7 +30,7 @@ impl Driver {
     ) -> bool {
         match completion {
             Completion::Lists(lists) => {
-                let mut moved = self.lists.apply(ui, &mut self.player, lists);
+                let mut moved = self.feeds.lists.apply(ui, &mut self.player, lists);
                 if moved {
                     self.warm.ask(crate::interface::warm::MENU);
                     self.warm.ask(crate::interface::warm::AUDIO);
@@ -38,7 +38,7 @@ impl Driver {
                 // A read the lists have since moved past is thrown away, so the
                 // newer one is asked for now: the poll in the frame has already
                 // run, and a paused film may draw no other.
-                self.lists.poll(&self.app.worker, &self.player);
+                self.feeds.lists.poll(&self.app.worker, &self.player);
                 // What is saved for each entry, for choosing one on purpose.
                 self.app.arrival.learn(
                     (0..self.player.playlist.len())
@@ -54,10 +54,10 @@ impl Driver {
                 // known. The scan compares them with the last request and
                 // does nothing when only the tracks moved.
                 let paths = self.player.playlist_paths();
-                self.scan.request(&paths, &self.app.worker);
+                self.feeds.scan.request(&paths, &self.app.worker);
                 // What was found beside the old list is put away rather than
                 // shown around another show.
-                if self.neighbours.request(&paths, &self.app.worker)
+                if self.feeds.neighbours.request(&paths, &self.app.worker)
                     && !self.player.beside.is_empty()
                 {
                     self.player.beside.clear();
@@ -122,8 +122,8 @@ impl Driver {
                 self.show_atlas(ui, atlas);
                 // An end reached before its atlas was built had no frame of its
                 // own to be lit with, and now may.
-                if self.end_lit != self.player.path || self.end_marked {
-                    self.end_light_asked = None;
+                if self.per_file.end_lit != self.player.path || self.per_file.end_marked {
+                    self.per_file.end_light_asked = None;
                 }
                 false
             }
@@ -182,11 +182,11 @@ impl Driver {
             // be a white one, and the season's line still has that to read on.
             Completion::EndLight { from, still } => {
                 if self.player.path.as_deref() == Some(from.as_str()) {
-                    self.end_marked = still.is_none();
+                    self.per_file.end_marked = still.is_none();
                     if let Some(still) = still.or_else(crate::library::mark::still) {
                         gpu.pipeline
                             .set_backdrop(&gpu.gl, &still.rgba, still.width, still.height);
-                        self.end_lit = Some(from);
+                        self.per_file.end_lit = Some(from);
                     }
                 }
                 false

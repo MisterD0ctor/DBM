@@ -62,13 +62,31 @@ struct Gpu {
     published: Option<Published>,
 }
 
-pub struct Driver {
-    ui: slint::Weak<MainWindow>,
-    app: App,
-    /// Loaded once the render context exists — see `RenderingSetup`.
-    file: Option<std::path::PathBuf>,
-    gpu: Option<Gpu>,
-    player: PlayerState,
+impl Hooks {
+    /// Install whichever hooks are not up yet. Each needs the native window,
+    /// which does not exist until the loop has turned, so each retries a
+    /// frame until it takes.
+    fn install(&mut self, ui: &MainWindow) {
+        self.modal.poll(ui.window());
+        self.drops.poll(ui);
+        self.rounding.poll(ui.window());
+    }
+
+    /// Tell the media controls and the wake lock what is playing.
+    ///
+    /// Every frame, not only the ones that moved: registration needs a window
+    /// handle that does not exist yet on the first of them, and the update
+    /// itself is skipped unless something changed.
+    fn follow(&mut self, ui: &MainWindow, player: &PlayerState, moved: bool) {
+        self.media_keys.publish(ui.window(), player, moved);
+        self.awake.follow(player);
+    }
+}
+
+/// The buffers each frame fills, kept between frames so the frame path
+/// does not allocate.
+#[derive(Default)]
+struct Scratch {
     panels: Vec<GlassPanel>,
     /// Where the shadow under the interface is cast this frame, which the
     /// glass pass holds under white for it (see `shadow::regions`).
@@ -78,30 +96,43 @@ pub struct Driver {
     fades: Vec<crate::gpu::fade::Strip>,
     /// The angles pointing lists back to their current rows, reused the same way.
     ways: Vec<crate::gpu::way::Way>,
+    /// Reply ids seen this frame, routed below. Reused to avoid allocating
+    /// on the frame path.
+    replies: Vec<u64>,
+    /// What the interface should say out loud this frame. Same reuse.
+    notices: Vec<String>,
+}
+
+/// What each operating system is told, or asked, as the player runs.
+struct Hooks {
     modal: modal_loop::Hook,
     /// Installed the same way and for the same reason as the modal hook.
     drops: crate::platform::dropped::Accepting,
     /// Asked for the same way.
     rounding: crate::platform::window::Rounding,
+    /// The media keys and the desktop's media widget, told what is playing
+    /// when it changes.
+    media_keys: crate::platform::media_keys::Controls,
+    /// Holds the display on while something plays.
+    awake: crate::platform::awake::Awake,
+}
+
+/// What follows the playing list and asks the worker for what it lacks.
+#[derive(Default)]
+struct Feeds {
     lists: sync::ListSync,
-    /// Has the playlist laid out on the worker, and shows what comes back.
-    panel: playlist_panel::Panel,
-    /// `lang::changes` as of the last frame, so words already handed to the
-    /// interface are said again in a language just chosen.
-    language_seen: usize,
-    /// How much is left of the film the way in offers, kept so that line can
-    /// be said again too.
-    resume_left: Option<f64>,
-    /// The panels to draw unseen before they are opened.
-    warm: crate::interface::warm::WarmUp,
     /// Keeps the duration cache the playlist reads from up to date.
     durations: feeds::Recorder,
     /// Describes the playlist's other files without playing them.
     scan: feeds::Scan,
     /// Looks for the seasons beside a playlist that is one season of a show.
     neighbours: feeds::Neighbours,
-    /// Last seen state of the playlist panel, so its opening can be noticed.
-    playlist_open: bool,
+}
+
+/// What was done once for the file playing, so it is not done again, and
+/// is done afresh for the next.
+#[derive(Default)]
+struct PerFile {
     /// The file the way on was last looked for on behalf of.
     onward_asked: Option<String>,
     /// The file whose end was last given a light, and the file whose end has
@@ -116,11 +147,27 @@ pub struct Driver {
     /// The file subtitles fetched before were last put back for, and the
     /// search's page last closed for: both once a file.
     kept_asked: Option<String>,
-    /// Reply ids seen this frame, routed below. Reused to avoid allocating
-    /// on the frame path.
-    replies: Vec<u64>,
-    /// What the interface should say out loud this frame. Same reuse.
-    notices: Vec<String>,
+}
+
+pub struct Driver {
+    ui: slint::Weak<MainWindow>,
+    app: App,
+    /// Loaded once the render context exists — see `RenderingSetup`.
+    file: Option<std::path::PathBuf>,
+    gpu: Option<Gpu>,
+    player: PlayerState,
+    /// Has the playlist laid out on the worker, and shows what comes back.
+    panel: playlist_panel::Panel,
+    /// `lang::changes` as of the last frame, so words already handed to the
+    /// interface are said again in a language just chosen.
+    language_seen: usize,
+    /// How much is left of the film the way in offers, kept so that line can
+    /// be said again too.
+    resume_left: Option<f64>,
+    /// The panels to draw unseen before they are opened.
+    warm: crate::interface::warm::WarmUp,
+    /// Last seen state of the playlist panel, so its opening can be noticed.
+    playlist_open: bool,
     /// Whether a `loadlist` is on its way, so that its reply knows to start
     /// playback.
     loading_list: bool,
@@ -130,16 +177,15 @@ pub struct Driver {
     stumbled: bool,
     /// `PlayerState::loads` as of the last frame — see where it is compared.
     loads_seen: u64,
-    /// The media keys and the desktop's media widget, told what is playing
-    /// when it changes.
-    media_keys: crate::platform::media_keys::Controls,
-    /// Holds the display on while something plays.
-    awake: crate::platform::awake::Awake,
     diag: diagnostics::Probe,
     /// A picture of a finished frame, when one is asked for.
     capture: diagnostics::Capture,
     /// Why there is no video this run, if there isn't.
     failure: Option<Failure>,
+    scratch: Scratch,
+    hooks: Hooks,
+    feeds: Feeds,
+    per_file: PerFile,
 }
 
 /// The sentence every `Failure` is said under.
@@ -169,38 +215,27 @@ impl Driver {
             file,
             gpu: None,
             player: PlayerState::default(),
-            panels: Vec::new(),
-            shaded: Vec::new(),
-            fades: Vec::new(),
-            ways: Vec::new(),
-            modal: modal_loop::Hook::new(),
-            drops: crate::platform::dropped::Accepting::new(),
-            rounding: crate::platform::window::Rounding::new(),
-            lists: sync::ListSync::default(),
             panel: playlist_panel::Panel::default(),
             language_seen: 0,
             resume_left: None,
             warm: crate::interface::warm::WarmUp::default(),
-            durations: feeds::Recorder::default(),
-            scan: feeds::Scan::default(),
-            neighbours: feeds::Neighbours::default(),
             playlist_open: false,
-            onward_asked: None,
-            end_light_asked: None,
-            end_lit: None,
-            end_marked: false,
-            titles_asked: None,
-            kept_asked: None,
-            replies: Vec::new(),
-            notices: Vec::new(),
             loading_list: false,
             stumbled: false,
             loads_seen: 0,
-            media_keys,
-            awake: crate::platform::awake::Awake::default(),
             diag: diagnostics::Probe::new(),
             capture: diagnostics::Capture::new(),
             failure: None,
+            scratch: Scratch::default(),
+            hooks: Hooks {
+                modal: modal_loop::Hook::new(),
+                drops: crate::platform::dropped::Accepting::new(),
+                rounding: crate::platform::window::Rounding::new(),
+                media_keys,
+                awake: crate::platform::awake::Awake::default(),
+            },
+            feeds: Feeds::default(),
+            per_file: PerFile::default(),
         }
     }
 
@@ -223,13 +258,13 @@ impl Driver {
                         // Before the picture is taken, so all of it is in it.
                         // First the soft ends of any list with rows past them,
                         // on the frame Slint has just drawn...
-                        fades::collect(&ui, &mut self.fades, &mut self.ways);
+                        fades::collect(&ui, &mut self.scratch.fades, &mut self.scratch.ways);
                         if let Some(fader) = gpu.overlays.fader.as_mut() {
                             fader.run(
                                 &gpu.gl,
                                 gpu.pipeline.output(),
                                 (size.width, size.height),
-                                &self.fades,
+                                &self.scratch.fades,
                             );
                         }
                         // ...then the angle back to a list's current row, whole
@@ -238,6 +273,7 @@ impl Driver {
                         // this asks for the frames it eases in over.
                         if crate::gpu::way::GLASS {
                             let panes: Vec<_> = self
+                                .scratch
                                 .ways
                                 .iter()
                                 .filter(|w| w.on > 0.004)
@@ -247,8 +283,8 @@ impl Driver {
                                 .glass_over(&gpu.gl, (size.width, size.height), &panes);
                         }
                         if let Some(way) = gpu.overlays.way.as_mut() {
-                            way.run(&gpu.gl, (size.width, size.height), &self.ways);
-                            if self.ways.iter().any(|w| w.lit > 0.0 && w.lit < 1.0) {
+                            way.run(&gpu.gl, (size.width, size.height), &self.scratch.ways);
+                            if self.scratch.ways.iter().any(|w| w.lit > 0.0 && w.lit < 1.0) {
                                 ui.window().request_redraw();
                             }
                         }
@@ -259,7 +295,7 @@ impl Driver {
                                 &gpu.gl,
                                 gpu.pipeline.output(),
                                 (size.width, size.height),
-                                &self.shaded,
+                                &self.scratch.shaded,
                                 ui.window().scale_factor(),
                             );
                         }
@@ -450,9 +486,7 @@ impl Driver {
             }
             return;
         };
-        self.modal.poll(ui.window());
-        self.drops.poll(&ui);
-        self.rounding.poll(ui.window());
+        self.hooks.install(&ui);
 
         let t = self.diag.begin();
         let moved = self.take_events(&ui);
@@ -462,9 +496,9 @@ impl Driver {
         self.background(&ui, &mut gpu);
         let t = self.diag.mark_lists(t);
 
-        glass::collect(&ui, &mut self.panels);
+        glass::collect(&ui, &mut self.scratch.panels);
         let t = self.diag.mark_panels(t);
-        self.diag.panels_changed(&self.panels);
+        self.diag.panels_changed(&self.scratch.panels);
         self.warm.frame(&ui);
         self.app.scale.frame(&ui, self.app.settings.scale());
 
@@ -478,18 +512,18 @@ impl Driver {
         let moved = events::drain(
             &self.app.mpv,
             &mut self.player,
-            &mut self.replies,
-            &mut self.notices,
+            &mut self.scratch.replies,
+            &mut self.scratch.notices,
             &self.app.audio,
         );
         // A failure marks its playlist row, which the list otherwise only
         // hears about on the next read.
-        let failed = !self.notices.is_empty();
+        let failed = !self.scratch.notices.is_empty();
         if failed {
             self.stumbled = true;
             self.panel.request(&self.player, &self.app.worker);
         }
-        for notice in std::mem::take(&mut self.notices) {
+        for notice in std::mem::take(&mut self.scratch.notices) {
             // A notice means something concluded, which is the backstop for
             // an open that never produces a file: a container mpv cannot
             // read raises its `EndFile` failure here and `has_file` never
@@ -557,7 +591,7 @@ impl Driver {
             self.stumbled = false;
             completions::look_for_resume(&self.app.worker);
         }
-        for id in std::mem::take(&mut self.replies) {
+        for id in std::mem::take(&mut self.scratch.replies) {
             match id {
                 commands::REPLY_SCRUB => self.app.scrubber.on_reply(&self.app.mpv),
                 // The list exists now, and which entry plays was settled
@@ -587,11 +621,7 @@ impl Driver {
     /// Bring everything that follows the player up to date with it: the OS
     /// media controls, the display's wake lock, and the subtitle line.
     fn follow(&mut self, ui: &MainWindow, moved: bool) {
-        // Every frame, not only the ones that moved: registration needs a
-        // window handle that does not exist yet on the first of them, and the
-        // update itself is skipped unless something changed.
-        self.media_keys.publish(ui.window(), &self.player, moved);
-        self.awake.follow(&self.player);
+        self.hooks.follow(ui, &self.player, moved);
         // A few reads and a comparison while the bar is still; a command a
         // frame only while it fades. See `subline`.
         let bitmaps = tracks::selected(&self.player.tracks, TrackKind::Sub)
@@ -617,15 +647,15 @@ impl Driver {
         // is the moment somebody cares what they say.
         let open = ui.get_playlist_open();
         if open && !self.playlist_open {
-            self.lists.refresh();
-            self.neighbours.refresh();
+            self.feeds.lists.refresh();
+            self.feeds.neighbours.refresh();
         }
         self.playlist_open = open;
 
         // Each of these asks only when what it follows has moved; the work
         // itself is on the worker.
-        self.lists.poll(&self.app.worker, &self.player);
-        self.durations.poll(&self.app.worker, &self.player);
+        self.feeds.lists.poll(&self.app.worker, &self.player);
+        self.feeds.durations.poll(&self.app.worker, &self.player);
         self.poll_preview(ui);
 
         // Several probe results can land in one drain, and seasons found
@@ -651,7 +681,7 @@ impl Driver {
     /// Put back the subtitles fetched for this file on an earlier visit,
     /// once it has opened, and close a search still open for the last one.
     fn put_back_downloads(&mut self, ui: &MainWindow) {
-        if self.player.path == self.kept_asked {
+        if self.player.path == self.per_file.kept_asked {
             return;
         }
         ui.set_find_open(false);
@@ -667,7 +697,7 @@ impl Driver {
         else {
             return;
         };
-        self.kept_asked = Some(path.clone());
+        self.per_file.kept_asked = Some(path.clone());
         self.app.worker.submit(move |_mpv| {
             let files = crate::library::opensubtitles::kept(&path);
             (!files.is_empty()).then_some(Completion::Kept { path, files })
@@ -737,19 +767,21 @@ impl Driver {
     fn look_onward(&mut self, ui: &MainWindow) {
         let ending = (self.player.eof_reached || self.player.credits_rolling())
             && self.player.playlist_pos + 1 >= self.player.playlist_count;
-        if self.player.path != self.onward_asked && self.onward_asked.take().is_some() {
+        if self.player.path != self.per_file.onward_asked
+            && self.per_file.onward_asked.take().is_some()
+        {
             ui.set_onward_path("".into());
             ui.set_onward_label("".into());
             ui.set_onward_season(false);
             ui.set_season_done("".into());
         }
-        if !ending || self.onward_asked.is_some() {
+        if !ending || self.per_file.onward_asked.is_some() {
             return;
         }
         let Some(path) = self.player.path.clone() else {
             return;
         };
-        self.onward_asked = Some(path.clone());
+        self.per_file.onward_asked = Some(path.clone());
         // Season 0 is the specials, which no one finishes as a season.
         if let crate::library::naming::Media::Episode {
             season: Some(season @ 1..),
@@ -772,10 +804,12 @@ impl Driver {
         let Some(path) = self.player.path.clone() else {
             return;
         };
-        if !self.player.eof_reached || self.end_light_asked.as_deref() == Some(path.as_str()) {
+        if !self.player.eof_reached
+            || self.per_file.end_light_asked.as_deref() == Some(path.as_str())
+        {
             return;
         }
-        self.end_light_asked = Some(path.clone());
+        self.per_file.end_light_asked = Some(path.clone());
         self.app.worker.submit(move |_mpv| {
             let still = crate::library::preview::lit_still(std::path::Path::new(&path), 0.9);
             Some(Completion::EndLight { from: path, still })
@@ -793,14 +827,14 @@ impl Driver {
         let Some(path) = self.player.path.as_deref() else {
             return;
         };
-        if self.titles_asked.as_deref() == Some(path)
+        if self.per_file.titles_asked.as_deref() == Some(path)
             || self.player.duration <= 0.0
-            || !self.lists.settled(&self.player)
+            || !self.feeds.lists.settled(&self.player)
             || !self.player.playlist.iter().any(|e| e.filename == path)
         {
             return;
         }
-        self.titles_asked = Some(path.to_string());
+        self.per_file.titles_asked = Some(path.to_string());
         // The opening first: it is the one that is about to play.
         let mut ends = Vec::new();
         if self.player.intro_named().is_none() {
@@ -847,8 +881,9 @@ impl Driver {
 
         // The backdrop stands in while nothing is loaded, and at the end of a
         // file once its light has come.
-        let ended =
-            self.player.eof_reached && self.end_lit.is_some() && self.end_lit == self.player.path;
+        let ended = self.player.eof_reached
+            && self.per_file.end_lit.is_some()
+            && self.per_file.end_lit == self.player.path;
         ui.set_end_lit(ended);
         gpu.pipeline.show_backdrop(
             self.player.path.is_none() || ended,
@@ -867,13 +902,13 @@ impl Driver {
 
         // None without the shadow, since nothing would give back what the
         // glass pass held.
-        self.shaded.clear();
+        self.scratch.shaded.clear();
         if gpu.overlays.shadow.is_some() {
             crate::gpu::shadow::regions(
-                &self.panels,
+                &self.scratch.panels,
                 (size.width, size.height),
                 ui.window().scale_factor(),
-                &mut self.shaded,
+                &mut self.scratch.shaded,
             );
         }
         let frame = Frame {
@@ -882,8 +917,8 @@ impl Driver {
             new_frame,
             params_dirty,
             rect,
-            panels: &self.panels,
-            shaded: &self.shaded,
+            panels: &self.scratch.panels,
+            shaded: &self.scratch.shaded,
         };
         let rendered = match gpu.pipeline.render(&gpu.gl, &gpu.ctx, &frame) {
             Ok(v) => v,
