@@ -5,7 +5,7 @@
 //! and under the seek preview, a running time on a playlist row, what is left
 //! of a film on the way in.
 
-use crate::lang::{fill, tr};
+use dbm_lang::{fill, tr};
 
 /// `H:MM:SS`, dropping the hours field when it would be zero.
 pub fn time(seconds: f64) -> String {

@@ -5,9 +5,9 @@ use std::rc::Rc;
 use slint::{Model, ModelRc, SharedString, VecModel};
 
 use crate::interface::format;
-use crate::lang::tr;
 use crate::settings::{self, Section, Store};
 use crate::{MainWindow, ParamItem};
+use dbm_lang::tr;
 
 /// The slider rows, split by the page they appear on.
 ///

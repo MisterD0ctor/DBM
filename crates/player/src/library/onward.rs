@@ -7,8 +7,8 @@
 
 use std::path::Path;
 
-use crate::lang::{fill, tr};
 use crate::library::{playlist, resume};
+use dbm_lang::{fill, tr};
 
 /// The way on from the end of a list.
 ///

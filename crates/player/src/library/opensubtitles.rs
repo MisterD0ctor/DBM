@@ -27,11 +27,11 @@ use serde_json::Value;
 use url::Url;
 use zeroize::Zeroizing;
 
-use crate::lang::tr;
 use crate::library::cache::PathMap;
 use crate::library::naming::{self, Media};
 use crate::threads::Reporter;
 use crate::threads::Supersede;
+use dbm_lang::tr;
 
 pub mod account;
 

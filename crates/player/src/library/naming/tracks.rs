@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use super::clean::{clean_separators, strip_extension, strip_metadata, strip_path};
 use super::language::{base_code, language_name, same_language};
-use crate::lang::{fill, tr};
+use dbm_lang::{fill, tr};
 
 /// A flag a subtitle track carries about itself, rather than a name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

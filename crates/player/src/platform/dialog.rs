@@ -12,7 +12,7 @@
 //! module knows nothing about mpv, playlists or the worker.
 
 use crate::MainWindow;
-use crate::lang::tr;
+use dbm_lang::tr;
 
 /// What the user is being asked for.
 #[derive(Clone, Copy)]

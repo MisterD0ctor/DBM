@@ -1,12 +1,13 @@
 //! The language the player speaks.
 //!
 //! English is what the source says; every other language is a gettext file
-//! under `lang/<code>/LC_MESSAGES/dbm-player.po`, read at build time and
+//! under `po/<code>/LC_MESSAGES/dbm-player.po`, read at build time and
 //! compiled in. One file per language holds both halves of the interface:
 //! the words in `app.slint`, which Slint's own bundling looks up by the
-//! component they are in, and the words made here in Rust — a notice, a
-//! playlist heading, how much of a film is left — which are the entries
-//! under the context `player`, turned into a table by the build script.
+//! component they are in, and the words made in Rust — a notice, a playlist
+//! heading, how much of a film is left — which are the entries under the
+//! context `player`, turned into a table by the build script. This crate has
+//! the Rust half; the player tells Slint when the language changes.
 //!
 //! Adding a language is adding its file. Nothing here or in the interface
 //! names one: the settings page lists whatever was built in.
@@ -89,9 +90,9 @@ pub fn changes() -> usize {
 /// Speak a language: its code, or nothing for the system's own. One the
 /// player was not built with is English.
 ///
-/// **UI thread, after the window exists** — Slint's half of the switch needs
-/// a component to have been created.
-pub fn speak(choice: &str) {
+/// Returns the code now spoken, or `None` for English, which is what Slint's
+/// half of the switch is to be handed.
+pub fn speak(choice: &str) -> Option<&'static str> {
     let code = if choice.is_empty() {
         system()
     } else {
@@ -103,10 +104,7 @@ pub fn speak(choice: &str) {
         .map_or(0, |place| place + 1);
     CURRENT.store(spoken, Ordering::Relaxed);
     CHANGES.fetch_add(1, Ordering::Relaxed);
-    let asked = if spoken == 0 { "" } else { code.as_str() };
-    if let Err(e) = slint::select_bundled_translation(asked) {
-        log::warn!("could not switch the interface to {code:?}: {e}");
-    }
+    spoken.checked_sub(1).map(|i| CATALOGUES[i].0)
 }
 
 /// The system's language, as the two or three letters before any region.

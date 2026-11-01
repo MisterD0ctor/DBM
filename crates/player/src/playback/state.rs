@@ -6,9 +6,9 @@
 //! Plain fields rather than signals, since Slint's properties provide the
 //! reactivity, and duplicating it here would make two sources of truth.
 
-use crate::lang::{fill, tr};
 use crate::playback::mpv::{Event, Format, Mpv, Value};
 use crate::playback::tracks::{PlaylistEntry, Track};
+use dbm_lang::{fill, tr};
 
 /// Every property the player observes. Its position in [`Prop::ALL`] is the
 /// id mpv reports it under.

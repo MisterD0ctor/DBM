@@ -5,7 +5,7 @@
     scripts/translations.py update    add the missing entries, untranslated
     scripts/translations.py add <code>    start a new language
 
-A language is one gettext file, crates/player/lang/<code>/LC_MESSAGES/
+A language is one gettext file, crates/lang/po/<code>/LC_MESSAGES/
 dbm-player.po, and it holds both halves of the interface:
 
   * the words in the .slint files, marked @tr("...") and filed under the
@@ -27,8 +27,9 @@ import re
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent / "crates" / "player"
-LANG = ROOT / "lang"
+ROOT = Path(__file__).resolve().parent.parent
+CRATES = ROOT / "crates"
+LANG = CRATES / "lang" / "po"
 RUST_CONTEXT = "player"
 
 STRING = r'"((?:[^"\\]|\\[\s\S])*)"'
@@ -44,7 +45,7 @@ RUST_CONTINUED = re.compile(r"\\\n\s*")
 def wanted():
     """Every (context, words) the source asks for, in the order it is met."""
     found = []
-    for file in sorted((ROOT / "ui").glob("*.slint")):
+    for file in sorted((CRATES / "player" / "ui").glob("*.slint")):
         owner = ""
         for line in file.read_text(encoding="utf-8").splitlines():
             if line.lstrip().startswith("//"):
@@ -54,9 +55,7 @@ def wanted():
                 owner = named.group(1)
             for said in SLINT_TR.finditer(line):
                 found.append((owner, said.group(1)))
-    for file in sorted((ROOT / "src").rglob("*.rs")):
-        if file.name == "lang.rs":
-            continue
+    for file in rust():
         for said in RUST_TR.finditer(file.read_text(encoding="utf-8")):
             found.append((RUST_CONTEXT, RUST_CONTINUED.sub("", said.group(1))))
     seen, out = set(), []
@@ -103,6 +102,12 @@ def entries(text):
     return out
 
 
+def rust():
+    """Every Rust source but the one that defines `tr` and `marked`."""
+    own = CRATES / "lang" / "src" / "lib.rs"
+    return [file for file in sorted(CRATES.glob("*/src/**/*.rs")) if file != own]
+
+
 def files():
     return sorted(LANG.glob("*/LC_MESSAGES/dbm-player.po"))
 
@@ -124,7 +129,7 @@ def bare_labels():
     are fixtures, never shown.
     """
     found = []
-    for file in sorted((ROOT / "src").rglob("*.rs")):
+    for file in rust():
         for number, line in enumerate(file.read_text(encoding="utf-8").splitlines(), 1):
             if line.strip() == "#[cfg(test)]":
                 break

@@ -136,7 +136,7 @@ it works is explained at the top of
 ## Translating
 
 The interface is written in English. Each translation is a single gettext
-file, `crates/player/lang/<code>/LC_MESSAGES/dbm-player.po`, that gets built
+file, `crates/lang/po/<code>/LC_MESSAGES/dbm-player.po`, that gets built
 into the player. There are seven so far: `de`, `es`, `fr`, `it`, `nl`, `pt`
 and `sv`. Only the Swedish one has been checked by a native speaker. The
 others haven't been reviewed yet, and each file says so at the top, so
@@ -271,7 +271,7 @@ you if you fork this.
 | `crates/player/src/` | the application, in folders by concern; the table at the top of `main.rs` says what each one does |
 | `crates/player/ui/` | the interface, in Slint |
 | `crates/player/shaders/` | the border, blur and glass shaders, and the background shown when nothing is playing |
-| `crates/player/lang/` | the translations |
+| `crates/lang/po/` | the translations |
 | `crates/player/vendor/` | libmpv and ffmpeg for Windows |
 | `packaging/` | the Windows installer, and the Flatpak in `flatpak/` |
 | `public/icons/` | the icons, drawn on a 24×24 grid |

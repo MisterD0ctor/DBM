@@ -10,12 +10,12 @@ use std::rc::Rc;
 use slint::{Model, ModelRc, VecModel};
 
 use crate::interface::format;
-use crate::lang::{fill, tr};
 use crate::library::durations::Progress;
 use crate::library::shelf::{self, Beside, Entry, Group, Shelf};
 use crate::playback::state::PlayerState;
 use crate::worker::{Completion, Worker};
 use crate::{MainWindow, PlaylistGroup, PlaylistItem};
+use dbm_lang::{fill, tr};
 
 /// A playlist row as the player had it when the panel was asked for, owned so
 /// it can cross to the worker.

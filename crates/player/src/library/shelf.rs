@@ -13,9 +13,9 @@
 
 use std::path::Path;
 
-use crate::lang::{fill, tr};
 use crate::library::durations::Progress;
 use crate::library::naming::Media;
+use dbm_lang::{fill, tr};
 
 /// A file as the playlist has it.
 pub struct Item<'a> {

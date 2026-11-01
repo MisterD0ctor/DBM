@@ -38,7 +38,6 @@ use crate::gpu::gfx::Target;
 use crate::gpu::pipeline::{Frame, GlassPanel, Pipeline};
 use crate::interface::subline::Picture;
 use crate::interface::{fades, format, glass, playlist_panel, sync};
-use crate::lang::{fill, marked, tr};
 use crate::library::playlist;
 use crate::platform::modal_loop;
 use crate::playback::commands;
@@ -48,6 +47,7 @@ use crate::playback::tracks::{self, TrackKind};
 use crate::settings::Toggle;
 use crate::worker::Completion;
 use crate::{MainWindow, diagnostics};
+use dbm_lang::{fill, marked, tr};
 
 /// Identity of what a Slint image property points at: texture id, active
 /// image size, allocated texture size.
@@ -479,7 +479,7 @@ impl Driver {
         let Some(mut gpu) = self.gpu.take() else {
             // With no render context, the failure is all there is to say
             // again in a language just chosen.
-            let changes = crate::lang::changes();
+            let changes = dbm_lang::changes();
             if changes != self.language_seen {
                 self.language_seen = changes;
                 self.say_failure(&ui);
@@ -709,7 +709,7 @@ impl Driver {
     /// what is left of the film on the way in. The interface's own words
     /// follow by themselves; these were sentences by the time it got them.
     fn say_it_again(&mut self, ui: &MainWindow) {
-        let changes = crate::lang::changes();
+        let changes = dbm_lang::changes();
         if changes == self.language_seen {
             return;
         }

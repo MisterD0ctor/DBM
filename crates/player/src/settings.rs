@@ -16,8 +16,8 @@
 use std::cell::{Cell, RefCell};
 
 use crate::gpu::pipeline::{BorderParams, GlassParams};
-use crate::lang::marked;
 use crate::playback::commands::{self, PictureParams};
+use dbm_lang::marked;
 
 /// A preference that is a switch. Each rides in the saved file as 0 or 1, so
 /// the file stays one flat list of numbers.
@@ -601,7 +601,7 @@ fn save(path: &std::path::Path, values: &[(String, f32)]) -> Result<(), String> 
     }
     std::fs::write(path, out).map_err(|e| {
         log::warn!("could not save settings: {e}");
-        crate::lang::fill(crate::lang::tr("Settings could not be saved — {}"), &[&e])
+        dbm_lang::fill(dbm_lang::tr("Settings could not be saved — {}"), &[&e])
     })
 }
 

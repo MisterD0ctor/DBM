@@ -9,8 +9,8 @@
 //! directory of thousands can take seconds), so it runs on the worker thread.
 //! Nothing here touches mpv or the UI; it produces a plain list.
 
-use crate::lang::{fill, tr};
 use crate::library::resume::Saved;
+use dbm_lang::{fill, tr};
 use std::cmp::Ordering;
 use std::fs;
 use std::io::{BufWriter, Write};

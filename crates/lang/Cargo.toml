@@ -1,0 +1,17 @@
+[package]
+name = "dbm-lang"
+description = "The languages Death by MPV speaks, and the words in each"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+# Which language the system speaks. Slint already builds it to pick its own
+# half of the translations, so this adds no crate to the build.
+sys-locale.workspace = true
+
+[lints]
+workspace = true

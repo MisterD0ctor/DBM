@@ -14,7 +14,13 @@
 //! scene graph rather than in a sibling window the UI can't sample: the
 //! ambient border and the glass are both shader passes over that texture.
 //!
-//! Layout of the crate:
+//! What it stands on, in crates of their own that cannot reach back up:
+//!
+//! | crate         | owns                                                      |
+//! |---------------|-----------------------------------------------------------|
+//! | `dbm_lang`    | the language it speaks, and the words in each             |
+//!
+//! Layout of this crate:
 //!
 //! | module        | owns                                                      |
 //! |---------------|-----------------------------------------------------------|
@@ -28,7 +34,6 @@
 //! | `worker`      | a thread for anything that would block the frame path     |
 //! | `settings`    | what the person has set, kept between runs                |
 //! | `threads`     | naming every thread the player starts                     |
-//! | `lang`        | the language it speaks, and the words in each             |
 //! | `logging`     | where the player's own lines go                           |
 //! | `paths`       | where the app keeps its own files                         |
 //! | `run_mode`    | whether a person is watching, or the harness is driving   |
@@ -49,7 +54,6 @@ mod driver;
 mod gpu;
 mod harness;
 mod interface;
-mod lang;
 mod library;
 mod logging;
 mod paths;

@@ -131,7 +131,7 @@ still (see the README's Platforms). macOS is explicitly out of scope.
   its own thread.
 - Settings always save.
 - The interface is written in English and translated from gettext files, one
-  per language, under `crates/player/lang/`: Swedish, German, Spanish, French,
+  per language, under `crates/lang/po/`: Swedish, German, Spanish, French,
   Italian, Dutch and Portuguese. Only the Swedish has been reviewed by a
   native speaker; the rest say so at the top of their files. It speaks
   the system's language where it has it, and the settings can name another.

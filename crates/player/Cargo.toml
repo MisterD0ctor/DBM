@@ -1,16 +1,12 @@
 [package]
 name = "dbm-player"
-# The product's version line continues from the Tauri build, which released
-# 0.2.0. This is the same player to anyone installing it, and a version that
-# went backwards would be a lie to the installer and to anyone updating.
-version = "0.5.1"
-edition = "2024"
-# The newest thing it uses is `<[T]>::as_chunks`, in the OpenSubtitles hash.
-rust-version = "1.88"
 description = "A video player built on mpv"
-# The toolkit and the bundled libmpv both require it; see THIRD-PARTY.md.
-license = "GPL-3.0-or-later"
-repository = "https://github.com/MisterD0ctor/DBM"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
 
 [dependencies]
 # The winit window behind Slint's is reached for what Slint has no say in: the
@@ -18,57 +14,55 @@ repository = "https://github.com/MisterD0ctor/DBM"
 # that sizes are offered up to, and, everywhere but Windows, hiding the
 # pointer and minimizing. The winit backend is already the default, so the
 # feature only widens what is reachable.
-slint = { version = "1.18", features = ["raw-window-handle-06", "unstable-winit-030"] }
-glow = "0.16"
-libloading = "0.8"
-raw-window-handle = "0.6"
-rfd = "0.17.2"
+slint = { workspace = true, features = ["raw-window-handle-06", "unstable-winit-030"] }
+glow.workspace = true
+libloading.workspace = true
+raw-window-handle.workspace = true
+rfd.workspace = true
 # The small JSON caches of what is known about each file — see
 # `library::cache` — and the MD5 mpv names its watch-later files by. `serde`
 # is named only for its traits; `serde_json` already brings it.
-serde = "1"
-serde_json = "1"
-md-5 = "0.11"
+serde.workspace = true
+serde_json.workspace = true
+md-5.workspace = true
 # Signing in to OpenSubtitles — see `opensubtitles::account`: overwriting the
 # password and the token wherever the player holds them, reading a token's
 # expiry, and checking every address a request goes to. TLS and the HTTP
 # client already build all three, so this adds no crate to the build.
-zeroize = "1"
-base64 = "0.22"
-url = "2"
-# Which language the system speaks — see `lang`. Slint already builds it to
-# pick its own half of the translations, so this adds no crate to the build.
-sys-locale = "0.3"
+zeroize.workspace = true
+base64.workspace = true
+url.workspace = true
+dbm-lang.workspace = true
 # Draws the logo into the light behind an empty window — see `mark`. Slint
 # already renders its SVG icons with it, so this adds no crate to the build.
-resvg = { version = "0.47", default-features = false }
+resvg.workspace = true
 # The player's own lines, to stderr and to a file — see `logging`. Slint and
 # zbus already build it, so this adds no crate to the build.
-log = "0.4"
+log.workspace = true
 # Error types without hand-written `Display` impls. Slint already builds it.
-thiserror = "2"
+thiserror.workspace = true
 
 [target.'cfg(not(windows))'.dependencies]
 # Talking to OpenSubtitles — see `opensubtitles`. Blocking, which is what a
 # thread of its own wants. TLS through rustls with Mozilla's roots compiled
 # in, so a Flatpak with no host certificates reaches it the same as anything
 # else; on Windows the system's own TLS instead, below.
-ureq = { version = "2", default-features = false, features = ["tls", "json"] }
+ureq = { workspace = true, features = ["tls"] }
 # The media keys and the desktop's media widget, which here means MPRIS over
 # D-Bus - see `mpris`. Default features: that is the blocking API over
 # `async-io`, so nothing drags in an async runtime the rest of the player
 # would then have to live with.
-zbus = "5"
+zbus.workspace = true
 # Starting the seek preview's ffmpeg below the player's priority - see
 # `ffmpeg::spawn_behind`. winit and zbus already build it.
-libc = "0.2"
+libc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 # The same client, over Windows' own TLS: rustls's cryptography is C that a
 # Windows build would need a C compiler for, and Windows has TLS already.
-ureq = { version = "2", default-features = false, features = ["native-tls", "json"] }
-native-tls = "0.2"
-windows = { version = "0.61", features = [
+ureq = { workspace = true, features = ["native-tls"] }
+native-tls.workspace = true
+windows = { workspace = true, features = [
     # The media overlay and the transport buttons on a headset — see `smtc`.
     "Media",
     "Foundation",
@@ -89,11 +83,11 @@ windows = { version = "0.61", features = [
 ] }
 
 [build-dependencies]
-slint-build = "1.18"
+slint-build.workspace = true
 
 # The executable's own icon and version block — see `build.rs`.
 [target.'cfg(windows)'.build-dependencies]
-winresource = "0.1"
+winresource.workspace = true
 
 [lints]
 workspace = true

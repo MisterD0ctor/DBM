@@ -6,7 +6,6 @@
 
 use super::{Driver, Gpu, say, warn};
 use crate::interface::format;
-use crate::lang::{fill, tr};
 use crate::library::naming::{self, Media};
 use crate::library::opensubtitles::account::Account;
 use crate::library::opensubtitles::{self, Fetched, Found, Hit};
@@ -17,6 +16,7 @@ use crate::library::titles::End;
 use crate::playback::commands;
 use crate::worker::{Completion, Worker};
 use crate::{FoundItem, MainWindow};
+use dbm_lang::{fill, tr};
 use slint::{ModelRc, VecModel};
 
 impl Driver {

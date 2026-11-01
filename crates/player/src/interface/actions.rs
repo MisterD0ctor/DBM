@@ -369,7 +369,7 @@ fn wire_finding(ui: &MainWindow, app: &App) {
 /// beside it, which more films have than any other. In OpenSubtitles' own
 /// codes, which split Portuguese in two where the player has one.
 fn search_languages() -> Vec<String> {
-    let mut codes: Vec<String> = match crate::lang::spoken() {
+    let mut codes: Vec<String> = match dbm_lang::spoken() {
         "pt" => vec!["pt-br".into(), "pt-pt".into()],
         code => vec![code.to_string()],
     };
@@ -510,7 +510,7 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
             app.activity.bump();
             let code = language_of(row);
             app.settings.set_language(&code);
-            crate::lang::speak(&code);
+            speak(&code);
             if let Some(ui) = weak.upgrade() {
                 models.say_again(&ui, &app.settings);
             }
@@ -698,7 +698,7 @@ fn language_of(row: i32) -> String {
     match row {
         0 => String::new(),
         1 => "en".into(),
-        n => crate::lang::codes()
+        n => dbm_lang::codes()
             .nth((n - 2).max(0) as usize)
             .unwrap_or_default()
             .to_string(),
@@ -711,7 +711,7 @@ fn row_of(code: &str) -> i32 {
     match code {
         "" => 0,
         "en" => 1,
-        code => crate::lang::codes()
+        code => dbm_lang::codes()
             .position(|known| known == code)
             .map_or(0, |place| place as i32 + 2),
     }
@@ -744,13 +744,24 @@ fn restore_language(ui: &MainWindow, app: &App) {
     // Each language by its own name for itself, which is the one name for it
     // that its speakers can read whatever the interface is in.
     ui.set_language_names(slint::ModelRc::new(slint::VecModel::from(
-        crate::lang::codes()
+        dbm_lang::codes()
             .map(|code| crate::library::naming::language_name(code).into())
             .collect::<Vec<slint::SharedString>>(),
     )));
     let language = app.settings.language();
     ui.set_language_choice(row_of(&language));
-    crate::lang::speak(&language);
+    speak(&language);
+}
+
+/// Speak a language (see `dbm_lang::speak`), the interface's own words too.
+///
+/// **UI thread, after the window exists** — Slint's half of the switch needs
+/// a component to have been created.
+fn speak(choice: &str) {
+    let spoken = dbm_lang::speak(choice);
+    if let Err(e) = slint::select_bundled_translation(spoken.unwrap_or_default()) {
+        log::warn!("could not switch the interface to {spoken:?}: {e}");
+    }
 }
 
 /// Set the window state and the mirrored flag together, so the toolbar icon
