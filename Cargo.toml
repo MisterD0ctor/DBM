@@ -1,3 +1,18 @@
 [workspace]
 members = ["crates/player"]
-resolver = "2"
+resolver = "3"
+
+# Pedantic and nursery as a whole are mostly noise here; these are the lints
+# from them that catch something real. CI denies every warning, so a lint on
+# this list is one the code already passes.
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+
+[workspace.lints.clippy]
+cast_lossless = "warn"
+manual_midpoint = "warn"
+match_same_arms = "warn"
+needless_pass_by_ref_mut = "warn"
+redundant_closure_for_method_calls = "warn"
+semicolon_if_nothing_returned = "warn"
+use_self = "warn"

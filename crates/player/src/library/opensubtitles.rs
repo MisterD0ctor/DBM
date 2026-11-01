@@ -139,7 +139,7 @@ pub struct Fetched {
 /// Look for subtitles for `path` in `languages`, on a thread of its own.
 pub fn search(path: String, languages: Vec<String>, reporter: Reporter) {
     let generation = GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
-    std::thread::spawn(move || {
+    crate::threads::spawn("dbm-search", move || {
         let hits = look(&path, &languages);
         if GENERATION.load(Ordering::SeqCst) == generation {
             let account = account::current();
@@ -155,7 +155,7 @@ pub fn search(path: String, languages: Vec<String>, reporter: Reporter) {
 /// Fetch one subtitle for `path`, on a thread of its own, keep it, and say
 /// where it is.
 pub fn fetch(path: String, hit: Hit, reporter: Reporter) {
-    std::thread::spawn(move || {
+    crate::threads::spawn("dbm-download", move || {
         let result = download(&path, &hit);
         let account = account::current();
         reporter.send(Completion::Fetched(Fetched {
@@ -578,11 +578,12 @@ fn fetch_file(mut url: Url) -> Result<Vec<u8>, Failure> {
     for _ in 0..=REDIRECTS {
         let response = match agent.request_url("GET", &url).call() {
             Ok(response) => response,
-            Err(ureq::Error::Status(410, _)) => return Err(Failure::Unreachable),
-            Err(ureq::Error::Status(_, response)) => {
-                return Err(said(&read_json(response)).unwrap_or(Failure::Unreachable))
+            Err(ureq::Error::Status(410, _) | ureq::Error::Transport(_)) => {
+                return Err(Failure::Unreachable);
             }
-            Err(ureq::Error::Transport(_)) => return Err(Failure::Unreachable),
+            Err(ureq::Error::Status(_, response)) => {
+                return Err(said(&read_json(response)).unwrap_or(Failure::Unreachable));
+            }
         };
         if !(300..400).contains(&response.status()) {
             let mut bytes = Vec::new();

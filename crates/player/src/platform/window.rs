@@ -166,13 +166,17 @@ impl Rounding {
 
     /// Nothing to ask: the frame's corners are cut instead.
     #[cfg(not(windows))]
+    #[expect(
+        clippy::needless_pass_by_ref_mut,
+        reason = "the same face as the Windows poll, which keeps trying until the window exists"
+    )]
     pub fn poll(&mut self, _window: &slint::Window) {}
 }
 
 #[cfg(windows)]
 fn round_corners(window: &slint::Window) -> Result<(), String> {
     use windows::Win32::Graphics::Dwm::{
-        DwmSetWindowAttribute, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+        DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND, DwmSetWindowAttribute,
     };
 
     let hwnd = hwnd(window)?;
@@ -187,10 +191,10 @@ fn round_corners(window: &slint::Window) -> Result<(), String> {
     };
     // Windows 10 refuses it, having no round corners to give. That is an
     // answer too, so it is not asked again.
-    if let Err(e) = asked {
-        if crate::diagnostics::trace() {
-            eprintln!("dbm: the window's corners stay square ({e})");
-        }
+    if let Err(e) = asked
+        && crate::diagnostics::trace()
+    {
+        eprintln!("dbm: the window's corners stay square ({e})");
     }
     Ok(())
 }

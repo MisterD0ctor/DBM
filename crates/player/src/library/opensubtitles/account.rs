@@ -30,12 +30,12 @@ use std::collections::VecDeque;
 use std::sync::Mutex;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
 use base64::Engine;
+use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
 use serde_json::Value;
 use zeroize::Zeroizing;
 
-use super::{fake, send, Ask, Failure, Host};
+use super::{Ask, Failure, Host, fake, send};
 use crate::worker::{Completion, Reporter};
 
 /// How long a token lasts, by OpenSubtitles' word, and the most the player
@@ -80,7 +80,9 @@ static SENT: Mutex<VecDeque<Instant>> = Mutex::new(VecDeque::new());
 
 /// Who is signed in, or nobody. A token past its time is let go here.
 pub fn current() -> Option<Account> {
-    let mut session = SESSION.lock().unwrap_or_else(|e| e.into_inner());
+    let mut session = SESSION
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if session
         .as_ref()
         .is_some_and(|s| s.expires <= SystemTime::now())
@@ -93,7 +95,9 @@ pub fn current() -> Option<Account> {
 /// The signed-in account for a request, if there is one still in its time.
 pub(super) fn signed() -> Option<Signed> {
     current()?;
-    let session = SESSION.lock().unwrap_or_else(|e| e.into_inner());
+    let session = SESSION
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     session.as_ref().map(|s| Signed {
         host: s.host,
         token: s.token.clone(),
@@ -104,7 +108,9 @@ pub(super) fn signed() -> Option<Signed> {
 /// OpenSubtitles no longer takes the token a request was sent with, so the
 /// person is signed out.
 pub(super) fn lapse(signed: &Signed) {
-    let mut session = SESSION.lock().unwrap_or_else(|e| e.into_inner());
+    let mut session = SESSION
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if session.as_ref().is_some_and(|s| s.id == signed.session) {
         *session = None;
     }
@@ -112,7 +118,9 @@ pub(super) fn lapse(signed: &Signed) {
 
 /// A download said how many the account has left.
 pub(super) fn left(signed: &Signed, left: i64) {
-    let mut session = SESSION.lock().unwrap_or_else(|e| e.into_inner());
+    let mut session = SESSION
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     if let Some(s) = session.as_mut().filter(|s| s.id == signed.session) {
         s.account.left = Some(left);
     }
@@ -120,7 +128,7 @@ pub(super) fn left(signed: &Signed, left: i64) {
 
 /// Sign in as `name`, on a thread of its own, and say how it went.
 pub fn sign_in(name: String, password: Zeroizing<String>, reporter: Reporter) {
-    std::thread::spawn(move || {
+    crate::threads::spawn("dbm-sign-in", move || {
         let result = log_in(&name, &password);
         drop(password);
         reporter.send(Completion::SignedIn(result));
@@ -131,7 +139,7 @@ pub fn sign_in(name: String, password: Zeroizing<String>, reporter: Reporter) {
 /// signed out at once, whether or not it arrives.
 pub fn sign_out() {
     if let Some(session) = take() {
-        std::thread::spawn(move || log_out(session, super::TIMEOUT));
+        crate::threads::spawn("dbm-sign-out", move || log_out(session, super::TIMEOUT));
     }
 }
 
@@ -143,12 +151,17 @@ pub fn sign_out_before_quitting() {
 }
 
 fn take() -> Option<Session> {
-    SESSION.lock().unwrap_or_else(|e| e.into_inner()).take()
+    SESSION
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take()
 }
 
 fn log_in(name: &str, password: &str) -> Result<Account, Failure> {
     let allowed = may_send(
-        &mut SENT.lock().unwrap_or_else(|e| e.into_inner()),
+        &mut SENT
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner),
         Instant::now(),
     );
     if !allowed {
@@ -182,7 +195,7 @@ fn log_in(name: &str, password: &str) -> Result<Account, Failure> {
             token,
             session: 0,
         };
-        std::thread::spawn(move || hand_back(&refused, super::TIMEOUT));
+        crate::threads::spawn("dbm-hand-back", move || hand_back(&refused, super::TIMEOUT));
         return Err(Failure::Unreachable);
     };
     let fresh = Signed {
@@ -199,7 +212,9 @@ fn log_in(name: &str, password: &str) -> Result<Account, Failure> {
 fn keep(name: &str, host: Host, token: Zeroizing<String>, left: Option<i64>) -> Account {
     let now = SystemTime::now();
     let id = {
-        let mut last = SESSIONS.lock().unwrap_or_else(|e| e.into_inner());
+        let mut last = SESSIONS
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         *last += 1;
         *last
     };
@@ -216,10 +231,10 @@ fn keep(name: &str, host: Host, token: Zeroizing<String>, left: Option<i64>) -> 
     };
     let before = SESSION
         .lock()
-        .unwrap_or_else(|e| e.into_inner())
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
         .replace(session);
     if let Some(before) = before {
-        std::thread::spawn(move || log_out(before, super::TIMEOUT));
+        crate::threads::spawn("dbm-sign-out", move || log_out(before, super::TIMEOUT));
     }
     account
 }

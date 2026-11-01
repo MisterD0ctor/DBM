@@ -21,7 +21,7 @@
 use glow::HasContext;
 
 use crate::gpu::blur::{self, Blur};
-use crate::gpu::gfx::{bind_texture, saved_draw_fbo, Program, ScreenQuad, Target};
+use crate::gpu::gfx::{Program, ScreenQuad, Target, bind_texture, saved_draw_fbo};
 use crate::gpu::shadow::HEADROOM;
 use crate::playback::mpv::RenderContext;
 
@@ -172,7 +172,7 @@ pub fn legible_ceiling(text: f32, ratio: f32) -> f32 {
     // The contrast falls steadily as the grey brightens.
     let (mut lo, mut hi) = (0.0f32, 1.0f32);
     for _ in 0..24 {
-        let mid = 0.5 * (lo + hi);
+        let mid = f32::midpoint(lo, hi);
         if contrast(mid) >= ratio {
             lo = mid;
         } else {
@@ -449,11 +449,12 @@ impl Pipeline {
     /// Whether the backdrop stands in for mpv's picture, and whether there is
     /// a film's frame under it. Each time it is shown it arrives again.
     pub fn show_backdrop(&mut self, on: bool, over_film: bool) {
-        if on && !self.show_backdrop {
-            if let Some(b) = self.backdrop.as_mut() {
-                b.arrived = std::time::Instant::now();
-                b.settled = false;
-            }
+        if on
+            && !self.show_backdrop
+            && let Some(b) = self.backdrop.as_mut()
+        {
+            b.arrived = std::time::Instant::now();
+            b.settled = false;
         }
         self.film_wanted |= self.show_backdrop && !on;
         self.show_backdrop = on;
@@ -504,7 +505,7 @@ impl Pipeline {
     /// mpv's picture, into the video target. It re-renders the frame it holds
     /// when asked, so a paused film is drawn again as well as a playing one.
     fn render_film(
-        &mut self,
+        &self,
         gl: &glow::Context,
         ctx: &RenderContext,
         w: u32,
@@ -722,7 +723,7 @@ impl Pipeline {
     }
 
     /// Composite the glass panels over the finished frame.
-    fn run_glass(&mut self, gl: &glow::Context, w: u32, h: u32) {
+    fn run_glass(&self, gl: &glow::Context, w: u32, h: u32) {
         let panels: &[GlassPanel] = if self.glass_enabled {
             &self.panels
         } else {
@@ -742,7 +743,10 @@ impl Pipeline {
     /// The glass pass: `panels` over `base`, refracting `blur`, into `out`,
     /// all of them `size` and the panels placed in it, and the frame held
     /// under white inside `shaded` (see `shadow::HEADROOM`).
-    #[allow(clippy::too_many_arguments)]
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "each is a separate input of the one pass"
+    )]
     fn draw_glass(
         &self,
         gl: &glow::Context,
@@ -960,7 +964,7 @@ impl Pipeline {
         }
     }
 
-    fn run_border(&mut self, gl: &glow::Context, w: u32, h: u32) {
+    fn run_border(&self, gl: &glow::Context, w: u32, h: u32) {
         let size = (w as f32, h as f32);
         let texel = (1.0 / size.0, 1.0 / size.1);
         let p = self.params;
@@ -1041,7 +1045,7 @@ impl Pipeline {
 
 #[cfg(test)]
 mod tests {
-    use super::{fringe_scale, legible_ceiling, luminance, LEGIBLE, RING_MILK};
+    use super::{LEGIBLE, RING_MILK, fringe_scale, legible_ceiling, luminance};
 
     #[test]
     fn the_fringe_is_the_glass_own_when_sharp_and_widens_with_the_root_of_the_blur() {

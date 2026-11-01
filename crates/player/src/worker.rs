@@ -13,12 +13,12 @@
 //! background work is visible in one place, and adding one is a compile
 //! error until it is handled.
 
-use std::sync::mpsc::{self, Receiver, Sender, TryIter};
 use std::sync::Arc;
+use std::sync::mpsc::{self, Receiver, Sender, TryIter};
 use std::thread::JoinHandle;
 
-use crate::playback::mpv::Mpv;
 use crate::MainWindow;
+use crate::playback::mpv::Mpv;
 
 /// Work that finished. Add a variant per kind of background job.
 pub enum Completion {
@@ -155,7 +155,7 @@ impl Worker {
                     // Nudge the loop, since while paused there are no frames
                     // to drain the completion.
                     let _ = ui.upgrade_in_event_loop(|ui| {
-                        slint::ComponentHandle::window(&ui).request_redraw()
+                        slint::ComponentHandle::window(&ui).request_redraw();
                     });
                 }
             })

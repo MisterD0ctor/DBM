@@ -23,7 +23,7 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use crate::lang::tr;
-use crate::playback::mpv::{Event, Mpv, Value, FORMAT_STRING};
+use crate::playback::mpv::{Event, FORMAT_STRING, Mpv, Value};
 use crate::playback::tracks::{self, TrackKind};
 use crate::worker::{Completion, Worker};
 

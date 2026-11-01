@@ -140,8 +140,8 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
 /// connection is needed.
 pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
     use super::drive::chord;
-    use slint::platform::Key;
     use slint::Model;
+    use slint::platform::Key;
 
     let report = move |ui: &MainWindow, mpv: &Mpv, label: &str| {
         let subs: Vec<String> = ui
@@ -498,7 +498,7 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                 // start another. `DBM_SYNC_KEEP` leaves it standing, for a run
                 // that goes on to look at what was saved.
                 19 if ui.get_sync_state() == 2 && std::env::var_os("DBM_SYNC_KEEP").is_none() => {
-                    chord(&ui, &[], enter.as_str())
+                    chord(&ui, &[], enter.as_str());
                 }
                 21 => report(&ui, &mpv, "after taking it back"),
                 22 => eprintln!("dbm: --- sync test done ---"),

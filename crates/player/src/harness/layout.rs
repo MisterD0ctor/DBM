@@ -6,8 +6,8 @@ use slint::{ComponentHandle, Model};
 
 use super::drive::{click, drag, wheel};
 use super::selected_label;
-use crate::platform::modal_loop;
 use crate::MainWindow;
+use crate::platform::modal_loop;
 
 pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();

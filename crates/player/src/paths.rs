@@ -12,8 +12,8 @@ const APP_DIR: &str = "Death by MPV";
 /// Falls back to the temp directory rather than failing: a missing config
 /// directory should cost a saved position, not the ability to play a file.
 pub fn app_data_dir() -> PathBuf {
-    // `APPDATA` wins on every platform, not just Windows, so the `durations`
-    // test can redirect it to a scratch directory wherever the suite runs.
+    // `APPDATA` wins on every platform, not just Windows, so a harness run can
+    // be pointed at a scratch directory wherever it runs.
     let base = std::env::var_os("APPDATA").map(PathBuf::from).or_else(|| {
         if cfg!(windows) {
             None
@@ -23,9 +23,25 @@ pub fn app_data_dir() -> PathBuf {
                 .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
         }
     });
+    #[cfg(test)]
+    let base = TEST_BASE.with_borrow(Clone::clone).or(base);
     let dir = base.unwrap_or_else(std::env::temp_dir).join(APP_DIR);
     let _ = std::fs::create_dir_all(&dir);
     dir
+}
+
+#[cfg(test)]
+thread_local! {
+    /// A test's stand-in for `APPDATA`. Per thread, so tests running in
+    /// parallel never see each other's, and none has to change the process
+    /// environment under the others.
+    static TEST_BASE: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
+}
+
+/// Point this thread's `app_data_dir` at `base`, as `APPDATA` would.
+#[cfg(test)]
+pub fn set_test_base(base: &Path) {
+    TEST_BASE.set(Some(base.to_path_buf()));
 }
 
 /// Where mpv keeps its per-title resume files.

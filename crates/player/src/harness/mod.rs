@@ -253,6 +253,11 @@
 //! script gives the run a headless compositor of its own. Every run plays its
 //! film silently (see [`configure`]).
 
+#![expect(
+    clippy::match_same_arms,
+    reason = "the exercises number their steps, and two steps that do the same thing are still two steps"
+)]
+
 mod drive;
 mod keys;
 mod layout;

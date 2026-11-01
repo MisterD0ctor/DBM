@@ -76,7 +76,7 @@ fn within(
     surface: Option<(f32, f32)>,
     lists: &impl Model<Data = ScrollFade>,
 ) -> ([f32; 4], f32) {
-    let centre = 0.5 * (rect[0] + rect[2]);
+    let centre = f32::midpoint(rect[0], rect[2]);
     let height = rect[3] - rect[1];
     if height <= 0.0 {
         return (rect, opacity);

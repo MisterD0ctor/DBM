@@ -224,7 +224,7 @@ fn natural(a: &str, b: &str) -> Ordering {
 
 fn digits(chars: &mut std::iter::Peekable<std::str::Chars>) -> String {
     let mut run = String::new();
-    while let Some(c) = chars.peek().copied().filter(|c| c.is_ascii_digit()) {
+    while let Some(c) = chars.peek().copied().filter(char::is_ascii_digit) {
         run.push(c);
         chars.next();
     }
@@ -275,13 +275,11 @@ pub fn seasons_beside(current: &Path) -> Vec<(PathBuf, u32)> {
             season: Some(n),
             ..
         } = crate::library::naming::parse(&first.to_string_lossy())
+            && n != season
+            && other.eq_ignore_ascii_case(&show)
+            && !found.iter().any(|(_, m)| *m == n)
         {
-            if n != season
-                && other.eq_ignore_ascii_case(&show)
-                && !found.iter().any(|(_, m)| *m == n)
-            {
-                found.push((dir, n));
-            }
+            found.push((dir, n));
         }
     }
     found.sort_by_key(|(_, n)| *n);

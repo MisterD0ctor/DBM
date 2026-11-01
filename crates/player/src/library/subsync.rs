@@ -26,8 +26,8 @@
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::library::ffmpeg;
 use crate::playback::mpv::Mpv;
@@ -150,7 +150,7 @@ fn current(generation: u64) -> bool {
 /// and has to be told when to stop.
 pub fn spawn(mpv: Arc<Mpv>, reporter: Reporter) {
     let generation = supersede();
-    std::thread::spawn(move || {
+    crate::threads::spawn("dbm-subsync", move || {
         // Read here rather than handed over, since these block on mpv's core
         // lock, which the UI thread must not.
         let path = mpv.get_property("path").unwrap_or_default();
@@ -398,7 +398,7 @@ impl Loudness {
                 self.odd = Some(low);
                 return;
             };
-            self.sample(i16::from_le_bytes([low, high]) as f32);
+            self.sample(f32::from(i16::from_le_bytes([low, high])));
         }
     }
 
@@ -408,7 +408,7 @@ impl Loudness {
         // traffic, wind, a score's low end — and leaves the consonants.
         let y = x - 0.95 * self.last;
         self.last = x;
-        self.sum += (y * y) as f64;
+        self.sum += f64::from(y * y);
         self.count += 1;
         if self.count == FRAME {
             // The one inside the logarithm puts digital silence at zero.
@@ -656,12 +656,12 @@ struct Running(Vec<f64>);
 
 impl Running {
     fn over(speech: &[f32]) -> Self {
-        let mean = speech.iter().map(|&s| s as f64).sum::<f64>() / speech.len() as f64;
+        let mean = speech.iter().map(|&s| f64::from(s)).sum::<f64>() / speech.len() as f64;
         let mut total = Vec::with_capacity(speech.len() + 1);
         let mut sum = 0.0;
         total.push(0.0);
         for &s in speech {
-            sum += s as f64 - mean;
+            sum += f64::from(s) - mean;
             total.push(sum);
         }
         Self(total)

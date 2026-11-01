@@ -59,16 +59,16 @@ pub enum Saved {
 impl Saved {
     pub fn of(progress: &Progress) -> Self {
         if progress.start <= 0.0 {
-            Saved::Nothing
+            Self::Nothing
         } else if progress.finished
             || progress.seconds > 0.0
                 && progress.seconds - progress.start
                     <= (progress.seconds * ENDING_SHARE).max(ENDING_LEAST)
             || progress.start < WORTH_ASKING
         {
-            Saved::Over
+            Self::Over
         } else {
-            Saved::Place(progress.start)
+            Self::Place(progress.start)
         }
     }
 }

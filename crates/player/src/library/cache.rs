@@ -80,7 +80,10 @@ impl<V: Serialize + DeserializeOwned + PartialEq> PathMap<V> {
     ///
     /// **Blocking.** Worker thread only.
     pub fn set(&self, path: &str, value: V) {
-        let _guard = self.write.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = self
+            .write
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         update(&self.file(), self.version, path, value);
     }
 }

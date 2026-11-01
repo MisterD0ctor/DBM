@@ -11,7 +11,9 @@
 //! recompiling: the vendored build on Windows, the system's or the Flatpak's
 //! on Linux, or whatever `DBM_LIBMPV` names.
 
-use std::ffi::{c_char, c_int, c_void, CStr, CString};
+#![warn(clippy::undocumented_unsafe_blocks)]
+
+use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::mem::ManuallyDrop;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -79,7 +81,6 @@ pub const FORMAT_FLAG: c_int = 3;
 pub const FORMAT_DOUBLE: c_int = 5;
 
 // `mpv_event_id`, the handful we act on.
-const EVENT_NONE: c_int = 0;
 const EVENT_SHUTDOWN: c_int = 1;
 const EVENT_START_FILE: c_int = 6;
 const EVENT_END_FILE: c_int = 7;
@@ -186,10 +187,10 @@ pub enum Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::Load(m) => write!(f, "failed to load libmpv: {m}"),
-            Error::Create => write!(f, "mpv_create returned null"),
-            Error::Api { call, code } => write!(f, "{call} failed with mpv error {code}"),
-            Error::Nul => write!(f, "string contained an interior NUL"),
+            Self::Load(m) => write!(f, "failed to load libmpv: {m}"),
+            Self::Create => write!(f, "mpv_create returned null"),
+            Self::Api { call, code } => write!(f, "{call} failed with mpv error {code}"),
+            Self::Nul => write!(f, "string contained an interior NUL"),
         }
     }
 }
@@ -251,6 +252,8 @@ struct Lib {
 
 macro_rules! sym {
     ($library:expr, $name:literal) => {
+        // SAFETY: each field's type is the signature client.h or render.h
+        // declares for the symbol of its name.
         *unsafe { $library.get(concat!($name, "\0").as_bytes()) }
             .map_err(|e| Error::Load(format!("{}: {e}", $name)))?
     };
@@ -261,6 +264,7 @@ impl Lib {
     /// `path` must name a real libmpv: loading it runs its start-up code, and
     /// its symbols are taken to have the signatures above.
     unsafe fn load(path: &Path) -> Result<Self> {
+        // SAFETY: the caller vouches that `path` is a libmpv.
         let library = unsafe { libloading::Library::new(path) }
             .map_err(|e| Error::Load(format!("{}: {e}", path.display())))?;
         Ok(Self {
@@ -338,12 +342,18 @@ fn mask_subtitles(mpv: &Mpv) {
 // Player handle
 // ---------------------------------------------------------------------------
 
+/// A callback mpv makes from a thread of its own, so it may only nudge the
+/// UI loop.
+pub type Wake = Box<dyn Fn() + Send + Sync>;
+
+/// A libmpv player. `handle` is live from `new` until `drop`, which every
+/// `SAFETY` note in this file assumes.
 pub struct Mpv {
     lib: Lib,
     handle: *mut MpvHandle,
     /// The closure `set_wakeup` handed mpv, freed once mpv can no longer
     /// call it.
-    wakeup: Mutex<*mut Box<dyn Fn() + Send + Sync>>,
+    wakeup: Mutex<*mut Wake>,
     /// Whether mpv leaves what is outside the picture transparent rather
     /// than black; see [`Mpv::clear_surround`].
     clear_surround: bool,
@@ -364,6 +374,7 @@ const CLEAR: &str = "0/0/0/0";
 // Anything else (`get_property`, `set_property`, `observe`, `command_async`,
 // `command`) is safe to call from the worker thread.
 unsafe impl Send for Mpv {}
+// SAFETY: as for `Send`, above.
 unsafe impl Sync for Mpv {}
 
 impl Mpv {
@@ -377,7 +388,10 @@ impl Mpv {
     /// `mpv_initialize`, the only window in which some options, like
     /// `watch-later-directory`, can be set.
     pub fn new(configure: impl FnOnce(&Self)) -> Result<Self> {
+        // SAFETY: each place `libmpv_path` looks holds a libmpv, or one the
+        // person named in `DBM_LIBMPV`.
         let lib = unsafe { Lib::load(&libmpv_path()) }?;
+        // SAFETY: takes nothing, and a null result is checked below.
         let handle = unsafe { (lib.mpv_create)() };
         if handle.is_null() {
             return Err(Error::Create);
@@ -420,6 +434,7 @@ impl Mpv {
 
         configure(&mpv);
 
+        // SAFETY: `handle` is live and not yet initialized.
         check("mpv_initialize", unsafe {
             (mpv.lib.mpv_initialize)(mpv.handle)
         })?;
@@ -435,6 +450,7 @@ impl Mpv {
 
     pub fn set_option(&self, name: &str, value: &str) -> Result<()> {
         let (n, v) = (cstr(name)?, cstr(value)?);
+        // SAFETY: `handle` is live, and `n` and `v` outlive the call.
         check("mpv_set_option_string", unsafe {
             (self.lib.mpv_set_option_string)(self.handle, n.as_ptr(), v.as_ptr())
         })
@@ -446,6 +462,7 @@ impl Mpv {
     /// on an interactive path goes through `commands`, which queues a `set`.
     pub fn set_property(&self, name: &str, value: &str) -> Result<()> {
         let (n, v) = (cstr(name)?, cstr(value)?);
+        // SAFETY: `handle` is live, and `n` and `v` outlive the call.
         check("mpv_set_property_string", unsafe {
             (self.lib.mpv_set_property_string)(self.handle, n.as_ptr(), v.as_ptr())
         })
@@ -462,15 +479,18 @@ impl Mpv {
     /// been decoded.
     pub fn get_property(&self, name: &str) -> Option<String> {
         let n = cstr(name).ok()?;
+        // SAFETY: `handle` is live, and `n` outlives the call.
         let raw = unsafe { (self.lib.mpv_get_property_string)(self.handle, n.as_ptr()) };
         if raw.is_null() {
             return None;
         }
+        // SAFETY: non-null, NUL-terminated, and mpv's until the `mpv_free` below.
         let out = unsafe { CStr::from_ptr(raw) }
             .to_string_lossy()
             .into_owned();
-        // The string is mpv-allocated; it has to go back to mpv, not to Rust.
-        unsafe { (self.lib.mpv_free)(raw as *mut c_void) };
+        // SAFETY: mpv allocated it, so it goes back to mpv rather than to
+        // Rust, and nothing reads it after.
+        unsafe { (self.lib.mpv_free)(raw.cast()) };
         Some(out)
     }
 
@@ -493,6 +513,7 @@ impl Mpv {
     /// [`Mpv::poll_event`] as [`Event::Property`].
     pub fn observe(&self, name: &str, format: c_int) -> Result<()> {
         let n = cstr(name)?;
+        // SAFETY: `handle` is live, and `n` outlives the call.
         check("mpv_observe_property", unsafe {
             (self.lib.mpv_observe_property)(self.handle, 0, n.as_ptr(), format)
         })
@@ -501,16 +522,20 @@ impl Mpv {
     /// Called from an mpv thread whenever the event queue becomes non-empty.
     /// The callback must not re-enter mpv, so in practice it only nudges the
     /// UI loop into draining.
-    pub fn set_wakeup(&self, notify: Box<dyn Fn() + Send + Sync>) {
+    pub fn set_wakeup(&self, notify: Wake) {
         let raw = Box::into_raw(Box::new(notify));
         let mut held = self.wakeup.lock().unwrap_or_else(PoisonError::into_inner);
+        // SAFETY: `handle` is live, and `raw` lives until it is replaced here
+        // or `drop` frees it once mpv can no longer call it.
         unsafe {
-            (self.lib.mpv_set_wakeup_callback)(self.handle, Some(wakeup_thunk), raw as *mut c_void)
+            (self.lib.mpv_set_wakeup_callback)(self.handle, Some(wakeup_thunk), raw.cast());
         };
         // mpv calls the closure under the lock it replaces it under, so the
         // one replaced can't still be running.
         let replaced = std::mem::replace(&mut *held, raw);
         if !replaced.is_null() {
+            // SAFETY: it came from `Box::into_raw` on an earlier call, and mpv
+            // is done with it.
             drop(unsafe { Box::from_raw(replaced) });
         }
     }
@@ -523,13 +548,15 @@ impl Mpv {
     /// # Safety
     /// Never on two threads at once: mpv hands every caller the same struct.
     pub unsafe fn poll_event(&self) -> Option<Event> {
+        // SAFETY: `handle` is live, and the caller keeps this to one thread.
         let raw = unsafe { (self.lib.mpv_wait_event)(self.handle, 0.0) };
         if raw.is_null() {
             return None;
         }
+        // SAFETY: non-null, and valid until the next `mpv_wait_event`, which
+        // cannot come while `ev` is borrowed from `self`.
         let ev = unsafe { &*raw };
         match ev.event_id {
-            EVENT_NONE => None,
             EVENT_SHUTDOWN => Some(Event::Shutdown),
             EVENT_COMMAND_REPLY => Some(Event::CommandReply {
                 id: ev.reply_userdata,
@@ -540,8 +567,11 @@ impl Mpv {
             EVENT_END_FILE => {
                 // Absent data means an ending with no detail, which is the
                 // ordinary case and not a failure.
-                let end =
-                    (!ev.data.is_null()).then(|| unsafe { &*(ev.data as *const RawEventEndFile) });
+                let end = (!ev.data.is_null()).then(|| {
+                    // SAFETY: an end-file event's `data` is an
+                    // `mpv_event_end_file`, which `RawEventEndFile` is a prefix of.
+                    unsafe { &*ev.data.cast::<RawEventEndFile>() }
+                });
                 let failure = end
                     .filter(|end| end.reason == END_FILE_REASON_ERROR)
                     .map(|end| self.error_text(end.error));
@@ -557,10 +587,12 @@ impl Mpv {
                 if ev.data.is_null() {
                     return None;
                 }
-                let prop = unsafe { &*(ev.data as *const RawEventProperty) };
+                // SAFETY: a property event's `data` is an `mpv_event_property`.
+                let prop = unsafe { &*ev.data.cast::<RawEventProperty>() };
                 if prop.name.is_null() {
                     return None;
                 }
+                // SAFETY: non-null, NUL-terminated, and mpv's until the next event.
                 let name = unsafe { CStr::from_ptr(prop.name) }
                     .to_string_lossy()
                     .into_owned();
@@ -570,16 +602,20 @@ impl Mpv {
                     Value::Unset
                 } else {
                     match prop.format {
-                        FORMAT_FLAG => Value::Flag(unsafe { *(prop.data as *const c_int) } != 0),
-                        FORMAT_DOUBLE => Value::Double(unsafe { *(prop.data as *const f64) }),
+                        // SAFETY: a flag's `data` points at an `int`.
+                        FORMAT_FLAG => Value::Flag(unsafe { *prop.data.cast::<c_int>() } != 0),
+                        // SAFETY: a double's `data` points at a `double`.
+                        FORMAT_DOUBLE => Value::Double(unsafe { *prop.data.cast::<f64>() }),
                         FORMAT_STRING => {
-                            let s = unsafe { *(prop.data as *const *const c_char) };
+                            // SAFETY: a string's `data` points at a `char *`.
+                            let s = unsafe { *prop.data.cast::<*const c_char>() };
                             if s.is_null() {
                                 Value::Unset
                             } else {
-                                Value::Str(
-                                    unsafe { CStr::from_ptr(s) }.to_string_lossy().into_owned(),
-                                )
+                                // SAFETY: non-null, NUL-terminated, and mpv's
+                                // until the next event.
+                                let text = unsafe { CStr::from_ptr(s) };
+                                Value::Str(text.to_string_lossy().into_owned())
                             }
                         }
                         _ => Value::Unset,
@@ -587,17 +623,20 @@ impl Mpv {
                 };
                 Some(Event::Property { name, value })
             }
+            // `MPV_EVENT_NONE` for an empty queue, or an event nothing here acts on.
             _ => None,
         }
     }
 
     /// mpv's own description of an error code.
     fn error_text(&self, code: c_int) -> String {
+        // SAFETY: takes any code at all.
         let raw = unsafe { (self.lib.mpv_error_string)(code) };
         if raw.is_null() {
             return "unknown error".into();
         }
-        // Static storage owned by mpv; not ours to free.
+        // SAFETY: non-null and NUL-terminated, in static storage mpv owns, so
+        // it is not ours to free.
         unsafe { CStr::from_ptr(raw) }
             .to_string_lossy()
             .into_owned()
@@ -612,6 +651,8 @@ impl Mpv {
     pub fn command_async(&self, reply_id: u64, args: &[&str]) -> Result<()> {
         check(
             "mpv_command_async",
+            // SAFETY: `handle` is live, and `argv` is null-terminated and
+            // outlives the call.
             with_argv(args, |argv| unsafe {
                 (self.lib.mpv_command_async)(self.handle, reply_id, argv)
             })?,
@@ -626,6 +667,8 @@ impl Mpv {
     pub fn command(&self, args: &[&str]) -> Result<()> {
         check(
             "mpv_command",
+            // SAFETY: `handle` is live, and `argv` is null-terminated and
+            // outlives the call.
             with_argv(args, |argv| unsafe {
                 (self.lib.mpv_command)(self.handle, argv)
             })?,
@@ -644,7 +687,8 @@ fn with_argv<T>(args: &[&str], f: impl FnOnce(*mut *const c_char) -> T) -> Resul
 
 impl Drop for Mpv {
     fn drop(&mut self) {
-        // The render context holds this handle, so it is already gone.
+        // SAFETY: the render context holds an `Arc` of this, so it is already
+        // gone, and nothing uses `handle` after.
         unsafe { (self.lib.mpv_terminate_destroy)(self.handle) };
         // Only now, since mpv can still wake while it terminates.
         let wakeup = *self
@@ -652,13 +696,17 @@ impl Drop for Mpv {
             .get_mut()
             .unwrap_or_else(PoisonError::into_inner);
         if !wakeup.is_null() {
+            // SAFETY: it came from `Box::into_raw` in `set_wakeup`, and mpv
+            // has terminated.
             drop(unsafe { Box::from_raw(wakeup) });
         }
     }
 }
 
 unsafe extern "C" fn wakeup_thunk(ctx: *mut c_void) {
-    let notify = unsafe { &*(ctx as *const Box<dyn Fn() + Send + Sync>) };
+    // SAFETY: `ctx` is the box `set_wakeup` registered, which lives until mpv
+    // can no longer call this.
+    let notify = unsafe { &*ctx.cast::<Wake>() };
     notify();
 }
 
@@ -675,11 +723,14 @@ fn cstr(s: &str) -> Result<CString> {
 /// stays alive for the duration of `mpv_render_context_create` - the only
 /// window in which mpv calls this.
 unsafe extern "C" fn get_proc_address_thunk(ctx: *mut c_void, name: *const c_char) -> *mut c_void {
+    // SAFETY: mpv names the function in a NUL-terminated string.
     let name = unsafe { CStr::from_ptr(name) };
     if name == c"glFenceSync" {
         return no_fence as *mut c_void;
     }
-    let f = unsafe { &*(ctx as *const &dyn Fn(&CStr) -> *const c_void) };
+    // SAFETY: `ctx` points at the closure reference `RenderContext::new`
+    // passed, alive for the whole of the call this comes from.
+    let f = unsafe { &*ctx.cast::<&dyn Fn(&CStr) -> *const c_void>() };
     f(name) as *mut c_void
 }
 
@@ -701,7 +752,9 @@ unsafe extern "C" fn no_fence(_condition: u32, _flags: u32) -> *const c_void {
 /// must not touch GL - it only pokes the Slint event loop, which comes back to
 /// us on the UI thread in `BeforeRendering`.
 unsafe extern "C" fn update_thunk(ctx: *mut c_void) {
-    let notify = unsafe { &*(ctx as *const Box<dyn Fn() + Send + Sync>) };
+    // SAFETY: `ctx` is the box `RenderContext::new` registered, freed only
+    // after `drop` unregisters it.
+    let notify = unsafe { &*ctx.cast::<Wake>() };
     notify();
 }
 
@@ -715,7 +768,7 @@ pub struct RenderContext {
     ctx: *mut MpvRenderCtx,
     /// Kept alive as long as mpv might invoke it, and freed in `Drop` only
     /// after the update callback has been unregistered.
-    notify: *mut Box<dyn Fn() + Send + Sync>,
+    notify: *mut Wake,
 }
 
 impl RenderContext {
@@ -728,21 +781,21 @@ impl RenderContext {
     pub unsafe fn new(
         mpv: Arc<Mpv>,
         get_proc_address: &dyn Fn(&CStr) -> *const c_void,
-        notify: Box<dyn Fn() + Send + Sync>,
+        notify: Wake,
     ) -> Result<Self> {
         let api_type = cstr("opengl")?;
         let mut init = OpenglInitParams {
             get_proc_address: Some(get_proc_address_thunk),
-            ctx: &get_proc_address as *const &dyn Fn(&CStr) -> *const c_void as *mut c_void,
+            ctx: (&raw const get_proc_address).cast_mut().cast(),
         };
         let mut params = [
             RenderParam {
                 kind: RENDER_PARAM_API_TYPE,
-                data: api_type.as_ptr() as *mut c_void,
+                data: api_type.as_ptr().cast_mut().cast(),
             },
             RenderParam {
                 kind: RENDER_PARAM_OPENGL_INIT_PARAMS,
-                data: &mut init as *mut _ as *mut c_void,
+                data: (&raw mut init).cast(),
             },
             RenderParam {
                 kind: RENDER_PARAM_INVALID,
@@ -751,18 +804,22 @@ impl RenderContext {
         ];
 
         let mut ctx: *mut MpvRenderCtx = std::ptr::null_mut();
+        // SAFETY: the caller has a GL context current, `handle` is live, and
+        // `params` and all it points at outlive the call.
         check("mpv_render_context_create", unsafe {
             (mpv.lib.mpv_render_context_create)(&mut ctx, mpv.handle, params.as_mut_ptr())
         })?;
         drop(api_type);
 
         let notify = Box::into_raw(Box::new(notify));
+        // SAFETY: `ctx` was just made, and `notify` lives until `drop`
+        // unregisters it.
         unsafe {
             (mpv.lib.mpv_render_context_set_update_callback)(
                 ctx,
                 Some(update_thunk),
-                notify as *mut c_void,
-            )
+                notify.cast(),
+            );
         };
 
         Ok(Self { mpv, ctx, notify })
@@ -777,6 +834,7 @@ impl RenderContext {
     /// # Safety
     /// Requires the same current GL context the render context was made on.
     pub unsafe fn wants_redraw(&self) -> bool {
+        // SAFETY: the caller has the context current, and `ctx` is live until `drop`.
         unsafe { (self.lib().mpv_render_context_update)(self.ctx) & UPDATE_FRAME != 0 }
     }
 
@@ -806,21 +864,23 @@ impl RenderContext {
         let mut params = [
             RenderParam {
                 kind: RENDER_PARAM_OPENGL_FBO,
-                data: &mut target as *mut _ as *mut c_void,
+                data: (&raw mut target).cast(),
             },
             RenderParam {
                 kind: RENDER_PARAM_FLIP_Y,
-                data: &mut flip as *mut _ as *mut c_void,
+                data: (&raw mut flip).cast(),
             },
             RenderParam {
                 kind: RENDER_PARAM_BLOCK_FOR_TARGET_TIME,
-                data: &mut block as *mut _ as *mut c_void,
+                data: (&raw mut block).cast(),
             },
             RenderParam {
                 kind: RENDER_PARAM_INVALID,
                 data: std::ptr::null_mut(),
             },
         ];
+        // SAFETY: the caller has the context current, `ctx` is live, and
+        // `params` and all it points at outlive the call.
         check("mpv_render_context_render", unsafe {
             (self.lib().mpv_render_context_render)(self.ctx, params.as_mut_ptr())
         })
@@ -831,12 +891,15 @@ impl RenderContext {
     /// # Safety
     /// Requires the same current GL context the render context was made on.
     pub unsafe fn report_swap(&self) {
+        // SAFETY: the caller has the context current, and `ctx` is live until `drop`.
         unsafe { (self.lib().mpv_render_context_report_swap)(self.ctx) };
     }
 }
 
 impl Drop for RenderContext {
     fn drop(&mut self) {
+        // SAFETY: it drops inside Slint's notifier, with the context current
+        // (see the type's docs), and `notify` came from `Box::into_raw`.
         unsafe {
             // Unregister before freeing the closure, or a late callback from
             // mpv's thread would read freed memory.

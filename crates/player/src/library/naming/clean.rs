@@ -41,7 +41,7 @@ pub fn clean_separators(s: &str) -> String {
                 let after = chars.get(i + 1).copied();
                 let digit_at = |j: Option<usize>| {
                     j.and_then(|j| chars.get(j))
-                        .is_some_and(|c| c.is_ascii_digit())
+                        .is_some_and(char::is_ascii_digit)
                 };
                 match (before, after) {
                     // 5.1, 7.1, 5.1.2: a channel layout is single digits on

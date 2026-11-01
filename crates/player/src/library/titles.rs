@@ -85,16 +85,16 @@ impl End {
     /// from being taken for the other's.
     fn reach(self) -> f64 {
         match self {
-            End::Opening => 1200.0,
-            End::Closing => 600.0,
+            Self::Opening => 1200.0,
+            Self::Closing => 600.0,
         }
     }
 
     /// The shortest stretch two episodes share that can be this end.
     fn shortest(self) -> f64 {
         match self {
-            End::Opening => SHORTEST,
-            End::Closing => SHORTEST_CREDITS,
+            Self::Opening => SHORTEST,
+            Self::Closing => SHORTEST_CREDITS,
         }
     }
 
@@ -110,8 +110,8 @@ impl End {
         static OPENINGS: PathMap<Option<Vec<Span>>> = PathMap::cache("intros.json", HEARD);
         static CLOSINGS: PathMap<Option<Vec<Span>>> = PathMap::cache("outros.json", HEARD);
         match self {
-            End::Opening => &OPENINGS,
-            End::Closing => &CLOSINGS,
+            Self::Opening => &OPENINGS,
+            Self::Closing => &CLOSINGS,
         }
     }
 }
@@ -225,7 +225,7 @@ pub fn spawn(
     reporter: Reporter,
 ) {
     let generation = GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
-    std::thread::spawn(move || {
+    crate::threads::spawn("dbm-titles", move || {
         for end in ends {
             let found = find(&path, end, &beside, duration, generation);
             if !current(generation) {
@@ -466,10 +466,10 @@ fn credits_pieces(ours: &[Span], length: f64, theirs: &[Span], length_there: f64
         }
     }
     let after = |pieces: &[Span], length: f64| length - pieces.last().map_or(length, |p| p.1);
-    if !stops(after(ours, length), after(theirs, length_there)) {
-        if let Some(last) = kept.last_mut() {
-            last.1 = length;
-        }
+    if !stops(after(ours, length), after(theirs, length_there))
+        && let Some(last) = kept.last_mut()
+    {
+        last.1 = length;
     }
     kept
 }
@@ -576,7 +576,7 @@ mod tests {
     use super::*;
 
     fn list(names: &[&str]) -> Vec<String> {
-        names.iter().map(|n| n.to_string()).collect()
+        names.iter().map(std::string::ToString::to_string).collect()
     }
 
     fn away(names: &[(&str, usize)]) -> Vec<(String, usize)> {

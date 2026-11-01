@@ -8,7 +8,7 @@
 
 use glow::HasContext;
 
-use super::gfx::{saved_draw_fbo, Program, ScreenQuad};
+use super::gfx::{Program, ScreenQuad, saved_draw_fbo};
 
 pub struct Corners {
     quad: ScreenQuad,
@@ -72,7 +72,7 @@ impl Corners {
         }
     }
 
-    pub fn release(&mut self, gl: &glow::Context) {
+    pub fn release(&self, gl: &glow::Context) {
         self.program.release(gl);
         self.quad.release(gl);
     }

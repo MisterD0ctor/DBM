@@ -65,7 +65,7 @@ impl Pointer {
 /// what we asked proves nothing, so the system is asked.
 #[cfg(windows)]
 pub fn on_screen() -> Option<bool> {
-    use windows::Win32::UI::WindowsAndMessaging::{GetCursorInfo, CURSORINFO, CURSOR_SHOWING};
+    use windows::Win32::UI::WindowsAndMessaging::{CURSOR_SHOWING, CURSORINFO, GetCursorInfo};
 
     let mut info = CURSORINFO {
         cbSize: std::mem::size_of::<CURSORINFO>() as u32,

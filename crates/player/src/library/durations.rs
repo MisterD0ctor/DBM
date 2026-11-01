@@ -271,8 +271,8 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("dbm-durations-{}", std::process::id()));
         let app = dir.join("Death by MPV");
         std::fs::create_dir_all(app.join("watch_later")).unwrap();
-        // `app_data_dir` is where both files live, read from the environment.
-        std::env::set_var("APPDATA", &dir);
+        // `app_data_dir` is where both files live.
+        crate::paths::set_test_base(&dir);
 
         std::fs::write(
             app.join("durations.json"),

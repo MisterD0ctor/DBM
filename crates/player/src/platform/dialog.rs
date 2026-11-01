@@ -11,8 +11,8 @@
 //! command line's does (see [`crate::library::playlist::prepare`]), so this
 //! module knows nothing about mpv, playlists or the worker.
 
-use crate::lang::tr;
 use crate::MainWindow;
+use crate::lang::tr;
 
 /// What the user is being asked for.
 #[derive(Clone, Copy)]
@@ -40,7 +40,7 @@ pub fn pick(want: Want, start: Option<std::path::PathBuf>, ui: slint::Weak<MainW
             Want::Folder => "folder",
         }
     );
-    std::thread::spawn(move || {
+    crate::threads::spawn("dbm-dialog", move || {
         let Some(path) = choose(want, start) else {
             eprintln!("dbm: file dialog cancelled");
             return;

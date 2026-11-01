@@ -19,7 +19,7 @@
 
 use glow::HasContext;
 
-use super::gfx::{bind_texture, saved_draw_fbo, Program, ScreenQuad, Target};
+use super::gfx::{Program, ScreenQuad, Target, bind_texture, saved_draw_fbo};
 use super::pipeline::GlassPanel;
 
 /// The shadow's spread, as a standard deviation in logical pixels.

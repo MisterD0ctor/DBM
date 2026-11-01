@@ -24,7 +24,7 @@
 //! was invisible until the render path was broken down, and guessing at it
 //! was wrong twice.
 
-use std::sync::OnceLock;
+use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
 use crate::gpu::pipeline::{GlassPanel, Pipeline};
@@ -36,8 +36,8 @@ use crate::playback::tracks::{self, TrackKind};
 /// including from inside a window procedure, which has no other way to reach
 /// the rest of the program.
 pub fn trace() -> bool {
-    static TRACE: OnceLock<bool> = OnceLock::new();
-    *TRACE.get_or_init(|| std::env::var_os("DBM_TRACE").is_some())
+    static TRACE: LazyLock<bool> = LazyLock::new(|| std::env::var_os("DBM_TRACE").is_some());
+    *TRACE
 }
 
 /// Where the system's monotonic clock stands, for lining the frame log up
@@ -382,8 +382,8 @@ impl Probe {
             return;
         };
         let pt = [(
-            ((rect[0] + rect[2]) * 0.5) as u32,
-            ((rect[1] + rect[3]) * 0.5) as u32,
+            f32::midpoint(rect[0], rect[2]) as u32,
+            f32::midpoint(rect[1], rect[3]) as u32,
         )];
         let (vw, vh) = pipeline.video().size();
         eprintln!(
@@ -408,7 +408,7 @@ impl Probe {
             let half_w = 0.5 * (rect[2] - rect[0]);
             // The shader clamps the radius to what the box can hold.
             let radius = radius.min(half_w).min(half_h);
-            let y = (0.5 * (rect[1] + rect[3])) as u32;
+            let y = f32::midpoint(rect[1], rect[3]) as u32;
             let bevel = bevel_ratio * radius;
 
             // As fractions of this panel's bevel rather than fixed pixels,

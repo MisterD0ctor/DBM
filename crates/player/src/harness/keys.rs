@@ -314,16 +314,16 @@ pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
                 // under the pointer.
                 ("hover", PRESS) => reach(size.width / 2.0, ui.get_timeline_y() + 30.0 + 26.0),
                 ("hover", t) if t == PRESS + 2 => {
-                    super::drive::hover(&ui, size.width / 2.0 + 2.0, ui.get_timeline_y() + 30.0 + 26.0)
+                    super::drive::hover(&ui, size.width / 2.0 + 2.0, ui.get_timeline_y() + 30.0 + 26.0);
                 }
                 // What is loaded is up alone when the pointer comes low: the
                 // bar should grow from it.
                 ("next-move", t) if t == PRESS + 8 => reach(size.width / 2.0, size.height * 0.75),
                 ("leave" | "overshoot" | "return", PRESS) => {
-                    reach(size.width / 2.0, size.height * 0.75)
+                    reach(size.width / 2.0, size.height * 0.75);
                 }
                 ("leave" | "overshoot" | "return", t) if t == PRESS + 4 => {
-                    super::drive::leave(&ui)
+                    super::drive::leave(&ui);
                 }
                 // Back over the edge a moment later, or after the chrome has
                 // gone, by the few pixels of finding the edge to resize from.

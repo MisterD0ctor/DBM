@@ -13,7 +13,7 @@
 //! tapered to nothing over its last deviation, and a cubic B-spline drawing
 //! it back past twice the size.
 
-use crate::gpu::gfx::{bind_texture, Program, ScreenQuad, Target};
+use crate::gpu::gfx::{Program, ScreenQuad, Target, bind_texture};
 
 /// The widest Gaussian run at any one level. Past it, the blur moves down a
 /// level, so a blur up to this stays at full size, exactly as sharp.

@@ -7,7 +7,7 @@
 //! reactivity, and duplicating it here would make two sources of truth.
 
 use crate::lang::{fill, tr};
-use crate::playback::mpv::{Event, Value, FORMAT_DOUBLE, FORMAT_FLAG, FORMAT_STRING};
+use crate::playback::mpv::{Event, FORMAT_DOUBLE, FORMAT_FLAG, FORMAT_STRING, Value};
 use crate::playback::tracks::{PlaylistEntry, Track};
 use std::ffi::c_int;
 
@@ -482,7 +482,7 @@ impl PlayerState {
     /// video covers the window and there is no border to draw.
     pub fn fitted_rect(&self, width: u32, height: u32) -> [f32; 4] {
         let (vw, vh) = (self.dwidth, self.dheight);
-        let (ww, wh) = (width as f64, height as f64);
+        let (ww, wh) = (f64::from(width), f64::from(height));
         if vw <= 0.0 || vh <= 0.0 || ww <= 0.0 || wh <= 0.0 {
             return [0.0, 0.0, 1.0, 1.0];
         }

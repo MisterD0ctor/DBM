@@ -4,8 +4,8 @@ use std::time::Duration;
 
 use slint::ComponentHandle;
 
-use crate::playback::mpv::Mpv;
 use crate::MainWindow;
+use crate::playback::mpv::Mpv;
 
 /// Drive the OS media overlay from both ends.
 ///
@@ -236,10 +236,14 @@ fn listen(bus: &zbus::blocking::Connection, heard: std::sync::Arc<Heard>) {
     };
     // Detached; it ends with the process, holding its own share of the
     // connection.
-    std::thread::spawn(move || {
+    crate::threads::spawn("dbm-mpris-test", move || {
         use std::sync::atomic::Ordering;
         for message in signals.flatten() {
-            let counter = match message.header().member().map(|m| m.as_str()) {
+            let counter = match message
+                .header()
+                .member()
+                .map(zbus::names::MemberName::as_str)
+            {
                 Some("PropertiesChanged") => &heard.changed,
                 Some("Seeked") => &heard.seeked,
                 _ => continue,

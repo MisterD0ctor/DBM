@@ -103,7 +103,7 @@ unsafe extern "system" fn subclass_proc(
     _ref_data: usize,
 ) -> windows::Win32::Foundation::LRESULT {
     use windows::Win32::Foundation::LRESULT;
-    use windows::Win32::Graphics::Gdi::{RedrawWindow, RDW_INTERNALPAINT};
+    use windows::Win32::Graphics::Gdi::{RDW_INTERNALPAINT, RedrawWindow};
     use windows::Win32::UI::Shell::DefSubclassProc;
     use windows::Win32::UI::WindowsAndMessaging::{
         KillTimer, SetTimer, WM_ENTERSIZEMOVE, WM_EXITSIZEMOVE, WM_TIMER,

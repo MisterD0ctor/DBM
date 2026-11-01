@@ -27,8 +27,8 @@ use std::num::NonZeroU32;
 use std::sync::Mutex;
 
 use slint::{
-    private_unstable_api::re_exports::IntSize, BorrowedOpenGLTextureBuilder,
-    BorrowedOpenGLTextureOrigin, ComponentHandle, GraphicsAPI, RenderingState,
+    BorrowedOpenGLTextureBuilder, BorrowedOpenGLTextureOrigin, ComponentHandle, GraphicsAPI,
+    RenderingState, private_unstable_api::re_exports::IntSize,
 };
 
 use crate::app::App;
@@ -44,7 +44,7 @@ use crate::playback::mpv;
 use crate::playback::state::PlayerState;
 use crate::playback::tracks::{self, TrackKind};
 use crate::worker::Completion;
-use crate::{diagnostics, MainWindow};
+use crate::{MainWindow, diagnostics};
 
 /// Identity of what a Slint image property points at: texture id, active
 /// image size, allocated texture size.
@@ -75,7 +75,7 @@ pub struct Driver {
     ui: slint::Weak<MainWindow>,
     app: App,
     /// Loaded once the render context exists — see `RenderingSetup`.
-    file: Option<String>,
+    file: Option<std::path::PathBuf>,
     gpu: Option<Gpu>,
     player: PlayerState,
     panels: Vec<GlassPanel>,
@@ -168,7 +168,7 @@ impl Driver {
     pub fn new(
         ui: slint::Weak<MainWindow>,
         app: App,
-        file: Option<String>,
+        file: Option<std::path::PathBuf>,
         media_keys: crate::platform::media_keys::Controls,
     ) -> Self {
         Self {
@@ -249,7 +249,7 @@ impl Driver {
                                 .ways
                                 .iter()
                                 .filter(|w| w.on > 0.004)
-                                .map(|w| w.pane())
+                                .map(crate::gpu::way::Way::pane)
                                 .collect();
                             gpu.pipeline
                                 .glass_over(&gpu.gl, (size.width, size.height), &panes);
@@ -411,8 +411,7 @@ impl Driver {
                 //
                 // The scan runs on the worker: a directory of thousands, or
                 // one on a network share, would otherwise stall startup.
-                if let Some(f) = self.file.take() {
-                    let path = std::path::PathBuf::from(f);
+                if let Some(path) = self.file.take() {
                     self.app
                         .worker
                         .submit(move |_mpv| Some(Completion::Opened(playlist::prepare(&path))));
@@ -473,7 +472,7 @@ impl Driver {
         }
     }
 
-    fn waker(&self) -> Box<dyn Fn() + Send + Sync> {
+    fn waker(&self) -> mpv::Wake {
         let weak = Mutex::new(self.ui.clone());
         Box::new(move || {
             if let Ok(w) = weak.lock() {
@@ -652,8 +651,8 @@ impl Driver {
             &self.app.mpv,
             Picture::from_osd(self.player.osd),
             bitmaps,
-            ui.get_subtitle_floor() as f64,
-            ui.get_subtitle_lift() as f64,
+            f64::from(ui.get_subtitle_floor()),
+            f64::from(ui.get_subtitle_lift()),
         );
         if let Some(own) = self.app.subline.readout() {
             ui.set_sub_pos_text(format::position(own).into());

@@ -493,14 +493,23 @@ impl Store {
             .enumerate()
             .map(|(i, p)| (p.name.to_string(), self.value(i)))
             .collect();
-        out.push((AMBIENCE_ON.into(), self.ambience_on.get() as u8 as f32));
-        out.push((GLASS_ON.into(), self.glass_on.get() as u8 as f32));
-        out.push((AUTOPLAY.into(), self.autoplay.get() as u8 as f32));
-        out.push((ANIMATIONS.into(), self.animations.get() as u8 as f32));
-        out.push((LEGIBLE_GLASS.into(), self.legible_glass.get() as u8 as f32));
-        out.push((TIPS.into(), self.tips.get() as u8 as f32));
-        out.push((TIP_KEYS.into(), self.tip_keys.get() as u8 as f32));
-        out.push((REMAINING.into(), self.remaining.get() as u8 as f32));
+        out.push((
+            AMBIENCE_ON.into(),
+            f32::from(u8::from(self.ambience_on.get())),
+        ));
+        out.push((GLASS_ON.into(), f32::from(u8::from(self.glass_on.get()))));
+        out.push((AUTOPLAY.into(), f32::from(u8::from(self.autoplay.get()))));
+        out.push((
+            ANIMATIONS.into(),
+            f32::from(u8::from(self.animations.get())),
+        ));
+        out.push((
+            LEGIBLE_GLASS.into(),
+            f32::from(u8::from(self.legible_glass.get())),
+        ));
+        out.push((TIPS.into(), f32::from(u8::from(self.tips.get()))));
+        out.push((TIP_KEYS.into(), f32::from(u8::from(self.tip_keys.get()))));
+        out.push((REMAINING.into(), f32::from(u8::from(self.remaining.get()))));
         out.push((SCALE.into(), self.scale.get()));
         out.push((SUB_SCALE.into(), self.sub_scale.get()));
         out.push((SUB_POS.into(), self.sub_pos.get()));

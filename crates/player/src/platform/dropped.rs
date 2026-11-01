@@ -168,6 +168,10 @@ impl Accepting {
     }
 
     /// Nothing yet: X11 and Wayland each want their own protocol.
+    #[expect(
+        clippy::needless_pass_by_ref_mut,
+        reason = "the same face as the Windows poll, which installs a hook"
+    )]
     pub fn poll(&mut self, _ui: &crate::MainWindow) {}
 }
 
@@ -187,7 +191,7 @@ impl Accepting {
 pub fn post_test_drop(ui: &crate::MainWindow, path: &str) -> Result<(), String> {
     use slint::ComponentHandle;
     use windows::Win32::Foundation::{LPARAM, POINT, WPARAM};
-    use windows::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    use windows::Win32::System::Memory::{GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalUnlock};
     use windows::Win32::UI::WindowsAndMessaging::{PostMessageW, WM_DROPFILES};
 
     /// The shell's header, followed by a double-NUL-terminated list of paths.

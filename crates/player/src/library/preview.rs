@@ -99,7 +99,7 @@ fn current(generation: u64) -> bool {
 /// [`build`] for why that is the ordinary case rather than an error.
 pub fn spawn(video: PathBuf, reporter: Reporter) {
     let generation = supersede();
-    std::thread::spawn(move || {
+    crate::threads::spawn("dbm-preview", move || {
         let Some(sprite) = build(&video, generation) else {
             return;
         };
@@ -208,7 +208,7 @@ pub fn build(video: &Path, generation: u64) -> Option<Sprite> {
     }
     let tile_w = match aspect {
         Some(ratio) if ratio > 0.0 => {
-            (((TILE_H as f64 * ratio).round() as u32 + 1) & !1).clamp(48, 480)
+            (((f64::from(TILE_H) * ratio).round() as u32 + 1) & !1).clamp(48, 480)
         }
         _ => TILE_W_FALLBACK,
     };
@@ -298,14 +298,14 @@ fn extract(
     let total = GRID * GRID;
     // Sampled at the midpoint of each slice, so the first tile is not the
     // black frame every film opens on and the last is not past the end.
-    let step = duration / total as f64;
+    let step = duration / f64::from(total);
     let keyframes = step >= KEYFRAME_SLICE;
     let mut pending = Vec::new();
     for index in 0..total {
         if !current(generation) {
             return false;
         }
-        let at = step * (index as f64 + 0.5);
+        let at = step * (f64::from(index) + 0.5);
         let out = into.join(format!("{:03}.jpg", index + 1));
         let mut command = ffmpeg::command(ffmpeg);
         command
@@ -417,7 +417,7 @@ static PREVIEWS: Folder = Folder::cache("previews", 1);
 fn sprite_path(video: &Path) -> PathBuf {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
     for byte in video.to_string_lossy().as_bytes() {
-        hash ^= *byte as u64;
+        hash ^= u64::from(*byte);
         hash = hash.wrapping_mul(0x1000_0000_01b3);
     }
     PREVIEWS.path().join(format!("{hash:016x}.jpg"))
@@ -509,7 +509,7 @@ pub fn lit_still(video: &Path, within: f32) -> Option<Still> {
                 let start = row as usize * stride + x as usize * 4;
                 atlas[start..start + width as usize * 4].as_chunks::<4>().0
             })
-            .map(|px| 2126 * px[0] as u64 + 7152 * px[1] as u64 + 722 * px[2] as u64)
+            .map(|px| 2126 * u64::from(px[0]) + 7152 * u64::from(px[1]) + 722 * u64::from(px[2]))
             .sum()
     };
     let tiles = ((grid * grid) as f32 * within.clamp(0.0, 1.0))
@@ -599,7 +599,7 @@ impl Preview {
     /// to show with them.
     pub fn answer(&self, fraction: f32) -> Answer {
         self.last.set(fraction);
-        let seconds = self.duration.get() * fraction.clamp(0.0, 1.0) as f64;
+        let seconds = self.duration.get() * f64::from(fraction.clamp(0.0, 1.0));
         let (x, y) = match self.sprite.borrow().as_ref() {
             Some(sprite) => sprite.tile_at(fraction),
             None => (0, 0),

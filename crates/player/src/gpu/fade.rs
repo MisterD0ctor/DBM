@@ -14,7 +14,7 @@
 
 use glow::HasContext;
 
-use super::gfx::{bind_texture, saved_draw_fbo, Program, ScreenQuad, Target};
+use super::gfx::{Program, ScreenQuad, Target, bind_texture, saved_draw_fbo};
 
 /// The side of its list, or its line, that a strip is at: where what is in
 /// it thins away to nothing.

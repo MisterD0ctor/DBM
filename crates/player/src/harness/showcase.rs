@@ -62,7 +62,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 // The angle at the top of a list turned away from the file
                 // playing, for the circle that comes up under the pointer.
                 "current-hover" => (
-                    (ui.get_panel_left() + ui.get_panel_right()) / 2.0,
+                    f32::midpoint(ui.get_panel_left(), ui.get_panel_right()),
                     ui.get_playlist_list_top() + 17.0,
                 ),
                 // Above the middle of the picture, clear of every panel: a
@@ -176,7 +176,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             // middle and play nothing; a press that reached the row under it
             // would start another episode, and the title would say so.
             if surface == "current-back" && tick == 10 {
-                let x = (ui.get_panel_left() + ui.get_panel_right()) / 2.0;
+                let x = f32::midpoint(ui.get_panel_left(), ui.get_panel_right());
                 let y = ui.get_playlist_list_top() + 17.0;
                 click(&ui, x, y);
                 // The glide, sampled: where the list is every 20ms for the
@@ -466,7 +466,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 }
                 "playlist" | "drill" | "scroll-bar" | "current-above" | "current-below"
                 | "current-half" | "current-back" | "current-hover" | "ring-row" => {
-                    ui.invoke_open_playlist(true)
+                    ui.invoke_open_playlist(true);
                 }
                 "armed" | "pages-flip" | "find-drill" => ui.invoke_open_menu(true),
                 "ring-slider" => ui.invoke_open_settings_page(1),

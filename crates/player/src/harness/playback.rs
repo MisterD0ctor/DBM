@@ -7,8 +7,8 @@ use slint::{ComponentHandle, Model};
 
 use super::drive::{arrow, chord, hover, wheel};
 use super::{playlist_rows, selected_label, short};
-use crate::playback::mpv::Mpv;
 use crate::MainWindow;
+use crate::playback::mpv::Mpv;
 
 fn report(ui: &MainWindow, label: &str) {
     eprintln!(
@@ -111,18 +111,14 @@ pub(super) fn scrub_test(ui: &MainWindow) -> slint::Timer {
             // Sweep 10% -> 90%, several updates per tick, as a real drag
             // delivers moves faster than a 16ms timer. Stop once released, or
             // the next tick starts a fresh drag.
-            #[allow(unused_assignments)]
-            let mut f = 0.0;
             if step < 120 {
                 for sub in 0..4 {
-                    f = 0.1 + 0.8 * ((step * 4 + sub) as f32 / 480.0);
-                    ui.invoke_seek_scrub(f);
+                    ui.invoke_seek_scrub(0.1 + 0.8 * ((step * 4 + sub) as f32 / 480.0));
                 }
             }
             if step == 120 {
-                f = 0.9;
                 // Release, so the coalescing report fires.
-                ui.invoke_seek_fraction(f);
+                ui.invoke_seek_fraction(0.9);
                 eprintln!(
                     "dbm: --- scrub drag done in {:.0}ms ---",
                     started.elapsed().as_secs_f64() * 1000.0
@@ -504,7 +500,11 @@ fn report_end(ui: &MainWindow, label: &str) {
         ui.get_bar_focus(),
         ui.get_elapsed(),
         ui.get_total(),
-        ui.get_current_path().rsplit(['\\', '/']).next().unwrap_or_default().to_string(),
+        ui.get_current_path()
+            .rsplit(['\\', '/'])
+            .next()
+            .unwrap_or_default()
+            .to_string(),
         rects.len(),
         rects.join(" "),
     );
@@ -751,7 +751,11 @@ fn report_credits(ui: &MainWindow, label: &str) {
         ui.get_bar_focus(),
         ui.get_focus_row(),
         ui.get_elapsed(),
-        ui.get_current_path().rsplit(['\\', '/']).next().unwrap_or_default().to_string(),
+        ui.get_current_path()
+            .rsplit(['\\', '/'])
+            .next()
+            .unwrap_or_default()
+            .to_string(),
         rects.len(),
         rects.join(" "),
     );

@@ -17,10 +17,10 @@ pub fn watch(still: impl Fn(bool) + Send + 'static) {
     let spawned = std::thread::Builder::new()
         .name("dbm-motion".into())
         .spawn(move || {
-            if let Err(e) = listen(&still) {
-                if crate::diagnostics::trace() {
-                    eprintln!("dbm: the desktop's motion setting: {e}");
-                }
+            if let Err(e) = listen(&still)
+                && crate::diagnostics::trace()
+            {
+                eprintln!("dbm: the desktop's motion setting: {e}");
             }
         });
     if let Err(e) = spawned {
@@ -88,7 +88,7 @@ fn asks_for_stillness(key: &str, value: &zbus::zvariant::Value) -> Option<bool> 
 #[cfg(windows)]
 pub fn watch(still: impl Fn(bool) + Send + 'static) {
     use windows::Win32::UI::WindowsAndMessaging::{
-        SystemParametersInfoW, SPI_GETCLIENTAREAANIMATION, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS,
+        SPI_GETCLIENTAREAANIMATION, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS, SystemParametersInfoW,
     };
 
     // A BOOL, which is an i32.

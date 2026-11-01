@@ -5,8 +5,8 @@ use std::time::Duration;
 use slint::ComponentHandle;
 
 use super::drive::hover;
-use crate::playback::mpv::Mpv;
 use crate::MainWindow;
+use crate::playback::mpv::Mpv;
 
 /// Watch the pointer disappear and come back.
 ///

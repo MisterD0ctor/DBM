@@ -16,7 +16,7 @@ use crate::app::App;
 use crate::interface::{sliders, squircle};
 use crate::platform::dialog;
 use crate::playback::commands;
-use crate::settings::{Before, Section, REGISTRY};
+use crate::settings::{Before, REGISTRY, Section};
 use crate::{MainWindow, Motion, Shapes, Tip};
 
 /// A click on the video is held this long so a double-click can cancel it,
@@ -104,10 +104,12 @@ fn wire_transport(ui: &MainWindow, app: &App) {
         });
     }
     on!(ui, app, on_nudge_volume, |m, d| commands::nudge_volume(
-        m, d as f64
+        m,
+        f64::from(d)
     ));
     on!(ui, app, on_set_volume, |m, v| commands::set_volume(
-        m, v as f64
+        m,
+        f64::from(v)
     ));
     {
         let app = app.clone();
@@ -148,14 +150,14 @@ fn wire_transport(ui: &MainWindow, app: &App) {
     // Speed steps from the value the interface is showing, so the ladder is
     // decided here and mpv is only told where to land.
     on!(ui, app, on_step_speed, |m, current, direction| {
-        commands::step_speed(m, current as f64, direction)
+        commands::step_speed(m, f64::from(current), direction);
     });
     on!(ui, app, on_reset_speed, |m| commands::reset_speed(m));
     on!(ui, app, on_frame_step, |m, direction| commands::frame_step(
         m, direction
     ));
     on!(ui, app, on_chapter_step, |m, direction| {
-        commands::chapter_step(m, direction)
+        commands::chapter_step(m, direction);
     });
 
     ui.on_quit(|| {
@@ -169,7 +171,7 @@ fn wire_timeline(ui: &MainWindow, app: &App) {
         ui,
         app,
         on_seek_relative,
-        |m, secs| commands::seek_relative(m, secs as f64)
+        |m, secs| commands::seek_relative(m, f64::from(secs))
     );
     // A number key's jump: anywhere in the film from one press, which loses a
     // place as easily as a click on the timeline, so the way back is offered
@@ -267,7 +269,7 @@ fn wire_tracks(ui: &MainWindow, app: &App) {
     }
     // -1 is the menu's "Off" row rather than a real track id.
     on!(ui, app, on_select_subtitle, |m, id| {
-        commands::set_subtitle_track(m, (id >= 0).then_some(id as i64))
+        commands::set_subtitle_track(m, (id >= 0).then_some(i64::from(id)));
     });
     // The one selection the watchdog has to hear about: choosing "Off" is
     // the only silence it must not undo when a device reappears.
@@ -275,13 +277,13 @@ fn wire_tracks(ui: &MainWindow, app: &App) {
         let app = app.clone();
         ui.on_select_audio(move |id| {
             app.activity.bump();
-            let id = (id >= 0).then_some(id as i64);
+            let id = (id >= 0).then_some(i64::from(id));
             app.audio.note_user_selection(id);
             commands::set_audio_track(&app.mpv, id);
         });
     }
     on!(ui, app, on_cycle_track, |m, subtitles, direction| {
-        commands::cycle_track(m, subtitles, direction)
+        commands::cycle_track(m, subtitles, direction);
     });
     // A track out, and a fetched one forgotten with it so it doesn't come
     // back next time the film opens. Reads the track list, so on the worker.
@@ -290,7 +292,7 @@ fn wire_tracks(ui: &MainWindow, app: &App) {
         ui.on_remove_track(move |id, subtitle| {
             app.activity.bump();
             app.worker.run(move |mpv| {
-                let Some(file) = commands::remove_track(mpv, id as i64, subtitle) else {
+                let Some(file) = commands::remove_track(mpv, i64::from(id), subtitle) else {
                     return;
                 };
                 if let Some(path) = mpv.get_property("path") {
@@ -447,9 +449,9 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
                 4 => {
                     app.settings
                         .set_sub_scale(
-                            commands::set_sub_scale(&app.mpv, was.sub_scale as f64) as f32
+                            commands::set_sub_scale(&app.mpv, f64::from(was.sub_scale)) as f32
                         );
-                    app.subline.set(&app.mpv, was.sub_pos as f64);
+                    app.subline.set(&app.mpv, f64::from(was.sub_pos));
                 }
                 _ => {}
             }
@@ -554,14 +556,16 @@ fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
 /// them from drifting apart.
 fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
     on!(ui, app, on_nudge_sub_delay, |m, d| {
-        commands::nudge_sub_delay(m, d as f64)
+        commands::nudge_sub_delay(m, f64::from(d));
     });
     {
         let app = app.clone();
         ui.on_nudge_sub_scale(move |delta| {
             app.activity.bump();
-            let sent =
-                commands::set_sub_scale(&app.mpv, app.settings.sub_scale() as f64 + delta as f64);
+            let sent = commands::set_sub_scale(
+                &app.mpv,
+                f64::from(app.settings.sub_scale()) + f64::from(delta),
+            );
             app.settings.set_sub_scale(sent as f32);
         });
     }
@@ -569,8 +573,10 @@ fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
         let app = app.clone();
         ui.on_nudge_sub_pos(move |delta| {
             app.activity.bump();
-            app.subline
-                .set(&app.mpv, app.settings.sub_pos() as f64 + delta as f64);
+            app.subline.set(
+                &app.mpv,
+                f64::from(app.settings.sub_pos()) + f64::from(delta),
+            );
         });
     }
     {
@@ -598,8 +604,8 @@ fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
         let app = app.clone();
         ui.on_set_timing(move |delay, speed| {
             app.activity.bump();
-            commands::set_sub_delay(&app.mpv, delay as f64);
-            commands::set_sub_speed(&app.mpv, speed as f64);
+            commands::set_sub_delay(&app.mpv, f64::from(delay));
+            commands::set_sub_speed(&app.mpv, f64::from(speed));
             // Saved at once, as a sync is.
             crate::playback::session::checkpoint(&app.mpv);
         });
@@ -765,8 +771,8 @@ fn restore_preferences(ui: &MainWindow, app: &App) {
     tip.set_enabled(settings.tips());
     tip.set_with_keys(settings.tip_keys());
     commands::set_autoplay(&app.mpv, settings.autoplay());
-    commands::set_sub_scale(&app.mpv, settings.sub_scale() as f64);
-    app.subline.set(&app.mpv, settings.sub_pos() as f64);
+    commands::set_sub_scale(&app.mpv, f64::from(settings.sub_scale()));
+    app.subline.set(&app.mpv, f64::from(settings.sub_pos()));
     commands::set_picture(&app.mpv, &settings.picture());
     ui.set_show_remaining(settings.remaining());
     // Given the window on the first frame (see `Scale::frame`), once the

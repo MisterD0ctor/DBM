@@ -128,10 +128,9 @@ pub fn listing<'a>(entries: impl Iterator<Item = (&'a str, Option<&'a str>)>) ->
     let rows = described
         .into_iter()
         .map(|(show, rest)| match (&heading, show) {
-            // The heading is saying it, so the row need not.
-            (Some(_), Some(_)) => rest,
-            (_, Some(show)) => format!("{show} · {rest}"),
-            (_, None) => rest,
+            // Where the heading names the show, the rows need not.
+            (None, Some(show)) => format!("{show} · {rest}"),
+            _ => rest,
         })
         .collect();
     Listing { heading, rows }
@@ -350,10 +349,10 @@ fn parse_absolute(stem: &str) -> Option<Media> {
         let digits = end - start;
         // A revision, `03v2`, is still episode 3.
         if chars.get(end).is_some_and(|c| c.eq_ignore_ascii_case(&'v'))
-            && chars.get(end + 1).is_some_and(|c| c.is_ascii_digit())
+            && chars.get(end + 1).is_some_and(char::is_ascii_digit)
         {
             end += 1;
-            while chars.get(end).is_some_and(|c| c.is_ascii_digit()) {
+            while chars.get(end).is_some_and(char::is_ascii_digit) {
                 end += 1;
             }
         }

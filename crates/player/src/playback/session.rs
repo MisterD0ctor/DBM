@@ -12,8 +12,8 @@
 //! kill or a power cut. Each write is one small file, so doing it often costs
 //! next to nothing.
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use crate::paths;
@@ -78,7 +78,7 @@ pub fn configure(mpv: &Mpv) {
 pub fn checkpoint_periodically(mpv: Arc<Mpv>) -> slint::Timer {
     let timer = slint::Timer::default();
     timer.start(slint::TimerMode::Repeated, CHECKPOINT, move || {
-        checkpoint(&mpv)
+        checkpoint(&mpv);
     });
     timer
 }

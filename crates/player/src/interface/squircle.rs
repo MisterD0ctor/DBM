@@ -126,7 +126,7 @@ impl Corner {
             radius * (corner_drop(fit[0]) - full),
         ];
         let reach = [fit[0] * (radius - pull[0]), fit[1] * (radius - pull[1])];
-        Corner {
+        Self {
             centre: [half[0] - pull[0] - reach[0], half[1] - pull[1] - reach[1]],
             reach,
             power: fit.map(|s| 2.0 * s),
@@ -183,8 +183,8 @@ fn quarter(width: f64, height: f64, radius: f64, inset: f64) -> Vec<[f64; 2]> {
     let steps = 16;
     for i in 0..steps {
         let (t0, t1) = (
-            FRAC_PI_2 * i as f64 / steps as f64,
-            FRAC_PI_2 * (i + 1) as f64 / steps as f64,
+            FRAC_PI_2 * f64::from(i) / f64::from(steps),
+            FRAC_PI_2 * f64::from(i + 1) / f64::from(steps),
         );
         if i == 0 {
             points.push(moved(t0));
@@ -208,7 +208,7 @@ fn refine(
     depth: u32,
     points: &mut Vec<[f64; 2]>,
 ) {
-    let tm = (t0 + t1) / 2.0;
+    let tm = f64::midpoint(t0, t1);
     let pm = curve(tm);
     if depth < 12 && off_chord(pm, p0, p1) > TOLERANCE {
         refine(curve, t0, tm, p0, pm, depth + 1, points);
@@ -300,7 +300,7 @@ mod tests {
         let d = [p[0] / length, p[1] / length];
         let (mut lo, mut hi) = (0.0, half[0].hypot(half[1]) + 1.0);
         for _ in 0..60 {
-            let m = (lo + hi) / 2.0;
+            let m = f64::midpoint(lo, hi);
             if inside_glass([d[0] * m, d[1] * m], half, radius) {
                 lo = m;
             } else {

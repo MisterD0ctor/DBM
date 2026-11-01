@@ -15,12 +15,12 @@
 
 use std::cell::Cell;
 
-use slint::platform::WindowEvent;
-use slint::winit_030::{winit, WinitWindowAccessor};
 use slint::ComponentHandle;
+use slint::platform::WindowEvent;
+use slint::winit_030::{WinitWindowAccessor, winit};
 
-use crate::settings::{SCALE_MAX, SCALE_MIN, SCALE_STEP};
 use crate::MainWindow;
+use crate::settings::{SCALE_MAX, SCALE_MIN, SCALE_STEP};
 
 #[derive(Default)]
 pub struct Scale {

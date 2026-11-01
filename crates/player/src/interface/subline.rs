@@ -171,7 +171,7 @@ impl Subline {
 
     /// The Position, when it has changed since the readout last showed it.
     pub fn readout(&self) -> Option<f64> {
-        let own = self.params.sub_pos() as f64;
+        let own = f64::from(self.params.sub_pos());
         if self.shown.get() == Some(own) {
             return None;
         }
@@ -182,7 +182,13 @@ impl Subline {
     fn place(&self, mpv: &Mpv) {
         let (floor, lift) = self.floor.get();
         let (picture, bitmaps) = self.picture.get();
-        let to = placement(self.params.sub_pos() as f64, floor, lift, picture, bitmaps);
+        let to = placement(
+            f64::from(self.params.sub_pos()),
+            floor,
+            lift,
+            picture,
+            bitmaps,
+        );
         let sent = self.sent.get();
         if sent.is_some_and(|s| s.window == to.window && (s.pos - to.pos).abs() < SETTLED) {
             return;

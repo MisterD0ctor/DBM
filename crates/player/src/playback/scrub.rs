@@ -245,7 +245,7 @@ mod tests {
     fn a_drag_is_slow_or_fast_or_left_as_it_was() {
         assert_eq!(pace(0.0), Some(true));
         assert_eq!(pace(SLOW - 1.0), Some(true));
-        assert_eq!(pace((SLOW + FAST) / 2.0), None);
+        assert_eq!(pace(f64::midpoint(SLOW, FAST)), None);
         assert_eq!(pace(FAST + 1.0), Some(false));
     }
 

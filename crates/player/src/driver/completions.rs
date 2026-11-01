@@ -4,7 +4,7 @@
 //! adding a kind of background job is a compile error until its result has
 //! somewhere to go (see `worker`).
 
-use super::{say, warn, Driver, Gpu};
+use super::{Driver, Gpu, say, warn};
 use crate::interface::format;
 use crate::lang::{fill, tr};
 use crate::library::naming::{self, Media};
@@ -199,12 +199,12 @@ impl Driver {
             }
             Completion::Onward { from, to } => {
                 // An answer for a file that has since been replaced is dropped.
-                if self.player.path.as_deref() == Some(from.as_str()) {
-                    if let Some(onward) = to {
-                        ui.set_onward_path(onward.path.as_str().into());
-                        ui.set_onward_label(onward.label.as_str().into());
-                        ui.set_onward_season(onward.season);
-                    }
+                if self.player.path.as_deref() == Some(from.as_str())
+                    && let Some(onward) = to
+                {
+                    ui.set_onward_path(onward.path.as_str().into());
+                    ui.set_onward_label(onward.label.as_str().into());
+                    ui.set_onward_season(onward.season);
                 }
                 false
             }
@@ -427,7 +427,7 @@ fn show_account(ui: &MainWindow, account: Option<&Account>) {
     ui.set_find_left(
         account
             .and_then(|a| a.left)
-            .map_or(-1, |left| left.clamp(0, i32::MAX as i64) as i32),
+            .map_or(-1, |left| left.clamp(0, i64::from(i32::MAX)) as i32),
     );
 }
 

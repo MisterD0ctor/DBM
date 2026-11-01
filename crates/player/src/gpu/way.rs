@@ -12,7 +12,7 @@
 
 use glow::HasContext;
 
-use super::gfx::{bind_texture, saved_draw_fbo, Program, ScreenQuad};
+use super::gfx::{Program, ScreenQuad, bind_texture, saved_draw_fbo};
 use super::pipeline::GlassPanel;
 
 const UP: &[u8] = include_bytes!("../../../../public/icons/angle-small-up.svg");

@@ -27,6 +27,7 @@
 //! | `platform`    | what each OS has to be asked for in its own way           |
 //! | `worker`      | a thread for anything that would block the frame path     |
 //! | `settings`    | what the person has set, kept between runs                |
+//! | `threads`     | naming every thread the player starts                     |
 //! | `lang`        | the language it speaks, and the words in each             |
 //! | `paths`       | where the app keeps its own files                         |
 //! | `diagnostics` | opt-in instrumentation                                    |
@@ -52,6 +53,7 @@ mod paths;
 mod platform;
 mod playback;
 mod settings;
+mod threads;
 mod worker;
 
 use std::rc::Rc;
@@ -64,7 +66,9 @@ use crate::app::App;
 slint::include_modules!();
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let file = std::env::args().nth(1);
+    // `args_os`, since `args` panics on a name that isn't valid Unicode, which
+    // a file manager on Linux can hand over.
+    let file = std::env::args_os().nth(1).map(std::path::PathBuf::from);
 
     let ui = MainWindow::new()?;
 
