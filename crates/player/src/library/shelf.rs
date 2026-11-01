@@ -14,8 +14,8 @@
 use std::path::Path;
 
 use crate::library::durations::Progress;
-use crate::library::naming::Media;
 use dbm_lang::{fill, tr};
+use dbm_naming::Media;
 
 /// A file as the playlist has it.
 pub struct Item<'a> {
@@ -113,7 +113,7 @@ enum Part {
 
 /// Lay a playlist out in parts, with any seasons found beside it.
 pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
-    let heading = crate::library::naming::listing(items.iter().map(|i| (i.path, i.title))).heading;
+    let heading = dbm_naming::listing(items.iter().map(|i| (i.path, i.title))).heading;
 
     // Runs of consecutive files rather than a gathering by key. The list is in
     // watching order, which already keeps a show's files together; were one
@@ -121,7 +121,7 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
     // will do than one part collected from both ends of the queue.
     let mut runs: Vec<(Part, Option<String>, Vec<usize>)> = Vec::new();
     for (i, item) in items.iter().enumerate() {
-        let (part, show) = match crate::library::naming::parse(item.path) {
+        let (part, show) = match dbm_naming::parse(item.path) {
             Media::Episode { show, season, .. } => {
                 (Part::Show(show.to_lowercase(), season), Some(show))
             }
@@ -149,13 +149,11 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
             };
             let labels: Vec<String> = if leaf {
                 let item = &items[members[0]];
-                vec![crate::library::naming::titled(item.path, item.title)]
+                vec![dbm_naming::titled(item.path, item.title)]
             } else {
                 in_season(
-                    crate::library::naming::listing(
-                        members.iter().map(|&i| (items[i].path, items[i].title)),
-                    )
-                    .rows,
+                    dbm_naming::listing(members.iter().map(|&i| (items[i].path, items[i].title)))
+                        .rows,
                     season,
                 )
             };
@@ -195,8 +193,7 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
     if heading.is_some() && groups.len() == 1 && !beside.is_empty() {
         for b in beside {
             let labels = in_season(
-                crate::library::naming::listing(b.files.iter().map(|(p, _)| (p.as_str(), None)))
-                    .rows,
+                dbm_naming::listing(b.files.iter().map(|(p, _)| (p.as_str(), None))).rows,
                 Some(b.season),
             );
             let (label, named) = part_label(Some(b.season), None, true);
@@ -231,7 +228,7 @@ fn in_season(rows: Vec<String>, season: Option<u32>) -> Vec<String> {
     match season {
         Some(n) => rows
             .iter()
-            .map(|row| crate::library::naming::without_season(row, n))
+            .map(|row| dbm_naming::without_season(row, n))
             .collect(),
         None => rows,
     }
@@ -270,7 +267,7 @@ pub fn look_beside(paths: &[String]) -> Vec<Beside> {
         show,
         season: Some(season),
         ..
-    } = crate::library::naming::parse(first)
+    } = dbm_naming::parse(first)
     else {
         return Vec::new();
     };
@@ -278,7 +275,7 @@ pub fn look_beside(paths: &[String]) -> Vec<Beside> {
     let one_season = paths.iter().all(|p| {
         Path::new(p).parent() == folder
             && matches!(
-                crate::library::naming::parse(p),
+                dbm_naming::parse(p),
                 Media::Episode { show: ref s, season: Some(n), .. }
                     if n == season && s.eq_ignore_ascii_case(&show)
             )

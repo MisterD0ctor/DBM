@@ -91,7 +91,7 @@ pub fn drain(
             let notice = match &path {
                 Some(path) => fill(
                     tr("{} — could not play {}"),
-                    &[&reason, &crate::library::naming::titled(path, None)],
+                    &[&reason, &dbm_naming::titled(path, None)],
                 ),
                 None => fill(tr("{} — could not play that file"), &[&reason]),
             };

@@ -28,10 +28,10 @@ use url::Url;
 use zeroize::Zeroizing;
 
 use crate::library::cache::PathMap;
-use crate::library::naming::{self, Media};
 use crate::threads::Reporter;
 use crate::threads::Supersede;
 use dbm_lang::tr;
+use dbm_naming::Media;
 
 pub mod account;
 
@@ -266,7 +266,7 @@ fn look_as(path: &str, languages: &[String], signed: Option<&Signed>) -> Result<
 /// In alphabetical order, which is what their API asks of a query string.
 fn by_name(path: &str, languages: &str) -> Vec<(&'static str, String)> {
     let mut query = vec![("languages", languages.to_string())];
-    match naming::parse(path) {
+    match dbm_naming::parse(path) {
         Media::Episode {
             show,
             season,

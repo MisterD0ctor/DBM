@@ -783,10 +783,10 @@ impl Driver {
         };
         self.per_file.onward_asked = Some(path.clone());
         // Season 0 is the specials, which no one finishes as a season.
-        if let crate::library::naming::Media::Episode {
+        if let dbm_naming::Media::Episode {
             season: Some(season @ 1..),
             ..
-        } = crate::library::naming::parse(&path)
+        } = dbm_naming::parse(&path)
         {
             ui.set_season_done(fill(tr("Season {} finished"), &[&season]).into());
         }

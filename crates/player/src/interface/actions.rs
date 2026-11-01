@@ -745,7 +745,7 @@ fn restore_language(ui: &MainWindow, app: &App) {
     // that its speakers can read whatever the interface is in.
     ui.set_language_names(slint::ModelRc::new(slint::VecModel::from(
         dbm_lang::codes()
-            .map(|code| crate::library::naming::language_name(code).into())
+            .map(|code| dbm_naming::language_name(code).into())
             .collect::<Vec<slint::SharedString>>(),
     )));
     let language = app.settings.language();

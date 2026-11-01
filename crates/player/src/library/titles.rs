@@ -24,9 +24,9 @@ use std::process::Stdio;
 use crate::library::cache::PathMap;
 use crate::library::ffmpeg;
 use crate::library::fingerprint::{self, Print};
-use crate::library::naming::{self, Media};
 use crate::threads::Reporter;
 use crate::threads::{Supersede, Ticket};
+use dbm_naming::Media;
 
 /// How many episodes of the season are tried before this one is taken to
 /// have nothing to find.
@@ -153,7 +153,7 @@ static LISTENS: Supersede = Supersede::new();
 /// cut from the halfway point). Which are tried, and in what order, depends
 /// on what is already known of them; see [`worth_trying`].
 pub fn beside(path: &str, playlist: &[String]) -> Vec<(String, usize)> {
-    let Media::Episode { show, season, .. } = naming::parse(path) else {
+    let Media::Episode { show, season, .. } = dbm_naming::parse(path) else {
         return Vec::new();
     };
     let Some(here) = playlist.iter().position(|p| p == path) else {
@@ -161,7 +161,7 @@ pub fn beside(path: &str, playlist: &[String]) -> Vec<(String, usize)> {
     };
     let same = |other: &String| {
         matches!(
-            naming::parse(other),
+            dbm_naming::parse(other),
             Media::Episode { show: s, season: n, .. }
                 if n == season && s.eq_ignore_ascii_case(&show)
         )

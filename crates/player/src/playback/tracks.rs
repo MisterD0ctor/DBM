@@ -55,12 +55,12 @@ pub struct Chapter {
 ///
 /// One kind at a time: the right label depends on the company a track keeps,
 /// and a subtitle track keeps company with the other subtitles, not with the
-/// audio. See [`crate::library::naming::track_labels`].
+/// audio. See [`dbm_naming::track_labels`].
 pub fn labelled(tracks: &[Track], kind: TrackKind) -> Vec<(&Track, String)> {
     let of_kind = of_kind(tracks, kind);
-    let infos: Vec<crate::library::naming::TrackInfo> = of_kind
+    let infos: Vec<dbm_naming::TrackInfo> = of_kind
         .iter()
-        .map(|t| crate::library::naming::TrackInfo {
+        .map(|t| dbm_naming::TrackInfo {
             title: t.title.as_deref(),
             language: t.lang.as_deref(),
             external: t.external,
@@ -70,7 +70,7 @@ pub fn labelled(tracks: &[Track], kind: TrackKind) -> Vec<(&Track, String)> {
         .collect();
     of_kind
         .into_iter()
-        .zip(crate::library::naming::track_labels(&infos))
+        .zip(dbm_naming::track_labels(&infos))
         .collect()
 }
 
@@ -91,7 +91,7 @@ impl PlaylistEntry {
     pub fn embedded_title(&self) -> Option<&str> {
         self.title
             .as_deref()
-            .filter(|t| *t != crate::library::naming::strip_path(&self.filename))
+            .filter(|t| *t != dbm_naming::strip_path(&self.filename))
     }
 }
 

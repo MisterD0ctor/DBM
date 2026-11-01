@@ -19,6 +19,7 @@
 //! | crate         | owns                                                      |
 //! |---------------|-----------------------------------------------------------|
 //! | `dbm_lang`    | the language it speaks, and the words in each             |
+//! | `dbm_naming`  | what files, tracks and chapters are called, from names    |
 //!
 //! Layout of this crate:
 //!
@@ -27,7 +28,7 @@
 //! | `app`         | the handles the rest share, in one value                  |
 //! | `driver`      | the frame: Slint's rendering notifier, and all it runs    |
 //! | `playback`    | mpv: the binding, its mirrored state, commands, resuming  |
-//! | `library`     | files on disk: playlists, names, lengths, preview sheets  |
+//! | `library`     | files on disk: playlists, lengths, preview sheets         |
 //! | `interface`   | the Rust side of `app.slint`: callbacks and properties    |
 //! | `gpu`         | the passes drawn over the video: border, blur, glass      |
 //! | `platform`    | what each OS has to be asked for in its own way           |

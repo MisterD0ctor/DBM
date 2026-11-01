@@ -33,6 +33,7 @@ zeroize.workspace = true
 base64.workspace = true
 url.workspace = true
 dbm-lang.workspace = true
+dbm-naming.workspace = true
 # Draws the logo into the light behind an empty window — see `mark`. Slint
 # already renders its SVG icons with it, so this adds no crate to the build.
 resvg.workspace = true

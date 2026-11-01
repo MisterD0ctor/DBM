@@ -476,8 +476,7 @@ impl PlayerState {
             let ending = |at: usize| {
                 at == first
                     || self.chapters[at].title.as_deref().is_some_and(|title| {
-                        crate::library::naming::is_credits(title)
-                            || crate::library::naming::is_preview(title)
+                        dbm_naming::is_credits(title) || dbm_naming::is_preview(title)
                     })
             };
             let current = usize::try_from(self.chapter).ok()?;
@@ -499,10 +498,7 @@ impl PlayerState {
 
     fn is_episode(&self) -> bool {
         self.path.as_deref().is_some_and(|path| {
-            matches!(
-                crate::library::naming::parse(path),
-                crate::library::naming::Media::Episode { .. }
-            )
+            matches!(dbm_naming::parse(path), dbm_naming::Media::Episode { .. })
         })
     }
 
@@ -538,10 +534,7 @@ impl PlayerState {
             return None;
         }
         let named = self.chapters.iter().position(|c| {
-            c.time >= self.duration / 2.0
-                && c.title
-                    .as_deref()
-                    .is_some_and(crate::library::naming::is_credits)
+            c.time >= self.duration / 2.0 && c.title.as_deref().is_some_and(dbm_naming::is_credits)
         });
         if named.is_some() {
             return named;
@@ -549,7 +542,7 @@ impl PlayerState {
         let unnamed = self.chapters.iter().all(|c| {
             c.title
                 .as_deref()
-                .is_none_or(crate::library::naming::is_unnamed_chapter)
+                .is_none_or(dbm_naming::is_unnamed_chapter)
         });
         let last = self.chapters.len().checked_sub(1)?;
         let tail = self.duration - self.chapters[last].time;
@@ -570,11 +563,7 @@ impl PlayerState {
                 .map(|(_, span)| *span)
         })?;
         // Last, being the one that parses a name.
-        matches!(
-            crate::library::naming::parse(path),
-            crate::library::naming::Media::Episode { .. }
-        )
-        .then_some(span)
+        matches!(dbm_naming::parse(path), dbm_naming::Media::Episode { .. }).then_some(span)
     }
 
     /// The title sequence where a chapter is named for it: from that
@@ -589,10 +578,7 @@ impl PlayerState {
             return None;
         }
         let at = self.chapters.iter().position(|c| {
-            c.time < self.duration / 2.0
-                && c.title
-                    .as_deref()
-                    .is_some_and(crate::library::naming::is_intro)
+            c.time < self.duration / 2.0 && c.title.as_deref().is_some_and(dbm_naming::is_intro)
         })?;
         let (start, end) = (self.chapters[at].time, self.chapters.get(at + 1)?.time);
         (end > start && end - start <= INTRO_LONGEST).then_some((start, end))
@@ -659,14 +645,14 @@ impl PlayerState {
     /// filename otherwise, which out of a release is mostly not a title. So a
     /// filename is read properly, and a real embedded title left alone.
     pub fn display_title(&self) -> String {
-        crate::library::naming::titled(self.title_path(), self.embedded_title())
+        dbm_naming::titled(self.title_path(), self.embedded_title())
     }
 
     /// What the bar shows when it has no room for the show's name as well:
     /// the part that tells one episode from the next. Empty for anything
     /// that has no show.
     pub fn display_episode(&self) -> String {
-        match crate::library::naming::described(self.title_path(), self.embedded_title()) {
+        match dbm_naming::described(self.title_path(), self.embedded_title()) {
             (Some(_), episode) => episode,
             (None, _) => String::new(),
         }
@@ -685,7 +671,7 @@ impl PlayerState {
     /// title of its own, and that fallback isn't a title.
     fn embedded_title(&self) -> Option<&str> {
         let title = self.media_title.as_deref()?;
-        let name = crate::library::naming::strip_path(self.path.as_deref().unwrap_or(""));
+        let name = dbm_naming::strip_path(self.path.as_deref().unwrap_or(""));
         let bare = self.filename.as_deref().unwrap_or("");
         (!title.is_empty() && title != name && title != bare).then_some(title)
     }

@@ -470,7 +470,7 @@ impl Probe {
         }
         // As the panel labels it, heading and all, so the dump shows what is
         // on screen rather than a second opinion about it.
-        let listing = crate::library::naming::listing(
+        let listing = dbm_naming::listing(
             player
                 .playlist
                 .iter()

@@ -1,0 +1,17 @@
+[package]
+name = "dbm-naming"
+description = "Turning file, track and chapter names into something worth reading"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+# What a track's flags and an episode's number are called in the language
+# being spoken.
+dbm-lang.workspace = true
+
+[lints]
+workspace = true

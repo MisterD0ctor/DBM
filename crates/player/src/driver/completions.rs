@@ -6,7 +6,6 @@
 
 use super::{Driver, Gpu, say, warn};
 use crate::interface::format;
-use crate::library::naming::{self, Media};
 use crate::library::opensubtitles::account::Account;
 use crate::library::opensubtitles::{self, Fetched, Found, Hit};
 use crate::library::preview::Atlas;
@@ -17,6 +16,7 @@ use crate::playback::commands;
 use crate::worker::{Completion, Worker};
 use crate::{FoundItem, MainWindow};
 use dbm_lang::{fill, tr};
+use dbm_naming::Media;
 use slint::{ModelRc, VecModel};
 
 impl Driver {
@@ -279,7 +279,7 @@ impl Driver {
         }
         match found.hits {
             Ok(hits) => {
-                let playing = naming::parse(&found.path);
+                let playing = dbm_naming::parse(&found.path);
                 let rows: Vec<FoundItem> =
                     hits.iter().map(|hit| found_row(hit, &playing)).collect();
                 ui.set_find_hits(ModelRc::new(VecModel::from(rows)));
@@ -427,7 +427,7 @@ fn show_account(ui: &MainWindow, account: Option<&Account>) {
 }
 
 fn found_row(hit: &Hit, playing: &Media) -> FoundItem {
-    let mut detail = vec![naming::language_name(&hit.language)];
+    let mut detail = vec![dbm_naming::language_name(&hit.language)];
     if hit.exact {
         detail.push(tr("Exact").to_string());
     }
@@ -438,7 +438,7 @@ fn found_row(hit: &Hit, playing: &Media) -> FoundItem {
         detail.push(tr("Machine").to_string());
     }
     FoundItem {
-        label: naming::past_named(&hit.release, playing).into(),
+        label: dbm_naming::past_named(&hit.release, playing).into(),
         detail: detail.join(" · ").into(),
         exact: hit.exact,
     }

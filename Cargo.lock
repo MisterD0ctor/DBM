@@ -950,11 +950,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "dbm-naming"
+version = "0.5.1"
+dependencies = [
+ "dbm-lang",
+]
+
+[[package]]
 name = "dbm-player"
 version = "0.5.1"
 dependencies = [
  "base64 0.22.1",
  "dbm-lang",
+ "dbm-naming",
  "glow 0.16.0",
  "libc",
  "libloading",

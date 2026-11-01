@@ -58,7 +58,7 @@ pub fn last_watched() -> Option<Resume> {
             return None;
         }
         let fraction = (start / seconds).clamp(0.0, 1.0) as f32;
-        let (show, title) = crate::library::naming::described(&path, None);
+        let (show, title) = dbm_naming::described(&path, None);
         Some(Resume {
             seconds_left: (seconds - start).max(0.0),
             show,

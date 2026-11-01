@@ -612,7 +612,7 @@ fn named_chapter(chapters: &[Chapter], seconds: f64) -> String {
         .take_while(|c| c.time <= seconds + 1e-3)
         .last()
         .and_then(|c| c.title.as_deref())
-        .filter(|title| !crate::library::naming::is_unnamed_chapter(title))
+        .filter(|title| !dbm_naming::is_unnamed_chapter(title))
         .unwrap_or_default()
         .to_string()
 }
