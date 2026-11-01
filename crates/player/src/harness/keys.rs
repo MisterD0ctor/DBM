@@ -381,7 +381,7 @@ pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
             let (bar, window, words) = (rect(0), rect(1), rect(5));
             let chrome = ui.global::<crate::Chrome>();
             eprintln!(
-                "dbm: wake t={:+.2}s bar y={:.0} w={:.0} h={:.0} a={:.2} | window a={:.2} | flash w={:.0} a={:.2} | lift={:.2} ceiling={:.1} | idle={} pointer-hidden={} fullscreen={} paused={} panel={}",
+                "dbm: wake t={:+.2}s bar y={:.0} w={:.0} h={:.0} a={:.2} | window a={:.2} | flash w={:.0} a={:.2} | lift={:.2} floor={:.3} | idle={} pointer-hidden={} fullscreen={} paused={} panel={}",
                 (tick as f32 - PRESS as f32) * 0.25,
                 bar.y,
                 bar.width,
@@ -391,7 +391,7 @@ pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
                 words.width,
                 if words.width > 0.0 { words.opacity } else { 0.0 },
                 ui.get_subtitle_lift(),
-                ui.get_subtitle_ceiling(),
+                ui.get_subtitle_floor(),
                 chrome.get_idle(),
                 ui.get_pointer_hidden(),
                 ui.get_fullscreen(),

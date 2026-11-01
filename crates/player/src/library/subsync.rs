@@ -31,6 +31,7 @@ use std::sync::Arc;
 
 use crate::library::ffmpeg;
 use crate::playback::mpv::Mpv;
+use crate::playback::tracks;
 use crate::worker::{Completion, Reporter};
 
 /// What ffmpeg is asked for: mono at this rate, which keeps everything a
@@ -196,7 +197,7 @@ fn ask(mpv: &Mpv, path: &str) -> Result<Asked, Failure> {
     let codec = mpv
         .get_property("current-tracks/sub/codec")
         .unwrap_or_default();
-    if is_pictures(&codec) {
+    if tracks::is_pictures(&codec) {
         return Err(Failure::Pictures);
     }
     // A track from outside the film has to say which file it is: its index
@@ -229,13 +230,6 @@ fn ask(mpv: &Mpv, path: &str) -> Result<Asked, Failure> {
         centre: own_audio && has_centre(channels),
         subtitles,
     })
-}
-
-/// Whether a subtitle codec, in mpv's name for it, is bitmaps.
-fn is_pictures(codec: &str) -> bool {
-    ["pgs", "dvd", "dvb", "xsub", "vobsub"]
-        .iter()
-        .any(|kind| codec.contains(kind))
 }
 
 /// Whether a track with this many channels can be relied on to have a centre.
@@ -862,15 +856,5 @@ mod tests {
     fn a_handful_of_lines_is_too_few_to_go_on() {
         let cues: Vec<Cue> = dialogue().into_iter().take(FEWEST - 1).collect();
         assert_eq!(fit(&spoken(&cues, 3.0, 1.0), &cues), None);
-    }
-
-    #[test]
-    fn picture_subtitles_are_told_from_text() {
-        for codec in ["hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle"] {
-            assert!(is_pictures(codec), "{codec}");
-        }
-        for codec in ["subrip", "ass", "webvtt", "mov_text"] {
-            assert!(!is_pictures(codec), "{codec}");
-        }
     }
 }

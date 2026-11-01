@@ -2109,16 +2109,15 @@ export component MainWindow inherits Window {
     }
 
     // --- subtitles above the bar ---
-    /// The highest a subtitle may rest while the bar is up, in mpv's
-    /// `sub-pos` (percent of the window's height, from the top). It keeps
-    /// mpv's bottom margin above the bar, so the bar arriving reads as
-    /// the floor rising. The Rust side takes the lower of this and the
-    /// person's own Position (see `subline`).
-    out property <float> subtitle-ceiling: 100 * root.bar-edge / root.height;
+    /// The highest a subtitle may rest while the bar is up, as a fraction of
+    /// the window's height from the top: the bar's top. The Rust side holds
+    /// a line resting lower up to it, keeping mpv's bottom margin above it,
+    /// so the bar arriving reads as the floor rising (see `subline`).
+    out property <float> subtitle-floor: root.bar-edge / root.height;
     /// How much of that applies this frame, faded with the bar so the line
     /// climbs and settles rather than leaping.
     ///
-    /// Not while Position is being set: held at the ceiling, the line wouldn't
+    /// Not while Position is being set: held up by the bar, the line wouldn't
     /// visibly move for small steps, so it drops to where it rests until
     /// Size or Timing is used or the page is left.
     out property <float> subtitle-lift: (root.controls-visible || root.timeline-glimpse

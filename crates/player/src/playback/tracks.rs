@@ -160,6 +160,28 @@ pub fn selected(tracks: &[Track], kind: TrackKind) -> Option<&Track> {
     tracks.iter().find(|t| t.kind == kind && t.selected)
 }
 
+/// Whether a subtitle codec, in mpv's name for it, is bitmaps.
+pub fn is_pictures(codec: &str) -> bool {
+    ["pgs", "dvd", "dvb", "xsub", "vobsub"]
+        .iter()
+        .any(|kind| codec.contains(kind))
+}
+
 fn non_empty(v: Option<String>) -> Option<String> {
     v.filter(|s| !s.is_empty())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn picture_subtitles_are_told_from_text() {
+        for codec in ["hdmv_pgs_subtitle", "dvd_subtitle", "dvb_subtitle"] {
+            assert!(is_pictures(codec), "{codec}");
+        }
+        for codec in ["subrip", "ass", "webvtt", "mov_text"] {
+            assert!(!is_pictures(codec), "{codec}");
+        }
+    }
 }

@@ -11,7 +11,8 @@
 //
 // For every pixel outside the video rect this walks inward from the nearest
 // edge and averages, so the border starts from a softened edge colour rather
-// than a single hard texel.
+// than a single hard texel. A subtitle on the edge is left out of it, so its
+// letters never light the border.
 
 in vec2 v_uv;
 out vec4 frag;
@@ -30,6 +31,17 @@ uniform float max_taps;
 /// allocated grow-only so a resize costs no reallocation, which leaves the
 /// texture generally larger than the image drawn into it.
 uniform vec2 u_src_scale;
+
+/// The picture's alpha as mpv hands it on (subtitle_mask.glsl). Anything
+/// above it is a subtitle drawn over the picture; the step past it is two
+/// levels of an 8-bit target, which the picture's own rounding stays under.
+const float PICTURE = 0.5;
+const float OVER = 2.0 / 255.0;
+/// How far past the usual reach a column under a subtitle looks for picture
+/// of its own, in reaches, and how much it needs to find, as a share of what
+/// the reach alone would have weighed.
+const float BEYOND = 4.0;
+const float ENOUGH = 0.25;
 
 /// Sample in active-image coordinates, clamped to the image rather than to
 /// the texture edge - the slack beyond the image holds nothing meaningful.
@@ -66,15 +78,44 @@ void main() {
     // keeps its extent and only loses sample density.
     float stride = max(2.0, radius / max_taps);
 
-    vec4 c_sum = src(box_pos);
-    float w_sum = 1.0;
-    for (float i = 1.0; i <= radius; i += stride) {
-        float weight = get_weight(i / radius);
-        c_sum += src(box_pos + i * dir * u_texel) * weight;
-        w_sum += weight;
+    // Two averages at once: of the picture alone, and of everything, which
+    // is what stands if there is no picture to be had. That is also the
+    // whole answer when mpv didn't take the mask, since the picture then
+    // comes out opaque and reads as subtitle throughout.
+    vec3 own = vec3(0.0);
+    float own_w = 0.0;
+    vec3 whole = vec3(0.0);
+    float whole_w = 0.0;
+    for (float i = 0.0; i <= radius; i += (i == 0.0 ? 1.0 : stride)) {
+        vec4 c = src(box_pos + i * dir * u_texel);
+        float weight = i == 0.0 ? 1.0 : get_weight(i / radius);
+        whole += c.rgb * weight;
+        whole_w += weight;
+        if (c.a <= PICTURE + OVER) {
+            own += c.rgb * weight;
+            own_w += weight;
+        }
+    }
+
+    // Under a subtitle, the column's own picture from further in: the light
+    // there is the film's, where its letters' would not be. Evenly weighted,
+    // since it stands in for the edge rather than softening it.
+    if (own_w < ENOUGH * whole_w) {
+        float tail = get_weight(1.0);
+        for (float i = radius; i <= BEYOND * radius; i += stride) {
+            vec2 p = box_pos + i * dir * u_texel;
+            if (any(lessThan(p, r.xy)) || any(greaterThan(p, r.zw))) {
+                break;
+            }
+            vec4 c = src(p);
+            if (c.a <= PICTURE + OVER) {
+                own += c.rgb * tail;
+                own_w += tail;
+            }
+        }
     }
 
     // Opaque out: every tap sits inside the video rect, and the surround this
     // feeds is a background, not something to composite through.
-    frag = vec4((c_sum / w_sum).rgb, 1.0);
+    frag = vec4(own_w > 0.0 ? own / own_w : whole / whole_w, 1.0);
 }

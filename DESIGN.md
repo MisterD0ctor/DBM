@@ -674,6 +674,23 @@ key wakes the bar, as the pointer does, and no key takes away what is
 already up but those: pressed with the bar up, a key keeps it there
 (`MainWindow.key-wake`).
 
+**The Line Keeps To The Picture.** A subtitle rests on the picture, whatever
+shape the window is: up to a Position of 100 it moves down the picture, and
+past it on down the letterbox, reaching the window's foot at 150. Every kind
+of track goes by the same measure. Left to itself mpv puts a text subtitle
+against the window instead, which in a window taller than the film drops it
+into the letterbox, and lets a long line beside a narrower picture run out
+over the border at its sides. A line the Position does put in the letterbox
+is drawn over the ambient border, never under it. Where the picture is
+cropped to fill the window, the line keeps to the part that shows.
+
+**A Line Never Lights The Border.** The ambient border starts from the
+picture's outermost rows, and a subtitle on them would spread into it as a
+grey haze. So mpv marks which of the picture's pixels are a subtitle's, and
+the border reads its light from the rest: each column from its own picture
+around and above the letters, never from the letters, and never borrowed from
+beside them.
+
 **The Bar Is A Floor.** While the bar is up, subtitles rest above it. The line
 keeps its own place — the Position on the subtitles menu's Size & position
 page — and rises only as
@@ -681,7 +698,8 @@ far as it must: to sit mpv's own bottom margin above the bar, the same air it
 keeps above the window's edge when nothing is in the way. It climbs on the
 bar's own fade and settles as the bar goes, and with the timeline or what is
 loaded up alone it rises only onto that. A line already above the bar does
-not move, and one resting in the letterbox comes all the way up. The case
+not move — a bar down in the letterbox under a line on the picture leaves it
+be — and one resting in the letterbox comes all the way up. The case
 that made this necessary is pausing to read a line, which holds the bar up over
 exactly that line. The one exception is setting the Position: from its first
 press the line goes down to where it rests, so the stepper moves what is being

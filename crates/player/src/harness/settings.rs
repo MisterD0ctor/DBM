@@ -49,19 +49,22 @@ pub(super) fn param_test(ui: &MainWindow) -> slint::Timer {
 fn report_subs(ui: &MainWindow, mpv: &Mpv, label: &str) {
     // Blocking reads, acceptable only off the frame path.
     //
-    // The two positions agree only while nothing lifts the line: the panel
-    // shows where the person put it, mpv where the bar lets it sit. The
-    // subtitles page asks for no lift, so on it they should match.
+    // The two positions agree only while nothing lifts the line and the
+    // picture fills the window's height: the panel shows where the person
+    // put it, mpv where that is in the window, as far up as the bar lets it
+    // sit. The subtitles page asks for no lift, so on it, over a film
+    // filling the window, they should match.
     eprintln!(
         "dbm: {label:<20} mpv delay={:?} scale={:?} pos={:?} | panel {} {} {} \
-         | ceiling {:.1} lift {:.2}",
+         | margins {:?} floor {:.3} lift {:.2}",
         mpv.get_property("sub-delay"),
         mpv.get_property("sub-scale"),
         mpv.get_property("sub-pos"),
         ui.get_sub_delay_text(),
         ui.get_sub_scale_text(),
         ui.get_sub_pos_text(),
-        ui.get_subtitle_ceiling(),
+        mpv.get_property("sub-use-margins"),
+        ui.get_subtitle_floor(),
         ui.get_subtitle_lift(),
     );
 }

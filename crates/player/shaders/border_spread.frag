@@ -32,6 +32,10 @@ uniform float max_taps;
 /// the draw, so the branch below costs nothing on the GPU — and with it off
 /// the whole light-spread loop and the edge-extension pass are skipped.
 uniform float u_border;
+/// 1 to lay what mpv drew outside the picture over the border by its own
+/// alpha, which is how a subtitle in the letterbox stays readable. 0 when that
+/// surround isn't mpv's alone: painted opaque, or with the backdrop in it.
+uniform float u_surround;
 /// Fraction of each source texture its active image covers. Targets are
 /// allocated grow-only so a resize costs no reallocation, which leaves the
 /// textures generally larger than the images drawn into them.
@@ -156,10 +160,9 @@ void main() {
     }
 
     // Coverage mask for the video rect, feathered by a texel so the seam
-    // against the border does not alias. mpv paints the letterbox opaque
-    // whatever `--background` is set to, so its alpha is not usable as a
-    // mask; `u_rect` comes from mpv's own `osd-dimensions` and therefore
-    // tracks panscan and zoom.
+    // against the border does not alias. mpv's alpha is not usable as a mask,
+    // since a subtitle in the letterbox has alpha too; `u_rect` comes from
+    // mpv's own `osd-dimensions` and therefore tracks panscan and zoom.
     vec2 lo = smoothstep(r.xy - u_texel, r.xy + u_texel, pos);
     vec2 hi = vec2(1.0) - smoothstep(r.zw - u_texel, r.zw + u_texel, pos);
     float in_video = lo.x * lo.y * hi.x * hi.y;
@@ -209,5 +212,13 @@ void main() {
     // outermost row is blended against it, which would draw a dark line round
     // every frame.
     vec3 edge = vid(clamp(pos, r.xy + 2.0 * u_texel, r.zw - 2.0 * u_texel)).rgb;
-    frag = vec4(mix(border.rgb, edge, in_video), 1.0);
+    vec3 under = mix(border.rgb, edge, in_video);
+
+    // Then what mpv drew outside the picture, over all of it, premultiplied
+    // as mpv draws. Only past the rect: a texel inside it is the picture's,
+    // whose alpha marks subtitles rather than covering anything
+    // (subtitle_mask.glsl), and which the mix above has laid on already.
+    bool past = any(lessThan(pos, r.xy)) || any(greaterThan(pos, r.zw));
+    float outside = past ? u_surround : 0.0;
+    frag = vec4(under * (1.0 - outside * video_texel.a) + outside * video_texel.rgb, 1.0);
 }

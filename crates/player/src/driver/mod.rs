@@ -34,6 +34,7 @@ use slint::{
 use crate::app::App;
 use crate::gpu::gfx::Target;
 use crate::gpu::pipeline::{Frame, GlassPanel, Pipeline};
+use crate::interface::subline::Picture;
 use crate::interface::{fades, format, glass, playlist_panel, sync};
 use crate::lang::{fill, marked, tr};
 use crate::library::playlist;
@@ -41,6 +42,7 @@ use crate::platform::modal_loop;
 use crate::playback::commands;
 use crate::playback::mpv;
 use crate::playback::state::PlayerState;
+use crate::playback::tracks::{self, TrackKind};
 use crate::worker::Completion;
 use crate::{diagnostics, MainWindow};
 
@@ -372,7 +374,7 @@ impl Driver {
         let gl = unsafe { glow::Context::from_loader_function_cstr(|s| get_proc_address(s)) };
         self.diag.gl_info(&gl);
 
-        let pipeline = match Pipeline::new(&gl) {
+        let mut pipeline = match Pipeline::new(&gl) {
             Ok(p) => p,
             Err(e) => {
                 self.fatal(Failure {
@@ -384,6 +386,7 @@ impl Driver {
                 return;
             }
         };
+        pipeline.clear_surround = self.app.mpv.clear_surround();
 
         // mpv signals new frames from its own thread. `Weak` is Send but not
         // Sync, and mpv holds these callbacks by shared reference, so a Mutex
@@ -640,11 +643,16 @@ impl Driver {
         // update itself is skipped unless something changed.
         self.media_keys.publish(ui.window(), &self.player, moved);
         self.awake.follow(&self.player);
-        // Two reads and a comparison while the bar is still; a command a
+        // A few reads and a comparison while the bar is still; a command a
         // frame only while it fades. See `subline`.
+        let bitmaps = tracks::selected(&self.player.tracks, TrackKind::Sub)
+            .and_then(|track| track.codec.as_deref())
+            .is_some_and(tracks::is_pictures);
         self.app.subline.follow(
             &self.app.mpv,
-            ui.get_subtitle_ceiling() as f64,
+            Picture::from_osd(self.player.osd),
+            bitmaps,
+            ui.get_subtitle_floor() as f64,
             ui.get_subtitle_lift() as f64,
         );
         if let Some(own) = self.app.subline.readout() {

@@ -300,6 +300,32 @@ fn libmpv_path() -> PathBuf {
     crate::paths::vendored(&[name]).unwrap_or_else(|| PathBuf::from(name))
 }
 
+/// Have mpv mark which of the picture's pixels are a subtitle's, so the
+/// ambient border can leave them out of the light it reads off the picture
+/// (subtitle_mask.glsl). Without it the border works as it always did, and a
+/// subtitle on the picture's edge lights it.
+///
+/// Written out each run, since mpv loads shaders only from files, and this
+/// one has to match the border pass it was built with.
+fn mask_subtitles(mpv: &Mpv) {
+    let path = crate::paths::subtitle_mask();
+    // A command rather than the option, which would split the path on the
+    // list separator: as an argument of its own, any path is taken as it is.
+    let loaded = std::fs::write(&path, include_str!("../../shaders/subtitle_mask.glsl"))
+        .map_err(|e| e.to_string())
+        .and_then(|()| {
+            let path = path.to_string_lossy();
+            let args = ["change-list", "glsl-shaders", "append", path.as_ref()];
+            mpv.command_async(crate::playback::commands::REPLY_IGNORED, &args)
+                .map_err(|e| e.to_string())
+        });
+    if let Err(e) = loaded {
+        eprintln!(
+            "dbm: no subtitle mask ({e}); a subtitle on the picture's edge will light the border"
+        );
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Player handle
 // ---------------------------------------------------------------------------
@@ -310,7 +336,13 @@ pub struct Mpv {
     /// The closure `set_wakeup` handed mpv, freed once mpv can no longer
     /// call it.
     wakeup: Mutex<*mut Box<dyn Fn() + Send + Sync>>,
+    /// Whether mpv leaves what is outside the picture transparent rather
+    /// than black; see [`Mpv::clear_surround`].
+    clear_surround: bool,
 }
+
+/// No colour at all, in mpv's `r/g/b/a` form.
+const CLEAR: &str = "0/0/0/0";
 
 // SAFETY: libmpv's client API is thread-safe for properties and commands, so
 // a handle may be shared. What is not is kept out of the safe methods:
@@ -342,10 +374,11 @@ impl Mpv {
         if handle.is_null() {
             return Err(Error::Create);
         }
-        let mpv = Self {
+        let mut mpv = Self {
             lib,
             handle,
             wakeup: Mutex::new(std::ptr::null_mut()),
+            clear_surround: false,
         };
 
         // `vo=libmpv` is the one option that must land. The rest are tuning,
@@ -366,17 +399,30 @@ impl Mpv {
             }
         }
 
-        // mpv fills the letterbox opaquely regardless of `--background` and
-        // `--alpha`, so the border pass masks on mpv's reported video
-        // rectangle instead of alpha, which also follows panscan and zoom.
-        // Whatever mpv paints out there is discarded.
+        // A clear surround, so a subtitle mpv lays in the letterbox keeps its
+        // own alpha and the border pass can put it over the ambient border.
+        // The colour was `background` itself before mpv 0.38. Refused both
+        // ways, the surround is opaque black and the border pass discards it.
+        mpv.clear_surround = ["background-color", "background"]
+            .iter()
+            .any(|k| mpv.set_option(k, CLEAR).is_ok());
+        if !mpv.clear_surround {
+            eprintln!("dbm: mpv kept an opaque surround; the border will cover its letterbox");
+        }
 
         configure(&mpv);
 
         check("mpv_initialize", unsafe {
             (mpv.lib.mpv_initialize)(mpv.handle)
         })?;
+        mask_subtitles(&mpv);
         Ok(mpv)
+    }
+
+    /// Whether what mpv draws outside the picture comes with its own alpha
+    /// over a transparent surround, so it can be laid over something else.
+    pub fn clear_surround(&self) -> bool {
+        self.clear_surround
     }
 
     pub fn set_option(&self, name: &str, value: &str) -> Result<()> {

@@ -331,10 +331,10 @@ pub const SUB_SCALE_MAX: f64 = 3.0;
 pub const SUB_SCALE_STEP: f64 = 0.05;
 pub const SUB_SCALE_DEFAULT: f64 = 1.0;
 
-/// Vertical placement, in mpv's own units: 0 is the top of the frame and 100
-/// the bottom. Past 100 the line moves down into the letterbox, which is
-/// exactly what the bar is usually in the way of, so the range runs to mpv's
-/// full 150 rather than stopping at the picture.
+/// The line's Position: 0 is the top of the picture and 100 its foot. Past
+/// 100 the line moves down into the letterbox, which is exactly what the bar
+/// is usually in the way of, and reaches the window's foot at 150. `subline`
+/// turns it into mpv's `sub-pos`, whose range is the same.
 pub const SUB_POS_MIN: f64 = 0.0;
 pub const SUB_POS_MAX: f64 = 150.0;
 pub const SUB_POS_STEP: f64 = 2.0;
@@ -371,6 +371,15 @@ pub fn set_sub_pos(mpv: &Mpv, value: f64) -> f64 {
     let value = value.clamp(SUB_POS_MIN, SUB_POS_MAX);
     set_prop(mpv, "sub-pos", &fmt(value));
     value
+}
+
+/// Whether mpv lays subtitles out against the whole window, letterbox and
+/// all, or against the picture alone. Text and ASS subtitles have an option
+/// each; bitmaps follow neither and stay in the picture.
+pub fn set_sub_frame(mpv: &Mpv, window: bool) {
+    let value = if window { "yes" } else { "no" };
+    set_prop(mpv, "sub-use-margins", value);
+    set_prop(mpv, "sub-ass-force-margins", value);
 }
 
 /// Timing is per file rather than a preference, since a delay that fixes one
