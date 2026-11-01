@@ -6,9 +6,9 @@
 //! Plain fields rather than signals, since Slint's properties provide the
 //! reactivity, and duplicating it here would make two sources of truth.
 
-use crate::playback::mpv::{Event, Format, Mpv, Value};
-use crate::playback::tracks::{PlaylistEntry, Track};
 use dbm_lang::{fill, tr};
+use dbm_mpv::tracks::{PlaylistEntry, Track};
+use dbm_mpv::{Event, Format, Mpv, Value};
 
 /// Every property the player observes. Its position in [`Prop::ALL`] is the
 /// id mpv reports it under.
@@ -208,7 +208,7 @@ pub struct Lists {
     /// because the lookup needs the playlist's paths, which are read here.
     pub progress: Vec<crate::library::durations::Progress>,
     /// The file's chapter marks. Invalidated with the tracks, by a new file.
-    pub chapters: Vec<crate::playback::tracks::Chapter>,
+    pub chapters: Vec<dbm_mpv::tracks::Chapter>,
     /// The generation this was read for, so a stale result can be discarded
     /// if the lists moved again while the job was running.
     pub generation: u64,
@@ -250,7 +250,7 @@ pub struct PlayerState {
     pub chapter: i64,
     pub chapter_count: i64,
     /// Read on the worker with the tracks (see `worker`).
-    pub chapters: Vec<crate::playback::tracks::Chapter>,
+    pub chapters: Vec<dbm_mpv::tracks::Chapter>,
     /// Where an episode's title sequence was heard to be, in seconds, and the
     /// file that is true of (see `titles`). Kept with its path, so a new file
     /// needs nothing cleared.
@@ -721,8 +721,7 @@ impl PlayerState {
     /// probe's otherwise, since mpv's is read by what is actually playing it.
     pub fn known_title(&self, row: usize) -> Option<&str> {
         let entry = self.playlist.get(row)?;
-        entry
-            .embedded_title()
+        crate::playback::labels::embedded_title(entry)
             .or_else(|| self.probed_for(row)?.title.as_deref())
     }
 
@@ -781,7 +780,7 @@ mod tests {
             assert_eq!(Prop::of(prop.id()), Some(prop));
         }
     }
-    use crate::playback::tracks::Chapter;
+    use dbm_mpv::tracks::Chapter;
 
     fn playing(path: &str, chapter: i64, marks: &[(f64, &str)]) -> PlayerState {
         PlayerState {

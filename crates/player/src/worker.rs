@@ -17,8 +17,9 @@ use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, Sender, TryIter};
 use std::thread::JoinHandle;
 
+use dbm_mpv::Mpv;
+
 use crate::MainWindow;
-use crate::playback::mpv::Mpv;
 use crate::threads::Reporter;
 
 /// Work that finished. Add a variant per kind of background job.

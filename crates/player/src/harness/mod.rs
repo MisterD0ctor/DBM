@@ -270,8 +270,8 @@ mod showcase;
 
 use slint::{Model, ModelRc};
 
-use crate::playback::mpv::Mpv;
 use crate::{MainWindow, TrackItem};
+use dbm_mpv::Mpv;
 
 /// Options for a run nobody is watching. Before `mpv_initialize`, like the
 /// rest of mpv's configuration.

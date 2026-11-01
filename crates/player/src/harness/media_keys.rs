@@ -2,10 +2,10 @@
 
 use std::time::Duration;
 
+use dbm_mpv::Mpv;
 use slint::ComponentHandle;
 
 use crate::MainWindow;
-use crate::playback::mpv::Mpv;
 
 /// Drive the OS media overlay from both ends.
 ///

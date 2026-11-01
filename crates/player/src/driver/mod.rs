@@ -41,13 +41,12 @@ use crate::interface::{fades, format, glass, playlist_panel, sync};
 use crate::library::playlist;
 use crate::platform::modal_loop;
 use crate::playback::commands;
-use crate::playback::mpv;
 use crate::playback::state::PlayerState;
-use crate::playback::tracks::{self, TrackKind};
 use crate::settings::Toggle;
 use crate::worker::Completion;
 use crate::{MainWindow, diagnostics};
 use dbm_lang::{fill, marked, tr};
+use dbm_mpv::tracks::{self, TrackKind};
 
 /// Identity of what a Slint image property points at: texture id, active
 /// image size, allocated texture size.
@@ -55,7 +54,7 @@ type Published = (NonZeroU32, u32, u32, u32, u32);
 
 /// Everything that only exists once the GL context does.
 struct Gpu {
-    ctx: mpv::RenderContext,
+    ctx: dbm_mpv::RenderContext,
     gl: glow::Context,
     pipeline: Pipeline,
     overlays: Overlays,
@@ -399,7 +398,8 @@ impl Driver {
         // event would otherwise sit unnoticed.
         self.app.mpv.set_wakeup(self.waker());
 
-        match unsafe { mpv::RenderContext::new(self.app.mpv.clone(), get_proc_address, notify) } {
+        match unsafe { dbm_mpv::RenderContext::new(self.app.mpv.clone(), get_proc_address, notify) }
+        {
             Ok(ctx) => {
                 log::info!("mpv render context created on Slint's GL context");
                 // The two panels whose words are the player's own, drawn
@@ -458,7 +458,7 @@ impl Driver {
         }
     }
 
-    fn waker(&self) -> mpv::Wake {
+    fn waker(&self) -> dbm_mpv::Wake {
         let weak = Mutex::new(self.ui.clone());
         Box::new(move || {
             if let Ok(w) = weak.lock() {

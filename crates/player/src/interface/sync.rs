@@ -12,11 +12,12 @@
 //! properties are read on the worker, and only when a count or selection
 //! actually moves.
 
+use dbm_mpv::tracks::{self, TrackKind};
 use slint::{ModelRc, SharedString, VecModel};
 
 use crate::interface::format;
+use crate::playback::labels;
 use crate::playback::state::{Lists, PlayerState};
-use crate::playback::tracks::{self, TrackKind};
 use crate::worker::{Completion, Worker};
 use crate::{MainWindow, TrackItem};
 
@@ -178,7 +179,7 @@ fn subs_showing(player: &PlayerState) -> bool {
 /// Worked out here because the interface can't search a model, and needs the
 /// answer to open the tracks panel on the track in use.
 fn selected_row(player: &PlayerState, kind: TrackKind) -> i32 {
-    tracks::labelled(&player.tracks, kind)
+    labels::tracks(&player.tracks, kind)
         .iter()
         .position(|(t, _)| t.selected)
         .map_or(-1, |row| row as i32)
@@ -187,7 +188,7 @@ fn selected_row(player: &PlayerState, kind: TrackKind) -> i32 {
 /// The names of the tracks carried in the film, or of those loaded from their
 /// own files, one to a line, for the measures that size their panel.
 fn track_names(player: &PlayerState, kind: TrackKind, external: bool) -> SharedString {
-    tracks::labelled(&player.tracks, kind)
+    labels::tracks(&player.tracks, kind)
         .into_iter()
         .filter(|(t, _)| t.external == external)
         .map(|(_, label)| label)
@@ -198,7 +199,7 @@ fn track_names(player: &PlayerState, kind: TrackKind, external: bool) -> SharedS
 
 fn track_model(player: &PlayerState, kind: TrackKind) -> ModelRc<TrackItem> {
     ModelRc::new(VecModel::from(
-        tracks::labelled(&player.tracks, kind)
+        labels::tracks(&player.tracks, kind)
             .into_iter()
             .map(|(t, label)| TrackItem {
                 id: t.id as i32,

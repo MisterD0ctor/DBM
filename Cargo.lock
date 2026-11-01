@@ -950,6 +950,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dbm-mpv"
+version = "0.5.1"
+dependencies = [
+ "libloading",
+ "log",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "dbm-naming"
 version = "0.5.1"
 dependencies = [
@@ -962,10 +971,10 @@ version = "0.5.1"
 dependencies = [
  "base64 0.22.1",
  "dbm-lang",
+ "dbm-mpv",
  "dbm-naming",
  "glow 0.16.0",
  "libc",
- "libloading",
  "log",
  "md-5",
  "native-tls",
@@ -976,7 +985,6 @@ dependencies = [
  "serde_json",
  "slint",
  "slint-build",
- "thiserror 2.0.18",
  "ureq",
  "url",
  "windows 0.61.3",

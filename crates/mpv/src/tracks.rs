@@ -9,7 +9,7 @@
 //! Both lists are pulled on demand rather than observed: the counts are
 //! observed, and a change there is what triggers a re-read.
 
-use crate::playback::mpv::Mpv;
+use crate::Mpv;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TrackKind {
@@ -51,29 +51,6 @@ pub struct Chapter {
     pub title: Option<String>,
 }
 
-/// The tracks of one kind, with what to call each of them.
-///
-/// One kind at a time: the right label depends on the company a track keeps,
-/// and a subtitle track keeps company with the other subtitles, not with the
-/// audio. See [`dbm_naming::track_labels`].
-pub fn labelled(tracks: &[Track], kind: TrackKind) -> Vec<(&Track, String)> {
-    let of_kind = of_kind(tracks, kind);
-    let infos: Vec<dbm_naming::TrackInfo> = of_kind
-        .iter()
-        .map(|t| dbm_naming::TrackInfo {
-            title: t.title.as_deref(),
-            language: t.lang.as_deref(),
-            external: t.external,
-            codec: t.codec.as_deref(),
-            channels: t.channels,
-        })
-        .collect();
-    of_kind
-        .into_iter()
-        .zip(dbm_naming::track_labels(&infos))
-        .collect()
-}
-
 #[derive(Debug, Clone, PartialEq)]
 pub struct PlaylistEntry {
     pub index: i64,
@@ -83,16 +60,6 @@ pub struct PlaylistEntry {
     pub filename: String,
     pub title: Option<String>,
     pub current: bool,
-}
-
-impl PlaylistEntry {
-    /// The container's own title, where mpv has one for this entry and it is
-    /// not simply the file name it fell back to.
-    pub fn embedded_title(&self) -> Option<&str> {
-        self.title
-            .as_deref()
-            .filter(|t| *t != dbm_naming::strip_path(&self.filename))
-    }
 }
 
 /// Read the whole track list. Empty when nothing is loaded.

@@ -25,9 +25,10 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
 
+use dbm_mpv::tracks::Chapter;
+
 use crate::library::cache::Folder;
 use crate::library::ffmpeg;
-use crate::playback::tracks::Chapter;
 use crate::threads::Reporter;
 use crate::threads::{Supersede, Ticket};
 

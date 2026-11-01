@@ -1,0 +1,19 @@
+[package]
+name = "dbm-mpv"
+description = "The libmpv binding Death by MPV plays through"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+# libmpv is opened at run time rather than linked; see `lib.rs`.
+libloading.workspace = true
+log.workspace = true
+# Error types without hand-written `Display` impls. Slint already builds it.
+thiserror.workspace = true
+
+[lints]
+workspace = true

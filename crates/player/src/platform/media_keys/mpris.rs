@@ -39,13 +39,13 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
+use dbm_mpv::Mpv;
 use zbus::blocking::Connection;
 use zbus::names::InterfaceName;
 use zbus::object_server::SignalEmitter;
 use zbus::zvariant::{ObjectPath, Value};
 
 use crate::playback::commands;
-use crate::playback::mpv::Mpv;
 use crate::playback::state::PlayerState;
 
 /// What this application is called on a Linux desktop: its desktop entry's

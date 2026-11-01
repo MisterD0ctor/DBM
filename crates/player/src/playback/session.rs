@@ -17,9 +17,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use dbm_mpv::Mpv;
+
 use crate::paths;
 use crate::playback::commands;
-use crate::playback::mpv::Mpv;
 
 /// Whether a file is on its way in and hasn't loaded. mpv doesn't know its
 /// position until it has, and an entry written meanwhile would have none and

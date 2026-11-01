@@ -19,6 +19,7 @@
 //! | crate         | owns                                                      |
 //! |---------------|-----------------------------------------------------------|
 //! | `dbm_lang`    | the language it speaks, and the words in each             |
+//! | `dbm_mpv`     | the libmpv binding, and the lists mpv keeps, read typed   |
 //! | `dbm_naming`  | what files, tracks and chapters are called, from names    |
 //!
 //! Layout of this crate:
@@ -27,7 +28,7 @@
 //! |---------------|-----------------------------------------------------------|
 //! | `app`         | the handles the rest share, in one value                  |
 //! | `driver`      | the frame: Slint's rendering notifier, and all it runs    |
-//! | `playback`    | mpv: the binding, its mirrored state, commands, resuming  |
+//! | `playback`    | mpv: its mirrored state, commands, resuming               |
 //! | `library`     | files on disk: playlists, lengths, preview sheets         |
 //! | `interface`   | the Rust side of `app.slint`: callbacks and properties    |
 //! | `gpu`         | the passes drawn over the video: border, blur, glass      |
@@ -98,7 +99,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // SAFETY: each place `libmpv_path` looks holds a libmpv, or the one the
     // person named in `DBM_LIBMPV`.
     let mpv = unsafe {
-        playback::mpv::Mpv::new(&playback::session::libmpv_path(), |mpv| {
+        dbm_mpv::Mpv::new(&playback::session::libmpv_path(), |mpv| {
             playback::session::configure(mpv);
             harness::configure(mpv);
         })

@@ -7,12 +7,13 @@
 
 use std::rc::Rc;
 
+use dbm_lang::{fill, marked, tr};
+use dbm_mpv::{Event, Mpv};
+
 use crate::interface::format;
 use crate::playback::audio::Watchdog;
-use crate::playback::mpv::{Event, Mpv};
 use crate::playback::state::PlayerState;
 use crate::playback::{commands, session};
-use dbm_lang::{fill, marked, tr};
 
 /// mpv's own words for why a file stopped, as `mpv_error_string` gives them,
 /// marked so each language can say them too. One mpv adds later is shown as

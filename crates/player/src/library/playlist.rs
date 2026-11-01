@@ -9,12 +9,14 @@
 //! directory of thousands can take seconds), so it runs on the worker thread.
 //! Nothing here touches mpv or the UI; it produces a plain list.
 
-use crate::library::resume::Saved;
-use dbm_lang::{fill, tr};
 use std::cmp::Ordering;
 use std::fs;
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
+
+use dbm_lang::{fill, tr};
+
+use crate::library::resume::Saved;
 
 /// Extensions treated as video, matched case-insensitively. Public so the
 /// open dialog filters by the same list, and never shows a file the scanner

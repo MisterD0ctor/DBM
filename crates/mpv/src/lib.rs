@@ -10,8 +10,13 @@
 //! build free of an import library and lets the library be swapped without
 //! recompiling: the vendored build on Windows, the system's or the Flatpak's
 //! on Linux, or whatever `DBM_LIBMPV` names.
+//!
+//! `tracks` reads the list-shaped properties into types of their own. This
+//! is the only crate in the player that calls C.
 
 #![warn(clippy::undocumented_unsafe_blocks)]
+
+pub mod tracks;
 
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::mem::ManuallyDrop;

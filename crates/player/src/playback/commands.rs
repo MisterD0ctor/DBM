@@ -8,7 +8,7 @@
 //! Failures are logged rather than propagated, since a rejected seek
 //! shouldn't take the player down.
 
-use crate::playback::mpv::Mpv;
+use dbm_mpv::Mpv;
 
 /// Arrow-key seek, in seconds.
 pub const SEEK_STEP: f64 = 10.0;
@@ -153,8 +153,8 @@ pub fn toggle_mute(mpv: &Mpv) {
 /// Reads the track list, so this **blocks** and must run on the worker,
 /// where the read is fresh in a way a mirrored copy isn't.
 pub fn toggle_subtitles(mpv: &Mpv) {
-    let tracks = crate::playback::tracks::read_tracks(mpv);
-    let subs = crate::playback::tracks::of_kind(&tracks, crate::playback::tracks::TrackKind::Sub);
+    let tracks = dbm_mpv::tracks::read_tracks(mpv);
+    let subs = dbm_mpv::tracks::of_kind(&tracks, dbm_mpv::tracks::TrackKind::Sub);
     if subs.is_empty() {
         return;
     }
@@ -162,15 +162,13 @@ pub fn toggle_subtitles(mpv: &Mpv) {
     // Showing, not merely visible, since `sub-visibility` can be on with no
     // track selected, where turning it off would change nothing visible.
     let showing = mpv.get_bool("sub-visibility")
-        && crate::playback::tracks::selected(&tracks, crate::playback::tracks::TrackKind::Sub)
-            .is_some();
+        && dbm_mpv::tracks::selected(&tracks, dbm_mpv::tracks::TrackKind::Sub).is_some();
     if showing {
         set_prop(mpv, "sub-visibility", "no");
         return;
     }
     // Only trust the current selection if it names a track this file has.
-    if crate::playback::tracks::selected(&tracks, crate::playback::tracks::TrackKind::Sub).is_none()
-    {
+    if dbm_mpv::tracks::selected(&tracks, dbm_mpv::tracks::TrackKind::Sub).is_none() {
         set_prop(mpv, "sid", &subs[0].id.to_string());
     }
     set_prop(mpv, "sub-visibility", "yes");

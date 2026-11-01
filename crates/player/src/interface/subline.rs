@@ -23,8 +23,9 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
+use dbm_mpv::Mpv;
+
 use crate::playback::commands;
-use crate::playback::mpv::Mpv;
 use crate::settings::Store;
 
 /// Smaller moves aren't worth a command: a hundredth of `sub-pos` is a tenth

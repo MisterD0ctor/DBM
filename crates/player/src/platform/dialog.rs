@@ -11,8 +11,9 @@
 //! command line's does (see [`crate::library::playlist::prepare`]), so this
 //! module knows nothing about mpv, playlists or the worker.
 
-use crate::MainWindow;
 use dbm_lang::tr;
+
+use crate::MainWindow;
 
 /// What the user is being asked for.
 #[derive(Clone, Copy)]

@@ -21,12 +21,13 @@ use std::io::Read;
 use std::path::Path;
 use std::process::Stdio;
 
+use dbm_naming::Media;
+
 use crate::library::cache::PathMap;
 use crate::library::ffmpeg;
 use crate::library::fingerprint::{self, Print};
 use crate::threads::Reporter;
 use crate::threads::{Supersede, Ticket};
-use dbm_naming::Media;
 
 /// How many episodes of the season are tried before this one is taken to
 /// have nothing to find.

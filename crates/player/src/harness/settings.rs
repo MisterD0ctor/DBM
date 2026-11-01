@@ -2,9 +2,9 @@
 
 use std::time::Duration;
 
+use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
-use crate::playback::mpv::Mpv;
 use crate::{MainWindow, Motion};
 
 /// Open the settings panel and drive one parameter to its maximum, so the

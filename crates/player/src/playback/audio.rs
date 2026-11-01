@@ -22,10 +22,11 @@ use std::collections::BTreeSet;
 use std::rc::Rc;
 use std::time::Duration;
 
-use crate::playback::mpv::{Event, Mpv, Value};
-use crate::playback::state::Prop;
-use crate::playback::tracks::{self, TrackKind};
 use dbm_lang::tr;
+use dbm_mpv::tracks::{self, TrackKind};
+use dbm_mpv::{Event, Mpv, Value};
+
+use crate::playback::state::Prop;
 
 /// How long the device list must stay still before the audio chain is touched.
 ///

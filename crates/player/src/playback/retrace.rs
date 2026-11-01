@@ -10,8 +10,9 @@
 
 use std::cell::RefCell;
 
+use dbm_mpv::Mpv;
+
 use crate::playback::commands;
-use crate::playback::mpv::Mpv;
 
 /// A seek shorter than this is a nudge, which leaves the place it came from
 /// within reach of the arrow keys.

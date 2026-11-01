@@ -2,10 +2,10 @@
 
 use std::time::Duration;
 
+use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
 use super::drive::chord;
-use crate::playback::mpv::Mpv;
 use crate::{MainWindow, Motion};
 
 /// Walk the keyboard into a panel and down it, with real key events.

@@ -2,11 +2,11 @@
 
 use std::time::Duration;
 
+use dbm_mpv::Mpv;
 use slint::ComponentHandle;
 
 use super::drive::hover;
 use crate::MainWindow;
-use crate::playback::mpv::Mpv;
 
 /// Watch the pointer disappear and come back.
 ///
@@ -145,10 +145,10 @@ pub(super) fn audio_test(
 }
 
 /// An `audio-device-list` change as mpv would report it.
-fn device_list(payload: &str) -> crate::playback::mpv::Event {
-    crate::playback::mpv::Event::Property {
+fn device_list(payload: &str) -> dbm_mpv::Event {
+    dbm_mpv::Event::Property {
         id: crate::playback::state::Prop::AudioDeviceList.id(),
-        value: crate::playback::mpv::Value::Str(payload.into()),
+        value: dbm_mpv::Value::Str(payload.into()),
     }
 }
 

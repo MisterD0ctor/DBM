@@ -24,10 +24,11 @@
 
 use std::cell::RefCell;
 
+use dbm_mpv::Mpv;
+
 use crate::library::durations::Progress;
 use crate::library::resume::Saved;
 use crate::playback::commands;
-use crate::playback::mpv::Mpv;
 
 /// How far the position may wander from the saved place, in seconds, before
 /// the choice is taken to have been made some other way: a seek, a skip.

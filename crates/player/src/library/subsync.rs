@@ -28,9 +28,10 @@ use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use std::sync::Arc;
 
+use dbm_mpv::Mpv;
+use dbm_mpv::tracks;
+
 use crate::library::ffmpeg;
-use crate::playback::mpv::Mpv;
-use crate::playback::tracks;
 use crate::threads::Reporter;
 use crate::threads::{Supersede, Ticket};
 

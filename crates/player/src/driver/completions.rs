@@ -4,6 +4,10 @@
 //! adding a kind of background job is a compile error until its result has
 //! somewhere to go (see `worker`).
 
+use dbm_lang::{fill, tr};
+use dbm_naming::Media;
+use slint::{ModelRc, VecModel};
+
 use super::{Driver, Gpu, say, warn};
 use crate::interface::format;
 use crate::library::opensubtitles::account::Account;
@@ -15,9 +19,6 @@ use crate::library::titles::End;
 use crate::playback::commands;
 use crate::worker::{Completion, Worker};
 use crate::{FoundItem, MainWindow};
-use dbm_lang::{fill, tr};
-use dbm_naming::Media;
-use slint::{ModelRc, VecModel};
 
 impl Driver {
     /// Take delivery of one finished job. Returns whether the playlist needs

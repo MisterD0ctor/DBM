@@ -23,8 +23,9 @@
 use std::cell::RefCell;
 use std::time::Instant;
 
+use dbm_mpv::Mpv;
+
 use crate::playback::commands;
-use crate::playback::mpv::Mpv;
 
 /// Film covered per second of dragging, below which the drag is slow and
 /// above which it is fast. In seconds of film rather than pixels, since what

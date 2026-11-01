@@ -18,7 +18,8 @@
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use crate::playback::mpv::Mpv;
+use dbm_mpv::Mpv;
+
 use crate::playback::state::PlayerState;
 
 /// What the overlay is currently showing, so it is only told about

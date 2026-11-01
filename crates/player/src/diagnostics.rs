@@ -27,9 +27,11 @@
 use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
+use dbm_mpv::tracks::{self, TrackKind};
+
 use crate::gpu::pipeline::{GlassPanel, Pipeline};
+use crate::playback::labels;
 use crate::playback::state::PlayerState;
-use crate::playback::tracks::{self, TrackKind};
 
 /// Whether `DBM_TRACE` is set: the switch every part of the player checks
 /// before saying something about itself. Read once, from any thread —
@@ -459,7 +461,7 @@ impl Probe {
         // Per kind, so the dump shows what each menu section shows rather
         // than what a track would be called on its own.
         for kind in [TrackKind::Video, TrackKind::Audio, TrackKind::Sub] {
-            for (t, label) in tracks::labelled(&player.tracks, kind) {
+            for (t, label) in labels::tracks(&player.tracks, kind) {
                 eprintln!(
                     "       id={} {:?}{} {label:?}",
                     t.id,
@@ -474,7 +476,7 @@ impl Probe {
             player
                 .playlist
                 .iter()
-                .map(|e| (e.filename.as_str(), e.embedded_title())),
+                .map(|e| (e.filename.as_str(), labels::embedded_title(e))),
         );
         if let Some(show) = &listing.heading {
             eprintln!("  playlist heading {show:?}");

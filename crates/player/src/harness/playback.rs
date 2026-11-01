@@ -3,12 +3,12 @@
 
 use std::time::Duration;
 
+use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
 use super::drive::{arrow, chord, hover, wheel};
 use super::{playlist_rows, selected_label, short};
 use crate::MainWindow;
-use crate::playback::mpv::Mpv;
 
 fn report(ui: &MainWindow, label: &str) {
     eprintln!(

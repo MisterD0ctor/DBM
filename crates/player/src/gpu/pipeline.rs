@@ -18,12 +18,12 @@
 //! are read from Slint's layout in the same frame, so the glass can't drift
 //! from its widget.
 
+use dbm_mpv::RenderContext;
 use glow::HasContext;
 
 use crate::gpu::blur::{self, Blur};
 use crate::gpu::gfx::{Program, ScreenQuad, Target, bind_texture, program, saved_draw_fbo};
 use crate::gpu::shadow::HEADROOM;
-use crate::playback::mpv::RenderContext;
 
 /// How far the glass's corners ease into its straight edges: the corner's
 /// curve runs this many radii along each, where 1 is a quarter of an ellipse
