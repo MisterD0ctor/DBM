@@ -2020,7 +2020,7 @@ stops for longer by `titles.AFTER_CREDITS`, what it stops for is a scene —
 between two pieces, or after the last, where the other's music ends its
 file. Where the shared music stops says nothing by itself: two cuts of one
 song part wherever they differ, and the rest of the longer is more credits.
-The skip lands `state.SCENE_LEAD` before the music stops, since a scene can
+The skip lands `ends.SCENE_LEAD` before the music stops, since a scene can
 start under the song's last bars. One that starts well before, under
 nothing but the song, is not heard, and the skip lands late in it.
 
@@ -2031,7 +2031,7 @@ in the same corner, on the same lines, and for the same reason — a sequence is
 something people watch, so the offer keeps out of its way and doing nothing is
 watching it. It arrives as the credits pill does: on its own, with the
 ring, for Enter. It lands on the first frame after the sequence, exactly, and goes
-a moment before that (`state.INTRO_TAIL`): an offer that is over before it is
+a moment before that (`ends.INTRO_TAIL`): an offer that is over before it is
 read is noise.
 It needs nowhere to go, so the last episode of a season has it too; a film
 never does, for the reason it has no credits pill.

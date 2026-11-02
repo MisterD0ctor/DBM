@@ -46,6 +46,7 @@ MODULES = {
     "way": GPU / "src/way.rs",
     "commands": PLAYER / "src/playback/commands.rs",
     "state": PLAYER / "src/playback/state.rs",
+    "ends": PLAYER / "src/playback/ends.rs",
     "arrival": PLAYER / "src/playback/arrival.rs",
     "retrace": PLAYER / "src/playback/retrace.rs",
     "preview": LIBRARY / "src/preview.rs",

@@ -11,6 +11,7 @@
 pub mod arrival;
 pub mod audio;
 pub mod commands;
+pub mod ends;
 pub mod labels;
 pub mod retrace;
 pub mod scrub;
