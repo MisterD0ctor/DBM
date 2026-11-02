@@ -821,7 +821,7 @@ pub(super) fn skip_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
 
         seek(2.0);
         verdict
-            .expect(|| at() > 4.0, "the film plays up to its titles")
+            .expect_after(2.0, || at() > 4.0, "the film plays up to its titles")
             .await;
         // Further than five seconds of playing could take it.
         verdict
@@ -845,13 +845,18 @@ pub(super) fn skip_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
 
         seek(credits_at - 2.0);
         verdict
-            .expect(
+            .expect_after(
+                2.0,
                 || playback.get_credits_count() > 0.0,
                 "the credits pill counts down",
             )
             .await;
         verdict
-            .expect(|| at() >= credits_at + 2.5, "the count runs with the film")
+            .expect_after(
+                2.5,
+                || at() >= credits_at + 2.5,
+                "the count runs with the film",
+            )
             .await;
         // Back to read a name, and still in the credits.
         seek(credits_at);
@@ -867,13 +872,15 @@ pub(super) fn skip_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         // Back out of them and into them again, for a fresh count.
         seek(credits_at - 2.0);
         verdict
-            .expect(
+            .expect_after(
+                4.5,
                 || playback.get_credits_count() >= 0.5,
                 "the next count gets half way",
             )
             .await;
         verdict
-            .expect(
+            .expect_after(
+                2.5,
                 || playback.get_path() != film,
                 "and goes on to the next episode before the end",
             )

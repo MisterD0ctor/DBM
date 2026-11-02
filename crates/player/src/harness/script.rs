@@ -173,7 +173,20 @@ impl Verdict {
     /// Say whether `what` holds, given up to [`GRACE`] to come true: a step
     /// it follows is checked for taking effect, not for how fast it did.
     pub async fn expect(&self, holds: impl Fn() -> bool, what: &str) {
-        let until = Instant::now() + GRACE;
+        self.wait_for(GRACE, holds, what).await;
+    }
+
+    /// [`Verdict::expect`] for a step that can only hold once `film` seconds
+    /// of the film have played, which it is given on top of the grace. On
+    /// software GL a film plays slower than the clock for a while after a
+    /// seek.
+    pub async fn expect_after(&self, film: f64, holds: impl Fn() -> bool, what: &str) {
+        self.wait_for(Duration::from_secs_f64(film) + GRACE, holds, what)
+            .await;
+    }
+
+    async fn wait_for(&self, grace: Duration, holds: impl Fn() -> bool, what: &str) {
+        let until = Instant::now() + grace;
         while !holds() && Instant::now() < until {
             sleep(Duration::from_millis(100)).await;
         }
