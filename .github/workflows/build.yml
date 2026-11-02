@@ -57,6 +57,12 @@ jobs:
             - name: Design files
               run: python3 scripts/design.py check
 
+            # The Flatpak builds offline from a list of crates, which a
+            # change to Cargo.lock leaves behind unless it is regenerated.
+            # Its own job would only find out deep inside cargo.
+            - name: Flatpak crates
+              run: python3 scripts/cargo_sources.py check
+
             - name: Format
               run: cargo fmt --check
 

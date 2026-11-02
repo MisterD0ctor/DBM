@@ -224,15 +224,18 @@ folder to compile everything again. Sources already fetched aren't asked for
 again, unless the manifest pins a commit that hasn't been fetched yet.
 
 The build runs offline, so every Rust crate is listed in
-`packaging/flatpak/cargo-sources.json`. CI's Flatpak build fails when that
-file falls behind. Regenerate it whenever a crate in `Cargo.lock` is added,
-removed or updated, using
-`flatpak-cargo-generator.py` from
-[flatpak-builder-tools](https://github.com/flatpak/flatpak-builder-tools):
+`packaging/flatpak/cargo-sources.json`. Regenerate it whenever a crate in
+`Cargo.lock` is added, removed or updated:
 
 ```sh
-python3 flatpak-cargo-generator.py Cargo.lock -o packaging/flatpak/cargo-sources.json
+scripts/cargo_sources.py write
 ```
+
+CI's Linux job runs `scripts/cargo_sources.py check`, which fails and names
+the crates when the list has fallen behind. The script lays the file out as
+`flatpak-cargo-generator.py` from
+[flatpak-builder-tools](https://github.com/flatpak/flatpak-builder-tools)
+does, for crates from crates.io; a git dependency would need that tool.
 
 The player isn't on Flathub. Getting it there would take three changes: the
 manifest's `type: dir` source would have to point at a git tag and commit
