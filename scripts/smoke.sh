@@ -19,9 +19,11 @@ film="$2/Smoke Test S01E01 Episode 1.mkv"
 here=$(dirname "$0")
 failed=0
 
-# Each exercise with how long it is given, which is well past how long it
-# takes: the input one is twenty-eight steps a second and a half apart.
-for run in DBM_INPUT_TEST:60000 DBM_SCRUB_TEST:20000 DBM_SUBS_TEST:30000; do
+# Each exercise with how long it is given, and so how long its run lasts,
+# well past how long it takes with no GPU: the input one is twenty-eight steps
+# a second and a half apart, and the scrub one 120 steps that each wait for a
+# frame, which software GL draws a few of a second.
+for run in DBM_INPUT_TEST:90000 DBM_SCRUB_TEST:90000 DBM_SUBS_TEST:30000; do
     exercise=${run%%:*}
     data=$(mktemp -d)
     log=$(mktemp)

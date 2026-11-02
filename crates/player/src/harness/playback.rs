@@ -32,6 +32,7 @@ pub(super) fn input_test(ui: &MainWindow) -> Script {
         let subtitles = ui.global::<Subtitles>();
         let selected =
             |rows: slint::ModelRc<crate::TrackItem>| rows.iter().find(|t| t.selected).map(|t| t.id);
+        script::loaded(&ui).await;
         let mut beat = Beat::new(Duration::from_millis(1500));
         // Alternating act / observe, so each report reflects a settled
         // state rather than one still in flight.
@@ -132,10 +133,12 @@ pub(super) fn input_test(ui: &MainWindow) -> Script {
 pub(super) fn scrub_test(ui: &MainWindow) -> Script {
     script::run(ui, move |ui| async move {
         let verdict = Verdict::new("scrub");
-        let mut beat = Beat::new(Duration::from_millis(16));
         let playback = ui.global::<Playback>();
-        // Let playback settle before dragging.
-        beat.rest(120).await;
+        // Let playback settle before dragging, by the clock rather than in
+        // beats: on software GL each beat waits for a frame, a fifth of a second.
+        script::loaded(&ui).await;
+        script::sleep(Duration::from_secs(2)).await;
+        let mut beat = Beat::new(Duration::from_millis(16));
         let started = std::time::Instant::now();
         eprintln!(
             "dbm: --- scrub drag starting, paused={} ---",

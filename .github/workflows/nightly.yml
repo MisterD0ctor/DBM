@@ -25,8 +25,8 @@ jobs:
 
             # The build's libraries as in build.yml, and what a run needs on
             # top: libmpv to play, ffmpeg to make the films and the previews,
-            # mutter and a session bus for `headless.sh`, and Mesa for GL with
-            # no GPU.
+            # mutter and a session bus for `headless.sh`, Mesa for GL with no
+            # GPU, and PulseAudio for a sound server with no sound card.
             - name: Install system libraries
               run: |
                   sudo apt-get update
@@ -34,7 +34,7 @@ jobs:
                       libfontconfig1-dev libfreetype-dev libxkbcommon-dev \
                       libwayland-dev libgl-dev \
                       libmpv2 ffmpeg mutter dbus dbus-user-session \
-                      libgl1-mesa-dri libegl-mesa0
+                      libgl1-mesa-dri libegl-mesa0 pulseaudio
 
             - name: Install Rust stable
               uses: dtolnay/rust-toolchain@stable
@@ -51,9 +51,13 @@ jobs:
               run: scripts/smoke-media.sh "$RUNNER_TEMP/media"
 
             # `headless.sh` keeps its compositor's socket in the runtime
-            # directory, which a runner doesn't set.
+            # directory, which a runner doesn't set, and PulseAudio its own.
+            # With no device to open, mpv drops a film's audio track, which
+            # the input exercise picks and reads back; PulseAudio with no
+            # sound card plays into a sink that goes nowhere instead.
             - name: Run the exercises
               run: |
                   export XDG_RUNTIME_DIR="$RUNNER_TEMP/runtime"
                   mkdir -m 700 -p "$XDG_RUNTIME_DIR"
+                  pulseaudio --start --exit-idle-time=-1
                   scripts/smoke.sh ./target/release/dbm-player "$RUNNER_TEMP/media"

@@ -19,7 +19,7 @@ use std::time::{Duration, Instant};
 
 use slint::ComponentHandle;
 
-use crate::MainWindow;
+use crate::{MainWindow, Playback};
 
 /// Run `exercise` on the event loop, with the window to drive. It is handed
 /// its own strong handle, which it holds until it ends or the run does.
@@ -93,6 +93,15 @@ impl Future for Sleep {
             }
         }
         Poll::Pending
+    }
+}
+
+/// Wait until the window has the film: its length has come through from mpv.
+/// A step taken sooner acts on nothing, and on software GL, at a few frames a
+/// second, that can be seconds into the run.
+pub async fn loaded(ui: &MainWindow) {
+    while ui.global::<Playback>().get_duration() <= 0.0 {
+        sleep(Duration::from_millis(100)).await;
     }
 }
 
