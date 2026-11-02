@@ -12,6 +12,10 @@ publish.workspace = true
 # libmpv is opened at run time rather than linked; see `lib.rs`.
 libloading.workspace = true
 log.workspace = true
+# Reading the track list, the chapters and the playlist, which mpv prints as
+# JSON — see `tracks`. The library already builds both.
+serde.workspace = true
+serde_json.workspace = true
 # Error types without hand-written `Display` impls. Slint already builds it.
 thiserror.workspace = true
 

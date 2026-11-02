@@ -1018,6 +1018,8 @@ version = "0.5.1"
 dependencies = [
  "libloading",
  "log",
+ "serde",
+ "serde_json",
  "thiserror 2.0.18",
 ]
 
