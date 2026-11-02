@@ -6,6 +6,7 @@ use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
 use crate::Find;
+use crate::Settings;
 use crate::Subtitles;
 use crate::Tracks;
 use crate::{MainWindow, Motion};
@@ -34,7 +35,8 @@ pub(super) fn param_test(ui: &MainWindow) -> slint::Timer {
                 .and_then(|v| v.parse::<f32>().ok())
             {
                 Some(tint) => {
-                    ui.invoke_set_param(tint_row as i32, tint);
+                    ui.global::<Settings>()
+                        .invoke_set_param(tint_row as i32, tint);
                     eprintln!("dbm: settings opened, tint set to {tint}");
                 }
                 None => eprintln!("dbm: settings opened, values untouched"),
@@ -527,6 +529,7 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
 /// so a reordered registry can't silently change what is reported.
 fn report_row(ui: &MainWindow, label: &str) {
     let rows: Vec<String> = ui
+        .global::<Settings>()
         .get_glass_params()
         .iter()
         .map(|p| format!("{}={}", p.label, p.readout))
@@ -571,18 +574,18 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
                 // Only the ambient border has a switch. The probe still
                 // samples the glass under the open panel between steps.
                 1 => {
-                    ui.set_ambience_on(false);
-                    ui.invoke_set_ambience(false);
+                    ui.global::<Settings>().set_ambience_on(false);
+                    ui.global::<Settings>().invoke_set_ambience(false);
                     flip("ambience", false);
                 }
                 2 => {
-                    ui.set_ambience_on(true);
-                    ui.invoke_set_ambience(true);
+                    ui.global::<Settings>().set_ambience_on(true);
+                    ui.global::<Settings>().invoke_set_ambience(true);
                     flip("ambience", true);
                 }
                 3 => {
-                    ui.set_autoplay(false);
-                    ui.invoke_set_autoplay(false);
+                    ui.global::<Settings>().set_autoplay(false);
+                    ui.global::<Settings>().invoke_set_autoplay(false);
                 }
                 // A blocking read, acceptable only off the frame path.
                 // Autoplay has no picture to check, so mpv is the witness.
@@ -591,8 +594,8 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
                     mpv.get_property("keep-open")
                 ),
                 5 => {
-                    ui.set_autoplay(true);
-                    ui.invoke_set_autoplay(true);
+                    ui.global::<Settings>().set_autoplay(true);
+                    ui.global::<Settings>().invoke_set_autoplay(true);
                 }
                 6 => eprintln!(
                     "dbm: autoplay on  -> keep-open={:?}",
@@ -604,12 +607,12 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
                 // on.
                 7 => {
                     ui.global::<Motion>().set_chosen(false);
-                    ui.invoke_set_animations(false);
+                    ui.global::<Settings>().invoke_set_animations(false);
                     report_motion(&ui, "animations off");
                 }
                 8 => {
                     ui.global::<Motion>().set_chosen(true);
-                    ui.invoke_set_animations(true);
+                    ui.global::<Settings>().invoke_set_animations(true);
                     report_motion(&ui, "animations on");
                 }
                 // Reset: drive one slider somewhere it never is by default,
@@ -622,12 +625,12 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
                         .iter()
                         .position(|p| p.key == crate::settings::Key::Tint)
                         .expect("the registry has a tint row");
-                    ui.invoke_set_param(tint as i32, 1.0);
+                    ui.global::<Settings>().invoke_set_param(tint as i32, 1.0);
                     eprintln!("dbm: tint driven to max");
                 }
                 10 => report_row(&ui, "after tint max"),
                 11 => {
-                    ui.invoke_reset_section(0);
+                    ui.global::<Settings>().invoke_reset_section(0);
                     eprintln!("dbm: glass section reset");
                 }
                 12 => report_row(&ui, "after reset"),

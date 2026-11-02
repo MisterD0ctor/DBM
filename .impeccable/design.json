@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-02T02:05:35Z",
+  "generatedAt": "2026-11-02T02:55:01Z",
   "title": "Design System: Death by MPV",
   "extensions": {
     "colorMeta": {
@@ -585,7 +585,7 @@
       {
         "name": "The Legible Glass Rule",
         "section": "elevation",
-        "body": "Absorption is a look, and its slider can turn it down; legibility is not on that page. Whatever absorption leaves, the glass lets through no more light than Body needs to keep `pipeline.LEGIBLE` of contrast on it: a ceiling worked out from `Paint.body` (`legible_ceiling`, in `dbm_gpu::pipeline`), eased into from `glass.KNEE` of it so a bright area keeps its shading rather than going flat at a line. Over dark glass it does nothing; over a white frame the panes go to a mid grey, and over a coloured one keep its colour, darker. Like absorption it darkens the transmitted light only, so the rim keeps its edge. The pane under the keyboard's ring goes lighter than the glass around it only as far as its Lit words allow on it, and over glass already at its ceiling goes darker instead (see The Ring Pane Rule). WCAG asks 4.5 of text this size; the margin is for its thinnest strokes, which antialiasing leaves short of their full alpha. The one way out is a switch of its own on the accessibility page, *Darken bright glass* (`MainWindow.legible-glass`), for someone who would rather have the glass as its sliders make it and accept words that can vanish over a white scene: a choice about legibility, made where legibility is chosen, and not undone by the glass page's reset. With the glass switched off there is no ceiling either, and nothing but the words' own shadow between them and the film."
+        "body": "Absorption is a look, and its slider can turn it down; legibility is not on that page. Whatever absorption leaves, the glass lets through no more light than Body needs to keep `pipeline.LEGIBLE` of contrast on it: a ceiling worked out from `Paint.body` (`legible_ceiling`, in `dbm_gpu::pipeline`), eased into from `glass.KNEE` of it so a bright area keeps its shading rather than going flat at a line. Over dark glass it does nothing; over a white frame the panes go to a mid grey, and over a coloured one keep its colour, darker. Like absorption it darkens the transmitted light only, so the rim keeps its edge. The pane under the keyboard's ring goes lighter than the glass around it only as far as its Lit words allow on it, and over glass already at its ceiling goes darker instead (see The Ring Pane Rule). WCAG asks 4.5 of text this size; the margin is for its thinnest strokes, which antialiasing leaves short of their full alpha. The one way out is a switch of its own on the accessibility page, *Darken bright glass* (`Settings.legible-glass`), for someone who would rather have the glass as its sliders make it and accept words that can vanish over a white scene: a choice about legibility, made where legibility is chosen, and not undone by the glass page's reset. With the glass switched off there is no ceiling either, and nothing but the words' own shadow between them and the film."
       },
       {
         "name": "The Proportional Rim Rule",

@@ -7,6 +7,7 @@ use slint::{ComponentHandle, Model};
 use super::drive::{click, drag, wheel};
 use super::selected_label;
 use crate::MainWindow;
+use crate::Settings;
 use crate::Tracks;
 use crate::platform::modal_loop;
 
@@ -132,12 +133,12 @@ pub(super) fn paused_resize_test(ui: &MainWindow) -> slint::Timer {
                 // Flipping the switch makes the probe take a fresh pixel
                 // reading of the letterbox with the new geometry.
                 5 => {
-                    ui.set_ambience_on(false);
-                    ui.invoke_set_ambience(false);
+                    ui.global::<Settings>().set_ambience_on(false);
+                    ui.global::<Settings>().invoke_set_ambience(false);
                 }
                 6 => {
-                    ui.set_ambience_on(true);
-                    ui.invoke_set_ambience(true);
+                    ui.global::<Settings>().set_ambience_on(true);
+                    ui.global::<Settings>().invoke_set_ambience(true);
                 }
                 8 => eprintln!("dbm: --- paused resize test done ---"),
                 _ => {}

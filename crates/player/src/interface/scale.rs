@@ -20,6 +20,7 @@ use slint::platform::WindowEvent;
 use slint::winit_030::{WinitWindowAccessor, winit};
 
 use crate::MainWindow;
+use crate::Settings;
 use crate::settings::{SCALE_MAX, SCALE_MIN, SCALE_STEP};
 
 #[derive(Default)]
@@ -46,7 +47,7 @@ impl Scale {
         let screen = screen.flatten();
         self.fitted.set(screen.is_some());
         let drawn = chosen.clamp(SCALE_MIN, ceiling(screen, floor, system));
-        ui.set_interface_scale(drawn);
+        ui.global::<Settings>().set_scale(drawn);
         let factor = system * drawn;
         self.applied.set(factor);
         if (factor - current).abs() >= 1e-4 {

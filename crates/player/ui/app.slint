@@ -9,6 +9,7 @@ import { Find } from "find.slint";
 import { Tracks } from "tracks.slint";
 import { Subtitles } from "subtitles.slint";
 import { Playlist } from "playlist.slint";
+import { Settings } from "settings.slint";
 import { Chrome, Flash, Tip } from "globals.slint";
 import {
     FoundItem, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, ScrollFade, TrackItem
@@ -26,7 +27,7 @@ import { Shapes, Squircle } from "squircle.slint";
 
 // What the Rust side reaches besides the window: the globals it drives and
 // the structs it fills in.
-export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem, Find, Tracks, Subtitles, Playlist }
+export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem, Find, Tracks, Subtitles, Playlist, Settings }
 
 /// The marks on the bar's tracks, a chapter's start and the volume's unity.
 /// Both keep their size as a track grows under the pointer.
@@ -527,12 +528,6 @@ export component MainWindow inherits Window {
     property <int> playlist-lead: root.playlist-tiered && !root.playlist-top ? 1 : 0;
     // One list per settings page, split on the Rust side so each page binds
     // straight to its own rows.
-    in property <[ParamItem]> glass-params;
-    in property <[ParamItem]> border-params;
-    in property <[ParamItem]> picture-params;
-    /// Every slider's name on a line of its own, measured by `param-measure`
-    /// for the column every page sets its names in.
-    in property <string> param-names;
     /// 2px wider than the widest name, so with the row's 8px spacing the
     /// track sits 10px off the words.
     property <length> param-name-w: param-measure.preferred-width + 2px;
@@ -607,52 +602,36 @@ export component MainWindow inherits Window {
     /// itself, and the shortcuts page has only the way back.
     property <int> settings-focus-count:
         root.settings-page == 0 ? 6
-        : root.settings-page == 1 ? 2 + root.glass-params.length
-        : root.settings-page == 2 ? 3 + root.border-params.length
+        : root.settings-page == 1 ? 2 + Settings.glass-params.length
+        : root.settings-page == 2 ? 3 + Settings.border-params.length
         : root.settings-page == 3 ? 2 + root.access-switches
         : root.settings-page == 5 ? 1 + root.language-count
-        : root.settings-page == 6 ? 5 + root.picture-params.length
+        : root.settings-page == 6 ? 5 + Settings.picture-params.length
         : 1;
     /// The same count for `leaf-page`, which on the way back out isn't the
     /// page the keyboard is on. Counting off the live page would light the
     /// wrong reset row on a page halfway out of the panel.
     property <int> leaf-focus-count:
-        root.leaf-page == 1 ? 2 + root.glass-params.length
-        : root.leaf-page == 2 ? 3 + root.border-params.length
+        root.leaf-page == 1 ? 2 + Settings.glass-params.length
+        : root.leaf-page == 2 ? 3 + Settings.border-params.length
         : root.leaf-page == 3 ? 2 + root.access-switches
-        : root.leaf-page == 6 ? 5 + root.picture-params.length
+        : root.leaf-page == 6 ? 5 + Settings.picture-params.length
         : root.leaf-page == 5 ? 1 + root.language-count
         : 1;
     /// The accessibility page's switches. Shortcuts in tooltips is there only
     /// while there are tooltips to put them in.
     property <int> access-switches: Tip.enabled ? 4 : 3;
 
-    /// The bundled languages besides English, each by its own name. Nothing
-    /// here names one, so a build can hold any set.
-    in property <[string]> language-names;
-    /// The lit row of the language page: 0 the system's, 1 English, then the
-    /// built-in ones in the order of `language-names`.
-    in-out property <int> language-choice: 0;
     /// Its rows, the two fixed ones included.
-    property <int> language-count: 2 + root.language-names.length;
-    callback choose-language(int);
+    property <int> language-count: 2 + Settings.language-names.length;
 
     function pick-language(row: int) {
-        root.language-choice = row;
-        root.choose-language(row);
+        Settings.language-choice = row;
+        Settings.choose-language(row);
     }
 
     // Effect switches: in-out because the saved settings push them at
     // startup, and a click or a key sets them here.
-    in-out property <bool> ambience-on: true;
-    in-out property <bool> autoplay: true;
-    /// Registry index and its new normalised position.
-    callback set-param(int, float);
-    /// Restore one section to its defaults: 0 glass, 1 ambient border, 2 the
-    /// picture, as in `settings::Section`.
-    callback reset-section(int);
-    /// Take back the last reset of a settings page, as the panel numbers them.
-    callback undo-reset(int);
     /// One rung of the speed ladder from the speed shown, -1 or +1.
     callback step-speed(float, int);
     callback reset-speed();
@@ -662,30 +641,7 @@ export component MainWindow inherits Window {
     /// Straight to the window rather than through `minimized`, which a Wayland
     /// client is never told has been undone (see `window::minimize`).
     callback minimize();
-    callback set-ambience(bool);
-    callback set-autoplay(bool);
-    /// The accessibility page's switch. `Motion.chosen` is already set when
-    /// this runs; it saves the choice.
-    callback set-animations(bool);
-    /// The interface's size, as a multiple of the system's, and a step of it
-    /// from the same page, which Rust keeps to the sizes offered that the
-    /// display has room for.
-    in property <float> interface-scale: 1;
-    callback step-scale(int);
-    /// Whether the timeline's right end says what is left of the film rather
-    /// than its length, and what that is: `−12:34`. A click on it or the
-    /// video page's switch changes it here, and Rust saves it.
-    in-out property <bool> show-remaining;
     in property <string> remaining;
-    callback set-show-remaining(bool);
-    /// Whether the glass is held dark enough for its words over a bright
-    /// frame, from the same page; Rust saves it and tells the pipeline.
-    in-out property <bool> legible-glass: true;
-    callback set-legible-glass(bool);
-    /// The same for its two tip switches: `Tip` is already set, and these
-    /// save the choice.
-    callback set-tips(bool);
-    callback set-tip-keys(bool);
 
     // --- actions, executed on the Rust side ---
     // Keys are handled here rather than in Rust because Slint's `Key.*`
@@ -2266,11 +2222,11 @@ export component MainWindow inherits Window {
     pure function page-natural(page: int) -> length {
         // The controls, the gap, and the reset that follows them.
         if (page == 1) {
-            return root.glass-params.length * Rows.slider-row + Rows.group-gap + root.row-h;
+            return Settings.glass-params.length * Rows.slider-row + Rows.group-gap + root.row-h;
         }
         // The switch and a gap before them.
         if (page == 2) {
-            return root.sliders-top(2) + root.border-params.length * Rows.slider-row
+            return root.sliders-top(2) + Settings.border-params.length * Rows.slider-row
                 + Rows.group-gap + root.row-h;
         }
         // The size, a gap, and the switches, with the note under Animations
@@ -2288,7 +2244,7 @@ export component MainWindow inherits Window {
         // The speed and its two switches, then the picture's sliders between
         // gaps, and their reset.
         if (page == 6) {
-            return root.sliders-top(6) + root.picture-params.length * Rows.slider-row
+            return root.sliders-top(6) + Settings.picture-params.length * Rows.slider-row
                 + Rows.group-gap + root.row-h;
         }
         return 0px;
@@ -2324,9 +2280,9 @@ export component MainWindow inherits Window {
     /// How many sliders a page of them has, the row the first is, and how far
     /// down the list it starts: under the ambient border's switch and a gap.
     pure function sliders-on(page: int) -> int {
-        return page == 1 ? root.glass-params.length
-            : page == 6 ? root.picture-params.length
-            : root.border-params.length;
+        return page == 1 ? Settings.glass-params.length
+            : page == 6 ? Settings.picture-params.length
+            : Settings.border-params.length;
     }
     pure function sliders-from(page: int) -> int {
         return page == 2 ? 2 : page == 6 ? 4 : 1;
@@ -2915,8 +2871,8 @@ export component MainWindow inherits Window {
             } else if (root.focus-row < root.playlist-lead + root.playlist-rows) {
                 root.playlist-pick(root.focus-row - root.playlist-lead);
             } else {
-                root.autoplay = !root.autoplay;
-                root.set-autoplay(root.autoplay);
+                Settings.autoplay = !Settings.autoplay;
+                Settings.set-autoplay(Settings.autoplay);
             }
             return true;
         }
@@ -2976,7 +2932,7 @@ export component MainWindow inherits Window {
             } else if (root.focus-row == 2) {
                 root.set-motion(!Motion.chosen);
             } else if (root.focus-row == 3) {
-                root.set-legible(!root.legible-glass);
+                root.set-legible(!Settings.legible-glass);
             } else if (root.focus-row == 4) {
                 root.set-tips-shown(!Tip.enabled);
             } else {
@@ -2989,7 +2945,7 @@ export component MainWindow inherits Window {
             return true;
         }
         if (root.settings-page == 6 && root.focus-row == 3) {
-            root.set-remaining-shown(!root.show-remaining);
+            root.set-remaining-shown(!Settings.show-remaining);
             return true;
         }
         if (root.settings-page == 5) {
@@ -2997,8 +2953,8 @@ export component MainWindow inherits Window {
             return true;
         }
         if (root.settings-page == 2 && root.focus-row == 1) {
-            root.ambience-on = !root.ambience-on;
-            root.set-ambience(root.ambience-on);
+            Settings.ambience-on = !Settings.ambience-on;
+            Settings.set-ambience(Settings.ambience-on);
             return true;
         }
         if (root.focus-row == root.settings-focus-count - 1) {
@@ -3033,7 +2989,7 @@ export component MainWindow inherits Window {
             if (page == 3) {
                 Subtitles.set-timing(root.reset-delay, root.reset-sub-speed);
             } else {
-                root.undo-reset(page);
+                Settings.undo-reset(page);
             }
             root.reset-undoable = 0;
             return;
@@ -3049,11 +3005,11 @@ export component MainWindow inherits Window {
         root.reset-delay = Subtitles.delay;
         root.reset-sub-speed = Subtitles.speed;
         if (page == 1) {
-            root.reset-section(0);
+            Settings.reset-section(0);
         } else if (page == 2) {
-            root.reset-section(1);
+            Settings.reset-section(1);
         } else if (page == 6) {
-            root.reset-section(2);
+            Settings.reset-section(2);
         } else if (page == 3) {
             Subtitles.set-timing(0, 1);
         } else {
@@ -3216,13 +3172,13 @@ export component MainWindow inherits Window {
     /// heard.
     function set-motion(on: bool) {
         Motion.chosen = on;
-        root.set-animations(on);
+        Settings.set-animations(on);
     }
 
     /// Which end of the film the timeline's right end says, the same way.
     function set-remaining-shown(on: bool) {
-        root.show-remaining = on;
-        root.set-show-remaining(on);
+        Settings.show-remaining = on;
+        Settings.set-show-remaining(on);
     }
 
     /// Turn the tips on or off, the same way. None is visible while this page
@@ -3232,17 +3188,17 @@ export component MainWindow inherits Window {
         if (!on) {
             Tip.clear();
         }
-        root.set-tips(on);
+        Settings.set-tips(on);
     }
 
     function set-legible(on: bool) {
-        root.legible-glass = on;
-        root.set-legible-glass(on);
+        Settings.legible-glass = on;
+        Settings.set-legible-glass(on);
     }
 
     function set-tip-keys-shown(on: bool) {
         Tip.with-keys = on;
-        root.set-tip-keys(on);
+        Settings.set-tip-keys(on);
     }
 
     /// A slider's icon, by its place in `REGISTRY` in settings.rs. Kept in
@@ -3389,21 +3345,21 @@ export component MainWindow inherits Window {
             return false;
         }
         if (root.settings-page == 1
-            && root.focus-row <= root.glass-params.length) {
-            root.set-param(root.glass-params[root.focus-row - 1].index,
-                clamp(root.glass-params[root.focus-row - 1].fraction
+            && root.focus-row <= Settings.glass-params.length) {
+            Settings.set-param(Settings.glass-params[root.focus-row - 1].index,
+                clamp(Settings.glass-params[root.focus-row - 1].fraction
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
         if (root.settings-page == 2 && root.is-slider(2, root.focus-row)) {
-            root.set-param(root.border-params[root.focus-row - 2].index,
-                clamp(root.border-params[root.focus-row - 2].fraction
+            Settings.set-param(Settings.border-params[root.focus-row - 2].index,
+                clamp(Settings.border-params[root.focus-row - 2].fraction
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
         if (root.settings-page == 6 && root.is-slider(6, root.focus-row)) {
-            root.set-param(root.picture-params[root.focus-row - 4].index,
-                clamp(root.picture-params[root.focus-row - 4].fraction
+            Settings.set-param(Settings.picture-params[root.focus-row - 4].index,
+                clamp(Settings.picture-params[root.focus-row - 4].fraction
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
@@ -3413,7 +3369,7 @@ export component MainWindow inherits Window {
             return true;
         }
         if (root.settings-page == 3 && root.focus-row == 1) {
-            root.step-scale(delta);
+            Settings.step-scale(delta);
             return true;
         }
         return false;
@@ -4247,8 +4203,8 @@ export component MainWindow inherits Window {
         if (root.keys-act && (text == "b" || text == "B")) {
             // Kept on a key as well as on its settings page, as the one effect
             // worth toggling mid-film. The picture's border answers it.
-            root.ambience-on = !root.ambience-on;
-            root.set-ambience(root.ambience-on);
+            Settings.ambience-on = !Settings.ambience-on;
+            Settings.set-ambience(Settings.ambience-on);
             root.key-wake = 1;
             return true;
         }
@@ -4703,7 +4659,7 @@ export component MainWindow inherits Window {
                     // The switch's glyph pair, so the icon says whether the
                     // effect is on before the page is opened.
                     DrillRow {
-                        icon: root.ambience-on
+                        icon: Settings.ambience-on
                             ? @image-url("../../../public/icons/ambience-on.svg")
                             : @image-url("../../../public/icons/ambience-off.svg");
                         label: @tr("Ambient border");
@@ -4783,7 +4739,7 @@ export component MainWindow inherits Window {
                         reveal-h: root.settings-reveal-h;
                         reveal-tick: root.settings-reveal-tick;
 
-                        for item[idx] in root.glass-params: ParamSlider {
+                        for item[idx] in Settings.glass-params: ParamSlider {
                             label: item.label;
                             name-w: root.param-name-w;
                             icon: root.param-icon(item.index);
@@ -4793,7 +4749,7 @@ export component MainWindow inherits Window {
                             readout: item.readout;
                             focused: root.focus-row == idx + 1;
                             moved(f) => {
-                                root.set-param(item.index, f);
+                                Settings.set-param(item.index, f);
                             }
                             explained(on) => {
                                 root.explain-row(on, item.hint, idx + 1);
@@ -4838,17 +4794,17 @@ export component MainWindow inherits Window {
                         // Whether, then how: the switch heads its own tuning.
                         ToggleRow {
                             label: @tr("Ambient border");
-                            checked: root.ambience-on;
+                            checked: Settings.ambience-on;
                             focused: root.focus-row == 1;
                             toggled(on) => {
-                                root.ambience-on = on;
-                                root.set-ambience(on);
+                                Settings.ambience-on = on;
+                                Settings.set-ambience(on);
                             }
                         }
                         Rectangle {
                             height: Rows.group-gap;
                         }
-                        for item[idx] in root.border-params: ParamSlider {
+                        for item[idx] in Settings.border-params: ParamSlider {
                             label: item.label;
                             name-w: root.param-name-w;
                             icon: root.param-icon(item.index);
@@ -4858,7 +4814,7 @@ export component MainWindow inherits Window {
                             readout: item.readout;
                             focused: root.focus-row == idx + 2;
                             moved(f) => {
-                                root.set-param(item.index, f);
+                                Settings.set-param(item.index, f);
                             }
                             explained(on) => {
                                 root.explain-row(on, item.hint, idx + 2);
@@ -4908,13 +4864,13 @@ export component MainWindow inherits Window {
                             icon: @image-url("../../../public/icons/text-size.svg");
                             label: @tr("Interface size");
                             focused: root.focus-row == 1;
-                            value: Math.round(root.interface-scale * 100) + "%";
+                            value: Math.round(Settings.scale * 100) + "%";
                             // Set to a percentage rather than to a speed or a
                             // time, which leaves the name, longer here than
                             // anywhere else in the panel, room in every language.
                             value-w: 44px;
                             stepped(dir) => {
-                                root.step-scale(dir);
+                                Settings.step-scale(dir);
                             }
                         }
                         Rectangle {
@@ -4941,7 +4897,7 @@ export component MainWindow inherits Window {
                         // vanish over a white scene.
                         ToggleRow {
                             label: @tr("Darken bright glass");
-                            checked: root.legible-glass;
+                            checked: Settings.legible-glass;
                             focused: root.focus-row == 3;
                             toggled(on) => {
                                 root.set-legible(on);
@@ -5016,7 +4972,7 @@ export component MainWindow inherits Window {
                         }
                         ToggleRow {
                             label: @tr("Show the time left");
-                            checked: root.show-remaining;
+                            checked: Settings.show-remaining;
                             focused: root.focus-row == 3;
                             toggled(on) => {
                                 root.set-remaining-shown(on);
@@ -5025,7 +4981,7 @@ export component MainWindow inherits Window {
                         Rectangle {
                             height: Rows.group-gap;
                         }
-                        for item[idx] in root.picture-params: ParamSlider {
+                        for item[idx] in Settings.picture-params: ParamSlider {
                             label: item.label;
                             name-w: root.param-name-w;
                             icon: root.param-icon(item.index);
@@ -5035,7 +4991,7 @@ export component MainWindow inherits Window {
                             readout: item.readout;
                             focused: root.focus-row == idx + 4;
                             moved(f) => {
-                                root.set-param(item.index, f);
+                                Settings.set-param(item.index, f);
                             }
                             explained(on) => {
                                 root.explain-row(on, item.hint, idx + 4);
@@ -5081,12 +5037,12 @@ export component MainWindow inherits Window {
                         reveal-tick: root.settings-reveal-tick;
                         // The language spoken now, for the angle that points
                         // back to it.
-                        current-top: root.language-choice * root.row-h;
-                        current-h: root.language-choice >= 0 ? root.row-h : 0px;
+                        current-top: Settings.language-choice * root.row-h;
+                        current-h: Settings.language-choice >= 0 ? root.row-h : 0px;
 
                         MenuRow {
                             label: @tr("System language");
-                            active: root.language-choice == 0;
+                            active: Settings.language-choice == 0;
                             focused: root.focus-row == 1;
                             picked => {
                                 root.pick-language(0);
@@ -5094,15 +5050,15 @@ export component MainWindow inherits Window {
                         }
                         MenuRow {
                             label: "English";
-                            active: root.language-choice == 1;
+                            active: Settings.language-choice == 1;
                             focused: root.focus-row == 2;
                             picked => {
                                 root.pick-language(1);
                             }
                         }
-                        for name[idx] in root.language-names: MenuRow {
+                        for name[idx] in Settings.language-names: MenuRow {
                             label: name;
-                            active: root.language-choice == idx + 2;
+                            active: Settings.language-choice == idx + 2;
                             focused: root.focus-row == idx + 3;
                             picked => {
                                 root.pick-language(idx + 2);
@@ -5801,12 +5757,12 @@ export component MainWindow inherits Window {
             }
             ToggleRow {
                 label: @tr("Autoplay next");
-                checked: root.autoplay;
+                checked: Settings.autoplay;
                 focused: root.playlist-open
                     && root.focus-row == root.playlist-lead + root.playlist-rows;
                 toggled(on) => {
-                    root.autoplay = on;
-                    root.set-autoplay(on);
+                    Settings.autoplay = on;
+                    Settings.set-autoplay(on);
                 }
             }
         }
@@ -5994,16 +5950,16 @@ export component MainWindow inherits Window {
         opacity: root.timeline-shown;
 
         accessible-role: button;
-        accessible-label: root.show-remaining ? @tr("Show the length") : @tr("Show the time left");
-        accessible-value: root.show-remaining ? root.remaining : root.total;
+        accessible-label: Settings.show-remaining ? @tr("Show the length") : @tr("Show the time left");
+        accessible-value: Settings.show-remaining ? root.remaining : root.total;
         accessible-action-default => {
-            root.set-remaining-shown(!root.show-remaining);
+            root.set-remaining-shown(!Settings.show-remaining);
         }
 
         Text {
             width: 100%;
             height: 100%;
-            text: root.show-remaining ? root.remaining : root.total;
+            text: Settings.show-remaining ? root.remaining : root.total;
             font-family: Type.numerals;
             color: Paint.strong;
             font-size: Type.readout;
@@ -6016,7 +5972,7 @@ export component MainWindow inherits Window {
                 Chrome.pointed(event.kind == PointerEventKind.down);
             }
             clicked => {
-                root.set-remaining-shown(!root.show-remaining);
+                root.set-remaining-shown(!Settings.show-remaining);
             }
         }
     }
@@ -6404,7 +6360,7 @@ export component MainWindow inherits Window {
     }
 
     time-measure := Text {
-        text: root.show-remaining ? "\u{2212}" + root.total : root.total;
+        text: Settings.show-remaining ? "\u{2212}" + root.total : root.total;
         font-family: Type.numerals;
         font-size: Type.readout;
         visible: false;
@@ -6549,7 +6505,7 @@ export component MainWindow inherits Window {
     }
 
     param-measure := Text {
-        text: root.param-names;
+        text: Settings.param-names;
         font-size: Type.readout;
         visible: false;
         width: 0px;

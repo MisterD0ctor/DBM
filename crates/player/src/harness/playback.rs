@@ -10,6 +10,7 @@ use super::drive::{arrow, chord, hover, wheel};
 use super::{playlist_rows, selected_label, short};
 use crate::MainWindow;
 use crate::Playlist;
+use crate::Settings;
 use crate::Subtitles;
 use crate::Tracks;
 
@@ -464,8 +465,8 @@ pub(super) fn end_test(ui: &MainWindow) -> slint::Timer {
                 // Both halves: the callback tells mpv, the property moves the
                 // switch, exactly as clicking it does.
                 1 => {
-                    ui.invoke_set_autoplay(false);
-                    ui.set_autoplay(false);
+                    ui.global::<Settings>().invoke_set_autoplay(false);
+                    ui.global::<Settings>().set_autoplay(false);
                 }
                 2 => ui.invoke_seek_fraction(0.999),
                 3 | 4 => report_end(&ui, "seeking"),

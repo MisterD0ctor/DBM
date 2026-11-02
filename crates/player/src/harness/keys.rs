@@ -6,6 +6,7 @@ use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
 use super::drive::chord;
+use crate::Settings;
 use crate::Subtitles;
 use crate::{MainWindow, Motion};
 
@@ -124,7 +125,7 @@ pub(super) fn reach_test(ui: &MainWindow) -> slint::Timer {
                     let row = ui.get_focus_row();
                     let slider = (row as usize)
                         .checked_sub(1)
-                        .and_then(|i| ui.get_glass_params().row_data(i))
+                        .and_then(|i| ui.global::<Settings>().get_glass_params().row_data(i))
                         .map(|p| format!("{} {}", p.label, p.readout))
                         .unwrap_or_default();
                     eprintln!("dbm: left on row {row} -> glass {slider}");
@@ -184,7 +185,10 @@ pub(super) fn key_test(ui: &MainWindow) -> slint::Timer {
                     eprintln!("dbm: pressing B (ambience)");
                     chord(&ui, &[], "b");
                 }
-                3 => eprintln!("dbm: ambience now {}", ui.get_ambience_on()),
+                3 => eprintln!(
+                    "dbm: ambience now {}",
+                    ui.global::<Settings>().get_ambience_on()
+                ),
                 4 => {
                     eprintln!("dbm: pressing Ctrl+O");
                     chord(&ui, &[Key::Control], "o");

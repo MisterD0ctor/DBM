@@ -760,7 +760,7 @@ and over glass already at its ceiling goes darker instead (see The Ring Pane
 Rule). WCAG asks 4.5 of text this size; the margin
 is for its thinnest strokes, which antialiasing leaves short of their full
 alpha. The one way out is a switch of its own on the accessibility page,
-*Darken bright glass* (`MainWindow.legible-glass`), for someone who would
+*Darken bright glass* (`Settings.legible-glass`), for someone who would
 rather have the glass as its sliders make it and accept words that can vanish
 over a white scene: a choice about legibility, made where legibility is
 chosen, and not undone by the glass page's reset. With the glass switched off

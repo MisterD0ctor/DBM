@@ -1,0 +1,54 @@
+// The settings pages' contents as the Rust side holds them (see `settings`
+// and `interface::sliders`), and what the pages ask of them: a slider moved, a
+// page reset or its reset taken back, a switch turned, the size or the
+// language changed. The pages themselves stay with the window.
+
+import { ParamItem } from "models.slint";
+
+export global Settings {
+    in property <[ParamItem]> glass-params;
+    in property <[ParamItem]> border-params;
+    in property <[ParamItem]> picture-params;
+    /// Every slider's name on a line of its own, measured by `param-measure`
+    /// for the column every page sets its names in.
+    in property <string> param-names;
+    /// The bundled languages besides English, each by its own name. Nothing
+    /// here names one, so a build can hold any set.
+    in property <[string]> language-names;
+    /// The lit row of the language page: 0 the system's, 1 English, then the
+    /// built-in ones in the order of `language-names`.
+    in-out property <int> language-choice: 0;
+    callback choose-language(int);
+    in-out property <bool> ambience-on: true;
+    in-out property <bool> autoplay: true;
+    /// Registry index and its new normalised position.
+    callback set-param(int, float);
+    /// Restore one section to its defaults: 0 glass, 1 ambient border, 2 the
+    /// picture, as in `settings::Section`.
+    callback reset-section(int);
+    /// Take back the last reset of a settings page, as the panel numbers them.
+    callback undo-reset(int);
+    callback set-ambience(bool);
+    callback set-autoplay(bool);
+    /// The accessibility page's switch. `Motion.chosen` is already set when
+    /// this runs; it saves the choice.
+    callback set-animations(bool);
+    /// The interface's size, as a multiple of the system's, and a step of it
+    /// from the same page, which Rust keeps to the sizes offered that the
+    /// display has room for.
+    in property <float> scale: 1;
+    callback step-scale(int);
+    /// Whether the timeline's right end says what is left of the film rather
+    /// than its length, and what that is: `−12:34`. A click on it or the
+    /// video page's switch changes it here, and Rust saves it.
+    in-out property <bool> show-remaining;
+    callback set-show-remaining(bool);
+    /// Whether the glass is held dark enough for its words over a bright
+    /// frame, from the same page; Rust saves it and tells the pipeline.
+    in-out property <bool> legible-glass: true;
+    callback set-legible-glass(bool);
+    /// The same for its two tip switches: `Tip` is already set, and these
+    /// save the choice.
+    callback set-tips(bool);
+    callback set-tip-keys(bool);
+}

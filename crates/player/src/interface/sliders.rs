@@ -3,8 +3,10 @@
 use std::rc::Rc;
 
 use dbm_lang::tr;
+use slint::ComponentHandle;
 use slint::{Model, ModelRc, SharedString, VecModel};
 
+use crate::Settings;
 use crate::interface::format;
 use crate::settings::{self, Section, Store};
 use crate::{MainWindow, ParamItem};
@@ -27,17 +29,20 @@ impl ParamModels {
             border: section_model(store, Section::Border),
             picture: section_model(store, Section::Picture),
         };
-        ui.set_glass_params(ModelRc::from(models.glass.clone()));
-        ui.set_border_params(ModelRc::from(models.border.clone()));
-        ui.set_picture_params(ModelRc::from(models.picture.clone()));
-        ui.set_param_names(names());
+        ui.global::<Settings>()
+            .set_glass_params(ModelRc::from(models.glass.clone()));
+        ui.global::<Settings>()
+            .set_border_params(ModelRc::from(models.border.clone()));
+        ui.global::<Settings>()
+            .set_picture_params(ModelRc::from(models.picture.clone()));
+        ui.global::<Settings>().set_param_names(names());
         models
     }
 
     /// Every page again, in the language now spoken.
     pub fn say_again(&self, ui: &MainWindow, store: &Store) {
         self.refresh_all(store);
-        ui.set_param_names(names());
+        ui.global::<Settings>().set_param_names(names());
     }
 
     /// Refresh one row in place.
