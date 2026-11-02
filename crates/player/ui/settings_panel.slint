@@ -687,10 +687,10 @@ export component SettingsPanel inherits GlassPanel {
                         root.page = SettingsPage.video;
                     }
                 }
-                // Next's glyph, as the credits pill has it for the next
-                // episode: the page is about going on.
+                // An episode in front of the ones after it: the page is about
+                // every episode, not the one playing.
                 DrillRow {
-                    icon: @image-url("../../../public/icons/step-forward.svg");
+                    icon: @image-url("../../../public/icons/episodes.svg");
                     label: @tr("Episodes");
                     focused: root.open && root.ring-row == 1;
                     opened => {
