@@ -84,7 +84,8 @@ truthfully claim any of this.
 - Interface settings persist to `%APPDATA%/Death by MPV/settings.conf` as plain
   text, editable by hand while tuning.
 - Seek-preview thumbnails are cached per file under `previews/`, keyed on path
-  and modification time.
+  and modification time: on Linux in `~/.cache/Death by MPV/`, apart from the
+  settings, and on Windows beside them.
 - Every cache — lengths, title tags, title sequences and credits, previews —
   carries the version of the way its entries are worked out, and forgets
   what another version kept. Records of what happened — files watched to the

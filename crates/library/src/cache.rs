@@ -1,5 +1,6 @@
 //! Small JSON maps from a path to something known about it, kept in the
-//! app's data directory — and folders of files kept the same way.
+//! app's data directory — and folders of files kept the same way, in its
+//! cache directory.
 //!
 //! The maps (lengths, title tags, endings, title sequences and credits,
 //! downloaded subtitles) share their whole life: read whole, changed one
@@ -132,7 +133,7 @@ fn update<V: Serialize + DeserializeOwned + PartialEq>(
     }
 }
 
-/// A folder of files worked out from others, in the app's data directory,
+/// A folder of files worked out from others, in the app's cache directory,
 /// versioned as a cache map is.
 ///
 /// The version is a file of its own in the folder. The first time the folder
@@ -157,9 +158,27 @@ impl Folder {
     ///
     /// **Blocking.** Worker thread only, and only the first time per run.
     pub fn path(&self) -> PathBuf {
-        let dir = crate::paths::app_data_dir().join(self.name);
-        self.checked.call_once(|| settle(&dir, self.version));
+        let dir = crate::paths::cache_dir().join(self.name);
+        self.checked.call_once(|| {
+            gather(&crate::paths::app_data_dir().join(self.name), &dir);
+            settle(&dir, self.version);
+        });
         dir
+    }
+}
+
+/// Bring over to `dir` the same folder from beside the settings, where
+/// earlier versions of the player kept it. Where it can't be moved it is
+/// dropped, since all it holds can be made again.
+fn gather(old: &Path, dir: &Path) {
+    if old == dir || !old.is_dir() {
+        return;
+    }
+    if !dir.exists() && std::fs::rename(old, dir).is_ok() {
+        log::info!("{} moved to {}", old.display(), dir.display());
+    } else {
+        let _ = std::fs::remove_dir_all(old);
+        log::info!("{} dropped", old.display());
     }
 }
 
@@ -282,6 +301,29 @@ mod tests {
         std::fs::write(dir.join("b.jpg"), "new").unwrap();
         settle(&dir, 2);
         assert!(dir.join("b.jpg").is_file());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_folder_beside_the_settings_is_brought_over_once() {
+        let (old, dir) = (scratch("beside"), scratch("cached"));
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::write(old.join("a.jpg"), "kept").unwrap();
+        gather(&old, &dir);
+        assert!(!old.exists());
+        assert_eq!(std::fs::read_to_string(dir.join("a.jpg")).unwrap(), "kept");
+
+        // One made again beside the settings, by an older player, is dropped
+        // rather than mixed in.
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::write(old.join("b.jpg"), "stale").unwrap();
+        gather(&old, &dir);
+        assert!(!old.exists());
+        assert!(!dir.join("b.jpg").exists());
+
+        // The same place both ways is left alone.
+        gather(&dir, &dir);
+        assert!(dir.join("a.jpg").is_file());
         std::fs::remove_dir_all(&dir).ok();
     }
 }

@@ -14,18 +14,41 @@ const APP_DIR: &str = "Death by MPV";
 pub fn app_data_dir() -> PathBuf {
     // `APPDATA` wins on every platform, not just Windows, so a harness run can
     // be pointed at a scratch directory wherever it runs.
-    let base = std::env::var_os("APPDATA").map(PathBuf::from).or_else(|| {
-        if cfg!(windows) {
-            None
-        } else {
-            std::env::var_os("XDG_CONFIG_HOME")
-                .map(PathBuf::from)
-                .or_else(|| std::env::var_os("HOME").map(|h| PathBuf::from(h).join(".config")))
-        }
-    });
+    let base = std::env::var_os("APPDATA")
+        .map(PathBuf::from)
+        .or_else(|| xdg("XDG_CONFIG_HOME", ".config"));
     #[cfg(test)]
     let base = TEST_BASE.with_borrow(Clone::clone).or(base);
-    let dir = base.unwrap_or_else(std::env::temp_dir).join(APP_DIR);
+    made(base.unwrap_or_else(std::env::temp_dir).join(APP_DIR))
+}
+
+/// Per-user directory for what the player made and can make again, which a
+/// person may empty to win back the space. On Linux that is under
+/// `XDG_CACHE_HOME`. Elsewhere, and wherever `APPDATA` has put everything in
+/// one place, it is [`app_data_dir`].
+pub fn cache_dir() -> PathBuf {
+    let apart = std::env::var_os("APPDATA").is_none();
+    #[cfg(test)]
+    let apart = apart && TEST_BASE.with_borrow(Option::is_none);
+    match apart.then(|| xdg("XDG_CACHE_HOME", ".cache")).flatten() {
+        Some(base) => made(base.join(APP_DIR)),
+        None => app_data_dir(),
+    }
+}
+
+/// An XDG base directory: `var`, or `fallback` in the home directory where
+/// it is unset. `None` on Windows, which has none.
+fn xdg(var: &str, fallback: &str) -> Option<PathBuf> {
+    if cfg!(windows) {
+        return None;
+    }
+    std::env::var_os(var)
+        .map(PathBuf::from)
+        .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(fallback)))
+}
+
+/// `dir`, made if it was missing.
+fn made(dir: PathBuf) -> PathBuf {
     let _ = std::fs::create_dir_all(&dir);
     dir
 }
@@ -49,9 +72,7 @@ pub fn set_test_base(base: &Path) {
 /// Ours rather than mpv's default, so the player does not inherit or
 /// pollute the resume state of a separately installed mpv.
 pub fn watch_later_dir() -> PathBuf {
-    let dir = app_data_dir().join("watch_later");
-    let _ = std::fs::create_dir_all(&dir);
-    dir
+    made(app_data_dir().join("watch_later"))
 }
 
 /// The first of `names` that exists beside the executable or in the player's
