@@ -5,17 +5,17 @@
 //! somewhere to go (see `worker`).
 
 use dbm_lang::{fill, tr};
+use dbm_library::opensubtitles::account::Account;
+use dbm_library::opensubtitles::{self, Fetched, Found, Hit};
+use dbm_library::preview::Sprite;
+use dbm_library::resume::Resume;
+use dbm_library::subsync::{Failure, Outcome};
+use dbm_library::titles::End;
 use dbm_naming::Media;
 use slint::{ModelRc, VecModel};
 
 use super::{Driver, Gpu, say, warn};
 use crate::interface::format;
-use crate::library::opensubtitles::account::Account;
-use crate::library::opensubtitles::{self, Fetched, Found, Hit};
-use crate::library::preview::Atlas;
-use crate::library::resume::Resume;
-use crate::library::subsync::{Failure, Outcome};
-use crate::library::titles::End;
 use crate::playback::commands;
 use crate::worker::{Completion, Worker};
 use crate::{FoundItem, MainWindow};
@@ -119,8 +119,8 @@ impl Driver {
                 light_with_the_mark(&self.app.worker);
                 false
             }
-            Completion::Preview(atlas) => {
-                self.show_atlas(ui, atlas);
+            Completion::Preview { sprite, pixels } => {
+                self.show_atlas(ui, sprite, pixels);
                 // An end reached before its atlas was built had no frame of its
                 // own to be lit with, and now may.
                 if self.per_file.end_lit != self.player.path || self.per_file.end_marked {
@@ -184,7 +184,7 @@ impl Driver {
             Completion::EndLight { from, still } => {
                 if self.player.path.as_deref() == Some(from.as_str()) {
                     self.per_file.end_marked = still.is_none();
-                    if let Some(still) = still.or_else(crate::library::mark::still) {
+                    if let Some(still) = still.or_else(dbm_library::mark::still) {
                         gpu.pipeline
                             .set_backdrop(&gpu.gl, &still.rgba, still.width, still.height);
                         self.per_file.end_lit = Some(from);
@@ -363,8 +363,12 @@ impl Driver {
 
     /// Hand the seek preview a finished atlas. Its picture comes decoded, so
     /// this is the cost of wrapping it and nothing more.
-    fn show_atlas(&self, ui: &MainWindow, atlas: Atlas) {
-        let Atlas { sprite, pixels } = atlas;
+    fn show_atlas(
+        &self,
+        ui: &MainWindow,
+        sprite: Sprite,
+        pixels: slint::SharedPixelBuffer<slint::Rgba8Pixel>,
+    ) {
         let image = slint::Image::from_rgba8(pixels);
         log::info!(
             "preview atlas {g}x{g} tiles of {}x{}",
@@ -464,9 +468,9 @@ fn unsynced(why: Failure) -> &'static str {
 /// Find what the empty window can offer to pick back up. A stat per played
 /// file and one ffmpeg run, so on the worker.
 pub(super) fn look_for_resume(worker: &Worker) {
-    worker.submit(|_mpv| Some(Completion::Resume(crate::library::resume::last_watched())));
+    worker.submit(|_mpv| Some(Completion::Resume(dbm_library::resume::last_watched())));
 }
 
 fn light_with_the_mark(worker: &Worker) {
-    worker.submit(|_mpv| crate::library::mark::still().map(Completion::Mark));
+    worker.submit(|_mpv| dbm_library::mark::still().map(Completion::Mark));
 }

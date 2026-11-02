@@ -7,25 +7,7 @@ fn main() {
     // language off the system and can be told another — see `dbm_lang`.
     let config = slint_build::CompilerConfiguration::new().with_bundled_translations(PO);
     slint_build::compile_with_config("ui/app.slint", config).expect("failed to compile app.slint");
-    pass_on_the_keys();
     stamp_the_executable();
-}
-
-/// Hand the code the keys it was built with, if any — see `keys/README.md`.
-///
-/// The folder is watched rather than the file: a file that does not exist
-/// would have Cargo run this, and rebuild the interface, on every build.
-fn pass_on_the_keys() {
-    println!("cargo:rerun-if-env-changed=DBM_OPENSUBTITLES_KEY");
-    println!("cargo:rerun-if-changed=keys");
-    let key = std::env::var("DBM_OPENSUBTITLES_KEY")
-        .ok()
-        .or_else(|| std::fs::read_to_string("keys/opensubtitles").ok())
-        .map(|k| k.trim().to_string())
-        .filter(|k| !k.is_empty());
-    if let Some(key) = key {
-        println!("cargo:rustc-env=DBM_OPENSUBTITLES_KEY={key}");
-    }
 }
 
 /// The icon and version block Windows reads off the file itself.

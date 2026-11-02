@@ -24,8 +24,8 @@
 use std::path::Path;
 use std::time::{Duration, Instant};
 
-use crate::library::cache::PathMap;
-use crate::library::ffmpeg;
+use crate::cache::PathMap;
+use crate::ffmpeg;
 use crate::threads::Reporter;
 use crate::threads::{Supersede, Ticket};
 
@@ -65,7 +65,7 @@ pub fn scan(paths: Vec<String>, reporter: Reporter<Vec<Found>>) {
 }
 
 fn run(paths: Vec<String>, ticket: Ticket, reporter: Reporter<Vec<Found>>) {
-    let lengths = crate::library::durations::load();
+    let lengths = crate::durations::load();
     let titles = TITLES.load();
 
     // Everything already known goes back in one delivery before any ffmpeg
@@ -106,7 +106,7 @@ fn run(paths: Vec<String>, ticket: Ticket, reporter: Reporter<Vec<Found>>) {
             continue;
         };
         if found.seconds > 0.0 {
-            crate::library::durations::record(&path, found.seconds);
+            crate::durations::record(&path, found.seconds);
         }
         record_title(&path, found.title.as_deref());
         batch.push(found);

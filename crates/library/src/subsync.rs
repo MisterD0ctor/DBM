@@ -31,7 +31,7 @@ use std::sync::Arc;
 use dbm_mpv::Mpv;
 use dbm_mpv::tracks;
 
-use crate::library::ffmpeg;
+use crate::ffmpeg;
 use crate::threads::Reporter;
 use crate::threads::{Supersede, Ticket};
 

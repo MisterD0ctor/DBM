@@ -8,11 +8,11 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use dbm_lang::{fill, tr};
+use dbm_library::durations::Progress;
+use dbm_library::shelf::{self, Beside, Entry, Group, Shelf};
 use slint::{Model, ModelRc, VecModel};
 
 use crate::interface::format;
-use crate::library::durations::Progress;
-use crate::library::shelf::{self, Beside, Entry, Group, Shelf};
 use crate::playback::state::PlayerState;
 use crate::worker::{Completion, Worker};
 use crate::{MainWindow, PlaylistGroup, PlaylistItem};

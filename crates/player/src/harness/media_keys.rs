@@ -236,7 +236,7 @@ fn listen(bus: &zbus::blocking::Connection, heard: std::sync::Arc<Heard>) {
     };
     // Detached; it ends with the process, holding its own share of the
     // connection.
-    crate::threads::spawn("dbm-mpris-test", move || {
+    dbm_library::threads::spawn("dbm-mpris-test", move || {
         use std::sync::atomic::Ordering;
         for message in signals.flatten() {
             let counter = match message

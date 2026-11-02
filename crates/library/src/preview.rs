@@ -27,8 +27,8 @@ use std::process::Stdio;
 
 use dbm_mpv::tracks::Chapter;
 
-use crate::library::cache::Folder;
-use crate::library::ffmpeg;
+use crate::cache::Folder;
+use crate::ffmpeg;
 use crate::threads::Reporter;
 use crate::threads::{Supersede, Ticket};
 
@@ -95,11 +95,11 @@ pub fn spawn(video: PathBuf, reporter: Reporter<Atlas>) {
         };
         // Decoded here rather than on the UI thread, where it costs most of
         // a frame and shows as a hitch.
-        let Some(pixels) = decode(&sprite) else {
+        let Some(rgba) = decode(&sprite) else {
             return;
         };
         if ticket.current() {
-            reporter.send(Atlas { sprite, pixels });
+            reporter.send(Atlas { sprite, rgba });
         }
     });
 }
@@ -107,22 +107,25 @@ pub fn spawn(video: PathBuf, reporter: Reporter<Atlas>) {
 /// A finished atlas with its picture already decoded, ready to be shown.
 pub struct Atlas {
     pub sprite: Sprite,
-    pub pixels: slint::SharedPixelBuffer<slint::Rgba8Pixel>,
+    /// RGBA, top row first, [`Atlas::width`] by [`Atlas::height`].
+    pub rgba: Vec<u8>,
+}
+
+impl Atlas {
+    pub fn width(&self) -> u32 {
+        self.sprite.tile_w * self.sprite.grid
+    }
+
+    pub fn height(&self) -> u32 {
+        self.sprite.tile_h * self.sprite.grid
+    }
 }
 
 /// The whole atlas as pixels. **Blocking**: runs ffmpeg once.
-fn decode(sprite: &Sprite) -> Option<slint::SharedPixelBuffer<slint::Rgba8Pixel>> {
+fn decode(sprite: &Sprite) -> Option<Vec<u8>> {
     let ffmpeg = ffmpeg::path()?;
-    let (width, height) = (sprite.tile_w * sprite.grid, sprite.tile_h * sprite.grid);
-    let mut pixels = slint::SharedPixelBuffer::new(width, height);
-    cut_into(
-        &ffmpeg,
-        sprite,
-        (0, 0),
-        (width, height),
-        pixels.make_mut_bytes(),
-    )?;
-    Some(pixels)
+    let size = (sprite.tile_w * sprite.grid, sprite.tile_h * sprite.grid);
+    cut(&ffmpeg, sprite, (0, 0), size)
 }
 
 /// A rectangle of the atlas as RGBA, top row first. **Blocking**: runs

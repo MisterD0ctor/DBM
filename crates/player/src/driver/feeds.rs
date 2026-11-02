@@ -3,7 +3,8 @@
 //! and the seasons beside it. Each compares a little state a frame, and only
 //! a change sends anything to the worker.
 
-use crate::library::{durations, probe, shelf};
+use dbm_library::{durations, probe, shelf};
+
 use crate::playback::state::PlayerState;
 use crate::worker::{Completion, Worker};
 

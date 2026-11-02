@@ -8,7 +8,7 @@
 //! hold up every track-list read behind it.
 //!
 //! What comes back is only a path, which becomes a playlist the way the
-//! command line's does (see [`crate::library::playlist::prepare`]), so this
+//! command line's does (see [`dbm_library::playlist::prepare`]), so this
 //! module knows nothing about mpv, playlists or the worker.
 
 use dbm_lang::tr;
@@ -41,7 +41,7 @@ pub fn pick(want: Want, start: Option<std::path::PathBuf>, ui: slint::Weak<MainW
             Want::Folder => "folder",
         }
     );
-    crate::threads::spawn("dbm-dialog", move || {
+    dbm_library::threads::spawn("dbm-dialog", move || {
         let Some(path) = choose(want, start) else {
             log::info!("file dialog cancelled");
             return;
@@ -64,7 +64,7 @@ fn choose(want: Want, start: Option<std::path::PathBuf>) -> Option<std::path::Pa
     match want {
         Want::File => dialog
             .set_title(tr("Open video"))
-            .add_filter(tr("Video"), crate::library::playlist::VIDEO_EXTENSIONS)
+            .add_filter(tr("Video"), dbm_library::playlist::VIDEO_EXTENSIONS)
             .add_filter(tr("All files"), &["*"])
             .pick_file(),
         Want::Folder => dialog.set_title(tr("Open folder")).pick_folder(),

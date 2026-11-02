@@ -500,6 +500,23 @@ impl Store {
     }
 }
 
+/// Where the settings are saved.
+///
+/// Plain text on purpose: it is a short list of numbers, and being able to
+/// open it in an editor while tuning is worth more than a compact format.
+fn file() -> std::path::PathBuf {
+    // A run nobody is watching (an exercise, a showcase or a capture) keeps to
+    // its own file, so it neither touches the real settings nor looks like
+    // whatever they were last set to while trying something.
+    let name = if crate::run_mode::unattended() {
+        log::info!("unattended - settings go to settings.test.conf");
+        "settings.test.conf"
+    } else {
+        "settings.conf"
+    };
+    dbm_library::paths::app_data_dir().join(name)
+}
+
 /// Read the saved settings. A missing or unreadable file isn't an error; the
 /// defaults stand.
 fn load(path: &std::path::Path) -> Vec<(String, f32)> {
@@ -544,7 +561,7 @@ impl Persister {
         store: std::rc::Rc<Store>,
         worker: std::rc::Rc<crate::worker::Worker>,
     ) -> slint::Timer {
-        let path = crate::paths::settings_file();
+        let path = file();
         let saved = load(&path);
         if !saved.is_empty() {
             store.apply_saved(&saved);

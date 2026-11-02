@@ -23,9 +23,9 @@ use std::process::Stdio;
 
 use dbm_naming::Media;
 
-use crate::library::cache::PathMap;
-use crate::library::ffmpeg;
-use crate::library::fingerprint::{self, Print};
+use crate::cache::PathMap;
+use crate::ffmpeg;
+use crate::fingerprint::{self, Print};
 use crate::threads::Reporter;
 use crate::threads::{Supersede, Ticket};
 

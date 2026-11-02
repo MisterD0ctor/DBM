@@ -206,7 +206,7 @@ pub struct Lists {
     /// One per playlist entry, in the same order: how long it is and how far
     /// in the resume point sits. Read here rather than in a job of its own,
     /// because the lookup needs the playlist's paths, which are read here.
-    pub progress: Vec<crate::library::durations::Progress>,
+    pub progress: Vec<dbm_library::durations::Progress>,
     /// The file's chapter marks. Invalidated with the tracks, by a new file.
     pub chapters: Vec<dbm_mpv::tracks::Chapter>,
     /// The generation this was read for, so a stale result can be discarded
@@ -288,17 +288,17 @@ pub struct PlayerState {
     pub playlist: Vec<PlaylistEntry>,
     /// Parallel to `playlist`, and only as long as it: read in the same job,
     /// applied in the same step.
-    pub progress: Vec<crate::library::durations::Progress>,
+    pub progress: Vec<dbm_library::durations::Progress>,
     /// What `probe` found, by path.
     ///
     /// Only added to, and read over `playlist` and `progress` rather than
     /// written into them, since those are replaced by every list read, and a
     /// read begun before a probe landed would undo it.
-    pub probed: std::collections::HashMap<String, crate::library::probe::Found>,
+    pub probed: std::collections::HashMap<String, dbm_library::probe::Found>,
     /// Seasons of the show found beside a playlist that is one season of it
-    /// (see [`crate::library::shelf`]). Shown rather than queued, and opened
+    /// (see [`dbm_library::shelf`]). Shown rather than queued, and opened
     /// when picked.
-    pub beside: Vec<crate::library::shelf::Beside>,
+    pub beside: Vec<dbm_library::shelf::Beside>,
 }
 
 impl PlayerState {
@@ -681,12 +681,12 @@ impl PlayerState {
     /// Defaults rather than an `Option`, since a file never played here is
     /// the ordinary case, and its answer (no length, no progress) is the
     /// default.
-    pub fn progress_of(&self, row: usize) -> crate::library::durations::Progress {
+    pub fn progress_of(&self, row: usize) -> dbm_library::durations::Progress {
         self.progress.get(row).copied().unwrap_or_default()
     }
 
     /// Take delivery of described files. Returns whether any row changes.
-    pub fn apply_probed(&mut self, found: Vec<crate::library::probe::Found>) -> bool {
+    pub fn apply_probed(&mut self, found: Vec<dbm_library::probe::Found>) -> bool {
         let mut changed = false;
         for f in found {
             if self.probed.get(&f.path) == Some(&f) {
@@ -700,7 +700,7 @@ impl PlayerState {
 
     /// [`progress_of`](Self::progress_of), with a probed length filling in
     /// for one mpv has never reported.
-    pub fn known_progress(&self, row: usize) -> crate::library::durations::Progress {
+    pub fn known_progress(&self, row: usize) -> dbm_library::durations::Progress {
         let mut progress = self.progress_of(row);
         if progress.seconds > 0.0 {
             return progress;
@@ -725,7 +725,7 @@ impl PlayerState {
             .or_else(|| self.probed_for(row)?.title.as_deref())
     }
 
-    fn probed_for(&self, row: usize) -> Option<&crate::library::probe::Found> {
+    fn probed_for(&self, row: usize) -> Option<&dbm_library::probe::Found> {
         self.probed.get(&self.playlist.get(row)?.filename)
     }
 

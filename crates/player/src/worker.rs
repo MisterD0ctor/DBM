@@ -17,16 +17,16 @@ use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, Sender, TryIter};
 use std::thread::JoinHandle;
 
+use dbm_library::threads::Reporter;
 use dbm_mpv::Mpv;
 
 use crate::MainWindow;
-use crate::threads::Reporter;
 
 /// Work that finished. Add a variant per kind of background job.
 pub enum Completion {
     Lists(crate::playback::state::Lists),
     /// A path opened and scanned into a playlist, or why it could not be.
-    Opened(Result<crate::library::playlist::Prepared, String>),
+    Opened(Result<dbm_library::playlist::Prepared, String>),
     /// Something the person watching should be told, raised from a background
     /// job, such as the audio watchdog saying sound is back.
     Notice(String),
@@ -35,52 +35,53 @@ pub enum Completion {
     Warning(String),
     /// Playlist entries described by `probe` without being played: their
     /// lengths and titles. Several at once when they came from the cache.
-    Probed(Vec<crate::library::probe::Found>),
+    Probed(Vec<dbm_library::probe::Found>),
     /// What the empty window can offer to pick back up, looked for once at
     /// startup when nothing was named on the command line.
-    Resume(Option<crate::library::resume::Resume>),
+    Resume(Option<dbm_library::resume::Resume>),
     /// A seek-preview atlas, built or found for the file playing, and already
-    /// decoded. Reported from the build's own thread (see `preview`).
-    Preview(crate::library::preview::Atlas),
+    /// decoded into Slint's pixels. Reported from the build's own thread (see
+    /// `preview`).
+    Preview {
+        sprite: dbm_library::preview::Sprite,
+        pixels: slint::SharedPixelBuffer<slint::Rgba8Pixel>,
+    },
     /// The light behind the empty window when no film can give it one (see
     /// `mark`).
-    Mark(crate::library::preview::Still),
+    Mark(dbm_library::preview::Still),
     /// The light the end of `from` stands in, where its atlas has a frame to
     /// give it (see `preview::lit_still`).
     EndLight {
         from: String,
-        still: Option<crate::library::preview::Still>,
+        still: Option<dbm_library::preview::Still>,
     },
     /// Where the way on goes once a list has run out, already named. `from`
     /// is the file that asked, so an answer that arrives after something
     /// else started is dropped, and `None` means there is nowhere to go.
     Onward {
         from: String,
-        to: Option<crate::library::onward::Onward>,
+        to: Option<dbm_library::onward::Onward>,
     },
     /// The timing that puts the selected subtitles over the film's speech,
     /// or why there is none. Reported from the run's own thread (see
     /// `subsync`).
-    Synced(crate::library::subsync::Outcome),
+    Synced(dbm_library::subsync::Outcome),
     /// Where the playing episode's title sequence is, or its closing
     /// credits, found by listening or remembered from the last time.
     /// Reported from the run's own thread (see `titles`).
-    Titles(crate::library::titles::Outcome),
+    Titles(dbm_library::titles::Outcome),
     /// The playlist laid out in its parts, for the panel to show (see
     /// `playlist_panel`).
-    Shelved(crate::library::shelf::Shelf),
+    Shelved(dbm_library::shelf::Shelf),
     /// What OpenSubtitles holds for a file, or why it couldn't say. From the
     /// search's own thread (see `opensubtitles`).
-    Found(crate::library::opensubtitles::Found),
+    Found(dbm_library::opensubtitles::Found),
     /// A subtitle fetched from there and kept, or why it was not.
-    Fetched(crate::library::opensubtitles::Fetched),
+    Fetched(dbm_library::opensubtitles::Fetched),
     /// Who signed in to OpenSubtitles, or why they could not. From the
     /// sign-in's own thread (see `opensubtitles::account`).
     SignedIn(
-        Result<
-            crate::library::opensubtitles::account::Account,
-            crate::library::opensubtitles::Failure,
-        >,
+        Result<dbm_library::opensubtitles::account::Account, dbm_library::opensubtitles::Failure>,
     ),
     /// Subtitles fetched for a file on an earlier day, to put back as it
     /// opens. `path` is the file, so an answer for one since replaced is
@@ -94,7 +95,7 @@ pub enum Completion {
     /// answer for a list since replaced is dropped.
     Beside {
         paths: Vec<String>,
-        seasons: Vec<crate::library::shelf::Beside>,
+        seasons: Vec<dbm_library::shelf::Beside>,
     },
 }
 

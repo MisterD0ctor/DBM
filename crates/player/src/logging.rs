@@ -2,13 +2,13 @@
 //! beside the settings, since a Windows release has no console to print to.
 //!
 //! `DBM_TRACE` turns on the `debug` lines, which say what each part of the
-//! player is doing as it does it. Its libraries' warnings go to the file. The harness's reports and the per-frame
-//! instrumentation stay on stderr alone: they are output for whoever ran
-//! them, not a record of the run.
+//! player is doing as it does it. Its libraries' warnings go to the file.
+//! The harness's reports and the per-frame instrumentation stay on stderr
+//! alone: they are output for whoever ran them, not a record of the run.
 
 use std::fs::File;
 use std::io::{LineWriter, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Mutex, PoisonError};
 use std::time::Instant;
 
@@ -23,7 +23,7 @@ pub fn install() {
     } else {
         log::LevelFilter::Info
     };
-    let file = open(&crate::paths::log_file());
+    let file = open(&file());
     if log::set_boxed_logger(Box::new(Logger {
         file: file.map(|file| Mutex::new(Kept { file, written: 0 })),
         started: Instant::now(),
@@ -32,6 +32,17 @@ pub fn install() {
     {
         log::set_max_level(level);
     }
+}
+
+/// Where this run's lines are kept. A run nobody is watching keeps to its
+/// own, as it does for the settings.
+fn file() -> PathBuf {
+    let name = if crate::run_mode::unattended() {
+        "dbm.test.log"
+    } else {
+        "dbm.log"
+    };
+    dbm_library::paths::app_data_dir().join(name)
 }
 
 /// The file for this run, with the last run's moved aside, or `None` where

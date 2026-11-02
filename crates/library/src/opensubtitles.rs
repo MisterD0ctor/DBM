@@ -29,7 +29,7 @@ use serde_json::Value;
 use url::Url;
 use zeroize::Zeroizing;
 
-use crate::library::cache::PathMap;
+use crate::cache::PathMap;
 use crate::threads::Reporter;
 use crate::threads::Supersede;
 

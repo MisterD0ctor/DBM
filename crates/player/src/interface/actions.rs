@@ -280,7 +280,7 @@ fn wire_tracks(ui: &MainWindow, app: &App) {
                 return;
             };
             if let Some(path) = mpv.get_property("path") {
-                crate::library::opensubtitles::forget(&path, &file);
+                dbm_library::opensubtitles::forget(&path, &file);
             }
         });
     });
@@ -292,7 +292,7 @@ fn wire_tracks(ui: &MainWindow, app: &App) {
 /// round trips on threads of their own; the answers come back as
 /// completions, which is where the rows are filled and the file loaded.
 fn wire_finding(ui: &MainWindow, app: &App) {
-    use crate::library::opensubtitles;
+    use dbm_library::opensubtitles;
     {
         let app = app.clone();
         let weak = ui.as_weak();
@@ -559,7 +559,7 @@ fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
     // comes back as a completion, which is where the timing is applied.
     on_app!(ui, app, on_sync_subtitles, |app| {
         app.activity.bump();
-        crate::library::subsync::spawn(app.mpv.clone(), app.worker.reporter(Completion::Synced));
+        dbm_library::subsync::spawn(app.mpv.clone(), app.worker.reporter(Completion::Synced));
     });
     on_app!(ui, app, on_set_timing, |app, delay, speed| {
         app.activity.bump();
@@ -617,8 +617,8 @@ fn wire_opening(ui: &MainWindow, app: &App) {
             // Same job the command line goes through, scan and all.
             app.worker.submit(move |_mpv| {
                 Some(crate::worker::Completion::Opened(
-                    crate::library::playlist::prepare(&path)
-                        .map(|prepared| crate::library::playlist::Prepared { ask, ..prepared }),
+                    dbm_library::playlist::prepare(&crate::platform::real_place(&path))
+                        .map(|prepared| dbm_library::playlist::Prepared { ask, ..prepared }),
                 ))
             });
         });
@@ -791,7 +791,7 @@ fn near(ui: &MainWindow) -> Option<std::path::PathBuf> {
 /// be on a share. So only a video extension is stripped, and a folder called
 /// `Show.S01.1080p` keeps all of its name.
 fn opening_name(path: &std::path::Path) -> String {
-    let name = if crate::library::playlist::is_video_file(path) {
+    let name = if dbm_library::playlist::is_video_file(path) {
         path.file_stem()
     } else {
         path.file_name()

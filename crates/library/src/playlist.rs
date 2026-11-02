@@ -16,7 +16,7 @@ use std::path::{Path, PathBuf};
 
 use dbm_lang::{fill, tr};
 
-use crate::library::resume::Saved;
+use crate::resume::Saved;
 
 /// Extensions treated as video, matched case-insensitively. Public so the
 /// open dialog filters by the same list, and never shows a file the scanner
@@ -42,14 +42,11 @@ pub fn is_video_file(path: &Path) -> bool {
 /// Scan a path into a playlist and write it out for mpv's `loadlist`.
 ///
 /// Runs on the worker, since it reads a directory that may be huge or on a
-/// network share. The command line and the open dialog both arrive here, so
-/// there is one answer to what a path means: where the file really is. A
-/// path the document portal handed over is looked up (see
-/// `platform::documents`), then every link in it followed (see
-/// `platform::links`).
+/// network share. `path` is where the file really is, with a document
+/// portal's path looked up and every link followed, since every record of
+/// it is filed under the one path.
 pub fn prepare(path: &Path) -> Result<Prepared, String> {
-    let path = crate::platform::links::resolved(&crate::platform::documents::real(path));
-    let selection = resolve(&path)?;
+    let selection = resolve(path)?;
     let m3u = crate::paths::playlist_m3u();
     write_m3u(&selection.videos, &m3u)?;
     // As mpv will be told it, which is what it will report and hash.
@@ -58,7 +55,7 @@ pub fn prepare(path: &Path) -> Result<Prepared, String> {
         .get(selection.start)
         .map(|video| video.display().to_string())
         .unwrap_or_default();
-    let saved = crate::library::durations::of(std::slice::from_ref(&first))
+    let saved = crate::durations::of(std::slice::from_ref(&first))
         .first()
         .map_or(Saved::Nothing, Saved::of);
     Ok(Prepared {
@@ -365,7 +362,7 @@ mod tests {
     /// test.
     #[test]
     fn the_installer_registers_exactly_what_the_player_opens() {
-        let nsi = include_str!("../../../../packaging/death-by-mpv.nsi");
+        let nsi = include_str!("../../../packaging/death-by-mpv.nsi");
         let registered: Vec<&str> = nsi
             .lines()
             .filter_map(|line| line.trim().strip_prefix("!insertmacro ${MACRO} \""))
@@ -397,8 +394,7 @@ mod tests {
         let mapped: Vec<&str> = TYPES.iter().map(|(ext, _)| *ext).collect();
         assert_eq!(mapped, VIDEO_EXTENSIONS);
 
-        let entry =
-            include_str!("../../../../packaging/flatpak/io.github.MisterD0ctor.DBM.desktop");
+        let entry = include_str!("../../../packaging/flatpak/io.github.MisterD0ctor.DBM.desktop");
         let claimed: std::collections::BTreeSet<&str> = entry
             .lines()
             .find_map(|line| line.strip_prefix("MimeType="))

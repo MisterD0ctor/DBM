@@ -19,3 +19,15 @@ pub mod memory;
 pub mod modal_loop;
 pub mod motion;
 pub mod window;
+
+use std::path::{Path, PathBuf};
+
+/// Where a path handed to the player really is: a portal's document looked up
+/// (see `documents`), then every link in it followed (see `links`).
+///
+/// The command line and the open dialog both put a path through this before
+/// it is scanned, so there is one answer to what a path means. **Blocking**:
+/// worker thread only.
+pub fn real_place(path: &Path) -> PathBuf {
+    links::resolved(&documents::real(path))
+}

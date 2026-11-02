@@ -12,13 +12,13 @@ use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
+use dbm_library::opensubtitles::Hit;
+use dbm_library::preview::Preview;
 use dbm_mpv::Mpv;
 
 use crate::interface::chrome::Activity;
 use crate::interface::scale::Scale;
 use crate::interface::subline::Subline;
-use crate::library::opensubtitles::Hit;
-use crate::library::preview::Preview;
 use crate::playback::arrival::Arrival;
 use crate::playback::audio::Watchdog;
 use crate::playback::retrace::Retrace;

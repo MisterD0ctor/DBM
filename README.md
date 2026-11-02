@@ -93,9 +93,9 @@ takes care of all of this.
 
 **OpenSubtitles** needs an API key. Register one for free at
 [opensubtitles.com/consumers](https://www.opensubtitles.com/consumers), then
-put it in `crates/player/keys/opensubtitles` (Git ignores that file), or set
+put it in `crates/library/keys/opensubtitles` (Git ignores that file), or set
 `DBM_OPENSUBTITLES_KEY` when you build. See
-[`crates/player/keys/`](crates/player/keys/README.md). Without a key, the
+[`crates/library/keys/`](crates/library/keys/README.md). Without a key, the
 player is the same except that there's no *Find subtitles* option.
 
 ### Checking a change
@@ -131,7 +131,7 @@ tags, where intros and credits are, timeline previews), bump that cache's
 version where it's declared, with a line saying what changed. Everything
 saved under the old version is then thrown away and worked out again. How
 it works is explained at the top of
-[`library/cache.rs`](crates/player/src/library/cache.rs).
+[`cache.rs`](crates/library/src/cache.rs) in `dbm-library`.
 
 ## Translating
 

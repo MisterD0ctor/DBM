@@ -17,9 +17,9 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
+use dbm_library::paths;
 use dbm_mpv::Mpv;
 
-use crate::paths;
 use crate::playback::commands;
 
 /// Whether a file is on its way in and hasn't loaded. mpv doesn't know its
@@ -129,7 +129,7 @@ pub fn libmpv_path() -> PathBuf {
     } else {
         "libmpv.so.2"
     };
-    crate::paths::vendored(&[name]).unwrap_or_else(|| PathBuf::from(name))
+    dbm_library::paths::vendored(&[name]).unwrap_or_else(|| PathBuf::from(name))
 }
 
 /// Have mpv mark which of the picture's pixels are a subtitle's, so the
@@ -141,7 +141,7 @@ pub fn libmpv_path() -> PathBuf {
 /// Written out each run, since mpv loads shaders only from files, and this
 /// one has to match the border pass it was built with.
 pub fn mask_subtitles(mpv: &Mpv) {
-    let path = crate::paths::subtitle_mask();
+    let path = dbm_library::paths::subtitle_mask();
     // A command rather than the option, which would split the path on the
     // list separator: as an argument of its own, any path is taken as it is.
     let loaded = std::fs::write(&path, include_str!("../../shaders/subtitle_mask.glsl"))

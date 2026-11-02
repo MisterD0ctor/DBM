@@ -15,7 +15,7 @@ use std::collections::HashMap;
 
 use md5::Digest;
 
-use crate::library::cache::PathMap;
+use crate::cache::PathMap;
 
 /// Path to seconds.
 pub type Cache = HashMap<String, f64>;

@@ -959,6 +959,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "dbm-library"
+version = "0.5.1"
+dependencies = [
+ "base64 0.22.1",
+ "dbm-lang",
+ "dbm-mpv",
+ "dbm-naming",
+ "libc",
+ "log",
+ "md-5",
+ "native-tls",
+ "resvg 0.47.0",
+ "serde",
+ "serde_json",
+ "ureq",
+ "url",
+ "zeroize",
+]
+
+[[package]]
 name = "dbm-mpv"
 version = "0.5.1"
 dependencies = [
@@ -978,25 +998,19 @@ dependencies = [
 name = "dbm-player"
 version = "0.5.1"
 dependencies = [
- "base64 0.22.1",
  "dbm-gpu",
  "dbm-lang",
+ "dbm-library",
  "dbm-mpv",
  "dbm-naming",
  "glow 0.16.0",
  "libc",
  "log",
- "md-5",
- "native-tls",
  "raw-window-handle",
- "resvg 0.47.0",
  "rfd",
- "serde",
  "serde_json",
  "slint",
  "slint-build",
- "ureq",
- "url",
  "windows 0.61.3",
  "winresource",
  "zbus",

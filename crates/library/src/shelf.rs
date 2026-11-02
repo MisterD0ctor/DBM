@@ -1,6 +1,6 @@
 //! The shape a playlist is shown in.
 //!
-//! mpv plays one flat list, in the order [`crate::library::playlist::watching_order`]
+//! mpv plays one flat list, in the order [`crate::playlist::watching_order`]
 //! settles, and Next and autoplay walk it; this is only how the panel lays it
 //! out. A season of one show is a plain list. A list spanning several seasons
 //! becomes a list of those seasons, each opening onto its episodes, and a
@@ -16,7 +16,7 @@ use std::path::Path;
 use dbm_lang::{fill, tr};
 use dbm_naming::Media;
 
-use crate::library::durations::Progress;
+use crate::durations::Progress;
 
 /// A file as the playlist has it.
 pub struct Item<'a> {
@@ -284,15 +284,15 @@ pub fn look_beside(paths: &[String]) -> Vec<Beside> {
     if !one_season {
         return Vec::new();
     }
-    crate::library::playlist::seasons_beside(Path::new(first))
+    crate::playlist::seasons_beside(Path::new(first))
         .into_iter()
         .filter_map(|(dir, season)| {
-            let files: Vec<String> = crate::library::playlist::scan_flat(&dir)
+            let files: Vec<String> = crate::playlist::scan_flat(&dir)
                 .ok()?
                 .iter()
                 .map(|p| p.to_string_lossy().into_owned())
                 .collect();
-            let progress = crate::library::durations::of(&files);
+            let progress = crate::durations::of(&files);
             Some(Beside {
                 season,
                 files: files.into_iter().zip(progress).collect(),

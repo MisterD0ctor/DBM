@@ -24,7 +24,9 @@ where
 ///
 /// Each request takes a [`Ticket`], and a run checks between its steps that
 /// its ticket is still the newest, stopping when it is not. A `static`, so
-/// the threads it governs need nothing handed to them but their ticket.
+/// the threads it governs need nothing handed to them but their ticket,
+/// which is why `new` is `const`.
+#[derive(Default)]
 pub struct Supersede(AtomicU64);
 
 impl Supersede {

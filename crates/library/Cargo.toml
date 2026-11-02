@@ -1,0 +1,50 @@
+[package]
+name = "dbm-library"
+description = "Files on disk for Death by MPV: playlists, lengths, previews, subtitles"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+dbm-lang.workspace = true
+dbm-mpv.workspace = true
+dbm-naming.workspace = true
+log.workspace = true
+# The small JSON caches of what is known about each file — see `cache` — and
+# the MD5 mpv names its watch-later files by. `serde` is named only for its
+# traits; `serde_json` already brings it.
+serde.workspace = true
+serde_json.workspace = true
+md-5.workspace = true
+# Signing in to OpenSubtitles — see `opensubtitles::account`: overwriting the
+# password and the token wherever the player holds them, reading a token's
+# expiry, and checking every address a request goes to. TLS and the HTTP
+# client already build all three, so this adds no crate to the build.
+zeroize.workspace = true
+base64.workspace = true
+url.workspace = true
+# Draws the logo into the light behind an empty window — see `mark`. Slint
+# already renders its SVG icons with it, so this adds no crate to the build.
+resvg.workspace = true
+
+[target.'cfg(not(windows))'.dependencies]
+# Talking to OpenSubtitles — see `opensubtitles`. Blocking, which is what a
+# thread of its own wants. TLS through rustls with Mozilla's roots compiled
+# in, so a Flatpak with no host certificates reaches it the same as anything
+# else; on Windows the system's own TLS instead, below.
+ureq = { workspace = true, features = ["tls"] }
+# Starting the seek preview's ffmpeg below the player's priority - see
+# `ffmpeg::spawn_behind`. winit and zbus already build it.
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+# The same client, over Windows' own TLS: rustls's cryptography is C that a
+# Windows build would need a C compiler for, and Windows has TLS already.
+ureq = { workspace = true, features = ["native-tls"] }
+native-tls.workspace = true
+
+[lints]
+workspace = true

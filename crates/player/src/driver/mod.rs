@@ -35,7 +35,6 @@ use slint::{
 use crate::app::App;
 use crate::interface::subline::Picture;
 use crate::interface::{fades, format, glass, playlist_panel, sync};
-use crate::library::playlist;
 use crate::platform::modal_loop;
 use crate::playback::commands;
 use crate::playback::state::PlayerState;
@@ -46,6 +45,7 @@ use dbm_gpu::Overlays;
 use dbm_gpu::gfx::Target;
 use dbm_gpu::pipeline::{Frame, GlassPanel, Pipeline};
 use dbm_lang::{fill, marked, tr};
+use dbm_library::playlist;
 use dbm_mpv::tracks::{self, TrackKind};
 
 /// Identity of what a Slint image property points at: texture id, active
@@ -414,9 +414,10 @@ impl Driver {
                 // The scan runs on the worker: a directory of thousands, or
                 // one on a network share, would otherwise stall startup.
                 if let Some(path) = self.file.take() {
-                    self.app
-                        .worker
-                        .submit(move |_mpv| Some(Completion::Opened(playlist::prepare(&path))));
+                    self.app.worker.submit(move |_mpv| {
+                        let path = crate::platform::real_place(&path);
+                        Some(Completion::Opened(playlist::prepare(&path)))
+                    });
                 } else {
                     // Nothing named, so the empty window is what is coming.
                     completions::look_for_resume(&self.app.worker);
@@ -699,7 +700,7 @@ impl Driver {
         };
         self.per_file.kept_asked = Some(path.clone());
         self.app.worker.submit(move |_mpv| {
-            let files = crate::library::opensubtitles::kept(&path);
+            let files = dbm_library::opensubtitles::kept(&path);
             (!files.is_empty()).then_some(Completion::Kept { path, files })
         });
     }
@@ -750,14 +751,24 @@ impl Driver {
         ui.set_preview_tile_h(0);
         // A sync still listening is listening to the old film, and one that
         // could be undone was this film's to undo.
-        crate::library::subsync::supersede();
+        dbm_library::subsync::supersede();
         ui.set_sync_state(0);
         // The old file's decoders are gone by now, so what they held can go back.
         self.app
             .worker
             .run(|_| crate::platform::memory::give_back());
 
-        crate::library::preview::spawn(path, self.app.worker.reporter(Completion::Preview));
+        // Copied into Slint's buffer as it is reported, so still on the
+        // build's own thread rather than this one.
+        let shown = |atlas: dbm_library::preview::Atlas| Completion::Preview {
+            pixels: slint::SharedPixelBuffer::clone_from_slice(
+                &atlas.rgba,
+                atlas.width(),
+                atlas.height(),
+            ),
+            sprite: atlas.sprite,
+        };
+        dbm_library::preview::spawn(path, self.app.worker.reporter(shown));
     }
 
     /// Look for the way on at the end of the last file, once per file — or in
@@ -791,7 +802,7 @@ impl Driver {
             ui.set_season_done(fill(tr("Season {} finished"), &[&season]).into());
         }
         self.app.worker.submit(move |_mpv| {
-            let to = crate::library::onward::after(&path);
+            let to = dbm_library::onward::after(&path);
             Some(Completion::Onward { from: path, to })
         });
     }
@@ -811,7 +822,7 @@ impl Driver {
         }
         self.per_file.end_light_asked = Some(path.clone());
         self.app.worker.submit(move |_mpv| {
-            let still = crate::library::preview::lit_still(std::path::Path::new(&path), 0.9);
+            let still = dbm_library::preview::lit_still(std::path::Path::new(&path), 0.9);
             Some(Completion::EndLight { from: path, still })
         });
     }
@@ -823,7 +834,7 @@ impl Driver {
     /// episodes beside it are what it is compared with, and the chapters
     /// that could make the whole thing unnecessary arrive in the same read.
     fn listen_for_the_titles(&mut self) {
-        use crate::library::titles::{self, End};
+        use dbm_library::titles::{self, End};
         let Some(path) = self.player.path.as_deref() else {
             return;
         };

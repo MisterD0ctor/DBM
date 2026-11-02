@@ -14,14 +14,16 @@
 //! scene graph rather than in a sibling window the UI can't sample: the
 //! ambient border and the glass are both shader passes over that texture.
 //!
-//! What it stands on, in crates of their own that cannot reach back up:
+//! What it stands on, in crates of their own, each using only those below it
+//! in this table, so none can reach back up into the interface:
 //!
 //! | crate         | owns                                                      |
 //! |---------------|-----------------------------------------------------------|
+//! | `dbm_library` | files on disk: playlists, lengths, previews, subtitles    |
 //! | `dbm_gpu`     | the passes drawn over the video: border, blur, glass      |
-//! | `dbm_lang`    | the language it speaks, and the words in each             |
 //! | `dbm_mpv`     | the libmpv binding, and the lists mpv keeps, read typed   |
 //! | `dbm_naming`  | what files, tracks and chapters are called, from names    |
+//! | `dbm_lang`    | the language it speaks, and the words in each             |
 //!
 //! Layout of this crate:
 //!
@@ -30,14 +32,11 @@
 //! | `app`         | the handles the rest share, in one value                  |
 //! | `driver`      | the frame: Slint's rendering notifier, and all it runs    |
 //! | `playback`    | mpv: its mirrored state, commands, resuming               |
-//! | `library`     | files on disk: playlists, lengths, preview sheets         |
 //! | `interface`   | the Rust side of `app.slint`: callbacks and properties    |
 //! | `platform`    | what each OS has to be asked for in its own way           |
 //! | `worker`      | a thread for anything that would block the frame path     |
 //! | `settings`    | what the person has set, kept between runs                |
-//! | `threads`     | naming every thread the player starts                     |
 //! | `logging`     | where the player's own lines go                           |
-//! | `paths`       | where the app keeps its own files                         |
 //! | `run_mode`    | whether a person is watching, or the harness is driving   |
 //! | `diagnostics` | opt-in instrumentation                                    |
 //! | `harness`     | opt-in automated exercises                                |
@@ -55,14 +54,11 @@ mod diagnostics;
 mod driver;
 mod harness;
 mod interface;
-mod library;
 mod logging;
-mod paths;
 mod platform;
 mod playback;
 mod run_mode;
 mod settings;
-mod threads;
 mod worker;
 
 use std::cell::RefCell;
@@ -115,7 +111,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         settings: settings.clone(),
         activity: interface::chrome::Activity::new(),
         scrubber: playback::scrub::Scrubber::new(),
-        preview: library::preview::Preview::default(),
+        preview: dbm_library::preview::Preview::default(),
         // Watches for audio devices coming and going.
         audio: playback::audio::Watchdog::new({
             let worker = worker.clone();
@@ -169,7 +165,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // The window is gone by now, so a slow answer holds up nothing anyone
     // can see; OpenSubtitles asks for the token back when an app is done.
-    library::opensubtitles::account::sign_out_before_quitting();
+    dbm_library::opensubtitles::account::sign_out_before_quitting();
 
     drop(harnesses);
     drop(idle_timer);

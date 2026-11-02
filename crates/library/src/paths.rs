@@ -54,12 +54,13 @@ pub fn watch_later_dir() -> PathBuf {
     dir
 }
 
-/// The first of `names` that exists beside the executable or in the crate's
+/// The first of `names` that exists beside the executable or in the player's
 /// `vendor` directory.
 ///
 /// Both, because a shipped build puts its binaries next to the executable,
 /// while `cargo run` copies nothing, so a checkout reaches into the source
-/// tree. `None` is a normal answer; the callers fall back to the system.
+/// tree: the player's crate, which the binaries ship with. `None` is a normal
+/// answer; the callers fall back to the system.
 pub fn vendored(names: &[&str]) -> Option<PathBuf> {
     let mut roots: Vec<PathBuf> = Vec::new();
     if let Some(dir) = std::env::current_exe()
@@ -68,40 +69,12 @@ pub fn vendored(names: &[&str]) -> Option<PathBuf> {
     {
         roots.push(dir);
     }
-    roots.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("vendor"));
+    roots.push(Path::new(env!("CARGO_MANIFEST_DIR")).join("../player/vendor"));
 
     roots
         .iter()
         .flat_map(|root| names.iter().map(move |name| root.join(name)))
         .find(|candidate| candidate.is_file())
-}
-
-/// The saved settings (see `settings`).
-///
-/// Plain text on purpose: it is a short list of numbers, and being able to
-/// open it in an editor while tuning is worth more than a compact format.
-pub fn settings_file() -> PathBuf {
-    // A run nobody is watching (an exercise, a showcase or a capture) keeps to
-    // its own file, so it neither touches the real settings nor looks like
-    // whatever they were last set to while trying something.
-    let name = if crate::run_mode::unattended() {
-        log::info!("unattended - settings go to settings.test.conf");
-        "settings.test.conf"
-    } else {
-        "settings.conf"
-    };
-    app_data_dir().join(name)
-}
-
-/// What the player said this run (see `logging`). A run nobody is watching
-/// keeps to its own, as it does for the settings.
-pub fn log_file() -> PathBuf {
-    let name = if crate::run_mode::unattended() {
-        "dbm.test.log"
-    } else {
-        "dbm.log"
-    };
-    app_data_dir().join(name)
 }
 
 /// Scratch file the current playlist is written to for mpv's `loadlist`.

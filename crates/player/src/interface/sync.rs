@@ -67,7 +67,7 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_current_path(player.path.clone().unwrap_or_default().into());
     // Searching needs a key the player was built with, and a film to look
     // for.
-    ui.set_find_offered(crate::library::opensubtitles::available() && player.path.is_some());
+    ui.set_find_offered(dbm_library::opensubtitles::available() && player.path.is_some());
 }
 
 /// Requests list reads and applies the results.
@@ -114,7 +114,7 @@ impl ListSync {
             Some(Completion::Lists(Lists {
                 tracks: tracks::read_tracks(mpv),
                 chapters: tracks::read_chapters(mpv),
-                progress: crate::library::durations::of(&paths),
+                progress: dbm_library::durations::of(&paths),
                 playlist,
                 generation,
             }))

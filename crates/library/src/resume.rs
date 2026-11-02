@@ -7,7 +7,7 @@
 //! among those paths is the last thing left unfinished, and its `start=` is
 //! where.
 
-use crate::library::durations::Progress;
+use crate::durations::Progress;
 use crate::paths;
 
 /// The file you stopped part-way through most recently.
@@ -24,7 +24,7 @@ pub struct Resume {
     /// How much of it is left, in seconds.
     pub seconds_left: f64,
     /// A frame from about there, when a seek-preview atlas was ever built.
-    pub still: Option<crate::library::preview::Still>,
+    pub still: Option<crate::preview::Still>,
 }
 
 /// Find it.
@@ -33,26 +33,25 @@ pub struct Resume {
 /// duration cache and reads one watch-later file.
 pub fn last_watched() -> Option<Resume> {
     let dir = paths::watch_later_dir();
-    let mut candidates: Vec<(std::time::SystemTime, String, f64)> =
-        crate::library::durations::load()
-            .into_iter()
-            .filter(|(_, seconds)| *seconds > 0.0)
-            .filter_map(|(path, seconds)| {
-                let file = dir.join(crate::library::durations::watch_later_name(&path));
-                let modified = std::fs::metadata(file).ok()?.modified().ok()?;
-                Some((modified, path, seconds))
-            })
-            .collect();
+    let mut candidates: Vec<(std::time::SystemTime, String, f64)> = crate::durations::load()
+        .into_iter()
+        .filter(|(_, seconds)| *seconds > 0.0)
+        .filter_map(|(path, seconds)| {
+            let file = dir.join(crate::durations::watch_later_name(&path));
+            let modified = std::fs::metadata(file).ok()?.modified().ok()?;
+            Some((modified, path, seconds))
+        })
+        .collect();
     candidates.sort_by_key(|(modified, ..)| std::cmp::Reverse(*modified));
 
     // Newest first, and the first that still stands up: a watch-later file
     // can outlive its video, mpv writes some with no position, and one left
     // in its credits has a position but isn't unfinished.
-    let finished = crate::library::durations::load_finished();
+    let finished = crate::durations::load_finished();
     candidates.into_iter().find_map(|(_, path, seconds)| {
-        let start = crate::library::durations::resume_point(&dir, &path)?;
+        let start = crate::durations::resume_point(&dir, &path)?;
         if start <= 0.0
-            || crate::library::durations::is_finished(&finished, &path, start)
+            || crate::durations::is_finished(&finished, &path, start)
             || !std::path::Path::new(&path).is_file()
         {
             return None;
@@ -63,7 +62,7 @@ pub fn last_watched() -> Option<Resume> {
             seconds_left: (seconds - start).max(0.0),
             show,
             title,
-            still: crate::library::preview::still(std::path::Path::new(&path), fraction),
+            still: crate::preview::still(std::path::Path::new(&path), fraction),
             path,
             fraction,
         })

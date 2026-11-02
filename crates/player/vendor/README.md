@@ -10,7 +10,7 @@ machine. Both are tracked in Git LFS — see `.gitattributes` at the repo root.
 
 ## How they are found
 
-`paths::vendored` checks, in order:
+`dbm_library::paths::vendored` checks, in order:
 
 1. **Beside the executable** — where a packaged build puts them.
 2. **This directory** — where a `cargo run` from a checkout finds them, since
