@@ -63,9 +63,10 @@ struct Logger {
     started: Instant,
 }
 
-/// Whether a line is the player's own rather than one of its libraries'.
+/// Whether a line is the player's own rather than one of its libraries':
+/// from this crate or one of the `dbm_` crates under it.
 fn own(metadata: &log::Metadata) -> bool {
-    metadata.target().starts_with(env!("CARGO_CRATE_NAME"))
+    metadata.target().starts_with("dbm_")
 }
 
 impl log::Log for Logger {
