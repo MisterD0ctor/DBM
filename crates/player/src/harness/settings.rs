@@ -5,11 +5,7 @@ use std::time::Duration;
 use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
-use crate::Find;
-use crate::Settings;
-use crate::Subtitles;
-use crate::Tracks;
-use crate::{MainWindow, Motion};
+use crate::{Find, MainWindow, Motion, Settings, Subtitles, Tracks};
 
 /// Open the settings panel and drive one parameter to its maximum, so the
 /// probe frame lands with a value nothing else would have produced.

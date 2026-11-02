@@ -1,9 +1,8 @@
 use slint::ComponentHandle;
 
-use crate::MainWindow;
-use crate::Playlist;
 use crate::app::App;
 use crate::platform::dialog;
+use crate::{MainWindow, Playback, Playlist};
 
 /// Opening a file or a folder.
 ///
@@ -11,9 +10,10 @@ use crate::platform::dialog;
 /// which is also where a dropped file and the command line arrive: by the
 /// time anything reaches here it is just a path.
 pub(super) fn wire_opening(ui: &MainWindow, app: &App) {
+    let playlist = ui.global::<Playlist>();
     {
         let (app, weak) = (app.clone(), ui.as_weak());
-        ui.global::<Playlist>().on_open_file(move || {
+        playlist.on_open_file(move || {
             app.activity.bump();
             let start = weak
                 .upgrade()
@@ -24,7 +24,7 @@ pub(super) fn wire_opening(ui: &MainWindow, app: &App) {
     }
     {
         let (app, weak) = (app.clone(), ui.as_weak());
-        ui.global::<Playlist>().on_open_folder(move || {
+        playlist.on_open_folder(move || {
             app.activity.bump();
             // The shelf above this file's folder: at the end of a season,
             // that is where the next one is.
@@ -37,7 +37,7 @@ pub(super) fn wire_opening(ui: &MainWindow, app: &App) {
     }
     {
         let (app, weak) = (app.clone(), ui.as_weak());
-        ui.global::<Playlist>().on_open_path(move |path, ask| {
+        playlist.on_open_path(move |path, ask| {
             app.activity.bump();
             let path = std::path::PathBuf::from(path.as_str());
             // Said before handing it over, since everything past here is on
@@ -64,7 +64,8 @@ pub(super) fn wire_opening(ui: &MainWindow, app: &App) {
 /// The file the dialogs should open near: the one playing, or failing that
 /// the one the way in offers to continue.
 fn near(ui: &MainWindow) -> Option<std::path::PathBuf> {
-    [ui.get_current_path(), ui.get_resume_path()]
+    let playback = ui.global::<Playback>();
+    [playback.get_path(), playback.get_resume_path()]
         .into_iter()
         .find(|p| !p.is_empty())
         .map(|p| std::path::PathBuf::from(p.as_str()))

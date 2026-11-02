@@ -6,10 +6,7 @@ use slint::platform::Key;
 use slint::{ComponentHandle, Model};
 
 use super::drive::{arrow, chord, click, hover, wheel};
-use crate::Find;
-use crate::MainWindow;
-use crate::Playlist;
-use crate::Tracks;
+use crate::{Find, MainWindow, Playback, Playlist, Tracks};
 
 /// Hold one surface open, with the chrome kept awake, for a capture: the
 /// interface hides after three still seconds, and half of it only exists
@@ -206,7 +203,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
 
             // Muted, for the volume track with its fill faded out.
             if surface == "muted" && tick == 6 {
-                ui.invoke_toggle_mute();
+                ui.global::<Playback>().invoke_toggle_mute();
             }
 
             // Finding subtitles, with `DBM_FIND_FAKE=spent`: the search's page;
@@ -276,7 +273,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             // A click far along the timeline, or the 7 key, for the way back
             // either offers.
             if surface == "back" && tick == 6 {
-                ui.invoke_seek_fraction(0.6);
+                ui.global::<Playback>().invoke_seek_fraction(0.6);
             }
             if surface == "back-key" && tick == 6 {
                 chord(&ui, &[], "7");
@@ -362,8 +359,8 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                         ui.get_playlist_open(),
                         ui.get_playlist_page(),
                         ui.get_focus_row(),
-                        ui.get_elapsed(),
-                        ui.get_media_title(),
+                        ui.global::<Playback>().get_elapsed(),
+                        ui.global::<Playback>().get_title(),
                     );
                 }
             }
@@ -375,17 +372,17 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             // the next file's watch-later entry first. Prints what happens.
             if surface.starts_with("autoplay") {
                 if tick == 4 {
-                    ui.invoke_seek_fraction(0.995);
+                    ui.global::<Playback>().invoke_seek_fraction(0.995);
                 }
                 if surface == "autoplay-take" && tick == 26 {
-                    ui.invoke_take_resume_offer();
+                    ui.global::<Playback>().invoke_take_resume_offer();
                 }
                 if tick.is_multiple_of(2) && (14..=60).contains(&tick) {
                     eprintln!(
                         "dbm: autoplay t{tick:<2} {} at {} offer={:?} corner={:?}",
-                        ui.get_media_title(),
-                        ui.get_elapsed(),
-                        ui.get_resume_offer(),
+                        ui.global::<Playback>().get_title(),
+                        ui.global::<Playback>().get_elapsed(),
+                        ui.global::<Playback>().get_resume_offer(),
                         ui.get_credits_label(),
                     );
                 }
@@ -399,7 +396,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     ui.global::<Playlist>().invoke_step(1);
                 }
                 if tick == 12 && surface == "arrival-answer" {
-                    ui.invoke_arrival_answer(true);
+                    ui.global::<Playback>().invoke_arrival_answer(true);
                 }
                 // Enter, as a hand would press it, on the ring the question
                 // took as the file opened.
@@ -409,10 +406,10 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 if tick.is_multiple_of(2) && (6..=16).contains(&tick) {
                     eprintln!(
                         "dbm: arrival t{tick:<2} arriving={} from={:?} paused={} at {} ring={}@{}",
-                        ui.get_arriving(),
-                        ui.get_arrival_from(),
-                        ui.get_paused(),
-                        ui.get_elapsed(),
+                        ui.global::<Playback>().get_arriving(),
+                        ui.global::<Playback>().get_arrival_from(),
+                        ui.global::<Playback>().get_paused(),
+                        ui.global::<Playback>().get_elapsed(),
                         ui.global::<crate::Chrome>().get_focus_visible(),
                         ui.get_bar_focus(),
                     );
@@ -487,7 +484,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 // the keyboard's ring left on it; the last three with
                 // something in its way.
                 "end" | "end-hover" | "end-ring" | "end-playlist" | "end-settings"
-                | "end-preview" => ui.invoke_seek_fraction(1.0),
+                | "end-preview" => ui.global::<Playback>().invoke_seek_fraction(1.0),
                 // The fatal pane, having been asked to copy itself, so the
                 // clipboard can be read back from outside.
                 "fatal-copy" => {

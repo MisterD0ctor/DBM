@@ -13,11 +13,10 @@ use dbm_library::shelf::{self, Beside, Entry, Group, Shelf};
 use slint::ComponentHandle;
 use slint::{Model, ModelRc, VecModel};
 
-use crate::Playlist;
 use crate::interface::format;
 use crate::playback::state::PlayerState;
 use crate::worker::{Completion, Worker};
-use crate::{MainWindow, PlaylistGroup, PlaylistItem};
+use crate::{MainWindow, Playback, Playlist, PlaylistGroup, PlaylistItem};
 
 /// A playlist row as the player had it when the panel was asked for, owned so
 /// it can cross to the worker.
@@ -90,7 +89,8 @@ impl Panel {
         if self.shown.as_ref() == Some(&shelf) {
             return false;
         }
-        ui.set_next_label(next_label(&shelf).into());
+        ui.global::<Playback>()
+            .set_next_label(next_label(&shelf).into());
         ui.global::<Playlist>().set_named(shelf.heading.is_some());
         ui.global::<Playlist>().set_heading(match shelf.title() {
             Some(title) => title.into(),

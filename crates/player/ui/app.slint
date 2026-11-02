@@ -10,6 +10,7 @@ import { Tracks } from "tracks.slint";
 import { Subtitles } from "subtitles.slint";
 import { Playlist } from "playlist.slint";
 import { Settings } from "settings.slint";
+import { Playback } from "playback.slint";
 import { Chrome, Flash, Tip } from "globals.slint";
 import {
     FoundItem, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, ScrollFade, TrackItem
@@ -27,7 +28,7 @@ import { Shapes, Squircle } from "squircle.slint";
 
 // What the Rust side reaches besides the window: the globals it drives and
 // the structs it fills in.
-export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem, Find, Tracks, Subtitles, Playlist, Settings }
+export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem, Find, Tracks, Subtitles, Playlist, Settings, Playback }
 
 /// The marks on the bar's tracks, a chapter's start and the volume's unity.
 /// Both keep their size as a track grows under the pointer.
@@ -131,96 +132,23 @@ export component MainWindow inherits Window {
     in property <int> video-clip-h: 1;
 
     // --- mirrored from mpv, via PlayerState ---
-    in property <string> media-title;
-    /// The title without its show, or nothing for what has none; see
-    /// `title-short`.
-    in property <string> media-episode;
-    in property <string> elapsed: "0:00";
-    in property <string> total: "0:00";
-    /// Playback position, 0..1.
-    in property <float> progress: 0;
-    in property <bool> paused;
-    in property <bool> muted;
-    in property <float> volume: 100;
-    in property <bool> has-file;
-    /// mpv is holding the last frame of a finished file.
-    in property <bool> at-end;
-    /// ...and nothing comes after it in the playlist, so all that is left to
-    /// offer is this file again.
-    in property <bool> at-last;
-    /// Nothing comes before this file in the playlist.
-    in property <bool> at-first;
-    /// The next file as its playlist row names it ("E04 · Slabtown"), for the
-    /// end and credits pills. Empty when there is none or the list can't say.
-    in property <string> next-label;
-    /// The last film left unfinished, offered by the way in. Empty when there
-    /// is none; found once, off the frame path, a moment after startup.
-    in property <string> resume-path;
-    in property <string> resume-title;
-    /// The show it is an episode of, or empty for a film. Shown on its own
-    /// line above Continue, where a playlist puts a show's name.
-    in property <string> resume-show;
-    in property <float> resume-progress;
-    property <bool> has-resume: root.resume-path != "";
-    in property <string> resume-left;
+    /// `Playback.paused`, mirrored so its changes are acted on here.
+    property <bool> paused: Playback.paused;
+    /// `Playback.has-file`, mirrored so its changes are acted on here.
+    property <bool> has-file: Playback.has-file;
+    /// `Playback.at-end`, mirrored so its changes are acted on here.
+    property <bool> at-end: Playback.at-end;
+    property <bool> has-resume: Playback.resume-path != "";
     /// Whether a picture is drawn behind the way in for its glass to bend.
     /// It needs a film left unfinished and a seek-preview atlas built for it,
     /// so a fresh profile stays at Ground (see the way in's fill).
     in property <bool> backdrop;
-    /// Where the way on goes once a list has run out, and what it is called:
-    /// the next season when a folder beside this one holds the same show,
-    /// otherwise the newest other film still unfinished. Looked for at the
-    /// end of the last file, so empty until then or when there is none.
-    in property <string> onward-path;
-    in property <string> onward-label;
-    /// Whether that is more of the same show. Only then does the credits pill
-    /// offer it: skipping an episode's credits for the next one is expected,
-    /// but skipping a film's credits for another film is not.
-    in property <bool> onward-season;
-    /// At the end of the last file, where it is an episode, the season it
-    /// ends: *Season 4 finished*. Empty otherwise.
-    in property <string> season-done;
-    /// The end of the file is lit by its own most lit frame, covered and
-    /// dimmed, rather than showing the frame it stopped on.
-    in property <bool> end-lit;
-    /// The playing file, for the dialogs to open near.
-    in property <string> current-path;
-    in property <float> duration;
-    /// Playback speed, as a number and as a person writes it: "1.5×".
-    in property <float> speed: 1;
-    in property <string> speed-text: "1×";
-    property <bool> speed-shown: root.has-file && (root.speed < 0.999 || root.speed > 1.001);
-    /// Chapter starts, in seconds. Empty for most files.
-    in property <[float]> chapter-marks;
-    /// What the chapter playing is called.
-    in property <string> chapter-label;
-    /// An episode's closing credits are playing: a chapter named for them in
-    /// the file's second half or one after it, or else the stretch its ending
-    /// shares with the next episode's. A film's too, where a scene follows
-    /// them. Decided on the Rust side.
-    in property <bool> credits-rolling;
-    /// Where the scene after the credits starts, in seconds, where one does:
-    /// what skipping them lands on. 0 where they run to the end.
-    in property <float> after-credits;
-    /// An episode's title sequence is playing with enough left to be worth
-    /// skipping, and where it ends, in seconds. Found from a chapter named for
-    /// it, or else from the stretch this episode shares with its neighbours
-    /// (see `titles`).
-    in property <bool> intro-rolling;
-    in property <float> intro-end;
-    in property <bool> panscan;
+    /// `Playback.path`, mirrored so its changes are acted on here.
+    property <string> current-path: Playback.path;
+    property <bool> speed-shown: root.has-file && (Playback.speed < 0.999 || Playback.speed > 1.001);
     // --- seek preview ---
     // The thumbnail is one tile of a sprite atlas, picked with `source-clip`
     // as the video is. Nothing here knows how the atlas was made.
-    in property <string> preview-time: "0:00";
-    /// The chapter the pointer is over, where the file names it; empty
-    /// otherwise. Said over the time, as YouTube's preview does.
-    in property <string> preview-chapter;
-    in property <image> preview-sprite;
-    in property <int> preview-tile-w;
-    in property <int> preview-tile-h;
-    in property <int> preview-clip-x;
-    in property <int> preview-clip-y;
 
     // Subtitle adjustments, formatted on the Rust side, which owns the units.
 
@@ -632,75 +560,23 @@ export component MainWindow inherits Window {
 
     // Effect switches: in-out because the saved settings push them at
     // startup, and a click or a key sets them here.
-    /// One rung of the speed ladder from the speed shown, -1 or +1.
-    callback step-speed(float, int);
-    callback reset-speed();
-    callback frame-step(int);
-    callback chapter-step(int);
     callback quit();
     /// Straight to the window rather than through `minimized`, which a Wayland
     /// client is never told has been undone (see `window::minimize`).
     callback minimize();
-    in property <string> remaining;
 
     // --- actions, executed on the Rust side ---
     // Keys are handled here rather than in Rust because Slint's `Key.*`
     // constants are private-use characters, so Rust gets named intentions
     // rather than keycodes.
-    callback toggle-pause();
-    callback toggle-mute();
-    callback toggle-panscan();
     callback toggle-fullscreen();
     callback leave-fullscreen();
-    callback restart();
-    /// This file again, from the start, playing.
-    callback replay();
-    /// The next file, playing.
-    callback play-next();
-    /// Past the title sequence or the credits: seconds from the start,
-    /// landing exactly.
-    callback skip-to(float);
-    /// A number key's jump, as a share of the film: as far as a click on the
-    /// timeline goes, and offered back the same way.
-    callback jump-to(float);
-    /// Seconds, signed.
-    callback seek-relative(float);
-    /// Absolute position as 0..1 of the file, landing exactly.
-    callback seek-fraction(float);
-    /// A drag in progress, coalesced on the Rust side and seeked to keyframes
-    /// while the hand is fast and to the frame once it slows. The release
-    /// lands with `seek-fraction`.
-    callback seek-scrub(float);
-    /// The button is still down on the timeline, and where the pointer is.
-    /// Sent a few times a second, moving or not, because no pointer event
-    /// says that a drag has stopped.
-    callback seek-held(float);
-    /// Where the pointer is over the timeline, 0..1. Answered by setting
-    /// `preview-time` and the tile offsets, since the formatting and the tile
-    /// arithmetic live on the Rust side, where they are tested.
-    callback preview-at(float);
-    callback nudge-volume(float);
-    /// The file just opened was left part way, and is held paused there until
-    /// the centre pill is answered: on from there, or from the beginning (see
-    /// `playback::arrival`).
-    in property <bool> arriving;
-    /// Where it was left, as the timeline writes a time.
-    in property <string> arrival-from;
-    /// The answer: true for from the beginning.
-    callback arrival-answer(bool);
-    /// Where a file that autoplay started from the beginning had been left,
-    /// for its first ten seconds, as the timeline writes a time; empty
-    /// otherwise. The corner pill offers to go on from there.
-    in property <string> resume-offer;
-    callback take-resume-offer();
-    /// Where the film was before a click or drag on the timeline, or a number
-    /// key, moved it more than half a minute, for ten seconds of the film
-    /// after, as the
-    /// timeline writes a time; empty otherwise. The corner pill offers to go
-    /// back there (see `playback::retrace`).
-    in property <string> back-offer;
-    callback take-back-offer();
-    callback set-volume(float);
+    /// `Playback.arriving`, mirrored so its changes are acted on here.
+    property <bool> arriving: Playback.arriving;
+    /// `Playback.resume-offer`, mirrored so its changes are acted on here.
+    property <string> resume-offer: Playback.resume-offer;
+    /// `Playback.back-offer`, mirrored so its changes are acted on here.
+    property <string> back-offer: Playback.back-offer;
     /// A click on the video, deferred in Rust so that a double-click can
     /// cancel it rather than pause and unpause on the way to fullscreen.
     callback video-clicked();
@@ -708,12 +584,6 @@ export component MainWindow inherits Window {
 
     // Pushed from Rust at startup, so `commands.rs` is the one place these
     // are defined.
-    in property <float> seek-step: 10;
-    in property <float> volume-step: 2;
-    in property <float> scroll-seek-step: 1;
-    in property <float> fine-seek-step: 1;
-    /// Matches mpv's own ceiling, so 100% sits where mpv puts it.
-    in property <float> volume-max: 200;
 
     // Indexed rather than picked by a conditional chain, because twenty
     // branches overflowed the compiler's stack.
@@ -740,9 +610,9 @@ export component MainWindow inherits Window {
         @image-url("../../../public/icons/volume-180.svg"),
     ];
     // 0 is silence, 1 the "barely on" glyph, then one per 10 units.
-    property <int> volume-index: root.volume < 0.5 ? 0
-        : root.volume < 10 ? 1
-        : Math.min(19, 1 + Math.floor(root.volume / 10));
+    property <int> volume-index: Playback.volume < 0.5 ? 0
+        : Playback.volume < 10 ? 1
+        : Math.min(19, 1 + Math.floor(Playback.volume / 10));
 
     // in-out so the tests can open them.
     in-out property <bool> menu-open: false;
@@ -1210,7 +1080,7 @@ export component MainWindow inherits Window {
     property <length> fatal-note-h: root.fatal-note != ""
         ? Rows.group-gap + root.note-line-h : 0px;
     /// Continue carries its show's name on a heading line above it.
-    property <bool> invite-show: root.has-resume && root.resume-show != "";
+    property <bool> invite-show: root.has-resume && Playback.resume-show != "";
     /// With nothing to continue, the panel is about the player rather than a
     /// film, and it says whose it is in the same place and the same role.
     property <bool> invite-named: root.fatal == "" && !root.has-resume;
@@ -1327,14 +1197,14 @@ export component MainWindow inherits Window {
     /// episodes share, and the episode is what tells them apart. Judged by
     /// the most room the title could have rather than the room it has, which
     /// the choice itself would change.
-    property <bool> title-short: !Playlist.opening && root.media-episode != ""
+    property <bool> title-short: !Playlist.opening && Playback.episode != ""
         && title-measure.preferred-width > root.title-room-most;
     property <length> title-room-most: max(0px,
         root.center-x - root.bar-x - root.pill-gap - root.left-fixed);
     /// What the title says.
     property <string> title-text: Playlist.opening ? @tr("Opening {}…", Playlist.opening-name)
-        : root.title-short ? root.media-episode
-        : root.media-title;
+        : root.title-short ? Playback.episode
+        : Playback.title;
 
     /// Centred in the window, until that would bring it closer to the right
     /// group than the gap (below about 1080px). From there it keeps the gap
@@ -1445,7 +1315,7 @@ export component MainWindow inherits Window {
     /// Whether there is a second thing to offer: the way on, at the end of
     /// the last file, or Continue for a file held on its saved place. Restart
     /// alone at the end of a season or a lone film is the least wanted offer.
-    property <bool> end-two: root.at-last || root.arriving;
+    property <bool> end-two: Playback.at-last || root.arriving;
     /// With two choices, each is a capsule inset by a bar button's padding,
     /// which keeps it concentric with the pill: 24px outside, a 4px gap, 20px
     /// inside.
@@ -1456,12 +1326,12 @@ export component MainWindow inherits Window {
     /// The way on, by name: the next season, or the film left unfinished.
     /// The folder dialog is the last resort, for when the player can name
     /// nothing, because this is the loudest the interface speaks.
-    property <string> end-onward-label: root.onward-path != ""
-        ? root.onward-label : @tr("Open folder…");
+    property <string> end-onward-label: Playback.onward-path != ""
+        ? Playback.onward-label : @tr("Open folder…");
     /// The way on is another film rather than more of this show: something to
     /// go back to, under Play's glyph as on the way in, since under Next's it
     /// would read as this show's next episode.
-    property <bool> end-onward-elsewhere: root.onward-path != "" && !root.onward-season;
+    property <bool> end-onward-elsewhere: Playback.onward-path != "" && !Playback.onward-season;
     /// The widest the pill grows before its words elide: half the bar, since
     /// a film's name can run to a sentence, and this is a capsule in the
     /// picture rather than a banner across it.
@@ -1523,13 +1393,13 @@ export component MainWindow inherits Window {
     /// name (which is only seen with autoplay off). Named for the same reason
     /// as the way on; the bare *Next* is for when the list can't say.
     property <string> end-label: root.arriving ? @tr("From the beginning")
-        : root.at-last ? @tr("Restart")
-        : root.next-label != "" ? root.next-label : @tr("Next");
+        : Playback.at-last ? @tr("Restart")
+        : Playback.next-label != "" ? Playback.next-label : @tr("Next");
     /// What the first of two choices says: the way on, or, for a file held on
     /// its saved place, going on from that time, since the time is what to
     /// decide by.
     property <string> end-first-label: root.arriving
-        ? @tr("Continue from {}", root.arrival-from)
+        ? @tr("Continue from {}", Playback.arrival-from)
         : root.end-onward-label;
 
     // --- the credits pill ---
@@ -1540,16 +1410,16 @@ export component MainWindow inherits Window {
     // lifted onto the row panels open from while the bar is up.
     /// Somewhere to go: the next file, or the next season found beside this
     /// one when this is the last.
-    property <bool> credits-onward: !root.at-last || root.onward-season;
+    property <bool> credits-onward: !Playback.at-last || Playback.onward-season;
     /// A scene follows the credits, so the offer is to skip to it rather than
     /// past it: the scene is the episode's, and the way on comes after it.
-    property <bool> credits-skip: root.after-credits > 0;
-    property <bool> credits-offered: root.credits-rolling && root.has-file
+    property <bool> credits-skip: Playback.after-credits > 0;
+    property <bool> credits-offered: Playback.credits-rolling && root.has-file
         && !root.at-end && !root.arriving && (root.credits-skip || root.credits-onward)
         && root.fatal == "";
     /// The same pill while an episode's title sequence plays, offering to
     /// skip it. Same corner, for the same reason: people watch it too.
-    property <bool> intro-offered: root.intro-rolling && root.has-file
+    property <bool> intro-offered: Playback.intro-rolling && root.has-file
         && !root.at-end && !root.arriving && root.fatal == "";
     /// And for the first ten seconds of a file that autoplay started from
     /// the top although it had been left part way: the offer to go on from
@@ -1610,8 +1480,8 @@ export component MainWindow inherits Window {
         ? @tr("Continue from {}", root.resume-offer-said)
         : root.corner-says == 1 ? @tr("Skip intro")
         : root.corner-says == 3 ? @tr("Skip credits")
-        : !root.at-last && root.next-label != "" ? root.next-label
-        : root.at-last && root.onward-path != "" ? root.onward-label
+        : !Playback.at-last && Playback.next-label != "" ? Playback.next-label
+        : Playback.at-last && Playback.onward-path != "" ? Playback.onward-label
         : @tr("Next episode");
     /// No wider than the bar's right group, the corner it keeps to, so a long
     /// episode title elides rather than reach over the rolling names.
@@ -1664,9 +1534,9 @@ export component MainWindow inherits Window {
         ? Tracks.audio[Tracks.audio-current].label : @tr("No audio");
     /// The level as words, for the volume's label and its keys' flash. Muted,
     /// it says so, since the level is then a number nothing is heard at.
-    property <string> volume-said: root.muted
+    property <string> volume-said: Playback.muted
         ? @tr("Muted")
-        : @tr("Volume {}%", Math.round(root.volume));
+        : @tr("Volume {}%", Math.round(Playback.volume));
     /// Set once a notice has had its dwell: it then stays until the next key
     /// or pointer event, so a failure glanced away from is still there.
     property <bool> flash-waiting: false;
@@ -1680,8 +1550,8 @@ export component MainWindow inherits Window {
     /// The words under the ring. Live, because mpv reports a new delay a beat
     /// after the key, and the figure has to be the one it lands on.
     property <string> flash-text: root.flash-is-notice ? Flash.message
-        : Flash.figure == 1 ? root.speed-text
-        : Flash.figure == 2 ? root.chapter-label
+        : Flash.figure == 1 ? Playback.speed-text
+        : Flash.figure == 2 ? Playback.chapter-label
         : Flash.figure == 3 ? root.flash-sub-label
         : Flash.figure == 4 ? root.flash-audio-label
         : Flash.figure == 5 ? root.volume-said
@@ -1992,7 +1862,7 @@ export component MainWindow inherits Window {
     // any open panel as a tip does, because it is what the pointer asked for.
     property <bool> preview-open: (scrub.has-hover || scrub.pressed)
         && root.controls-visible && !root.preview-crowded;
-    property <bool> preview-has-tile: root.preview-tile-w > 0 && root.preview-tile-h > 0;
+    property <bool> preview-has-tile: Playback.preview-tile-w > 0 && Playback.preview-tile-h > 0;
     /// Wide enough for the glass's bevel, which rolls over about 8px at this
     /// corner and would otherwise sit under the thumbnail.
     property <length> preview-pad: 9px;
@@ -2004,15 +1874,15 @@ export component MainWindow inherits Window {
     property <length> preview-tile-radius: root.preview-radius - root.preview-pad;
     property <length> preview-caption: 22px;
     /// A line for the chapter's name over the time, where there is one.
-    property <length> preview-chapter-h: root.preview-chapter != "" ? Rows.note-line : 0px;
+    property <length> preview-chapter-h: Playback.preview-chapter != "" ? Rows.note-line : 0px;
     /// Without a thumbnail, as wide as the chapter's name needs, up to a
     /// line that still reads as a label rather than a banner.
     property <length> preview-w: root.preview-has-tile
-        ? root.preview-tile-w * 1px + 2 * root.preview-pad
+        ? Playback.preview-tile-w * 1px + 2 * root.preview-pad
         : max(74px, min(preview-chapter-measure.preferred-width + 2 * root.preview-pad + 8px,
             320px));
     property <length> preview-h: root.preview-has-tile
-        ? root.preview-tile-h * 1px + 2 * root.preview-pad + root.preview-caption
+        ? Playback.preview-tile-h * 1px + 2 * root.preview-pad + root.preview-caption
             + root.preview-chapter-h
         : 26px + root.preview-chapter-h;
     /// Where along the track the pointer is, in the track's own coordinates.
@@ -2139,8 +2009,8 @@ export component MainWindow inherits Window {
     property <[{label: string, keys: string, heading: string, icon: image, dropping: bool}]> shortcuts: [
         { heading: @tr("PLAYBACK"), icon: @image-url("../../../public/icons/play-pause.svg"),
           label: @tr("Play / pause"), keys: @tr("Space / K") },
-        { label: @tr("Back / forward {} seconds", root.seek-step), keys: "← → / J L" },
-        { label: @tr("Back / forward {} second", root.fine-seek-step), keys: @tr("Shift+← →") },
+        { label: @tr("Back / forward {} seconds", Playback.seek-step), keys: "← → / J L" },
+        { label: @tr("Back / forward {} second", Playback.fine-seek-step), keys: @tr("Shift+← →") },
         { label: @tr("Restart"), keys: @tr("Home") },
         { label: @tr("Jump to 0%–90%"), keys: "0–9" },
         { label: @tr("Skip intro or credits"), keys: @tr("Enter") },
@@ -2895,7 +2765,7 @@ export component MainWindow inherits Window {
         if (!root.has-file && root.fatal == "") {
             if (root.focus-row < root.invite-first) {
                 if (!Playlist.opening) {
-                    Playlist.open-path(root.resume-path, false);
+                    Playlist.open-path(Playback.resume-path, false);
                 }
             } else if (root.focus-row < root.invite-first + 2) {
                 root.request-open(root.focus-row == root.invite-first + 1);
@@ -2941,7 +2811,7 @@ export component MainWindow inherits Window {
             return true;
         }
         if (root.settings-page == 6 && root.focus-row == 2) {
-            root.toggle-panscan();
+            Playback.toggle-panscan();
             return true;
         }
         if (root.settings-page == 6 && root.focus-row == 3) {
@@ -3365,7 +3235,7 @@ export component MainWindow inherits Window {
         }
         // The steppers: the speed, and the interface's size.
         if (root.settings-page == 6 && root.focus-row == 1) {
-            root.step-speed(root.speed, delta);
+            Playback.step-speed(Playback.speed, delta);
             return true;
         }
         if (root.settings-page == 3 && root.focus-row == 1) {
@@ -3627,11 +3497,11 @@ export component MainWindow inherits Window {
             // As the play button: at the end of a file there is nothing to
             // unpause, and on a saved place, playing goes on from it.
             if (root.arriving) {
-                root.arrival-answer(false);
+                Playback.arrival-answer(false);
             } else if (root.at-end) {
-                root.replay();
+                Playback.replay();
             } else {
-                root.toggle-pause();
+                Playback.toggle-pause();
             }
             return true;
         }
@@ -3639,12 +3509,12 @@ export component MainWindow inherits Window {
         // or `on-read`), and a page with no use for it should do nothing
         // rather than restart the film.
         if (text == Key.Home && !root.panel-open && root.arriving) {
-            root.arrival-answer(true);
+            Playback.arrival-answer(true);
             root.key-wake = 2;
             return true;
         }
         if (text == Key.Home && !root.panel-open) {
-            root.restart();
+            Playback.restart();
             Flash.show(Flash.restart, 0.5);
             root.glimpse-timeline();
             return true;
@@ -3652,7 +3522,7 @@ export component MainWindow inherits Window {
         // A tenth of the way per digit, 0 the start. Not with a panel open,
         // whose rows are what the keyboard is in.
         if (!root.panel-open && text.character-count == 1 && text.is-float()) {
-            root.jump-to(text.to-float() / 10);
+            Playback.jump-to(text.to-float() / 10);
             root.glimpse-timeline();
             return true;
         }
@@ -3660,10 +3530,10 @@ export component MainWindow inherits Window {
         // nothing, so neither does the flash.
         if (shift && (text == "n" || text == "N" || text == "p" || text == "P")) {
             root.key-wake = 1;
-            if ((text == "n" || text == "N") && !root.at-last) {
+            if ((text == "n" || text == "N") && !Playback.at-last) {
                 Playlist.step(1);
                 Flash.show(Flash.next, 0.5);
-            } else if ((text == "p" || text == "P") && !root.at-first) {
+            } else if ((text == "p" || text == "P") && !Playback.at-first) {
                 Playlist.step(-1);
                 Flash.show(Flash.previous, 0.5);
             }
@@ -3682,10 +3552,10 @@ export component MainWindow inherits Window {
             if (shift && text == Key.LeftArrow) {
                 // The small seek, for a missed line. No flash, since its glyph
                 // means ten seconds and the timeline shows the change.
-                root.seek-relative(-root.fine-seek-step);
+                Playback.seek-relative(-Playback.fine-seek-step);
                 root.glimpse-timeline();
             } else {
-                root.seek-relative(-root.seek-step);
+                Playback.seek-relative(-Playback.seek-step);
                 Flash.show(Flash.seek-back, 0.2);
                 root.glimpse-timeline();
             }
@@ -3697,16 +3567,16 @@ export component MainWindow inherits Window {
                 // next file or season. Never the folder dialog, since an arrow
                 // held a moment too long is not deliberate enough for one.
                 root.key-wake = 2;
-                if (!root.at-last) {
-                    root.play-next();
-                } else if (root.onward-path != "") {
+                if (!Playback.at-last) {
+                    Playback.play-next();
+                } else if (Playback.onward-path != "") {
                     root.end-onward();
                 }
             } else if (shift && text == Key.RightArrow) {
-                root.seek-relative(root.fine-seek-step);
+                Playback.seek-relative(Playback.fine-seek-step);
                 root.glimpse-timeline();
             } else {
-                root.seek-relative(root.seek-step);
+                Playback.seek-relative(Playback.seek-step);
                 Flash.show(Flash.seek-forward, 0.8);
                 root.glimpse-timeline();
             }
@@ -3718,13 +3588,13 @@ export component MainWindow inherits Window {
     // Every key here answers with its flash rather than the bar.
     function on-volume(text: string) -> bool {
         if (text == Key.UpArrow || text == Key.DownArrow) {
-            root.nudge-volume(text == Key.UpArrow ? root.volume-step : -root.volume-step);
+            Playback.nudge-volume(text == Key.UpArrow ? Playback.volume-step : -Playback.volume-step);
             root.key-wake = 1;
             Flash.show-figure(5);
             return true;
         }
         if (text == "m" || text == "M") {
-            root.toggle-mute();
+            Playback.toggle-mute();
             root.key-wake = 1;
             Flash.show-figure(5);
             return true;
@@ -3812,19 +3682,19 @@ export component MainWindow inherits Window {
     // itself.
     function on-pace(text: string) -> bool {
         if (text == "<" || text == ">") {
-            root.step-speed(root.speed, text == ">" ? 1 : -1);
+            Playback.step-speed(Playback.speed, text == ">" ? 1 : -1);
             root.key-wake = 1;
             Flash.show-figure(1);
             return true;
         }
         if (text == Key.Backspace) {
-            root.reset-speed();
+            Playback.reset-speed();
             root.key-wake = 1;
             Flash.show-figure(1);
             return true;
         }
         if (text == "," || text == ".") {
-            root.frame-step(text == "." ? 1 : -1);
+            Playback.frame-step(text == "." ? 1 : -1);
             root.stepped = true;
             root.step-landing = true;
             root.key-wake = 1;
@@ -3841,8 +3711,8 @@ export component MainWindow inherits Window {
     function chapter-key(direction: int) -> bool {
         root.key-wake = 1;
         // No flash for a file with no chapters to go to.
-        if (root.chapter-marks.length > 0) {
-            root.chapter-step(direction);
+        if (Playback.chapter-marks.length > 0) {
+            Playback.chapter-step(direction);
             Flash.show-figure(2);
         }
         return true;
@@ -3889,13 +3759,13 @@ export component MainWindow inherits Window {
     /// way on and the second is Restart.
     function end-activate(choice: int) {
         if (root.arriving) {
-            root.arrival-answer(choice == 1);
+            Playback.arrival-answer(choice == 1);
         } else if (!root.end-two) {
-            root.play-next();
+            Playback.play-next();
         } else if (choice == 0) {
             root.end-onward();
         } else {
-            root.replay();
+            Playback.replay();
         }
     }
 
@@ -3905,24 +3775,24 @@ export component MainWindow inherits Window {
     /// to where it was.
     function credits-activate() {
         if (root.corner-offer == 4) {
-            root.take-back-offer();
+            Playback.take-back-offer();
         } else if (root.corner-offer == 2) {
-            root.take-resume-offer();
+            Playback.take-resume-offer();
         } else if (root.corner-offer == 1) {
-            root.skip-to(root.intro-end);
+            Playback.skip-to(Playback.intro-end);
         } else if (root.corner-offer == 3) {
-            root.skip-to(root.after-credits);
-        } else if (!root.at-last) {
-            root.play-next();
+            Playback.skip-to(Playback.after-credits);
+        } else if (!Playback.at-last) {
+            Playback.play-next();
         } else {
             root.end-onward();
         }
     }
 
     function end-onward() {
-        if (root.onward-path != "") {
+        if (Playback.onward-path != "") {
             if (!Playlist.opening) {
-                Playlist.open-path(root.onward-path, true);
+                Playlist.open-path(Playback.onward-path, true);
             }
         } else {
             root.request-open(true);
@@ -4013,7 +3883,7 @@ export component MainWindow inherits Window {
     /// Previous and Next, at 3 and 5, are the only buttons that can be
     /// disabled.
     pure function bar-enabled(index: int) -> bool {
-        return !(index == 3 && root.at-first) && !(index == 5 && root.at-last);
+        return !(index == 3 && Playback.at-first) && !(index == 5 && Playback.at-last);
     }
 
     // The ring on a bar button stands on a disc of glass of its own, laid on
@@ -4091,29 +3961,29 @@ export component MainWindow inherits Window {
             root.open-files(true);
             root.focus-show(0);
         } else if (index == 2) {
-            root.seek-relative(-root.seek-step);
+            Playback.seek-relative(-Playback.seek-step);
         } else if (index == 3) {
-            if (!root.at-first) {
+            if (!Playback.at-first) {
                 Playlist.step(-1);
             }
         } else if (index == 4) {
             if (root.at-end) {
-                root.replay();
+                Playback.replay();
             } else {
-                root.toggle-pause();
+                Playback.toggle-pause();
             }
         } else if (index == 5) {
-            if (!root.at-last) {
+            if (!Playback.at-last) {
                 Playlist.step(1);
             }
         } else {
-            root.seek-relative(root.seek-step);
+            Playback.seek-relative(Playback.seek-step);
         }
     }
 
     function bar-activate-right(index: int) {
         if (index == 7) {
-            root.toggle-mute();
+            Playback.toggle-mute();
         } else if (index == 8) {
             root.open-audio(true);
             root.focus-show(root.focus-row);
@@ -4124,7 +3994,7 @@ export component MainWindow inherits Window {
             root.open-settings(true);
             root.focus-show(0);
         } else if (index == 11) {
-            root.toggle-panscan();
+            Playback.toggle-panscan();
         } else {
             root.toggle-fullscreen();
         }
@@ -4141,7 +4011,7 @@ export component MainWindow inherits Window {
         }
         // The picture answers, as it does a frame step.
         if (root.has-file && (text == "t" || text == "T")) {
-            root.toggle-panscan();
+            Playback.toggle-panscan();
             root.key-wake = 1;
             return true;
         }
@@ -4955,18 +4825,18 @@ export component MainWindow inherits Window {
                             icon: @image-url("../../../public/icons/speed.svg");
                             label: @tr("Speed");
                             focused: root.focus-row == 1;
-                            value: root.speed-text;
+                            value: Playback.speed-text;
                             stepped(dir) => {
-                                root.step-speed(root.speed, dir);
+                                Playback.step-speed(Playback.speed, dir);
                             }
                         }
                         ToggleRow {
                             label: @tr("Fill the window");
-                            checked: root.panscan;
+                            checked: Playback.panscan;
                             focused: root.focus-row == 2;
                             toggled(on) => {
-                                if (on != root.panscan) {
-                                    root.toggle-panscan();
+                                if (on != Playback.panscan) {
+                                    Playback.toggle-panscan();
                                 }
                             }
                         }
@@ -5807,7 +5677,7 @@ export component MainWindow inherits Window {
         Text {
             width: 100%;
             height: 100%;
-            text: root.elapsed;
+            text: Playback.elapsed;
             font-family: Type.numerals;
             color: Paint.strong;
             font-size: Type.readout;
@@ -5828,12 +5698,12 @@ export component MainWindow inherits Window {
 
         accessible-role: slider;
         accessible-label: @tr("Position");
-        accessible-value: @tr("{} of {}", root.elapsed, root.total);
+        accessible-value: @tr("{} of {}", Playback.elapsed, Playback.total);
         accessible-action-increment => {
-            root.seek-relative(root.seek-step);
+            Playback.seek-relative(Playback.seek-step);
         }
         accessible-action-decrement => {
-            root.seek-relative(-root.seek-step);
+            Playback.seek-relative(-Playback.seek-step);
         }
 
         timeline-rail := Rectangle {
@@ -5844,15 +5714,15 @@ export component MainWindow inherits Window {
             background: Paint.rail;
             animate height { duration: Motion.track-grow; easing: ease-out; }
 
-            property <length> played-x: self.width * clamp(root.progress, 0, 1);
+            property <length> played-x: self.width * clamp(Playback.progress, 0, 1);
 
             // Chapter starts as dots ahead of the played length, gone as soon
             // as it reaches one. A mark at the very start is left out, since
             // it is the start, not a boundary.
-            for mark in root.chapter-marks: Rectangle {
-                property <length> at: parent.width * clamp(mark / max(root.duration, 1), 0, 1);
+            for mark in Playback.chapter-marks: Rectangle {
+                property <length> at: parent.width * clamp(mark / max(Playback.duration, 1), 0, 1);
 
-                visible: root.duration > 0 && mark > 0.5
+                visible: Playback.duration > 0 && mark > 0.5
                     && timeline-rail.played-x <= self.at - self.width / 2;
                 x: self.at - self.width / 2;
                 y: (parent.height - self.height) / 2;
@@ -5866,22 +5736,22 @@ export component MainWindow inherits Window {
             // each chapter to the next. Sized by width rather than clipped, so
             // it stays crisp without a layer.
             TrackRun {
-                to: root.chapter-marks.length > 0
-                    ? parent.width * clamp(root.chapter-marks[0] / max(root.duration, 1), 0, 1)
+                to: Playback.chapter-marks.length > 0
+                    ? parent.width * clamp(Playback.chapter-marks[0] / max(Playback.duration, 1), 0, 1)
                         - Marks.cut / 2
                     : parent.width;
-                cut-after: root.chapter-marks.length > 0 && root.chapter-marks[0] > 0.5;
+                cut-after: Playback.chapter-marks.length > 0 && Playback.chapter-marks[0] > 0.5;
                 reach: timeline-rail.played-x;
                 fill: Paint.played;
             }
-            for mark[i] in root.chapter-marks: TrackRun {
-                property <bool> last: i + 1 >= root.chapter-marks.length;
+            for mark[i] in Playback.chapter-marks: TrackRun {
+                property <bool> last: i + 1 >= Playback.chapter-marks.length;
 
                 from: mark > 0.5
-                    ? parent.width * clamp(mark / max(root.duration, 1), 0, 1) + Marks.cut / 2
+                    ? parent.width * clamp(mark / max(Playback.duration, 1), 0, 1) + Marks.cut / 2
                     : 0px;
                 to: self.last ? parent.width
-                    : parent.width * clamp(root.chapter-marks[i + 1] / max(root.duration, 1), 0, 1)
+                    : parent.width * clamp(Playback.chapter-marks[i + 1] / max(Playback.duration, 1), 0, 1)
                         - Marks.cut / 2;
                 cut-before: mark > 0.5;
                 cut-after: !self.last;
@@ -5896,7 +5766,7 @@ export component MainWindow inherits Window {
                 Chrome.pointed(event.kind == PointerEventKind.down);
                 // Also on enter and exit, so a pointer that arrives and stops
                 // gets a preview.
-                root.preview-at(self.mouse-x / self.width);
+                Playback.preview-at(self.mouse-x / self.width);
                 // The button coming up ends a click or a drag wherever the
                 // pointer is. Not `clicked`, which a release off the track
                 // never fires, and a drag often wanders off the row. A drag
@@ -5904,24 +5774,24 @@ export component MainWindow inherits Window {
                 if (event.button == PointerEventButton.left
                     && (event.kind == PointerEventKind.up
                         || event.kind == PointerEventKind.cancel)) {
-                    root.seek-fraction(self.mouse-x / self.width);
+                    Playback.seek-fraction(self.mouse-x / self.width);
                 }
             }
             moved => {
-                root.preview-at(self.mouse-x / self.width);
+                Playback.preview-at(self.mouse-x / self.width);
                 // `moved` fires on hover too; the press check is what makes
                 // this a drag rather than a follow-the-cursor seek.
                 if (self.pressed) {
-                    root.seek-scrub(self.mouse-x / self.width);
+                    Playback.seek-scrub(self.mouse-x / self.width);
                 }
             }
             // A wheel raises no pointer event, and the seek doesn't count as
             // activity, since a key's seek mustn't wake the bar.
             scroll-event(event) => {
                 Chrome.bump();
-                root.seek-relative(event.delta-y > 0
-                    ? root.scroll-seek-step
-                    : -root.scroll-seek-step);
+                Playback.seek-relative(event.delta-y > 0
+                    ? Playback.scroll-seek-step
+                    : -Playback.scroll-seek-step);
                 return EventResult.accept;
             }
         }
@@ -5934,7 +5804,7 @@ export component MainWindow inherits Window {
             interval: 60ms;
             running: scrub.pressed;
             triggered => {
-                root.seek-held(scrub.mouse-x / scrub.width);
+                Playback.seek-held(scrub.mouse-x / scrub.width);
             }
         }
     }
@@ -5951,7 +5821,7 @@ export component MainWindow inherits Window {
 
         accessible-role: button;
         accessible-label: Settings.show-remaining ? @tr("Show the length") : @tr("Show the time left");
-        accessible-value: Settings.show-remaining ? root.remaining : root.total;
+        accessible-value: Settings.show-remaining ? Playback.remaining : Playback.total;
         accessible-action-default => {
             root.set-remaining-shown(!Settings.show-remaining);
         }
@@ -5959,7 +5829,7 @@ export component MainWindow inherits Window {
         Text {
             width: 100%;
             height: 100%;
-            text: Settings.show-remaining ? root.remaining : root.total;
+            text: Settings.show-remaining ? Playback.remaining : Playback.total;
             font-family: Type.numerals;
             color: Paint.strong;
             font-size: Type.readout;
@@ -6101,7 +5971,7 @@ export component MainWindow inherits Window {
             // most often opened to get back to it. Its show goes on a line of
             // its own, so the episode keeps room for its number.
             if root.fatal == "" && root.invite-show: MenuHeading {
-                text: root.resume-show;
+                text: Playback.resume-show;
                 titular: true;
             }
             // With nothing to continue, the player's own name goes where the
@@ -6114,15 +5984,15 @@ export component MainWindow inherits Window {
             // A gap after it, since it is a film and the rows below open
             // dialogs.
             if root.fatal == "" && root.has-resume: ResumeRow {
-                label: root.resume-title;
-                progress: root.resume-progress;
-                left: root.resume-left;
+                label: Playback.resume-title;
+                progress: Playback.resume-progress;
+                left: Playback.resume-left;
                 focused: !root.has-file && root.focus-row == 0;
                 opacity: Playlist.opening ? 0.5 : 1.0;
                 animate opacity { duration: Motion.surface; easing: ease-out; }
                 picked => {
                     if (!Playlist.opening) {
-                        Playlist.open-path(root.resume-path, false);
+                        Playlist.open-path(Playback.resume-path, false);
                     }
                 }
             }
@@ -6278,11 +6148,11 @@ export component MainWindow inherits Window {
     // the interface states rather than offers. No glass of its own, so it
     // waits for the end to be lit, by a frame dimmed far enough for white
     // words to read on it: the frame the file stopped on can be a white one.
-    property <float> season-shown: root.end-lit ? root.end-shown : 0;
+    property <float> season-shown: Playback.end-lit ? root.end-shown : 0;
     animate season-shown { duration: Motion.surface; easing: ease-out; }
     Text {
-        text: root.season-done;
-        visible: root.at-end && root.at-last && root.season-done != ""
+        text: Playback.season-done;
+        visible: root.at-end && Playback.at-last && Playback.season-done != ""
             && root.season-shown > root.shown-epsilon;
         opacity: root.season-shown;
         x: root.end-x + (root.end-w - self.width) / 2;
@@ -6319,7 +6189,7 @@ export component MainWindow inherits Window {
             focused: root.centre-up && root.bar-reach && root.bar-focus == root.pill-stop;
             icon: root.arriving || (root.end-two && root.end-onward-elsewhere)
                 ? @image-url("../../../public/icons/play.svg")
-                : !root.end-two || root.onward-path != ""
+                : !root.end-two || Playback.onward-path != ""
                 ? @image-url("../../../public/icons/step-forward.svg")
                 : @image-url("../../../public/icons/folder-open.svg");
             label: root.end-two ? root.end-first-label : root.end-label;
@@ -6352,7 +6222,7 @@ export component MainWindow inherits Window {
     /// The film's length as the timeline writes it, and the widest a time
     /// under an hour can read; `time-w` holds the wider of the two.
     preview-chapter-measure := Text {
-        text: root.preview-chapter;
+        text: Playback.preview-chapter;
         font-size: Type.readout;
         visible: false;
         width: 0px;
@@ -6360,7 +6230,7 @@ export component MainWindow inherits Window {
     }
 
     time-measure := Text {
-        text: Settings.show-remaining ? "\u{2212}" + root.total : root.total;
+        text: Settings.show-remaining ? "\u{2212}" + Playback.total : Playback.total;
         font-family: Type.numerals;
         font-size: Type.readout;
         visible: false;
@@ -6489,7 +6359,7 @@ export component MainWindow inherits Window {
     }
 
     speed-measure := Text {
-        text: root.speed-text;
+        text: Playback.speed-text;
         font-size: Type.readout;
         visible: false;
         width: 0px;
@@ -6515,7 +6385,7 @@ export component MainWindow inherits Window {
     title-measure := Text {
         text: Playlist.opening
             ? @tr("Opening {}…", Playlist.opening-name)
-            : root.media-title;
+            : Playback.title;
         font-size: Type.title;
         font-weight: Type.weight-title;
         visible: false;
@@ -6524,7 +6394,7 @@ export component MainWindow inherits Window {
     }
 
     episode-measure := Text {
-        text: root.media-episode;
+        text: Playback.episode;
         font-size: Type.title;
         font-weight: Type.weight-title;
         visible: false;
@@ -6630,8 +6500,8 @@ export component MainWindow inherits Window {
         Rectangle {
             x: root.preview-pad;
             y: root.preview-pad;
-            width: root.preview-tile-w * 1px;
-            height: root.preview-tile-h * 1px;
+            width: Playback.preview-tile-w * 1px;
+            height: Playback.preview-tile-h * 1px;
             visible: root.preview-has-tile;
             border-radius: root.preview-tile-radius;
             clip: true;
@@ -6639,18 +6509,18 @@ export component MainWindow inherits Window {
             Image {
                 width: 100%;
                 height: 100%;
-                source: root.preview-sprite;
+                source: Playback.preview-sprite;
                 // One tile out of the atlas, as the video takes the used part
                 // of its grow-only target.
-                source-clip-x: root.preview-clip-x;
-                source-clip-y: root.preview-clip-y;
-                source-clip-width: root.preview-tile-w;
-                source-clip-height: root.preview-tile-h;
+                source-clip-x: Playback.preview-clip-x;
+                source-clip-y: Playback.preview-clip-y;
+                source-clip-width: Playback.preview-tile-w;
+                source-clip-height: Playback.preview-tile-h;
                 image-fit: fill;
             }
         }
 
-        if root.preview-chapter != "": Text {
+        if Playback.preview-chapter != "": Text {
             x: root.preview-pad;
             y: root.preview-has-tile
                 ? root.preview-h - root.preview-caption - root.preview-pad
@@ -6658,7 +6528,7 @@ export component MainWindow inherits Window {
                 : 6px;
             width: parent.width - 2 * root.preview-pad;
             height: root.preview-chapter-h;
-            text: root.preview-chapter;
+            text: Playback.preview-chapter;
             color: Paint.body;
             font-size: Type.readout;
             horizontal-alignment: center;
@@ -6673,7 +6543,7 @@ export component MainWindow inherits Window {
             width: 100%;
             height: root.preview-has-tile ? root.preview-caption
                 : root.preview-h - root.preview-chapter-h;
-            text: root.preview-time;
+            text: Playback.preview-time;
             font-family: Type.numerals;
             color: Paint.strong;
             font-size: Type.readout;
@@ -6743,7 +6613,7 @@ export component MainWindow inherits Window {
             // A speed other than normal stays on screen beside what plays at
             // it, rather than only in a passing flash.
             if root.speed-shown: Text {
-                text: root.speed-text;
+                text: Playback.speed-text;
                 color: Paint.body;
                 font-size: Type.readout;
                 vertical-alignment: center;
@@ -6766,18 +6636,18 @@ export component MainWindow inherits Window {
 
             back-button := IconButton {
                 icon: @image-url("../../../public/icons/seek-backward.svg");
-                tip: @tr("Back {} seconds", root.seek-step);
+                tip: @tr("Back {} seconds", Playback.seek-step);
                 keys: "←";
                 focused: root.bar-reach && root.bar-focus == 2;
                 clicked => {
-                    root.seek-relative(-root.seek-step);
+                    Playback.seek-relative(-Playback.seek-step);
                 }
             }
             previous-button := IconButton {
                 icon: @image-url("../../../public/icons/step-backward.svg");
-                tip: root.at-first ? @tr("No earlier file") : @tr("Previous file");
-                keys: root.at-first ? "" : @tr("Shift+P");
-                enabled: !root.at-first;
+                tip: Playback.at-first ? @tr("No earlier file") : @tr("Previous file");
+                keys: Playback.at-first ? "" : @tr("Shift+P");
+                enabled: !Playback.at-first;
                 focused: root.bar-reach && root.bar-focus == 3;
                 clicked => {
                     Playlist.step(-1);
@@ -6798,17 +6668,17 @@ export component MainWindow inherits Window {
                 focused: root.bar-reach && root.bar-focus == 4;
                 clicked => {
                     if (root.at-end) {
-                        root.replay();
+                        Playback.replay();
                     } else {
-                        root.toggle-pause();
+                        Playback.toggle-pause();
                     }
                 }
             }
             next-button := IconButton {
                 icon: @image-url("../../../public/icons/step-forward.svg");
-                tip: root.at-last ? @tr("No later file") : @tr("Next file");
-                keys: root.at-last ? "" : @tr("Shift+N");
-                enabled: !root.at-last;
+                tip: Playback.at-last ? @tr("No later file") : @tr("Next file");
+                keys: Playback.at-last ? "" : @tr("Shift+N");
+                enabled: !Playback.at-last;
                 focused: root.bar-reach && root.bar-focus == 5;
                 clicked => {
                     Playlist.step(1);
@@ -6816,11 +6686,11 @@ export component MainWindow inherits Window {
             }
             forward-button := IconButton {
                 icon: @image-url("../../../public/icons/seek-forward.svg");
-                tip: @tr("Forward {} seconds", root.seek-step);
+                tip: @tr("Forward {} seconds", Playback.seek-step);
                 keys: "→";
                 focused: root.bar-reach && root.bar-focus == 6;
                 clicked => {
-                    root.seek-relative(root.seek-step);
+                    Playback.seek-relative(Playback.seek-step);
                 }
             }
         }
@@ -6840,16 +6710,16 @@ export component MainWindow inherits Window {
             spacing: root.btn-gap;
 
             mute-button := IconButton {
-                icon: root.muted
+                icon: Playback.muted
                     ? @image-url("../../../public/icons/volume-mute.svg")
                     : root.volume-icons[root.volume-index];
                 // What pressing will do, since the glyph already shows the
                 // state.
-                tip: root.muted ? @tr("Unmute") : @tr("Mute");
+                tip: Playback.muted ? @tr("Unmute") : @tr("Mute");
                 keys: "M";
                 focused: root.bar-reach && root.bar-focus == 7;
                 clicked => {
-                    root.toggle-mute();
+                    Playback.toggle-mute();
                 }
             }
 
@@ -6870,12 +6740,12 @@ export component MainWindow inherits Window {
                 /// How far along the track a level is drawn.
                 pure function at(level: float) -> float {
                     return level <= 100 ? level / 100 * self.unity
-                        : self.unity + (level - 100) / (root.volume-max - 100) * (1 - self.unity);
+                        : self.unity + (level - 100) / (Playback.volume-max - 100) * (1 - self.unity);
                 }
                 /// The level drawn at a point along the track.
                 pure function level-at(along: float) -> float {
                     return along <= self.unity ? along / self.unity * 100
-                        : 100 + (along - self.unity) / (1 - self.unity) * (root.volume-max - 100);
+                        : 100 + (along - self.unity) / (1 - self.unity) * (Playback.volume-max - 100);
                 }
                 /// The level a drag has reached, at the rate normal is drawn
                 /// at the whole way, so the same move changes it the same
@@ -6891,7 +6761,7 @@ export component MainWindow inherits Window {
                         : self.from-level > 100
                         ? (raw >= 100 ? raw : raw >= 100 - held ? 100 : raw + held)
                         : (abs(raw - 100) <= held ? 100 : raw > 100 ? raw - held : raw + held);
-                    return clamp(level, 0, root.volume-max);
+                    return clamp(level, 0, Playback.volume-max);
                 }
 
                 // The level as a number, which nothing else on the bar gives:
@@ -6900,15 +6770,15 @@ export component MainWindow inherits Window {
                 // while muted, when the number isn't what is heard. An empty
                 // tip is none, so muting under the pointer takes it down.
                 property <string> tip: Tip.enabled ? root.volume-said
-                    : root.muted ? "" : @tr("{}%", Math.round(root.volume));
-                property <string> tip-keys: Tip.enabled && !root.muted ? "↑ ↓" : "";
+                    : Playback.muted ? "" : @tr("{}%", Math.round(Playback.volume));
+                property <string> tip-keys: Tip.enabled && !Playback.muted ? "↑ ↓" : "";
                 property <length> tip-cx: self.absolute-position.x + self.width / 2;
                 /// This track's claim on the tip, as a button holds one.
                 property <int> tip-claim: -1;
                 /// How far the level is heard. The fill fades out with a mute
                 /// and back in with an unmute, as a switch's track turns, and
                 /// a unity dot the fill was cut round fades the other way.
-                property <float> heard: root.muted ? 0.0 : 1.0;
+                property <float> heard: Playback.muted ? 0.0 : 1.0;
                 animate heard { duration: Motion.switch; easing: ease-out; }
 
                 // A level that moves under the pointer shows at once, without
@@ -6921,12 +6791,12 @@ export component MainWindow inherits Window {
 
                 accessible-role: slider;
                 accessible-label: @tr("Volume");
-                accessible-value: root.muted ? @tr("Muted") : Math.round(root.volume) + "%";
+                accessible-value: Playback.muted ? @tr("Muted") : Math.round(Playback.volume) + "%";
                 accessible-action-increment => {
-                    root.nudge-volume(root.volume-step);
+                    Playback.nudge-volume(Playback.volume-step);
                 }
                 accessible-action-decrement => {
-                    root.nudge-volume(-root.volume-step);
+                    Playback.nudge-volume(-Playback.volume-step);
                 }
 
                 vol-rail := Rectangle {
@@ -6938,7 +6808,7 @@ export component MainWindow inherits Window {
                     animate height { duration: Motion.track-grow; easing: ease-out; }
 
                     property <length> unity-x: self.width * vol-track.unity;
-                    property <length> level-x: self.width * clamp(vol-track.at(root.volume), 0, 1);
+                    property <length> level-x: self.width * clamp(vol-track.at(Playback.volume), 0, 1);
 
                     // Unity gain: the track runs to mpv's 200%, so this marks
                     // where normal is. A dot rather than a line across the
@@ -6986,21 +6856,21 @@ export component MainWindow inherits Window {
                             vol-track.from-x = self.mouse-x;
                             vol-track.from-level = vol-track.level-at(
                                 clamp(self.mouse-x / self.width, 0, 1));
-                            root.set-volume(vol-track.from-level);
+                            Playback.set-volume(vol-track.from-level);
                         }
                     }
                     moved => {
                         if (self.pressed) {
-                            root.set-volume(vol-track.dragged-to(self.mouse-x));
+                            Playback.set-volume(vol-track.dragged-to(self.mouse-x));
                         }
                     }
                     // The one place the wheel is the volume. Activity for the
                     // timeline's wheel's reason.
                     scroll-event(event) => {
                         Chrome.bump();
-                        root.nudge-volume(event.delta-y > 0
-                            ? root.volume-step
-                            : -root.volume-step);
+                        Playback.nudge-volume(event.delta-y > 0
+                            ? Playback.volume-step
+                            : -Playback.volume-step);
                         return EventResult.accept;
                     }
                     changed has-hover => {
@@ -7054,16 +6924,16 @@ export component MainWindow inherits Window {
             panscan-button := IconButton {
                 // What a press does, as fullscreen's glyph is: filling while
                 // the picture fits, fitting while it fills.
-                icon: root.panscan
+                icon: Playback.panscan
                     ? @image-url("../../../public/icons/panscan-off.svg")
                     : @image-url("../../../public/icons/panscan-on.svg");
                 // Names the direction it will go, which the shortcuts list,
                 // covering both in one row, can't.
-                tip: root.panscan ? @tr("Fit the window") : @tr("Fill the window");
+                tip: Playback.panscan ? @tr("Fit the window") : @tr("Fill the window");
                 keys: "T";
                 focused: root.bar-reach && root.bar-focus == 11;
                 clicked => {
-                    root.toggle-panscan();
+                    Playback.toggle-panscan();
                 }
             }
             fullscreen-button := IconButton {

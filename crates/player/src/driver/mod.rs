@@ -31,8 +31,6 @@ use std::sync::Mutex;
 
 use slint::{ComponentHandle, GraphicsAPI, RenderingState};
 
-use crate::Playlist;
-use crate::Subtitles;
 use crate::app::App;
 use crate::interface::subline::Picture;
 use crate::interface::{fades, format, glass, playlist_panel, sync, warn};
@@ -41,7 +39,7 @@ use crate::playback::commands;
 use crate::playback::state::PlayerState;
 use crate::settings::Toggle;
 use crate::worker::Completion;
-use crate::{MainWindow, diagnostics};
+use crate::{MainWindow, Playback, Playlist, Subtitles, diagnostics};
 use dbm_gpu::Overlays;
 use dbm_gpu::pipeline::{GlassPanel, Pipeline};
 use dbm_lang::{fill, marked, tr};
@@ -510,6 +508,7 @@ impl Driver {
     /// Drain mpv's events into the mirrored state, and push out what moved.
     /// Returns whether any of it did.
     fn take_events(&mut self, ui: &MainWindow) -> bool {
+        let playback = ui.global::<Playback>();
         let moved = events::drain(
             &self.app.mpv,
             &mut self.player,
@@ -563,20 +562,20 @@ impl Driver {
             self.player.time_pos,
             self.player.paused,
         );
-        ui.set_arriving(held.is_some());
+        playback.set_arriving(held.is_some());
         if let Some(from) = held {
-            ui.set_arrival_from(format::time(from).into());
+            playback.set_arrival_from(format::time(from).into());
         }
         let offered = self
             .app
             .arrival
             .offered(self.player.path.as_deref(), self.player.time_pos);
-        ui.set_resume_offer(offered.map(format::time).unwrap_or_default().into());
+        playback.set_resume_offer(offered.map(format::time).unwrap_or_default().into());
         let back = self
             .app
             .retrace
             .offered(self.player.path.as_deref(), self.player.time_pos);
-        ui.set_back_offer(back.map(format::time).unwrap_or_default().into());
+        playback.set_back_offer(back.map(format::time).unwrap_or_default().into());
         // An open is over when mpv finishes opening a file, not when it has
         // one, which is already true while a film plays. Failures end it their
         // own ways: a scan that found nothing where the scan reports back, and

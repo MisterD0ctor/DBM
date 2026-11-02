@@ -12,12 +12,11 @@ use std::rc::Rc;
 
 use slint::ComponentHandle;
 
-use crate::Subtitles;
 use crate::app::App;
 use crate::interface::squircle;
 use crate::playback::commands;
 use crate::settings::Before;
-use crate::{MainWindow, Motion, Shapes};
+use crate::{MainWindow, Motion, Playback, Shapes, Subtitles};
 
 /// What the last reset replaced, so its page can offer it back. One slot: a
 /// page shows its undo only until it is left, and only one page is ever open.
@@ -87,15 +86,14 @@ fn watch_motion(ui: &MainWindow) {
 
 /// Values `commands` owns, handed to the UI so they are defined once.
 fn push_constants(ui: &MainWindow) {
-    ui.set_volume_max(commands::VOLUME_MAX as f32);
-    ui.set_seek_step(commands::SEEK_STEP as f32);
-    ui.set_volume_step(commands::VOLUME_STEP as f32);
-    ui.global::<Subtitles>()
-        .set_delay_step(commands::DELAY_STEP as f32);
-    ui.set_scroll_seek_step(commands::SCROLL_SEEK_STEP as f32);
-    ui.set_fine_seek_step(commands::FINE_SEEK_STEP as f32);
-    ui.global::<Subtitles>()
-        .set_scale_step(commands::SUB_SCALE_STEP as f32);
-    ui.global::<Subtitles>()
-        .set_pos_step(commands::SUB_POS_STEP as f32);
+    let playback = ui.global::<Playback>();
+    let subtitles = ui.global::<Subtitles>();
+    playback.set_volume_max(commands::VOLUME_MAX as f32);
+    playback.set_seek_step(commands::SEEK_STEP as f32);
+    playback.set_volume_step(commands::VOLUME_STEP as f32);
+    subtitles.set_delay_step(commands::DELAY_STEP as f32);
+    playback.set_scroll_seek_step(commands::SCROLL_SEEK_STEP as f32);
+    playback.set_fine_seek_step(commands::FINE_SEEK_STEP as f32);
+    subtitles.set_scale_step(commands::SUB_SCALE_STEP as f32);
+    subtitles.set_pos_step(commands::SUB_POS_STEP as f32);
 }

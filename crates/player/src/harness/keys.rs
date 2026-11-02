@@ -6,9 +6,7 @@ use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
 use super::drive::chord;
-use crate::Settings;
-use crate::Subtitles;
-use crate::{MainWindow, Motion};
+use crate::{MainWindow, Motion, Playback, Settings, Subtitles};
 
 /// Walk the keyboard into a panel and down it, with real key events.
 ///
@@ -352,7 +350,7 @@ pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
                 // Subtitles on, into a stretch with lines, while the open's
                 // bar is still up, for the line to rise onto the timeline.
                 ("seek-subs", 2) => {
-                    ui.invoke_seek_fraction(0.3);
+                    ui.global::<Playback>().invoke_seek_fraction(0.3);
                     chord(&ui, &[], "c");
                 }
                 (_, PRESS) => {
@@ -409,7 +407,7 @@ pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
                 chrome.get_idle(),
                 ui.get_pointer_hidden(),
                 ui.get_fullscreen(),
-                ui.get_paused(),
+                ui.global::<Playback>().get_paused(),
                 ui.get_settings_open(),
             );
         },

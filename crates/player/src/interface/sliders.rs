@@ -6,10 +6,9 @@ use dbm_lang::tr;
 use slint::ComponentHandle;
 use slint::{Model, ModelRc, SharedString, VecModel};
 
-use crate::Settings;
 use crate::interface::format;
 use crate::settings::{self, Section, Store};
-use crate::{MainWindow, ParamItem};
+use crate::{MainWindow, ParamItem, Settings};
 
 /// The slider rows, split by the page they appear on.
 ///
@@ -24,18 +23,16 @@ pub struct ParamModels {
 
 impl ParamModels {
     pub fn build(ui: &MainWindow, store: &Store) -> Self {
+        let settings = ui.global::<Settings>();
         let models = Self {
             glass: section_model(store, Section::Glass),
             border: section_model(store, Section::Border),
             picture: section_model(store, Section::Picture),
         };
-        ui.global::<Settings>()
-            .set_glass_params(ModelRc::from(models.glass.clone()));
-        ui.global::<Settings>()
-            .set_border_params(ModelRc::from(models.border.clone()));
-        ui.global::<Settings>()
-            .set_picture_params(ModelRc::from(models.picture.clone()));
-        ui.global::<Settings>().set_param_names(names());
+        settings.set_glass_params(ModelRc::from(models.glass.clone()));
+        settings.set_border_params(ModelRc::from(models.border.clone()));
+        settings.set_picture_params(ModelRc::from(models.picture.clone()));
+        settings.set_param_names(names());
         models
     }
 

@@ -1,0 +1,153 @@
+// The film as the Rust side mirrors it from mpv (see `interface::sync`): what
+// is playing, where it is, the timeline's preview, the ways in and on, and
+// what the bar and the keys ask of it. The bar, the panels and their
+// navigation stay with the window, which mirrors the few of these it acts on
+// when they change.
+
+export global Playback {
+    in property <string> title;
+    /// The title without its show, or nothing for what has none; see
+    /// `title-short`.
+    in property <string> episode;
+    in property <string> elapsed: "0:00";
+    in property <string> total: "0:00";
+    /// Playback position, 0..1.
+    in property <float> progress: 0;
+    in property <bool> paused;
+    in property <bool> muted;
+    in property <float> volume: 100;
+    in property <bool> has-file;
+    /// mpv is holding the last frame of a finished file.
+    in property <bool> at-end;
+    /// ...and nothing comes after it in the playlist, so all that is left to
+    /// offer is this file again.
+    in property <bool> at-last;
+    /// Nothing comes before this file in the playlist.
+    in property <bool> at-first;
+    /// The next file as its playlist row names it ("E04 · Slabtown"), for the
+    /// end and credits pills. Empty when there is none or the list can't say.
+    in property <string> next-label;
+    in property <float> duration;
+    /// Playback speed, as a number and as a person writes it: "1.5×".
+    in property <float> speed: 1;
+    in property <string> speed-text: "1×";
+    /// Chapter starts, in seconds. Empty for most files.
+    in property <[float]> chapter-marks;
+    /// What the chapter playing is called.
+    in property <string> chapter-label;
+    /// An episode's closing credits are playing: a chapter named for them in
+    /// the file's second half or one after it, or else the stretch its ending
+    /// shares with the next episode's. A film's too, where a scene follows
+    /// them. Decided on the Rust side.
+    in property <bool> credits-rolling;
+    /// Where the scene after the credits starts, in seconds, where one does:
+    /// what skipping them lands on. 0 where they run to the end.
+    in property <float> after-credits;
+    /// An episode's title sequence is playing with enough left to be worth
+    /// skipping, and where it ends, in seconds. Found from a chapter named for
+    /// it, or else from the stretch this episode shares with its neighbours
+    /// (see `titles`).
+    in property <bool> intro-rolling;
+    in property <float> intro-end;
+    in property <bool> panscan;
+    in property <string> remaining;
+    in property <string> preview-time: "0:00";
+    /// The chapter the pointer is over, where the file names it; empty
+    /// otherwise. Said over the time, as YouTube's preview does.
+    in property <string> preview-chapter;
+    in property <image> preview-sprite;
+    in property <int> preview-tile-w;
+    in property <int> preview-tile-h;
+    in property <int> preview-clip-x;
+    in property <int> preview-clip-y;
+    callback toggle-pause();
+    callback toggle-mute();
+    callback toggle-panscan();
+    callback restart();
+    /// This file again, from the start, playing.
+    callback replay();
+    /// The next file, playing.
+    callback play-next();
+    /// Past the title sequence or the credits: seconds from the start,
+    /// landing exactly.
+    callback skip-to(float);
+    /// A number key's jump, as a share of the film: as far as a click on the
+    /// timeline goes, and offered back the same way.
+    callback jump-to(float);
+    /// Seconds, signed.
+    callback seek-relative(float);
+    /// Absolute position as 0..1 of the file, landing exactly.
+    callback seek-fraction(float);
+    /// A drag in progress, coalesced on the Rust side and seeked to keyframes
+    /// while the hand is fast and to the frame once it slows. The release
+    /// lands with `seek-fraction`.
+    callback seek-scrub(float);
+    /// The button is still down on the timeline, and where the pointer is.
+    /// Sent a few times a second, moving or not, because no pointer event
+    /// says that a drag has stopped.
+    callback seek-held(float);
+    /// Where the pointer is over the timeline, 0..1. Answered by setting
+    /// `preview-time` and the tile offsets, since the formatting and the tile
+    /// arithmetic live on the Rust side, where they are tested.
+    callback preview-at(float);
+    callback nudge-volume(float);
+    callback set-volume(float);
+    /// One rung of the speed ladder from the speed shown, -1 or +1.
+    callback step-speed(float, int);
+    callback reset-speed();
+    callback frame-step(int);
+    callback chapter-step(int);
+    in property <float> seek-step: 10;
+    in property <float> volume-step: 2;
+    in property <float> scroll-seek-step: 1;
+    in property <float> fine-seek-step: 1;
+    /// Matches mpv's own ceiling, so 100% sits where mpv puts it.
+    in property <float> volume-max: 200;
+    /// The last film left unfinished, offered by the way in. Empty when there
+    /// is none; found once, off the frame path, a moment after startup.
+    in property <string> resume-path;
+    in property <string> resume-title;
+    /// The show it is an episode of, or empty for a film. Shown on its own
+    /// line above Continue, where a playlist puts a show's name.
+    in property <string> resume-show;
+    in property <float> resume-progress;
+    in property <string> resume-left;
+    /// Where the way on goes once a list has run out, and what it is called:
+    /// the next season when a folder beside this one holds the same show,
+    /// otherwise the newest other film still unfinished. Looked for at the
+    /// end of the last file, so empty until then or when there is none.
+    in property <string> onward-path;
+    in property <string> onward-label;
+    /// Whether that is more of the same show. Only then does the credits pill
+    /// offer it: skipping an episode's credits for the next one is expected,
+    /// but skipping a film's credits for another film is not.
+    in property <bool> onward-season;
+    /// At the end of the last file, where it is an episode, the season it
+    /// ends: *Season 4 finished*. Empty otherwise.
+    in property <string> season-done;
+    /// The end of the file is lit by its own most lit frame, covered and
+    /// dimmed, rather than showing the frame it stopped on.
+    in property <bool> end-lit;
+    /// The file just opened was left part way, and is held paused there until
+    /// the centre pill is answered: on from there, or from the beginning (see
+    /// `playback::arrival`).
+    in property <bool> arriving;
+    /// Where it was left, as the timeline writes a time.
+    in property <string> arrival-from;
+    /// The answer: true for from the beginning.
+    callback arrival-answer(bool);
+    /// Where a file that autoplay started from the beginning had been left,
+    /// for its first ten seconds, as the timeline writes a time; empty
+    /// otherwise. The corner pill offers to go on from there.
+    in property <string> resume-offer;
+    callback take-resume-offer();
+    /// Where the film was before a click or drag on the timeline, or a number
+    /// key, moved it more than half a minute, for ten seconds of the film
+    /// after, as the
+    /// timeline writes a time; empty otherwise. The corner pill offers to go
+    /// back there (see `playback::retrace`).
+    in property <string> back-offer;
+    callback take-back-offer();
+    /// The playing file, for the dialogs to open near.
+    in property <string> path;
+}

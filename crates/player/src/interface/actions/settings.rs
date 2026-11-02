@@ -3,16 +3,16 @@ use std::rc::Rc;
 use slint::ComponentHandle;
 
 use super::Undo;
-use crate::Settings;
 use crate::app::App;
 use crate::interface::sliders;
 use crate::playback::commands;
 use crate::settings::{REGISTRY, Section, Toggle};
-use crate::{MainWindow, Motion, Tip};
+use crate::{MainWindow, Motion, Settings, Tip};
 
 /// The glass and ambient border pages: sliders, resets and their undo, and
 /// the two switches beside them.
 pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
+    let settings = ui.global::<Settings>();
     // Sliders report a normalised position; the registry owns the range.
     // The model is updated here so the readout follows the drag.
     let models = Rc::new(sliders::ParamModels::build(ui, &app.settings));
@@ -37,7 +37,7 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
     }
     {
         let (app, models, undo) = (app.clone(), models.clone(), undo.clone());
-        ui.global::<Settings>().on_reset_section(move |section| {
+        settings.on_reset_section(move |section| {
             app.activity.bump();
             if let Some(section) = Section::from_index(section) {
                 undo.set(Some(app.settings.before()));
@@ -57,7 +57,7 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
     // setting.
     {
         let (app, models, undo) = (app.clone(), models.clone(), undo.clone());
-        ui.global::<Settings>().on_undo_reset(move |page| {
+        settings.on_undo_reset(move |page| {
             app.activity.bump();
             let Some(was) = undo.take() else {
                 return;
@@ -85,10 +85,10 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
     // Effect toggles, separate from the sliders rather than a zero on one,
     // so the tuning survives switching an effect off.
     // Not activity, for `on!`'s reason: B is answered by the border.
-    on_app!(ui.global::<Settings>(), app, on_set_ambience, |app, on| {
+    on_app!(settings, app, on_set_ambience, |app, on| {
         app.settings.turn(Toggle::Ambience, on);
     });
-    on_app!(ui.global::<Settings>(), app, on_set_autoplay, |app, on| {
+    on_app!(settings, app, on_set_autoplay, |app, on| {
         app.activity.bump();
         app.settings.turn(Toggle::Autoplay, on);
         commands::set_autoplay(&app.mpv, on);
@@ -96,29 +96,19 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
     // `Motion.enabled` is already set on the Slint side, so this saves the
     // choice, which the driver also hands the pipeline for the backdrop's
     // fade.
-    on_app!(
-        ui.global::<Settings>(),
-        app,
-        on_set_animations,
-        |app, on| {
-            app.activity.bump();
-            app.settings.turn(Toggle::Animations, on);
-        }
-    );
+    on_app!(settings, app, on_set_animations, |app, on| {
+        app.activity.bump();
+        app.settings.turn(Toggle::Animations, on);
+    });
     // The right end of the timeline, the whole length or what is left, from
     // a click on it or the video page's switch.
-    on_app!(
-        ui.global::<Settings>(),
-        app,
-        on_set_show_remaining,
-        |app, on| {
-            app.activity.bump();
-            app.settings.turn(Toggle::Remaining, on);
-        }
-    );
+    on_app!(settings, app, on_set_show_remaining, |app, on| {
+        app.activity.bump();
+        app.settings.turn(Toggle::Remaining, on);
+    });
     {
         let (app, weak) = (app.clone(), ui.as_weak());
-        ui.global::<Settings>().on_step_scale(move |direction| {
+        settings.on_step_scale(move |direction| {
             app.activity.bump();
             let Some(ui) = weak.upgrade() else { return };
             // From the size shown, which is under the one saved on a display
@@ -130,21 +120,16 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
         });
     }
     // Saved, and handed the pipeline by the driver with the material.
-    on_app!(
-        ui.global::<Settings>(),
-        app,
-        on_set_legible_glass,
-        |app, on| {
-            app.activity.bump();
-            app.settings.turn(Toggle::LegibleGlass, on);
-        }
-    );
+    on_app!(settings, app, on_set_legible_glass, |app, on| {
+        app.activity.bump();
+        app.settings.turn(Toggle::LegibleGlass, on);
+    });
     // The tooltips' two switches, likewise already acted on by `Tip`.
-    on_app!(ui.global::<Settings>(), app, on_set_tips, |app, on| {
+    on_app!(settings, app, on_set_tips, |app, on| {
         app.activity.bump();
         app.settings.turn(Toggle::Tips, on);
     });
-    on_app!(ui.global::<Settings>(), app, on_set_tip_keys, |app, on| {
+    on_app!(settings, app, on_set_tip_keys, |app, on| {
         app.activity.bump();
         app.settings.turn(Toggle::TipKeys, on);
     });
@@ -154,7 +139,7 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
     // time this runs; what is left is speaking it and saving it.
     {
         let (app, models, weak) = (app.clone(), models.clone(), ui.as_weak());
-        ui.global::<Settings>().on_choose_language(move |row| {
+        settings.on_choose_language(move |row| {
             app.activity.bump();
             let code = language_of(row);
             app.settings.set_language(&code);

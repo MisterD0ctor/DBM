@@ -5,7 +5,7 @@ use std::time::Duration;
 use dbm_mpv::Mpv;
 use slint::ComponentHandle;
 
-use crate::MainWindow;
+use crate::{MainWindow, Playback};
 
 /// Drive the OS media overlay from both ends.
 ///
@@ -98,10 +98,10 @@ fn report_smtc(ui: &MainWindow, mpv: &Mpv, label: &str) {
         current_session().unwrap_or_else(|| ("nothing".into(), "-".into(), "no session".into()));
     eprintln!(
         "dbm: smtc {label:<14} ours[paused={} entry={} {}] windows[{app} {status} {title:?}]",
-        ui.get_paused(),
+        ui.global::<Playback>().get_paused(),
         mpv.get_property("playlist-pos")
             .unwrap_or_else(|| "-".into()),
-        ui.get_media_title(),
+        ui.global::<Playback>().get_title(),
     );
 }
 
@@ -336,10 +336,10 @@ fn report_mpris(
         "dbm: mpris {label:<14} ours[paused={} entry={} {}] \
          bus[{status} {title:?} at {position:.1}s next={next}] \
          heard[changed={} seeked={}]",
-        ui.get_paused(),
+        ui.global::<Playback>().get_paused(),
         mpv.get_property("playlist-pos")
             .unwrap_or_else(|| "-".into()),
-        ui.get_media_title(),
+        ui.global::<Playback>().get_title(),
         heard.changed.load(Ordering::Relaxed),
         heard.seeked.load(Ordering::Relaxed),
     );

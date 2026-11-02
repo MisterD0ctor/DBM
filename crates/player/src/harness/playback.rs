@@ -8,19 +8,15 @@ use slint::{ComponentHandle, Model};
 
 use super::drive::{arrow, chord, hover, wheel};
 use super::{playlist_rows, selected_label, short};
-use crate::MainWindow;
-use crate::Playlist;
-use crate::Settings;
-use crate::Subtitles;
-use crate::Tracks;
+use crate::{MainWindow, Playback, Playlist, Settings, Subtitles, Tracks};
 
 fn report(ui: &MainWindow, label: &str) {
     eprintln!(
         "dbm: {label:<22} t={} paused={} vol={} muted={} subs={}/{} audio={}",
-        ui.get_elapsed(),
-        ui.get_paused(),
-        ui.get_volume(),
-        ui.get_muted(),
+        ui.global::<Playback>().get_elapsed(),
+        ui.global::<Playback>().get_paused(),
+        ui.global::<Playback>().get_volume(),
+        ui.global::<Playback>().get_muted(),
         ui.global::<Subtitles>().get_visible(),
         selected_label(&ui.global::<Tracks>().get_subtitles()),
         selected_label(&ui.global::<Tracks>().get_audio()),
@@ -40,17 +36,17 @@ pub(super) fn input_test(ui: &MainWindow) -> slint::Timer {
             // state rather than one still in flight.
             match step {
                 0 => report(&ui, "start"),
-                1 => ui.invoke_toggle_pause(),
+                1 => ui.global::<Playback>().invoke_toggle_pause(),
                 2 => report(&ui, "after toggle-pause"),
-                3 => ui.invoke_toggle_pause(),
+                3 => ui.global::<Playback>().invoke_toggle_pause(),
                 4 => report(&ui, "after toggle again"),
-                5 => ui.invoke_seek_fraction(0.5),
+                5 => ui.global::<Playback>().invoke_seek_fraction(0.5),
                 6 => report(&ui, "after seek to 50%"),
-                7 => ui.invoke_nudge_volume(-15.0),
+                7 => ui.global::<Playback>().invoke_nudge_volume(-15.0),
                 8 => report(&ui, "after volume -15"),
-                9 => ui.invoke_seek_relative(-3.0),
+                9 => ui.global::<Playback>().invoke_seek_relative(-3.0),
                 10 => report(&ui, "after seek -3s"),
-                11 => ui.invoke_toggle_mute(),
+                11 => ui.global::<Playback>().invoke_toggle_mute(),
                 12 => report(&ui, "after toggle-mute"),
                 13 => ui.global::<Tracks>().invoke_select_audio(2),
                 14 => report(&ui, "after audio -> id 2"),
@@ -60,15 +56,18 @@ pub(super) fn input_test(ui: &MainWindow) -> slint::Timer {
                 18 => report(&ui, "after subs off"),
                 19 => ui.global::<Subtitles>().invoke_toggle(),
                 20 => report(&ui, "after captions toggle"),
-                21 => ui.invoke_toggle_panscan(),
-                22 => eprintln!("dbm: panscan now {}", ui.get_panscan()),
-                23 => ui.invoke_toggle_panscan(),
-                24 => eprintln!("dbm: panscan back to {}", ui.get_panscan()),
+                21 => ui.global::<Playback>().invoke_toggle_panscan(),
+                22 => eprintln!("dbm: panscan now {}", ui.global::<Playback>().get_panscan()),
+                23 => ui.global::<Playback>().invoke_toggle_panscan(),
+                24 => eprintln!(
+                    "dbm: panscan back to {}",
+                    ui.global::<Playback>().get_panscan()
+                ),
                 // The mute from step 11 is still on. Now the bar is used: the
                 // level has to arrive and the mute has to go, since either
                 // alone is a volume nobody can hear.
                 25 => report(&ui, "still muted, about to use the bar"),
-                26 => ui.invoke_set_volume(120.0),
+                26 => ui.global::<Playback>().invoke_set_volume(120.0),
                 27 => report(&ui, "after the bar was used while muted"),
                 _ => {}
             }
@@ -106,23 +105,27 @@ pub(super) fn scrub_test(ui: &MainWindow) -> slint::Timer {
                 started = std::time::Instant::now();
                 eprintln!(
                     "dbm: --- scrub drag starting, paused={} ---",
-                    ui.get_paused()
+                    ui.global::<Playback>().get_paused()
                 );
             }
             if step == 60 {
-                eprintln!("dbm: mid-drag paused={}", ui.get_paused());
+                eprintln!(
+                    "dbm: mid-drag paused={}",
+                    ui.global::<Playback>().get_paused()
+                );
             }
             // Sweep 10% -> 90%, several updates per tick, as a real drag
             // delivers moves faster than a 16ms timer. Stop once released, or
             // the next tick starts a fresh drag.
             if step < 120 {
                 for sub in 0..4 {
-                    ui.invoke_seek_scrub(0.1 + 0.8 * ((step * 4 + sub) as f32 / 480.0));
+                    ui.global::<Playback>()
+                        .invoke_seek_scrub(0.1 + 0.8 * ((step * 4 + sub) as f32 / 480.0));
                 }
             }
             if step == 120 {
                 // Release, so the coalescing report fires.
-                ui.invoke_seek_fraction(0.9);
+                ui.global::<Playback>().invoke_seek_fraction(0.9);
                 eprintln!(
                     "dbm: --- scrub drag done in {:.0}ms ---",
                     started.elapsed().as_secs_f64() * 1000.0
@@ -130,7 +133,10 @@ pub(super) fn scrub_test(ui: &MainWindow) -> slint::Timer {
             }
             // A tick later, so the resume has round-tripped through mpv.
             if step == 122 {
-                eprintln!("dbm: after release paused={}", ui.get_paused());
+                eprintln!(
+                    "dbm: after release paused={}",
+                    ui.global::<Playback>().get_paused()
+                );
             }
         },
     );
@@ -172,9 +178,9 @@ pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
             tick += 1;
             let y = ui.get_timeline_y() + 14.0;
             let x = |fraction: f32| ui.get_scrub_x() + ui.get_scrub_w() * fraction;
-            let picture = || ui.get_progress() * ui.get_duration();
+            let picture = || ui.global::<Playback>().get_progress() * ui.global::<Playback>().get_duration();
             let report = |label: &str, fraction: f32| {
-                let wanted = fraction * ui.get_duration();
+                let wanted = fraction * ui.global::<Playback>().get_duration();
                 eprintln!(
                     "dbm: scrub {label:<28} pointer at {wanted:8.2} s, picture at {:8.2} s, {:+.2} s out",
                     picture(),
@@ -205,7 +211,7 @@ pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
                 // The third: a drag that wanders off the track before the
                 // button comes up, which is how most of them end.
                 (520, _) => {
-                    eprintln!("dbm: scrub before the third drag paused={}", ui.get_paused());
+                    eprintln!("dbm: scrub before the third drag paused={}", ui.global::<Playback>().get_paused());
                     press(&ui, x(0.30), y);
                 }
                 (521..=530, _) => hover(&ui, x(0.30 + 0.001 * (tick - 520) as f32), y),
@@ -213,7 +219,7 @@ pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
                 (532, _) => release(&ui, x(0.31), y - 80.0),
                 (560, _) => {
                     report("let go off the track", 0.31);
-                    eprintln!("dbm: scrub after it paused={}", ui.get_paused());
+                    eprintln!("dbm: scrub after it paused={}", ui.global::<Playback>().get_paused());
                 }
                 // And no drag at all: a click still has to seek, since the
                 // button coming up is what seeks.
@@ -394,9 +400,9 @@ pub(super) fn wheel_test(ui: &MainWindow) -> slint::Timer {
                     }
                 }
                 11 => report_wheel(&ui, "three notches down"),
-                12 => ui.invoke_toggle_mute(),
+                12 => ui.global::<Playback>().invoke_toggle_mute(),
                 13 => report_wheel(&ui, "muted"),
-                14 => ui.invoke_toggle_mute(),
+                14 => ui.global::<Playback>().invoke_toggle_mute(),
                 15 => hover(&ui, 640.0, 300.0),
                 16 => report_wheel(&ui, "pointer gone"),
                 17 => eprintln!("dbm: --- wheel test done ---"),
@@ -417,8 +423,8 @@ fn report_wheel(ui: &MainWindow, label: &str) {
         .count();
     eprintln!(
         "dbm: wheel {label:<24} vol={} muted={} tip={:?} {:?} at {:.0} | {glass} glass rect(s)",
-        ui.get_volume(),
-        ui.get_muted(),
+        ui.global::<Playback>().get_volume(),
+        ui.global::<Playback>().get_muted(),
         tip.get_label(),
         tip.get_keys(),
         tip.get_cx(),
@@ -433,11 +439,11 @@ fn report_preview(ui: &MainWindow, label: &str) {
         .count();
     eprintln!(
         "dbm: preview {label:<16} time={:?} tile=({},{}) of {}x{} | {overlay} glass rect(s)",
-        ui.get_preview_time(),
-        ui.get_preview_clip_x(),
-        ui.get_preview_clip_y(),
-        ui.get_preview_tile_w(),
-        ui.get_preview_tile_h(),
+        ui.global::<Playback>().get_preview_time(),
+        ui.global::<Playback>().get_preview_clip_x(),
+        ui.global::<Playback>().get_preview_clip_y(),
+        ui.global::<Playback>().get_preview_tile_w(),
+        ui.global::<Playback>().get_preview_tile_h(),
     );
 }
 
@@ -468,7 +474,7 @@ pub(super) fn end_test(ui: &MainWindow) -> slint::Timer {
                     ui.global::<Settings>().invoke_set_autoplay(false);
                     ui.global::<Settings>().set_autoplay(false);
                 }
-                2 => ui.invoke_seek_fraction(0.999),
+                2 => ui.global::<Playback>().invoke_seek_fraction(0.999),
                 3 | 4 => report_end(&ui, "seeking"),
                 5 => report_end(&ui, "at the end"),
                 6 if enter => {
@@ -497,14 +503,15 @@ fn report_end(ui: &MainWindow, label: &str) {
         .collect();
     eprintln!(
         "dbm: end {label:<12} at-end={} at-last={} paused={} ring={}@{} t={}/{} {:?} | {} rect(s) {}",
-        ui.get_at_end(),
-        ui.get_at_last(),
-        ui.get_paused(),
+        ui.global::<Playback>().get_at_end(),
+        ui.global::<Playback>().get_at_last(),
+        ui.global::<Playback>().get_paused(),
         ui.global::<crate::Chrome>().get_focus_visible(),
         ui.get_bar_focus(),
-        ui.get_elapsed(),
-        ui.get_total(),
-        ui.get_current_path()
+        ui.global::<Playback>().get_elapsed(),
+        ui.global::<Playback>().get_total(),
+        ui.global::<Playback>()
+            .get_path()
             .rsplit(['\\', '/'])
             .next()
             .unwrap_or_default()
@@ -544,15 +551,15 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                 // its credits are is for the player to have heard by the time
                 // it is played into its last twenty seconds.
                 2 if heard => {
-                    credits_at = f64::from(ui.get_duration()) - 25.0;
+                    credits_at = f64::from(ui.global::<Playback>().get_duration()) - 25.0;
                     eprintln!(
                         "dbm: credits: {} chapters, playing into the last 20s",
-                        ui.get_chapter_marks().row_count()
+                        ui.global::<Playback>().get_chapter_marks().row_count()
                     );
                 }
                 5 if heard => report_credits(&ui, "before"),
                 2 if own => {
-                    let marks = ui.get_chapter_marks();
+                    let marks = ui.global::<Playback>().get_chapter_marks();
                     credits_at = marks
                         .row_count()
                         .checked_sub(1)
@@ -564,7 +571,7 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                     );
                 }
                 2 => {
-                    let duration = f64::from(ui.get_duration());
+                    let duration = f64::from(ui.global::<Playback>().get_duration());
                     credits_at = (duration - 120.0).max(duration / 2.0);
                     // With `=scene`, the credits stop forty seconds short, for
                     // a scene of the episode's own; with `=mid`, they stop
@@ -596,7 +603,7 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                     }
                     eprintln!("dbm: credits from {credits_at:.0}s of {duration:.0}s");
                     ui.global::<Playlist>()
-                        .invoke_open_path(ui.get_current_path(), true);
+                        .invoke_open_path(ui.global::<Playback>().get_path(), true);
                 }
                 // As a click on its button opens it, with no ring.
                 5 if panel => ui.invoke_open_menu(true),
@@ -605,13 +612,14 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                 // gone by the time they start, and `=panel` for them to start
                 // behind the menu.
                 6 => {
-                    let duration = f64::from(ui.get_duration()).max(1.0);
+                    let duration = f64::from(ui.global::<Playback>().get_duration()).max(1.0);
                     let to = played_at.unwrap_or(if asleep || panel {
                         credits_at - 4.5
                     } else {
                         credits_at + 5.0
                     });
-                    ui.invoke_seek_fraction((to / duration) as f32);
+                    ui.global::<Playback>()
+                        .invoke_seek_fraction((to / duration) as f32);
                 }
                 7 => report_credits(&ui, "arrived"),
                 // Past `HIDE_AFTER`, with nothing touched since.
@@ -639,8 +647,9 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                 15 => report_credits(&ui, "after enter"),
                 // Past the scene, into the rest of the credits, which go on.
                 16 if mid => {
-                    let duration = f64::from(ui.get_duration()).max(1.0);
-                    ui.invoke_seek_fraction(((duration - 35.0) / duration) as f32);
+                    let duration = f64::from(ui.global::<Playback>().get_duration()).max(1.0);
+                    ui.global::<Playback>()
+                        .invoke_seek_fraction(((duration - 35.0) / duration) as f32);
                 }
                 17 if mid => report_credits(&ui, "resumed"),
                 16 if !mid && !panel => eprintln!("dbm: --- credits test: holding ---"),
@@ -670,7 +679,7 @@ pub(super) fn intro_test(ui: &MainWindow) -> slint::Timer {
         Duration::from_millis(700),
         move || {
             let Some(ui) = weak.upgrade() else { return };
-            let end = ui.get_intro_end();
+            let end = ui.global::<Playback>().get_intro_end();
             match step {
                 // Let the film open first.
                 0..=2 => {}
@@ -688,10 +697,11 @@ pub(super) fn intro_test(ui: &MainWindow) -> slint::Timer {
                         waited as f32 * 0.7
                     );
                     report_intro(&ui, "before");
-                    let duration = ui.get_duration().max(1.0);
-                    ui.invoke_seek_fraction((end - 10.0) / duration);
-                    if hold && !ui.get_paused() {
-                        ui.invoke_toggle_pause();
+                    let duration = ui.global::<Playback>().get_duration().max(1.0);
+                    ui.global::<Playback>()
+                        .invoke_seek_fraction((end - 10.0) / duration);
+                    if hold && !ui.global::<Playback>().get_paused() {
+                        ui.global::<Playback>().invoke_toggle_pause();
                     }
                 }
                 5 => report_intro(&ui, "arrived"),
@@ -725,12 +735,12 @@ fn report_intro(ui: &MainWindow, label: &str) {
         .collect();
     eprintln!(
         "dbm: intro {label:<11} rolling={} says={:?} idle={} ring={}@{} t={} | {} rect(s) {}",
-        ui.get_intro_rolling(),
+        ui.global::<Playback>().get_intro_rolling(),
         ui.get_credits_label(),
         ui.global::<crate::Chrome>().get_idle(),
         ui.global::<crate::Chrome>().get_focus_visible(),
         ui.get_bar_focus(),
-        ui.get_elapsed(),
+        ui.global::<Playback>().get_elapsed(),
         rects.len(),
         rects.join(" "),
     );
@@ -745,18 +755,19 @@ fn report_credits(ui: &MainWindow, label: &str) {
         .collect();
     eprintln!(
         "dbm: credits {label:<11} rolling={} says={:?} scene={:.1} chapter={:?} at-last={} idle={} menu={} ring={}@{}/row {} t={} {:?} | {} rect(s) {}",
-        ui.get_credits_rolling(),
+        ui.global::<Playback>().get_credits_rolling(),
         ui.get_credits_label(),
-        ui.get_after_credits(),
-        ui.get_chapter_label(),
-        ui.get_at_last(),
+        ui.global::<Playback>().get_after_credits(),
+        ui.global::<Playback>().get_chapter_label(),
+        ui.global::<Playback>().get_at_last(),
         ui.global::<crate::Chrome>().get_idle(),
         ui.get_menu_open(),
         ui.global::<crate::Chrome>().get_focus_visible(),
         ui.get_bar_focus(),
         ui.get_focus_row(),
-        ui.get_elapsed(),
-        ui.get_current_path()
+        ui.global::<Playback>().get_elapsed(),
+        ui.global::<Playback>()
+            .get_path()
             .rsplit(['\\', '/'])
             .next()
             .unwrap_or_default()
@@ -783,7 +794,7 @@ pub(super) fn progress_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint:
             let Some(ui) = weak.upgrade() else { return };
             match step {
                 0 => report_progress(&ui, &mpv, "on load"),
-                1 => ui.invoke_seek_fraction(0.3),
+                1 => ui.global::<Playback>().invoke_seek_fraction(0.3),
                 // What the ten-second checkpoint does, without the wait.
                 2 => {
                     if let Err(e) = mpv.command_async(0, &["write-watch-later-config"]) {

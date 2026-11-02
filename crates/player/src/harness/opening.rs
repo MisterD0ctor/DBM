@@ -5,8 +5,7 @@ use std::time::Duration;
 use slint::ComponentHandle;
 
 use super::playlist_rows;
-use crate::MainWindow;
-use crate::Playlist;
+use crate::{MainWindow, Playback, Playlist};
 
 /// Open a path the way the dialog does, and say what came of it.
 ///
@@ -64,8 +63,8 @@ fn report_open(ui: &MainWindow, label: &str) {
         .collect();
     eprintln!(
         "dbm: {label:<12} title={:?} playing={} | {} entries: {}",
-        ui.get_media_title(),
-        !ui.get_paused(),
+        ui.global::<Playback>().get_title(),
+        !ui.global::<Playback>().get_paused(),
         entries.len(),
         entries.join(", "),
     );
@@ -127,7 +126,7 @@ pub(super) fn drop_test(ui: &MainWindow, path: String) -> slint::Timer {
 fn report_drop(ui: &MainWindow, label: &str) {
     eprintln!(
         "dbm: drop {label:<16} title={:?} playlist={} entries",
-        ui.get_media_title(),
+        ui.global::<Playback>().get_title(),
         playlist_rows(ui).len(),
     );
 }

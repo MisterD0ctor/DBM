@@ -6,10 +6,8 @@ use slint::{ComponentHandle, Model};
 
 use super::drive::{click, drag, wheel};
 use super::selected_label;
-use crate::MainWindow;
-use crate::Settings;
-use crate::Tracks;
 use crate::platform::modal_loop;
+use crate::{MainWindow, Playback, Settings, Tracks};
 
 pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
     let timer = slint::Timer::default();
@@ -29,7 +27,7 @@ pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
             // Pause partway in, since resizing while paused is where a
             // reallocated target that wasn't re-rendered would show black.
             if tick == 60 {
-                ui.invoke_toggle_pause();
+                ui.global::<Playback>().invoke_toggle_pause();
                 eprintln!("dbm: paused mid-resize-sweep");
             }
             // A triangle wave in big steps, width and height in turn. Width
@@ -119,7 +117,7 @@ pub(super) fn paused_resize_test(ui: &MainWindow) -> slint::Timer {
             let Some(ui) = weak.upgrade() else { return };
             match step {
                 0 => {
-                    ui.invoke_toggle_pause();
+                    ui.global::<Playback>().invoke_toggle_pause();
                     eprintln!("dbm: paused");
                 }
                 // Twice the height, so the letterbox bars are a different

@@ -1,10 +1,10 @@
+use dbm_gpu::gfx::Target;
+use dbm_gpu::pipeline::Frame;
 use slint::{BorrowedOpenGLTextureBuilder, BorrowedOpenGLTextureOrigin, ComponentHandle};
 
 use super::{Driver, Gpu, Published};
-use crate::MainWindow;
 use crate::settings::Toggle;
-use dbm_gpu::gfx::Target;
-use dbm_gpu::pipeline::Frame;
+use crate::{MainWindow, Playback};
 
 impl Driver {
     /// Run the pipeline and hand Slint the result.
@@ -31,7 +31,7 @@ impl Driver {
         let ended = self.player.eof_reached
             && self.per_file.end_lit.is_some()
             && self.per_file.end_lit == self.player.path;
-        ui.set_end_lit(ended);
+        ui.global::<Playback>().set_end_lit(ended);
         gpu.pipeline.show_backdrop(
             self.player.path.is_none() || ended,
             self.player.path.is_some(),

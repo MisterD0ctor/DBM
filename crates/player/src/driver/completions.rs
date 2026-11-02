@@ -15,12 +15,11 @@ use dbm_library::titles::{self, End};
 use slint::ComponentHandle;
 
 use super::{Driver, Gpu};
-use crate::MainWindow;
-use crate::Playlist;
 use crate::interface::{format, say, subsync, warn};
 use crate::playback::commands;
 use crate::playback::state::Lists;
 use crate::worker::{Completion, Worker};
+use crate::{MainWindow, Playback, Playlist};
 
 impl Driver {
     /// Take delivery of one finished job. Returns whether the playlist needs
@@ -195,12 +194,13 @@ impl Driver {
     /// What to go on to after `from`. An answer for a file that has since
     /// been replaced is dropped.
     fn offer_onward(&self, ui: &MainWindow, from: &str, to: Option<Onward>) {
+        let playback = ui.global::<Playback>();
         if self.player.path.as_deref() == Some(from)
             && let Some(onward) = to
         {
-            ui.set_onward_path(onward.path.as_str().into());
-            ui.set_onward_label(onward.label.as_str().into());
-            ui.set_onward_season(onward.season);
+            playback.set_onward_path(onward.path.as_str().into());
+            playback.set_onward_label(onward.label.as_str().into());
+            playback.set_onward_season(onward.season);
         }
     }
 
@@ -212,6 +212,7 @@ impl Driver {
         sprite: Sprite,
         pixels: slint::SharedPixelBuffer<slint::Rgba8Pixel>,
     ) {
+        let playback = ui.global::<Playback>();
         let image = slint::Image::from_rgba8(pixels);
         log::info!(
             "preview atlas {g}x{g} tiles of {}x{}",
@@ -219,15 +220,15 @@ impl Driver {
             sprite.tile_h,
             g = sprite.grid
         );
-        ui.set_preview_sprite(image);
-        ui.set_preview_tile_w(sprite.tile_w as i32);
-        ui.set_preview_tile_h(sprite.tile_h as i32);
+        playback.set_preview_sprite(image);
+        playback.set_preview_tile_w(sprite.tile_w as i32);
+        playback.set_preview_tile_h(sprite.tile_h as i32);
         self.app.preview.set_sprite(Some(sprite));
         // The pointer may already be on the timeline, in which case it is
         // showing a timestamp and an empty frame.
         let answer = self.app.preview.again();
-        ui.set_preview_clip_x(answer.x);
-        ui.set_preview_clip_y(answer.y);
+        playback.set_preview_clip_x(answer.x);
+        playback.set_preview_clip_y(answer.y);
         // An end reached before its atlas was built had no frame of its
         // own to be lit with, and now may.
         if self.per_file.end_lit != self.player.path || self.per_file.end_marked {
@@ -237,6 +238,7 @@ impl Driver {
 
     /// Put the film left unfinished on the way in, and its frame behind it.
     fn offer_resume(&mut self, ui: &MainWindow, gpu: &mut Gpu, resume: Resume) {
+        let playback = ui.global::<Playback>();
         log::info!(
             "last unfinished {} at {:.0}%{}",
             resume.path,
@@ -247,11 +249,11 @@ impl Driver {
                 ""
             }
         );
-        ui.set_resume_path(resume.path.into());
-        ui.set_resume_show(resume.show.unwrap_or_default().into());
-        ui.set_resume_title(resume.title.into());
-        ui.set_resume_progress(resume.fraction);
-        ui.set_resume_left(format::left(resume.seconds_left).into());
+        playback.set_resume_path(resume.path.into());
+        playback.set_resume_show(resume.show.unwrap_or_default().into());
+        playback.set_resume_title(resume.title.into());
+        playback.set_resume_progress(resume.fraction);
+        playback.set_resume_left(format::left(resume.seconds_left).into());
         self.resume_left = Some(resume.seconds_left);
         match &resume.still {
             Some(still) => {

@@ -2,11 +2,9 @@ use dbm_lang::{fill, tr};
 use slint::ComponentHandle;
 
 use super::{Driver, Gpu};
-use crate::Find;
-use crate::MainWindow;
-use crate::Subtitles;
 use crate::interface::{format, sync};
 use crate::worker::Completion;
+use crate::{Find, MainWindow, Playback, Subtitles};
 
 impl Driver {
     /// Ask for the background work the player's state calls for, and take
@@ -93,7 +91,8 @@ impl Driver {
             self.warm.ask(panel);
         }
         if let Some(seconds) = self.resume_left {
-            ui.set_resume_left(format::left(seconds).into());
+            ui.global::<Playback>()
+                .set_resume_left(format::left(seconds).into());
         }
     }
 
@@ -103,6 +102,7 @@ impl Driver {
     /// wants thumbnails is whatever is on screen now, and that changes at the
     /// end of every file as well as when someone picks one.
     fn poll_preview(&self, ui: &MainWindow) {
+        let playback = ui.global::<Playback>();
         let preview = &self.app.preview;
         preview.set_duration(self.player.duration);
         preview.set_chapters(&self.player.chapters);
@@ -117,8 +117,8 @@ impl Driver {
         // under the pointer showing the previous film for however long the new
         // one takes to build.
         preview.set_sprite(None);
-        ui.set_preview_tile_w(0);
-        ui.set_preview_tile_h(0);
+        playback.set_preview_tile_w(0);
+        playback.set_preview_tile_h(0);
         // A sync still listening is listening to the old film, and one that
         // could be undone was this film's to undo.
         dbm_library::subsync::supersede();
@@ -146,15 +146,16 @@ impl Driver {
     /// the file is over. The offer belongs to the file that asked for it, so
     /// a new one takes it back down.
     fn look_onward(&mut self, ui: &MainWindow) {
+        let playback = ui.global::<Playback>();
         let ending =
             (self.player.eof_reached || self.player.credits_rolling()) && self.player.at_last();
         if self.player.path != self.per_file.onward_asked
             && self.per_file.onward_asked.take().is_some()
         {
-            ui.set_onward_path("".into());
-            ui.set_onward_label("".into());
-            ui.set_onward_season(false);
-            ui.set_season_done("".into());
+            playback.set_onward_path("".into());
+            playback.set_onward_label("".into());
+            playback.set_onward_season(false);
+            playback.set_season_done("".into());
         }
         if !ending || self.per_file.onward_asked.is_some() {
             return;
@@ -169,7 +170,7 @@ impl Driver {
             ..
         } = dbm_naming::parse(&path)
         {
-            ui.set_season_done(fill(tr("Season {} finished"), &[&season]).into());
+            playback.set_season_done(fill(tr("Season {} finished"), &[&season]).into());
         }
         self.app.worker.submit(move |_mpv| {
             let to = dbm_library::onward::after(&path);

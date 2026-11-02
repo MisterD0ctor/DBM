@@ -19,9 +19,8 @@ use slint::ComponentHandle;
 use slint::platform::WindowEvent;
 use slint::winit_030::{WinitWindowAccessor, winit};
 
-use crate::MainWindow;
-use crate::Settings;
 use crate::settings::{SCALE_MAX, SCALE_MIN, SCALE_STEP};
+use crate::{MainWindow, Settings};
 
 #[derive(Default)]
 pub struct Scale {
