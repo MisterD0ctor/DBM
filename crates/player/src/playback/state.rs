@@ -198,6 +198,19 @@ pub fn observe(mpv: &Mpv) {
     }
 }
 
+/// mpv's own layout, from `osd-dimensions`: the window's size, then the
+/// margins round the picture, left, top, right and bottom, negative where it
+/// is cropped. All zero before mpv has laid anything out.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct OsdDims {
+    pub w: f64,
+    pub h: f64,
+    pub ml: f64,
+    pub mt: f64,
+    pub mr: f64,
+    pub mb: f64,
+}
+
 /// Track, chapter and playlist contents, read together because they are
 /// invalidated together and a single job means a single round trip.
 pub struct Lists {
@@ -277,8 +290,7 @@ pub struct PlayerState {
     /// How many files mpv has finished opening this run, which tells the
     /// driver when an open is over: when one loads, not when one exists.
     pub loads: u64,
-    /// mpv's own layout: OSD size and the margins around the video.
-    pub osd: [f64; 6],
+    pub osd: OsdDims,
     /// Display size of the video itself, aspect already applied.
     pub dwidth: f64,
     pub dheight: f64,
@@ -377,12 +389,12 @@ impl PlayerState {
             }
             Prop::Dwidth => set(&mut self.dwidth, num.unwrap_or(0.0)),
             Prop::Dheight => set(&mut self.dheight, num.unwrap_or(0.0)),
-            Prop::OsdW => set(&mut self.osd[0], num.unwrap_or(0.0)),
-            Prop::OsdH => set(&mut self.osd[1], num.unwrap_or(0.0)),
-            Prop::OsdMl => set(&mut self.osd[2], num.unwrap_or(0.0)),
-            Prop::OsdMt => set(&mut self.osd[3], num.unwrap_or(0.0)),
-            Prop::OsdMr => set(&mut self.osd[4], num.unwrap_or(0.0)),
-            Prop::OsdMb => set(&mut self.osd[5], num.unwrap_or(0.0)),
+            Prop::OsdW => set(&mut self.osd.w, num.unwrap_or(0.0)),
+            Prop::OsdH => set(&mut self.osd.h, num.unwrap_or(0.0)),
+            Prop::OsdMl => set(&mut self.osd.ml, num.unwrap_or(0.0)),
+            Prop::OsdMt => set(&mut self.osd.mt, num.unwrap_or(0.0)),
+            Prop::OsdMr => set(&mut self.osd.mr, num.unwrap_or(0.0)),
+            Prop::OsdMb => set(&mut self.osd.mb, num.unwrap_or(0.0)),
             Prop::TrackCount => {
                 let n = num.unwrap_or(0.0) as i64;
                 let moved = set(&mut self.track_count, n);
@@ -456,7 +468,14 @@ impl PlayerState {
     ///
     /// Before anything is laid out, a full-window rect reads as no border.
     pub fn video_rect(&self, width: u32, height: u32) -> [f32; 4] {
-        let [ow, oh, ml, mt, mr, mb] = self.osd;
+        let OsdDims {
+            w: ow,
+            h: oh,
+            ml,
+            mt,
+            mr,
+            mb,
+        } = self.osd;
         if ow > 0.0 && oh > 0.0 && ow as u32 == width && oh as u32 == height {
             return [
                 (ml / ow) as f32,

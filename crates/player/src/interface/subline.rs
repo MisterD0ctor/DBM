@@ -26,6 +26,7 @@ use std::rc::Rc;
 use dbm_mpv::Mpv;
 
 use crate::playback::commands;
+use crate::playback::state::OsdDims;
 use crate::settings::Store;
 
 /// Smaller moves aren't worth a command: a hundredth of `sub-pos` is a tenth
@@ -47,12 +48,10 @@ pub struct Picture {
 }
 
 impl Picture {
-    /// From mpv's `osd-dimensions`: the window's size, then the margins round
-    /// the picture, left, top, right and bottom, negative where it is cropped.
-    /// Before mpv has laid anything out, the picture is taken to fill the
-    /// window.
-    pub fn from_osd([width, height, left, top, right, bottom]: [f64; 6]) -> Self {
-        if width <= 0.0 || height <= 0.0 {
+    /// From mpv's layout. Before mpv has laid anything out, the picture is
+    /// taken to fill the window.
+    pub fn from_osd(osd: OsdDims) -> Self {
+        if osd.w <= 0.0 || osd.h <= 0.0 {
             return Self {
                 top: 0.0,
                 foot: 1.0,
@@ -61,10 +60,10 @@ impl Picture {
             };
         }
         Self {
-            top: top / height,
-            foot: 1.0 - bottom / height,
-            cropped: [left, top, right, bottom].iter().any(|m| *m < 0.0),
-            narrower: left > 0.0 || right > 0.0,
+            top: osd.mt / osd.h,
+            foot: 1.0 - osd.mb / osd.h,
+            cropped: [osd.ml, osd.mt, osd.mr, osd.mb].iter().any(|m| *m < 0.0),
+            narrower: osd.ml > 0.0 || osd.mr > 0.0,
         }
     }
 }
@@ -139,7 +138,7 @@ impl Subline {
         Self {
             params,
             floor: Cell::new((1.0, 0.0)),
-            picture: Cell::new((Picture::from_osd([0.0; 6]), false)),
+            picture: Cell::new((Picture::from_osd(OsdDims::default()), false)),
             sent: Cell::new(None),
             shown: Cell::new(None),
         }
@@ -211,13 +210,34 @@ mod tests {
 
     /// A 16:9 picture in a 4:3 window: an eighth of the height above and
     /// below it.
-    const LETTERBOXED: [f64; 6] = [1280.0, 960.0, 0.0, 120.0, 0.0, 120.0];
+    const LETTERBOXED: OsdDims = OsdDims {
+        w: 1280.0,
+        h: 960.0,
+        ml: 0.0,
+        mt: 120.0,
+        mr: 0.0,
+        mb: 120.0,
+    };
     /// The same picture in a 2.39:1 window, with the border at its sides.
-    const PILLARBOXED: [f64; 6] = [1720.0, 720.0, 220.0, 0.0, 220.0, 0.0];
+    const PILLARBOXED: OsdDims = OsdDims {
+        w: 1720.0,
+        h: 720.0,
+        ml: 220.0,
+        mt: 0.0,
+        mr: 220.0,
+        mb: 0.0,
+    };
     /// The same picture filling the 2.39:1 window, its top and foot cropped.
-    const CROPPED: [f64; 6] = [1720.0, 720.0, 0.0, -124.0, 0.0, -124.0];
+    const CROPPED: OsdDims = OsdDims {
+        w: 1720.0,
+        h: 720.0,
+        ml: 0.0,
+        mt: -124.0,
+        mr: 0.0,
+        mb: -124.0,
+    };
 
-    fn at(own: f64, osd: [f64; 6]) -> Placement {
+    fn at(own: f64, osd: OsdDims) -> Placement {
         placement(own, 1.0, 0.0, Picture::from_osd(osd), false)
     }
 
