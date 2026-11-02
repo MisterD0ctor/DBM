@@ -37,6 +37,7 @@ FRONTMATTER_TEMPLATE = TEMPLATES / "frontmatter.yml"
 SIDECAR_TEMPLATE = TEMPLATES / "sidecar.json"
 
 # Rust and GLSL files a template may take a constant from, by a short name.
+# A Rust module's submodules, in the folder of the same name, are read with it.
 MODULES = {
     "pipeline": GPU / "src/pipeline.rs",
     "shadow": GPU / "src/shadow.rs",
@@ -395,7 +396,10 @@ def module_value(module, path):
     file = MODULES.get(module)
     if file is None:
         raise DesignError(f"unknown module {module}")
-    text = file.read_text(encoding="utf-8")
+    files = [file]
+    if file.suffix == ".rs":
+        files += sorted(file.with_suffix("").glob("*.rs"))
+    text = "\n".join(f.read_text(encoding="utf-8") for f in files)
     if len(path) == 1:
         m = re.search(rf"\bconst\s+(?:float\s+|int\s+)?{path[0]}\s*(?::[^=]+)?=\s*([^;]+);", text)
         if not m:

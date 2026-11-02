@@ -379,7 +379,7 @@
           "bevel",
           "ior"
         ],
-        "why": "What the material is, rather than how much of it you want. Changing either stops the panes reading as one material, so both are constants in pipeline.rs and the glass page has no slider for either."
+        "why": "What the material is, rather than how much of it you want. Changing either stops the panes reading as one material, so both are constants in pipeline/params.rs and the glass page has no slider for either."
       }
     }
   },
