@@ -6,6 +6,8 @@
 // the glass, not on it.
 
 import { Find } from "find.slint";
+import { Tracks } from "tracks.slint";
+import { Subtitles } from "subtitles.slint";
 import { Chrome, Flash, Tip } from "globals.slint";
 import {
     FoundItem, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, ScrollFade, TrackItem
@@ -23,7 +25,7 @@ import { Shapes, Squircle } from "squircle.slint";
 
 // What the Rust side reaches besides the window: the globals it drives and
 // the structs it fills in.
-export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem, Find }
+export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem, Find, Tracks, Subtitles }
 
 /// The marks on the bar's tracks, a chapter's start and the volume's unity.
 /// Both keep their size as a track grows under the pointer.
@@ -149,23 +151,6 @@ export component MainWindow inherits Window {
     /// The next file as its playlist row names it ("E04 · Slabtown"), for the
     /// end and credits pills. Empty when there is none or the list can't say.
     in property <string> next-label;
-    /// The subtitle delay as a number, beside `sub-delay-text`, so undoing a
-    /// reset can put it back.
-    in property <float> sub-delay;
-    /// The speed subtitles run at against the film, for the same undo. Never
-    /// shown: it is 1 unless a sync found them timed for another frame rate.
-    in property <float> sub-speed: 1;
-    /// Where the sync row stands: 0 at rest, 1 listening to the film, 2 with
-    /// a sync just made that it can take back.
-    in-out property <int> sync-state: 0;
-    /// The delay and speed that stood before that sync.
-    in property <float> sync-was-delay;
-    in property <float> sync-was-speed: 1;
-    /// Which row of each list is the current one, or -1. Worked out on the
-    /// Rust side, since a model can't be searched from here. The playlist's
-    /// is `playlist-current-group` and the row inside it.
-    in property <int> sub-current: -1;
-    in property <int> audio-current: -1;
     /// The last film left unfinished, offered by the way in. Empty when there
     /// is none; found once, off the frame path, a moment after startup.
     in property <string> resume-path;
@@ -221,11 +206,6 @@ export component MainWindow inherits Window {
     /// (see `titles`).
     in property <bool> intro-rolling;
     in property <float> intro-end;
-    /// Whether subtitles are actually on screen: mpv's `sub-visibility` and a
-    /// track selected. Either alone misleads, since visibility with no track
-    /// shows nothing, and a track with visibility off is only the one the
-    /// next toggle brings back.
-    in property <bool> subs-visible;
     in property <bool> panscan;
     // --- seek preview ---
     // The thumbnail is one tile of a sprite atlas, picked with `source-clip`
@@ -241,21 +221,6 @@ export component MainWindow inherits Window {
     in property <int> preview-clip-y;
 
     // Subtitle adjustments, formatted on the Rust side, which owns the units.
-    in property <string> sub-delay-text: "0.00 s";
-    /// The widest the delay reads, either way, on a line each, for Timing's
-    /// readout to be as wide as in the language spoken.
-    in property <string> sub-delay-widest;
-    in property <string> sub-scale-text: "1.00×";
-    in property <string> sub-pos-text: "100%";
-    in property <[TrackItem]> sub-tracks;
-    in property <[TrackItem]> audio-tracks;
-    /// Each list's track names, one to a line, for the measures that size its
-    /// panel (see `subs-w`). Those loaded from their own files come apart,
-    /// since their rows end in a remove button.
-    in property <string> sub-names;
-    in property <string> sub-removable-names;
-    in property <string> audio-names;
-    in property <string> audio-removable-names;
 
     // --- finding subtitles on OpenSubtitles --------------------------------
     //
@@ -285,17 +250,14 @@ export component MainWindow inherits Window {
     property <bool> account-shown: root.menu-open && root.find-open && root.account-open;
     /// Counts the ring's presses of *Sign in* (see `AccountPage`).
     property <int> sign-in-presses: 0;
-    /// Remove a track loaded from its own file: a subtitle when the flag is
-    /// set, an audio track otherwise.
-    callback remove-track(int, bool);
 
     /// Delete on a tracks panel: arms the track the ring is on, or removes it
     /// if it is armed, where it can be removed; says whether it could.
     function remove-focused-track() -> bool {
         if (root.audio-open) {
-            if (root.focus-row < root.audio-tracks.length
-                    && root.audio-tracks[root.focus-row].external) {
-                root.remove-row(root.audio-tracks[root.focus-row].id, false);
+            if (root.focus-row < Tracks.audio.length
+                    && Tracks.audio[root.focus-row].external) {
+                root.remove-row(Tracks.audio[root.focus-row].id, false);
                 return true;
             }
             return false;
@@ -303,10 +265,10 @@ export component MainWindow inherits Window {
         if (root.find-open || root.subs-page != 0) {
             return false;
         }
-        if (root.focus-row >= 1 && root.focus-row <= root.sub-tracks.length
+        if (root.focus-row >= 1 && root.focus-row <= Tracks.subtitles.length
                 && root.has-subs) {
-            if (root.sub-tracks[root.focus-row - 1].external) {
-                root.remove-row(root.sub-tracks[root.focus-row - 1].id, true);
+            if (Tracks.subtitles[root.focus-row - 1].external) {
+                root.remove-row(Tracks.subtitles[root.focus-row - 1].id, true);
                 return true;
             }
         }
@@ -630,7 +592,7 @@ export component MainWindow inherits Window {
     /// showing, then the search.
     property <int> subs-focus-count: root.subs-track-rows + (root.subs-showing ? 2 : 0)
         + (Find.offered ? 1 : 0);
-    property <int> subs-track-rows: root.has-subs ? 1 + root.sub-tracks.length : 0;
+    property <int> subs-track-rows: root.has-subs ? 1 + Tracks.subtitles.length : 0;
     /// Where the ways to the pages start: Timing, then Size & position.
     property <int> subs-pages-at: root.subs-track-rows;
     /// How many rows what is on screen offers the keyboard. Zero, as when a
@@ -639,7 +601,7 @@ export component MainWindow inherits Window {
         root.menu-open ? (root.find-open
             ? (root.account-open ? root.account-focus-count : root.find-focus-count)
             : root.subs-page != 0 ? root.subs-page-count : root.subs-focus-count)
-        : root.audio-open ? root.audio-tracks.length
+        : root.audio-open ? Tracks.audio.length
         : root.playlist-open ? root.playlist-lead + root.playlist-rows + 1
         : root.files-open ? 2
         : root.settings-open ? root.settings-focus-count
@@ -724,8 +686,6 @@ export component MainWindow inherits Window {
     callback reset-speed();
     callback frame-step(int);
     callback chapter-step(int);
-    /// Subtitles or audio, and which way.
-    callback cycle-track(bool, int);
     callback quit();
     /// Straight to the window rather than through `minimized`, which a Wayland
     /// client is never told has been undone (see `window::minimize`).
@@ -761,7 +721,6 @@ export component MainWindow inherits Window {
     // rather than keycodes.
     callback toggle-pause();
     callback toggle-mute();
-    callback toggle-subtitles();
     callback toggle-panscan();
     callback toggle-fullscreen();
     callback leave-fullscreen();
@@ -793,18 +752,6 @@ export component MainWindow inherits Window {
     /// arithmetic live on the Rust side, where they are tested.
     callback preview-at(float);
     callback nudge-volume(float);
-    callback nudge-sub-delay(float);
-    callback nudge-sub-scale(float);
-    callback nudge-sub-pos(float);
-    /// The subtitles' size and position back to their defaults.
-    callback reset-subtitles();
-    /// Listen to the film and move the subtitles onto its speech. The answer
-    /// arrives some seconds later, as `sync-state` leaving 1.
-    callback sync-subtitles();
-    /// Put this film's subtitles at a delay and a speed, and keep its place
-    /// at once: what stood before a sync or a reset of the timing, or the
-    /// reset itself.
-    callback set-timing(float, float);
     /// -1 previous, +1 next.
     callback playlist-step(int);
     /// Ask for a video, or for a folder to play through.
@@ -834,9 +781,6 @@ export component MainWindow inherits Window {
     /// back there (see `playback::retrace`).
     in property <string> back-offer;
     callback take-back-offer();
-    /// Track id, or -1 to turn subtitles off.
-    callback select-subtitle(int);
-    callback select-audio(int);
     callback play-index(int);
     callback set-volume(float);
     /// A click on the video, deferred in Rust so that a double-click can
@@ -848,9 +792,6 @@ export component MainWindow inherits Window {
     // are defined.
     in property <float> seek-step: 10;
     in property <float> volume-step: 2;
-    in property <float> delay-step: 0.1;
-    in property <float> sub-scale-step: 0.05;
-    in property <float> sub-pos-step: 2;
     in property <float> scroll-seek-step: 1;
     in property <float> fine-seek-step: 1;
     /// Matches mpv's own ceiling, so 100% sits where mpv puts it.
@@ -1141,8 +1082,8 @@ export component MainWindow inherits Window {
 
     /// The row the subtitles menu opens on: the subtitle in use, or Off when
     /// none is showing.
-    property <int> subs-open-row: root.has-subs && root.subs-visible
-        && root.sub-current >= 0 ? root.sub-current + 1 : 0;
+    property <int> subs-open-row: root.has-subs && Subtitles.visible
+        && Tracks.subtitle-current >= 0 ? Tracks.subtitle-current + 1 : 0;
 
     // Otherwise a ring left up by the way in would land on the bar as a film
     // arrives, on a button nobody chose. A ring a pill has taken stays: a file
@@ -1797,12 +1738,12 @@ export component MainWindow inherits Window {
     property <bool> flash-has-ring: !root.flash-is-notice && Flash.figure == 0;
     /// The track a J or # landed on, read live, because the list is re-read
     /// a moment after the cycle and the caption has to catch up.
-    property <string> flash-sub-label: root.subs-visible && root.sub-current >= 0
-        && root.sub-current < root.sub-tracks.length
-        ? root.sub-tracks[root.sub-current].label : @tr("Subtitles off");
-    property <string> flash-audio-label: root.audio-current >= 0
-        && root.audio-current < root.audio-tracks.length
-        ? root.audio-tracks[root.audio-current].label : @tr("No audio");
+    property <string> flash-sub-label: Subtitles.visible && Tracks.subtitle-current >= 0
+        && Tracks.subtitle-current < Tracks.subtitles.length
+        ? Tracks.subtitles[Tracks.subtitle-current].label : @tr("Subtitles off");
+    property <string> flash-audio-label: Tracks.audio-current >= 0
+        && Tracks.audio-current < Tracks.audio.length
+        ? Tracks.audio[Tracks.audio-current].label : @tr("No audio");
     /// The level as words, for the volume's label and its keys' flash. Muted,
     /// it says so, since the level is then a number nothing is heard at.
     property <string> volume-said: root.muted
@@ -1826,7 +1767,7 @@ export component MainWindow inherits Window {
         : Flash.figure == 3 ? root.flash-sub-label
         : Flash.figure == 4 ? root.flash-audio-label
         : Flash.figure == 5 ? root.volume-said
-        : Flash.icon == Flash.delay ? root.sub-delay-text : "";
+        : Flash.icon == Flash.delay ? Subtitles.delay-text : "";
     property <length> flash-text-h: 28px;
     property <length> flash-text-pad: 14px;
     /// Wide enough for the words, but never wider than the bar, since a
@@ -2488,14 +2429,14 @@ export component MainWindow inherits Window {
 
     // Each tracks panel is a heading over one list. A list with nothing in it
     // says so in one line, rather than leave a heading over nothing.
-    property <bool> has-subs: root.sub-tracks.length > 0;
-    property <bool> has-audio: root.audio-tracks.length > 0;
+    property <bool> has-subs: Tracks.subtitles.length > 0;
+    property <bool> has-audio: Tracks.audio.length > 0;
     /// No tracks and nothing to search with.
     property <bool> subs-empty: !root.has-subs && !Find.offered;
 
     /// The "Off" row belongs to the subtitle list, so it counts with it.
     out property <length> subs-natural: root.has-subs
-        ? (1 + root.sub-tracks.length) * root.row-h
+        ? (1 + Tracks.subtitles.length) * root.row-h
         : root.subs-empty ? root.row-h : 0px;
     /// Under the list, a group gap below the tracks when there are any to
     /// set it off from, then the ways to the pages of the one showing and
@@ -2515,10 +2456,10 @@ export component MainWindow inherits Window {
     }
     /// A subtitle is showing, so there is a timing to sync and to set, and a
     /// size and position to judge.
-    property <bool> subs-showing: root.has-subs && root.subs-visible && root.sub-current >= 0;
+    property <bool> subs-showing: root.has-subs && Subtitles.visible && Tracks.subtitle-current >= 0;
     /// The timing is off zero, as the way to its page says.
-    property <bool> timing-moved: abs(root.sub-delay) >= 0.005
-        || abs(root.sub-speed - 1) >= 0.0005;
+    property <bool> timing-moved: abs(Subtitles.delay) >= 0.005
+        || abs(Subtitles.speed - 1) >= 0.0005;
     /// The timing's reset is offered while there is something to reset, and
     /// stays to be taken back.
     property <bool> timing-resettable: root.timing-moved
@@ -2526,7 +2467,7 @@ export component MainWindow inherits Window {
     /// Timing's readout, as wide as the delay reads at its widest.
     property <length> timing-value-w: max(62px, delay-measure.preferred-width + 4px);
     out property <length> audio-natural: root.has-audio
-        ? root.audio-tracks.length * root.row-h : root.row-h;
+        ? Tracks.audio.length * root.row-h : root.row-h;
     out property <length> subs-h: min(
         root.panel-pad + root.heading-h + root.subs-natural + root.subs-fixed,
         root.panel-max-h);
@@ -2992,9 +2933,9 @@ export component MainWindow inherits Window {
             } else if (Find.offered && root.focus-row == root.subs-focus-count - 1) {
                 root.open-find();
             } else if (root.focus-row < root.subs-track-rows) {
-                root.select-subtitle(root.focus-row == 0
+                Tracks.select-subtitle(root.focus-row == 0
                     ? -1
-                    : root.sub-tracks[root.focus-row - 1].id);
+                    : Tracks.subtitles[root.focus-row - 1].id);
             } else {
                 root.open-subs-page(root.focus-row - root.subs-pages-at + 1);
             }
@@ -3002,7 +2943,7 @@ export component MainWindow inherits Window {
         }
         if (root.audio-open) {
             if (root.has-audio) {
-                root.select-audio(root.audio-tracks[root.focus-row].id);
+                Tracks.select-audio(Tracks.audio[root.focus-row].id);
             }
             return true;
         }
@@ -3128,7 +3069,7 @@ export component MainWindow inherits Window {
     function reset-row(page: int) {
         if (root.reset-undoable == page) {
             if (page == 3) {
-                root.set-timing(root.reset-delay, root.reset-sub-speed);
+                Subtitles.set-timing(root.reset-delay, root.reset-sub-speed);
             } else {
                 root.undo-reset(page);
             }
@@ -3143,8 +3084,8 @@ export component MainWindow inherits Window {
         }
         reset-timer.stop();
         root.reset-armed = 0;
-        root.reset-delay = root.sub-delay;
-        root.reset-sub-speed = root.sub-speed;
+        root.reset-delay = Subtitles.delay;
+        root.reset-sub-speed = Subtitles.speed;
         if (page == 1) {
             root.reset-section(0);
         } else if (page == 2) {
@@ -3152,9 +3093,9 @@ export component MainWindow inherits Window {
         } else if (page == 6) {
             root.reset-section(2);
         } else if (page == 3) {
-            root.set-timing(0, 1);
+            Subtitles.set-timing(0, 1);
         } else {
-            root.reset-subtitles();
+            Subtitles.reset();
         }
         root.reset-undoable = page;
     }
@@ -3174,7 +3115,7 @@ export component MainWindow inherits Window {
     function remove-row(id: int, subtitle: bool) {
         if (root.remove-armed == id && root.remove-armed-sub == subtitle) {
             root.remove-armed = -1;
-            root.remove-track(id, subtitle);
+            Tracks.remove(id, subtitle);
             return;
         }
         root.remove-armed = id;
@@ -3285,26 +3226,26 @@ export component MainWindow inherits Window {
     function sync-row() {
         // The sync is the timing page's first row, under its way back.
         root.asked-row = Rows.panel-pad + root.row-h + root.row-h / 2;
-        if (root.sync-state == 2) {
-            root.set-timing(root.sync-was-delay, root.sync-was-speed);
-            root.sync-state = 0;
-        } else if (root.sync-state == 0) {
-            root.sync-state = 1;
-            root.sync-subtitles();
+        if (Subtitles.sync-state == 2) {
+            Subtitles.set-timing(Subtitles.sync-was-delay, Subtitles.sync-was-speed);
+            Subtitles.sync-state = 0;
+        } else if (Subtitles.sync-state == 0) {
+            Subtitles.sync-state = 1;
+            Subtitles.sync();
         }
     }
 
     pure function sync-label() -> string {
-        return root.sync-state == 1 ? @tr("Listening…")
-            : root.sync-state == 2 ? @tr("Undo sync")
+        return Subtitles.sync-state == 1 ? @tr("Listening…")
+            : Subtitles.sync-state == 2 ? @tr("Undo sync")
             : @tr("Sync to speech");
     }
 
     /// Leaving the page drops the undo. A run still listening is left to
     /// finish, and its answer is shown wherever the panel is by then.
     function forget-sync() {
-        if (root.sync-state == 2) {
-            root.sync-state = 0;
+        if (Subtitles.sync-state == 2) {
+            Subtitles.sync-state = 0;
         }
     }
 
@@ -3463,17 +3404,17 @@ export component MainWindow inherits Window {
     /// other two lift it back up (see `subtitle-lift`).
     function step-sub-delay(dir: float) {
         root.placing-subtitles = false;
-        root.nudge-sub-delay(dir * root.delay-step);
+        Subtitles.nudge-delay(dir * Subtitles.delay-step);
     }
 
     function step-sub-scale(dir: float) {
         root.placing-subtitles = false;
-        root.nudge-sub-scale(dir * root.sub-scale-step);
+        Subtitles.nudge-scale(dir * Subtitles.scale-step);
     }
 
     function step-sub-pos(dir: float) {
         root.placing-subtitles = true;
-        root.nudge-sub-pos(dir * root.sub-pos-step);
+        Subtitles.nudge-pos(dir * Subtitles.pos-step);
     }
 
     /// Left and right, only where the row under the ring is something they
@@ -3700,7 +3641,7 @@ export component MainWindow inherits Window {
     property <int> list-last: root.playlist-open
         ? root.playlist-lead + root.playlist-rows - 1
         : root.find-listing ? root.find-hit-count
-        : root.on-tracks && root.has-subs ? root.sub-tracks.length
+        : root.on-tracks && root.has-subs ? Tracks.subtitles.length
         : root.focus-count - 1;
     /// A page is what the list shows less one row, so the row a jump left
     /// stays on screen to read against.
@@ -3872,7 +3813,7 @@ export component MainWindow inherits Window {
         }
         // mpv's own key for it.
         if (text == "#") {
-            root.cycle-track(false, 1);
+            Tracks.cycle(false, 1);
             root.key-wake = 1;
             Flash.show-figure(4);
             return true;
@@ -3884,7 +3825,7 @@ export component MainWindow inherits Window {
     // convention.
     function on-subtitles(text: string, shift: bool) -> bool {
         if (!shift && (text == "c" || text == "C")) {
-            root.toggle-subtitles();
+            Subtitles.toggle();
             // Shown, because a scene with no dialogue shows nothing, and the
             // button's mark is under the bar while the bar is away. The same
             // caption as Shift+C, read live.
@@ -3895,7 +3836,7 @@ export component MainWindow inherits Window {
         // Through the subtitle tracks, including none, saying which one it
         // landed on: C's own subject, one shift away.
         if (shift && (text == "c" || text == "C")) {
-            root.cycle-track(true, 1);
+            Tracks.cycle(true, 1);
             root.key-wake = 1;
             Flash.show-figure(3);
             return true;
@@ -3908,7 +3849,7 @@ export component MainWindow inherits Window {
             return true;
         }
         if (text == "z" || text == "Z") {
-            root.nudge-sub-delay(shift ? root.delay-step : -root.delay-step);
+            Subtitles.nudge-delay(shift ? Subtitles.delay-step : -Subtitles.delay-step);
             root.key-wake = 1;
             Flash.show(Flash.delay, 0.5);
             return true;
@@ -4408,7 +4349,7 @@ export component MainWindow inherits Window {
         if (open) {
             root.close-others();
             root.audio-open = true;
-            root.focus-row = max(0, root.audio-current);
+            root.focus-row = max(0, Tracks.audio-current);
             audio-list.centre(root.focus-row * root.row-h, root.row-h);
         }
     }
@@ -5307,8 +5248,8 @@ export component MainWindow inherits Window {
                         root.subs-h - root.panel-pad - root.heading-h - root.subs-fixed);
                     content-height: root.subs-natural;
                     // Off while none is showing, as the rows below light it.
-                    current-top: (root.subs-visible ? root.sub-current + 1 : 0) * root.row-h;
-                    current-h: root.has-subs && (!root.subs-visible || root.sub-current >= 0)
+                    current-top: (Subtitles.visible ? Tracks.subtitle-current + 1 : 0) * root.row-h;
+                    current-h: root.has-subs && (!Subtitles.visible || Tracks.subtitle-current >= 0)
                         ? root.row-h : 0px;
 
                     if root.subs-empty: EmptyRow {
@@ -5316,18 +5257,18 @@ export component MainWindow inherits Window {
                     }
                     if root.has-subs: MenuRow {
                         label: @tr("Off");
-                        active: !root.subs-visible;
+                        active: !Subtitles.visible;
                         focused: root.on-tracks && root.focus-row == 0;
                         picked => {
-                            root.select-subtitle(-1);
+                            Tracks.select-subtitle(-1);
                         }
                     }
-                    for track[idx] in root.sub-tracks: MenuRow {
+                    for track[idx] in Tracks.subtitles: MenuRow {
                         label: track.label;
                         // Not `track.selected` alone: turning subtitles off keeps
                         // `sid`, so turning them on returns to this track, and mpv
                         // goes on reporting it as selected while it is hidden.
-                        active: track.selected && root.subs-visible;
+                        active: track.selected && Subtitles.visible;
                         focused: root.on-tracks && root.focus-row == idx + 1;
                         removable: track.external;
                         armed: root.remove-armed == track.id && root.remove-armed-sub;
@@ -5336,7 +5277,7 @@ export component MainWindow inherits Window {
                             root.remove-held = on;
                         }
                         picked => {
-                            root.select-subtitle(track.id);
+                            Tracks.select-subtitle(track.id);
                         }
                         removed => {
                             root.remove-row(track.id, true);
@@ -5368,7 +5309,7 @@ export component MainWindow inherits Window {
                         DrillRow {
                             icon: @image-url("../../../public/icons/clock.svg");
                             label: @tr("Timing");
-                            detail: abs(root.sub-delay) >= 0.005 ? root.sub-delay-text : "";
+                            detail: abs(Subtitles.delay) >= 0.005 ? Subtitles.delay-text : "";
                             focused: root.subs-showing && root.on-tracks
                                 && root.focus-row == root.subs-pages-at;
                             opened => {
@@ -5447,7 +5388,7 @@ export component MainWindow inherits Window {
                         icon: @image-url("../../../public/icons/clock.svg");
                         label: @tr("Shift");
                         focused: root.subs-ring(1, 2);
-                        value: root.sub-delay-text;
+                        value: Subtitles.delay-text;
                         value-w: root.timing-value-w;
                         stepped(dir) => {
                             root.step-sub-delay(dir);
@@ -5479,7 +5420,7 @@ export component MainWindow inherits Window {
                         icon: @image-url("../../../public/icons/text-size.svg");
                         label: @tr("Size");
                         focused: root.subs-ring(2, 1);
-                        value: root.sub-scale-text;
+                        value: Subtitles.scale-text;
                         stepped(dir) => {
                             root.step-sub-scale(dir);
                         }
@@ -5488,7 +5429,7 @@ export component MainWindow inherits Window {
                         icon: @image-url("../../../public/icons/arrows-up-down.svg");
                         label: @tr("Position");
                         focused: root.subs-ring(2, 2);
-                        value: root.sub-pos-text;
+                        value: Subtitles.pos-text;
                         stepped(dir) => {
                             root.step-sub-pos(dir);
                         }
@@ -5649,13 +5590,13 @@ export component MainWindow inherits Window {
             audio-list := ScrollList {
                 height: root.audio-list-h;
                 content-height: root.audio-natural;
-                current-top: root.audio-current * root.row-h;
-                current-h: root.audio-current >= 0 ? root.row-h : 0px;
+                current-top: Tracks.audio-current * root.row-h;
+                current-h: Tracks.audio-current >= 0 ? root.row-h : 0px;
 
                 if !root.has-audio: EmptyRow {
                     label: @tr("No audio tracks");
                 }
-                for track[idx] in root.audio-tracks: MenuRow {
+                for track[idx] in Tracks.audio: MenuRow {
                     label: track.label;
                     active: track.selected;
                     focused: root.audio-open && root.focus-row == idx;
@@ -5666,7 +5607,7 @@ export component MainWindow inherits Window {
                         root.remove-held = on;
                     }
                     picked => {
-                        root.select-audio(track.id);
+                        Tracks.select-audio(track.id);
                     }
                     removed => {
                         root.remove-row(track.id, false);
@@ -6638,7 +6579,7 @@ export component MainWindow inherits Window {
     }
 
     delay-measure := Text {
-        text: root.sub-delay-widest;
+        text: Subtitles.delay-widest;
         font-size: Type.readout;
         visible: false;
         width: 0px;
@@ -6676,7 +6617,7 @@ export component MainWindow inherits Window {
     // The list panels' widest names (see `list-fit`), at the current row's
     // weight, which is the widest any of them is drawn.
     sub-names-measure := Text {
-        text: root.sub-names;
+        text: Tracks.subtitle-names;
         font-size: Type.body;
         font-weight: Type.weight-current;
         visible: false;
@@ -6685,7 +6626,7 @@ export component MainWindow inherits Window {
     }
 
     sub-removable-measure := Text {
-        text: root.sub-removable-names;
+        text: Tracks.subtitle-removable-names;
         font-size: Type.body;
         font-weight: Type.weight-current;
         visible: false;
@@ -6694,7 +6635,7 @@ export component MainWindow inherits Window {
     }
 
     audio-names-measure := Text {
-        text: root.audio-names;
+        text: Tracks.audio-names;
         font-size: Type.body;
         font-weight: Type.weight-current;
         visible: false;
@@ -6703,7 +6644,7 @@ export component MainWindow inherits Window {
     }
 
     audio-removable-measure := Text {
-        text: root.audio-removable-names;
+        text: Tracks.audio-removable-names;
         font-size: Type.body;
         font-weight: Type.weight-current;
         visible: false;

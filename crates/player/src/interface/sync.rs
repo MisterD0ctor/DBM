@@ -13,15 +13,17 @@
 //! actually moves.
 
 use dbm_mpv::tracks::{self, TrackKind};
+use slint::ComponentHandle;
 use slint::{ModelRc, SharedString, VecModel};
 
 use crate::Find;
+use crate::Subtitles;
+use crate::Tracks;
 use crate::interface::format;
 use crate::playback::labels;
 use crate::playback::state::{Lists, PlayerState};
 use crate::worker::{Completion, Worker};
 use crate::{MainWindow, TrackItem};
-use slint::ComponentHandle;
 
 /// Push the scalar values the UI binds to.
 pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
@@ -35,9 +37,12 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_muted(player.muted);
     ui.set_volume(player.volume as f32);
     ui.set_panscan(player.panscan > 0.5);
-    ui.set_sub_delay_text(format::delay(player.sub_delay).into());
-    ui.set_sub_delay_widest(format::delay_widest().into());
-    ui.set_sub_scale_text(format::scale(player.sub_scale).into());
+    ui.global::<Subtitles>()
+        .set_delay_text(format::delay(player.sub_delay).into());
+    ui.global::<Subtitles>()
+        .set_delay_widest(format::delay_widest().into());
+    ui.global::<Subtitles>()
+        .set_scale_text(format::scale(player.sub_scale).into());
     // Whether anything is loaded, derived from mpv every frame, since a file
     // can arrive by the dialog, a drop or the command line.
     ui.set_has_file(player.path.is_some());
@@ -50,12 +55,13 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_at_first(player.at_first());
     // Raw, beside the formatted text, so undoing a reset can put the number
     // back without parsing it out of "+0.30 s".
-    ui.set_sub_delay(player.sub_delay as f32);
-    ui.set_sub_speed(if player.sub_speed > 0.0 {
-        player.sub_speed as f32
-    } else {
-        1.0
-    });
+    ui.global::<Subtitles>().set_delay(player.sub_delay as f32);
+    ui.global::<Subtitles>()
+        .set_speed(if player.sub_speed > 0.0 {
+            player.sub_speed as f32
+        } else {
+            1.0
+        });
     ui.set_speed(if player.speed > 0.0 {
         player.speed as f32
     } else {
@@ -139,14 +145,22 @@ impl ListSync {
 /// Hand the tracks and chapters to the UI as models. The playlist goes by
 /// way of the worker (see `playlist_panel`).
 pub fn push_lists(ui: &MainWindow, player: &PlayerState) {
-    ui.set_sub_tracks(track_model(player, TrackKind::Sub));
-    ui.set_audio_tracks(track_model(player, TrackKind::Audio));
-    ui.set_sub_names(track_names(player, TrackKind::Sub, false));
-    ui.set_sub_removable_names(track_names(player, TrackKind::Sub, true));
-    ui.set_audio_names(track_names(player, TrackKind::Audio, false));
-    ui.set_audio_removable_names(track_names(player, TrackKind::Audio, true));
-    ui.set_sub_current(selected_row(player, TrackKind::Sub));
-    ui.set_audio_current(selected_row(player, TrackKind::Audio));
+    ui.global::<Tracks>()
+        .set_subtitles(track_model(player, TrackKind::Sub));
+    ui.global::<Tracks>()
+        .set_audio(track_model(player, TrackKind::Audio));
+    ui.global::<Tracks>()
+        .set_subtitle_names(track_names(player, TrackKind::Sub, false));
+    ui.global::<Tracks>()
+        .set_subtitle_removable_names(track_names(player, TrackKind::Sub, true));
+    ui.global::<Tracks>()
+        .set_audio_names(track_names(player, TrackKind::Audio, false));
+    ui.global::<Tracks>()
+        .set_audio_removable_names(track_names(player, TrackKind::Audio, true));
+    ui.global::<Tracks>()
+        .set_subtitle_current(selected_row(player, TrackKind::Sub));
+    ui.global::<Tracks>()
+        .set_audio_current(selected_row(player, TrackKind::Audio));
     ui.set_chapter_marks(ModelRc::new(VecModel::from(
         player
             .chapters
@@ -162,7 +176,7 @@ pub fn push_lists(ui: &MainWindow, player: &PlayerState) {
 /// the chapter list, which arrives a moment after the chapter's number. A
 /// paused film reports nothing else that would push them.
 fn push_what_the_lists_decide(ui: &MainWindow, player: &PlayerState) {
-    ui.set_subs_visible(subs_showing(player));
+    ui.global::<Subtitles>().set_visible(subs_showing(player));
     ui.set_chapter_label(player.chapter_label().into());
     ui.set_credits_rolling(player.credits_rolling());
     ui.set_intro_rolling(player.intro_rolling());

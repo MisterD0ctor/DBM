@@ -6,6 +6,8 @@ use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
 use crate::Find;
+use crate::Subtitles;
+use crate::Tracks;
 use crate::{MainWindow, Motion};
 
 /// Open the settings panel and drive one parameter to its maximum, so the
@@ -61,9 +63,9 @@ fn report_subs(ui: &MainWindow, mpv: &Mpv, label: &str) {
         mpv.get_property("sub-delay"),
         mpv.get_property("sub-scale"),
         mpv.get_property("sub-pos"),
-        ui.get_sub_delay_text(),
-        ui.get_sub_scale_text(),
-        ui.get_sub_pos_text(),
+        ui.global::<Subtitles>().get_delay_text(),
+        ui.global::<Subtitles>().get_scale_text(),
+        ui.global::<Subtitles>().get_pos_text(),
         mpv.get_property("sub-use-margins"),
         ui.get_subtitle_floor(),
         ui.get_subtitle_lift(),
@@ -88,19 +90,22 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                 0 => report_subs(&ui, &mpv, "start"),
                 1 => {
                     for _ in 0..4 {
-                        ui.invoke_nudge_sub_delay(ui.get_delay_step());
+                        ui.global::<Subtitles>()
+                            .invoke_nudge_delay(ui.global::<Subtitles>().get_delay_step());
                     }
                 }
                 2 => report_subs(&ui, &mpv, "delay +4 steps"),
                 3 => {
                     for _ in 0..3 {
-                        ui.invoke_nudge_sub_scale(ui.get_sub_scale_step());
+                        ui.global::<Subtitles>()
+                            .invoke_nudge_scale(ui.global::<Subtitles>().get_scale_step());
                     }
                 }
                 4 => report_subs(&ui, &mpv, "size +3 steps"),
                 5 => {
                     for _ in 0..5 {
-                        ui.invoke_nudge_sub_pos(-ui.get_sub_pos_step());
+                        ui.global::<Subtitles>()
+                            .invoke_nudge_pos(-ui.global::<Subtitles>().get_pos_step());
                     }
                 }
                 6 => report_subs(&ui, &mpv, "position -5 steps"),
@@ -108,21 +113,23 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                 // button amounts to.
                 7 => {
                     for _ in 0..80 {
-                        ui.invoke_nudge_sub_scale(ui.get_sub_scale_step());
+                        ui.global::<Subtitles>()
+                            .invoke_nudge_scale(ui.global::<Subtitles>().get_scale_step());
                     }
                 }
                 8 => report_subs(&ui, &mpv, "size held up"),
                 9 => {
                     for _ in 0..120 {
-                        ui.invoke_nudge_sub_pos(-ui.get_sub_pos_step());
+                        ui.global::<Subtitles>()
+                            .invoke_nudge_pos(-ui.global::<Subtitles>().get_pos_step());
                     }
                 }
                 10 => report_subs(&ui, &mpv, "position held down"),
                 // Both resets of the subtitles menu's pages: size and
                 // position, which are saved, and the timing, the film's own.
                 11 => {
-                    ui.invoke_reset_subtitles();
-                    ui.invoke_set_timing(0.0, 1.0);
+                    ui.global::<Subtitles>().invoke_reset();
+                    ui.global::<Subtitles>().invoke_set_timing(0.0, 1.0);
                 }
                 12 => report_subs(&ui, &mpv, "after reset"),
                 13 => eprintln!("dbm: --- subtitle test done ---"),
@@ -146,7 +153,8 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
 
     let report = move |ui: &MainWindow, mpv: &Mpv, label: &str| {
         let subs: Vec<String> = ui
-            .get_sub_tracks()
+            .global::<Tracks>()
+            .get_subtitles()
             .iter()
             .map(|t| format!("{}{}", if t.selected { "*" } else { "" }, t.label))
             .collect();
@@ -208,7 +216,8 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                 // tracks put it, and Delete twice, since the first asks.
                 16 => {
                     let fetched = ui
-                        .get_sub_tracks()
+                        .global::<Tracks>()
+                        .get_subtitles()
                         .iter()
                         .position(|t| t.external && t.selected)
                         .map(|i| i as i32 + 1);
@@ -413,9 +422,9 @@ pub(super) fn added_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Ti
                 eprintln!(
                     "dbm: added t+{:.1}s tracks={} current={} visible={}",
                     (tick - 20) as f32 * 0.25,
-                    ui.get_sub_tracks().row_count(),
-                    ui.get_sub_current(),
-                    ui.get_subs_visible(),
+                    ui.global::<Tracks>().get_subtitles().row_count(),
+                    ui.global::<Tracks>().get_subtitle_current(),
+                    ui.global::<Subtitles>().get_visible(),
                 );
             }
         },
@@ -444,9 +453,9 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
     let report = move |ui: &MainWindow, mpv: &Mpv, label: &str| {
         eprintln!(
             "dbm: sync {label:<20} state={} delay={:+.2} speed={:.4} said={:?} line={:?}",
-            ui.get_sync_state(),
-            ui.get_sub_delay(),
-            ui.get_sub_speed(),
+            ui.global::<Subtitles>().get_sync_state(),
+            ui.global::<Subtitles>().get_delay(),
+            ui.global::<Subtitles>().get_speed(),
             ui.global::<crate::Flash>().get_message(),
             mpv.get_property("sub-text").unwrap_or_default(),
         );
@@ -486,7 +495,7 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                 }
                 16 => {
                     // Hold here until the row stops listening.
-                    if ui.get_sync_state() == 1 {
+                    if ui.global::<Subtitles>().get_sync_state() == 1 {
                         waited += 1;
                         if waited % 4 == 1 {
                             eprintln!("dbm: sync listening...");
@@ -499,7 +508,9 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
                 // Only where there is a sync to take back, or Enter would
                 // start another. `DBM_SYNC_KEEP` leaves it standing, for a run
                 // that goes on to look at what was saved.
-                19 if ui.get_sync_state() == 2 && std::env::var_os("DBM_SYNC_KEEP").is_none() => {
+                19 if ui.global::<Subtitles>().get_sync_state() == 2
+                    && std::env::var_os("DBM_SYNC_KEEP").is_none() =>
+                {
                     chord(&ui, &[], enter.as_str());
                 }
                 21 => report(&ui, &mpv, "after taking it back"),

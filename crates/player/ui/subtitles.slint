@@ -1,0 +1,45 @@
+// The subtitles' timing, size and place, as the Rust side reports them (see
+// `interface::sync`), and what the subtitles menu asks of them: a nudge, a
+// reset, a sync against the film's speech (see `interface::subsync`).
+
+export global Subtitles {
+    /// The subtitle delay as a number, beside `delay-text`, so undoing a
+    /// reset can put it back.
+    in property <float> delay;
+    /// The speed subtitles run at against the film, for the same undo. Never
+    /// shown: it is 1 unless a sync found them timed for another frame rate.
+    in property <float> speed: 1;
+    /// Where the sync row stands: 0 at rest, 1 listening to the film, 2 with
+    /// a sync just made that it can take back.
+    in-out property <int> sync-state: 0;
+    /// The delay and speed that stood before that sync.
+    in property <float> sync-was-delay;
+    in property <float> sync-was-speed: 1;
+    in property <string> delay-text: "0.00 s";
+    /// The widest the delay reads, either way, on a line each, for Timing's
+    /// readout to be as wide as in the language spoken.
+    in property <string> delay-widest;
+    in property <string> scale-text: "1.00×";
+    in property <string> pos-text: "100%";
+    /// Whether subtitles are actually on screen: mpv's `sub-visibility` and a
+    /// track selected. Either alone misleads, since visibility with no track
+    /// shows nothing, and a track with visibility off is only the one the
+    /// next toggle brings back.
+    in property <bool> visible;
+    callback nudge-delay(float);
+    callback nudge-scale(float);
+    callback nudge-pos(float);
+    /// The subtitles' size and position back to their defaults.
+    callback reset();
+    /// Listen to the film and move the subtitles onto its speech. The answer
+    /// arrives some seconds later, as `sync-state` leaving 1.
+    callback sync();
+    /// Put this film's subtitles at a delay and a speed, and keep its place
+    /// at once: what stood before a sync or a reset of the timing, or the
+    /// reset itself.
+    callback set-timing(float, float);
+    callback toggle();
+    in property <float> delay-step: 0.1;
+    in property <float> scale-step: 0.05;
+    in property <float> pos-step: 2;
+}

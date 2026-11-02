@@ -12,6 +12,7 @@ use std::rc::Rc;
 
 use slint::ComponentHandle;
 
+use crate::Subtitles;
 use crate::app::App;
 use crate::interface::squircle;
 use crate::playback::commands;
@@ -89,9 +90,12 @@ fn push_constants(ui: &MainWindow) {
     ui.set_volume_max(commands::VOLUME_MAX as f32);
     ui.set_seek_step(commands::SEEK_STEP as f32);
     ui.set_volume_step(commands::VOLUME_STEP as f32);
-    ui.set_delay_step(commands::DELAY_STEP as f32);
+    ui.global::<Subtitles>()
+        .set_delay_step(commands::DELAY_STEP as f32);
     ui.set_scroll_seek_step(commands::SCROLL_SEEK_STEP as f32);
     ui.set_fine_seek_step(commands::FINE_SEEK_STEP as f32);
-    ui.set_sub_scale_step(commands::SUB_SCALE_STEP as f32);
-    ui.set_sub_pos_step(commands::SUB_POS_STEP as f32);
+    ui.global::<Subtitles>()
+        .set_scale_step(commands::SUB_SCALE_STEP as f32);
+    ui.global::<Subtitles>()
+        .set_pos_step(commands::SUB_POS_STEP as f32);
 }

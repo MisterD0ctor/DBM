@@ -9,6 +9,8 @@ use slint::{ComponentHandle, Model};
 use super::drive::{arrow, chord, hover, wheel};
 use super::{playlist_rows, selected_label, short};
 use crate::MainWindow;
+use crate::Subtitles;
+use crate::Tracks;
 
 fn report(ui: &MainWindow, label: &str) {
     eprintln!(
@@ -17,9 +19,9 @@ fn report(ui: &MainWindow, label: &str) {
         ui.get_paused(),
         ui.get_volume(),
         ui.get_muted(),
-        ui.get_subs_visible(),
-        selected_label(&ui.get_sub_tracks()),
-        selected_label(&ui.get_audio_tracks()),
+        ui.global::<Subtitles>().get_visible(),
+        selected_label(&ui.global::<Tracks>().get_subtitles()),
+        selected_label(&ui.global::<Tracks>().get_audio()),
     );
 }
 
@@ -48,13 +50,13 @@ pub(super) fn input_test(ui: &MainWindow) -> slint::Timer {
                 10 => report(&ui, "after seek -3s"),
                 11 => ui.invoke_toggle_mute(),
                 12 => report(&ui, "after toggle-mute"),
-                13 => ui.invoke_select_audio(2),
+                13 => ui.global::<Tracks>().invoke_select_audio(2),
                 14 => report(&ui, "after audio -> id 2"),
-                15 => ui.invoke_select_subtitle(2),
+                15 => ui.global::<Tracks>().invoke_select_subtitle(2),
                 16 => report(&ui, "after sub -> id 2"),
-                17 => ui.invoke_select_subtitle(-1),
+                17 => ui.global::<Tracks>().invoke_select_subtitle(-1),
                 18 => report(&ui, "after subs off"),
-                19 => ui.invoke_toggle_subtitles(),
+                19 => ui.global::<Subtitles>().invoke_toggle(),
                 20 => report(&ui, "after captions toggle"),
                 21 => ui.invoke_toggle_panscan(),
                 22 => eprintln!("dbm: panscan now {}", ui.get_panscan()),
@@ -316,8 +318,8 @@ pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
         eprintln!(
             "dbm: timing {label:<20} {:?} delay={:+.2} speed={:.4}",
             short(&mpv.get_property("filename").unwrap_or_default().into()),
-            ui.get_sub_delay(),
-            ui.get_sub_speed(),
+            ui.global::<Subtitles>().get_delay(),
+            ui.global::<Subtitles>().get_speed(),
         );
     };
     let timer = slint::Timer::default();
@@ -333,7 +335,7 @@ pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
                 0..=3 => {}
                 4 => report(&ui, &mpv, "as it opened"),
                 5 => {
-                    ui.invoke_nudge_sub_delay(-5.0);
+                    ui.global::<Subtitles>().invoke_nudge_delay(-5.0);
                     let _ = mpv.set_property("sub-speed", "1.04");
                 }
                 6 => {
@@ -900,7 +902,7 @@ fn report_flash(ui: &MainWindow, label: &str) {
     eprintln!(
         "dbm: flash {label:<18} seq={} delay={} | {} rect(s) {}",
         ui.global::<crate::Flash>().get_seq(),
-        ui.get_sub_delay_text(),
+        ui.global::<Subtitles>().get_delay_text(),
         rects.len(),
         rects.join(" "),
     );

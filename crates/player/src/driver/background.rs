@@ -1,10 +1,12 @@
+use dbm_lang::{fill, tr};
+use slint::ComponentHandle;
+
 use super::{Driver, Gpu};
 use crate::Find;
 use crate::MainWindow;
+use crate::Subtitles;
 use crate::interface::{format, sync};
 use crate::worker::Completion;
-use dbm_lang::{fill, tr};
-use slint::ComponentHandle;
 
 impl Driver {
     /// Ask for the background work the player's state calls for, and take
@@ -120,7 +122,7 @@ impl Driver {
         // A sync still listening is listening to the old film, and one that
         // could be undone was this film's to undo.
         dbm_library::subsync::supersede();
-        ui.set_sync_state(0);
+        ui.global::<Subtitles>().set_sync_state(0);
         // The old file's decoders are gone by now, so what they held can go back.
         self.app
             .worker

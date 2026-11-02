@@ -8,6 +8,7 @@ use slint::{ComponentHandle, Model};
 use super::drive::{arrow, chord, click, hover, wheel};
 use crate::Find;
 use crate::MainWindow;
+use crate::Tracks;
 
 /// Hold one surface open, with the chrome kept awake, for a capture: the
 /// interface hides after three still seconds, and half of it only exists
@@ -285,11 +286,14 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             // or close: Find subtitles under them should hold its place.
             if surface == "pages-flip" && tick >= 8 && tick.is_multiple_of(2) {
                 let id = if tick.is_multiple_of(4) {
-                    ui.get_sub_tracks().row_data(0).map_or(-1, |t| t.id)
+                    ui.global::<Tracks>()
+                        .get_subtitles()
+                        .row_data(0)
+                        .map_or(-1, |t| t.id)
                 } else {
                     -1
                 };
-                ui.invoke_select_subtitle(id);
+                ui.global::<Tracks>().invoke_select_subtitle(id);
             }
 
             // The ring walked down to Shortcuts in tooltips, then Tooltips
@@ -321,7 +325,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 let row = ui.get_focus_row();
                 let external = (row as usize)
                     .checked_sub(1)
-                    .and_then(|i| ui.get_sub_tracks().row_data(i))
+                    .and_then(|i| ui.global::<Tracks>().get_subtitles().row_data(i))
                     .is_some_and(|t| t.external);
                 if ui.global::<crate::Chrome>().get_focus_visible() && external {
                     arrow(&ui, Key::Delete);
@@ -450,8 +454,8 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 // is lit.
                 "subs-on" => {
                     ui.invoke_open_menu(true);
-                    if let Some(first) = ui.get_sub_tracks().row_data(0) {
-                        ui.invoke_select_subtitle(first.id);
+                    if let Some(first) = ui.global::<Tracks>().get_subtitles().row_data(0) {
+                        ui.global::<Tracks>().invoke_select_subtitle(first.id);
                     }
                 }
                 // A track chosen and then turned off, where mpv still calls
@@ -460,10 +464,10 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 // has nothing selected to contradict Off.
                 "subs-off" => {
                     ui.invoke_open_menu(true);
-                    if let Some(first) = ui.get_sub_tracks().row_data(0) {
-                        ui.invoke_select_subtitle(first.id);
+                    if let Some(first) = ui.global::<Tracks>().get_subtitles().row_data(0) {
+                        ui.global::<Tracks>().invoke_select_subtitle(first.id);
                     }
-                    ui.invoke_select_subtitle(-1);
+                    ui.global::<Tracks>().invoke_select_subtitle(-1);
                 }
                 "playlist" | "drill" | "scroll-bar" | "current-above" | "current-below"
                 | "current-half" | "current-back" | "current-hover" | "ring-row" => {
@@ -536,8 +540,8 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 // before they open (below).
                 "timing" | "placing" | "subs-drill" | "timing-drill" => {
                     ui.invoke_open_menu(true);
-                    if let Some(first) = ui.get_sub_tracks().row_data(0) {
-                        ui.invoke_select_subtitle(first.id);
+                    if let Some(first) = ui.global::<Tracks>().get_subtitles().row_data(0) {
+                        ui.global::<Tracks>().invoke_select_subtitle(first.id);
                     }
                 }
                 _ => {}

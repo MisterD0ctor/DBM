@@ -6,6 +6,7 @@ use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
 use super::drive::chord;
+use crate::Subtitles;
 use crate::{MainWindow, Motion};
 
 /// Walk the keyboard into a panel and down it, with real key events.
@@ -160,17 +161,26 @@ pub(super) fn key_test(ui: &MainWindow) -> slint::Timer {
                 //
                 // Before the dialogs, since a file chooser keeps the keyboard.
                 0 => {
-                    eprintln!("dbm: subs showing {}", ui.get_subs_visible());
+                    eprintln!(
+                        "dbm: subs showing {}",
+                        ui.global::<Subtitles>().get_visible()
+                    );
                     eprintln!("dbm: pressing C");
                     chord(&ui, &[], "c");
                 }
                 1 => {
-                    eprintln!("dbm: subs showing {}", ui.get_subs_visible());
+                    eprintln!(
+                        "dbm: subs showing {}",
+                        ui.global::<Subtitles>().get_visible()
+                    );
                     eprintln!("dbm: pressing C again");
                     chord(&ui, &[], "c");
                 }
                 2 => {
-                    eprintln!("dbm: subs showing {}", ui.get_subs_visible());
+                    eprintln!(
+                        "dbm: subs showing {}",
+                        ui.global::<Subtitles>().get_visible()
+                    );
                     eprintln!("dbm: pressing B (ambience)");
                     chord(&ui, &[], "b");
                 }

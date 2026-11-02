@@ -2,6 +2,8 @@ use slint::ComponentHandle;
 
 use crate::Find;
 use crate::MainWindow;
+use crate::Subtitles;
+use crate::Tracks;
 use crate::app::App;
 use crate::playback::commands;
 use crate::worker::Completion;
@@ -11,37 +13,47 @@ pub(super) fn wire_tracks(ui: &MainWindow, app: &App) {
     // Reads the track list before deciding, so it goes to the worker rather
     // than blocking a keypress behind mpv's core lock.
     // Not activity, for `on!`'s reason: C answers with a flash.
-    on_app!(ui, app, on_toggle_subtitles, |app| {
+    on_app!(ui.global::<Subtitles>(), app, on_toggle, |app| {
         app.worker.run(commands::toggle_subtitles);
     });
     // -1 is the menu's "Off" row rather than a real track id.
-    on!(ui, app, on_select_subtitle, |m, id| {
+    on!(ui.global::<Tracks>(), app, on_select_subtitle, |m, id| {
         commands::set_subtitle_track(m, (id >= 0).then_some(i64::from(id)));
     });
     // The one selection the watchdog has to hear about: choosing "Off" is
     // the only silence it must not undo when a device reappears.
-    on_app!(ui, app, on_select_audio, |app, id| {
+    on_app!(ui.global::<Tracks>(), app, on_select_audio, |app, id| {
         app.activity.bump();
         let id = (id >= 0).then_some(i64::from(id));
         app.audio.note_user_selection(id);
         commands::set_audio_track(&app.mpv, id);
     });
-    on!(ui, app, on_cycle_track, |m, subtitles, direction| {
-        commands::cycle_track(m, subtitles, direction);
-    });
+    on!(
+        ui.global::<Tracks>(),
+        app,
+        on_cycle,
+        |m, subtitles, direction| {
+            commands::cycle_track(m, subtitles, direction);
+        }
+    );
     // A track out, and a fetched one forgotten with it so it doesn't come
     // back next time the film opens. Reads the track list, so on the worker.
-    on_app!(ui, app, on_remove_track, |app, id, subtitle| {
-        app.activity.bump();
-        app.worker.run(move |mpv| {
-            let Some(file) = commands::remove_track(mpv, i64::from(id), subtitle) else {
-                return;
-            };
-            if let Some(path) = mpv.get_property("path") {
-                dbm_library::opensubtitles::forget(&path, &file);
-            }
-        });
-    });
+    on_app!(
+        ui.global::<Tracks>(),
+        app,
+        on_remove,
+        |app, id, subtitle| {
+            app.activity.bump();
+            app.worker.run(move |mpv| {
+                let Some(file) = commands::remove_track(mpv, i64::from(id), subtitle) else {
+                    return;
+                };
+                if let Some(path) = mpv.get_property("path") {
+                    dbm_library::opensubtitles::forget(&path, &file);
+                }
+            });
+        }
+    );
     wire_finding(ui, app);
 }
 

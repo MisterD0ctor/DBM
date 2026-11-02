@@ -7,6 +7,7 @@ use slint::{ComponentHandle, Model};
 use super::drive::{click, drag, wheel};
 use super::selected_label;
 use crate::MainWindow;
+use crate::Tracks;
 use crate::platform::modal_loop;
 
 pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
@@ -352,7 +353,7 @@ pub(super) fn scroll_test(ui: &MainWindow) -> slint::Timer {
                 }
                 16 => eprintln!(
                     "dbm: subtitle now {:?}",
-                    selected_label(&ui.get_sub_tracks())
+                    selected_label(&ui.global::<Tracks>().get_subtitles())
                 ),
                 17 => eprintln!("dbm: --- scroll test done ---"),
                 _ => {}

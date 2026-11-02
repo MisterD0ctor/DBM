@@ -1,0 +1,30 @@
+// The film's subtitle and audio tracks, as the Rust side lists them (see
+// `interface::sync`), and what the menus ask of them: one picked, stepped
+// through, or a track loaded from its own file taken out again.
+
+import { TrackItem } from "models.slint";
+
+export global Tracks {
+    in property <[TrackItem]> subtitles;
+    in property <[TrackItem]> audio;
+    /// Which row of each list is the current one, or -1. Worked out on the
+    /// Rust side, since a model can't be searched from here. The playlist's
+    /// is `playlist-current-group` and the row inside it.
+    in property <int> subtitle-current: -1;
+    in property <int> audio-current: -1;
+    /// Each list's track names, one to a line, for the measures that size its
+    /// panel (see `subs-w`). Those loaded from their own files come apart,
+    /// since their rows end in a remove button.
+    in property <string> subtitle-names;
+    in property <string> subtitle-removable-names;
+    in property <string> audio-names;
+    in property <string> audio-removable-names;
+    /// Track id, or -1 to turn subtitles off.
+    callback select-subtitle(int);
+    callback select-audio(int);
+    /// Remove a track loaded from its own file: a subtitle when the flag is
+    /// set, an audio track otherwise.
+    callback remove(int, bool);
+    /// Subtitles or audio, and which way.
+    callback cycle(bool, int);
+}

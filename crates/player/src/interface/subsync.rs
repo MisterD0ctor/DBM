@@ -8,9 +8,11 @@
 use dbm_lang::{fill, tr};
 use dbm_library::subsync::{Failure, Outcome};
 use dbm_mpv::Mpv;
+use slint::ComponentHandle;
 
 use super::{format, say, warn};
 use crate::MainWindow;
+use crate::Subtitles;
 use crate::playback::commands;
 use crate::playback::state::PlayerState;
 
@@ -20,7 +22,7 @@ use crate::playback::state::PlayerState;
 /// the two answers that change nothing on screen (already in step, and no
 /// answer) would otherwise look like a button that did nothing.
 pub fn answer(ui: &MainWindow, mpv: &Mpv, player: &PlayerState, outcome: Outcome) {
-    ui.set_sync_state(0);
+    ui.global::<Subtitles>().set_sync_state(0);
     // For the film and the track it listened to, or for nothing: the
     // timing belongs to that pair and would be wrong for any other.
     if player.path.as_deref() != Some(outcome.path.as_str()) || player.sid != outcome.sid {
@@ -53,9 +55,9 @@ pub fn answer(ui: &MainWindow, mpv: &Mpv, player: &PlayerState, outcome: Outcome
     // before the next checkpoint would lose it.
     crate::playback::session::checkpoint(mpv);
     // What stood before, for the row to offer back.
-    ui.set_sync_was_delay(was.0 as f32);
-    ui.set_sync_was_speed(was.1 as f32);
-    ui.set_sync_state(2);
+    ui.global::<Subtitles>().set_sync_was_delay(was.0 as f32);
+    ui.global::<Subtitles>().set_sync_was_speed(was.1 as f32);
+    ui.global::<Subtitles>().set_sync_state(2);
     say(
         ui,
         if same_speed {

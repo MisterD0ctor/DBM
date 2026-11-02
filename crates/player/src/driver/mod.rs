@@ -31,6 +31,7 @@ use std::sync::Mutex;
 
 use slint::{ComponentHandle, GraphicsAPI, RenderingState};
 
+use crate::Subtitles;
 use crate::app::App;
 use crate::interface::subline::Picture;
 use crate::interface::{fades, format, glass, playlist_panel, sync, warn};
@@ -634,7 +635,8 @@ impl Driver {
             f64::from(ui.get_subtitle_lift()),
         );
         if let Some(own) = self.app.subline.readout() {
-            ui.set_sub_pos_text(format::position(own).into());
+            ui.global::<Subtitles>()
+                .set_pos_text(format::position(own).into());
         }
     }
 }
