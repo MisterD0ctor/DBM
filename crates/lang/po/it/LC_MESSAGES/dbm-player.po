@@ -7,383 +7,383 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgctxt "MainWindow"
+msgctxt "FilesPanel"
 msgid "Open folder…"
 msgstr "Apri cartella…"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Restart"
 msgstr "Ricomincia"
 
-msgctxt "MainWindow"
+msgctxt "EndPill"
 msgid "Next"
 msgstr "Successivo"
 
-msgctxt "MainWindow"
+msgctxt "CornerPill"
 msgid "Skip intro"
 msgstr "Salta intro"
 
-msgctxt "MainWindow"
+msgctxt "CornerPill"
 msgid "Next episode"
 msgstr "Episodio successivo"
 
-msgctxt "MainWindow"
+msgctxt "ActionFlash"
 msgid "Subtitles off"
 msgstr "Sottotitoli disattivati"
 
-msgctxt "MainWindow"
+msgctxt "ActionFlash"
 msgid "No audio"
 msgstr "Nessun audio"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "PLAYBACK"
 msgstr "RIPRODUZIONE"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Play / pause"
 msgstr "Riproduci / pausa"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Back / forward {} seconds"
 msgstr "Indietro / avanti di {} secondi"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Back / forward {} second"
 msgstr "Indietro / avanti di {} secondo"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Previous / next file"
 msgstr "File precedente / successivo"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Previous / next chapter"
 msgstr "Capitolo precedente / successivo"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Frame back / forward"
 msgstr "Fotogramma indietro / avanti"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Comma / Period"
 msgstr "Virgola / Punto"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Slower / faster"
 msgstr "Più lento / più veloce"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Normal speed"
 msgstr "Velocità normale"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "AUDIO"
 msgstr "AUDIO"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Volume"
 msgstr "Volume"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Mute"
 msgstr "Disattiva audio"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Next audio track"
 msgstr "Traccia audio successiva"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "SUBTITLES"
 msgstr "SOTTOTITOLI"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Subtitles on / off"
 msgstr "Sottotitoli sì / no"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Subtitles earlier / later"
 msgstr "Sottotitoli prima / dopo"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "PICTURE"
 msgstr "IMMAGINE"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Fill or fit the window"
 msgstr "Riempi o adatta alla finestra"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Fullscreen"
 msgstr "Schermo intero"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Ambient border"
 msgstr "Luce ambientale"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "PANELS"
 msgstr "PANNELLI"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Playlist"
 msgstr "Playlist"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Settings"
 msgstr "Impostazioni"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shortcuts"
 msgstr "Scorciatoie"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "NAVIGATION"
 msgstr "NAVIGAZIONE"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Move in a panel"
 msgstr "Spostati in un pannello"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "First / last in a list"
 msgstr "Primo / ultimo di un elenco"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "A page up / down a list"
 msgstr "Pagina su / giù"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Move along the bar"
 msgstr "Spostati lungo la barra"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Choose, or adjust"
 msgstr "Scegli o regola"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Close, or leave fullscreen"
 msgstr "Chiudi o esci dallo schermo intero"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "FILES"
 msgstr "FILE"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Open file"
 msgstr "Apri file"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Open folder"
 msgstr "Apri cartella"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "POINTER"
 msgstr "PUNTATORE"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Click the picture"
 msgstr "Clic sull’immagine"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Double-click"
 msgstr "Doppio clic"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Wheel over its slider"
 msgstr "Rotellina sul cursore"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Seek a second"
 msgstr "Sposta di un secondo"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Wheel over the timeline"
 msgstr "Rotellina sulla timeline"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Open"
 msgstr "Apri"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Drop a file or folder"
 msgstr "Trascina un file o una cartella"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Listening…"
 msgstr "In ascolto…"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Undo sync"
 msgstr "Annulla sincronizzazione"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Sync to speech"
 msgstr "Sincronizza con il parlato"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Undo reset"
 msgstr "Annulla ripristino"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Press again to reset"
 msgstr "Premi di nuovo per ripristinare"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Reset to defaults"
 msgstr "Ripristina predefiniti"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "EFFECTS"
 msgstr "EFFETTI"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Liquid glass"
 msgstr "Vetro liquido"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "INTERFACE"
 msgstr "INTERFACCIA"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Accessibility"
 msgstr "Accessibilità"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Language"
 msgstr "Lingua"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "LIQUID GLASS"
 msgstr "VETRO LIQUIDO"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "AMBIENT BORDER"
 msgstr "LUCE AMBIENTALE"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Timing"
 msgstr "Ritardo"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Size"
 msgstr "Dimensione"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Position"
 msgstr "Posizione"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "ACCESSIBILITY"
 msgstr "ACCESSIBILITÀ"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Animations"
 msgstr "Animazioni"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "LANGUAGE"
 msgstr "LINGUA"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "System language"
 msgstr "Lingua di sistema"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "SHORTCUTS"
 msgstr "SCORCIATOIE"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Off"
 msgstr "Disattivati"
 
-msgctxt "MainWindow"
+msgctxt "FilesPanel"
 msgid "Open file…"
 msgstr "Apri file…"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Autoplay next"
 msgstr "Riproduzione automatica"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "{} of {}"
 msgstr "{} di {}"
 
-msgctxt "MainWindow"
+msgctxt "WayIn"
 msgid "Copied"
 msgstr "Copiato"
 
-msgctxt "MainWindow"
+msgctxt "WayIn"
 msgid "Copy details"
 msgstr "Copia dettagli"
 
-msgctxt "MainWindow"
+msgctxt "WayIn"
 msgid "Close the player"
 msgstr "Chiudi il lettore"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Opening {}…"
 msgstr "Apertura di {}…"
 
-msgctxt "MainWindow"
+msgctxt "WayIn"
 msgid "Or drop a file or folder onto the window"
 msgstr "Oppure trascina qui un file o una cartella"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Open a file or folder"
 msgstr "Apri un file o una cartella"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Back {} seconds"
 msgstr "Indietro di {} secondi"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "No earlier file"
 msgstr "Nessun file precedente"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Previous file"
 msgstr "File precedente"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Play"
 msgstr "Riproduci"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Pause"
 msgstr "Pausa"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "No later file"
 msgstr "Nessun file successivo"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Next file"
 msgstr "File successivo"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Forward {} seconds"
 msgstr "Avanti di {} secondi"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Unmute"
 msgstr "Riattiva audio"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Muted"
 msgstr "Audio disattivato"
 
-msgctxt "MainWindow"
+msgctxt "Playback"
 msgid "Volume {}%"
 msgstr "Volume {}%"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Fit the window"
 msgstr "Adatta alla finestra"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Fill the window"
 msgstr "Riempi la finestra"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Leave fullscreen"
 msgstr "Esci dallo schermo intero"
 
@@ -555,15 +555,15 @@ msgctxt "player"
 msgid "Settings could not be saved — {}"
 msgstr "Impossibile salvare le impostazioni — {}"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "FIND SUBTITLES"
 msgstr "CERCA SOTTOTITOLI"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Searching OpenSubtitles…"
 msgstr "Ricerca su OpenSubtitles…"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "No subtitles found"
 msgstr "Nessun sottotitolo trovato"
 
@@ -591,11 +591,11 @@ msgctxt "player"
 msgid "Today's subtitle downloads are used up"
 msgstr "I download di sottotitoli di oggi sono esauriti"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "No subtitles"
 msgstr "Nessun sottotitolo"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Remove an added track"
 msgstr "Rimuovi una traccia aggiunta"
 
@@ -607,11 +607,11 @@ msgctxt "player"
 msgid "external"
 msgstr "esterno"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Tooltips"
 msgstr "Suggerimenti"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shortcuts in tooltips"
 msgstr "Scorciatoie nei suggerimenti"
 
@@ -619,11 +619,11 @@ msgctxt "WayToCurrent"
 msgid "Scroll to the current one"
 msgstr "Scorri fino all’elemento attuale"
 
-msgctxt "MainWindow"
+msgctxt "EndPill"
 msgid "From the beginning"
 msgstr "Dall’inizio"
 
-msgctxt "MainWindow"
+msgctxt "EndPill"
 msgid "Continue from {}"
 msgstr "Riprendi da {}"
 
@@ -671,55 +671,55 @@ msgctxt "player"
 msgid "Softness"
 msgstr "Morbidezza"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Darken bright glass"
 msgstr "Scurisci il vetro chiaro"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shift+← →"
 msgstr "Maiusc+← →"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Home"
 msgstr "Home"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "PgUp PgDn"
 msgstr "PagSu PagGiù"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Backspace"
 msgstr "Backspace"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Z / Shift+Z"
 msgstr "Z / Maiusc+Z"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Home End"
 msgstr "Home Fine"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Tab"
 msgstr "Tab"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Enter / ← →"
 msgstr "Invio / ← →"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Esc"
 msgstr "Esc"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Delete"
 msgstr "Canc"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Ctrl+O"
 msgstr "Ctrl+O"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Ctrl+Shift+O"
 msgstr "Ctrl+Maiusc+O"
 
@@ -751,31 +751,31 @@ msgctxt "MenuRow"
 msgid "Remove?"
 msgstr "Rimuovere?"
 
-msgctxt "MainWindow"
+msgctxt "WindowButtons"
 msgid "Minimize"
 msgstr "Riduci a icona"
 
-msgctxt "MainWindow"
+msgctxt "WindowButtons"
 msgid "Restore"
 msgstr "Ripristina"
 
-msgctxt "MainWindow"
+msgctxt "WindowButtons"
 msgid "Maximize"
 msgstr "Ingrandisci"
 
-msgctxt "MainWindow"
+msgctxt "WindowButtons"
 msgid "Close"
 msgstr "Chiudi"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Subtitles"
 msgstr "Sottotitoli"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Audio"
 msgstr "Audio"
 
-msgctxt "MainWindow"
+msgctxt "AudioPanel"
 msgid "No audio tracks"
 msgstr "Nessuna traccia audio"
 
@@ -807,11 +807,11 @@ msgctxt "AccountPage"
 msgid "Sign out"
 msgstr "Esci"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Signed in as {}"
 msgstr "Accesso eseguito come {}"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Subtitles provided by OpenSubtitles.com"
 msgstr "Sottotitoli forniti da OpenSubtitles.com"
 
@@ -839,23 +839,23 @@ msgctxt "AccountPage"
 msgid "SIGN IN TO OPENSUBTITLES"
 msgstr "ACCEDI A OPENSUBTITLES"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "{} left today"
 msgstr "Ancora {} oggi"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Find subtitles"
 msgstr "Cerca sottotitoli"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Skip credits"
 msgstr "Salta i titoli di coda"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Reset timing"
 msgstr "Ripristina ritardo"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Size & position"
 msgstr "Dimensione e posizione"
 
@@ -907,19 +907,19 @@ msgctxt "player"
 msgid "{} s earlier"
 msgstr "{} s prima"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "TIMING"
 msgstr "RITARDO"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "SIZE & POSITION"
 msgstr "DIMENSIONE E POSIZIONE"
 
-msgctxt "MainWindow"
+msgctxt "CornerPill"
 msgid "Back to {}"
 msgstr "Torna a {}"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Shift"
 msgstr "Spostamento"
 
@@ -935,79 +935,79 @@ msgctxt "player"
 msgid "Smoke"
 msgstr "Fumo"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Space / K"
 msgstr "Spazio / K"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Jump to 0%–90%"
 msgstr "Salta allo 0–90%"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Skip intro or credits"
 msgstr "Salta intro o titoli di coda"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shift+P / Shift+N"
 msgstr "Maiusc+P / Maiusc+N"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Ctrl+← → / PgUp PgDn"
 msgstr "Ctrl+← → / PagSu PagGiù"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Smaller / larger subtitles"
 msgstr "Sottotitoli più piccoli / più grandi"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Next subtitle track"
 msgstr "Traccia sottotitoli successiva"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shift+C"
 msgstr "Maiusc+C"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Reset the picture"
 msgstr "Ripristina l'immagine"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Video"
 msgstr "Video"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Interface size"
 msgstr "Dimensioni interfaccia"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Off while your system asks for less motion"
 msgstr "Disattivate finché il sistema chiede meno movimento"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "VIDEO"
 msgstr "VIDEO"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Speed"
 msgstr "Velocità"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Show the time left"
 msgstr "Mostra il tempo rimanente"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Listens to the film and moves the subtitles to match what is said"
 msgstr "Ascolta il film e sposta i sottotitoli per farli coincidere con il parlato"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Show the length"
 msgstr "Mostra la durata"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Shift+P"
 msgstr "Maiusc+P"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Shift+N"
 msgstr "Maiusc+N"
 
@@ -1075,7 +1075,7 @@ msgctxt "player"
 msgid "How light the picture's middle tones are, leaving black and white"
 msgstr "Quanto sono chiari i toni medi dell'immagine, senza toccare il nero e il bianco"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Enter"
 msgstr "Invio"
 
@@ -1083,18 +1083,134 @@ msgctxt "player"
 msgid "."
 msgstr ","
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "{}%"
 msgstr "{}%"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Skip intros"
 msgstr "Salta le intro"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Episodes"
 msgstr "Episodi"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "EPISODES"
 msgstr "EPISODI"
+
+msgctxt "AudioPanel"
+msgid "AUDIO"
+msgstr "AUDIO"
+
+msgctxt "FilesPanel"
+msgid "Ctrl+O"
+msgstr "Ctrl+O"
+
+msgctxt "FilesPanel"
+msgid "Ctrl+Shift+O"
+msgstr "Ctrl+Maiusc+O"
+
+msgctxt "EndPill"
+msgid "Open folder…"
+msgstr "Apri cartella…"
+
+msgctxt "EndPill"
+msgid "Restart"
+msgstr "Ricomincia"
+
+msgctxt "CornerPill"
+msgid "Continue from {}"
+msgstr "Riprendi da {}"
+
+msgctxt "CornerPill"
+msgid "Skip credits"
+msgstr "Salta i titoli di coda"
+
+msgctxt "Playback"
+msgid "Muted"
+msgstr "Audio disattivato"
+
+msgctxt "WayIn"
+msgid "Open file…"
+msgstr "Apri file…"
+
+msgctxt "WayIn"
+msgid "Ctrl+O"
+msgstr "Ctrl+O"
+
+msgctxt "WayIn"
+msgid "Open folder…"
+msgstr "Apri cartella…"
+
+msgctxt "WayIn"
+msgid "Ctrl+Shift+O"
+msgstr "Ctrl+Maiusc+O"
+
+msgctxt "WayIn"
+msgid "Settings"
+msgstr "Impostazioni"
+
+msgctxt "WayIn"
+msgid "Shortcuts"
+msgstr "Scorciatoie"
+
+msgctxt "WayIn"
+msgid "Opening {}…"
+msgstr "Apertura di {}…"
+
+msgctxt "SubtitlesMenu"
+msgid "SUBTITLES"
+msgstr "SOTTOTITOLI"
+
+msgctxt "SubtitlesMenu"
+msgid "Position"
+msgstr "Posizione"
+
+msgctxt "SettingsPanel"
+msgid "Space / K"
+msgstr "Spazio / K"
+
+msgctxt "SettingsPanel"
+msgid "Restart"
+msgstr "Ricomincia"
+
+msgctxt "SettingsPanel"
+msgid "Home"
+msgstr "Home"
+
+msgctxt "SettingsPanel"
+msgid "Volume"
+msgstr "Volume"
+
+msgctxt "SettingsPanel"
+msgid "Mute"
+msgstr "Disattiva audio"
+
+msgctxt "SettingsPanel"
+msgid "Fullscreen"
+msgstr "Schermo intero"
+
+msgctxt "SettingsPanel"
+msgid "Subtitles"
+msgstr "Sottotitoli"
+
+msgctxt "SettingsPanel"
+msgid "Audio"
+msgstr "Audio"
+
+msgctxt "SettingsPanel"
+msgid "Playlist"
+msgstr "Playlist"
+
+msgctxt "SettingsPanel"
+msgid "Settings"
+msgstr "Impostazioni"
+
+msgctxt "SettingsPanel"
+msgid "Fill the window"
+msgstr "Riempi la finestra"
+
+msgctxt "SettingsPanel"
+msgid "Show the time left"
+msgstr "Mostra il tempo rimanente"

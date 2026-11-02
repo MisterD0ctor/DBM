@@ -4,359 +4,359 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgctxt "MainWindow"
+msgctxt "FilesPanel"
 msgid "Open folder…"
 msgstr "Öppna mapp…"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Restart"
 msgstr "Börja om"
 
-msgctxt "MainWindow"
+msgctxt "EndPill"
 msgid "Next"
 msgstr "Nästa"
 
-msgctxt "MainWindow"
+msgctxt "CornerPill"
 msgid "Skip intro"
 msgstr "Hoppa över intro"
 
-msgctxt "MainWindow"
+msgctxt "CornerPill"
 msgid "Next episode"
 msgstr "Nästa avsnitt"
 
-msgctxt "MainWindow"
+msgctxt "ActionFlash"
 msgid "Subtitles off"
 msgstr "Undertexter av"
 
-msgctxt "MainWindow"
+msgctxt "ActionFlash"
 msgid "No audio"
 msgstr "Inget ljud"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Play / pause"
 msgstr "Spela / pausa"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Back / forward {} seconds"
 msgstr "Bakåt / framåt {} sekunder"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Back / forward {} second"
 msgstr "Bakåt / framåt {} sekund"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Previous / next file"
 msgstr "Föregående / nästa fil"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Previous / next chapter"
 msgstr "Föregående / nästa kapitel"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Frame back / forward"
 msgstr "Bildruta bakåt / framåt"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Comma / Period"
 msgstr "Komma / Punkt"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Slower / faster"
 msgstr "Långsammare / snabbare"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Normal speed"
 msgstr "Normal hastighet"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "AUDIO"
 msgstr "LJUD"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Volume"
 msgstr "Volym"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Mute"
 msgstr "Stäng av ljudet"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Next audio track"
 msgstr "Nästa ljudspår"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "SUBTITLES"
 msgstr "UNDERTEXTER"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Subtitles on / off"
 msgstr "Undertexter på / av"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Subtitles earlier / later"
 msgstr "Undertexter tidigare / senare"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Fill or fit the window"
 msgstr "Fyll eller anpassa till fönstret"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Fullscreen"
 msgstr "Helskärm"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Ambient border"
 msgstr "Omgivningsljus"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Playlist"
 msgstr "Spellista"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Settings"
 msgstr "Inställningar"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shortcuts"
 msgstr "Kortkommandon"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Move in a panel"
 msgstr "Flytta i en panel"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "First / last in a list"
 msgstr "Första / sista i en lista"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "A page up / down a list"
 msgstr "En sida upp / ner i en lista"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Move along the bar"
 msgstr "Flytta längs fältet"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Choose, or adjust"
 msgstr "Välj eller justera"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Close, or leave fullscreen"
 msgstr "Stäng eller lämna helskärm"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Open file"
 msgstr "Öppna fil"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Open folder"
 msgstr "Öppna mapp"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Click the picture"
 msgstr "Klicka på bilden"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Double-click"
 msgstr "Dubbelklick"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Wheel over its slider"
 msgstr "Scrolla över reglaget"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Seek a second"
 msgstr "Spola en sekund"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Wheel over the timeline"
 msgstr "Scrolla över tidslinjen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Open"
 msgstr "Öppna"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Drop a file or folder"
 msgstr "Släpp en fil eller mapp"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Listening…"
 msgstr "Lyssnar…"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Undo sync"
 msgstr "Ångra synkning"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Sync to speech"
 msgstr "Synka mot tal"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Undo reset"
 msgstr "Ångra återställning"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Press again to reset"
 msgstr "Tryck igen för att återställa"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Reset to defaults"
 msgstr "Återställ standardvärden"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "EFFECTS"
 msgstr "EFFEKTER"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Liquid glass"
 msgstr "Flytande glas"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "INTERFACE"
 msgstr "GRÄNSSNITT"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Accessibility"
 msgstr "Tillgänglighet"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Language"
 msgstr "Språk"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "LIQUID GLASS"
 msgstr "FLYTANDE GLAS"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "AMBIENT BORDER"
 msgstr "OMGIVNINGSLJUS"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Timing"
 msgstr "Fördröjning"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Size"
 msgstr "Storlek"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Position"
 msgstr "Position"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "ACCESSIBILITY"
 msgstr "TILLGÄNGLIGHET"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Animations"
 msgstr "Animationer"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "LANGUAGE"
 msgstr "SPRÅK"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "System language"
 msgstr "Systemets språk"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "SHORTCUTS"
 msgstr "KORTKOMMANDON"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Off"
 msgstr "Av"
 
-msgctxt "MainWindow"
+msgctxt "FilesPanel"
 msgid "Open file…"
 msgstr "Öppna fil…"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Autoplay next"
 msgstr "Spela nästa automatiskt"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "{} of {}"
 msgstr "{} av {}"
 
-msgctxt "MainWindow"
+msgctxt "WayIn"
 msgid "Copied"
 msgstr "Kopierat"
 
-msgctxt "MainWindow"
+msgctxt "WayIn"
 msgid "Copy details"
 msgstr "Kopiera detaljer"
 
-msgctxt "MainWindow"
+msgctxt "WayIn"
 msgid "Close the player"
 msgstr "Stäng spelaren"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Opening {}…"
 msgstr "Öppnar {}…"
 
-msgctxt "MainWindow"
+msgctxt "WayIn"
 msgid "Or drop a file or folder onto the window"
 msgstr "Eller släpp en fil eller mapp på fönstret"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Open a file or folder"
 msgstr "Öppna en fil eller mapp"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Back {} seconds"
 msgstr "Bakåt {} sekunder"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "No earlier file"
 msgstr "Ingen tidigare fil"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Previous file"
 msgstr "Föregående fil"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Play"
 msgstr "Spela"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Pause"
 msgstr "Pausa"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "No later file"
 msgstr "Ingen senare fil"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Next file"
 msgstr "Nästa fil"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Forward {} seconds"
 msgstr "Framåt {} sekunder"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Unmute"
 msgstr "Slå på ljudet"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Muted"
 msgstr "Ljud av"
 
-msgctxt "MainWindow"
+msgctxt "Playback"
 msgid "Volume {}%"
 msgstr "Volym {} %"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Fit the window"
 msgstr "Anpassa till fönstret"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Fill the window"
 msgstr "Fyll fönstret"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Leave fullscreen"
 msgstr "Lämna helskärm"
 
@@ -528,39 +528,39 @@ msgctxt "player"
 msgid "Settings could not be saved — {}"
 msgstr "Inställningarna kunde inte sparas — {}"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "PLAYBACK"
 msgstr "UPPSPELNING"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "PICTURE"
 msgstr "BILD"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "PANELS"
 msgstr "PANELER"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "NAVIGATION"
 msgstr "NAVIGERING"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "FILES"
 msgstr "FILER"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "POINTER"
 msgstr "PEKARE"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "FIND SUBTITLES"
 msgstr "HITTA UNDERTEXTER"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Searching OpenSubtitles…"
 msgstr "Söker på OpenSubtitles…"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "No subtitles found"
 msgstr "Inga undertexter hittades"
 
@@ -588,11 +588,11 @@ msgctxt "player"
 msgid "Today's subtitle downloads are used up"
 msgstr "Dagens nedladdningar av undertexter är slut"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "No subtitles"
 msgstr "Inga undertexter"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Remove an added track"
 msgstr "Ta bort ett tillagt spår"
 
@@ -604,11 +604,11 @@ msgctxt "player"
 msgid "external"
 msgstr "extern"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Tooltips"
 msgstr "Verktygstips"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shortcuts in tooltips"
 msgstr "Kortkommandon i verktygstips"
 
@@ -616,11 +616,11 @@ msgctxt "WayToCurrent"
 msgid "Scroll to the current one"
 msgstr "Rulla till den aktuella"
 
-msgctxt "MainWindow"
+msgctxt "EndPill"
 msgid "From the beginning"
 msgstr "Från början"
 
-msgctxt "MainWindow"
+msgctxt "EndPill"
 msgid "Continue from {}"
 msgstr "Fortsätt från {}"
 
@@ -668,55 +668,55 @@ msgctxt "player"
 msgid "Softness"
 msgstr "Mjukhet"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Darken bright glass"
 msgstr "Tona ner ljust glas"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shift+← →"
 msgstr "Skift+← →"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Home"
 msgstr "Home"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "PgUp PgDn"
 msgstr "PgUp PgDn"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Backspace"
 msgstr "Backsteg"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Z / Shift+Z"
 msgstr "Z / Skift+Z"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Home End"
 msgstr "Home End"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Tab"
 msgstr "Tabb"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Enter / ← →"
 msgstr "Retur / ← →"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Esc"
 msgstr "Esc"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Delete"
 msgstr "Delete"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Ctrl+O"
 msgstr "Ctrl+O"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Ctrl+Shift+O"
 msgstr "Ctrl+Skift+O"
 
@@ -748,31 +748,31 @@ msgctxt "MenuRow"
 msgid "Remove?"
 msgstr "Ta bort?"
 
-msgctxt "MainWindow"
+msgctxt "WindowButtons"
 msgid "Minimize"
 msgstr "Minimera"
 
-msgctxt "MainWindow"
+msgctxt "WindowButtons"
 msgid "Restore"
 msgstr "Återställ"
 
-msgctxt "MainWindow"
+msgctxt "WindowButtons"
 msgid "Maximize"
 msgstr "Maximera"
 
-msgctxt "MainWindow"
+msgctxt "WindowButtons"
 msgid "Close"
 msgstr "Stäng"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Subtitles"
 msgstr "Undertexter"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Audio"
 msgstr "Ljud"
 
-msgctxt "MainWindow"
+msgctxt "AudioPanel"
 msgid "No audio tracks"
 msgstr "Inga ljudspår"
 
@@ -804,11 +804,11 @@ msgctxt "AccountPage"
 msgid "Sign out"
 msgstr "Logga ut"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Signed in as {}"
 msgstr "Inloggad som {}"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Subtitles provided by OpenSubtitles.com"
 msgstr "Undertexter från OpenSubtitles.com"
 
@@ -836,23 +836,23 @@ msgctxt "AccountPage"
 msgid "SIGN IN TO OPENSUBTITLES"
 msgstr "LOGGA IN PÅ OPENSUBTITLES"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "{} left today"
 msgstr "{} kvar i dag"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Find subtitles"
 msgstr "Hitta undertexter"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Skip credits"
 msgstr "Hoppa över eftertexter"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Reset timing"
 msgstr "Återställ fördröjning"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Size & position"
 msgstr "Storlek och position"
 
@@ -904,19 +904,19 @@ msgctxt "player"
 msgid "{} s earlier"
 msgstr "{} s tidigare"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "TIMING"
 msgstr "FÖRDRÖJNING"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "SIZE & POSITION"
 msgstr "STORLEK OCH POSITION"
 
-msgctxt "MainWindow"
+msgctxt "CornerPill"
 msgid "Back to {}"
 msgstr "Tillbaka till {}"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Shift"
 msgstr "Förskjutning"
 
@@ -932,79 +932,79 @@ msgctxt "player"
 msgid "Smoke"
 msgstr "Rök"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Space / K"
 msgstr "Blanksteg / K"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Jump to 0%–90%"
 msgstr "Hoppa till 0–90 %"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Skip intro or credits"
 msgstr "Hoppa över intro eller eftertexter"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shift+P / Shift+N"
 msgstr "Skift+P / Skift+N"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Ctrl+← → / PgUp PgDn"
 msgstr "Ctrl+← → / PgUp PgDn"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Smaller / larger subtitles"
 msgstr "Mindre / större undertexter"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Next subtitle track"
 msgstr "Nästa undertextspår"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shift+C"
 msgstr "Skift+C"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Reset the picture"
 msgstr "Återställ bilden"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Video"
 msgstr "Video"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Interface size"
 msgstr "Gränssnittets storlek"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Off while your system asks for less motion"
 msgstr "Av medan systemet ber om mindre rörelse"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "VIDEO"
 msgstr "VIDEO"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Speed"
 msgstr "Hastighet"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Show the time left"
 msgstr "Visa återstående tid"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Listens to the film and moves the subtitles to match what is said"
 msgstr "Lyssnar på filmen och flyttar undertexterna så att de stämmer med det som sägs"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Show the length"
 msgstr "Visa längden"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Shift+P"
 msgstr "Skift+P"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Shift+N"
 msgstr "Skift+N"
 
@@ -1072,7 +1072,7 @@ msgctxt "player"
 msgid "How light the picture's middle tones are, leaving black and white"
 msgstr "Hur ljusa bildens mellantoner är, utan att röra svart och vitt"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Enter"
 msgstr "Retur"
 
@@ -1080,18 +1080,134 @@ msgctxt "player"
 msgid "."
 msgstr ","
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "{}%"
 msgstr "{} %"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Skip intros"
 msgstr "Hoppa över intron"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Episodes"
 msgstr "Avsnitt"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "EPISODES"
 msgstr "AVSNITT"
+
+msgctxt "AudioPanel"
+msgid "AUDIO"
+msgstr "LJUD"
+
+msgctxt "FilesPanel"
+msgid "Ctrl+O"
+msgstr "Ctrl+O"
+
+msgctxt "FilesPanel"
+msgid "Ctrl+Shift+O"
+msgstr "Ctrl+Skift+O"
+
+msgctxt "EndPill"
+msgid "Open folder…"
+msgstr "Öppna mapp…"
+
+msgctxt "EndPill"
+msgid "Restart"
+msgstr "Börja om"
+
+msgctxt "CornerPill"
+msgid "Continue from {}"
+msgstr "Fortsätt från {}"
+
+msgctxt "CornerPill"
+msgid "Skip credits"
+msgstr "Hoppa över eftertexter"
+
+msgctxt "Playback"
+msgid "Muted"
+msgstr "Ljud av"
+
+msgctxt "WayIn"
+msgid "Open file…"
+msgstr "Öppna fil…"
+
+msgctxt "WayIn"
+msgid "Ctrl+O"
+msgstr "Ctrl+O"
+
+msgctxt "WayIn"
+msgid "Open folder…"
+msgstr "Öppna mapp…"
+
+msgctxt "WayIn"
+msgid "Ctrl+Shift+O"
+msgstr "Ctrl+Skift+O"
+
+msgctxt "WayIn"
+msgid "Settings"
+msgstr "Inställningar"
+
+msgctxt "WayIn"
+msgid "Shortcuts"
+msgstr "Kortkommandon"
+
+msgctxt "WayIn"
+msgid "Opening {}…"
+msgstr "Öppnar {}…"
+
+msgctxt "SubtitlesMenu"
+msgid "SUBTITLES"
+msgstr "UNDERTEXTER"
+
+msgctxt "SubtitlesMenu"
+msgid "Position"
+msgstr "Position"
+
+msgctxt "SettingsPanel"
+msgid "Space / K"
+msgstr "Blanksteg / K"
+
+msgctxt "SettingsPanel"
+msgid "Restart"
+msgstr "Börja om"
+
+msgctxt "SettingsPanel"
+msgid "Home"
+msgstr "Home"
+
+msgctxt "SettingsPanel"
+msgid "Volume"
+msgstr "Volym"
+
+msgctxt "SettingsPanel"
+msgid "Mute"
+msgstr "Stäng av ljudet"
+
+msgctxt "SettingsPanel"
+msgid "Fullscreen"
+msgstr "Helskärm"
+
+msgctxt "SettingsPanel"
+msgid "Subtitles"
+msgstr "Undertexter"
+
+msgctxt "SettingsPanel"
+msgid "Audio"
+msgstr "Ljud"
+
+msgctxt "SettingsPanel"
+msgid "Playlist"
+msgstr "Spellista"
+
+msgctxt "SettingsPanel"
+msgid "Settings"
+msgstr "Inställningar"
+
+msgctxt "SettingsPanel"
+msgid "Fill the window"
+msgstr "Fyll fönstret"
+
+msgctxt "SettingsPanel"
+msgid "Show the time left"
+msgstr "Visa återstående tid"

@@ -1,0 +1,1241 @@
+// The settings panel: a front page listing what can be adjusted, each with a
+// page of its own, so everything tunable is in one place. The slider rows
+// come from the registry in `settings`, so adding a knob needs no edit here.
+
+import { Chrome, Flash, Tip } from "globals.slint";
+import { Playback } from "playback.slint";
+import { Reset, Resets, Settings } from "settings.slint";
+import { ScrollFade } from "models.slint";
+import {
+    BackRow, DrillRow, MenuHeading, MenuRow, NoteRow, ParamSlider, ShortcutRow, StepperRow,
+    ToggleRow, Tucked,
+} from "rows.slint";
+import { Measure } from "measure.slint";
+import { GlassPanel } from "panel.slint";
+import { ScrollList } from "scroll_list.slint";
+import { Motion, Paint, Rows, Type } from "theme.slint";
+
+/// The settings panel's pages, in the order its front page lists them.
+export enum SettingsPage {
+    front, video, episodes, glass, border, accessibility, shortcuts, language
+}
+
+/// The two pages slide, the old one out the side the new one comes in
+/// from, and the panel eases to the new height, so the change can be
+/// followed rather than happening in one frame. Back reverses it.
+///
+/// Every settings page is a list under its way back, and the first page is
+/// one list, so a page too tall for a small window scrolls rather than
+/// cutting off controls nobody could then reach.
+export component SettingsPanel inherits GlassPanel {
+    /// The row the keyboard's ring is on, which every panel shares.
+    in-out property <int> ring-row;
+    /// Which page the panel shows. Pages replace each other in place, so
+    /// there is only one settings glass rect.
+    in-out property <SettingsPage> page: SettingsPage.front;
+    /// Where the row that last asked for something slow is, for the answer
+    /// to be put beside it, and the claim of a hint up beside a row (see the
+    /// window's own).
+    in-out property <length> asked-row;
+    in-out property <int> hint-claim;
+    /// Whether a file dropped on the window reaches the player, which the
+    /// shortcuts page only mentions where it does.
+    in property <bool> drop-supported;
+
+    /// A page whose last row is its reset, where the ring stops at the ends
+    /// rather than wrapping.
+    out property <bool> ends-in-reset: root.settings-page-reset != Reset.none;
+    /// Each list's fade only while its page is drawn.
+    out property <float> front-shown: root.drill < 1.0 ? root.shown : 0;
+    out property <float> leaf-shown: root.drill > 0.0 ? root.shown : 0;
+    /// How far the panel is from its target height, for the test that drags
+    /// the window's size and expects it to be zero.
+    out property <length> lag: abs(root.height - min(root.panel-pad + root.body, root.panel-max-h));
+
+    /// Bring the ring's row into view, where it is on a page's list.
+    public function reveal() {
+        if (root.page != SettingsPage.shortcuts
+                && (root.page == SettingsPage.front || root.ring-row > 0)) {
+            root.settings-reveal-top = root.settings-row-top(root.page, root.ring-row);
+            root.settings-reveal-h = root.settings-row-h(root.page, root.ring-row);
+            root.settings-reveal-tick += 1;
+        }
+    }
+
+    /// Left and right, only where the row under the ring is something they
+    /// can move: a slider or a stepper. Says whether it was.
+    public function adjust(delta: int) -> bool {
+        if (root.ring-row < 1) {
+            return false;
+        }
+        if (root.page == SettingsPage.glass
+            && root.ring-row <= Settings.glass-params.length) {
+            Settings.set-param(Settings.glass-params[root.ring-row - 1].index,
+                clamp(Settings.glass-params[root.ring-row - 1].fraction
+                    + delta * root.focus-step, 0.0, 1.0));
+            return true;
+        }
+        if (root.page == SettingsPage.border
+                && root.is-slider(root.page, root.ring-row)) {
+            Settings.set-param(Settings.border-params[root.ring-row - 2].index,
+                clamp(Settings.border-params[root.ring-row - 2].fraction
+                    + delta * root.focus-step, 0.0, 1.0));
+            return true;
+        }
+        if (root.page == SettingsPage.video
+                && root.is-slider(root.page, root.ring-row)) {
+            Settings.set-param(Settings.picture-params[root.ring-row - 4].index,
+                clamp(Settings.picture-params[root.ring-row - 4].fraction
+                    + delta * root.focus-step, 0.0, 1.0));
+            return true;
+        }
+        // The steppers: the speed, and the interface's size.
+        if (root.page == SettingsPage.video && root.ring-row == 1) {
+            Playback.step-speed(Playback.speed, delta);
+            return true;
+        }
+        if (root.page == SettingsPage.accessibility && root.ring-row == 1) {
+            Settings.step-scale(delta);
+            return true;
+        }
+        return false;
+    }
+
+    /// Back to the front page, from a page behind it; says whether it was on
+    /// one.
+    public function go-back() -> bool {
+        if (root.page != SettingsPage.front) {
+            root.page = SettingsPage.front;
+            root.ring-row = 0;
+            return true;
+        }
+        return false;
+    }
+
+    /// Right on the front page, whose every row leads to a page.
+    public function enter-ringed() {
+        if (root.page == SettingsPage.front) {
+            root.activate();
+        }
+    }
+
+    /// The reading keys, on the shortcuts page, which is read rather than
+    /// walked; says whether one was read. Nested rather than one `&&` chain,
+    /// because `on-read` acts, and a call with an effect doesn't belong beside
+    /// the test that guards it.
+    public function read(text: string) -> bool {
+        if (root.page == SettingsPage.shortcuts) {
+            return root.on-read(text);
+        }
+        return false;
+    }
+
+    /// A hundredth of the range per press, because these are judged by eye,
+    /// and at a twentieth the look you wanted fell between presses. The
+    /// readout is never coarser than this, so every press shows.
+    property <float> focus-step: 0.01;
+
+    // Wider on the shortcuts page, the one page with two columns of words, a
+    // name and its keys: at the others' width the longest pairs are cut in
+    // every language, and at this one in none of them.
+    width: root.page == SettingsPage.shortcuts ? 440px : root.words-w;
+    height: min(root.panel-pad + root.body, root.panel-max-h);
+    drills: true;
+
+    /// 2px wider than the widest name, so with the row's 8px spacing the
+    /// track sits 10px off the words.
+    property <length> param-name-w: param-measure.preferred-width + 2px;
+    /// Per page: the rows, the way back, and the reset after them, plus the
+    /// switch on the ambient border's, and on the video page the speed and
+    /// its two switches. Accessibility and the episodes page have no reset,
+    /// since each row undoes itself, and the shortcuts page has only the way
+    /// back.
+    out property <int> rows:
+        root.page == SettingsPage.front ? 7
+        : root.page == SettingsPage.glass ? 2 + Settings.glass-params.length
+        : root.page == SettingsPage.border ? 3 + Settings.border-params.length
+        : root.page == SettingsPage.accessibility ? 2 + root.access-switches
+        : root.page == SettingsPage.language ? 1 + root.language-count
+        : root.page == SettingsPage.video ? 5 + Settings.picture-params.length
+        : root.page == SettingsPage.episodes ? 1 + root.episode-switches
+        : 1;
+    /// The same count for `leaf-page`, which on the way back out isn't the
+    /// page the keyboard is on. Counting off the live page would light the
+    /// wrong reset row on a page halfway out of the panel.
+    property <int> leaf-focus-count:
+        root.leaf-page == SettingsPage.glass ? 2 + Settings.glass-params.length
+        : root.leaf-page == SettingsPage.border ? 3 + Settings.border-params.length
+        : root.leaf-page == SettingsPage.accessibility ? 2 + root.access-switches
+        : root.leaf-page == SettingsPage.video ? 5 + Settings.picture-params.length
+        : root.leaf-page == SettingsPage.episodes ? 1 + root.episode-switches
+        : root.leaf-page == SettingsPage.language ? 1 + root.language-count
+        : 1;
+    /// The accessibility page's switches. Shortcuts in tooltips is there only
+    /// while there are tooltips to put them in.
+    property <int> access-switches: Tip.enabled ? 4 : 3;
+    /// The episodes page's switches: Skip intros, Autoplay next, and Skip
+    /// credits while autoplay is on, since it goes no further than autoplay.
+    property <int> episode-switches: Settings.autoplay ? 3 : 2;
+    /// Its rows, the two fixed ones included.
+    property <int> language-count: 2 + Settings.language-names.length;
+    /// What the reset at the foot of that page resets, on the pages that have
+    /// one (see "resetting a page").
+    property <Reset> settings-page-reset: root.page == SettingsPage.glass
+        ? Reset.glass
+        : root.page == SettingsPage.border ? Reset.border
+        : root.page == SettingsPage.video ? Reset.picture
+        : Reset.none;
+    /// Every key the handlers below answer to, for the shortcuts page. Kept
+    /// in this file, above the handlers, so the reference and the bindings
+    /// don't drift apart.
+    ///
+    /// A row with a heading opens a section, and one without belongs to the
+    /// section above, so moving a key between groups is moving one line. Keys
+    /// for the two ends of one action stand side by side, `← →`, but take a
+    /// slash where either is a name or has a modifier, `Z / Shift+Z`, since a
+    /// space inside `Shift+Z` would read as a third key. A slash also stands
+    /// between two ways to do one thing, `Space / K`.
+    property <[{label: string, keys: string, heading: string, icon: image, dropping: bool}]> shortcuts: [
+        { heading: @tr("PLAYBACK"), icon: @image-url("../../../public/icons/play-pause.svg"),
+          label: @tr("Play / pause"), keys: @tr("Space / K") },
+        { label: @tr("Back / forward {} seconds", Playback.seek-step), keys: "← → / J L" },
+        { label: @tr("Back / forward {} second", Playback.fine-seek-step), keys: @tr("Shift+← →") },
+        { label: @tr("Restart"), keys: @tr("Home") },
+        { label: @tr("Jump to 0%–90%"), keys: "0–9" },
+        { label: @tr("Skip intro or credits"), keys: @tr("Enter") },
+        { label: @tr("Previous / next file"), keys: @tr("Shift+P / Shift+N") },
+        { label: @tr("Previous / next chapter"), keys: @tr("Ctrl+← → / PgUp PgDn") },
+        // Named, because a comma and a full stop at readout size are specks
+        // nobody can read as keys.
+        { label: @tr("Frame back / forward"), keys: @tr("Comma / Period") },
+        { label: @tr("Slower / faster"), keys: "< >" },
+        { label: @tr("Normal speed"), keys: @tr("Backspace") },
+
+        { heading: @tr("AUDIO"), icon: @image-url("../../../public/icons/volume.svg"),
+          label: @tr("Volume"), keys: "↑ ↓" },
+        { label: @tr("Mute"), keys: "M" },
+        { label: @tr("Next audio track"), keys: "#" },
+
+        { heading: @tr("SUBTITLES"), icon: @image-url("../../../public/icons/subtitles.svg"),
+          label: @tr("Subtitles on / off"), keys: "C" },
+        { label: @tr("Subtitles earlier / later"), keys: @tr("Z / Shift+Z") },
+        { label: @tr("Smaller / larger subtitles"), keys: "− +" },
+        { label: @tr("Next subtitle track"), keys: @tr("Shift+C") },
+
+        { heading: @tr("PICTURE"), icon: @image-url("../../../public/icons/monitor.svg"),
+          label: @tr("Fill or fit the window"), keys: "T" },
+        { label: @tr("Fullscreen"), keys: "F / F11" },
+        { label: @tr("Ambient border"), keys: "B" },
+
+        { heading: @tr("PANELS"), icon: @image-url("../../../public/icons/panel.svg"),
+          label: @tr("Subtitles"), keys: "V" },
+        { label: @tr("Audio"), keys: "A" },
+        { label: @tr("Playlist"), keys: "P" },
+        { label: @tr("Settings"), keys: "S" },
+        { label: @tr("Shortcuts"), keys: "?" },
+
+        { heading: @tr("NAVIGATION"), icon: @image-url("../../../public/icons/navigation.svg"),
+          label: @tr("Move in a panel"), keys: "↑ ↓" },
+        { label: @tr("First / last in a list"), keys: @tr("Home End") },
+        { label: @tr("A page up / down a list"), keys: @tr("PgUp PgDn") },
+        { label: @tr("Move along the bar"), keys: @tr("Tab") },
+        { label: @tr("Choose, or adjust"), keys: @tr("Enter / ← →") },
+        { label: @tr("Close, or leave fullscreen"), keys: @tr("Esc") },
+        { label: @tr("Remove an added track"), keys: @tr("Delete") },
+
+        { heading: @tr("FILES"), icon: @image-url("../../../public/icons/folder-open.svg"),
+          label: @tr("Open file"), keys: @tr("Ctrl+O") },
+        { label: @tr("Open folder"), keys: @tr("Ctrl+Shift+O") },
+
+        // Not keys, but written nowhere else, and the player's one reference
+        // shouldn't leave out what the pointer does.
+        { heading: @tr("POINTER"), icon: @image-url("../../../public/icons/mouse.svg"),
+          label: @tr("Play / pause"), keys: @tr("Click the picture") },
+        { label: @tr("Fullscreen"), keys: @tr("Double-click") },
+        { label: @tr("Volume"), keys: @tr("Wheel over its slider") },
+        { label: @tr("Seek a second"), keys: @tr("Wheel over the timeline") },
+        // The one row here that is not true everywhere; see `drop-supported`.
+        { label: @tr("Open"), keys: @tr("Drop a file or folder"), dropping: true },
+    ];
+    /// How many of the rows above open a section. Counted by hand because
+    /// Slint can't fold an array and the page's height must be arithmetic
+    /// (see "bar geometry"). Miscounted, the panel won't fit its contents.
+    property <int> shortcut-sections: 8;
+    property <length> shortcuts-natural: root.shortcuts.length * root.row-h
+        + root.shortcut-sections * root.heading-h
+        // The space above every heading but the first.
+        + (root.shortcut-sections - 1) * Rows.group-gap
+        // Less the drop row where it isn't drawn, which stays in the list so
+        // the rows remain one literal.
+        - (root.drop-supported ? 0px : root.row-h);
+    /// What a page holds under its way back, unconstrained. From row counts
+    /// rather than the layout's `preferred-height`, for the reason under
+    /// "bar geometry".
+    pure function page-natural(page: SettingsPage) -> length {
+        // The controls, the gap, and the reset that follows them.
+        if (page == SettingsPage.glass) {
+            return Settings.glass-params.length * Rows.slider-row + Rows.group-gap + root.row-h;
+        }
+        // The switch and a gap before them.
+        if (page == SettingsPage.border) {
+            return root.sliders-top(page) + Settings.border-params.length * Rows.slider-row
+                + Rows.group-gap + root.row-h;
+        }
+        // The size, a gap, and the switches, with the note under Animations
+        // while the system holds it off.
+        if (page == SettingsPage.accessibility) {
+            return Rows.stepper-row + Rows.group-gap + root.access-switches * root.toggle-h
+                + (root.motion-note ? root.note-h : 0px);
+        }
+        if (page == SettingsPage.shortcuts) {
+            return root.shortcuts-natural;
+        }
+        if (page == SettingsPage.language) {
+            return root.language-count * root.row-h;
+        }
+        // The speed and its two switches, then the picture's sliders between
+        // gaps, and their reset.
+        if (page == SettingsPage.video) {
+            return root.sliders-top(page) + Settings.picture-params.length * Rows.slider-row
+                + Rows.group-gap + root.row-h;
+        }
+        if (page == SettingsPage.episodes) {
+            return root.episode-switches * root.toggle-h;
+        }
+        return 0px;
+    }
+    /// The first page: three headings and seven rows that lead somewhere. The
+    /// headings after the first follow a group and take the gap.
+    property <length> front-natural: 3 * root.heading-h + 7 * root.row-h
+        + 2 * Rows.group-gap;
+    /// A line of the system's under the Animations switch while it holds them
+    /// off, so the switch standing on doesn't read as broken.
+    property <bool> motion-note: Motion.system-still && Motion.chosen;
+    property <length> note-h: 2 * Rows.note-line;
+    /// What is left of the panel for each list: all of it on the first page,
+    /// and what the way back leaves on the others. Each list's own height at
+    /// rest while the panel moves between the two (see `moving`).
+    property <length> front-list-h: root.moving ? root.front-rest-h
+        : max(0px, root.height - root.panel-pad);
+    property <length> leaf-list-h: root.moving ? root.leaf-rest-h
+        : max(0px, root.height - root.panel-pad - root.row-h);
+    /// The same once the panel has finished moving (see `rest-height` on the
+    /// list).
+    property <length> front-rest-h: min(root.front-natural,
+        max(0px, root.panel-max-h - root.panel-pad));
+    property <length> leaf-rest-h: min(root.page-natural(root.leaf-page),
+        max(0px, root.panel-max-h - root.panel-pad - root.row-h));
+    /// The row the keyboard is on, for the page's list to bring into view.
+    /// The pages are built inside conditions, out of the key handler's reach,
+    /// so it is left here with a tick (see `ScrollList.reveal-tick`).
+    property <length> settings-reveal-top;
+    property <length> settings-reveal-h;
+    property <int> settings-reveal-tick;
+    pure function has-sliders(page: SettingsPage) -> bool {
+        return page == SettingsPage.glass || page == SettingsPage.border
+            || page == SettingsPage.video;
+    }
+    /// How many sliders a page of them has, the row the first is, and how far
+    /// down the list it starts: under the ambient border's switch and a gap.
+    pure function sliders-on(page: SettingsPage) -> int {
+        return page == SettingsPage.glass ? Settings.glass-params.length
+            : page == SettingsPage.video ? Settings.picture-params.length
+            : Settings.border-params.length;
+    }
+    pure function sliders-from(page: SettingsPage) -> int {
+        return page == SettingsPage.border ? 2 : page == SettingsPage.video ? 4 : 1;
+    }
+    pure function sliders-top(page: SettingsPage) -> length {
+        return page == SettingsPage.border ? root.toggle-h + Rows.group-gap
+            : page == SettingsPage.video ? Rows.stepper-row + 2 * root.toggle-h + Rows.group-gap
+            : 0px;
+    }
+    /// Whether a row of a page of sliders is one of them.
+    pure function is-slider(page: SettingsPage, row: int) -> bool {
+        return root.has-sliders(page) && row >= root.sliders-from(page)
+            && row < root.sliders-from(page) + root.sliders-on(page);
+    }
+    /// Where a row of a settings page is in its list, and how tall it is.
+    /// Row 0 of every page but the first is the way back, which is not in
+    /// the list.
+    pure function settings-row-top(page: SettingsPage, row: int) -> length {
+        if (page == SettingsPage.front) {
+            // A heading over rows 0, 2 and 4, the later two after a gap.
+            return row * root.row-h + root.heading-h
+                + (row >= 2 ? root.heading-h + Rows.group-gap : 0px)
+                + (row >= 4 ? root.heading-h + Rows.group-gap : 0px);
+        }
+        // The ambient border's switch, the sliders, then the gap and the reset.
+        if (page == SettingsPage.border && row == 1) {
+            return 0px;
+        }
+        // The speed, then its two switches.
+        if (page == SettingsPage.video && row <= 3) {
+            return row == 1 ? 0px : Rows.stepper-row + (row - 2) * root.toggle-h;
+        }
+        if (root.has-sliders(page)) {
+            return root.sliders-top(page) + (root.is-slider(page, row)
+                ? (row - root.sliders-from(page)) * Rows.slider-row
+                : root.sliders-on(page) * Rows.slider-row + Rows.group-gap);
+        }
+        // The size, a gap, then the switches, the note under the first.
+        if (page == SettingsPage.accessibility) {
+            return row == 1 ? 0px
+                : Rows.stepper-row + Rows.group-gap + (row - 2) * root.toggle-h
+                    + (row >= 3 && root.motion-note ? root.note-h : 0px);
+        }
+        if (page == SettingsPage.episodes) {
+            return (row - 1) * root.toggle-h;
+        }
+        return (row - 1) * root.row-h;
+    }
+    pure function settings-row-h(page: SettingsPage, row: int) -> length {
+        if (root.is-slider(page, row)) {
+            return Rows.slider-row;
+        }
+        if ((page == SettingsPage.accessibility || page == SettingsPage.video) && row == 1) {
+            return Rows.stepper-row;
+        }
+        if ((page == SettingsPage.border && row == 1) || (page == SettingsPage.video && row <= 3)) {
+            return root.toggle-h;
+        }
+        if (page == SettingsPage.accessibility || page == SettingsPage.episodes) {
+            return root.toggle-h;
+        }
+        return root.row-h;
+    }
+    /// The settings' lists, which are built inside conditions and can't be
+    /// read from here, so each leaves its `fade` in one of these: the first
+    /// page's, and whichever page is behind it.
+    out property <ScrollFade> front-fade;
+    out property <ScrollFade> leaf-fade;
+    /// Row 0 of every page but the first is the way back, and the last row of
+    /// a page of controls is its reset. Enter does nothing on a slider or a
+    /// stepper, which left and right move.
+    public function activate() -> bool {
+        if (root.page == SettingsPage.front) {
+            root.page = root.ring-row == 0 ? SettingsPage.video
+                : root.ring-row == 1 ? SettingsPage.episodes
+                : root.ring-row == 2 ? SettingsPage.glass
+                : root.ring-row == 3 ? SettingsPage.border
+                : root.ring-row == 4 ? SettingsPage.accessibility
+                : root.ring-row == 5 ? SettingsPage.shortcuts
+                : SettingsPage.language;
+            // Start at the new page's top, since the row number that opened
+            // it may not exist there.
+            root.ring-row = 0;
+            return true;
+        }
+        if (root.ring-row == 0) {
+            root.page = SettingsPage.front;
+            return true;
+        }
+        if (root.page == SettingsPage.accessibility) {
+            if (root.ring-row == 1) {
+                return false;
+            } else if (root.ring-row == 2) {
+                Settings.turn-motion(!Motion.chosen);
+            } else if (root.ring-row == 3) {
+                Settings.turn-legible(!Settings.legible-glass);
+            } else if (root.ring-row == 4) {
+                Settings.turn-tips(!Tip.enabled);
+            } else {
+                Settings.turn-tip-keys(!Tip.with-keys);
+            }
+            return true;
+        }
+        if (root.page == SettingsPage.video && root.ring-row == 2) {
+            Playback.toggle-panscan();
+            return true;
+        }
+        if (root.page == SettingsPage.video && root.ring-row == 3) {
+            Settings.turn-remaining(!Settings.show-remaining);
+            return true;
+        }
+        if (root.page == SettingsPage.episodes) {
+            root.episode-switch(root.ring-row - 1);
+            return true;
+        }
+        if (root.page == SettingsPage.language) {
+            Settings.pick-language(root.ring-row - 1);
+            return true;
+        }
+        if (root.page == SettingsPage.border && root.ring-row == 1) {
+            Settings.ambience-on = !Settings.ambience-on;
+            Settings.set-ambience(Settings.ambience-on);
+            return true;
+        }
+        if (root.ring-row == root.rows - 1) {
+            if (root.ends-in-reset) {
+                Resets.press(root.settings-page-reset);
+            }
+            return true;
+        }
+        return false;
+    }
+    /// Say what a settings row does beside the panel, level with it, while
+    /// it is rested on (see `ParamSlider.explained`), or stop saying it.
+    function explain-row(on: bool, text: string, row: int) {
+        if (!on) {
+            Flash.drop(root.hint-claim);
+            return;
+        }
+        root.asked-row = Rows.panel-pad + root.row-h
+            + root.settings-row-top(root.page, row)
+            + root.settings-row-h(root.page, row) / 2;
+        root.hint-claim = Flash.hint(text);
+    }
+    /// A slider's icon, by its place in `REGISTRY` in settings.rs. Kept in
+    /// step by hand, because an image in the rows' model would have to be
+    /// loaded at run time.
+    pure function param-icon(index: int) -> image {
+        if (index == 0) {
+            return @image-url("../../../public/icons/blur.svg");
+        }
+        if (index == 1) {
+            return @image-url("../../../public/icons/refraction.svg");
+        }
+        if (index == 2) {
+            return @image-url("../../../public/icons/dispersion.svg");
+        }
+        if (index == 3) {
+            return @image-url("../../../public/icons/edge-light.svg");
+        }
+        if (index == 4) {
+            return @image-url("../../../public/icons/tint.svg");
+        }
+        if (index == 5) {
+            return @image-url("../../../public/icons/dimming.svg");
+        }
+        if (index == 6) {
+            return @image-url("../../../public/icons/shadow.svg");
+        }
+        if (index == 7) {
+            return @image-url("../../../public/icons/edge-blur.svg");
+        }
+        if (index == 8) {
+            return @image-url("../../../public/icons/angle.svg");
+        }
+        if (index == 9) {
+            return @image-url("../../../public/icons/curve.svg");
+        }
+        if (index == 10) {
+            return @image-url("../../../public/icons/curve-soft.svg");
+        }
+        // The picture's, borrowed from the glass and the border, whose marks
+        // are the usual ones for these: light, the half-lit disc of contrast,
+        // the drop of colour, and gamma's curve.
+        if (index == 11) {
+            return @image-url("../../../public/icons/brightness.svg");
+        }
+        if (index == 12) {
+            return @image-url("../../../public/icons/dimming.svg");
+        }
+        if (index == 13) {
+            return @image-url("../../../public/icons/tint.svg");
+        }
+        return @image-url("../../../public/icons/gamma.svg");
+    }
+    changed page => {
+        root.asked-row = -1px;
+        Resets.clear();
+        // Only on the way in, so the departing page stays drawn while it
+        // slides out.
+        if (root.page != SettingsPage.front) {
+            root.leaf-page = root.page;
+        }
+    }
+    changed open => {
+        Resets.clear();
+        if (root.open) {
+            settings-rest.stop();
+        } else {
+            settings-rest.start();
+        }
+    }
+    /// Puts a closed panel back on its front page once it has faded out, not
+    /// as it closes, or the front page would slide in during the fade.
+    settings-rest := Timer {
+        interval: Motion.surface;
+        running: false;
+        triggered => {
+            settings-rest.stop();
+            if (!root.open) {
+                root.page = SettingsPage.front;
+            }
+        }
+    }
+    /// The same page as a distance, for the one list that is scrolled rather
+    /// than walked.
+    property <length> read-page: max(root.row-h, root.leaf-list-h - root.row-h);
+    /// The reading keys on the shortcuts page, which has no rows to walk, so
+    /// the keys move the list instead. Home and End ask for the whole list,
+    /// and the list stops at its ends.
+    function on-read(text: string) -> bool {
+        if (text == Key.UpArrow) {
+            root.read-move(-root.row-h);
+            return true;
+        }
+        if (text == Key.DownArrow) {
+            root.read-move(root.row-h);
+            return true;
+        }
+        if (text == Key.PageUp) {
+            root.read-move(-root.read-page);
+            return true;
+        }
+        if (text == Key.PageDown) {
+            root.read-move(root.read-page);
+            return true;
+        }
+        if (text == Key.Home) {
+            root.read-move(-root.shortcuts-natural);
+            return true;
+        }
+        if (text == Key.End) {
+            root.read-move(root.shortcuts-natural);
+            return true;
+        }
+        return false;
+    }
+    /// Where the reading keys leave their movement for the list to pick up,
+    /// since the page is built inside a conditional (see `ScrollList.asked-by`).
+    property <length> read-by: 0px;
+    property <int> read-tick: 0;
+    function read-move(dy: length) {
+        root.read-by = dy;
+        root.read-tick += 1;
+    }
+    /// One of the episodes page's switches, pressed, counted from Skip intros
+    /// (see `episode-switches`).
+    function episode-switch(at: int) {
+        if (at == 0) {
+            Settings.skip-intros = !Settings.skip-intros;
+            Settings.set-skip-intros(Settings.skip-intros);
+        } else if (at == 1) {
+            Settings.autoplay = !Settings.autoplay;
+            Settings.set-autoplay(Settings.autoplay);
+        } else {
+            Settings.skip-credits = !Settings.skip-credits;
+            Settings.set-skip-credits(Settings.skip-credits);
+        }
+    }
+    /// 0 on the front page, 1 on a page behind it. One number is enough
+    /// because the tree is two deep.
+    property <float> drill: root.page == SettingsPage.front ? 0.0 : 1.0;
+    /// Which page the drilled-in pane draws. Held rather than read from
+    /// `settings-page`, which is the front page during the way back, while
+    /// the pane sliding out still has to draw its page.
+    property <SettingsPage> leaf-page: SettingsPage.glass;
+    // Eased at both ends, since it is something moved rather than a surface
+    // fading in.
+    animate drill {
+        duration: Motion.drill;
+        easing: ease-in-out;
+    }
+    /// Between the front page and one behind it. Both then hang from the
+    /// panel's bottom edge, which stays put, each at its own height, so
+    /// their rows move only sideways while the panel's top uncovers or
+    /// covers them. At rest they hang from the top, where both ways agree.
+    property <bool> moving: root.drill > 0.0 && root.drill < 1.0;
+
+    /// The page, unconstrained: the front list, or a page's way back and
+    /// what is under it. From row counts (see `page-natural`).
+    out property <length> body: root.page == SettingsPage.front ? root.front-natural
+        : root.row-h + root.page-natural(root.page);
+
+    // The page it is on and the page it is going to, side by side, both
+    // placed by `drill`. At rest `drill` is exactly 0 or 1, so only the
+    // page showing is built.
+    if root.drill < 1.0: Rectangle {
+        x: -root.drill * parent.width;
+        width: parent.width;
+        height: root.moving ? root.panel-pad + root.front-list-h : parent.height;
+        y: root.moving ? parent.height - self.height : 0;
+
+        VerticalLayout {
+            padding-top: Rows.panel-pad;
+            padding-bottom: Rows.panel-pad;
+            // Top-aligned, or the rows would spread apart while the
+            // height animates.
+            alignment: start;
+
+            ScrollList {
+                height: root.front-list-h;
+                rest-height: root.front-rest-h;
+                content-height: root.front-natural;
+                init => {
+                    root.front-fade = self.fade;
+                }
+                changed fade => {
+                    root.front-fade = self.fade;
+                }
+                reveal-top: root.settings-reveal-top;
+                reveal-h: root.settings-reveal-h;
+                reveal-tick: root.settings-reveal-tick;
+
+                // The film first, since how it plays is what is most often
+                // reached for mid-film; the player's own look after it.
+                MenuHeading {
+                    text: @tr("PLAYBACK");
+                }
+                DrillRow {
+                    icon: @image-url("../../../public/icons/video.svg");
+                    label: @tr("Video");
+                    focused: root.open && root.ring-row == 0;
+                    opened => {
+                        root.page = SettingsPage.video;
+                    }
+                }
+                // Next's glyph, as the credits pill has it for the next
+                // episode: the page is about going on.
+                DrillRow {
+                    icon: @image-url("../../../public/icons/step-forward.svg");
+                    label: @tr("Episodes");
+                    focused: root.open && root.ring-row == 1;
+                    opened => {
+                        root.page = SettingsPage.episodes;
+                    }
+                }
+
+                MenuHeading {
+                    text: @tr("EFFECTS");
+                    after-content: true;
+                }
+                // No switch, because turning the glass off would erase
+                // this panel's own glass and leave its rows floating over
+                // the video. The settings file still has the flag, for
+                // work on the shader.
+                DrillRow {
+                    icon: @image-url("../../../public/icons/glass.svg");
+                    label: @tr("Liquid glass");
+                    focused: root.open && root.ring-row == 2;
+                    opened => {
+                        root.page = SettingsPage.glass;
+                    }
+                }
+                // The switch's glyph pair, so the icon says whether the
+                // effect is on before the page is opened.
+                DrillRow {
+                    icon: Settings.ambience-on
+                        ? @image-url("../../../public/icons/ambience-on.svg")
+                        : @image-url("../../../public/icons/ambience-off.svg");
+                    label: @tr("Ambient border");
+                    focused: root.open && root.ring-row == 3;
+                    opened => {
+                        root.page = SettingsPage.border;
+                    }
+                }
+
+                // The player itself, where the group above is about the
+                // picture: how the interface behaves and how to drive it.
+                // The subtitles' own tuning is in their menu, beside the
+                // line it changes.
+                MenuHeading {
+                    text: @tr("INTERFACE");
+                    after-content: true;
+                }
+                DrillRow {
+                    icon: @image-url("../../../public/icons/accessibility.svg");
+                    label: @tr("Accessibility");
+                    focused: root.open && root.ring-row == 4;
+                    opened => {
+                        root.page = SettingsPage.accessibility;
+                    }
+                }
+                DrillRow {
+                    icon: @image-url("../../../public/icons/shortcuts.svg");
+                    label: @tr("Shortcuts");
+                    focused: root.open && root.ring-row == 5;
+                    opened => {
+                        root.page = SettingsPage.shortcuts;
+                    }
+                }
+                DrillRow {
+                    icon: @image-url("../../../public/icons/language.svg");
+                    label: @tr("Language");
+                    focused: root.open && root.ring-row == 6;
+                    opened => {
+                        root.page = SettingsPage.language;
+                    }
+                }
+            }
+        }
+    }
+
+    if root.drill > 0.0: Rectangle {
+        x: (1.0 - root.drill) * parent.width;
+        width: parent.width;
+        height: root.moving ? root.panel-pad + root.row-h + root.leaf-list-h
+            : parent.height;
+        y: root.moving ? parent.height - self.height : 0;
+
+        VerticalLayout {
+            padding-top: Rows.panel-pad;
+            padding-bottom: Rows.panel-pad;
+            alignment: start;
+
+            if root.leaf-page == SettingsPage.glass: VerticalLayout {
+                BackRow {
+                    label: @tr("LIQUID GLASS");
+                    focused: root.ring-row == 0;
+                    back => {
+                        root.page = SettingsPage.front;
+                    }
+                }
+                ScrollList {
+                    height: root.leaf-list-h;
+                    rest-height: root.leaf-rest-h;
+                    content-height: root.page-natural(SettingsPage.glass);
+                    init => {
+                        root.leaf-fade = self.fade;
+                    }
+                    changed fade => {
+                        root.leaf-fade = self.fade;
+                    }
+                    reveal-top: root.settings-reveal-top;
+                    reveal-h: root.settings-reveal-h;
+                    reveal-tick: root.settings-reveal-tick;
+
+                    for item[idx] in Settings.glass-params: ParamSlider {
+                        label: item.label;
+                        name-w: root.param-name-w;
+                        icon: root.param-icon(item.index);
+                        hint: item.hint;
+                        origin: item.origin;
+                        fraction: item.fraction;
+                        readout: item.readout;
+                        focused: root.ring-row == idx + 1;
+                        moved(f) => {
+                            Settings.set-param(item.index, f);
+                        }
+                        explained(on) => {
+                            root.explain-row(on, item.hint, idx + 1);
+                        }
+                    }
+                    Rectangle {
+                        height: Rows.group-gap;
+                    }
+                    MenuRow {
+                        icon: Resets.icon(Reset.glass);
+                        label: Resets.label(Reset.glass);
+                        focused: root.ring-row == root.leaf-focus-count - 1;
+                        picked => {
+                            Resets.press(Reset.glass);
+                        }
+                    }
+                }
+            }
+
+            if root.leaf-page == SettingsPage.border: VerticalLayout {
+                BackRow {
+                    label: @tr("AMBIENT BORDER");
+                    focused: root.ring-row == 0;
+                    back => {
+                        root.page = SettingsPage.front;
+                    }
+                }
+                ScrollList {
+                    height: root.leaf-list-h;
+                    rest-height: root.leaf-rest-h;
+                    content-height: root.page-natural(SettingsPage.border);
+                    init => {
+                        root.leaf-fade = self.fade;
+                    }
+                    changed fade => {
+                        root.leaf-fade = self.fade;
+                    }
+                    reveal-top: root.settings-reveal-top;
+                    reveal-h: root.settings-reveal-h;
+                    reveal-tick: root.settings-reveal-tick;
+
+                    // Whether, then how: the switch heads its own tuning.
+                    ToggleRow {
+                        label: @tr("Ambient border");
+                        checked: Settings.ambience-on;
+                        focused: root.ring-row == 1;
+                        toggled(on) => {
+                            Settings.ambience-on = on;
+                            Settings.set-ambience(on);
+                        }
+                    }
+                    Rectangle {
+                        height: Rows.group-gap;
+                    }
+                    for item[idx] in Settings.border-params: ParamSlider {
+                        label: item.label;
+                        name-w: root.param-name-w;
+                        icon: root.param-icon(item.index);
+                        hint: item.hint;
+                        origin: item.origin;
+                        fraction: item.fraction;
+                        readout: item.readout;
+                        focused: root.ring-row == idx + 2;
+                        moved(f) => {
+                            Settings.set-param(item.index, f);
+                        }
+                        explained(on) => {
+                            root.explain-row(on, item.hint, idx + 2);
+                        }
+                    }
+                    Rectangle {
+                        height: Rows.group-gap;
+                    }
+                    MenuRow {
+                        icon: Resets.icon(Reset.border);
+                        label: Resets.label(Reset.border);
+                        focused: root.ring-row == root.leaf-focus-count - 1;
+                        picked => {
+                            Resets.press(Reset.border);
+                        }
+                    }
+                }
+            }
+
+            // How much the interface does on its own: moving, keeping its
+            // words readable, and explaining itself.
+            if root.leaf-page == SettingsPage.accessibility: VerticalLayout {
+                BackRow {
+                    label: @tr("ACCESSIBILITY");
+                    focused: root.ring-row == 0;
+                    back => {
+                        root.page = SettingsPage.front;
+                    }
+                }
+                ScrollList {
+                    height: root.leaf-list-h;
+                    rest-height: root.leaf-rest-h;
+                    content-height: root.page-natural(SettingsPage.accessibility);
+                    init => {
+                        root.leaf-fade = self.fade;
+                    }
+                    changed fade => {
+                        root.leaf-fade = self.fade;
+                    }
+                    reveal-top: root.settings-reveal-top;
+                    reveal-h: root.settings-reveal-h;
+                    reveal-tick: root.settings-reveal-tick;
+
+                    // Everything at once, larger, on top of whatever the
+                    // system's display scaling already does.
+                    StepperRow {
+                        icon: @image-url("../../../public/icons/text-size.svg");
+                        label: @tr("Interface size");
+                        focused: root.ring-row == 1;
+                        value: Math.round(Settings.scale * 100) + "%";
+                        // Set to a percentage rather than to a speed or a
+                        // time, which leaves the name, longer here than
+                        // anywhere else in the panel, room in every language.
+                        value-w: 44px;
+                        stepped(dir) => {
+                            Settings.step-scale(dir);
+                        }
+                    }
+                    Rectangle {
+                        height: Rows.group-gap;
+                    }
+                    // Everything that moves (see `Motion`). Off, each change
+                    // lands in the frame it was asked for. The switch is
+                    // this player's say; the system's comes on top.
+                    ToggleRow {
+                        label: @tr("Animations");
+                        checked: Motion.chosen;
+                        focused: root.ring-row == 2;
+                        toggled(on) => {
+                            Settings.turn-motion(on);
+                        }
+                    }
+                    if root.motion-note: NoteRow {
+                        height: root.note-h;
+                        text: @tr("Off while your system asks for less motion");
+                    }
+                    // The glass held dark enough for its words over a
+                    // bright frame (see The Legible Glass Rule). Off, it is
+                    // only what the glass page makes it, and its words can
+                    // vanish over a white scene.
+                    ToggleRow {
+                        label: @tr("Darken bright glass");
+                        checked: Settings.legible-glass;
+                        focused: root.ring-row == 3;
+                        toggled(on) => {
+                            Settings.turn-legible(on);
+                        }
+                    }
+                    // The names the bar's controls show under the pointer,
+                    // which someone who knows the bar may not want rising
+                    // over the film.
+                    ToggleRow {
+                        label: @tr("Tooltips");
+                        checked: Tip.enabled;
+                        focused: root.ring-row == 4;
+                        toggled(on) => {
+                            Settings.turn-tips(on);
+                        }
+                    }
+                    // For someone who wants the names but knows the keys.
+                    Tucked {
+                        shown: Tip.enabled;
+
+                        ToggleRow {
+                            label: @tr("Shortcuts in tooltips");
+                            checked: Tip.with-keys;
+                            focused: root.ring-row == 5;
+                            toggled(on) => {
+                                Settings.turn-tip-keys(on);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // How the film plays and how it looks: what is otherwise only
+            // on keys, the speed, beside the bar's fill and the timeline's
+            // time left, then the picture as mpv draws it.
+            if root.leaf-page == SettingsPage.video: VerticalLayout {
+                BackRow {
+                    label: @tr("VIDEO");
+                    focused: root.ring-row == 0;
+                    back => {
+                        root.page = SettingsPage.front;
+                    }
+                }
+                ScrollList {
+                    height: root.leaf-list-h;
+                    rest-height: root.leaf-rest-h;
+                    content-height: root.page-natural(SettingsPage.video);
+                    init => {
+                        root.leaf-fade = self.fade;
+                    }
+                    changed fade => {
+                        root.leaf-fade = self.fade;
+                    }
+                    reveal-top: root.settings-reveal-top;
+                    reveal-h: root.settings-reveal-h;
+                    reveal-tick: root.settings-reveal-tick;
+
+                    StepperRow {
+                        icon: @image-url("../../../public/icons/speed.svg");
+                        label: @tr("Speed");
+                        focused: root.ring-row == 1;
+                        value: Playback.speed-text;
+                        stepped(dir) => {
+                            Playback.step-speed(Playback.speed, dir);
+                        }
+                    }
+                    ToggleRow {
+                        label: @tr("Fill the window");
+                        checked: Playback.panscan;
+                        focused: root.ring-row == 2;
+                        toggled(on) => {
+                            if (on != Playback.panscan) {
+                                Playback.toggle-panscan();
+                            }
+                        }
+                    }
+                    ToggleRow {
+                        label: @tr("Show the time left");
+                        checked: Settings.show-remaining;
+                        focused: root.ring-row == 3;
+                        toggled(on) => {
+                            Settings.turn-remaining(on);
+                        }
+                    }
+                    Rectangle {
+                        height: Rows.group-gap;
+                    }
+                    for item[idx] in Settings.picture-params: ParamSlider {
+                        label: item.label;
+                        name-w: root.param-name-w;
+                        icon: root.param-icon(item.index);
+                        hint: item.hint;
+                        origin: item.origin;
+                        fraction: item.fraction;
+                        readout: item.readout;
+                        focused: root.ring-row == idx + 4;
+                        moved(f) => {
+                            Settings.set-param(item.index, f);
+                        }
+                        explained(on) => {
+                            root.explain-row(on, item.hint, idx + 4);
+                        }
+                    }
+                    Rectangle {
+                        height: Rows.group-gap;
+                    }
+                    MenuRow {
+                        icon: Resets.icon(Reset.picture);
+                        label: Resets.label(Reset.picture);
+                        focused: root.ring-row == root.leaf-focus-count - 1;
+                        picked => {
+                            Resets.press(Reset.picture);
+                        }
+                    }
+                }
+            }
+
+            // How a list plays on, for every episode rather than the one
+            // playing: set once, so apart from what is reached for
+            // mid-film, and not under the playlist, which is opened to
+            // pick an episode.
+            if root.leaf-page == SettingsPage.episodes: VerticalLayout {
+                BackRow {
+                    label: @tr("EPISODES");
+                    focused: root.ring-row == 0;
+                    back => {
+                        root.page = SettingsPage.front;
+                    }
+                }
+                ScrollList {
+                    height: root.leaf-list-h;
+                    rest-height: root.leaf-rest-h;
+                    content-height: root.page-natural(SettingsPage.episodes);
+                    init => {
+                        root.leaf-fade = self.fade;
+                    }
+                    changed fade => {
+                        root.leaf-fade = self.fade;
+                    }
+                    reveal-top: root.settings-reveal-top;
+                    reveal-h: root.settings-reveal-h;
+                    reveal-tick: root.settings-reveal-tick;
+
+                    ToggleRow {
+                        label: @tr("Skip intros");
+                        checked: Settings.skip-intros;
+                        focused: root.ring-row == 1;
+                        toggled(on) => {
+                            Settings.skip-intros = on;
+                            Settings.set-skip-intros(on);
+                        }
+                    }
+                    ToggleRow {
+                        label: @tr("Autoplay next");
+                        checked: Settings.autoplay;
+                        focused: root.ring-row == 2;
+                        toggled(on) => {
+                            Settings.autoplay = on;
+                            Settings.set-autoplay(on);
+                        }
+                    }
+                    Tucked {
+                        shown: Settings.autoplay;
+
+                        ToggleRow {
+                            label: @tr("Skip credits");
+                            checked: Settings.skip-credits;
+                            focused: root.ring-row == 3;
+                            toggled(on) => {
+                                Settings.skip-credits = on;
+                                Settings.set-skip-credits(on);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // The system's language first, which the player speaks until
+            // told otherwise, then English, which it is written in, then
+            // the bundled ones, each under its own untranslated name.
+            if root.leaf-page == SettingsPage.language: VerticalLayout {
+                BackRow {
+                    label: @tr("LANGUAGE");
+                    focused: root.ring-row == 0;
+                    back => {
+                        root.page = SettingsPage.front;
+                    }
+                }
+                ScrollList {
+                    height: root.leaf-list-h;
+                    rest-height: root.leaf-rest-h;
+                    content-height: root.page-natural(SettingsPage.language);
+                    init => {
+                        root.leaf-fade = self.fade;
+                    }
+                    changed fade => {
+                        root.leaf-fade = self.fade;
+                    }
+                    reveal-top: root.settings-reveal-top;
+                    reveal-h: root.settings-reveal-h;
+                    reveal-tick: root.settings-reveal-tick;
+                    // The language spoken now, for the angle that points
+                    // back to it.
+                    current-top: Settings.language-choice * root.row-h;
+                    current-h: Settings.language-choice >= 0 ? root.row-h : 0px;
+
+                    MenuRow {
+                        label: @tr("System language");
+                        active: Settings.language-choice == 0;
+                        focused: root.ring-row == 1;
+                        picked => {
+                            Settings.pick-language(0);
+                        }
+                    }
+                    MenuRow {
+                        label: "English";
+                        active: Settings.language-choice == 1;
+                        focused: root.ring-row == 2;
+                        picked => {
+                            Settings.pick-language(1);
+                        }
+                    }
+                    for name[idx] in Settings.language-names: MenuRow {
+                        label: name;
+                        active: Settings.language-choice == idx + 2;
+                        focused: root.ring-row == idx + 3;
+                        picked => {
+                            Settings.pick-language(idx + 2);
+                        }
+                    }
+                }
+            }
+
+            if root.leaf-page == SettingsPage.shortcuts: VerticalLayout {
+                BackRow {
+                    label: @tr("SHORTCUTS");
+                    focused: root.ring-row == 0;
+                    back => {
+                        root.page = SettingsPage.front;
+                    }
+                }
+                ScrollList {
+                    height: root.leaf-list-h;
+                    rest-height: root.leaf-rest-h;
+                    content-height: root.page-natural(SettingsPage.shortcuts);
+                    init => {
+                        root.leaf-fade = self.fade;
+                    }
+                    changed fade => {
+                        root.leaf-fade = self.fade;
+                    }
+                    // The one list here the keyboard scrolls rather than
+                    // walks; see `on-read`.
+                    asked-by: root.read-by;
+                    asked-tick: root.read-tick;
+
+                    // A heading rides with its group's first row rather than
+                    // being an entry of its own, so there is one list rather
+                    // than two to keep in step.
+                    for item[idx] in root.shortcuts: VerticalLayout {
+                        if item.heading != "": MenuHeading {
+                            text: item.heading;
+                            icon: item.icon;
+                            after-content: idx > 0;
+                        }
+                        // The drop row hides where dropping doesn't work.
+                        // It has no heading, so no section is left empty.
+                        if !item.dropping || root.drop-supported: ShortcutRow {
+                            label: item.label;
+                            shortcut: item.keys;
+                            inert: true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    param-measure := Measure {
+        text: Settings.param-names;
+        font-size: Type.readout;
+    }
+}

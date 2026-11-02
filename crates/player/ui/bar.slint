@@ -1,0 +1,1123 @@
+// The bar: one pane of glass at the window's foot, the timeline over a row of
+// buttons in three groups of what belongs together.
+
+import { Chrome, Tip } from "globals.slint";
+import { GlassRect, ScrollFade } from "models.slint";
+import { Playback } from "playback.slint";
+import { Playlist } from "playlist.slint";
+import { Settings } from "settings.slint";
+import { IconButton } from "controls.slint";
+import { Measure } from "measure.slint";
+import { Panel, Surfaces } from "surface.slint";
+import { Motion, Paint, Rows, Type } from "theme.slint";
+
+/// The bar's fixed sizes, which the pills over the picture share so they
+/// stand as tall as its row of buttons.
+///
+/// Every length the bar is placed by is arithmetic on these and the window's
+/// width, never read from a layout: the glass is sampled every frame, and a
+/// binding that depends on a layout forces a full layout pass each time it is
+/// read, which dragged resizing down to 4fps.
+export global Bar {
+    out property <length> btn: 40px;
+    out property <length> btn-gap: 6px;
+    out property <length> pill-pad: 4px;
+    out property <length> vol-w: 96px;
+    /// Inset for text at the end of a row of buttons: after the title, and
+    /// in the end-of-file and credits pills, where `pill-pad` would run the
+    /// words into the capsule's curve.
+    out property <length> pill-text-pad: 18px;
+    out property <length> pill-h: Bar.btn + 2 * Bar.pill-pad;
+    out property <length> pill-radius: Bar.pill-h / 2;
+    out property <length> pill-gap: 10px;
+    /// Between a pill choice's glyph and its words.
+    out property <length> choice-gap: 12px;
+    /// Shorter than the row of buttons under it, since it holds a line of
+    /// type rather than a 24px glyph.
+    out property <length> timeline-h: 30px;
+    /// How far in from the bar's ends the end buttons' drawings start: the
+    /// row's padding, the 24px glyph centred in its button, and the 1px the
+    /// icon set leaves round its 22px drawings.
+    out property <length> glyph-inset: Bar.pill-pad + (Bar.btn - 24px) / 2 + 1px;
+    /// The glass round the bar's rows, on every side: as much as takes the
+    /// end buttons' corner out to the panels', so the bar's corner is
+    /// concentric with them and the same as the panels'.
+    out property <length> pad: Rows.panel-radius - Bar.pill-radius;
+    out property <length> height: 2 * Bar.pad + Bar.timeline-h + Bar.pill-h;
+}
+
+/// The part of the bar that can be up on its own: the timeline, or what is
+/// loaded.
+enum BarPart { timeline, loaded }
+
+/// The marks on the bar's tracks, a chapter's start and the volume's unity.
+/// Both keep their size as a track grows under the pointer.
+global Marks {
+    /// The dot ahead of the fill.
+    out property <length> dot: 3px;
+    /// The cut it leaves in the fill once passed: half a pixel of rail either
+    /// side.
+    out property <length> cut: 4px;
+}
+
+/// One run of a bar track's fill, between the cuts its marks leave in it. It
+/// covers the track and draws its run inside it.
+///
+/// The fill's end is always at the value. A run after a cut starts once the
+/// run before it has stopped, as a circle whose right edge is the fill's end,
+/// which slides across the cut and then stretches from the cut's far side.
+/// Where a run meets a cut its ends are half as round as the moving end.
+component TrackRun inherits Rectangle {
+    in property <length> from;
+    in property <length> to;
+    /// Whether a cut comes before `from` and after `to`; none at the track's ends.
+    in property <bool> cut-before;
+    in property <bool> cut-after;
+    /// How far along the track the fill reaches.
+    in property <length> reach;
+    in property <color> fill;
+
+    /// Where the run before this one stops.
+    private property <length> held: root.from - Marks.cut;
+    private property <length> end: min(root.reach, root.to);
+    private property <length> round: clamp(root.to - root.from, 0px, root.height);
+    private property <length> start: root.cut-before ? min(root.from, self.end - self.round) : root.from;
+
+    width: 100%;
+    height: 100%;
+
+    // A circle still over the round end of the run before it is split from
+    // it where the two are equally tall, so neither is drawn over the other,
+    // which a fill short of opaque would show as a brighter lens. On a whole
+    // pixel, so the scissor leaves no seam.
+    pure function overlapping(stop: length) -> bool {
+        return root.reach > stop && root.reach < stop + root.height;
+    }
+    pure function split(stop: length) -> length {
+        return Math.round((stop + root.reach - root.height) / 2 / 1phx) * 1phx;
+    }
+
+    // An end at a cut is round while the circle is still on it or the fill is
+    // still running from it, and eases to half over the next track's height,
+    // so it never changes shape at once.
+    pure function settled(edge: length) -> float {
+        return clamp((root.reach - edge) / root.height - 1, 0, 1);
+    }
+
+    Rectangle {
+        x: root.cut-before && root.overlapping(root.held) ? root.split(root.held) : 0;
+        width: (root.cut-after && root.overlapping(root.to) ? root.split(root.to) : parent.width)
+            - self.x;
+        height: 100%;
+        clip: true;
+
+        // Never taller than it is long, so a run's start isn't a sliver in a
+        // round end; under 2px there is nothing to round, and the renderer
+        // draws the attempt as a cross.
+        Rectangle {
+            property <length> round-end: self.height < 2px ? 0px : self.height / 2;
+            property <length> left-end: root.cut-before
+                ? self.round-end * (1 - root.settled(root.from) / 2) : self.round-end;
+            property <length> right-end: root.cut-after
+                ? self.round-end * (1 - root.settled(root.to) / 2) : self.round-end;
+
+            visible: !root.cut-before || root.reach > root.held;
+            x: root.start - parent.x;
+            y: (parent.height - self.height) / 2;
+            width: max(0px, root.end - root.start);
+            height: min(parent.height, self.width);
+            border-top-left-radius: self.left-end;
+            border-bottom-left-radius: self.left-end;
+            border-top-right-radius: self.right-end;
+            border-bottom-right-radius: self.right-end;
+            background: root.fill;
+        }
+    }
+}
+
+/// Laid over the whole window, at whose foot it stands.
+export component ControlBar inherits Rectangle {
+    /// The chrome is up, which brings the whole bar, and the two glimpses a
+    /// part of it alone: the timeline after a seek, what is loaded as a file
+    /// starts.
+    in property <bool> controls-visible;
+    in property <bool> timeline-glimpse;
+    in property <bool> title-glimpse;
+    in property <bool> fullscreen;
+    /// A subtitle is on screen, which its button says.
+    in property <bool> subtitles-showing;
+    /// The panel open, whose button stands on a disc of glass.
+    in property <Panel> open-panel;
+    /// The keyboard's place on the bar (see the window's `bar-focus`), and
+    /// whether the keys can reach the bar at all.
+    in property <int> ring-at;
+    in property <bool> reach;
+    /// The first stop past the bar's own buttons.
+    in property <int> pill-stop;
+    /// A panel's button pressed: open it, or close it if it is the one open.
+    callback toggled(Panel);
+    callback toggle-fullscreen();
+
+    /// How far the corner pill is lifted onto the bar's top: with the bar's
+    /// own fade, so it moves exactly with the bar. What is loaded alone never
+    /// reaches the pill's column, so the pill rises only as the bar grows
+    /// from it.
+    out property <float> pill-raise: root.part == BarPart.loaded
+        ? root.shown * root.full : root.shown;
+    /// The pointer on the timeline, or holding it, and where along it.
+    out property <bool> scrub-pointed: scrub.has-hover || scrub.pressed;
+    out property <length> scrub-pointer-x: scrub.mouse-x;
+    /// The whole bar on one pane: the timeline over the row of buttons,
+    /// with `Bar.pad` round them.
+    ///
+    /// Glass because over a white frame a bare track all but vanishes, and
+    /// the glass's absorption is what darkens behind it. One pane rather
+    /// than a capsule for each row and group, because the rim is as wide as
+    /// the corner (`BEVEL`), so a capsule is rim the whole way through; a
+    /// pane taller than its corners has a flat middle for the rim to roll
+    /// down from. A part alone is too short for that, and is a capsule
+    /// like the pills.
+    out property <GlassRect> glass: {
+        x: Surfaces.margin,
+        y: root.edge + root.rise,
+        width: root.shown > Surfaces.gone ? root.drawn-w : 0,
+        height: root.shown > Surfaces.gone ? root.drawn-h : 0,
+        opacity: root.shown,
+        // Opt in to tinting; the strength is the global slider.
+        tint: 1.0,
+        radius: min(Rows.panel-radius, root.drawn-h / 2),
+    };
+
+    /// The disc under the ring (see `ring-disc`). After the bar, since a
+    /// later pane is drawn over an earlier one.
+    out property <GlassRect> ring-disc-glass: {
+        x: root.ring-disc-x,
+        y: root.pills-y + root.rise + Bar.pill-pad,
+        width: root.pills-shown * root.ring-disc-on > Surfaces.gone ? Bar.btn : 0,
+        height: root.pills-shown * root.ring-disc-on > Surfaces.gone ? Bar.btn : 0,
+        opacity: root.pills-shown * root.ring-disc-on,
+        radius: Bar.btn / 2,
+        tint: 1.0,
+        nested: true,
+        ring: true,
+    };
+
+    /// The disc under the button whose panel is open (see `open-disc`).
+    out property <GlassRect> open-disc-glass: {
+        x: root.open-disc-x,
+        y: root.pills-y + root.rise + Bar.pill-pad,
+        width: root.pills-shown * root.open-disc-on > Surfaces.gone ? Bar.btn : 0,
+        height: root.pills-shown * root.open-disc-on > Surfaces.gone ? Bar.btn : 0,
+        opacity: root.pills-shown * root.open-disc-on,
+        radius: Bar.btn / 2,
+        tint: 1.0,
+        nested: true,
+        open: true,
+    };
+
+    /// The title, which isn't a list but runs out of its room the same way.
+    out property <ScrollFade> title-fade: {
+        x: root.rows-x + root.lp-title,
+        y: root.pills-y + root.rise + Bar.pill-pad,
+        width: root.loaded-shown > Surfaces.gone ? root.title-room : 0px,
+        height: Bar.pill-h - 2 * Bar.pill-pad,
+        top: 0,
+        bottom: 0,
+        right: clamp((root.title-w - root.title-room) / Rows.fade, 0, 1),
+        clip-x: root.rows-x,
+        clip-y: root.pills-y + root.rise,
+        clip-width: root.left-w,
+        clip-height: Bar.pill-h,
+    };
+
+    property <bool> speed-shown: Playback.has-file && (Playback.speed < 0.999 || Playback.speed > 1.001);
+    // Indexed rather than picked by a conditional chain, because twenty
+    // branches overflowed the compiler's stack.
+    property <[image]> volume-icons: [
+        @image-url("../../../public/icons/volume-000.svg"),
+        @image-url("../../../public/icons/volume-001.svg"),
+        @image-url("../../../public/icons/volume-010.svg"),
+        @image-url("../../../public/icons/volume-020.svg"),
+        @image-url("../../../public/icons/volume-030.svg"),
+        @image-url("../../../public/icons/volume-040.svg"),
+        @image-url("../../../public/icons/volume-050.svg"),
+        @image-url("../../../public/icons/volume-060.svg"),
+        @image-url("../../../public/icons/volume-070.svg"),
+        @image-url("../../../public/icons/volume-080.svg"),
+        @image-url("../../../public/icons/volume-090.svg"),
+        @image-url("../../../public/icons/volume-100.svg"),
+        @image-url("../../../public/icons/volume-110.svg"),
+        @image-url("../../../public/icons/volume-120.svg"),
+        @image-url("../../../public/icons/volume-130.svg"),
+        @image-url("../../../public/icons/volume-140.svg"),
+        @image-url("../../../public/icons/volume-150.svg"),
+        @image-url("../../../public/icons/volume-160.svg"),
+        @image-url("../../../public/icons/volume-170.svg"),
+        @image-url("../../../public/icons/volume-180.svg"),
+    ];
+    // 0 is silence, 1 the "barely on" glyph, then one per 10 units.
+    property <int> volume-index: Playback.volume < 0.5 ? 0
+        : Playback.volume < 10 ? 1
+        : Math.min(19, 1 + Math.floor(Playback.volume / 10));
+    /// Whether the pointer is on the bar: its pane, its two tracks or one
+    /// of its buttons.
+    out property <bool> hovered: pane.has-hover || scrub.has-hover || vol.has-hover
+        || playlist-button.hovered || files-button.hovered || back-button.hovered
+        || previous-button.hovered || play-button.hovered || next-button.hovered
+        || forward-button.hovered || mute-button.hovered || audio-button.hovered
+        || subs-button.hovered || settings-button.hovered || panscan-button.hovered
+        || fullscreen-button.hovered;
+    changed controls-visible => {
+        root.shape();
+    }
+    changed timeline-glimpse => {
+        root.shape();
+    }
+    changed title-glimpse => {
+        root.shape();
+    }
+    /// Whether the bar is whole, or a part of it alone. Left as it is while
+    /// the bar leaves, so it fades out in the shape it had rather than
+    /// shrinking first.
+    property <bool> whole: true;
+    /// Which part is up when the bar isn't whole.
+    out property <BarPart> part: BarPart.timeline;
+    /// Whether the bar takes its new shape at once, as it does when it was
+    /// gone, rather than growing into it.
+    property <bool> snap: false;
+    function shape() {
+        if (!(root.controls-visible || root.timeline-glimpse || root.title-glimpse)) {
+            return;
+        }
+        // From one part alone to the other there is nothing to grow through.
+        root.snap = root.shown < Surfaces.gone
+            || (!root.whole && root.part != root.part-alone());
+        root.part = root.part-alone();
+        root.whole = root.controls-visible;
+    }
+    /// The part to show alone, the seek's before the file's.
+    pure function part-alone() -> BarPart {
+        return root.timeline-glimpse ? BarPart.timeline
+            : root.title-glimpse ? BarPart.loaded : root.part;
+    }
+    animate shown {
+        duration: Motion.surface;
+        easing: ease-out;
+    }
+    /// Hidden with no film loaded, when most of its buttons can do nothing.
+    out property <float> shown: (root.controls-visible || root.timeline-glimpse
+        || root.title-glimpse) && Playback.has-file ? 1.0 : 0.0;
+    /// 1 with the bar whole, 0 with a part alone (see `sink`).
+    out property <float> full: root.whole ? 1.0 : 0.0;
+    animate full {
+        duration: root.snap ? 0ms : Motion.surface;
+        easing: ease-out;
+    }
+    /// The buttons' row, which comes in over the second half of the bar's
+    /// growing, once the timeline has mostly risen out of its way.
+    out property <float> pills-shown: root.shown * clamp(2 * root.full - 1, 0, 1);
+    /// What is loaded, which is up alone as a file starts.
+    property <float> loaded-shown: root.part == BarPart.loaded ? root.shown
+        : root.pills-shown;
+    /// The timeline's row, which is up alone after a seek, and comes in
+    /// like the buttons as the bar grows from what is loaded.
+    property <float> timeline-shown: root.part == BarPart.loaded ? root.pills-shown
+        : root.shown;
+    /// The rise, per surface. Zero once arrived.
+    property <length> rise: (1.0 - root.shown) * Surfaces.lift;
+    /// Wide enough for the longest either time can read, which is the total,
+    /// with its minus while it says what is left, and never narrower than
+    /// "00:00", with `glyph-inset` either side.
+    ///
+    /// A time at its full width then starts and ends where the end buttons'
+    /// drawings do. Measured rather than assumed, since a figure's width is up
+    /// to the font. Set from the total, so the row doesn't shift when the
+    /// elapsed time passes the hour.
+    property <length> time-w: max(time-measure.preferred-width,
+        minutes-measure.preferred-width) + 2 * Bar.glyph-inset;
+    /// Where the rows go, inside that. The pane is the margins' own box.
+    property <length> rows-x: Surfaces.margin + Bar.pad;
+    out property <length> rows-w: root.width - 2 * root.rows-x;
+    property <length> pills-y: root.height - Surfaces.margin - Bar.pad
+        - Bar.pill-h;
+    out property <length> timeline-y: root.pills-y - Bar.timeline-h;
+    /// The top of the bar's glass, which panels, the tip and the seek
+    /// preview open above.
+    out property <length> top: root.timeline-y - Bar.pad;
+    /// How far below its place the bar's top is drawn with a part alone: by
+    /// the buttons' row under the timeline, so it rests where the buttons
+    /// would and covers as little of the picture as it can; by the timeline
+    /// over what is loaded, which keeps its place.
+    property <length> sink: (1.0 - root.full)
+        * (root.part == BarPart.loaded ? Bar.timeline-h : Bar.pill-h);
+    /// The top of the bar's glass as drawn, which is what the subtitles and
+    /// the corner pill keep above.
+    out property <length> edge: root.top + root.sink;
+    property <length> drawn-h: Bar.height - root.sink;
+    /// The pane's width: the window's, less the margins, or what is loaded
+    /// with `Bar.pad` round it, growing to the right from there.
+    property <length> drawn-w: root.part == BarPart.loaded
+        ? root.loaded-pane-w + (root.width - 2 * Surfaces.margin - root.loaded-pane-w)
+            * root.full
+        : root.width - 2 * Surfaces.margin;
+    property <length> loaded-pane-w: root.left-w + 2 * Bar.pad;
+    /// How far below its place the timeline's row is drawn: with the bar's
+    /// top when it is up alone, and in place while the bar grows over it
+    /// from what is loaded.
+    property <length> timeline-sink: root.part == BarPart.loaded ? 0px : root.sink;
+    /// Transport: previous, back, play, forward, next.
+    property <length> center-w: 2 * Bar.pill-pad + 5 * Bar.btn + 4 * Bar.btn-gap;
+    /// Mute, volume, audio, subtitles, settings, panscan, fullscreen.
+    out property <length> right-w:
+        2 * Bar.pill-pad + 6 * Bar.btn + Bar.vol-w + 6 * Bar.btn-gap;
+    /// Everything in the title group that is not the title: the padding
+    /// before the two buttons, the buttons with their gaps, and the text
+    /// inset after the title.
+    property <length> left-fixed:
+        root.lp-title + Bar.pill-text-pad
+        + (root.speed-shown ? speed-measure.preferred-width + Bar.btn-gap : 0px);
+    /// The title group hugs its title, up to what the transport leaves room
+    /// for. Past that the title runs out at the group's end.
+    property <length> left-w: clamp(
+        root.title-w + root.left-fixed,
+        root.left-fixed,
+        root.center-x - root.rows-x - Bar.pill-gap);
+    /// Width the title wants, measured from `Text`s that are never drawn
+    /// (`title-measure` and `episode-measure`, at the bottom), because asking
+    /// the title inside the group would make its width depend on itself. The
+    /// choice between the two is made here rather than in their words, which
+    /// would make the window's size depend on itself.
+    property <length> title-w: root.title-short
+        ? episode-measure.preferred-width : title-measure.preferred-width;
+    /// Short of room, the title drops the show's name: it is what one show's
+    /// episodes share, and the episode is what tells them apart. Judged by
+    /// the most room the title could have rather than the room it has, which
+    /// the choice itself would change.
+    property <bool> title-short: !Playlist.opening && Playback.episode != ""
+        && title-measure.preferred-width > root.title-room-most;
+    property <length> title-room-most: max(0px,
+        root.center-x - root.rows-x - Bar.pill-gap - root.left-fixed);
+    /// What the title says.
+    property <string> title-text: Playlist.opening ? @tr("Opening {}…", Playlist.opening-name)
+        : root.title-short ? Playback.episode
+        : Playback.title;
+    /// Centred in the window, until that would bring it closer to the right
+    /// group than the gap (below about 1080px). From there it keeps the gap
+    /// and moves left, and the title group gives up the width.
+    property <length> center-x: min(root.rows-x + (root.rows-w - root.center-w) / 2,
+        root.right-x - Bar.pill-gap - root.center-w);
+    property <length> right-x: root.rows-x + root.rows-w - root.right-w;
+    /// The track runs between the two times, clear of both.
+    property <length> total-x: root.rows-x + root.rows-w - root.time-w;
+    out property <length> scrub-x: root.rows-x + root.time-w + Bar.pill-gap;
+    out property <length> scrub-w: root.rows-w - 2 * (root.time-w + Bar.pill-gap);
+    /// The middle of the volume track, for the test that turns a wheel over
+    /// it and the capture of its tip.
+    out property <length> vol-cx:
+        root.right-x + Bar.pill-pad + Bar.btn + Bar.btn-gap + Bar.vol-w / 2;
+    out property <length> vol-cy: root.pills-y + Bar.pill-h / 2;
+    // Where each control sits inside the right group, for the panels that
+    // hang from them.
+    property <length> rp-audio:
+        Bar.pill-pad + Bar.btn + Bar.btn-gap + Bar.vol-w + Bar.btn-gap;
+    property <length> rp-subs: root.rp-audio + Bar.btn + Bar.btn-gap;
+    property <length> rp-settings: root.rp-subs + Bar.btn + Bar.btn-gap;
+    out property <length> audio-anchor: root.right-x + root.rp-audio + Bar.btn / 2;
+    out property <length> subs-anchor: root.right-x + root.rp-subs + Bar.btn / 2;
+    out property <length> settings-anchor: root.right-x + root.rp-settings + Bar.btn / 2;
+    // Playlist, then open, then the title, so the two buttons and the panels
+    // that hang from them stand in one place whatever the film is called.
+    // Only the group's far end moves with the title.
+    property <length> lp-playlist: Bar.pill-pad;
+    property <length> lp-open: root.lp-playlist + Bar.btn + Bar.btn-gap;
+    property <length> lp-title: root.lp-open + Bar.btn + Bar.btn-gap;
+    out property <length> files-anchor: root.rows-x + root.lp-open + Bar.btn / 2;
+    out property <length> playlist-anchor:
+        root.rows-x + root.lp-playlist + Bar.btn / 2;
+    /// The room the title has: its group, less everything in it that is not
+    /// the title.
+    property <length> title-room: max(0px, root.left-w - root.left-fixed);
+    // The ring on a bar button stands on a disc of glass of its own, laid on
+    // the bar, so the material's rim lights the keyboard's place rather than
+    // an outline; a wash alone is faint against the glass beside it. The
+    // pill's choices keep the wash, being capsules within a pane already.
+    property <bool> ring-disc: Chrome.focus-visible && root.reach
+        && root.ring-at < root.pill-stop;
+    property <float> ring-disc-on: root.ring-disc ? 1 : 0;
+    animate ring-disc-on { duration: Motion.highlight; easing: ease-out; }
+    /// Where the disc goes: the button the ring is on, where the layout put
+    /// it.
+    property <length> ring-disc-x: root.button-x(root.ring-at);
+    /// That button's place on the bar, or -1 with no panel open.
+    // The button whose panel is open stands on a disc of glass too, a step
+    // short of the ring's, which says which button the panel belongs to over
+    // any frame; a held wash went unseen over a bright one.
+    property <int> open-button: root.open-panel == Panel.playlist ? 0 : root.open-panel == Panel.files ? 1
+        : root.open-panel == Panel.audio ? 8 : root.open-panel == Panel.subtitles ? 9 : root.open-panel == Panel.settings ? 10 : -1;
+    /// Where the disc last stood, kept as it fades so it doesn't go to the
+    /// bar's start on the way out.
+    property <int> open-disc-at: 0;
+    changed open-button => {
+        if (root.open-button >= 0) {
+            root.open-disc-at = root.open-button;
+        }
+    }
+    property <bool> open-disc: root.open-button >= 0;
+    property <float> open-disc-on: root.open-disc ? 1 : 0;
+    animate open-disc-on { duration: Motion.highlight; easing: ease-out; }
+    property <length> open-disc-x: root.button-x(root.open-disc-at);
+    public pure function button-x(index: int) -> length {
+        if (index < 7) {
+            return index == 0 ? playlist-button.absolute-position.x
+                : index == 1 ? files-button.absolute-position.x
+                : index == 2 ? back-button.absolute-position.x
+                : index == 3 ? previous-button.absolute-position.x
+                : index == 4 ? play-button.absolute-position.x
+                : index == 5 ? next-button.absolute-position.x
+                : forward-button.absolute-position.x;
+        }
+        return index == 7 ? mute-button.absolute-position.x
+            : index == 8 ? audio-button.absolute-position.x
+            : index == 9 ? subs-button.absolute-position.x
+            : index == 10 ? settings-button.absolute-position.x
+            : index == 11 ? panscan-button.absolute-position.x
+            : fullscreen-button.absolute-position.x;
+    }
+
+    // The bar is one pane of glass: the timeline row over a row of buttons in
+    // three groups of what belongs together. These are its contents; the
+    // glass is the pipeline's, from `glass-rects`.
+    //
+    // Each is placed from the bar geometry rather than by a layout, so reading
+    // its geometry every frame costs nothing. Inside a group a HorizontalLayout
+    // is fine, since nothing outside asks where its children ended up.
+
+    // The pane itself, under the rows, so a click on it that no control takes
+    // doesn't reach the film underneath.
+    Rectangle {
+        x: Surfaces.margin;
+        y: root.edge + root.rise;
+        width: root.drawn-w;
+        height: root.drawn-h;
+        visible: root.shown > Surfaces.gone;
+
+        pane := TouchArea {
+            pointer-event(event) => {
+                Chrome.pointed(event.kind == PointerEventKind.down);
+            }
+        }
+    }
+
+    // --- timeline ---
+    //
+    // One row the bar's width: a time at each end and the track between.
+
+    Rectangle {
+        x: root.rows-x;
+        y: root.timeline-y + root.timeline-sink + root.rise;
+        width: root.time-w;
+        height: Bar.timeline-h;
+        visible: root.timeline-shown > Surfaces.gone;
+        opacity: root.timeline-shown;
+
+        Text {
+            width: 100%;
+            height: 100%;
+            text: Playback.elapsed;
+            font-family: Type.numerals;
+            color: Paint.strong;
+            font-size: Type.readout;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+
+    // The hit area is the row's full height rather than the 5px track, which
+    // would be miserable to grab.
+    Rectangle {
+        x: root.scrub-x;
+        y: root.timeline-y + root.timeline-sink + root.rise;
+        width: root.scrub-w;
+        height: Bar.timeline-h;
+        visible: root.timeline-shown > Surfaces.gone;
+        opacity: root.timeline-shown;
+
+        accessible-role: slider;
+        accessible-label: @tr("Position");
+        accessible-value: @tr("{} of {}", Playback.elapsed, Playback.total);
+        accessible-action-increment => {
+            Playback.seek-relative(Playback.seek-step);
+        }
+        accessible-action-decrement => {
+            Playback.seek-relative(-Playback.seek-step);
+        }
+
+        timeline-rail := Rectangle {
+            y: (parent.height - self.height) / 2;
+            width: 100%;
+            height: scrub.has-hover || scrub.pressed ? 7px : 5px;
+            border-radius: self.height / 2;
+            background: Paint.rail;
+            animate height { duration: Motion.track-grow; easing: ease-out; }
+
+            property <length> played-x: self.width * clamp(Playback.progress, 0, 1);
+
+            // Chapter starts as dots ahead of the played length, gone as soon
+            // as it reaches one. A mark at the very start is left out, since
+            // it is the start, not a boundary.
+            for mark in Playback.chapter-marks: Rectangle {
+                property <length> at: parent.width * clamp(mark / max(Playback.duration, 1), 0, 1);
+
+                visible: Playback.duration > 0 && mark > 0.5
+                    && timeline-rail.played-x <= self.at - self.width / 2;
+                x: self.at - self.width / 2;
+                y: (parent.height - self.height) / 2;
+                width: Marks.dot;
+                height: Marks.dot;
+                border-radius: self.height / 2;
+                background: Paint.quiet;
+            }
+
+            // The played length, one run up to the first chapter and one from
+            // each chapter to the next. Sized by width rather than clipped, so
+            // it stays crisp without a layer.
+            TrackRun {
+                to: Playback.chapter-marks.length > 0
+                    ? parent.width * clamp(Playback.chapter-marks[0] / max(Playback.duration, 1), 0, 1)
+                        - Marks.cut / 2
+                    : parent.width;
+                cut-after: Playback.chapter-marks.length > 0 && Playback.chapter-marks[0] > 0.5;
+                reach: timeline-rail.played-x;
+                fill: Paint.played;
+            }
+            for mark[i] in Playback.chapter-marks: TrackRun {
+                property <bool> last: i + 1 >= Playback.chapter-marks.length;
+
+                from: mark > 0.5
+                    ? parent.width * clamp(mark / max(Playback.duration, 1), 0, 1) + Marks.cut / 2
+                    : 0px;
+                to: self.last ? parent.width
+                    : parent.width * clamp(Playback.chapter-marks[i + 1] / max(Playback.duration, 1), 0, 1)
+                        - Marks.cut / 2;
+                cut-before: mark > 0.5;
+                cut-after: !self.last;
+                reach: timeline-rail.played-x;
+                fill: Paint.played;
+            }
+        }
+
+        scrub := TouchArea {
+            mouse-cursor: pointer;
+            pointer-event(event) => {
+                Chrome.pointed(event.kind == PointerEventKind.down);
+                // Also on enter and exit, so a pointer that arrives and stops
+                // gets a preview.
+                Playback.preview-at(self.mouse-x / self.width);
+                // The button coming up ends a click or a drag wherever the
+                // pointer is. Not `clicked`, which a release off the track
+                // never fires, and a drag often wanders off the row. A drag
+                // cancelled by the window losing the pointer ends the same way.
+                if (event.button == PointerEventButton.left
+                    && (event.kind == PointerEventKind.up
+                        || event.kind == PointerEventKind.cancel)) {
+                    Playback.seek-fraction(self.mouse-x / self.width);
+                }
+            }
+            moved => {
+                Playback.preview-at(self.mouse-x / self.width);
+                // `moved` fires on hover too; the press check is what makes
+                // this a drag rather than a follow-the-cursor seek.
+                if (self.pressed) {
+                    Playback.seek-scrub(self.mouse-x / self.width);
+                }
+            }
+            // A wheel raises no pointer event, and the seek doesn't count as
+            // activity, since a key's seek mustn't wake the bar.
+            scroll-event(event) => {
+                Chrome.bump();
+                Playback.seek-relative(event.delta-y > 0
+                    ? Playback.scroll-seek-step
+                    : -Playback.scroll-seek-step);
+                return EventResult.accept;
+            }
+        }
+
+        // No event says a drag has stopped, so while the button is down the
+        // scrubber is told where the pointer is a few times a second and
+        // works out whether that is news. Bound to `pressed` rather than
+        // started and stopped by events, so there is no stop to forget.
+        Timer {
+            interval: 60ms;
+            running: scrub.pressed;
+            triggered => {
+                Playback.seek-held(scrub.mouse-x / scrub.width);
+            }
+        }
+    }
+
+    // The film's length, or what is left of it: a click says which, as in
+    // most players.
+    Rectangle {
+        x: root.total-x;
+        y: root.timeline-y + root.timeline-sink + root.rise;
+        width: root.time-w;
+        height: Bar.timeline-h;
+        visible: root.timeline-shown > Surfaces.gone;
+        opacity: root.timeline-shown;
+
+        accessible-role: button;
+        accessible-label: Settings.show-remaining ? @tr("Show the length") : @tr("Show the time left");
+        accessible-value: Settings.show-remaining ? Playback.remaining : Playback.total;
+        accessible-action-default => {
+            Settings.turn-remaining(!Settings.show-remaining);
+        }
+
+        Text {
+            width: 100%;
+            height: 100%;
+            text: Settings.show-remaining ? Playback.remaining : Playback.total;
+            font-family: Type.numerals;
+            color: Paint.strong;
+            font-size: Type.readout;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        TouchArea {
+            mouse-cursor: pointer;
+            pointer-event(event) => {
+                Chrome.pointed(event.kind == PointerEventKind.down);
+            }
+            clicked => {
+                Settings.turn-remaining(!Settings.show-remaining);
+            }
+        }
+    }
+
+
+    // --- what is loaded ---
+    Rectangle {
+        x: root.rows-x;
+        y: root.pills-y + root.rise;
+        width: root.left-w;
+        height: Bar.pill-h;
+        visible: root.loaded-shown > Surfaces.gone;
+        opacity: root.loaded-shown;
+        clip: true;
+
+        HorizontalLayout {
+            padding-left: Bar.pill-pad;
+            padding-right: Bar.pill-text-pad;
+            padding-top: Bar.pill-pad;
+            padding-bottom: Bar.pill-pad;
+            spacing: Bar.btn-gap;
+
+            playlist-button := IconButton {
+                icon: @image-url("../../../public/icons/playlist.svg");
+                tip: @tr("Playlist");
+                keys: "P";
+                focused: root.reach && root.ring-at == 0;
+                open: root.open-panel == Panel.playlist;
+                clicked => {
+                    root.toggled(Panel.playlist);
+                }
+            }
+            files-button := IconButton {
+                icon: @image-url("../../../public/icons/folder-open.svg");
+                // What pressing it does, which is offer both; the menu's rows
+                // carry the two keys.
+                tip: @tr("Open a file or folder");
+                keys: "";
+                focused: root.reach && root.ring-at == 1;
+                open: root.open-panel == Panel.files;
+                clicked => {
+                    root.toggled(Panel.files);
+                }
+            }
+
+            Text {
+                // While something else opens, the title names what is coming,
+                // as the one piece of chrome about which file this is.
+                text: root.title-text;
+                color: Paint.strong;
+                font-size: Type.title;
+                font-weight: Type.weight-title;
+                // Cut off rather than pushing the speed out of the group, and
+                // the cut end blurs away like a list's (see `scroll-fades`).
+                overflow: clip;
+                // Clipped text asks for its whole length, which the layout
+                // would take from the speed.
+                min-width: 0px;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+                horizontal-alignment: left;
+            }
+
+            // A speed other than normal stays on screen beside what plays at
+            // it, rather than only in a passing flash.
+            if root.speed-shown: Text {
+                text: Playback.speed-text;
+                color: Paint.body;
+                font-size: Type.readout;
+                vertical-alignment: center;
+            }
+        }
+    }
+
+    // --- transport ---
+    Rectangle {
+        x: root.center-x;
+        y: root.pills-y + root.rise;
+        width: root.center-w;
+        height: Bar.pill-h;
+        visible: root.pills-shown > Surfaces.gone;
+        opacity: root.pills-shown;
+
+        HorizontalLayout {
+            padding: Bar.pill-pad;
+            spacing: Bar.btn-gap;
+
+            back-button := IconButton {
+                icon: @image-url("../../../public/icons/seek-backward.svg");
+                tip: @tr("Back {} seconds", Playback.seek-step);
+                keys: "←";
+                focused: root.reach && root.ring-at == 2;
+                clicked => {
+                    Playback.seek-relative(-Playback.seek-step);
+                }
+            }
+            previous-button := IconButton {
+                icon: @image-url("../../../public/icons/step-backward.svg");
+                tip: Playback.at-first ? @tr("No earlier file") : @tr("Previous file");
+                keys: Playback.at-first ? "" : @tr("Shift+P");
+                enabled: !Playback.at-first;
+                focused: root.reach && root.ring-at == 3;
+                clicked => {
+                    Playlist.step(-1);
+                }
+            }
+            play-button := IconButton {
+                // Three states: at the end of a file, play means start again,
+                // and with no file there is nothing to pause.
+                icon: Playback.at-end
+                    ? @image-url("../../../public/icons/rewind.svg")
+                    : Playback.paused || !Playback.has-file
+                    ? @image-url("../../../public/icons/play.svg")
+                    : @image-url("../../../public/icons/pause.svg");
+                // The same three states, naming what pressing will do.
+                tip: Playback.at-end ? @tr("Restart")
+                    : Playback.paused || !Playback.has-file ? @tr("Play") : @tr("Pause");
+                keys: Playback.at-end ? @tr("Home") : @tr("Space / K");
+                focused: root.reach && root.ring-at == 4;
+                clicked => {
+                    if (Playback.at-end) {
+                        Playback.replay();
+                    } else {
+                        Playback.toggle-pause();
+                    }
+                }
+            }
+            next-button := IconButton {
+                icon: @image-url("../../../public/icons/step-forward.svg");
+                tip: Playback.at-last ? @tr("No later file") : @tr("Next file");
+                keys: Playback.at-last ? "" : @tr("Shift+N");
+                enabled: !Playback.at-last;
+                focused: root.reach && root.ring-at == 5;
+                clicked => {
+                    Playlist.step(1);
+                }
+            }
+            forward-button := IconButton {
+                icon: @image-url("../../../public/icons/seek-forward.svg");
+                tip: @tr("Forward {} seconds", Playback.seek-step);
+                keys: "→";
+                focused: root.reach && root.ring-at == 6;
+                clicked => {
+                    Playback.seek-relative(Playback.seek-step);
+                }
+            }
+        }
+    }
+
+    // --- sound, effects and the rest ---
+    Rectangle {
+        x: root.right-x;
+        y: root.pills-y + root.rise;
+        width: root.right-w;
+        height: Bar.pill-h;
+        visible: root.pills-shown > Surfaces.gone;
+        opacity: root.pills-shown;
+
+        HorizontalLayout {
+            padding: Bar.pill-pad;
+            spacing: Bar.btn-gap;
+
+            mute-button := IconButton {
+                icon: Playback.muted
+                    ? @image-url("../../../public/icons/volume-mute.svg")
+                    : root.volume-icons[root.volume-index];
+                // What pressing will do, since the glyph already shows the
+                // state.
+                tip: Playback.muted ? @tr("Unmute") : @tr("Mute");
+                keys: "M";
+                focused: root.reach && root.ring-at == 7;
+                clicked => {
+                    Playback.toggle-mute();
+                }
+            }
+
+            // Volume, spanning mpv's full 0..200 range: normal over the first
+            // three quarters, where nearly every film is listened to, and the
+            // boost for a quiet one in the last.
+            vol-track := Rectangle {
+                width: Bar.vol-w;
+
+                /// Where 100% sits along the track.
+                property <float> unity: 0.75;
+                /// A drag holds at 100% for this much of the way past it, so
+                /// normal is easy to land on and the boost a step to take.
+                property <length> catch: 8px;
+                /// Where the drag started, and the level it set there.
+                property <length> from-x;
+                property <float> from-level;
+                /// How far along the track a level is drawn.
+                pure function at(level: float) -> float {
+                    return level <= 100 ? level / 100 * self.unity
+                        : self.unity + (level - 100) / (Playback.volume-max - 100) * (1 - self.unity);
+                }
+                /// The level drawn at a point along the track.
+                pure function level-at(along: float) -> float {
+                    return along <= self.unity ? along / self.unity * 100
+                        : 100 + (along - self.unity) / (1 - self.unity) * (Playback.volume-max - 100);
+                }
+                /// The level a drag has reached, at the rate normal is drawn
+                /// at the whole way, so the same move changes it the same
+                /// amount: the boost is a quarter of the track for twice as
+                /// much, so it reaches past the end, which a drag can. Held at
+                /// 100% for `catch` as it passes.
+                pure function dragged-to(x: length) -> float {
+                    let raw = self.from-level
+                        + (x - self.from-x) / (self.width * self.unity) * 100;
+                    let held = self.catch / (self.width * self.unity) * 100;
+                    let level = self.from-level < 100
+                        ? (raw <= 100 ? raw : raw <= 100 + held ? 100 : raw - held)
+                        : self.from-level > 100
+                        ? (raw >= 100 ? raw : raw >= 100 - held ? 100 : raw + held)
+                        : (abs(raw - 100) <= held ? 100 : raw > 100 ? raw - held : raw + held);
+                    return clamp(level, 0, Playback.volume-max);
+                }
+
+                // The level as a number, which nothing else on the bar gives:
+                // the track has 96px for 200 steps, and the glyph moves in tens.
+                // With tips off it is still said, as the number alone, but not
+                // while muted, when the number isn't what is heard. An empty
+                // tip is none, so muting under the pointer takes it down.
+                property <string> tip: Tip.enabled ? Playback.volume-said
+                    : Playback.muted ? "" : @tr("{}%", Math.round(Playback.volume));
+                property <string> tip-keys: Tip.enabled && !Playback.muted ? "↑ ↓" : "";
+                property <length> tip-cx: self.absolute-position.x + self.width / 2;
+                /// This track's claim on the tip, as a button holds one.
+                property <int> tip-claim: -1;
+                /// How far the level is heard. The fill fades out with a mute
+                /// and back in with an unmute, as a switch's track turns, and
+                /// a unity dot the fill was cut round fades the other way.
+                property <float> heard: Playback.muted ? 0.0 : 1.0;
+                animate heard { duration: Motion.switch; easing: ease-out; }
+
+                // A level that moves under the pointer shows at once, without
+                // the wait, as the answer to whatever moved it.
+                changed tip => {
+                    if (Tip.seq == self.tip-claim) {
+                        self.tip-claim = Tip.read-out(self.tip, self.tip-keys, self.tip-cx);
+                    }
+                }
+
+                accessible-role: slider;
+                accessible-label: @tr("Volume");
+                accessible-value: Playback.muted ? @tr("Muted") : Math.round(Playback.volume) + "%";
+                accessible-action-increment => {
+                    Playback.nudge-volume(Playback.volume-step);
+                }
+                accessible-action-decrement => {
+                    Playback.nudge-volume(-Playback.volume-step);
+                }
+
+                vol-rail := Rectangle {
+                    y: (parent.height - self.height) / 2;
+                    width: 100%;
+                    height: vol.has-hover || vol.pressed ? 7px : 5px;
+                    border-radius: self.height / 2;
+                    background: Paint.rail;
+                    animate height { duration: Motion.track-grow; easing: ease-out; }
+
+                    property <length> unity-x: self.width * vol-track.unity;
+                    property <length> level-x: self.width * clamp(vol-track.at(Playback.volume), 0, 1);
+
+                    // Unity gain: the track runs to mpv's 200%, so this marks
+                    // where normal is. A dot rather than a line across the
+                    // track, which would divide it into two ranges. The fill
+                    // is cut round it as the timeline's is round a chapter,
+                    // and it comes back as a mute fades the fill out.
+                    Rectangle {
+                        x: vol-rail.unity-x - self.width / 2;
+                        y: (parent.height - self.height) / 2;
+                        width: Marks.dot;
+                        height: Marks.dot;
+                        border-radius: self.height / 2;
+                        background: Paint.quiet;
+                        opacity: vol-rail.level-x > vol-rail.unity-x - self.width / 2
+                            ? 1 - vol-track.heard : 1;
+                    }
+
+                    TrackRun {
+                        to: vol-rail.unity-x - Marks.cut / 2;
+                        cut-after: true;
+                        reach: vol-rail.level-x;
+                        fill: Paint.fill;
+                        opacity: vol-track.heard;
+                    }
+                    TrackRun {
+                        from: vol-rail.unity-x + Marks.cut / 2;
+                        to: parent.width;
+                        cut-before: true;
+                        reach: vol-rail.level-x;
+                        fill: Paint.fill;
+                        opacity: vol-track.heard;
+                    }
+                }
+
+                vol := TouchArea {
+                    mouse-cursor: pointer;
+                    // A press puts the level where the pointer is; a drag from
+                    // there moves it at one rate, past the track if it must.
+                    // Unlike a button's, its tip stays on a press, since it
+                    // shows the result.
+                    pointer-event(event) => {
+                        Chrome.pointed(event.kind == PointerEventKind.down);
+                        if (event.kind == PointerEventKind.down
+                                && event.button == PointerEventButton.left) {
+                            vol-track.from-x = self.mouse-x;
+                            vol-track.from-level = vol-track.level-at(
+                                clamp(self.mouse-x / self.width, 0, 1));
+                            Playback.set-volume(vol-track.from-level);
+                        }
+                    }
+                    moved => {
+                        if (self.pressed) {
+                            Playback.set-volume(vol-track.dragged-to(self.mouse-x));
+                        }
+                    }
+                    // The one place the wheel is the volume. Activity for the
+                    // timeline's wheel's reason.
+                    scroll-event(event) => {
+                        Chrome.bump();
+                        Playback.nudge-volume(event.delta-y > 0
+                            ? Playback.volume-step
+                            : -Playback.volume-step);
+                        return EventResult.accept;
+                    }
+                    changed has-hover => {
+                        if (self.has-hover) {
+                            vol-track.tip-claim = Tip.read-out(vol-track.tip,
+                                vol-track.tip-keys, vol-track.tip-cx);
+                        } else {
+                            Tip.release(vol-track.tip-claim);
+                        }
+                    }
+                }
+            }
+
+            // The audio panel's mark is its heading's, so the button and what
+            // it opens wear the same glyph.
+            audio-button := IconButton {
+                icon: @image-url("../../../public/icons/speaking.svg");
+                tip: @tr("Audio");
+                keys: "A";
+                focused: root.reach && root.ring-at == 8;
+                open: root.open-panel == Panel.audio;
+                clicked => {
+                    root.toggled(Panel.audio);
+                }
+            }
+            // Opens the subtitles menu. Solid while they show, as YouTube's
+            // is: whether they are on is the one thing about them worth
+            // seeing without opening the menu. C and the menu's Off row are
+            // still the switch.
+            subs-button := IconButton {
+                icon: root.subtitles-showing ? @image-url("../../../public/icons/subtitles-solid.svg")
+                    : @image-url("../../../public/icons/subtitles.svg");
+                tip: @tr("Subtitles");
+                keys: "V";
+                focused: root.reach && root.ring-at == 9;
+                open: root.open-panel == Panel.subtitles;
+                clicked => {
+                    root.toggled(Panel.subtitles);
+                }
+            }
+            settings-button := IconButton {
+                icon: @image-url("../../../public/icons/settings.svg");
+                tip: @tr("Settings");
+                keys: "S";
+                focused: root.reach && root.ring-at == 10;
+                open: root.open-panel == Panel.settings;
+                clicked => {
+                    root.toggled(Panel.settings);
+                }
+            }
+            panscan-button := IconButton {
+                // What a press does, as fullscreen's glyph is: filling while
+                // the picture fits, fitting while it fills.
+                icon: Playback.panscan
+                    ? @image-url("../../../public/icons/panscan-off.svg")
+                    : @image-url("../../../public/icons/panscan-on.svg");
+                // Names the direction it will go, which the shortcuts list,
+                // covering both in one row, can't.
+                tip: Playback.panscan ? @tr("Fit the window") : @tr("Fill the window");
+                keys: "T";
+                focused: root.reach && root.ring-at == 11;
+                clicked => {
+                    Playback.toggle-panscan();
+                }
+            }
+            fullscreen-button := IconButton {
+                icon: root.fullscreen
+                    ? @image-url("../../../public/icons/fullscreen-off.svg")
+                    : @image-url("../../../public/icons/fullscreen-on.svg");
+                tip: root.fullscreen ? @tr("Leave fullscreen") : @tr("Fullscreen");
+                keys: "F";
+                focused: root.reach && root.ring-at == 12;
+                clicked => {
+                    root.toggle-fullscreen();
+                }
+            }
+        }
+    }
+
+    /// The film's length as the timeline writes it, and the widest a time
+    /// under an hour can read; `time-w` holds the wider of the two.
+    time-measure := Measure {
+        text: Settings.show-remaining ? "\u{2212}" + Playback.total : Playback.total;
+        font-family: Type.numerals;
+        font-size: Type.readout;
+    }
+    minutes-measure := Measure {
+        text: "00:00";
+        font-family: Type.numerals;
+        font-size: Type.readout;
+    }
+    speed-measure := Measure {
+        text: Playback.speed-text;
+        font-size: Type.readout;
+    }
+    title-measure := Measure {
+        text: Playlist.opening
+            ? @tr("Opening {}…", Playlist.opening-name)
+            : Playback.title;
+        font-size: Type.title;
+        font-weight: Type.weight-title;
+    }
+    episode-measure := Measure {
+        text: Playback.episode;
+        font-size: Type.title;
+        font-weight: Type.weight-title;
+    }
+}

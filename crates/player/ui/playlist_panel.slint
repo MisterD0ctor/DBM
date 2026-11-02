@@ -1,0 +1,410 @@
+// The playlist: its own panel, since it is the one list that grows without
+// bound. Its parts, a show's seasons or a folder's shows and films, get a
+// page listing them and a page each, which slide past each other as the
+// settings pages do.
+
+import { Playlist } from "playlist.slint";
+import { PlaylistItem, ScrollFade } from "models.slint";
+import { BackRow, GroupRow, MenuHeading, PlaylistRow } from "rows.slint";
+import { Measure } from "measure.slint";
+import { GlassPanel } from "panel.slint";
+import { ScrollList } from "scroll_list.slint";
+import { Motion, Rows, Type } from "theme.slint";
+
+export component PlaylistPanel inherits GlassPanel {
+    /// The row the keyboard's ring is on, which every panel shares.
+    in-out property <int> ring-row;
+    /// The page the panel is on: -1 for the list of parts, otherwise that
+    /// part's files. The Rust side keeps it on the same part when the parts
+    /// around it change.
+    in-out property <int> page;
+
+    /// The rows the keyboard walks: a part's way back, then the list's.
+    out property <int> rows: root.lead + root.list-rows;
+    out property <ScrollFade> parts-fade: parts-list.fade;
+    out property <ScrollFade> leaf-fade: leaf-list.fade;
+
+    /// As it opens: on the part holding the file playing, at its row, or on
+    /// the list of parts when that file is a part of its own.
+    public function opening() {
+        // On the part holding the file playing, at its row, or on the
+        // list of parts when that file is a part of its own.
+        if (root.tiered && Playlist.current-group >= 0
+                && !Playlist.groups[Playlist.current-group].leaf) {
+            root.enter(Playlist.current-group);
+        } else {
+            root.page = root.tiered ? -1 : 0;
+            root.ring-row = max(0, root.tiered
+                ? Playlist.current-group
+                : Playlist.groups[0].open-row);
+            // With a single part, its list is the drilled-in page.
+            if (root.tiered) {
+                parts-list.centre(root.ring-row * root.row-h, root.row-h);
+            } else {
+                leaf-list.centre(root.ring-row * root.row-h, root.row-h);
+            }
+        }
+    }
+
+    /// Press the row under the ring.
+    public function activate() {
+        if (root.ring-row < root.lead) {
+            root.back();
+        } else {
+            root.pick(root.ring-row - root.lead);
+        }
+    }
+
+    /// Back to the list of parts, where there is one to go back to; says
+    /// whether there was.
+    public function go-back() -> bool {
+        if (root.lead > 0) {
+            root.back();
+            return true;
+        }
+        return false;
+    }
+
+    /// Into the part the ring is on, where it is one that opens.
+    public function enter-ringed() {
+        if (root.on-parts && root.ring-row < root.list-rows
+                && !Playlist.groups[root.ring-row].leaf) {
+            root.enter(root.ring-row);
+        }
+    }
+
+    /// Bring the ring's row into view, where it is one of the list's.
+    public function reveal() {
+        if (root.ring-row >= root.lead && root.ring-row < root.lead + root.list-rows) {
+            if (root.on-parts) {
+                parts-list.reveal(root.ring-row * root.row-h, root.row-h);
+            } else {
+                leaf-list.reveal((root.ring-row - root.lead) * root.row-h, root.row-h);
+            }
+        }
+    }
+
+    width: root.panel-w;
+    height: root.panel-h;
+    drills: true;
+
+    property <bool> tiered: Playlist.groups.length > 1;
+    property <bool> on-parts: root.tiered && root.page < 0;
+    /// 0 on the list of parts, 1 on a part's page: the playlist's `drill`,
+    /// animated so the change of page can be followed. A single part has no
+    /// list of parts, so this stays 1.
+    property <float> drill: root.on-parts ? 0.0 : 1.0;
+    animate drill {
+        duration: Motion.drill;
+        easing: ease-in-out;
+    }
+    /// Between the list of parts and a part's page. Both then hang from the
+    /// bottom of the room they share, over the switch, which stays put, so
+    /// their rows move only sideways, as the settings pages' do.
+    property <bool> moving: root.drill > 0.0 && root.drill < 1.0;
+    /// Which part the drilled-in page draws.
+    ///
+    /// Held rather than read from `playlist-page`, which is -1 during the way
+    /// back, while the page sliding out still has to draw its part. Updated
+    /// here rather than at the call sites, because the Rust side moves the
+    /// page too.
+    property <int> leaf: 0;
+    changed page => {
+        if (root.page >= 0) {
+            root.leaf = root.page;
+        }
+    }
+    /// The part on the drilled-in page, and its files.
+    property <int> shown-group: root.tiered ? root.leaf : 0;
+    property <[PlaylistItem]> entries:
+        Playlist.groups[root.shown-group].entries;
+    /// The rows the list scrolls through, and whether a way back leads them
+    /// as focus row 0.
+    out property <int> list-rows: root.on-parts
+        ? Playlist.groups.length : root.entries.length;
+    out property <int> lead: root.tiered && !root.on-parts ? 1 : 0;
+    // What a row puts around its name, added to the widest name measured.
+    // Each follows its row in `rows.slint`.
+    property <length> file-fixed: Rows.label-x + Rows.group-gap + Rows.time-col
+        + Rows.trail-x;
+    property <length> measure-fixed: Rows.measure + Rows.group-gap;
+    property <length> part-fixed: Rows.label-x + Rows.group-gap
+        + max(Rows.time-col, details-measure.preferred-width)
+        + Rows.chevron-col + Rows.trail-x;
+    /// A way back's 18px arrow and 10px gap, a heading's mark taking 2px less.
+    property <length> heading-fixed: Rows.label-x + 28px + Rows.trail-x;
+    /// On the list of parts, a file listed as itself leaves the parts'
+    /// chevron column empty beside its time.
+    property <length> entry-fixed: root.file-fixed
+        + (root.on-parts && Playlist.drills ? Rows.chevron-col : 0px);
+    /// For the page showing, so a season of long titles doesn't widen the
+    /// list of seasons.
+    property <length> panel-w: root.list-fit(max(
+        heading-measure.preferred-width + root.heading-fixed,
+        names-measure.preferred-width + (root.on-parts
+            ? max(root.part-fixed, root.entry-fixed) : root.entry-fixed),
+        measured-measure.preferred-width + root.entry-fixed
+            + root.measure-fixed));
+    /// A part's page is headed by its way back, which is a row; the list of
+    /// parts, and a list of one part, by a heading.
+    property <length> head-h: root.lead > 0 ? root.row-h : root.heading-h;
+    out property <length> natural: root.list-rows * root.row-h;
+    out property <length> panel-h: min(
+        root.panel-pad + root.head-h + root.natural,
+        root.panel-max-h);
+    /// The room the two pages share: the panel inside its padding.
+    ///
+    /// From the panel's height this frame rather than `playlist-h`, its
+    /// destination, which differs during a drill's animation, so the lists
+    /// ease with the panel rather than taking their new height at once.
+    /// Reading a height property is not a layout query, so the "bar
+    /// geometry" rule holds.
+    property <length> pages-h: max(0px, root.height - root.panel-pad);
+    /// Each page's list under its own head: a heading on the list of parts,
+    /// a way back on a part's page. Both are needed while the two slide past
+    /// each other.
+    /// Each at its height at rest while the panel moves between the two (see
+    /// `moving`).
+    property <length> parts-list-h: root.moving ? root.parts-rest-h
+        : max(0px, root.pages-h - root.heading-h);
+    /// Under a way back when there are parts to go back to, otherwise under
+    /// the panel's heading, which is shorter than a row.
+    property <length> leaf-list-h: root.moving ? root.leaf-rest-h
+        : max(0px, root.pages-h
+            - (root.tiered ? root.row-h : root.heading-h));
+    /// Each list's height once the panel has finished moving to its page:
+    /// all of its rows, or what the tallest panel leaves for them (see
+    /// `rest-height` on the list).
+    property <length> pages-rest-h: max(0px, root.panel-max-h - root.panel-pad);
+    property <length> parts-rest-h: min(root.parts-natural,
+        max(0px, root.pages-rest-h - root.heading-h));
+    property <length> leaf-rest-h: min(root.leaf-natural,
+        max(0px, root.pages-rest-h
+            - (root.tiered ? root.row-h : root.heading-h)));
+    /// The list showing, for the keys that measure a page by it.
+    out property <length> list-h: root.lead > 0
+        ? root.leaf-list-h : root.parts-list-h;
+    /// What each page's rows add up to. The showing page's is also
+    /// `playlist-natural`, which sizes the panel.
+    property <length> parts-natural: Playlist.groups.length * root.row-h;
+    property <length> leaf-natural: root.entries.length * root.row-h;
+    /// Where the showing list starts in the window, for the test that takes
+    /// hold of its scroll bar.
+    out property <length> list-top:
+        root.y + root.panel-pad + root.head-h;
+    out property <length> scroll: root.on-parts
+        ? parts-list.offset : leaf-list.offset;
+    /// Open one part's page on the row to carry on from: the file playing,
+    /// or else the first not yet finished.
+    function enter(group: int) {
+        root.page = group;
+        root.ring-row = 1 + Playlist.groups[group].open-row;
+        leaf-list.centre(
+            Playlist.groups[group].open-row * root.row-h, root.row-h);
+    }
+    /// Back to the list of parts, on the part just left.
+    public function back() {
+        root.ring-row = max(0, root.page);
+        root.page = -1;
+        parts-list.centre(root.ring-row * root.row-h, root.row-h);
+    }
+    /// A row of the list showing, pressed.
+    function pick(row: int) {
+        if (!root.on-parts) {
+            root.play(root.entries[row]);
+        } else if (Playlist.groups[row].leaf) {
+            root.play(Playlist.groups[row].entries[0]);
+        } else {
+            root.enter(row);
+        }
+    }
+    /// Play a file of the list, or, for one in a season beside the list
+    /// rather than in it, open that season at that file.
+    function play(entry: PlaylistItem) {
+        if (entry.index >= 0) {
+            Playlist.play-index(entry.index);
+        } else if (!Playlist.opening) {
+            Playlist.open-path(entry.path, true);
+        }
+    }
+
+    VerticalLayout {
+        padding-top: Rows.panel-pad;
+        padding-bottom: Rows.panel-pad;
+        // Top-aligned, or the rows would spread apart while the height
+        // animates.
+        alignment: start;
+
+        // The two pages side by side, placed by `drill`. Unlike
+        // the settings pages, both are always built, because they are
+        // called by name to centre a row, which an element inside a
+        // condition can't be. The list of parts is short anyway.
+        Rectangle {
+            height: root.pages-h;
+            clip: true;
+
+            Rectangle {
+                x: -root.drill * parent.width;
+                width: parent.width;
+                height: root.moving ? root.heading-h + root.parts-list-h
+                    : parent.height;
+                y: root.moving ? parent.height - self.height : 0;
+
+                VerticalLayout {
+                    alignment: start;
+
+                    MenuHeading {
+                        text: Playlist.heading;
+                        titular: Playlist.named;
+                        // The same mark as the button that opened the
+                        // panel, whether the words beside it are
+                        // PLAYLIST or a show's name.
+                        icon: @image-url("../../../public/icons/playlist.svg");
+                    }
+                    // The list of parts: a season to open, or a file
+                    // standing in the list as itself.
+                    parts-list := ScrollList {
+                        height: root.parts-list-h;
+                        rest-height: root.parts-rest-h;
+                        content-height: root.parts-natural;
+                        current-top: Playlist.current-group * root.row-h;
+                        current-h: Playlist.current-group >= 0 ? root.row-h : 0px;
+
+                        VerticalLayout {
+                            alignment: start;
+
+                            for group[idx] in Playlist.groups: Rectangle {
+                                height: root.row-h;
+
+                                if group.leaf: PlaylistRow {
+                                    label: group.entries[0].label;
+                                    length: group.entries[0].length;
+                                    progress: group.entries[0].progress;
+                                    finished: group.entries[0].finished;
+                                    why: group.entries[0].why;
+                                    measured: group.entries[0].measured;
+                                    active: group.current;
+                                    // Leaves the chevron's column empty,
+                                    // so this row's figures line up with
+                                    // the parts' around it.
+                                    trail: Playlist.drills
+                                        ? Rows.trail-x + Rows.chevron-col : Rows.trail-x;
+                                    focused: root.open
+                                        && root.on-parts
+                                        && root.ring-row == idx;
+                                    picked => {
+                                        root.pick(idx);
+                                    }
+                                }
+                                if !group.leaf: GroupRow {
+                                    label: group.label;
+                                    detail: group.detail;
+                                    active: group.current;
+                                    focused: root.open
+                                        && root.on-parts
+                                        && root.ring-row == idx;
+                                    opened => {
+                                        root.pick(idx);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                x: (1.0 - root.drill) * parent.width;
+                width: parent.width;
+                height: root.moving ? root.row-h + root.leaf-list-h
+                    : parent.height;
+                y: root.moving ? parent.height - self.height : 0;
+
+                VerticalLayout {
+                    alignment: start;
+
+                    // A part's page is headed by the way back to the list
+                    // of parts, as a settings page is. A single part has
+                    // no list to go back to, so it has the heading.
+                    if root.tiered: BackRow {
+                        label: Playlist.groups[root.leaf].heading;
+                        titular: Playlist.groups[root.leaf].titular;
+                        focused: root.open && !root.on-parts
+                            && root.ring-row == 0;
+                        back => {
+                            root.back();
+                        }
+                    }
+                    if !root.tiered: MenuHeading {
+                        text: Playlist.heading;
+                        titular: Playlist.named;
+                        icon: @image-url("../../../public/icons/playlist.svg");
+                    }
+                    leaf-list := ScrollList {
+                        height: root.leaf-list-h;
+                        rest-height: root.leaf-rest-h;
+                        content-height: root.leaf-natural;
+                        // A part holding the file playing opens on it, so
+                        // `open-row` is its row.
+                        current-top: Playlist.groups[root.shown-group].open-row
+                            * root.row-h;
+                        current-h: Playlist.current-group >= 0
+                            && Playlist.current-group == root.shown-group
+                            ? root.row-h : 0px;
+
+                        VerticalLayout {
+                            alignment: start;
+
+                            for entry[idx] in root.entries: PlaylistRow {
+                                label: entry.label;
+                                length: entry.length;
+                                progress: entry.progress;
+                                finished: entry.finished;
+                                why: entry.why;
+                                measured: entry.measured;
+                                active: entry.current;
+                                focused: root.open
+                                    && !root.on-parts
+                                    && root.ring-row == idx + root.lead;
+                                picked => {
+                                    root.pick(idx);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // The widest names, at the current row's weight, which is the widest any
+    // of them is drawn (see `list-fit`).
+    names-measure := Measure {
+        text: root.on-parts ? Playlist.names
+            : Playlist.groups[root.shown-group].names;
+        font-size: Type.body;
+        font-weight: Type.weight-current;
+    }
+    measured-measure := Measure {
+        text: root.on-parts ? Playlist.measured-names
+            : Playlist.groups[root.shown-group].measured-names;
+        font-size: Type.body;
+        font-weight: Type.weight-current;
+    }
+    details-measure := Measure {
+        text: Playlist.details;
+        font-size: Type.readout;
+    }
+    heading-measure := Measure {
+        // A part's page is headed by its way back; the list of parts, or a
+        // single part, by the playlist's heading.
+        property <bool> backs: root.tiered && !root.on-parts;
+        property <bool> titular: self.backs
+            ? Playlist.groups[root.shown-group].titular : Playlist.named;
+        text: self.backs ? Playlist.groups[root.shown-group].heading
+            : Playlist.heading;
+        font-size: self.titular ? Type.named : Type.label;
+        font-weight: Type.weight-plain;
+        letter-spacing: self.titular ? 0 : Type.label-track;
+    }
+}

@@ -3,7 +3,7 @@
 //! English is what the source says; every other language is a gettext file
 //! under `po/<code>/LC_MESSAGES/dbm-player.po`, read at build time and
 //! compiled in. One file per language holds both halves of the interface:
-//! the words in `app.slint`, which Slint's own bundling looks up by the
+//! the words in the `.slint` files, which Slint's own bundling looks up by the
 //! component they are in, and the words made in Rust — a notice, a playlist
 //! heading, how much of a film is left — which are the entries under the
 //! context `player`, turned into a table by the build script. This crate has

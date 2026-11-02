@@ -1,0 +1,8 @@
+/// Words measured and never drawn. Only the font knows how wide a string is,
+/// and a surface sized around its own words can't ask them, since their width
+/// would then depend on itself. The font must match the visible text's.
+export component Measure inherits Text {
+    visible: false;
+    width: 0px;
+    height: 0px;
+}

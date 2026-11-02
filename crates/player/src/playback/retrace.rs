@@ -5,7 +5,7 @@
 //! place a film had been watched to, with nothing to find it by; a number
 //! key, a tenth of the film at a time, does it in one press. For ten seconds
 //! of the film after either moves it more than half a minute, the corner pill
-//! offers the way back (see `back-offer` in app.slint). The arrows seek by
+//! offers the way back (see `back-offer` in pills.slint). The arrows seek by
 //! steps someone chose, and are left alone. A title sequence the player
 //! skipped by itself is offered back the same way (see `skips`).
 

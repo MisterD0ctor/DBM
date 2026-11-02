@@ -1,0 +1,123 @@
+// The window's own buttons: minimize, maximize and close on one small pane of
+// glass, in the window's top corner at its own margins. The window has no
+// frame, so these are the only ones it has.
+
+import { Chrome } from "globals.slint";
+import { GlassRect } from "models.slint";
+import { IconButton } from "controls.slint";
+import { Bar } from "bar.slint";
+import { Surfaces } from "surface.slint";
+import { Motion, Rows } from "theme.slint";
+
+/// Laid over the whole window, whose top right corner it takes.
+export component WindowButtons inherits Rectangle {
+    /// With the chrome, and always over an empty window, which has no film
+    /// to keep clear.
+    in property <bool> up;
+    /// Never in fullscreen, where the film has the whole screen and Esc is
+    /// the way out.
+    in property <bool> fullscreen;
+    in-out property <bool> maximized;
+    /// The open panel, which puts the buttons away when it reaches their row
+    /// in their column (see `crowded`), and the line it opens above.
+    in property <bool> panel-open;
+    in property <length> panel-x;
+    in property <length> panel-w;
+    in property <length> panel-h;
+    in property <length> floor;
+    /// Straight to the window rather than through `minimized`, which a
+    /// Wayland client is never told has been undone (see `window::minimize`).
+    callback minimize();
+    callback quit();
+
+    /// The pointer is on the pane or a button, which holds the chrome up.
+    out property <bool> hovered: pane.has-hover || minimize-button.hovered
+        || maximize-button.hovered || close-button.hovered;
+    out property <GlassRect> glass: Surfaces.glass(root.pane-x, root.pane-y + root.drop,
+        root.pane-w, root.pane-h, root.pane-h / 2, root.shown);
+
+    property <float> shown: root.up && !root.fullscreen && !root.crowded ? 1.0 : 0.0;
+    animate shown {
+        duration: Motion.surface;
+        easing: ease-out;
+    }
+    /// Above their place rather than below: the buttons come in from the
+    /// window's top edge, as the bar does from its bottom one.
+    property <length> drop: (root.shown - 1.0) * Surfaces.lift;
+
+    property <length> margin: 10px;
+    property <length> btn: 28px;
+    property <length> gap: Bar.btn-gap;
+    /// The glass round the buttons. The pane's corner is theirs plus this, so
+    /// the end buttons sit concentric in its ends.
+    property <length> pad: 3px;
+    property <length> step: root.btn + root.gap;
+    property <length> pane-w: 2 * root.pad + root.btn
+        + 2 * root.step;
+    property <length> pane-h: 2 * root.pad + root.btn;
+    /// At the margin, so that close is the button nearest the corner.
+    property <length> pane-x: root.width - root.margin
+        - root.pane-w;
+    property <length> pane-y: root.margin;
+    /// An open panel tall enough to reach their row, in their column, puts
+    /// them away, since it was asked for and they weren't.
+    property <bool> crowded: root.panel-open
+        && root.floor - root.panel-h - Rows.offset
+            < root.pane-y + root.pane-h + Rows.offset
+        && root.panel-x + root.panel-w + Rows.offset > root.pane-x;
+
+    Rectangle {
+        x: root.pane-x;
+        y: root.pane-y + root.drop;
+        width: root.pane-w;
+        height: root.pane-h;
+        visible: root.shown > Surfaces.gone;
+        opacity: root.shown;
+
+        // Under the buttons, so a click on the glass between them doesn't
+        // reach the film.
+        pane := TouchArea {
+            pointer-event(event) => {
+                Chrome.pointed(event.kind == PointerEventKind.down);
+            }
+        }
+
+        minimize-button := IconButton {
+            x: root.pad;
+            y: root.pad;
+            width: root.btn;
+            height: root.btn;
+            icon: @image-url("../../../public/icons/minimize.svg");
+            // No tip, since there is no key to teach; the name is for screen
+            // readers.
+            accessible-label: @tr("Minimize");
+            clicked => {
+                root.minimize();
+            }
+        }
+        maximize-button := IconButton {
+            x: root.pad + root.step;
+            y: root.pad;
+            width: root.btn;
+            height: root.btn;
+            icon: root.maximized
+                ? @image-url("../../../public/icons/unmaximize.svg")
+                : @image-url("../../../public/icons/maximize.svg");
+            accessible-label: root.maximized ? @tr("Restore") : @tr("Maximize");
+            clicked => {
+                root.maximized = !root.maximized;
+            }
+        }
+        close-button := IconButton {
+            x: root.pad + 2 * root.step;
+            y: root.pad;
+            width: root.btn;
+            height: root.btn;
+            icon: @image-url("../../../public/icons/close.svg");
+            accessible-label: @tr("Close");
+            clicked => {
+                root.quit();
+            }
+        }
+    }
+}

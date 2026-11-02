@@ -1,0 +1,49 @@
+// What every surface over the film shares: how far it keeps from the
+// window's edges, how it arrives, and the glass the pipeline lays under it.
+//
+// Each surface publishes its geometry as a `GlassRect`, and the pipeline
+// draws the glass into the frame before Slint composites the window over it.
+// So no surface has a background of its own: a fill would paint over the
+// glass, not on it.
+
+import { GlassRect } from "models.slint";
+
+/// The panels that open over the film.
+export enum Panel { none, subtitles, audio, playlist, files, settings }
+
+/// Where a surface is.
+export struct Bounds {
+    x: length,
+    y: length,
+    width: length,
+    height: length,
+}
+
+export global Surfaces {
+    /// Between a surface and the window's edges.
+    out property <length> margin: 24px;
+    /// How far a surface sits from its place before it arrives. Each fades in
+    /// and rises this far into place, enough to read as arriving, on one
+    /// animated number that drives its opacity, its offset and its glass, so
+    /// they can't drift apart.
+    out property <length> lift: 6px;
+    /// Below this a surface is gone: not drawn, not hit-tested, and its rect
+    /// dropped on the Rust side rather than uploaded as invisible glass.
+    out property <float> gone: 0.004;
+
+    /// The glass under a surface `shown` of the way in, zero-sized once it is
+    /// gone.
+    public pure function glass(x: length, y: length, width: length, height: length,
+        radius: length, shown: float) -> GlassRect {
+        return {
+            x: x,
+            y: y,
+            width: shown > Surfaces.gone ? width : 0,
+            height: shown > Surfaces.gone ? height : 0,
+            opacity: shown,
+            radius: radius,
+            // Opt in to tinting; the strength is the global slider.
+            tint: 1.0,
+        };
+    }
+}

@@ -16,6 +16,11 @@ export global Playback {
     in property <bool> paused;
     in property <bool> muted;
     in property <float> volume: 100;
+    /// The level as words, for the volume's label and its keys' flash. Muted,
+    /// it says so, since the level is then a number nothing is heard at.
+    out property <string> volume-said: Playback.muted
+        ? @tr("Muted")
+        : @tr("Volume {}%", Math.round(Playback.volume));
     in property <bool> has-file;
     /// mpv is holding the last frame of a finished file.
     in property <bool> at-end;

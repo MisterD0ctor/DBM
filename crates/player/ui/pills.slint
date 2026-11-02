@@ -1,0 +1,484 @@
+// The two pills over the picture, as tall as the bar's row of buttons: the
+// end pill in the middle, where a film stopped or waits to be continued, and
+// the corner pill, which offers a skip or the way on while the bar is away.
+
+import { Playback } from "playback.slint";
+import { Playlist } from "playlist.slint";
+import { GlassRect } from "models.slint";
+import { EndChoice } from "controls.slint";
+import { Measure } from "measure.slint";
+import { Bar } from "bar.slint";
+import { Bounds, Surfaces } from "surface.slint";
+import { Motion, Paint, Rows, Type } from "theme.slint";
+
+/// What the corner pill offers.
+enum CornerOffer {
+    none,
+    /// The next file, or the next season at the end of one.
+    onward,
+    skip-intro,
+    /// The place autoplay passed over by starting the file from the top.
+    resume,
+    /// Past the credits, to the scene after them.
+    skip-credits,
+    /// Back to where a jump took the film from.
+    back,
+}
+
+/// One pill in the middle of the picture, where the film just stopped and
+/// nothing else competes for the eye. Not tied to the bar: the bar hides
+/// after a few still seconds, and this should still be there when it does.
+/// At the end of the last file it offers a second thing (see `two`).
+///
+/// Laid over the whole window, which it centres in.
+export component EndPill inherits Rectangle {
+    /// Which choice the bar's keyboard ring is on, or -1.
+    in property <int> ring-at: -1;
+    /// The line panels open above: the bar's top.
+    in property <length> floor;
+    /// The bar's width, half of which is the widest the pill grows.
+    in property <length> widest;
+    /// The open panel, which the pill moves aside for.
+    in property <bool> panel-open;
+    in property <length> panel-x;
+    in property <length> panel-w;
+    in property <length> panel-h;
+    /// The seek preview, which the pill rises clear of.
+    in property <bool> preview-open;
+    in property <Bounds> preview;
+    in property <bool> resizing;
+
+    /// Where the pill is drawn, and its glass.
+    out property <Bounds> bounds: {
+        x: root.pill-x,
+        y: root.pill-y + root.rise,
+        width: root.pill-w,
+        height: root.pill-h,
+    };
+    out property <GlassRect> glass: Surfaces.glass(root.pill-x, root.pill-y + root.rise,
+        root.pill-w, root.pill-h, root.pill-h / 2, root.shown);
+
+    animate shown {
+        duration: Motion.surface;
+        easing: ease-out;
+    }
+    property <length> rise: (1.0 - root.shown) * Surfaces.lift;
+
+    out property <float> shown: root.up ? 1.0 : 0.0;
+
+    /// The centre pill is up: at the end of a file, or at the start of one
+    /// held on its saved place. Never both, so it is one surface, one glass
+    /// and one stop.
+    out property <bool> up: (Playback.at-end || Playback.arriving) && Playback.has-file;
+
+    // --- end of playback ---
+    //
+    // One pill in the middle of the picture, where the film just stopped and
+    // nothing else competes for the eye, as tall as the bar's row of buttons.
+    property <length> pill-h: Bar.pill-h;
+    /// Text inset, matching the title's.
+    property <length> pad: Bar.pill-text-pad;
+    /// Whether there is a second thing to offer: the way on, at the end of
+    /// the last file, or Continue for a file held on its saved place. Restart
+    /// alone at the end of a season or a lone film is the least wanted offer.
+    out property <bool> two: Playback.at-last || Playback.arriving;
+    /// With two choices, each is a capsule inset by a bar button's padding,
+    /// which keeps it concentric with the pill: 24px outside, a 4px gap, 20px
+    /// inside.
+    property <length> inset: root.two ? Bar.pill-pad : 0px;
+    /// Less padding inside an inset choice, so its words still start 18px
+    /// from the pill's edge.
+    property <length> choice-pad: root.pad - root.inset;
+    /// The way on, by name: the next season, or the film left unfinished.
+    /// The folder dialog is the last resort, for when the player can name
+    /// nothing, because this is the loudest the interface speaks.
+    property <string> onward-label: Playback.onward-path != ""
+        ? Playback.onward-label : @tr("Open folder…");
+    /// The way on is another film rather than more of this show: something to
+    /// go back to, under Play's glyph as on the way in, since under Next's it
+    /// would read as this show's next episode.
+    property <bool> onward-elsewhere: Playback.onward-path != "" && !Playback.onward-season;
+    /// The widest the pill grows before its words elide: half the bar, since
+    /// a film's name can run to a sentence, and this is a capsule in the
+    /// picture rather than a banner across it.
+    property <length> max-w: root.widest / 2;
+    property <length> first-w: min(
+        2 * root.choice-pad + 24px + Bar.choice-gap + first-measure.preferred-width,
+        root.max-w - (root.two
+            ? 2 * root.inset + Bar.btn-gap + root.second-w : 0px));
+    property <length> second-w:
+        2 * root.choice-pad + 24px + Bar.choice-gap + second-measure.preferred-width;
+    property <length> pill-w: root.two
+        ? 2 * root.inset + root.first-w + Bar.btn-gap + root.second-w
+        : root.first-w;
+    /// Where the pill sits with nothing in its way. A move is tested from
+    /// here rather than from where it puts the pill, which would make it
+    /// depend on itself.
+    property <length> middle-x: (root.width - root.pill-w) / 2;
+    property <length> middle-y: (root.height - root.pill-h) / 2;
+    /// An open panel over where the pill sits. The seek preview stands down
+    /// for one, but the pill may be the question playback is paused on, so
+    /// it moves aside instead.
+    property <bool> crowded: root.panel-open
+        && root.middle-x + root.pill-w + Rows.offset > root.panel-x
+        && root.middle-x < root.panel-x + root.panel-w + Rows.offset
+        && root.middle-y + root.pill-h + Rows.offset
+            > root.floor - Rows.offset - root.panel-h;
+    /// The room beside the open panel, on the side away from it. At the
+    /// smallest window it still holds the widest pill.
+    property <bool> panel-left: root.panel-x + root.panel-w / 2 < root.width / 2;
+    property <length> room-from: root.panel-left
+        ? root.panel-x + root.panel-w + Rows.offset : Surfaces.margin;
+    property <length> room-to: root.panel-left
+        ? root.width - Surfaces.margin : root.panel-x - Rows.offset;
+    property <length> pill-x: !root.crowded ? root.middle-x
+        : clamp((root.room-from + root.room-to - root.pill-w) / 2,
+            Surfaces.margin, root.width - Surfaces.margin - root.pill-w);
+    // A sideways move, so at the pace of the other one, a page's.
+    animate pill-x {
+        duration: root.resizing ? 0ms : Motion.drill;
+        easing: ease-in-out;
+    }
+    /// The seek preview under the pill, which reaches the middle in a window
+    /// under about 600px tall. It is what the hand is doing, so rather than
+    /// stand down it stays, and the pill rises clear. Its column counts too,
+    /// so a pointer elsewhere on the track leaves the pill where it is.
+    property <bool> over-preview: root.preview-open
+        && root.preview.x + root.preview.width + Rows.offset > root.pill-x
+        && root.preview.x < root.pill-x + root.pill-w + Rows.offset
+        && root.preview.y < root.middle-y + root.pill-h + Rows.offset;
+    property <length> pill-y: root.over-preview
+        ? min(root.middle-y, root.preview.y - Rows.offset - root.pill-h)
+        : root.middle-y;
+    // At a surface's pace, since it makes way for one arriving.
+    animate pill-y {
+        duration: root.resizing ? 0ms : Motion.surface;
+        easing: ease-out;
+    }
+    /// Restart at the end of the last file, and otherwise the next file by
+    /// name (which is only seen with autoplay off). Named for the same reason
+    /// as the way on; the bare *Next* is for when the list can't say.
+    property <string> label: Playback.arriving ? @tr("From the beginning")
+        : Playback.at-last ? @tr("Restart")
+        : Playback.next-label != "" ? Playback.next-label : @tr("Next");
+    /// What the first of two choices says: the way on, or, for a file held on
+    /// its saved place, going on from that time, since the time is what to
+    /// decide by.
+    property <string> first-label: Playback.arriving
+        ? @tr("Continue from {}", Playback.arrival-from)
+        : root.onward-label;
+
+
+    /// The end pill's choices, from the keyboard. With two, the first is the
+    /// way on and the second is Restart.
+    public function activate(choice: int) {
+        if (Playback.arriving) {
+            Playback.arrival-answer(choice == 1);
+        } else if (!root.two) {
+            Playback.play-next();
+        } else if (choice == 0) {
+            Playlist.open-onward();
+        } else {
+            Playback.replay();
+        }
+    }
+
+    // A season's end is said once, over its way on: the one thing at the end
+    // the interface states rather than offers. No glass of its own, so it
+    // waits for the end to be lit, by a frame dimmed far enough for white
+    // words to read on it: the frame the file stopped on can be a white one.
+    property <float> season-shown: Playback.end-lit ? root.shown : 0;
+    animate season-shown { duration: Motion.surface; easing: ease-out; }
+    Text {
+        text: Playback.season-done;
+        visible: Playback.at-end && Playback.at-last && Playback.season-done != ""
+            && root.season-shown > Surfaces.gone;
+        opacity: root.season-shown;
+        x: root.pill-x + (root.pill-w - self.width) / 2;
+        y: root.pill-y + root.rise - Rows.offset - self.height;
+        color: Paint.body;
+        font-size: Type.hint;
+    }
+
+
+    // --- the button a finished film leaves behind ---------------------------
+    //
+    // Not tied to `controls-visible`: the bar hides after a few still seconds,
+    // and this should still be there when it does. At the end of the last
+    // file it offers a second thing (see `two`).
+    Rectangle {
+        x: root.pill-x;
+        y: root.pill-y + root.rise;
+        width: root.pill-w;
+        height: root.pill-h;
+        visible: root.shown > Surfaces.gone;
+        opacity: root.shown;
+
+        // The way on first and Restart second, since at the end of a season
+        // the next one is the likely wish.
+        EndChoice {
+            x: root.inset;
+            y: root.inset;
+            width: root.first-w;
+            height: parent.height - 2 * root.inset;
+            inset: root.inset;
+            pad: root.choice-pad;
+            gap: Bar.choice-gap;
+            // Only while the pill is up, so the choice takes the ring's pane as
+            // it arrives rather than holding it unseen behind the credits pill.
+            focused: root.ring-at == 0;
+            icon: Playback.arriving || (root.two && root.onward-elsewhere)
+                ? @image-url("../../../public/icons/play.svg")
+                : !root.two || Playback.onward-path != ""
+                ? @image-url("../../../public/icons/step-forward.svg")
+                : @image-url("../../../public/icons/folder-open.svg");
+            label: root.two ? root.first-label : root.label;
+            picked => {
+                root.activate(0);
+            }
+        }
+
+        if root.two: EndChoice {
+            x: root.inset + root.first-w + Bar.btn-gap;
+            y: root.inset;
+            width: root.second-w;
+            height: parent.height - 2 * root.inset;
+            inset: root.inset;
+            pad: root.choice-pad;
+            gap: Bar.choice-gap;
+            focused: root.ring-at == 1;
+            icon: @image-url("../../../public/icons/rewind.svg");
+            label: root.label;
+            picked => {
+                root.activate(1);
+            }
+        }
+    }
+
+    first-measure := Measure {
+        text: root.two ? root.first-label : root.label;
+        font-size: Type.prompt;
+        font-weight: Type.weight-title;
+    }
+
+    second-measure := Measure {
+        text: root.label;
+        font-size: Type.prompt;
+        font-weight: Type.weight-title;
+    }
+}
+
+/// The credits are when the next episode is wanted, but people also watch
+/// them, so the offer keeps out of the middle, where the names roll. It takes
+/// the bottom right corner: at the margin while the bar is away, and lifted
+/// onto the row panels open from while the bar is up. Not tied to the bar,
+/// for the end pill's reason: the bar leaves three still seconds after the
+/// credits start, and this stays.
+///
+/// The title sequence, a place autoplay passed over and the way back from a
+/// jump are offered in the same corner (see `offer`).
+///
+/// Laid over the whole window, whose bottom right corner it takes.
+export component CornerPill inherits Rectangle {
+    /// Whether the bar's keyboard ring is on the pill: 0 when it is.
+    in property <int> ring-at: -1;
+    /// Why the player can't show video, which leaves nothing to offer.
+    in property <string> fatal;
+    /// A panel is open, which the pill stands aside for.
+    in property <bool> panel-open;
+    /// No wider than the bar's right group, the corner it keeps to, so a long
+    /// episode title elides rather than reach over the rolling names.
+    in property <length> widest;
+    /// How far the pill is lifted, with the bar's own fade so it moves
+    /// exactly with the bar, and the top of the bar it is lifted onto. What
+    /// is loaded alone never reaches the pill's column, so the pill rises
+    /// only as the bar grows from it.
+    in property <float> raised;
+    in property <length> raised-floor;
+    /// The seek preview, which the pill gives way to.
+    in property <bool> preview-open;
+    in property <Bounds> preview;
+
+    out property <Bounds> bounds: {
+        x: root.pill-x,
+        y: root.pill-y + root.rise,
+        width: root.pill-w,
+        height: Bar.pill-h,
+    };
+    out property <GlassRect> glass: Surfaces.glass(root.pill-x, root.pill-y + root.rise,
+        root.pill-w, Bar.pill-h, Bar.pill-h / 2, root.shown);
+
+    animate shown {
+        duration: Motion.surface;
+        easing: ease-out;
+    }
+    property <length> rise: (1.0 - root.shown) * Surfaces.lift;
+    // Mirrored so their changes are acted on here.
+    property <string> resume-offer: Playback.resume-offer;
+    property <string> back-offer: Playback.back-offer;
+
+    /// Stands aside for an open panel, and for the seek preview when the two
+    /// would meet: glass is never laid on glass.
+    out property <float> shown: root.offered && !root.panel-open
+        && !root.crowded ? 1.0 : 0.0;
+
+    // --- the credits pill ---
+    //
+    // The credits are when the next episode is wanted, but people also watch
+    // them, so the offer keeps out of the middle, where the names roll. It
+    // takes the bottom right corner: at the margin while the bar is away, and
+    // lifted onto the row panels open from while the bar is up.
+    /// Somewhere to go: the next file, or the next season found beside this
+    /// one when this is the last.
+    property <bool> onward: !Playback.at-last || Playback.onward-season;
+    /// A scene follows the credits, so the offer is to skip to it rather than
+    /// past it: the scene is the episode's, and the way on comes after it.
+    property <bool> skip: Playback.after-credits > 0;
+    property <bool> credits-offered: Playback.credits-rolling && Playback.has-file
+        && !Playback.at-end && !Playback.arriving && (root.skip || root.onward)
+        && root.fatal == "";
+    /// The same pill while an episode's title sequence plays, offering to
+    /// skip it. Same corner, for the same reason: people watch it too.
+    property <bool> intro-offered: Playback.intro-rolling && Playback.has-file
+        && !Playback.at-end && !Playback.arriving && root.fatal == "";
+    /// And for the first ten seconds of a file that autoplay started from
+    /// the top although it had been left part way: the offer to go on from
+    /// there. Autoplay can't stop to ask, so this is how it asks (see
+    /// `playback::arrival`).
+    property <bool> resume-offered: root.resume-offer != "" && Playback.has-file
+        && !Playback.at-end && !Playback.arriving && root.fatal == "";
+    /// And for ten seconds after a click on the timeline or a number key
+    /// moved the film far: the way back to where it was.
+    property <bool> back-offered: root.back-offer != "" && Playback.has-file
+        && !Playback.at-end && !Playback.arriving && root.fatal == "";
+    /// Any of them. Intro and credits fall in different halves of a file;
+    /// should a file say both, the credits win. The passed-over place wins
+    /// over the intro, since going on from it skips the intro too, and it
+    /// only lasts ten seconds. The way back wins over all of them, being an
+    /// answer to what the hand just did.
+    out property <bool> offered: root.credits-offered || root.intro-offered
+        || root.resume-offered || root.back-offered;
+    /// Which of them.
+    property <CornerOffer> offer: root.back-offered ? CornerOffer.back
+        : root.resume-offered ? CornerOffer.resume
+        : root.credits-offered
+            ? (root.skip ? CornerOffer.skip-credits : CornerOffer.onward)
+        : root.intro-offered ? CornerOffer.skip-intro
+        : CornerOffer.none;
+    /// Which the pill is dressed as. The offer ends the moment the pill is
+    /// pressed, but the pill takes `Motion.surface` to fade, and has to keep
+    /// saying the same thing meanwhile. So the last offer, and the place it
+    /// named, are remembered until the next one.
+    property <CornerOffer> was: CornerOffer.onward;
+    property <CornerOffer> says: root.offer != CornerOffer.none
+        ? root.offer : root.was;
+    /// Either skip: further into this file.
+    property <bool> says-skip: root.says == CornerOffer.skip-intro
+        || root.says == CornerOffer.skip-credits;
+    changed offer => {
+        if (root.offer != CornerOffer.none) {
+            root.was = root.offer;
+        }
+    }
+    property <string> resume-offer-said;
+    changed resume-offer => {
+        if (root.resume-offer != "") {
+            root.resume-offer-said = root.resume-offer;
+        }
+    }
+    property <string> back-offer-said;
+    changed back-offer => {
+        if (root.back-offer != "") {
+            root.back-offer-said = root.back-offer;
+        }
+    }
+    /// Named like the end pill's way on: the next file as its row says it,
+    /// or the next season at the end of one. *Next episode* when neither can
+    /// be said.
+    out property <string> label: root.says == CornerOffer.back
+        ? @tr("Back to {}", root.back-offer-said)
+        : root.says == CornerOffer.resume
+        ? @tr("Continue from {}", root.resume-offer-said)
+        : root.says == CornerOffer.skip-intro ? @tr("Skip intro")
+        : root.says == CornerOffer.skip-credits ? @tr("Skip credits")
+        : !Playback.at-last && Playback.next-label != "" ? Playback.next-label
+        : Playback.at-last && Playback.onward-path != "" ? Playback.onward-label
+        : @tr("Next episode");
+    /// No wider than the bar's right group, the corner it keeps to, so a long
+    /// episode title elides rather than reach over the rolling names.
+    property <length> pill-w: min(
+        2 * Bar.pill-text-pad + 24px + Bar.choice-gap + measure.preferred-width,
+        root.widest);
+    property <length> pill-x: root.width - Surfaces.margin - root.pill-w;
+    /// Driven by the bar's own fade, so it moves exactly with the bar. What
+    /// is loaded alone never reaches the pill's column, so the pill rises
+    /// only as the bar grows from it.
+    property <length> pill-y: root.height - Surfaces.margin - Bar.pill-h
+        - root.raised
+            * (root.height - Surfaces.margin - root.raised-floor + Rows.offset);
+    /// The seek preview reaching the pill's column. The preview is what the
+    /// pointer asked for, so the pill is the one that goes.
+    property <bool> crowded: root.preview-open
+        && root.preview.x + root.preview.width + Rows.offset > root.pill-x;
+
+    /// On to the next episode: the next file, or the next season when this
+    /// was the last of one. Or, from the title sequence, on to the episode,
+    /// from credits a scene follows, on to the scene, and after a jump, back
+    /// to where it was.
+    public function activate() {
+        if (root.offer == CornerOffer.back) {
+            Playback.take-back-offer();
+        } else if (root.offer == CornerOffer.resume) {
+            Playback.take-resume-offer();
+        } else if (root.offer == CornerOffer.skip-intro) {
+            Playback.skip-to(Playback.intro-end);
+        } else if (root.offer == CornerOffer.skip-credits) {
+            Playback.skip-to(Playback.after-credits);
+        } else if (!Playback.at-last) {
+            Playback.play-next();
+        } else {
+            Playlist.open-onward();
+        }
+    }
+
+    // --- the way on, while the credits roll ---------------------------------
+    //
+    // Not tied to `controls-visible`, for the end pill's reason: the bar
+    // leaves three still seconds after the credits start, and this stays.
+    Rectangle {
+        x: root.pill-x;
+        y: root.pill-y + root.rise;
+        width: root.pill-w;
+        height: Bar.pill-h;
+        visible: root.shown > Surfaces.gone;
+        opacity: root.shown;
+
+        EndChoice {
+            width: parent.width;
+            height: parent.height;
+            pad: Bar.pill-text-pad;
+            gap: Bar.choice-gap;
+            focused: root.ring-at == 0;
+            // Next's glyph for the next file, and Skip's for further into
+            // this one; not Forward's, which has its ten seconds drawn in.
+            // The way back is Reset's, the arrow that turns back on itself.
+            icon: root.says == CornerOffer.back
+                ? @image-url("../../../public/icons/reset.svg")
+                : root.says == CornerOffer.resume
+                ? @image-url("../../../public/icons/play.svg")
+                : root.says-skip ? @image-url("../../../public/icons/skip.svg")
+                : @image-url("../../../public/icons/step-forward.svg");
+            label: root.label;
+            filled: Playback.credits-count;
+            picked => {
+                root.activate();
+            }
+        }
+    }
+
+    measure := Measure {
+        text: root.label;
+        font-size: Type.prompt;
+        font-weight: Type.weight-title;
+    }
+}

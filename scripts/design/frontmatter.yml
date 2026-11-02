@@ -61,23 +61,23 @@ typography:
 rounded:
   row: "{{ Rows.radius }}"
   panel: "{{ Rows.panel-radius }}"
-  pill: "{{ MainWindow.pill-radius }}"
-  button: "{{ MainWindow.btn / 2 }}"
-  preview: "{{ MainWindow.preview-radius }}"
-  preview-tile: "{{ MainWindow.preview-tile-radius }}"
+  pill: "{{ Bar.pill-radius }}"
+  button: "{{ Bar.btn / 2 }}"
+  preview: "{{ SeekPreview.radius }}"
+  preview-tile: "{{ SeekPreview.tile-radius }}"
   window: "{{ window.CORNER_RADIUS }}px"
 spacing:
-  hair: "{{ MainWindow.pill-pad }}"
-  tight: "{{ MainWindow.btn-gap }}"
+  hair: "{{ Bar.pill-pad }}"
+  tight: "{{ Bar.btn-gap }}"
   group: "{{ Rows.group-gap }}"
   offset: "{{ Rows.offset }}"
   gap: "{{ Rows.gap }}"
-  margin: "{{ MainWindow.panel-margin }}"
+  margin: "{{ Surfaces.margin }}"
   trail-x: "{{ Rows.trail-x }}"
   label-x: "{{ Rows.label-x }}"
 components:
   icon-button:
-    size: "{{ MainWindow.btn }}"
+    size: "{{ Bar.btn }}"
     rounded: "{rounded.button}"
     textColor: "{colors.lit}"
     backgroundColor: "transparent"
@@ -90,31 +90,31 @@ components:
   icon-button-disabled:
     textColor: "{colors.dim}"
   bar:
-    height: "{{ MainWindow.bar-h }}"
+    height: "{{ Bar.height }}"
     rounded: "{rounded.panel}"
-    padding: "{{ MainWindow.bar-pad }}"
+    padding: "{{ Bar.pad }}"
     backgroundColor: "transparent"
   button-row:
-    height: "{{ MainWindow.pill-h }}"
-    padding: "{{ MainWindow.pill-pad }}"
+    height: "{{ Bar.pill-h }}"
+    padding: "{{ Bar.pill-pad }}"
   window-buttons:
-    height: "{{ MainWindow.window-pane-h }}"
-    rounded: "{{ MainWindow.window-pane-h / 2 }}"
-    padding: "{{ MainWindow.window-btn-pad }}"
+    height: "{{ WindowButtons.pane-h }}"
+    rounded: "{{ WindowButtons.pane-h / 2 }}"
+    padding: "{{ WindowButtons.pad }}"
     backgroundColor: "transparent"
   window-button:
-    size: "{{ MainWindow.window-btn }}"
-    rounded: "{{ MainWindow.window-btn / 2 }}"
+    size: "{{ WindowButtons.btn }}"
+    rounded: "{{ WindowButtons.btn / 2 }}"
     textColor: "{colors.lit}"
     backgroundColor: "transparent"
   window-button-hover:
     backgroundColor: "{colors.wash-button}"
   timeline-row:
-    height: "{{ MainWindow.timeline-h }}"
+    height: "{{ Bar.timeline-h }}"
     textColor: "{colors.strong}"
     typography: "{typography.timecode}"
   timeline-time:
-    padding: "0 {{ MainWindow.glyph-inset }}"
+    padding: "0 {{ Bar.glyph-inset }}"
     textColor: "{colors.strong}"
     typography: "{typography.timecode}"
   menu-row:
@@ -164,23 +164,23 @@ components:
     rounded: "{{ ToggleRow.track.height / 2 }}"
     backgroundColor: "{colors.rail}"
   hover-label:
-    height: "{{ MainWindow.tip-h }}"
-    rounded: "{{ MainWindow.tip-h / 2 }}"
-    padding: "0 {{ MainWindow.tip-pad }}"
+    height: "{{ HoverTip.tip-h }}"
+    rounded: "{{ HoverTip.tip-h / 2 }}"
+    padding: "0 {{ HoverTip.pad }}"
     textColor: "{colors.body}"
     typography: "{typography.body}"
   end-pill:
-    height: "{{ MainWindow.end-h }}"
+    height: "{{ EndPill.pill-h }}"
     rounded: "{rounded.pill}"
-    padding: "0 {{ MainWindow.end-pad }}"
+    padding: "0 {{ EndPill.pad }}"
     textColor: "{colors.lit}"
     typography: "{typography.prompt}"
   end-pill-hover:
     backgroundColor: "{colors.wash-button}"
   end-choice:
-    height: "{{ MainWindow.end-h - 2 * MainWindow.pill-pad }}"
-    rounded: "{{ (MainWindow.end-h - 2 * MainWindow.pill-pad) / 2 }}"
-    padding: "0 {{ MainWindow.end-pad - MainWindow.pill-pad }}"
+    height: "{{ EndPill.pill-h - 2 * Bar.pill-pad }}"
+    rounded: "{{ (EndPill.pill-h - 2 * Bar.pill-pad) / 2 }}"
+    padding: "0 {{ EndPill.pad - Bar.pill-pad }}"
     textColor: "{colors.lit}"
     typography: "{typography.prompt}"
   resume-row:
@@ -190,6 +190,6 @@ components:
     typography: "{typography.body}"
   seek-preview:
     rounded: "{rounded.preview}"
-    padding: "{{ MainWindow.preview-pad }}"
+    padding: "{{ SeekPreview.pad }}"
     textColor: "{colors.strong}"
     typography: "{typography.timecode}"

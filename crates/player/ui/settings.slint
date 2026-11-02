@@ -4,6 +4,9 @@
 // language changed. The pages themselves stay with the window.
 
 import { ParamItem } from "models.slint";
+import { Subtitles } from "subtitles.slint";
+import { Tip } from "globals.slint";
+import { Motion } from "theme.slint";
 
 /// What a page's reset row puts back: a section of the settings, or, from
 /// the subtitles menu, the timing or the size and position.
@@ -64,4 +67,115 @@ export global Settings {
     /// save the choice.
     callback set-tips(bool);
     callback set-tip-keys(bool);
+
+    // Each sets its setting here first, so the next frame shows it before
+    // the Rust side, which saves it, has heard.
+    public function pick-language(row: int) {
+        Settings.language-choice = row;
+        Settings.choose-language(row);
+    }
+    /// Turn the interface's motion on or off, from the switch or from Enter
+    /// on its row.
+    public function turn-motion(on: bool) {
+        Motion.chosen = on;
+        Settings.set-animations(on);
+    }
+    /// Which end of the film the timeline's right end says, the same way.
+    public function turn-remaining(on: bool) {
+        Settings.show-remaining = on;
+        Settings.set-show-remaining(on);
+    }
+    /// Turn the tips on or off, the same way. None is visible while this page
+    /// is open, but one can be held under it, so turning them off clears it.
+    public function turn-tips(on: bool) {
+        Tip.enabled = on;
+        if (!on) {
+            Tip.clear();
+        }
+        Settings.set-tips(on);
+    }
+    public function turn-legible(on: bool) {
+        Settings.legible-glass = on;
+        Settings.set-legible-glass(on);
+    }
+    public function turn-tip-keys(on: bool) {
+        Tip.with-keys = on;
+        Settings.set-tip-keys(on);
+    }
+}
+
+/// The reset rows, on the settings pages and the subtitles menu's.
+///
+/// Two presses, then a way back, because settings save at once and a look
+/// tuned by eye can't be typed back in. The first press says what the second
+/// will do; after the second, the same row offers to undo it until the page
+/// is left. The window waits `Motion.armed-for` for the second press, from
+/// each first one (see `armed-seq`).
+export global Resets {
+    in-out property <Reset> armed: Reset.none;
+    in-out property <Reset> undoable: Reset.none;
+    /// Bumped by every first press, for the window to restart the wait.
+    out property <int> armed-seq: 0;
+    /// The subtitle delay and speed that stood when the timing was reset.
+    property <float> delay: 0;
+    property <float> sub-speed: 1;
+
+    public function press(what: Reset) {
+        if (Resets.undoable == what) {
+            // The timing is the film's alone, so it is put back from here
+            // rather than from what the settings saved.
+            if (what == Reset.timing) {
+                Subtitles.set-timing(Resets.delay, Resets.sub-speed);
+            } else {
+                Settings.undo-reset(what);
+            }
+            Resets.undoable = Reset.none;
+            return;
+        }
+        if (Resets.armed != what) {
+            Resets.armed = what;
+            Resets.armed-seq += 1;
+            return;
+        }
+        Resets.armed = Reset.none;
+        Resets.delay = Subtitles.delay;
+        Resets.sub-speed = Subtitles.speed;
+        if (what == Reset.timing) {
+            Subtitles.set-timing(0, 1);
+        } else if (what == Reset.placing) {
+            Subtitles.reset();
+        } else {
+            Settings.reset-section(what);
+        }
+        Resets.undoable = what;
+    }
+
+    /// Forget what is armed and what can be taken back, as leaving a page
+    /// does.
+    public function clear() {
+        Resets.armed = Reset.none;
+        Resets.undoable = Reset.none;
+    }
+
+    /// Whether a reset is one of the subtitles menu's rather than the
+    /// settings panel's.
+    public pure function is-menu-reset(what: Reset) -> bool {
+        return what == Reset.timing || what == Reset.placing;
+    }
+
+    /// The warning while the row is armed, since the next press throws a
+    /// page of settings away.
+    public pure function icon(what: Reset) -> image {
+        return Resets.armed == what && Resets.undoable != what
+            ? @image-url("../../../public/icons/warning.svg")
+            : @image-url("../../../public/icons/reset.svg");
+    }
+
+    public pure function label(what: Reset) -> string {
+        return Resets.undoable == what ? @tr("Undo reset")
+            : Resets.armed == what ? @tr("Press again to reset")
+            : what == Reset.timing ? @tr("Reset timing")
+            : what == Reset.picture ? @tr("Reset the picture")
+            : @tr("Reset to defaults");
+    }
 }

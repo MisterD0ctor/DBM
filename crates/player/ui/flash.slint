@@ -1,0 +1,260 @@
+// The action flash: a glyph in a ring at the centre of the picture, and under
+// it the one number that has nowhere else to appear, or a sentence when the
+// player has something to say (see `Flash`).
+//
+// No `TouchArea` anywhere in here, deliberately: it sits over the middle of
+// the picture, where a click means play or pause.
+
+import { Chrome, Figure, Flash } from "globals.slint";
+import { GlassRect } from "models.slint";
+import { Playback } from "playback.slint";
+import { Subtitles } from "subtitles.slint";
+import { Tracks } from "tracks.slint";
+import { Measure } from "measure.slint";
+import { Bounds, Panel, Surfaces } from "surface.slint";
+import { Motion, Paint, Rows, Type } from "theme.slint";
+
+/// Laid over the whole window, which it takes its middle and margins from.
+export component ActionFlash inherits Rectangle {
+    /// The panel open, which a notice raised now answers.
+    in property <Panel> open-panel;
+    /// Where in that panel the row that asked sits (see `asked-row` on the
+    /// window).
+    in property <length> asked-row;
+    /// Where the panel the notice answers is (see `beside`).
+    in property <Bounds> beside-bounds;
+    /// The line panels open above: the bar's top.
+    in property <length> floor;
+    /// The widest the words may run: the bar's width.
+    in property <length> widest;
+    in property <bool> has-file;
+    /// The foot of the way in, which a notice with no ring keeps under.
+    in property <length> way-in-foot;
+
+    /// The panel the notice on show answers, and so sits beside.
+    ///
+    /// A notice raised with a panel open is nearly always that panel's
+    /// answer, and belongs by the row that asked rather than in the middle.
+    /// Fixed when the notice is raised, so it stays beside its panel while
+    /// both fade out.
+    out property <Panel> beside: Panel.none;
+
+    out property <GlassRect> ring-glass: Surfaces.glass(root.centred-x(root.ring),
+        root.ring-y + root.rise,
+        root.has-ring ? root.ring : 0, root.has-ring ? root.ring : 0,
+        // Half the size, so the rounded box the shader draws is a circle.
+        root.ring / 2, root.shown);
+    out property <GlassRect> words-glass: Surfaces.glass(root.text-x + root.slide,
+        root.text-y + root.text-rise,
+        root.text != "" ? root.text-w : 0, root.text != "" ? root.text-h : 0,
+        root.text-h / 2, root.shown);
+
+    property <[image]> icons: [
+        @image-url("../../../public/icons/seek-backward.svg"),
+        @image-url("../../../public/icons/seek-forward.svg"),
+        @image-url("../../../public/icons/step-backward.svg"),
+        @image-url("../../../public/icons/step-forward.svg"),
+        @image-url("../../../public/icons/rewind.svg"),
+        @image-url("../../../public/icons/subtitle-time.svg"),
+    ];
+    /// The size the icon set is drawn for: the ring gives it presence, so
+    /// it isn't scaled up.
+    property <length> glyph: 24px;
+    /// 16px of air around the glyph, twice a bar button's. Any wider and the
+    /// ring becomes the subject rather than the glyph's setting.
+    property <length> ring: root.glyph + 2 * 16px;
+    /// Whether this is the player speaking rather than acknowledging a key.
+    property <bool> is-notice: Flash.message != "";
+    /// Whether the glyph ring is drawn: an acknowledgement has one, a notice
+    /// and a figure are their words alone.
+    property <bool> has-ring: !root.is-notice && Flash.figure == Figure.none;
+    /// The track a J or # landed on, read live, because the list is re-read
+    /// a moment after the cycle and the caption has to catch up.
+    property <string> sub-label: Subtitles.visible && Tracks.subtitle-current >= 0
+        && Tracks.subtitle-current < Tracks.subtitles.length
+        ? Tracks.subtitles[Tracks.subtitle-current].label : @tr("Subtitles off");
+    property <string> audio-label: Tracks.audio-current >= 0
+        && Tracks.audio-current < Tracks.audio.length
+        ? Tracks.audio[Tracks.audio-current].label : @tr("No audio");
+    /// Set once a notice has had its dwell: it then stays until the next key
+    /// or pointer event, so a failure glanced away from is still there.
+    property <bool> waiting: false;
+    property <int> input-seq: Chrome.input-seq;
+    changed input-seq => {
+        if (root.waiting) {
+            root.waiting = false;
+            root.shown = 0.0;
+        }
+    }
+    /// The words under the ring. Live, because mpv reports a new delay a beat
+    /// after the key, and the figure has to be the one it lands on.
+    property <string> text: root.is-notice ? Flash.message
+        : Flash.figure == Figure.speed ? Playback.speed-text
+        : Flash.figure == Figure.chapter ? Playback.chapter-label
+        : Flash.figure == Figure.subtitle-track ? root.sub-label
+        : Flash.figure == Figure.audio-track ? root.audio-label
+        : Flash.figure == Figure.volume ? Playback.volume-said
+        : Flash.icon == Flash.delay ? Subtitles.delay-text : "";
+    property <length> text-h: 28px;
+    property <length> text-pad: 14px;
+    /// Wide enough for the words, but never wider than the bar, since a
+    /// failure can name a long path.
+    property <length> text-w: min(
+        measure.preferred-width + 2 * root.text-pad + root.mark-w, root.widest);
+    /// A failure's warning mark and the gap after it; nothing otherwise.
+    property <bool> warns: root.is-notice && Flash.warning;
+    property <length> mark: 18px;
+    property <length> mark-w: root.warns ? root.mark + 8px : 0px;
+    /// Centred on `Flash.at`, kept inside the window's margins.
+    pure function centred-x(w: length) -> length {
+        return clamp(root.width * Flash.at - w / 2,
+            Surfaces.margin,
+            max(Surfaces.margin, root.width - w - Surfaces.margin));
+    }
+    /// To the panel's left, unless the panel is too far left for the words
+    /// to fit.
+    property <bool> leftward: root.beside-bounds.x - Rows.offset
+        - root.text-w >= Surfaces.margin;
+    property <length> text-x: root.beside == Panel.none
+        ? root.centred-x(root.text-w)
+        : root.leftward
+            ? root.beside-bounds.x - Rows.offset - root.text-w
+            : root.beside-bounds.x + root.beside-bounds.width + Rows.offset;
+    /// How far down its panel the middle of the row that asked sits.
+    /// Negative when no row is known, and the notice sits level with the
+    /// panel's top edge.
+    property <length> beside-row: -1px;
+    /// A notice beside a panel slides out from it rather than rising: from
+    /// the panel's edge to the offset it rests at.
+    property <length> slide: root.beside == Panel.none ? 0px
+        : (1.0 - root.shown) * Rows.offset * (root.leftward ? 1 : -1);
+    property <length> ring-y: (root.height - root.ring) / 2;
+    /// Under the ring, or in its place when there is none, and under the way
+    /// in when that is on screen, since both are centred and the notice would
+    /// otherwise cover the rows it answers.
+    property <length> text-y: root.beside != Panel.none
+        ? root.floor - root.beside-bounds.height - Rows.offset
+            + (root.beside-row < 0 ? 0px : root.beside-row - root.text-h / 2)
+        : !root.has-ring
+        ? (root.has-file
+            ? (root.height - root.text-h) / 2
+            : root.way-in-foot + Rows.offset)
+        : root.ring-y + root.ring + Rows.offset;
+    /// Long enough to read a two-character number, short enough that a held
+    /// key flickers rather than strobes. Longer for a figure, which is read
+    /// rather than recognised, and longer still for a sentence.
+    property <duration> dwell: root.is-notice ? 3200ms
+        : Flash.figure != Figure.none ? 1200ms : 700ms;
+    property <float> shown: 0;
+    animate shown {
+        duration: Motion.surface;
+        easing: ease-out;
+    }
+    property <length> rise: (1.0 - root.shown) * Surfaces.lift;
+    /// The caption's rise, which is zero beside a panel, where it slides.
+    property <length> text-rise: root.beside == Panel.none ? root.rise : 0px;
+
+    // Watched through a local property, because a `changed` handler must be
+    // on the element that declares the property. Each raise restarts the
+    // dwell rather than extending it.
+    property <int> seq: Flash.seq;
+    changed seq => {
+        root.beside = root.is-notice ? root.open-panel : Panel.none;
+        root.beside-row = root.beside == Panel.settings || root.beside == Panel.subtitles
+            ? root.asked-row : -1px;
+        root.shown = 1.0;
+        root.waiting = false;
+        dwell-timer.stop();
+        // A hint has no dwell: it stays while its row is rested on.
+        if (!Flash.held) {
+            dwell-timer.start();
+        }
+    }
+    property <int> dropped: Flash.dropped;
+    changed dropped => {
+        root.shown = 0.0;
+    }
+
+    /// A notice beside a panel goes when the panel does, or left beside
+    /// nothing it would read as a new event.
+    property <bool> beside-open: root.beside == Panel.none
+        || root.beside == root.open-panel;
+    changed beside-open => {
+        if (!root.beside-open) {
+            dwell-timer.stop();
+            root.waiting = false;
+            root.shown = 0.0;
+        }
+    }
+
+    dwell-timer := Timer {
+        interval: root.dwell;
+        running: false;
+        triggered => {
+            dwell-timer.stop();
+            if (root.is-notice) {
+                root.waiting = true;
+            } else {
+                root.shown = 0.0;
+            }
+        }
+    }
+
+    Rectangle {
+        x: root.centred-x(root.ring);
+        y: root.ring-y + root.rise;
+        width: root.ring;
+        height: root.ring;
+        visible: root.shown > Surfaces.gone && root.has-ring;
+        opacity: root.shown;
+
+        Image {
+            source: root.icons[Flash.icon];
+            width: root.glyph;
+            height: root.glyph;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            image-fit: contain;
+            colorize: Paint.lit;
+        }
+    }
+
+    Rectangle {
+        x: root.text-x + root.slide;
+        y: root.text-y + root.text-rise;
+        width: root.text-w;
+        height: root.text-h;
+        visible: root.shown > Surfaces.gone && root.text != "";
+        opacity: root.shown;
+
+        Image {
+            source: @image-url("../../../public/icons/warning.svg");
+            visible: root.warns;
+            x: root.text-pad;
+            y: (parent.height - self.height) / 2;
+            width: root.mark;
+            height: root.mark;
+            image-fit: contain;
+            colorize: Paint.lit;
+        }
+
+        Text {
+            width: parent.width - 2 * root.text-pad - root.mark-w;
+            height: 100%;
+            x: root.text-pad + root.mark-w;
+            text: root.text;
+            color: Paint.lit;
+            font-size: Type.title;
+            font-weight: Type.weight-title;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+    }
+
+    measure := Measure {
+        text: root.text;
+        font-size: Type.title;
+        font-weight: Type.weight-title;
+    }
+}

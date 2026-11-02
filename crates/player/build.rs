@@ -3,7 +3,7 @@
 const PO: &str = "../lang/po";
 
 fn main() {
-    // The words in `app.slint` are bundled by Slint itself, which picks the
+    // The words in the `.slint` files are bundled by Slint itself, which picks the
     // language off the system and can be told another — see `dbm_lang`.
     let config = slint_build::CompilerConfiguration::new().with_bundled_translations(PO);
     slint_build::compile_with_config("ui/app.slint", config).expect("failed to compile app.slint");

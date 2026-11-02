@@ -51,6 +51,10 @@ export global Motion {
     /// someone is reading along the bar, making each neighbour wait again
     /// turns it into a stutter.
     out property <duration> tip-grace: 300ms;
+    /// How long a row armed by its first press waits for the second: long
+    /// enough to read the new wording and press again, short enough that an
+    /// armed row won't catch a press meant for something else.
+    out property <duration> armed-for: 2500ms;
 }
 
 /// Every colour in the interface: white at a few alphas, and one dark, for a

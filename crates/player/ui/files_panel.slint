@@ -1,0 +1,47 @@
+// Opening: two rows, so it stays a menu rather than a mode. The button says
+// what it is for, and the rows say what the difference is.
+
+import { Playlist } from "playlist.slint";
+import { ShortcutRow } from "rows.slint";
+import { GlassPanel } from "panel.slint";
+import { Rows } from "theme.slint";
+
+export component FilesPanel inherits GlassPanel {
+    /// The row the keyboard's ring is on, which every panel shares.
+    in property <int> ring-row;
+    /// A row was chosen, which closes the panel ahead of the dialog.
+    callback chosen();
+
+    out property <int> rows: 2;
+
+    /// Press a row: a file for the first, a folder for the second.
+    public function activate(row: int) {
+        root.chosen();
+        Playlist.request-open(row != 0);
+    }
+
+    width: 260px;
+    height: root.panel-pad + 2 * root.row-h;
+
+    VerticalLayout {
+        padding-top: Rows.panel-pad;
+        padding-bottom: Rows.panel-pad;
+
+        ShortcutRow {
+            label: @tr("Open file…");
+            shortcut: @tr("Ctrl+O");
+            focused: root.open && root.ring-row == 0;
+            picked => {
+                root.activate(0);
+            }
+        }
+        ShortcutRow {
+            label: @tr("Open folder…");
+            shortcut: @tr("Ctrl+Shift+O");
+            focused: root.open && root.ring-row == 1;
+            picked => {
+                root.activate(1);
+            }
+        }
+    }
+}

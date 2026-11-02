@@ -152,7 +152,7 @@ export struct PlaylistGroup {
     open-row: int,
     entries: [PlaylistItem],
     /// Its files' names, one to a line, for the measures that size the panel
-    /// to its page (see `playlist-w`). Those whose rows draw a resume measure
+    /// to its page (see `PlaylistPanel.panel-w`). Those whose rows draw a resume measure
     /// come apart, since it takes room from the name.
     names: string,
     measured-names: string,

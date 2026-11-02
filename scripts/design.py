@@ -295,6 +295,7 @@ class Scope:
         self.name = name
         self.props = {}  # name -> (unit hint, expression)
         self.elements = {}  # named elements, for a component
+        self.base = None  # the component this one inherits, whose properties it has too
         self.component = self
 
 
@@ -359,6 +360,8 @@ def read_slint():
                 i += 1
                 continue
             scope = Scope(m.group(2))
+            base = re.search(r"\binherits\s+([A-Za-z_][\w-]*)", lines[i])
+            scope.base = base.group(1) if base else None
             end = block_end(lines, i, 0)
             read_props(lines, i + 1, end, 4, scope)
             for j in range(i + 1, end):
@@ -428,6 +431,8 @@ class Resolver:
 
     def scope_prop(self, scope, name, branches):
         if name not in scope.props:
+            if scope.base in self.scopes:
+                return self.scope_prop(self.scopes[scope.base], name, branches)
             raise DesignError(f"{scope.name} has no {name}")
         hint, expr = scope.props[name]
         for branch in branches:

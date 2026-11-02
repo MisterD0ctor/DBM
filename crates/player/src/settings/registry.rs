@@ -55,7 +55,7 @@ pub struct Param {
     pub max: f32,
 }
 
-/// The order is also the order of `param-icon` in app.slint, which picks each
+/// The order is also the order of `param-icon` in settings_panel.slint, which picks each
 /// row's icon by its index here.
 #[rustfmt::skip]
 pub const REGISTRY: &[Param] = &[

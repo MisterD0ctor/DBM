@@ -7,383 +7,383 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgctxt "MainWindow"
+msgctxt "FilesPanel"
 msgid "Open folder…"
 msgstr "Map openen…"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Restart"
 msgstr "Opnieuw beginnen"
 
-msgctxt "MainWindow"
+msgctxt "EndPill"
 msgid "Next"
 msgstr "Volgende"
 
-msgctxt "MainWindow"
+msgctxt "CornerPill"
 msgid "Skip intro"
 msgstr "Intro overslaan"
 
-msgctxt "MainWindow"
+msgctxt "CornerPill"
 msgid "Next episode"
 msgstr "Volgende aflevering"
 
-msgctxt "MainWindow"
+msgctxt "ActionFlash"
 msgid "Subtitles off"
 msgstr "Ondertitels uit"
 
-msgctxt "MainWindow"
+msgctxt "ActionFlash"
 msgid "No audio"
 msgstr "Geen geluid"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "PLAYBACK"
 msgstr "AFSPELEN"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Play / pause"
 msgstr "Afspelen / pauzeren"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Back / forward {} seconds"
 msgstr "{} seconden terug / vooruit"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Back / forward {} second"
 msgstr "{} seconde terug / vooruit"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Previous / next file"
 msgstr "Vorig / volgend bestand"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Previous / next chapter"
 msgstr "Vorig / volgend hoofdstuk"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Frame back / forward"
 msgstr "Beeld terug / vooruit"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Comma / Period"
 msgstr "Komma / Punt"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Slower / faster"
 msgstr "Langzamer / sneller"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Normal speed"
 msgstr "Normale snelheid"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "AUDIO"
 msgstr "AUDIO"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Volume"
 msgstr "Volume"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Mute"
 msgstr "Dempen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Next audio track"
 msgstr "Volgend audiospoor"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "SUBTITLES"
 msgstr "ONDERTITELS"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Subtitles on / off"
 msgstr "Ondertitels aan / uit"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Subtitles earlier / later"
 msgstr "Ondertitels eerder / later"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "PICTURE"
 msgstr "BEELD"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Fill or fit the window"
 msgstr "Venster vullen of passend maken"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Fullscreen"
 msgstr "Volledig scherm"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Ambient border"
 msgstr "Sfeerlicht"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "PANELS"
 msgstr "PANELEN"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Playlist"
 msgstr "Afspeellijst"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Settings"
 msgstr "Instellingen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shortcuts"
 msgstr "Sneltoetsen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "NAVIGATION"
 msgstr "NAVIGATIE"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Move in a panel"
 msgstr "In een paneel bewegen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "First / last in a list"
 msgstr "Eerste / laatste in een lijst"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "A page up / down a list"
 msgstr "Pagina omhoog / omlaag"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Move along the bar"
 msgstr "Langs de balk bewegen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Choose, or adjust"
 msgstr "Kiezen of aanpassen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Close, or leave fullscreen"
 msgstr "Sluiten of volledig scherm verlaten"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "FILES"
 msgstr "BESTANDEN"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Open file"
 msgstr "Bestand openen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Open folder"
 msgstr "Map openen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "POINTER"
 msgstr "AANWIJZER"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Click the picture"
 msgstr "Op het beeld klikken"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Double-click"
 msgstr "Dubbelklik"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Wheel over its slider"
 msgstr "Scrollen boven de schuifregelaar"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Seek a second"
 msgstr "Een seconde spoelen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Wheel over the timeline"
 msgstr "Scrollen boven de tijdlijn"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Open"
 msgstr "Openen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Drop a file or folder"
 msgstr "Een bestand of map neerzetten"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Listening…"
 msgstr "Luistert…"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Undo sync"
 msgstr "Synchronisatie ongedaan maken"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Sync to speech"
 msgstr "Synchroniseren met spraak"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Undo reset"
 msgstr "Herstellen ongedaan maken"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Press again to reset"
 msgstr "Druk nogmaals om te herstellen"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Reset to defaults"
 msgstr "Standaardwaarden herstellen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "EFFECTS"
 msgstr "EFFECTEN"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Liquid glass"
 msgstr "Vloeibaar glas"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "INTERFACE"
 msgstr "INTERFACE"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Accessibility"
 msgstr "Toegankelijkheid"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Language"
 msgstr "Taal"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "LIQUID GLASS"
 msgstr "VLOEIBAAR GLAS"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "AMBIENT BORDER"
 msgstr "SFEERLICHT"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Timing"
 msgstr "Vertraging"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Size"
 msgstr "Grootte"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Position"
 msgstr "Positie"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "ACCESSIBILITY"
 msgstr "TOEGANKELIJKHEID"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Animations"
 msgstr "Animaties"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "LANGUAGE"
 msgstr "TAAL"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "System language"
 msgstr "Systeemtaal"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "SHORTCUTS"
 msgstr "SNELTOETSEN"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Off"
 msgstr "Uit"
 
-msgctxt "MainWindow"
+msgctxt "FilesPanel"
 msgid "Open file…"
 msgstr "Bestand openen…"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Autoplay next"
 msgstr "Volgende automatisch afspelen"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "{} of {}"
 msgstr "{} van {}"
 
-msgctxt "MainWindow"
+msgctxt "WayIn"
 msgid "Copied"
 msgstr "Gekopieerd"
 
-msgctxt "MainWindow"
+msgctxt "WayIn"
 msgid "Copy details"
 msgstr "Details kopiëren"
 
-msgctxt "MainWindow"
+msgctxt "WayIn"
 msgid "Close the player"
 msgstr "Speler sluiten"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Opening {}…"
 msgstr "{} wordt geopend…"
 
-msgctxt "MainWindow"
+msgctxt "WayIn"
 msgid "Or drop a file or folder onto the window"
 msgstr "Of sleep een bestand of map hierheen"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Open a file or folder"
 msgstr "Een bestand of map openen"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Back {} seconds"
 msgstr "{} seconden terug"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "No earlier file"
 msgstr "Geen eerder bestand"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Previous file"
 msgstr "Vorig bestand"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Play"
 msgstr "Afspelen"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Pause"
 msgstr "Pauzeren"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "No later file"
 msgstr "Geen later bestand"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Next file"
 msgstr "Volgend bestand"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Forward {} seconds"
 msgstr "{} seconden vooruit"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Unmute"
 msgstr "Dempen opheffen"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Muted"
 msgstr "Gedempt"
 
-msgctxt "MainWindow"
+msgctxt "Playback"
 msgid "Volume {}%"
 msgstr "Volume {}%"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Fit the window"
 msgstr "Passend in venster"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Fill the window"
 msgstr "Venster vullen"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Leave fullscreen"
 msgstr "Volledig scherm verlaten"
 
@@ -555,15 +555,15 @@ msgctxt "player"
 msgid "Settings could not be saved — {}"
 msgstr "Instellingen konden niet worden opgeslagen — {}"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "FIND SUBTITLES"
 msgstr "ONDERTITELS ZOEKEN"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Searching OpenSubtitles…"
 msgstr "OpenSubtitles doorzoeken…"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "No subtitles found"
 msgstr "Geen ondertitels gevonden"
 
@@ -591,11 +591,11 @@ msgctxt "player"
 msgid "Today's subtitle downloads are used up"
 msgstr "De ondertiteldownloads van vandaag zijn op"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "No subtitles"
 msgstr "Geen ondertitels"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Remove an added track"
 msgstr "Toegevoegd spoor verwijderen"
 
@@ -607,11 +607,11 @@ msgctxt "player"
 msgid "external"
 msgstr "extern"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Tooltips"
 msgstr "Tooltips"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shortcuts in tooltips"
 msgstr "Sneltoetsen in tooltips"
 
@@ -619,11 +619,11 @@ msgctxt "WayToCurrent"
 msgid "Scroll to the current one"
 msgstr "Naar het huidige item scrollen"
 
-msgctxt "MainWindow"
+msgctxt "EndPill"
 msgid "From the beginning"
 msgstr "Vanaf het begin"
 
-msgctxt "MainWindow"
+msgctxt "EndPill"
 msgid "Continue from {}"
 msgstr "Verder vanaf {}"
 
@@ -671,55 +671,55 @@ msgctxt "player"
 msgid "Softness"
 msgstr "Zachtheid"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Darken bright glass"
 msgstr "Licht glas verdonkeren"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shift+← →"
 msgstr "Shift+← →"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Home"
 msgstr "Home"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "PgUp PgDn"
 msgstr "PgUp PgDn"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Backspace"
 msgstr "Backspace"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Z / Shift+Z"
 msgstr "Z / Shift+Z"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Home End"
 msgstr "Home End"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Tab"
 msgstr "Tab"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Enter / ← →"
 msgstr "Enter / ← →"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Esc"
 msgstr "Esc"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Delete"
 msgstr "Delete"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Ctrl+O"
 msgstr "Ctrl+O"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Ctrl+Shift+O"
 msgstr "Ctrl+Shift+O"
 
@@ -751,31 +751,31 @@ msgctxt "MenuRow"
 msgid "Remove?"
 msgstr "Verwijderen?"
 
-msgctxt "MainWindow"
+msgctxt "WindowButtons"
 msgid "Minimize"
 msgstr "Minimaliseren"
 
-msgctxt "MainWindow"
+msgctxt "WindowButtons"
 msgid "Restore"
 msgstr "Herstellen"
 
-msgctxt "MainWindow"
+msgctxt "WindowButtons"
 msgid "Maximize"
 msgstr "Maximaliseren"
 
-msgctxt "MainWindow"
+msgctxt "WindowButtons"
 msgid "Close"
 msgstr "Sluiten"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Subtitles"
 msgstr "Ondertitels"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Audio"
 msgstr "Audio"
 
-msgctxt "MainWindow"
+msgctxt "AudioPanel"
 msgid "No audio tracks"
 msgstr "Geen audiosporen"
 
@@ -807,11 +807,11 @@ msgctxt "AccountPage"
 msgid "Sign out"
 msgstr "Afmelden"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Signed in as {}"
 msgstr "Aangemeld als {}"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Subtitles provided by OpenSubtitles.com"
 msgstr "Ondertitels geleverd door OpenSubtitles.com"
 
@@ -839,23 +839,23 @@ msgctxt "AccountPage"
 msgid "SIGN IN TO OPENSUBTITLES"
 msgstr "AANMELDEN BIJ OPENSUBTITLES"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "{} left today"
 msgstr "Nog {} vandaag"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Find subtitles"
 msgstr "Ondertitels zoeken"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Skip credits"
 msgstr "Aftiteling overslaan"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Reset timing"
 msgstr "Vertraging herstellen"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Size & position"
 msgstr "Grootte en positie"
 
@@ -907,19 +907,19 @@ msgctxt "player"
 msgid "{} s earlier"
 msgstr "{} s eerder"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "TIMING"
 msgstr "VERTRAGING"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "SIZE & POSITION"
 msgstr "GROOTTE EN POSITIE"
 
-msgctxt "MainWindow"
+msgctxt "CornerPill"
 msgid "Back to {}"
 msgstr "Terug naar {}"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Shift"
 msgstr "Verschuiving"
 
@@ -935,79 +935,79 @@ msgctxt "player"
 msgid "Smoke"
 msgstr "Rook"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Space / K"
 msgstr "Spatie / K"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Jump to 0%–90%"
 msgstr "Naar 0–90% springen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Skip intro or credits"
 msgstr "Intro of aftiteling overslaan"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shift+P / Shift+N"
 msgstr "Shift+P / Shift+N"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Ctrl+← → / PgUp PgDn"
 msgstr "Ctrl+← → / PgUp PgDn"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Smaller / larger subtitles"
 msgstr "Kleinere / grotere ondertitels"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Next subtitle track"
 msgstr "Volgend ondertitelspoor"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Shift+C"
 msgstr "Shift+C"
 
-msgctxt "MainWindow"
+msgctxt "Resets"
 msgid "Reset the picture"
 msgstr "Beeld herstellen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Video"
 msgstr "Video"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Interface size"
 msgstr "Interfacegrootte"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Off while your system asks for less motion"
 msgstr "Uit zolang je systeem om minder beweging vraagt"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "VIDEO"
 msgstr "VIDEO"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Speed"
 msgstr "Snelheid"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Show the time left"
 msgstr "Resterende tijd tonen"
 
-msgctxt "MainWindow"
+msgctxt "SubtitlesMenu"
 msgid "Listens to the film and moves the subtitles to match what is said"
 msgstr "Luistert naar de film en verschuift de ondertitels zodat ze kloppen met wat er gezegd wordt"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Show the length"
 msgstr "Lengte tonen"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Shift+P"
 msgstr "Shift+P"
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "Shift+N"
 msgstr "Shift+N"
 
@@ -1075,7 +1075,7 @@ msgctxt "player"
 msgid "How light the picture's middle tones are, leaving black and white"
 msgstr "Hoe licht de middentonen van het beeld zijn, zonder zwart en wit te veranderen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Enter"
 msgstr "Enter"
 
@@ -1083,18 +1083,134 @@ msgctxt "player"
 msgid "."
 msgstr ","
 
-msgctxt "MainWindow"
+msgctxt "ControlBar"
 msgid "{}%"
 msgstr "{}%"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Skip intros"
 msgstr "Intro's overslaan"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "Episodes"
 msgstr "Afleveringen"
 
-msgctxt "MainWindow"
+msgctxt "SettingsPanel"
 msgid "EPISODES"
 msgstr "AFLEVERINGEN"
+
+msgctxt "AudioPanel"
+msgid "AUDIO"
+msgstr "AUDIO"
+
+msgctxt "FilesPanel"
+msgid "Ctrl+O"
+msgstr "Ctrl+O"
+
+msgctxt "FilesPanel"
+msgid "Ctrl+Shift+O"
+msgstr "Ctrl+Shift+O"
+
+msgctxt "EndPill"
+msgid "Open folder…"
+msgstr "Map openen…"
+
+msgctxt "EndPill"
+msgid "Restart"
+msgstr "Opnieuw beginnen"
+
+msgctxt "CornerPill"
+msgid "Continue from {}"
+msgstr "Verder vanaf {}"
+
+msgctxt "CornerPill"
+msgid "Skip credits"
+msgstr "Aftiteling overslaan"
+
+msgctxt "Playback"
+msgid "Muted"
+msgstr "Gedempt"
+
+msgctxt "WayIn"
+msgid "Open file…"
+msgstr "Bestand openen…"
+
+msgctxt "WayIn"
+msgid "Ctrl+O"
+msgstr "Ctrl+O"
+
+msgctxt "WayIn"
+msgid "Open folder…"
+msgstr "Map openen…"
+
+msgctxt "WayIn"
+msgid "Ctrl+Shift+O"
+msgstr "Ctrl+Shift+O"
+
+msgctxt "WayIn"
+msgid "Settings"
+msgstr "Instellingen"
+
+msgctxt "WayIn"
+msgid "Shortcuts"
+msgstr "Sneltoetsen"
+
+msgctxt "WayIn"
+msgid "Opening {}…"
+msgstr "{} wordt geopend…"
+
+msgctxt "SubtitlesMenu"
+msgid "SUBTITLES"
+msgstr "ONDERTITELS"
+
+msgctxt "SubtitlesMenu"
+msgid "Position"
+msgstr "Positie"
+
+msgctxt "SettingsPanel"
+msgid "Space / K"
+msgstr "Spatie / K"
+
+msgctxt "SettingsPanel"
+msgid "Restart"
+msgstr "Opnieuw beginnen"
+
+msgctxt "SettingsPanel"
+msgid "Home"
+msgstr "Home"
+
+msgctxt "SettingsPanel"
+msgid "Volume"
+msgstr "Volume"
+
+msgctxt "SettingsPanel"
+msgid "Mute"
+msgstr "Dempen"
+
+msgctxt "SettingsPanel"
+msgid "Fullscreen"
+msgstr "Volledig scherm"
+
+msgctxt "SettingsPanel"
+msgid "Subtitles"
+msgstr "Ondertitels"
+
+msgctxt "SettingsPanel"
+msgid "Audio"
+msgstr "Audio"
+
+msgctxt "SettingsPanel"
+msgid "Playlist"
+msgstr "Afspeellijst"
+
+msgctxt "SettingsPanel"
+msgid "Settings"
+msgstr "Instellingen"
+
+msgctxt "SettingsPanel"
+msgid "Fill the window"
+msgstr "Venster vullen"
+
+msgctxt "SettingsPanel"
+msgid "Show the time left"
+msgstr "Resterende tijd tonen"

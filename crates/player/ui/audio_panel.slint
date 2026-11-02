@@ -1,0 +1,114 @@
+// The audio tracks, a panel of their own beside the subtitles' menu: a
+// heading over one list. A list with nothing in it says so in one line, rather
+// than leave a heading over nothing.
+
+import { Removal, Tracks } from "tracks.slint";
+import { EmptyRow, MenuHeading, MenuRow } from "rows.slint";
+import { Measure } from "measure.slint";
+import { GlassPanel } from "panel.slint";
+import { ScrollList } from "scroll_list.slint";
+import { Motion, Rows, Type } from "theme.slint";
+import { ScrollFade } from "models.slint";
+
+export component AudioPanel inherits GlassPanel {
+    /// The row the keyboard's ring is on, which every panel shares.
+    in-out property <int> ring-row;
+
+    /// The rows the keyboard walks: one per track.
+    out property <int> rows: Tracks.audio.length;
+    out property <length> natural: root.has-audio
+        ? Tracks.audio.length * root.row-h : root.row-h;
+    out property <length> panel-h: min(
+        root.panel-pad + root.heading-h + root.natural, root.panel-max-h);
+    out property <length> list-h: max(0px, root.panel-h - root.panel-pad - root.heading-h);
+    out property <ScrollFade> fade: list.fade;
+
+    /// As it opens: the ring on the track playing, centred.
+    public function opening() {
+        root.ring-row = max(0, Tracks.audio-current);
+        list.centre(root.ring-row * root.row-h, root.row-h);
+    }
+
+    public function activate() {
+        if (root.has-audio) {
+            Tracks.select-audio(Tracks.audio[root.ring-row].id);
+        }
+    }
+
+    /// Bring the ring's row into view.
+    public function reveal() {
+        list.reveal(root.ring-row * root.row-h, root.row-h);
+    }
+
+    /// Delete: arm the track the ring is on, or remove it if it is armed,
+    /// where it can be removed; say whether it could.
+    public function remove-ringed() -> bool {
+        if (root.ring-row < Tracks.audio.length && Tracks.audio[root.ring-row].external) {
+            Removal.press(Tracks.audio[root.ring-row].id, false);
+            return true;
+        }
+        return false;
+    }
+
+    property <bool> has-audio: Tracks.audio.length > 0;
+
+    width: root.list-fit(max(
+        names-measure.preferred-width + Rows.label-x + Rows.trail-x,
+        removable-measure.preferred-width + Rows.label-x + Rows.trail-x
+            + Rows.bin + Rows.group-gap));
+    height: root.panel-h;
+
+    changed open => {
+        Removal.disarm();
+    }
+
+    VerticalLayout {
+        padding-top: Rows.panel-pad;
+        padding-bottom: Rows.panel-pad;
+
+        MenuHeading {
+            text: @tr("AUDIO");
+            icon: @image-url("../../../public/icons/speaking.svg");
+        }
+        list := ScrollList {
+            height: root.list-h;
+            content-height: root.natural;
+            current-top: Tracks.audio-current * root.row-h;
+            current-h: Tracks.audio-current >= 0 ? root.row-h : 0px;
+
+            if !root.has-audio: EmptyRow {
+                label: @tr("No audio tracks");
+            }
+            for track[idx] in Tracks.audio: MenuRow {
+                label: track.label;
+                active: track.selected;
+                focused: root.open && root.ring-row == idx;
+                removable: track.external;
+                armed: Removal.is-armed(track.id, false);
+                armed-for: Motion.armed-for;
+                held(on) => {
+                    Removal.held = on;
+                }
+                picked => {
+                    Tracks.select-audio(track.id);
+                }
+                removed => {
+                    Removal.press(track.id, false);
+                }
+            }
+        }
+    }
+
+    // The widest names, at the current row's weight, which is the widest any
+    // of them is drawn (see `list-fit`).
+    names-measure := Measure {
+        text: Tracks.audio-names;
+        font-size: Type.body;
+        font-weight: Type.weight-current;
+    }
+    removable-measure := Measure {
+        text: Tracks.audio-removable-names;
+        font-size: Type.body;
+        font-weight: Type.weight-current;
+    }
+}

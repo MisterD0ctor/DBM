@@ -62,23 +62,23 @@ typography:
 rounded:
   row: "16px"  # Rows.radius
   panel: "32px"  # Rows.panel-radius
-  pill: "24px"  # MainWindow.pill-radius
-  button: "20px"  # MainWindow.btn / 2
-  preview: "18px"  # MainWindow.preview-radius
-  preview-tile: "9px"  # MainWindow.preview-tile-radius
+  pill: "24px"  # Bar.pill-radius
+  button: "20px"  # Bar.btn / 2
+  preview: "18px"  # SeekPreview.radius
+  preview-tile: "9px"  # SeekPreview.tile-radius
   window: "15px"  # window.CORNER_RADIUS
 spacing:
-  hair: "4px"  # MainWindow.pill-pad
-  tight: "6px"  # MainWindow.btn-gap
+  hair: "4px"  # Bar.pill-pad
+  tight: "6px"  # Bar.btn-gap
   group: "16px"  # Rows.group-gap
   offset: "12px"  # Rows.offset
   gap: "16px"  # Rows.gap
-  margin: "24px"  # MainWindow.panel-margin
+  margin: "24px"  # Surfaces.margin
   trail-x: "26px"  # Rows.trail-x
   label-x: "30px"  # Rows.label-x
 components:
   icon-button:
-    size: "40px"  # MainWindow.btn
+    size: "40px"  # Bar.btn
     rounded: "{rounded.button}"
     textColor: "{colors.lit}"
     backgroundColor: "transparent"
@@ -91,31 +91,31 @@ components:
   icon-button-disabled:
     textColor: "{colors.dim}"
   bar:
-    height: "94px"  # MainWindow.bar-h
+    height: "94px"  # Bar.height
     rounded: "{rounded.panel}"
-    padding: "8px"  # MainWindow.bar-pad
+    padding: "8px"  # Bar.pad
     backgroundColor: "transparent"
   button-row:
-    height: "48px"  # MainWindow.pill-h
-    padding: "4px"  # MainWindow.pill-pad
+    height: "48px"  # Bar.pill-h
+    padding: "4px"  # Bar.pill-pad
   window-buttons:
-    height: "34px"  # MainWindow.window-pane-h
-    rounded: "17px"  # MainWindow.window-pane-h / 2
-    padding: "3px"  # MainWindow.window-btn-pad
+    height: "34px"  # WindowButtons.pane-h
+    rounded: "17px"  # WindowButtons.pane-h / 2
+    padding: "3px"  # WindowButtons.pad
     backgroundColor: "transparent"
   window-button:
-    size: "28px"  # MainWindow.window-btn
-    rounded: "14px"  # MainWindow.window-btn / 2
+    size: "28px"  # WindowButtons.btn
+    rounded: "14px"  # WindowButtons.btn / 2
     textColor: "{colors.lit}"
     backgroundColor: "transparent"
   window-button-hover:
     backgroundColor: "{colors.wash-button}"
   timeline-row:
-    height: "30px"  # MainWindow.timeline-h
+    height: "30px"  # Bar.timeline-h
     textColor: "{colors.strong}"
     typography: "{typography.timecode}"
   timeline-time:
-    padding: "0 13px"  # MainWindow.glyph-inset
+    padding: "0 13px"  # Bar.glyph-inset
     textColor: "{colors.strong}"
     typography: "{typography.timecode}"
   menu-row:
@@ -165,23 +165,23 @@ components:
     rounded: "9px"  # ToggleRow.track.height / 2
     backgroundColor: "{colors.rail}"
   hover-label:
-    height: "28px"  # MainWindow.tip-h
-    rounded: "14px"  # MainWindow.tip-h / 2
-    padding: "0 12px"  # MainWindow.tip-pad
+    height: "28px"  # HoverTip.tip-h
+    rounded: "14px"  # HoverTip.tip-h / 2
+    padding: "0 12px"  # HoverTip.pad
     textColor: "{colors.body}"
     typography: "{typography.body}"
   end-pill:
-    height: "48px"  # MainWindow.end-h
+    height: "48px"  # EndPill.pill-h
     rounded: "{rounded.pill}"
-    padding: "0 18px"  # MainWindow.end-pad
+    padding: "0 18px"  # EndPill.pad
     textColor: "{colors.lit}"
     typography: "{typography.prompt}"
   end-pill-hover:
     backgroundColor: "{colors.wash-button}"
   end-choice:
-    height: "40px"  # MainWindow.end-h - 2 * MainWindow.pill-pad
-    rounded: "20px"  # (MainWindow.end-h - 2 * MainWindow.pill-pad) / 2
-    padding: "0 14px"  # MainWindow.end-pad - MainWindow.pill-pad
+    height: "40px"  # EndPill.pill-h - 2 * Bar.pill-pad
+    rounded: "20px"  # (EndPill.pill-h - 2 * Bar.pill-pad) / 2
+    padding: "0 14px"  # EndPill.pad - Bar.pill-pad
     textColor: "{colors.lit}"
     typography: "{typography.prompt}"
   resume-row:
@@ -191,7 +191,7 @@ components:
     typography: "{typography.body}"
   seek-preview:
     rounded: "{rounded.preview}"
-    padding: "9px"  # MainWindow.preview-pad
+    padding: "9px"  # SeekPreview.pad
     textColor: "{colors.strong}"
     typography: "{typography.timecode}"
 ---
@@ -503,22 +503,22 @@ database.
 A dark field with one pane of glass along the bottom, the window's three
 buttons in its top corner, and at most one panel above the bar.
 
-**The bar** is one pane (`MainWindow.bar-h` tall), `MainWindow.panel-margin`
-from the window's sides and bottom: the timeline row (`MainWindow.timeline-h`)
-over a row of buttons (`MainWindow.pill-h`), with `MainWindow.bar-pad` of glass
+**The bar** is one pane (`Bar.height` tall), `Surfaces.margin`
+from the window's sides and bottom: the timeline row (`Bar.timeline-h`)
+over a row of buttons (`Bar.pill-h`), with `Bar.pad` of glass
 round both. The timeline row holds the elapsed time at its left end, the total
 at its right, and the track between them. The row of buttons holds three
-groups: the title on the left, the transport (`MainWindow.center-w`) centred
-in the window until that would bring it within `MainWindow.pill-gap` of the
+groups: the title on the left, the transport (`ControlBar.center-w`) centred
+in the window until that would bring it within `Bar.pill-gap` of the
 right group, where it keeps the gap and gives way leftwards, and the right
-group (`MainWindow.right-w`) holding sound, the two tracks panels, the settings
-and the picture's own controls. Buttons (`MainWindow.btn`) sit
-`MainWindow.btn-gap` apart, `MainWindow.pill-pad` in from the row's ends.
+group (`ControlBar.right-w`) holding sound, the two tracks panels, the settings
+and the picture's own controls. Buttons (`Bar.btn`) sit
+`Bar.btn-gap` apart, `Bar.pill-pad` in from the row's ends.
 
 The padding is what takes the end buttons' corner out to the panels', so the
 bar's corners are concentric with the buttons in them and the bar and the
 panels share one corner (see Shapes). Each time is inset
-`MainWindow.glyph-inset`, so at its full width it starts and ends where the end
+`Bar.glyph-inset`, so at its full width it starts and ends where the end
 buttons' drawings do, and each end of the bar is one edge from the time down to
 its button.
 
@@ -533,32 +533,32 @@ written on it.**
 
 After a seek from the keyboard the timeline comes up alone (see A Key Brings
 Up Its Answer): the same row, lowered by the buttons' row
-(`MainWindow.bar-sink`) to rest where they would, on a pane as tall as the row
+(`ControlBar.sink`) to rest where they would, on a pane as tall as the row
 and its padding, which, shorter than two corners, is a capsule. Brought up
 whole from there, the pane grows upward, the timeline rising with its top
 edge, and the buttons come in over the second half of it
-(`MainWindow.pills-shown`), once the timeline is out of their way.
+(`ControlBar.pills-shown`), once the timeline is out of their way.
 
 As a file starts, what is loaded comes up alone (see A File Says What It
 Is): the title group where it always stands, on a pane as tall as its row
-and its padding and as wide as the group (`MainWindow.bar-drawn-w`), a
+and its padding and as wide as the group (`ControlBar.drawn-w`), a
 capsule as well. Brought up whole from there, the pane grows upward over the
 timeline and out to the right, and the timeline and the other two groups
-come in over the second half of it (`MainWindow.timeline-shown`). From one
+come in over the second half of it (`ControlBar.timeline-shown`). From one
 part alone to the other the pane changes at once, since there is nothing to
 grow through.
 
 The title group opens with its two buttons, Playlist and then Open, and the
-title follows them (`MainWindow.lp-title`). So the buttons, and the playlist
+title follows them (`ControlBar.lp-title`). So the buttons, and the playlist
 and open panels that hang from them, stand in one place for every film, and
 only the group's far end moves with the title. After the title, they would
 move with every file, and the playlist panel with them.
 
 The title hugs its room, up to what the transport leaves, ending
-`MainWindow.pill-text-pad` short of it, and past that it runs out at the end of
+`Bar.pill-text-pad` short of it, and past that it runs out at the end of
 its room, blurring and thinning away there as a list's rows do (see List edges)
 with no ellipsis. Short of room for an episode's whole title, it drops the
-show's name first (`MainWindow.title-short`): *S04E06 · Live Bait*, not *The
+show's name first (`ControlBar.title-short`): *S04E06 · Live Bait*, not *The
 Walking Dead · S04* running out, since the show is what one show's episodes
 share and the episode is what tells them apart. That is judged by the most
 room the title could have, not the room it has, which the choice itself would
@@ -568,11 +568,11 @@ change.
 that opened them and kept inside the same margins. The tracks', the audio's
 and the playlist's rows are names someone else wrote, an episode's title or a
 release's, so those three are as wide as their widest row asks
-(`MainWindow.subs-w`, `MainWindow.audio-w`, `MainWindow.playlist-w`), and no
-wider: a film with two short tracks keeps its picture. They take up to `MainWindow.list-w`, a third of the window between
-`MainWindow.list-min-w` and `MainWindow.list-max-w`, so a bigger window shows
+(`SubtitlesMenu.subs-w`, `AudioPanel.width`, `PlaylistPanel.panel-w`), and no
+wider: a film with two short tracks keeps its picture. They take up to `GlassPanel.list-w`, a third of the window between
+`GlassPanel.list-min-w` and `GlassPanel.list-max-w`, so a bigger window shows
 more of a long name rather than more film beside a cut-off one, and never less
-than `MainWindow.words-w`, the settings' width, since they hold some of the
+than `GlassPanel.words-w`, the settings' width, since they hold some of the
 interface's words too. The width follows the page showing: the subtitles'
 search takes all of `list-w`, as the releases it finds arrive after it opens,
 and the playlist's list of seasons is not widened by one season's long titles.
@@ -593,7 +593,7 @@ just above it.
 
 **The window has no frame.** The film runs to its edges, the picture is what
 drags it, and its buttons are its own: Minimize, Maximize and Close on one
-small pane of glass, `MainWindow.window-btn-margin` from the window's top and
+small pane of glass, `WindowButtons.margin` from the window's top and
 side. A title bar would be a strip of the desktop's chrome across the top of
 every film, in a material that isn't glass. Its corners are round, as the
 desktop's other windows' are (see Shapes).
@@ -638,7 +638,7 @@ are, which is the moment the bar is for. A
 pause a frame step made is not held (`MainWindow.stepped`): stepping is
 looking at the picture, whose foot the bar would cover, not at where you are.
 Nor does the chrome leave from under a pointer resting on the bar or on the
-window's buttons (`MainWindow.bar-hovered`, `MainWindow.window-hovered`): a
+window's buttons (`ControlBar.hovered`, `MainWindow.window-hovered`): a
 hand that has stopped on a control is about to use it.
 
 **A File Says What It Is.** As a file starts, however it came — autoplay,
@@ -894,12 +894,12 @@ way round — when their radii differ by exactly the gap between them. So
 `Rows.radius` plus `Rows.gap` *is* `Rows.panel-radius`, and the panel's padding
 is that same gap, which makes the first and last rows come out concentric with
 the panel's own corners without being special-cased. The bar runs it the
-other way: half its row of buttons plus `MainWindow.bar-pad` is the panels'
+other way: half its row of buttons plus `Bar.pad` is the panels'
 corner, so the padding follows from the two radii and the end buttons sit
 concentric in the bar's corners.
 
 The same arithmetic governs the seek preview: the thumbnail's corner
-(`MainWindow.preview-tile-radius`) is the preview's less its padding. Turn
+(`SeekPreview.tile-radius`) is the preview's less its padding. Turn
 either the radius or the gap and the third value follows.
 
 The hover label, the flash's caption and the end-of-file pill are true
@@ -919,7 +919,7 @@ of a pill at higher softness. Circles stay circles, and so
 do the thin capsules of tracks and fills, where the two differ by less than a
 pixel. The seek preview's thumbnail keeps a circle's corner too, since Slint
 clips only to that, and so does the clip a panel puts on its pages as they
-slide (`MainWindow.drill-corner`): at this softness a circle stands under a
+slide (`Rows.panel-radius`): at this softness a circle stands under a
 pixel proud of the glass's corner, inside its soft edge, and a page that
 passes a corner ends where the glass does.
 
@@ -959,7 +959,7 @@ whatever the Rim slider says, and the pane is real glass, refracting the frame
 on its own. It casts no shadow, and never
 reaches past the pane it lies on, which a page sliding in would otherwise
 carry out over the film. On a bar button the window places a disc
-(`MainWindow.ring-disc`); on a row or one of a pill's choices, which the
+(`ControlBar.ring-disc`); on a row or one of a pill's choices, which the
 window can't reach into, the row says where it is through `Ring`
 (`RingPane`). In a scrolling list the pane is cut to the list and fades as its
 row leaves, gone by the time half the row is, and the same holds for the
@@ -982,7 +982,7 @@ by under a pixel at the corner.
 ## Components
 
 ### Icon buttons
-- **Shape:** a circle (`MainWindow.btn`), its glyph drawn at `IconButton.glyph`
+- **Shape:** a circle (`Bar.btn`), its glyph drawn at `IconButton.glyph`
 - **Default:** transparent, glyph at Lit, as is every glyph on the bar that can
   be pressed: at Body the bar's controls read greyed out over a bright frame.
 - **Hover:** Button wash, over `Motion.highlight`; the glyph is already Lit
@@ -995,7 +995,7 @@ by under a pixel at the corner.
   everywhere; Fullscreen and panscan wear the one a press goes to, as a
   fullscreen button does everywhere.
 - **Open:** a disc of milk glass under it for as long as the panel it opened is
-  showing (`MainWindow.open-disc`), with its glyph dark on it, as the ring's,
+  showing (`ControlBar.open-disc`), with its glyph dark on it, as the ring's,
   a step less milky (`pipeline.OPEN_MILK`), so the two never share one look.
   A held wash went unseen over a bright frame, where the bar's glass is
   already as light as it may be. With the glass switched off it is the Strong
@@ -1006,7 +1006,7 @@ by under a pixel at the corner.
   since whether they are on is the one thing about them people look for; it
   still opens the menu, whose *Off* row and C are the switch. The audio button
   wears Speaking, the mark over its panel's heading, and no state.
-- **Focus:** a disc of glass laid on the bar (`MainWindow.ring-disc`), while
+- **Focus:** a disc of glass laid on the bar (`ControlBar.ring-disc`), while
   the keyboard is on it: see The Ring Pane Rule. With the glass switched off
   the Ring wash is the whole of it, a step over the open one.
   Tab walks the bar left to right while a film is loaded and
@@ -1025,26 +1025,26 @@ by under a pixel at the corner.
   raises no flash, and Tab walks past it.
 
 ### The bar
-- **Shape:** one pane (`MainWindow.bar-h`) across the window inside its
-  margins, at the panels' corner (`Rows.panel-radius`), `MainWindow.bar-pad`
+- **Shape:** one pane (`Bar.height`) across the window inside its
+  margins, at the panels' corner (`Rows.panel-radius`), `Bar.pad`
   of glass round its two rows; after a seek from the keyboard, the timeline
   row alone on a capsule where the buttons' row would be; as a file starts,
   the title group alone on a capsule of its own width
 - **Background:** none. The pane is a glass rect published to the renderer; a
   fill here would paint over the material. A click on it that no control
   takes stops there, rather than pausing the film under it.
-- **Rows:** the timeline row (below) over a row of buttons (`MainWindow.pill-h`:
-  a button with `MainWindow.pill-pad` of padding), with nothing between them
-- **Contents:** buttons `MainWindow.btn-gap` apart in three groups; in the
+- **Rows:** the timeline row (below) over a row of buttons (`Bar.pill-h`:
+  a button with `Bar.pill-pad` of padding), with nothing between them
+- **Contents:** buttons `Bar.btn-gap` apart in three groups; in the
   title group, the two buttons first and then the title, the Title role at
-  Strong, ending `MainWindow.pill-text-pad` short of its room and running out
+  Strong, ending `Bar.pill-text-pad` short of its room and running out
   there. At
   any speed but normal the speed rides beside the title at Body in Readout size (*1.5×*) for as long as it holds, rather than only in a passing
   flash.
 
 ### The window's buttons
-- **Shape:** one capsule of glass, `MainWindow.window-btn-pad` round three
-  buttons `MainWindow.window-btn` across and `MainWindow.window-btn-gap` apart,
+- **Shape:** one capsule of glass, `WindowButtons.pad` round three
+  buttons `WindowButtons.btn` across and `WindowButtons.gap` apart,
   its ends concentric with the end buttons as the bar's corners are with its
   own. One pane, as the bar is one, so the three read as one object rather
   than three beads, and a click on the glass between them stops there rather
@@ -1056,7 +1056,7 @@ by under a pixel at the corner.
 - **Shown** with the chrome, on its fade, and always over an empty window,
   which has no film to keep clear. Never in fullscreen, where the film has the
   whole screen and Esc is the way out.
-- **Comes down** `MainWindow.lift` into place rather than rising: the buttons
+- **Comes down** `Surfaces.lift` into place rather than rising: the buttons
   come in from the window's top edge, as the bar does from its bottom one.
 - **Maximize turns into Restore** while the window is maximized, glyph and
   label both: a button's state is its glyph.
@@ -1069,18 +1069,18 @@ by under a pixel at the corner.
   own keys for minimizing, maximizing and closing a window still do those.
 
 ### Timeline row
-- **Shape:** the bar's top row (`MainWindow.timeline-h`), across its full
+- **Shape:** the bar's top row (`Bar.timeline-h`), across its full
   width
 - **Times:** Strong in the Timecode role, each centred in a column as wide as
   the film's length reads, never narrower than `00:00`, with
-  `MainWindow.glyph-inset` either side: a time at its full width starts and
+  `Bar.glyph-inset` either side: a time at its full width starts and
   ends where the end buttons' drawings do, and one past the hour keeps the same
   air. Sized from the length rather than the time played, so it is set when a
   film opens and the row does not shift when the time played passes the hour.
   A click on the right one turns it between the film's length and what is
   left of it, `−12:34`, as most players do, and the choice is kept; so is it
   on the video page's *Show the time left*
-- **Track:** at Rail, growing under the pointer or a drag (`MainWindow.timeline-rail`,
+- **Track:** at Rail, growing under the pointer or a drag (`ControlBar.timeline-rail`,
   over `Motion.track-grow`); the played length at Played, sized by
   width so it stays crisp, and never taller than it is long, as a slider's
   fill is
@@ -1119,8 +1119,8 @@ by under a pixel at the corner.
   preview names the chapter under the pointer, where the file names it.
 
 ### Volume
-- **Track:** `MainWindow.vol-w` long, at Rail, growing like the timeline's
-  (`MainWindow.vol-rail`), filled at Fill across mpv's full 0–200% range, never taller
+- **Track:** `Bar.vol-w` long, at Rail, growing like the timeline's
+  (`ControlBar.vol-rail`), filled at Fill across mpv's full 0–200% range, never taller
   than it is long; empty at zero or muted. Normal, 0–100%, takes the first
   three quarters, where nearly every film is listened to, and the boost for a
   quiet one the last quarter. A mute fades the fill out and an
@@ -1181,7 +1181,7 @@ by under a pixel at the corner.
   while a track is showing, since both are judged by eye and with subtitles
   off there is nothing to judge; a page whose track goes, by C or by another
   file, slides back to the tracks with it. They open and close with the
-  menu's own growth (`MainWindow.subs-pages-h`), each standing where it rests
+  menu's own growth (`SubtitlesMenu.subs-pages-h`), each standing where it rests
   while the edge above uncovers it, and a track added or taken away opens or
   closes its row the same way, so *Find subtitles* never moves: only the
   tracks rise and fall with the menu's top, or, in a menu at its cap, the
@@ -1308,7 +1308,7 @@ by under a pixel at the corner.
   never chooses it first; the label elides short of it
 - **Keyboard:** Delete on the row the ring is on. Listed with the shortcuts
 - **Two presses:** the first asks *Remove?* beside the button, with Warning in
-  the disc, for `MainWindow.armed-for` once nobody is reading it: the wait
+  the disc, for `Motion.armed-for` once nobody is reading it: the wait
   holds while the pointer or the ring is on the row and starts once they
   leave, so nobody is timed out of an answer; the second removes. The name stays,
   since it is what says which track the press would take; it elides short of
@@ -1552,7 +1552,7 @@ doing in it.
 ### Sliders
 - **Row:** `Rows.slider-row`; a row icon at Body, as a stepper has, then the
   label at Body in Readout size, in one column on both pages as wide as the
-  widest name in the language spoken (`MainWindow.param-name-w`), so the
+  widest name in the language spoken (`SettingsPanel.param-name-w`), so the
   tracks start together, and the value right-aligned at Body, the step a
   stepper's value stands on too. At Dim, a step under its name, it would read
   as greyed out
@@ -1666,7 +1666,7 @@ doing in it.
 ### Panels
 - **Shape:** `Rows.panel-radius`, `Rows.panel-pad` of padding, no background of
   its own
-- **Entry:** a fade and a rise of `MainWindow.lift` over `Motion.surface`
+- **Entry:** a fade and a rise of `Surfaces.lift` over `Motion.surface`
   ease-out, glass fading with the surface
 - **Headings:** tracked capitals at Body, except a playlist heading carrying a
   show name, which takes the Named role — natural case, no tracking, and the
@@ -1685,7 +1685,7 @@ doing in it.
   above it. Without it the eye reads one more entry and only the wording says
   otherwise.
 - **Resets:** two presses, then a way back. The first changes the row to *Press
-  again to reset* for `MainWindow.armed-for`; the second resets, and
+  again to reset* for `Motion.armed-for`; the second resets, and
   the row becomes *Undo
   reset* until the page is left. Settings always save, so a reset is on disk
   within a second, and a look tuned by eye cannot be typed back in. The ring
@@ -1710,7 +1710,7 @@ doing in it.
   The page lists what the pointer does as well, under POINTER — click, double
   click, the two wheels and, where the platform has one, a drop — because it is
   the one reference the player has. The panel widens for it
-  (`MainWindow.settings.width@then`), as it grows and shrinks between the other
+  (`SettingsPanel.width@then`), as it grows and shrinks between the other
   pages: the one page with two columns of words, a name and its keys, where at
   the others' width the longest pairs were cut in every language, and at this
   one in none
@@ -1763,9 +1763,9 @@ doing in it.
 
 ### The hover label
 
-A capsule of glass (`MainWindow.tip-h`) that names the control under the
+A capsule of glass (`HoverTip.tip-h`) that names the control under the
 pointer and gives the key that does the same thing. The name is Body, the key
-Body at Readout size (`MainWindow.tip-gap` apart, `MainWindow.tip-pad` of
+Body at Readout size (`HoverTip.gap` apart, `HoverTip.pad` of
 padding): the two roles of a shortcuts row, unchanged, because the tip is that
 list arriving one row at a time where the question was asked.
 
@@ -1822,10 +1822,10 @@ would show its fade-out in a place the hand may have left.
 ### The seek preview
 The signature component. A thumbnail from an ffmpeg sprite atlas
 (`preview.GRID` tiles a side), one tile picked with a source-clip, inside a
-glass panel (`MainWindow.preview-radius`, `MainWindow.preview-pad` of padding)
-whose tile's corners are concentric with it (`MainWindow.preview-tile-radius`),
+glass panel (`SeekPreview.radius`, `SeekPreview.pad` of padding)
+whose tile's corners are concentric with it (`SeekPreview.tile-radius`),
 with the timestamp beneath it at Strong in a caption
-(`MainWindow.preview-caption`), and over that, where the file names the
+(`SeekPreview.caption`), and over that, where the file names the
 chapter under the pointer, its name at Body, as YouTube's preview has it. A
 chapter named only by its number or its start time is not named at all. It floats just above the bar, centred on
 the pointer and clamped inside the bar's margins, and takes no pointer events
@@ -1834,13 +1834,13 @@ exists, which is the state it sits in for the first seconds of every unseen
 file and permanently on a machine with no ffmpeg.
 
 ### The action flash
-An answer, not a control: a glyph in Lit (`MainWindow.flash-glyph`) inside a
-circle of glass (`MainWindow.flash-ring`), and `Rows.offset` under it, when
-there is one, a capsule (`MainWindow.flash-text-h`) carrying the one number that
-has nowhere else to appear: Title in Lit, `MainWindow.flash-text-pad` of
+An answer, not a control: a glyph in Lit (`ActionFlash.glyph`) inside a
+circle of glass (`ActionFlash.ring`), and `Rows.offset` under it, when
+there is one, a capsule (`ActionFlash.text-h`) carrying the one number that
+has nowhere else to appear: Title in Lit, `ActionFlash.text-pad` of
 padding, never wider than the bar. It lives long enough to read a
 two-character figure and short enough that a held key flickers rather than
-strobes (`MainWindow.flash-dwell`).
+strobes (`ActionFlash.dwell`).
 
 **A seek is thrown to the side it seeks to** — a fifth of the way across for
 back, four fifths for forward — and everything else sits in the middle. The
@@ -1854,7 +1854,7 @@ A **figure** replaces the ring with its words alone, and stays longer, since
 it is read rather than recognised: the speed after <, > or Backspace, the
 chapter after PgUp, PgDn or Ctrl with an arrow, the track after Shift+C or #,
 after C whether subtitles are showing at all, which the subtitles button only
-says while the bar is up, and the volume after ↑, ↓ or M (`MainWindow.volume-said`). The icon set has no glyph for any of them and the figure is
+says while the bar is up, and the volume after ↑, ↓ or M (`Playback.volume-said`). The icon set has no glyph for any of them and the figure is
 the whole answer. A frame step and the one-second seek raise nothing: the
 picture and the timeline already answer.
 
@@ -1867,7 +1867,7 @@ pointer: it sits where a click means play or pause.
 
 A notice that something did not happen — a file that would not play, a path
 with nothing at it, a sync that found no answer, settings that could not be
-saved — has the Warning mark before its words (`MainWindow.flash-mark`) at
+saved — has the Warning mark before its words (`ActionFlash.mark`) at
 Lit, inside the capsule. News has none: *Sound is back*, *Subtitles moved
 5.0 s earlier*. The mark is for failures and the armed reset alone, and is
 never on screen at rest.
@@ -1881,11 +1881,11 @@ out sideways from the panel's edge rather than rising, and fades out with the
 panel when that closes.
 
 ### The end-of-file pill
-A capsule as tall as the bar's row of buttons (`MainWindow.end-h`), in the
+A capsule as tall as the bar's row of buttons (`EndPill.pill-h`), in the
 middle of the picture where
 the film stopped: a bar glyph and the name of what comes next (*E04 ·
 Slabtown*, in the words its playlist row uses) in Prompt at Lit,
-`MainWindow.end-gap` apart, inset `MainWindow.end-pad`. It
+`Bar.choice-gap` apart, inset `EndPill.pad`. It
 grows with the name to half the bar's width, and past that the name elides; a
 film's can run to a sentence, and this is a capsule, not a banner. Into
 another part the part goes first — *Season 6 · E01 · No Way Out* — because an
@@ -1961,8 +1961,8 @@ the place passed over is offered in the corner instead; see *Going back to
 where you were*, under the credits pill.
 
 Restart alone is the least likely thing anyone wants there. With two, each
-choice is a capsule of its own, set `MainWindow.pill-pad` inside the pill so
-the curves are concentric, with its words still `MainWindow.end-pad` from the
+choice is a capsule of its own, set `Bar.pill-pad` inside the pill so
+the curves are concentric, with its words still `EndPill.pad` from the
 pill's edge, a button's gap apart, each taking the Button wash on its own and
 the Ring wash under the keyboard.
 
@@ -2002,9 +2002,9 @@ or at the end of a season the next season found beside it. It does get the
 skip to a scene after its credits, which needs nowhere else.
 
 It keeps out of the middle, where the names roll, and sits at the bottom right
-on the bar's lines: at `MainWindow.panel-margin` while the bar is away, lifted
+on the bar's lines: at `Surfaces.margin` while the bar is away, lifted
 `Rows.offset` above the bar while it is up, or above the timeline when that is
-up alone (`MainWindow.bar-edge`), riding the bar's own fade between the two.
+up alone (`ControlBar.edge`), riding the bar's own fade between the two.
 What is loaded alone never reaches its column, so it stays down for that, and
 rises only as the bar grows from it.
 It arrives on its own, without the bar, which would only cover the names: the
@@ -2144,7 +2144,7 @@ ever sees should say what is asking before it says *Open file…*:
   newest file mpv still holds a position for that is still on disk; the same
   thing the backdrop is a frame of. A group gap follows it, because it is a
   film and the rows below it are dialogs, and the panel widens
-  (`MainWindow.invite-w`) so an episode keeps its number beside the time. An
+  (`WayIn.pane-w`) so an episode keeps its number beside the time. An
   episode's show goes on a heading line of its own above it, in the Named role,
   where a playlist puts it: sharing the row, the show's name would take the
   room and the episode number would be what elided. A film watched into its
@@ -2174,7 +2174,7 @@ except for shaders the driver would not build, where a current driver means
 the bug is the player's), on its own account rather than beside the drop
 line, which can be gone; and after a group gap two rows: *Copy details*, which
 puts the headline and the driver's words on the clipboard and says *Copied*
-for a moment (`MainWindow.copied-timer.interval`), and *Close the player*.
+for a moment (`WayIn.copied-timer.interval`), and *Close the player*.
 
 ## Do's and Don'ts
 

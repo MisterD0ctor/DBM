@@ -1,0 +1,169 @@
+// The seek preview: a frame of the film and its time, over the timeline where
+// the pointer is.
+
+import { GlassRect } from "models.slint";
+import { Playback } from "playback.slint";
+import { Measure } from "measure.slint";
+import { Bounds, Surfaces } from "surface.slint";
+import { Motion, Paint, Rows, Type } from "theme.slint";
+
+/// Shown while the pointer is over the timeline, centred on it and kept
+/// inside the bar's margins. Sized to the tile when there is one and to the
+/// timestamp alone otherwise, so it is useful before the thumbnails are
+/// ready, and without ffmpeg, where they never will be. The thumbnail is one
+/// tile of a sprite atlas, picked with `source-clip` as the video is; nothing
+/// here knows how the atlas was made.
+///
+/// Laid over the whole window. No `TouchArea`, so it never takes the pointer
+/// from the track.
+export component SeekPreview inherits Rectangle {
+    /// The pointer is on the timeline, or holding it.
+    in property <bool> pointed;
+    /// Where along the track the pointer is, in the track's own coordinates,
+    /// and where the track is.
+    in property <length> pointer-x;
+    in property <length> track-x;
+    in property <length> track-w;
+    /// Tied to the bar as well as the pointer, since a still pointer never
+    /// bumps the idle clock and the bar could fade from under it.
+    in property <bool> bar-up;
+    /// The line it opens above: the bar's top.
+    in property <length> floor;
+    /// The open panel's column, if one is open. The preview stands down only
+    /// for a panel actually in its way, not for any open panel as a tip does,
+    /// because it is what the pointer asked for.
+    in property <bool> panel-open;
+    in property <length> panel-x;
+    in property <length> panel-w;
+
+    out property <bool> open: root.pointed && root.bar-up && !root.crowded;
+    out property <Bounds> bounds: {
+        x: root.preview-x,
+        y: root.preview-y,
+        width: root.preview-w,
+        height: root.preview-h,
+    };
+    property <length> preview-x: clamp(
+        root.track-x + root.cursor - root.preview-w / 2,
+        Surfaces.margin,
+        root.width - Surfaces.margin - root.preview-w);
+    property <length> preview-y: root.floor - 10px - root.preview-h;
+    /// Without a thumbnail, as wide as the chapter's name needs, up to a
+    /// line that still reads as a label rather than a banner.
+    property <length> preview-w: root.has-tile
+        ? Playback.preview-tile-w * 1px + 2 * root.pad
+        : max(74px, min(chapter-measure.preferred-width + 2 * root.pad + 8px, 320px));
+    property <length> preview-h: root.has-tile
+        ? Playback.preview-tile-h * 1px + 2 * root.pad + root.caption + root.chapter-h
+        : 26px + root.chapter-h;
+
+    out property <GlassRect> glass: Surfaces.glass(root.preview-x, root.preview-y + root.rise,
+        root.preview-w, root.preview-h,
+        // With no tile it is a single line of figures, and a capsule like
+        // every other one, since its 18px corner is more than half of 26px.
+        root.has-tile ? root.radius : root.preview-h / 2,
+        root.shown);
+
+    property <bool> has-tile: Playback.preview-tile-w > 0 && Playback.preview-tile-h > 0;
+    /// Wide enough for the glass's bevel, which rolls over about 8px at this
+    /// corner and would otherwise sit under the thumbnail.
+    property <length> pad: 9px;
+    /// Its own corner, because a surface this small with the panels' 32px
+    /// radius would be all corner.
+    property <length> radius: 18px;
+    /// Concentric with the preview's corner, by the rule the rows follow:
+    /// the radii differ by the padding between them.
+    property <length> tile-radius: root.radius - root.pad;
+    property <length> caption: 22px;
+    /// A line for the chapter's name over the time, where there is one.
+    property <length> chapter-h: Playback.preview-chapter != "" ? Rows.note-line : 0px;
+    property <length> cursor: clamp(root.pointer-x, 0px, root.track-w);
+    /// The preview landing on the open panel, which was there first, so the
+    /// preview fades out (still following the pointer) rather than lay glass
+    /// on glass.
+    ///
+    /// Only the columns are tested: the preview's top is always above a
+    /// panel's bottom edge, so two that share a column always overlap.
+    property <bool> crowded: root.panel-open
+        && root.preview-x + root.preview-w + Rows.offset > root.panel-x
+        && root.preview-x < root.panel-x + root.panel-w + Rows.offset;
+
+    property <float> shown: root.open ? 1.0 : 0.0;
+    /// Half a surface's pace, because the preview isn't announcing anything:
+    /// it follows a pointer already moving along the track, and at the full
+    /// duration it trails the hand.
+    animate shown {
+        duration: Motion.surface / 2;
+        easing: ease-out;
+    }
+    property <length> rise: (1.0 - root.shown) * Surfaces.lift;
+
+    chapter-measure := Measure {
+        text: Playback.preview-chapter;
+        font-size: Type.readout;
+    }
+
+    Rectangle {
+        x: root.preview-x;
+        y: root.preview-y + root.rise;
+        width: root.preview-w;
+        height: root.preview-h;
+        visible: root.shown > Surfaces.gone;
+        opacity: root.shown;
+        clip: true;
+
+        // An `Image` has no corner of its own, so a clip on the box around it
+        // rounds the thumbnail, which sets it in rather than pastes it on.
+        Rectangle {
+            x: root.pad;
+            y: root.pad;
+            width: Playback.preview-tile-w * 1px;
+            height: Playback.preview-tile-h * 1px;
+            visible: root.has-tile;
+            border-radius: root.tile-radius;
+            clip: true;
+
+            Image {
+                width: 100%;
+                height: 100%;
+                source: Playback.preview-sprite;
+                // One tile out of the atlas, as the video takes the used part
+                // of its grow-only target.
+                source-clip-x: Playback.preview-clip-x;
+                source-clip-y: Playback.preview-clip-y;
+                source-clip-width: Playback.preview-tile-w;
+                source-clip-height: Playback.preview-tile-h;
+                image-fit: fill;
+            }
+        }
+
+        if Playback.preview-chapter != "": Text {
+            x: root.pad;
+            y: root.has-tile
+                ? root.preview-h - root.caption - root.pad - root.chapter-h + 4px
+                : 6px;
+            width: parent.width - 2 * root.pad;
+            height: root.chapter-h;
+            text: Playback.preview-chapter;
+            color: Paint.body;
+            font-size: Type.readout;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        Text {
+            x: 0;
+            y: root.has-tile
+                ? root.preview-h - root.caption - root.pad
+                : root.chapter-h;
+            width: 100%;
+            height: root.has-tile ? root.caption : root.preview-h - root.chapter-h;
+            text: Playback.preview-time;
+            font-family: Type.numerals;
+            color: Paint.strong;
+            font-size: Type.readout;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}

@@ -1,0 +1,909 @@
+// The subtitles menu: the tracks, and the pages a subtitle on screen offers,
+// its timing and its size and position, and the search for more on
+// OpenSubtitles with the sign-in a download may ask for. Subtitles and audio
+// are picked together, since picking either is usually the same errand,
+// getting a foreign film to say the right things; the audio has a panel of
+// its own beside this one.
+
+import { Chrome, Flash } from "globals.slint";
+import { Find, FindState } from "find.slint";
+import { Removal, Tracks } from "tracks.slint";
+import { Subtitles, SyncState } from "subtitles.slint";
+import { Reset, Resets, Settings } from "settings.slint";
+import { ScrollFade } from "models.slint";
+import { AccountPage } from "account.slint";
+import {
+    BackRow, DrillRow, EmptyRow, FoundRow, MenuHeading, MenuRow, NoteRow, StepperRow,
+} from "rows.slint";
+import { Measure } from "measure.slint";
+import { GlassPanel } from "panel.slint";
+import { ScrollList } from "scroll_list.slint";
+import { Motion, Paint, Rows, Type } from "theme.slint";
+
+/// The subtitles menu's pages: the tracks, the two pages a subtitle on
+/// screen offers, and the search.
+export enum MenuPage {
+    tracks,
+    timing,
+    /// Size and position.
+    placing,
+    find,
+}
+
+/// In a build with an API key, the subtitle list's last row opens a page
+/// listing what OpenSubtitles holds for the film. Picking one fetches and
+/// loads it, and goes back to the tracks with it lit. Both are network
+/// round trips on the Rust side (see `opensubtitles`). A download refused
+/// for want of an account opens a third page, one further in, to sign in
+/// on, and signing in fetches it (see `AccountPage`).
+///
+/// While a subtitle is showing, two rows under the tracks lead to a page
+/// each: its timing, which is this film's alone, and the size and position
+/// every film's subtitles take. Both are judged by eye, so neither is
+/// offered with nothing on screen to judge.
+///
+/// Sync to speech is one row with three states, like a reset's: what it
+/// does, that it is doing it, and that it can be taken back. Listening takes seconds, so
+/// the row says so meanwhile and ignores presses, which would only start
+/// it over. Undo is offered until its page is left, since the timing it
+/// replaced may have been set by ear.
+export component SubtitlesMenu inherits GlassPanel {
+    /// The row the keyboard's ring is on, which every panel shares.
+    in-out property <int> ring-row;
+    /// The search's page is the one the menu shows, and the account's page.
+    in-out property <bool> find-open;
+    in-out property <bool> account-open;
+    /// Where the row that last asked for something slow is, for the answer
+    /// to be put beside it, and the claim of a hint up beside a row (see the
+    /// window's own).
+    in-out property <length> asked-row;
+    in-out property <int> hint-claim;
+    /// The ring has left the sign-in's fields, which had the keyboard, so the
+    /// window takes it back: otherwise nothing would answer the keys until
+    /// the next click.
+    callback fields-left();
+    /// A key pressed in one of the sign-in's fields, for the window's
+    /// keyboard to walk the ring with.
+    callback account-key(KeyEvent) -> bool;
+
+    /// The rows the keyboard walks on the page showing.
+    out property <int> rows: root.find-open
+        ? (root.account-open ? root.account-focus-count : root.find-focus-count)
+        : root.subs-page != MenuPage.tracks ? root.subs-page-count : root.subs-focus-count;
+    /// A page whose last row is its reset, where the ring stops at the ends
+    /// rather than wrapping.
+    out property <bool> ends-in-reset: !root.find-open && root.subs-page != MenuPage.tracks
+        && root.subs-page-count == 4;
+    /// The list's own rows, for the keys that jump through it: not the pages
+    /// and the search under the tracks, nor the account under the search's
+    /// results. -1 for a page with no list.
+    out property <int> list-first: root.find-listing ? 1 : 0;
+    out property <int> list-last: root.find-listing ? root.find-hit-count
+        : root.on-tracks && root.has-subs ? Tracks.subtitles.length : -1;
+    out property <length> list-h: root.find-open ? root.find-list-h : root.tracks-list-h;
+    /// A subtitle is on screen, which the bar's button says.
+    out property <bool> showing: root.subs-showing;
+    /// Position is being set, which the line rests at its own place for.
+    out property <bool> placing-shown: root.placing-subtitles && root.open
+        && root.subs-page == MenuPage.placing;
+    /// Each list's fade only while its page is drawn: the search's rests
+    /// where the other pages do, and would soften their rows.
+    out property <ScrollFade> tracks-fade: subs-list.fade;
+    out property <ScrollFade> find-fade: find-list.fade;
+    out property <float> tracks-shown: root.drill < 1.0 ? root.shown : 0;
+    out property <float> find-shown: root.leaf == MenuPage.find ? root.shown : 0;
+
+    /// As it opens: on the tracks, on the one in use.
+    public function opening() {
+        root.find-open = false;
+        root.account-open = false;
+        root.subs-page = MenuPage.tracks;
+        root.ring-row = root.subs-open-row;
+        subs-list.centre(root.ring-row * root.row-h, root.row-h);
+    }
+
+    /// Press the row under the ring.
+    public function activate() {
+        if (root.account-open) {
+            root.account-activate();
+        } else if (root.find-open) {
+            if (root.ring-row == 0) {
+                root.close-find();
+            } else if (root.signed-in && root.ring-row == root.find-account-at) {
+                root.open-account();
+            } else {
+                root.fetch-row(root.ring-row - 1);
+            }
+        } else if (root.subs-page != MenuPage.tracks) {
+            root.subs-page-activate();
+        } else if (Find.offered && root.ring-row == root.subs-focus-count - 1) {
+            root.open-find();
+        } else if (root.ring-row < root.subs-track-rows) {
+            Tracks.select-subtitle(root.ring-row == 0
+                ? -1
+                : Tracks.subtitles[root.ring-row - 1].id);
+        } else {
+            root.open-subs-page(root.ring-row == root.subs-pages-at
+                ? MenuPage.timing : MenuPage.placing);
+        }
+    }
+
+    /// Left and right on a page's stepper; says whether the row took them.
+    public function adjust(delta: int) -> bool {
+        if (!root.find-open && root.subs-page != MenuPage.tracks) {
+            return root.subs-page-adjust(delta);
+        }
+        return false;
+    }
+
+    /// Back a page, where there is one to go back to; says whether there was.
+    public function go-back() -> bool {
+        if (root.account-open) {
+            root.close-account();
+            return true;
+        }
+        if (root.find-open) {
+            root.close-find();
+            return true;
+        }
+        if (root.subs-page != MenuPage.tracks) {
+            root.close-subs-page();
+            return true;
+        }
+        return false;
+    }
+
+    /// Right on a row with a chevron: a page of the tracks', or the account.
+    public function enter-ringed() {
+        if (!root.find-open && root.subs-page == MenuPage.tracks
+                && root.ring-row >= root.subs-track-rows) {
+            root.activate();
+        } else if (root.find-open && !root.account-open && root.signed-in
+                && root.ring-row == root.find-account-at) {
+            root.open-account();
+        }
+    }
+
+    /// Bring the ring's row into view, where it is one of a list's.
+    public function reveal() {
+        if (root.find-open) {
+            if (!root.account-open && root.ring-row >= 1
+                    && root.ring-row < root.find-account-at) {
+                find-list.reveal((root.ring-row - 1) * root.row-h, root.row-h);
+            }
+        } else if (root.subs-page == MenuPage.tracks && root.ring-row < root.subs-track-rows) {
+            subs-list.reveal(root.ring-row * root.row-h, root.row-h);
+        }
+    }
+
+    /// Another file opened: the timing is a file's alone, so what would take
+    /// a sync or a reset of it back goes, rather than put one film's timing
+    /// on the next.
+    public function file-changed() {
+        root.forget-sync();
+        if (Resets.armed == Reset.timing || Resets.undoable == Reset.timing) {
+            Resets.clear();
+        }
+    }
+
+    // The search's page takes all a list may, since the releases it finds
+    // arrive after it opens.
+    width: root.find-open ? root.list-w : root.subs-w;
+    height: root.panel-h;
+    drills: true;
+    // As its pages slide, as a settings page does.
+    animate natural-live, subs-pages-h {
+        duration: root.resizing ? 0ms : Motion.drill;
+        easing: ease-in-out;
+    }
+
+    /// Why the sign-in's page opened: the refusal that sent the person there.
+    property <string> sign-in-why;
+    property <bool> signed-in: Find.account != "";
+    /// How many results the search's page lists, from its second row.
+    property <int> find-hit-count: Find.state == FindState.found ? Find.hits.length : 0;
+    /// The account's row on the search's page, under the results, while
+    /// someone is signed in.
+    property <int> find-account-at: 1 + root.find-hit-count;
+    /// The result whose download asked for the sign-in, or -1, so the way
+    /// back from signing in lands on it.
+    property <int> find-asked: -1;
+    /// The account's page is on screen, so its fields may have the keyboard.
+    property <bool> account-shown: root.open && root.find-open && root.account-open;
+    /// Counts the ring's presses of *Sign in* (see `AccountPage`).
+    property <int> sign-in-presses: 0;
+    /// Delete on a tracks panel: arms the track the ring is on, or removes it
+    /// if it is armed, where it can be removed; says whether it could.
+    public function remove-ringed() -> bool {
+        if (root.find-open || root.subs-page != MenuPage.tracks) {
+            return false;
+        }
+        if (root.ring-row >= 1 && root.ring-row <= Tracks.subtitles.length
+                && root.has-subs) {
+            if (Tracks.subtitles[root.ring-row - 1].external) {
+                Removal.press(Tracks.subtitles[root.ring-row - 1].id, true);
+                return true;
+            }
+        }
+        return false;
+    }
+    /// Show the search's page, searching only if it has no answer yet, since
+    /// a list found a moment ago is still good. Public for the test that
+    /// walks it.
+    public function open-find() {
+        root.subs-page = MenuPage.tracks;
+        root.leaf = MenuPage.find;
+        root.find-open = true;
+        root.ring-row = 0;
+        if (Find.state != FindState.searching && Find.state != FindState.found) {
+            Find.search();
+        }
+    }
+    /// Back to the tracks, on the row that opened the search.
+    public function close-find() {
+        root.find-open = false;
+        root.account-open = false;
+        root.find-asked = -1;
+        root.ring-row = root.subs-focus-count - 1;
+    }
+    /// A download was refused until someone signs in: the sign-in's page,
+    /// saying `why`, if the search's page is still the one showing. Says
+    /// whether it was, since otherwise the refusal is a notice like any
+    /// other.
+    public function offer-sign-in(row: int, why: string) -> bool {
+        if (!root.open || !root.find-open || root.account-open) {
+            return false;
+        }
+        root.find-asked = row;
+        root.sign-in-why = why;
+        root.open-account();
+        return true;
+    }
+    /// The account's page, on its first field, or on *Sign out*.
+    function open-account() {
+        root.account-open = true;
+        Find.sign-in-said = "";
+        root.ring-row = 1;
+    }
+    /// Back to the search: on the result that asked for the sign-in, or on
+    /// the account's row, or where it was if signing out took it away.
+    public function close-account() {
+        root.account-open = false;
+        root.ring-row = root.find-asked >= 0 ? root.find-asked + 1
+            : min(root.find-account-at, root.find-focus-count - 1);
+        root.find-asked = -1;
+    }
+    /// Enter on the account's page. On a field it moves on, and from the
+    /// password it sends, as *Sign in* does.
+    function account-activate() {
+        if (root.ring-row == 0) {
+            root.close-account();
+        } else if (root.signed-in) {
+            Find.sign-out();
+            root.close-account();
+        } else if (root.ring-row == 1) {
+            root.ring-row = 2;
+        } else {
+            root.sign-in-presses += 1;
+        }
+    }
+    /// The ring is on one of the sign-in's fields, which have the keyboard
+    /// while it is (see `Field`).
+    property <bool> on-field: root.account-shown && !root.signed-in
+        && (root.ring-row == 1 || root.ring-row == 2);
+    changed on-field => {
+        if (!root.on-field) {
+            root.fields-left();
+        }
+    }
+    function fetch-row(row: int) {
+        if (Find.fetching < 0 && row >= 0 && row < Find.hits.length) {
+            Find.fetch(row);
+        }
+    }
+    /// The search's page: its way back, then its results, or one line saying
+    /// it is searching, found nothing, or failed; then, a group gap under
+    /// them, what is OpenSubtitles' rather than the film's: the account
+    /// signed in, and the credit it asks for where its subtitles are picked.
+    property <int> find-focus-count: 1 + root.find-hit-count + (root.signed-in ? 1 : 0);
+    property <length> find-natural: Find.state == FindState.found
+        ? Find.hits.length * root.row-h : root.row-h;
+    /// The credit's line: a heading's height, as a line about the rows
+    /// rather than one of them.
+    property <length> credit-h: Rows.heading;
+    /// What isn't the list: the way back, and under the gap the account's
+    /// row and the credit.
+    property <length> find-fixed: root.row-h + Rows.group-gap
+        + (root.signed-in ? root.row-h : 0px) + root.credit-h;
+    property <length> find-h: min(root.panel-pad + root.find-fixed + root.find-natural,
+        root.panel-max-h);
+    property <length> find-list-h: Find.state != FindState.found ? 0px
+        : root.moving ? root.find-rest-h
+        : max(0px, root.height - root.panel-pad - root.find-fixed);
+    property <length> find-rest-h: min(root.find-natural,
+        max(0px, root.panel-max-h - root.panel-pad - root.find-fixed));
+    /// The account's page: its way back, then why it opened, the two fields
+    /// and *Sign in and download*, and why that failed; or who is signed in,
+    /// what is left, and *Sign out*.
+    property <int> account-focus-count: root.signed-in ? 2 : 4;
+    property <length> account-h: root.panel-pad + root.row-h * (root.signed-in
+        ? 3 + (Find.left >= 0 ? 1 : 0)
+        : 4 + (Find.sign-in-said != "" ? 1 : 0))
+        + (!root.signed-in && root.sign-in-why != ""
+            ? 2 * Rows.note-line + Rows.group-gap : 0px);
+    /// The page the menu shows when it isn't the search's: the tracks, or one
+    /// of their two pages.
+    property <MenuPage> subs-page: MenuPage.tracks;
+    /// Which of the pages one step in the pane draws. Held rather than read
+    /// from `subs-page` and `find-open`, which have gone back to the tracks
+    /// while the page sliding out still has to draw.
+    property <MenuPage> leaf: MenuPage.find;
+    /// The timing's page: its way back, Sync to speech and Timing, then a gap
+    /// and the reset while there is something to reset.
+    property <length> timing-page-h: root.panel-pad + 2 * root.row-h + Rows.stepper-row
+        + (root.timing-resettable ? Rows.group-gap + root.row-h : 0px);
+    /// The size and position's page: its way back, the two steppers, a gap
+    /// and the reset.
+    property <length> placing-page-h: root.panel-pad + 2 * root.row-h
+        + 2 * Rows.stepper-row + Rows.group-gap;
+    /// The rows of whichever of the two is showing, counted the same way. The
+    /// reset is the fourth row on both.
+    property <int> subs-page-count: root.subs-page == MenuPage.timing
+        && !root.timing-resettable ? 3 : 4;
+    /// What the reset on that page resets (see "resetting a page").
+    property <Reset> subs-page-reset: root.subs-page == MenuPage.timing ? Reset.timing
+        : Reset.placing;
+    /// The ring is on the tracks' page, where the rows go by `focus-row`
+    /// alone; on any other page the same number is another page's row.
+    property <bool> on-tracks: root.open && !root.find-open
+        && root.subs-page == MenuPage.tracks;
+    /// The ring is on `row` of page `page` of the two.
+    pure function subs-ring(page: MenuPage, row: int) -> bool {
+        return root.open && !root.find-open && root.subs-page == page
+            && root.ring-row == row;
+    }
+    /// Open one of the two pages on its way back, as a settings page opens.
+    /// Public so a test can show one.
+    public function open-subs-page(page: MenuPage) {
+        if (!root.subs-showing) {
+            return;
+        }
+        root.find-open = false;
+        root.account-open = false;
+        root.leaf = page;
+        root.subs-page = page;
+        root.ring-row = 0;
+    }
+    /// Back to the tracks, on the row that opened the page.
+    function close-subs-page() {
+        root.ring-row = root.subs-pages-at + (root.subs-page == MenuPage.placing ? 1 : 0);
+        root.subs-page = MenuPage.tracks;
+    }
+    /// Enter on one of the two pages. The steppers are moved by left and
+    /// right, and Enter on one does nothing.
+    function subs-page-activate() {
+        if (root.ring-row == 0) {
+            root.close-subs-page();
+        } else if (root.subs-page == MenuPage.timing && root.ring-row == 1) {
+            root.sync-row();
+        } else if (root.ring-row == 3) {
+            Resets.press(root.subs-page-reset);
+        }
+    }
+    /// The subtitles menu's height: whichever of its pages is showing.
+    property <length> panel-h: root.find-open
+        ? (root.account-open ? root.account-h : root.find-h)
+        : root.subs-page == MenuPage.timing ? root.timing-page-h
+        : root.subs-page == MenuPage.placing ? root.placing-page-h
+        : root.tracks-h;
+    /// A page sliding in over the tracks, as a settings page does, and the
+    /// account's over the search's.
+    property <float> drill: root.find-open ? (root.account-open ? 2.0 : 1.0)
+        : root.subs-page != MenuPage.tracks ? 1.0 : 0.0;
+    animate drill {
+        duration: root.resizing ? 0ms : Motion.drill;
+        easing: ease-in-out;
+    }
+    /// Between two pages: the tracks and one of theirs, or the search and the
+    /// account's. Both then hang from the menu's bottom edge, which stays
+    /// put, rather than from its top, which moves, so their rows move only
+    /// sideways: the row the ring comes back to is near the bottom, and hung
+    /// from the top it would rise into the panel from under it. At rest they
+    /// hang from the top, where both ways agree, so a row a page gains in
+    /// place shows at its foot as the panel grows to it.
+    property <bool> moving: root.drill > 0.0 && root.drill < 2.0
+        && root.drill != 1.0;
+    /// The subtitles menu's rows: the tracks, `Off` among them since it is
+    /// the one people reach for, then the ways to the pages of the one
+    /// showing, then the search.
+    property <int> subs-focus-count: root.subs-track-rows + (root.subs-showing ? 2 : 0)
+        + (Find.offered ? 1 : 0);
+    property <int> subs-track-rows: root.has-subs ? 1 + Tracks.subtitles.length : 0;
+    /// Where the ways to the pages start: Timing, then Size & position.
+    property <int> subs-pages-at: root.subs-track-rows;
+    /// The row the subtitles menu opens on: the subtitle in use, or Off when
+    /// none is showing.
+    property <int> subs-open-row: root.has-subs && Subtitles.visible
+        && Tracks.subtitle-current >= 0 ? Tracks.subtitle-current + 1 : 0;
+    /// Whether Position was the last of the subtitles' three adjustments used.
+    property <bool> placing-subtitles: false;
+    // What a row puts around its name, added to the widest name measured.
+    // Each follows its row in `rows.slint`.
+    property <length> track-fixed: Rows.label-x + Rows.trail-x;
+    property <length> bin-fixed: Rows.bin + Rows.group-gap;
+    property <length> subs-w: root.list-fit(max(
+        sub-names-measure.preferred-width + root.track-fixed,
+        sub-removable-measure.preferred-width + root.track-fixed + root.bin-fixed));
+    property <bool> has-subs: Tracks.subtitles.length > 0;
+    /// No tracks and nothing to search with.
+    property <bool> subs-empty: !root.has-subs && !Find.offered;
+    /// The "Off" row belongs to the subtitle list, so it counts with it.
+    out property <length> natural: root.has-subs
+        ? (1 + Tracks.subtitles.length) * root.row-h
+        : root.subs-empty ? root.row-h : 0px;
+    /// Under the list, a group gap below the tracks when there are any to
+    /// set it off from, then the ways to the pages of the one showing and
+    /// to the search.
+    property <length> subs-fixed: (root.subs-showing ? 2 * root.row-h : 0px) + root.subs-below;
+    /// The gap and the search, which come and go at once.
+    property <length> subs-below: (Find.offered ? root.row-h : 0px)
+        + (root.has-subs && (root.subs-showing || Find.offered) ? Rows.group-gap : 0px);
+    /// The tracks and the ways to the pages as the menu eases to fit them, so
+    /// they open and close with it, and the search under them keeps its place
+    /// rather than dropping out of the menu and rising back.
+    property <length> natural-live: root.natural;
+    property <length> subs-pages-h: root.subs-showing ? 2 * root.row-h : 0px;
+    /// A subtitle is showing, so there is a timing to sync and to set, and a
+    /// size and position to judge.
+    property <bool> subs-showing: root.has-subs && Subtitles.visible && Tracks.subtitle-current >= 0;
+    /// The timing is off zero, as the way to its page says.
+    property <bool> timing-moved: abs(Subtitles.delay) >= 0.005
+        || abs(Subtitles.speed - 1) >= 0.0005;
+    /// The timing's reset is offered while there is something to reset, and
+    /// stays to be taken back.
+    property <bool> timing-resettable: root.timing-moved
+        || Resets.armed == Reset.timing || Resets.undoable == Reset.timing;
+    /// Timing's readout, as wide as the delay reads at its widest.
+    property <length> timing-value-w: max(62px, delay-measure.preferred-width + 4px);
+    out property <length> tracks-h: min(
+        root.panel-pad + root.heading-h + root.natural + root.subs-fixed,
+        root.panel-max-h);
+    out property <length> tracks-list-h: max(0px, min(root.natural-live,
+        root.panel-max-h - root.panel-pad - root.heading-h - root.subs-pages-h - root.subs-below));
+    /// Scroll offsets, for the test that checks a wheel over a list moves it.
+    out property <length> scroll: subs-list.offset;
+    changed open => {
+        root.leave-subs-page();
+    }
+    changed subs-page => {
+        root.leave-subs-page();
+    }
+    /// What a page of the subtitles menu armed or offered to take back goes
+    /// with it, as a settings page's reset does.
+    function leave-subs-page() {
+        Removal.disarm();
+        root.asked-row = -1px;
+        root.placing-subtitles = false;
+        root.forget-sync();
+        if (Resets.is-menu-reset(Resets.armed) || Resets.is-menu-reset(Resets.undoable)) {
+            Resets.clear();
+        }
+    }
+    // A page of the subtitle showing goes with it, whichever way it goes: C,
+    // another file, or its track removed. It stays on the tracks, at Off.
+    changed subs-showing => {
+        if (!root.subs-showing && root.subs-page != MenuPage.tracks) {
+            root.subs-page = MenuPage.tracks;
+            root.ring-row = root.subs-open-row;
+        }
+    }
+    changed find-open => {
+        Removal.disarm();
+        root.asked-row = -1px;
+    }
+    function sync-row() {
+        // The sync is the timing page's first row, under its way back.
+        root.asked-row = Rows.panel-pad + root.row-h + root.row-h / 2;
+        if (Subtitles.sync-state == SyncState.undoable) {
+            Subtitles.set-timing(Subtitles.sync-was-delay, Subtitles.sync-was-speed);
+            Subtitles.sync-state = SyncState.idle;
+        } else if (Subtitles.sync-state == SyncState.idle) {
+            Subtitles.sync-state = SyncState.listening;
+            Subtitles.sync();
+        }
+    }
+    pure function sync-label() -> string {
+        return Subtitles.sync-state == SyncState.listening ? @tr("Listening…")
+            : Subtitles.sync-state == SyncState.undoable ? @tr("Undo sync")
+            : @tr("Sync to speech");
+    }
+    /// Leaving the page drops the undo. A run still listening is left to
+    /// finish, and its answer is shown wherever the panel is by then.
+    function forget-sync() {
+        if (Subtitles.sync-state == SyncState.undoable) {
+            Subtitles.sync-state = SyncState.idle;
+        }
+    }
+    /// The subtitles' three adjustments, from their rows and their keys.
+    /// Position lets the line down to where it rests while it is set; the
+    /// other two lift it back up (see `subtitle-lift`).
+    function step-sub-delay(dir: float) {
+        root.placing-subtitles = false;
+        Subtitles.nudge-delay(dir * Subtitles.delay-step);
+    }
+    public function step-sub-scale(dir: float) {
+        root.placing-subtitles = false;
+        Subtitles.nudge-scale(dir * Subtitles.scale-step);
+    }
+    function step-sub-pos(dir: float) {
+        root.placing-subtitles = true;
+        Subtitles.nudge-pos(dir * Subtitles.pos-step);
+    }
+    /// The same on the subtitles menu's pages, whose steppers are Timing's
+    /// second row, and Size and Position's first two.
+    function subs-page-adjust(delta: int) -> bool {
+        if (root.subs-page == MenuPage.timing && root.ring-row == 2) {
+            root.step-sub-delay(delta);
+            return true;
+        }
+        if (root.subs-page == MenuPage.placing && root.ring-row == 1) {
+            root.step-sub-scale(delta);
+            return true;
+        }
+        if (root.subs-page == MenuPage.placing && root.ring-row == 2) {
+            root.step-sub-pos(delta);
+            return true;
+        }
+        return false;
+    }
+    /// The list's own rows: not the way back above a part's page, nor the
+    /// pages and the search under
+    /// the tracks, nor the account under the search's results.
+    property <bool> find-listing: root.open && root.find-open && !root.account-open;
+
+    // The tracks, the menu's own page. As tall as the menu while it eases
+    // to fit them, so the search at its foot stays on the menu's edge.
+    Rectangle {
+        x: -root.drill * parent.width;
+        width: parent.width;
+        height: root.moving ? root.tracks-h : parent.height;
+        y: root.moving ? parent.height - self.height : 0;
+        visible: root.drill < 1.0;
+
+        VerticalLayout {
+            padding-top: Rows.panel-pad;
+            padding-bottom: Rows.panel-pad;
+
+            MenuHeading {
+                text: @tr("SUBTITLES");
+                icon: @image-url("../../../public/icons/subtitles.svg");
+            }
+            subs-list := ScrollList {
+                height: root.tracks-list-h;
+                // Where it is going, so a list easing open shows no
+                // scroll bar for the length of it.
+                rest-height: max(0px,
+                    root.tracks-h - root.panel-pad - root.heading-h - root.subs-fixed);
+                content-height: root.natural;
+                // Off while none is showing, as the rows below light it.
+                current-top: (Subtitles.visible ? Tracks.subtitle-current + 1 : 0) * root.row-h;
+                current-h: root.has-subs && (!Subtitles.visible || Tracks.subtitle-current >= 0)
+                    ? root.row-h : 0px;
+
+                if root.subs-empty: EmptyRow {
+                    label: @tr("No subtitles");
+                }
+                if root.has-subs: MenuRow {
+                    label: @tr("Off");
+                    active: !Subtitles.visible;
+                    focused: root.on-tracks && root.ring-row == 0;
+                    picked => {
+                        Tracks.select-subtitle(-1);
+                    }
+                }
+                for track[idx] in Tracks.subtitles: MenuRow {
+                    label: track.label;
+                    // Not `track.selected` alone: turning subtitles off keeps
+                    // `sid`, so turning them on returns to this track, and mpv
+                    // goes on reporting it as selected while it is hidden.
+                    active: track.selected && Subtitles.visible;
+                    focused: root.on-tracks && root.ring-row == idx + 1;
+                    removable: track.external;
+                    armed: Removal.is-armed(track.id, true);
+                    armed-for: Motion.armed-for;
+                    held(on) => {
+                        Removal.held = on;
+                    }
+                    picked => {
+                        Tracks.select-subtitle(track.id);
+                    }
+                    removed => {
+                        Removal.press(track.id, true);
+                    }
+                }
+            }
+            // Under the list rather than in it, so they stay in reach
+            // however many tracks a film has and are never read as one
+            // more: the ways to the pages of the one showing, and to a
+            // page of other subtitles.
+            if root.has-subs && (root.subs-showing || Find.offered): Rectangle {
+                height: Rows.group-gap;
+            }
+            // Opened and closed with the menu, each row standing where it
+            // rests while the edge above uncovers it, so nothing moves but
+            // the tracks rising and falling with the menu's top. Kept
+            // until closed, and answering only while a track shows.
+            if root.has-subs: Rectangle {
+                height: root.subs-pages-h;
+                clip: true;
+
+                if root.subs-pages-h > 0: VerticalLayout {
+                    y: parent.height - self.height;
+                    height: 2 * root.row-h;
+
+                    // Says how far off the timing is, as its page's
+                    // stepper does, so a film synced last week reads so
+                    // from here.
+                    DrillRow {
+                        icon: @image-url("../../../public/icons/clock.svg");
+                        label: @tr("Timing");
+                        detail: abs(Subtitles.delay) >= 0.005 ? Subtitles.delay-text : "";
+                        focused: root.subs-showing && root.on-tracks
+                            && root.ring-row == root.subs-pages-at;
+                        opened => {
+                            if (root.subs-showing) {
+                                root.open-subs-page(MenuPage.timing);
+                            }
+                        }
+                    }
+                    DrillRow {
+                        icon: @image-url("../../../public/icons/text-size.svg");
+                        label: @tr("Size & position");
+                        focused: root.subs-showing && root.on-tracks
+                            && root.ring-row == root.subs-pages-at + 1;
+                        opened => {
+                            if (root.subs-showing) {
+                                root.open-subs-page(MenuPage.placing);
+                            }
+                        }
+                    }
+                }
+            }
+            if Find.offered: DrillRow {
+                icon: @image-url("../../../public/icons/search.svg");
+                label: @tr("Find subtitles");
+                focused: root.on-tracks && root.ring-row == root.subs-focus-count - 1;
+                opened => {
+                    root.open-find();
+                }
+            }
+        }
+    }
+
+    // Timing, or size and position, sliding in over the tracks as the
+    // search's page does. Only built while one shows.
+    if root.drill > 0.0 && root.leaf != MenuPage.find: Rectangle {
+        x: (1.0 - root.drill) * parent.width;
+        width: parent.width;
+        height: root.leaf == MenuPage.timing ? root.timing-page-h : root.placing-page-h;
+        y: root.moving ? parent.height - self.height : 0;
+
+        VerticalLayout {
+            padding-top: Rows.panel-pad;
+            padding-bottom: Rows.panel-pad;
+            alignment: start;
+
+            if root.leaf == MenuPage.timing: VerticalLayout {
+                BackRow {
+                    label: @tr("TIMING");
+                    focused: root.subs-ring(MenuPage.timing, 0);
+                    back => {
+                        root.close-subs-page();
+                    }
+                }
+                // Above Shift, as the thing to try before setting the
+                // delay by hand; what it settles on shows in that row.
+                MenuRow {
+                    icon: @image-url("../../../public/icons/subtitle-time.svg");
+                    label: root.sync-label();
+                    hint: @tr("Listens to the film and moves the subtitles to match what is said");
+                    focused: root.subs-ring(MenuPage.timing, 1);
+                    explained(on) => {
+                        if (on) {
+                            root.asked-row = Rows.panel-pad + root.row-h + root.row-h / 2;
+                            root.hint-claim = Flash.hint(self.hint);
+                        } else {
+                            Flash.drop(root.hint-claim);
+                        }
+                    }
+                    picked => {
+                        root.sync-row();
+                    }
+                }
+                // Not *Timing*, which is the page it stands on: what the
+                // discs do to the line, which its value says the way of.
+                StepperRow {
+                    icon: @image-url("../../../public/icons/clock.svg");
+                    label: @tr("Shift");
+                    focused: root.subs-ring(MenuPage.timing, 2);
+                    value: Subtitles.delay-text;
+                    value-w: root.timing-value-w;
+                    stepped(dir) => {
+                        root.step-sub-delay(dir);
+                    }
+                }
+                if root.timing-resettable: Rectangle {
+                    height: Rows.group-gap;
+                }
+                if root.timing-resettable: MenuRow {
+                    icon: Resets.icon(Reset.timing);
+                    label: Resets.label(Reset.timing);
+                    focused: root.subs-ring(MenuPage.timing, 3);
+                    picked => {
+                        Resets.press(Reset.timing);
+                    }
+                }
+            }
+
+            // Steppers, since these are read as numbers (see `StepperRow`).
+            if root.leaf == MenuPage.placing: VerticalLayout {
+                BackRow {
+                    label: @tr("SIZE & POSITION");
+                    focused: root.subs-ring(MenuPage.placing, 0);
+                    back => {
+                        root.close-subs-page();
+                    }
+                }
+                StepperRow {
+                    icon: @image-url("../../../public/icons/text-size.svg");
+                    label: @tr("Size");
+                    focused: root.subs-ring(MenuPage.placing, 1);
+                    value: Subtitles.scale-text;
+                    stepped(dir) => {
+                        root.step-sub-scale(dir);
+                    }
+                }
+                StepperRow {
+                    icon: @image-url("../../../public/icons/arrows-up-down.svg");
+                    label: @tr("Position");
+                    focused: root.subs-ring(MenuPage.placing, 2);
+                    value: Subtitles.pos-text;
+                    stepped(dir) => {
+                        root.step-sub-pos(dir);
+                    }
+                }
+                Rectangle {
+                    height: Rows.group-gap;
+                }
+                MenuRow {
+                    icon: Resets.icon(Reset.placing);
+                    label: Resets.label(Reset.placing);
+                    focused: root.subs-ring(MenuPage.placing, 3);
+                    picked => {
+                        Resets.press(Reset.placing);
+                    }
+                }
+            }
+        }
+    }
+
+    // The search's page, sliding in over the tracks.
+    Rectangle {
+        x: (1.0 - root.drill) * parent.width;
+        width: parent.width;
+        height: root.moving ? root.find-h : parent.height;
+        y: root.moving ? parent.height - self.height : 0;
+        visible: root.drill > 0.0 && root.drill < 2.0
+            && root.leaf == MenuPage.find;
+
+        VerticalLayout {
+            padding-top: Rows.panel-pad;
+            padding-bottom: Rows.panel-pad;
+            alignment: start;
+
+            BackRow {
+                label: @tr("FIND SUBTITLES");
+                focused: root.open && root.find-open && root.ring-row == 0;
+                back => {
+                    root.close-find();
+                }
+            }
+            if Find.state != FindState.found: EmptyRow {
+                label: Find.state == FindState.searching ? @tr("Searching OpenSubtitles…")
+                    : Find.state == FindState.not-found ? @tr("No subtitles found")
+                    : Find.said;
+            }
+            find-list := ScrollList {
+                height: root.find-list-h;
+                rest-height: root.find-rest-h;
+                content-height: Find.state == FindState.found
+                    ? Find.hits.length * root.row-h : 0px;
+
+                for hit[idx] in Find.hits: FoundRow {
+                    label: hit.label;
+                    detail: hit.detail;
+                    busy: Find.fetching == idx;
+                    focused: root.find-listing && root.ring-row == idx + 1;
+                    picked => {
+                        root.fetch-row(idx);
+                    }
+                }
+            }
+
+            // Under the gap, what is OpenSubtitles' rather than the
+            // film's, so neither reads as one more result.
+            Rectangle {
+                height: Rows.group-gap;
+            }
+            if root.signed-in: DrillRow {
+                icon: @image-url("../../../public/icons/account.svg");
+                label: @tr("Signed in as {}", Find.account);
+                detail: Find.left >= 0 ? @tr("{} left today", Find.left) : "";
+                focused: root.find-listing && root.ring-row == root.find-account-at;
+                opened => {
+                    root.open-account();
+                }
+            }
+            // OpenSubtitles asks a free key for this where its subtitles
+            // are searched or picked, which is here.
+            NoteRow {
+                height: root.credit-h;
+                text: @tr("Subtitles provided by OpenSubtitles.com");
+            }
+        }
+    }
+
+    // The account's page, sliding in over the search's. Only built while
+    // it shows (see `AccountPage`).
+    if root.drill > 1.0: AccountPage {
+        x: (2.0 - root.drill) * parent.width;
+        width: parent.width;
+        height: root.moving ? root.account-h : parent.height;
+        y: root.moving ? parent.height - self.height : 0;
+        signed-in: root.signed-in;
+        account: Find.account;
+        left: Find.left;
+        busy: Find.signing-in;
+        why: root.sign-in-why;
+        said: Find.sign-in-said;
+        ring-row: root.ring-row;
+        active: root.account-shown;
+        presses: root.sign-in-presses;
+        back => {
+            root.close-account();
+        }
+        submitted(name, password) => {
+            Find.sign-in(name, password);
+        }
+        sign-out => {
+            Find.sign-out();
+            root.close-account();
+        }
+        // Escape goes back a page, as everywhere; Enter is the row's own
+        // press, even with the ring away, since a field was typed into;
+        // the rest walk the ring, which a key from a field brings up.
+        ring-key(event) => {
+            return root.account-key(event);
+        }
+        pointed(row) => {
+            root.ring-row = row;
+        }
+    }
+
+    delay-measure := Measure {
+        text: Subtitles.delay-widest;
+        font-size: Type.readout;
+    }
+    // The list panels' widest names (see `list-fit`), at the current row's
+    // weight, which is the widest any of them is drawn.
+    sub-names-measure := Measure {
+        text: Tracks.subtitle-names;
+        font-size: Type.body;
+        font-weight: Type.weight-current;
+    }
+    sub-removable-measure := Measure {
+        text: Tracks.subtitle-removable-names;
+        font-size: Type.body;
+        font-weight: Type.weight-current;
+    }
+}

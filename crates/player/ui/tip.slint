@@ -1,0 +1,184 @@
+// The hover label: a control's name, and its key, over the bar (see `Tip`).
+
+import { Tip } from "globals.slint";
+import { GlassRect } from "models.slint";
+import { Measure } from "measure.slint";
+import { Surfaces } from "surface.slint";
+import { Motion, Paint, Rows, Type } from "theme.slint";
+
+/// Laid over the whole window, which it keeps inside the margins of.
+export component HoverTip inherits Rectangle {
+    /// A panel is open. Tips open on the line panels do, so a tip stands down
+    /// while any panel is up rather than working out whether it would land
+    /// under it.
+    in property <bool> panel-open;
+    /// How far in the bar's buttons are. Scaled by it, a tip can't outlive
+    /// the button it names.
+    in property <float> buttons-shown;
+    /// Above the bar, on the line panels open from, because any lower it
+    /// would be glass on glass.
+    in property <length> floor;
+    /// The widest a tip may run: the bar's width.
+    in property <length> widest;
+    /// The corner pill, which a tip that would land on goes up a row over,
+    /// since the pill was there first: whether it is up, its left edge, and
+    /// how tall it is.
+    in property <bool> pill-up;
+    in property <length> pill-x;
+    in property <length> pill-h;
+
+    out property <GlassRect> glass: Surfaces.glass(root.tip-x, root.tip-y + root.rise,
+        root.tip-w, root.tip-h, root.tip-h / 2, root.on);
+
+    /// Take the tip away at once, without a fade, as a resize must: it moves
+    /// every control out from under the tip, whose place was fixed when it
+    /// rose.
+    public function cut() {
+        root.is-cut = true;
+        Tip.clear();
+    }
+
+    property <length> tip-h: 28px;
+    property <length> pad: 12px;
+    /// Between the name and the key, matching the shortcuts list, since a
+    /// tip is one row of that list.
+    property <length> gap: 12px;
+    property <length> tip-w: min(
+        label-measure.preferred-width
+            + (root.keys != "" ? root.gap + keys-measure.preferred-width : 0px)
+            + 2 * root.pad,
+        root.widest);
+    /// Centred on its button, kept inside the bar's margins so a tip on the
+    /// last button doesn't hang off the window.
+    property <length> tip-x: clamp(root.at - root.tip-w / 2,
+        Surfaces.margin, root.width - Surfaces.margin - root.tip-w);
+    property <length> tip-y: root.floor - root.tip-h - Rows.offset
+        - (root.over-pill ? root.pill-h + Rows.offset : 0px);
+    property <bool> over-pill: root.pill-up && !root.panel-open
+        && root.tip-x + root.tip-w + Rows.offset > root.pill-x;
+    property <float> shown: 0.0;
+    animate shown {
+        duration: Motion.surface;
+        easing: ease-out;
+    }
+    /// How much of the tip is drawn, and the only thing that decides it.
+    ///
+    /// A binding rather than a check when the pointer arrives, because both
+    /// ways a tip goes wrong happen after it is up: the bar can leave from
+    /// under a still pointer, and a panel can open over it.
+    property <float> on: root.panel-open || root.is-cut
+        ? 0.0
+        : root.shown * root.buttons-shown;
+    property <length> rise: (1.0 - root.shown) * Surfaces.lift;
+
+    /// What the tip shows, copied from `Tip` only when a tip goes up, so a
+    /// tip fading out keeps its own name and place rather than taking on the
+    /// next one's.
+    property <string> label;
+    property <string> keys;
+    property <length> at;
+    /// Up, or on its way.
+    property <bool> up;
+    /// Came down within `Motion.tip-grace`, so the next one need not wait.
+    property <bool> warm;
+    /// Taken away without a fade, by a resize or a panel; cleared by the next
+    /// tip to rise with no panel open. A panel only hides what it covers, so
+    /// without the cut, closing it would uncover a tip mid-fade.
+    property <bool> is-cut;
+
+    function raise() {
+        root.label = Tip.label;
+        root.keys = Tip.keys;
+        root.at = Tip.cx;
+        root.up = true;
+        root.warm = false;
+        root.is-cut = root.panel-open;
+        cool.stop();
+        root.shown = 1.0;
+    }
+
+    changed panel-open => {
+        if (root.panel-open) {
+            root.is-cut = true;
+        }
+    }
+
+    // Watched through a local property, as the flash's is.
+    property <int> seq: Tip.seq;
+    changed seq => {
+        wait.stop();
+        if (Tip.label == "") {
+            if (root.up && !root.is-cut) {
+                root.warm = true;
+                cool.start();
+            }
+            root.up = false;
+            root.shown = 0.0;
+        } else if (root.up || root.warm || Tip.now) {
+            // A tip is up or only just went, so the new name takes its place
+            // without the wait; a changed reading doesn't wait either.
+            root.raise();
+        } else {
+            wait.start();
+        }
+    }
+
+    wait := Timer {
+        interval: Motion.tip-delay;
+        running: false;
+        triggered => {
+            root.raise();
+            wait.stop();
+        }
+    }
+
+    cool := Timer {
+        interval: Motion.tip-grace;
+        running: false;
+        triggered => {
+            root.warm = false;
+            cool.stop();
+        }
+    }
+
+    label-measure := Measure {
+        text: root.label;
+        font-size: Type.body;
+    }
+
+    keys-measure := Measure {
+        text: root.keys;
+        font-size: Type.readout;
+    }
+
+    Rectangle {
+        x: root.tip-x;
+        y: root.tip-y + root.rise;
+        width: root.tip-w;
+        height: root.tip-h;
+        visible: root.on > Surfaces.gone;
+        opacity: root.on;
+
+        HorizontalLayout {
+            padding-left: root.pad;
+            padding-right: root.pad;
+            spacing: root.gap;
+            alignment: center;
+
+            Text {
+                // A shortcuts row's two roles: the name, and the key smaller.
+                text: root.label;
+                color: Paint.body;
+                font-size: Type.body;
+                vertical-alignment: center;
+            }
+
+            if root.keys != "": Text {
+                text: root.keys;
+                color: Paint.body;
+                font-size: Type.readout;
+                vertical-alignment: center;
+            }
+        }
+    }
+}

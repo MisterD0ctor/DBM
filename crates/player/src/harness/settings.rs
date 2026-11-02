@@ -13,7 +13,7 @@ use crate::{Find, MainWindow, Motion, Reset, Settings, Subtitles, SyncState, Tra
 pub(super) fn param_test(ui: &MainWindow) -> Script {
     script::run(ui, move |ui| async move {
         sleep(Duration::from_millis(600)).await;
-        ui.set_settings_open(true);
+        ui.invoke_open_settings(true);
         // The glass tint amount, found by key rather than index, so the
         // registry can be reordered. Tint runs 0..1, so the value is also
         // the slider's fraction. A non-numeric value opens the panel
@@ -538,7 +538,7 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         // A panel has to be on screen for there to be glass to sample.
         let flip = |name: &str, on: bool| eprintln!("dbm: {name} -> {on}");
         beat.next().await;
-        ui.set_settings_open(true);
+        ui.invoke_open_settings(true);
         beat.next().await;
         // Only the ambient border has a switch. The probe still
         // samples the glass under the open panel between steps.

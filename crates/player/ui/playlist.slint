@@ -3,6 +3,7 @@
 // stay with the window.
 
 import { PlaylistGroup } from "models.slint";
+import { Playback } from "playback.slint";
 
 export global Playlist {
     /// The playlist in the parts the panel shows: its seasons, or the shows
@@ -22,7 +23,7 @@ export global Playlist {
     /// Whether that heading is a show's name or the generic label.
     in property <bool> named;
     /// The list of parts' row names and its parts' counts, one to a line, for
-    /// the measures that size the panel to that page (see `playlist-w`). The
+    /// the measures that size the panel to that page (see `PlaylistPanel.panel-w`). The
     /// files listed as themselves that draw a resume measure come apart.
     in property <string> names;
     in property <string> measured-names;
@@ -44,4 +45,29 @@ export global Playlist {
     /// What is being opened, named the way a person would name it: the file
     /// or the folder, not the path.
     in property <string> opening-name: "";
+
+    /// Every way the interface asks for a file or a folder comes through here,
+    /// so an open already in flight is refused in one place.
+    public function request-open(folder: bool) {
+        if (Playlist.opening) {
+            return;
+        }
+        if (folder) {
+            Playlist.open-folder();
+        } else {
+            Playlist.open-file();
+        }
+    }
+
+    /// On past the end: the next season, or the film left unfinished, and the
+    /// folder dialog when there is nothing to name (see `Playback.onward-path`).
+    public function open-onward() {
+        if (Playback.onward-path != "") {
+            if (!Playlist.opening) {
+                Playlist.open-path(Playback.onward-path, true);
+            }
+        } else {
+            Playlist.request-open(true);
+        }
+    }
 }
