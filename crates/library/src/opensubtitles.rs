@@ -26,6 +26,8 @@ use std::time::Duration;
 use dbm_lang::tr;
 use dbm_naming::Media;
 use serde_json::Value;
+use ureq::http::{Method, Request, Response};
+use ureq::{Agent, Body};
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -292,7 +294,7 @@ fn by_name(path: &str, languages: &str) -> Vec<(&'static str, String)> {
 
 fn ask(query: &[(&str, String)], signed: Option<&Signed>) -> Result<Vec<Hit>, Failure> {
     let reply = send_again_once(&Ask {
-        method: "GET",
+        method: Method::GET,
         path: "/subtitles",
         query,
         body: None,
@@ -392,7 +394,7 @@ fn link(hit: &Hit, signed: Option<&Signed>) -> Result<Url, Failure> {
     let body = serde_json::to_vec(&serde_json::json!({ "file_id": hit.file_id }))
         .map_err(|_| Failure::Unreachable)?;
     let reply = send_again_once(&Ask {
-        method: "POST",
+        method: Method::POST,
         path: "/download",
         query: &[],
         body: Some(&body),
@@ -480,7 +482,7 @@ const MOST_READ: u64 = 16 * 1024 * 1024;
 
 /// One request to the API.
 struct Ask<'a> {
-    method: &'static str,
+    method: Method,
     path: &'a str,
     /// In alphabetical order, as their API asks of a query string.
     query: &'a [(&'a str, String)],
@@ -531,42 +533,48 @@ fn send_within(ask: &Ask, timeout: Duration) -> Result<Reply, Failure> {
     let bearer = ask
         .account
         .map(|signed| Zeroizing::new(format!("Bearer {}", signed.token.as_str())));
-    let agent = agent(timeout).redirects(0).build();
+    let agent = agent(timeout);
     for _ in 0..=REDIRECTS {
-        let mut request = agent
-            .request_url(ask.method, &url)
-            .set("Api-Key", key)
-            .set("Accept", "application/json");
+        let mut request = Request::builder()
+            .method(ask.method.clone())
+            .uri(url.as_str())
+            .header("Api-Key", key)
+            .header("Accept", "application/json");
         if let Some(bearer) = &bearer {
-            request = request.set("Authorization", bearer);
+            request = request.header("Authorization", bearer.as_str());
         }
-        let result = match ask.body {
+        let sent = match ask.body {
             Some(body) => request
-                .set("Content-Type", "application/json")
-                .send_bytes(body),
-            None => request.call(),
+                .header("Content-Type", "application/json")
+                .body(body)
+                .map(|request| agent.run(request)),
+            None => request.body(()).map(|request| agent.run(request)),
         };
-        let response = match result {
-            Ok(response) | Err(ureq::Error::Status(_, response)) => response,
-            Err(ureq::Error::Transport(_)) => return Err(Failure::Unreachable),
+        // Either the request couldn't be put together or it got no answer.
+        let Ok(Ok(mut response)) = sent else {
+            return Err(Failure::Unreachable);
         };
-        let status = response.status();
+        let status = response.status().as_u16();
         if !(300..400).contains(&status) {
             return Ok(Reply {
                 status,
-                body: read_json(response),
+                body: read_json(&mut response),
             });
         }
-        url = redirected(&url, response.header("location"), ask.method)
-            .ok_or(Failure::Unreachable)?;
+        url = redirected(&url, location(&response), &ask.method).ok_or(Failure::Unreachable)?;
     }
     Err(Failure::Unreachable)
 }
 
 /// Where a redirect from `from` leads, if it is one to follow.
-fn redirected(from: &Url, location: Option<&str>, method: &str) -> Option<Url> {
+fn redirected(from: &Url, location: Option<&str>, method: &Method) -> Option<Url> {
     let to = from.join(location?).ok()?;
-    (method == "GET" && Host::of(&to).is_some()).then_some(to)
+    (*method == Method::GET && Host::of(&to).is_some()).then_some(to)
+}
+
+/// Where a redirect says to go.
+fn location(response: &Response<Body>) -> Option<&str> {
+    response.headers().get("location")?.to_str().ok()
 }
 
 /// Fetch a subtitle file from the link the API gave, with neither the key nor
@@ -574,50 +582,64 @@ fn redirected(from: &Url, location: Option<&str>, method: &str) -> Option<Url> {
 /// file is on hosts of its own, but only over HTTPS, so what arrives is what
 /// was sent.
 fn fetch_file(mut url: Url) -> Result<Vec<u8>, Failure> {
-    let agent = agent(TIMEOUT).redirects(0).build();
+    let agent = agent(TIMEOUT);
     for _ in 0..=REDIRECTS {
-        let response = match agent.request_url("GET", &url).call() {
-            Ok(response) => response,
-            Err(ureq::Error::Status(410, _) | ureq::Error::Transport(_)) => {
-                return Err(Failure::Unreachable);
+        let mut response = agent
+            .get(url.as_str())
+            .call()
+            .map_err(|_| Failure::Unreachable)?;
+        match response.status().as_u16() {
+            300..400 => {}
+            410 => return Err(Failure::Unreachable),
+            400.. => return Err(said(&read_json(&mut response)).unwrap_or(Failure::Unreachable)),
+            _ => {
+                return response
+                    .body_mut()
+                    .with_config()
+                    .limit(MOST_READ)
+                    .read_to_vec()
+                    .map_err(|_| Failure::Unreachable);
             }
-            Err(ureq::Error::Status(_, response)) => {
-                return Err(said(&read_json(response)).unwrap_or(Failure::Unreachable));
-            }
-        };
-        if !(300..400).contains(&response.status()) {
-            let mut bytes = Vec::new();
-            response
-                .into_reader()
-                .take(MOST_READ)
-                .read_to_end(&mut bytes)
-                .map_err(|_| Failure::Unreachable)?;
-            return Ok(bytes);
         }
-        url = response
-            .header("location")
+        url = location(&response)
             .and_then(|to| url.join(to).ok())
-            .filter(|to| to.scheme() == "https")
             .ok_or(Failure::Unreachable)?;
     }
     Err(Failure::Unreachable)
 }
 
-fn agent(timeout: Duration) -> ureq::AgentBuilder {
-    let builder = ureq::AgentBuilder::new()
-        .timeout(timeout)
-        .user_agent(&format!("Death by MPV v{}", env!("CARGO_PKG_VERSION")));
-    // Windows' own TLS, which the client has to be handed (see Cargo.toml).
+/// A client that follows no redirect itself and refuses plain HTTP, giving
+/// up on a request after `timeout`. Every status comes back as an answer, so
+/// a refusal's body can still say why.
+///
+/// No proxy from the environment, which the client would otherwise take: one
+/// it can't speak, such as SOCKS, would stop every search.
+fn agent(timeout: Duration) -> Agent {
+    let config = Agent::config_builder()
+        .timeout_global(Some(timeout))
+        .max_redirects(0)
+        .https_only(true)
+        .http_status_as_error(false)
+        .proxy(None)
+        .user_agent(format!("Death by MPV v{}", env!("CARGO_PKG_VERSION")));
+    // Windows' own TLS and its own certificates (see Cargo.toml).
     #[cfg(windows)]
-    let builder = match native_tls::TlsConnector::new() {
-        Ok(tls) => builder.tls_connector(std::sync::Arc::new(tls)),
-        Err(_) => builder,
-    };
-    builder
+    let config = config.tls_config(
+        ureq::tls::TlsConfig::builder()
+            .provider(ureq::tls::TlsProvider::NativeTls)
+            .root_certs(ureq::tls::RootCerts::PlatformVerifier)
+            .build(),
+    );
+    config.build().new_agent()
 }
 
-fn read_json(response: ureq::Response) -> Value {
-    serde_json::from_reader(response.into_reader().take(MOST_READ)).unwrap_or(Value::Null)
+fn read_json(response: &mut Response<Body>) -> Value {
+    response
+        .body_mut()
+        .with_config()
+        .limit(MOST_READ)
+        .read_json()
+        .unwrap_or(Value::Null)
 }
 
 /// What a refused request means, by its status and what it said, for an ask
@@ -848,25 +870,25 @@ mod tests {
     #[test]
     fn only_a_get_follows_a_redirect_and_only_within_the_api() {
         let from = Url::parse("https://api.opensubtitles.com/api/v1/subtitles?a=1").unwrap();
-        let to = |location, method| redirected(&from, Some(location), method);
+        let to = |location, method| redirected(&from, Some(location), &method);
         assert_eq!(
-            to("/api/v1/subtitles?a=1&b=2", "GET").map(String::from),
+            to("/api/v1/subtitles?a=1&b=2", Method::GET).map(String::from),
             Some("https://api.opensubtitles.com/api/v1/subtitles?a=1&b=2".into())
         );
-        assert!(to("https://vip-api.opensubtitles.com/api/v1/x", "GET").is_some());
+        assert!(to("https://vip-api.opensubtitles.com/api/v1/x", Method::GET).is_some());
         for elsewhere in [
             "http://api.opensubtitles.com/api/v1/x",
             "https://evil.example/",
             "//evil.example/x",
             "https://api.opensubtitles.com:444/",
         ] {
-            assert!(to(elsewhere, "GET").is_none(), "{elsewhere}");
+            assert!(to(elsewhere, Method::GET).is_none(), "{elsewhere}");
         }
         assert!(
-            to("/api/v1/login", "POST").is_none(),
+            to("/api/v1/login", Method::POST).is_none(),
             "a body is never resent"
         );
-        assert!(redirected(&from, None, "GET").is_none());
+        assert!(redirected(&from, None, &Method::GET).is_none());
     }
 
     #[test]

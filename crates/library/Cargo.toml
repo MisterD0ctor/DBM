@@ -19,8 +19,8 @@ dbm-mpv.workspace = true
 dbm-naming.workspace = true
 log.workspace = true
 # The small JSON caches of what is known about each file — see `cache` — and
-# the MD5 mpv names its watch-later files by. `serde` is named only for its
-# traits; `serde_json` already brings it.
+# the MD5 mpv names its watch-later files by. `serde` is named for its
+# derive; `serde_json` already brings it.
 serde.workspace = true
 serde_json.workspace = true
 md-5.workspace = true
@@ -40,16 +40,16 @@ resvg.workspace = true
 # thread of its own wants. TLS through rustls with Mozilla's roots compiled
 # in, so a Flatpak with no host certificates reaches it the same as anything
 # else; on Windows the system's own TLS instead, below.
-ureq = { workspace = true, features = ["tls"] }
+ureq = { workspace = true, features = ["rustls"] }
 # Starting the seek preview's ffmpeg below the player's priority - see
 # `ffmpeg::spawn_behind`. winit and zbus already build it.
 libc.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 # The same client, over Windows' own TLS: rustls's cryptography is C that a
-# Windows build would need a C compiler for, and Windows has TLS already.
-ureq = { workspace = true, features = ["native-tls"] }
-native-tls.workspace = true
+# Windows build would need a C compiler for, and Windows has TLS already,
+# with its own certificates.
+ureq = { workspace = true, features = ["native-tls-no-default"] }
 
 [lints]
 workspace = true

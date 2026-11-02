@@ -33,6 +33,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use base64::Engine;
 use base64::engine::{DecodePaddingMode, GeneralPurpose, GeneralPurposeConfig};
 use serde_json::Value;
+use ureq::http::Method;
 use zeroize::Zeroizing;
 
 use super::{Ask, Failure, Host, fake, send};
@@ -176,7 +177,7 @@ fn log_in(name: &str, password: &str) -> Result<Account, Failure> {
     }
     let body = credentials(name, password);
     let reply = send(&Ask {
-        method: "POST",
+        method: Method::POST,
         path: "/login",
         query: &[],
         body: Some(&body),
@@ -281,7 +282,7 @@ fn granted(mut body: Value) -> Result<(Option<Host>, Zeroizing<String>), Failure
 /// How many downloads the account has left today, if it says.
 fn downloads_left(signed: &Signed) -> Option<i64> {
     let reply = send(&Ask {
-        method: "GET",
+        method: Method::GET,
         path: "/infos/user",
         query: &[],
         body: None,
@@ -311,7 +312,7 @@ fn hand_back(signed: &Signed, timeout: Duration) {
     }
     let _ = super::send_within(
         &Ask {
-            method: "DELETE",
+            method: Method::DELETE,
             path: "/logout",
             query: &[],
             body: None,
