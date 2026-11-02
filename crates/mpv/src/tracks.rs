@@ -38,6 +38,9 @@ pub struct Track {
     pub selected: bool,
     #[serde(default)]
     pub external: bool,
+    /// The file an external track was loaded from.
+    #[serde(rename = "external-filename", default)]
+    pub external_filename: Option<String>,
     /// What it is encoded as, in mpv's words: `aac`, `ass`, `subrip`.
     #[serde(default, deserialize_with = "non_empty")]
     pub codec: Option<String>,

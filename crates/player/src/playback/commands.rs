@@ -9,6 +9,7 @@
 //! shouldn't take the player down.
 
 use dbm_mpv::Mpv;
+use dbm_mpv::tracks::{self, TrackKind};
 
 /// Arrow-key seek, in seconds.
 pub const SEEK_STEP: f64 = 10.0;
@@ -153,22 +154,22 @@ pub fn toggle_mute(mpv: &Mpv) {
 /// Reads the track list, so this **blocks** and must run on the worker,
 /// where the read is fresh in a way a mirrored copy isn't.
 pub fn toggle_subtitles(mpv: &Mpv) {
-    let tracks = dbm_mpv::tracks::read_tracks(mpv);
-    let subs = dbm_mpv::tracks::of_kind(&tracks, dbm_mpv::tracks::TrackKind::Sub);
+    let tracks = tracks::read_tracks(mpv);
+    let subs = tracks::of_kind(&tracks, TrackKind::Sub);
     if subs.is_empty() {
         return;
     }
 
     // Showing, not merely visible, since `sub-visibility` can be on with no
     // track selected, where turning it off would change nothing visible.
-    let showing = mpv.get_bool("sub-visibility")
-        && dbm_mpv::tracks::selected(&tracks, dbm_mpv::tracks::TrackKind::Sub).is_some();
+    let showing =
+        mpv.get_bool("sub-visibility") && tracks::selected(&tracks, TrackKind::Sub).is_some();
     if showing {
         set_prop(mpv, "sub-visibility", "no");
         return;
     }
     // Only trust the current selection if it names a track this file has.
-    if dbm_mpv::tracks::selected(&tracks, dbm_mpv::tracks::TrackKind::Sub).is_none() {
+    if tracks::selected(&tracks, TrackKind::Sub).is_none() {
         set_prop(mpv, "sid", &subs[0].id.to_string());
     }
     set_prop(mpv, "sub-visibility", "yes");
@@ -191,18 +192,16 @@ pub fn add_subtitle(mpv: &Mpv, file: &std::path::Path, language: &str, show: boo
 ///
 /// **Blocking**: reads the track list. Worker thread only.
 pub fn remove_track(mpv: &Mpv, id: i64, subtitle: bool) -> Option<String> {
-    let count = mpv.get_f64("track-list/count").unwrap_or(0.0) as i64;
-    let kind = if subtitle { "sub" } else { "audio" };
-    let file = (0..count.max(0)).find_map(|i| {
-        let here = |name: &str| format!("track-list/{i}/{name}");
-        let matches = mpv.get_f64(&here("id")).map(|n| n as i64) == Some(id)
-            && mpv.get_property(&here("type")).as_deref() == Some(kind)
-            && mpv.get_bool(&here("external"));
-        matches.then(|| {
-            mpv.get_property(&here("external-filename"))
-                .unwrap_or_default()
-        })
-    })?;
+    let kind = if subtitle {
+        TrackKind::Sub
+    } else {
+        TrackKind::Audio
+    };
+    let file = tracks::read_tracks(mpv)
+        .into_iter()
+        .find(|track| track.id == id && track.kind == kind && track.external)?
+        .external_filename
+        .unwrap_or_default();
     let command = if subtitle {
         "sub-remove"
     } else {
