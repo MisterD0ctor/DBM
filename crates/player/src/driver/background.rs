@@ -1,8 +1,10 @@
 use super::{Driver, Gpu};
+use crate::Find;
 use crate::MainWindow;
 use crate::interface::{format, sync};
 use crate::worker::Completion;
 use dbm_lang::{fill, tr};
+use slint::ComponentHandle;
 
 impl Driver {
     /// Ask for the background work the player's state calls for, and take
@@ -51,8 +53,9 @@ impl Driver {
             return;
         }
         ui.set_find_open(false);
-        ui.set_find_state(0);
-        ui.set_find_fetching(-1);
+        let find = ui.global::<Find>();
+        find.set_state(0);
+        find.set_fetching(-1);
         // Not until it has opened: a track added before then is lost with
         // the load it raced.
         let Some(path) = self

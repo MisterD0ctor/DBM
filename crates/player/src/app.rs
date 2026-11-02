@@ -15,7 +15,7 @@ use dbm_library::preview::Preview;
 use dbm_mpv::Mpv;
 
 use crate::interface::chrome::Activity;
-use crate::interface::find::Find;
+use crate::interface::find::Search;
 use crate::interface::scale::Scale;
 use crate::interface::subline::Subline;
 use crate::playback::arrival::Arrival;
@@ -68,7 +68,7 @@ pub struct Shared {
     pub subline: Subline,
     /// The search for subtitles: the callbacks start it and read a pressed
     /// row back, the frame loop hands it the answers.
-    pub find: Find,
+    pub search: Search,
     /// Arriving at a file with a place saved in it: the callbacks ask for
     /// files through it, the frame loop tells it what the playlist knows and
     /// when a file has loaded.

@@ -123,7 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }),
         subline: interface::subline::Subline::new(settings.clone()),
-        find: interface::find::Find::default(),
+        search: interface::find::Search::default(),
         arrival: playback::arrival::Arrival::default(),
         retrace: playback::retrace::Retrace::default(),
         scale: interface::scale::Scale::default(),

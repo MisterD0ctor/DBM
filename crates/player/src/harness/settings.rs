@@ -5,6 +5,7 @@ use std::time::Duration;
 use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
+use crate::Find;
 use crate::{MainWindow, Motion};
 
 /// Open the settings panel and drive one parameter to its maximum, so the
@@ -150,18 +151,19 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
             .map(|t| format!("{}{}", if t.selected { "*" } else { "" }, t.label))
             .collect();
         let hits: Vec<String> = ui
-            .get_find_hits()
+            .global::<Find>()
+            .get_hits()
             .iter()
             .map(|h| format!("{} [{}]", h.label, h.detail))
             .collect();
         eprintln!(
             "dbm: find {label:<14} offered={} open={} state={} row={} fetching={} said={:?}",
-            ui.get_find_offered(),
+            ui.global::<Find>().get_offered(),
             ui.get_find_open(),
-            ui.get_find_state(),
+            ui.global::<Find>().get_state(),
             ui.get_focus_row(),
-            ui.get_find_fetching(),
-            ui.get_find_said(),
+            ui.global::<Find>().get_fetching(),
+            ui.global::<Find>().get_said(),
         );
         eprintln!("dbm: find {label:<14} tracks {subs:?}");
         if !hits.is_empty() {
@@ -258,11 +260,11 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
             ui.get_find_open(),
             ui.get_account_open(),
             ui.get_focus_row(),
-            ui.get_signing_in(),
-            ui.get_sign_in_said(),
-            ui.get_find_account(),
-            ui.get_find_left(),
-            ui.get_find_fetching(),
+            ui.global::<Find>().get_signing_in(),
+            ui.global::<Find>().get_sign_in_said(),
+            ui.global::<Find>().get_account(),
+            ui.global::<Find>().get_left(),
+            ui.global::<Find>().get_fetching(),
         );
     };
     let typed = |ui: &MainWindow, text: &str| {
@@ -308,7 +310,7 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
                     press(&ui, Key::Return);
                 }
                 21 => {
-                    clipboard = ui.get_find_account() == "fake";
+                    clipboard = ui.global::<Find>().get_account() == "fake";
                     if clipboard {
                         report(&ui, "pasted, in");
                     } else {
@@ -328,7 +330,7 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
                 // left.
                 27 => {
                     report(&ui, "searched again");
-                    let account = 1 + ui.get_find_hits().row_count() as i32;
+                    let account = 1 + ui.global::<Find>().get_hits().row_count() as i32;
                     for _ in 0..=account {
                         if ui.get_focus_row() == account {
                             break;
@@ -362,7 +364,7 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
                     press(&ui, Key::Return);
                 }
                 34 if clipboard => {
-                    let kept = ui.get_find_account() == "fake";
+                    let kept = ui.global::<Find>().get_account() == "fake";
                     report(&ui, if kept { "nothing copied" } else { "LEAKED" });
                 }
                 35 => eprintln!(

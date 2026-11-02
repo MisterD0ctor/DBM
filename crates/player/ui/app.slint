@@ -5,6 +5,7 @@
 // So panels have no background of their own: a fill here would paint over
 // the glass, not on it.
 
+import { Find } from "find.slint";
 import { Chrome, Flash, Tip } from "globals.slint";
 import {
     FoundItem, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, ScrollFade, TrackItem
@@ -22,7 +23,7 @@ import { Shapes, Squircle } from "squircle.slint";
 
 // What the Rust side reaches besides the window: the globals it drives and
 // the structs it fills in.
-export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem }
+export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem, Find }
 
 /// The marks on the bar's tracks, a chapter's start and the volume's unity.
 /// Both keep their size as a track grows under the pointer.
@@ -265,38 +266,15 @@ export component MainWindow inherits Window {
     // for want of an account opens a third page, one further in, to sign in
     // on, and signing in fetches it (see `AccountPage`).
 
-    /// Whether there is any searching to be done: a key, and a film.
-    in property <bool> find-offered;
     /// The search's page is the one the subtitles menu shows.
     in-out property <bool> find-open: false;
-    /// 0 nothing asked yet, 1 searching, 2 results, 3 none found, 4 failed.
-    in-out property <int> find-state: 0;
-    /// Why a search failed, in words.
-    in property <string> find-said;
-    in property <[FoundItem]> find-hits;
-    /// The row being fetched, or -1. One at a time.
-    in-out property <int> find-fetching: -1;
-    callback find-subtitles();
-    callback fetch-subtitle(int);
-    /// Who is signed in to OpenSubtitles, or empty.
-    in property <string> find-account;
-    /// The account's downloads left today, or -1 where OpenSubtitles hasn't
-    /// said.
-    in property <int> find-left: -1;
     /// The account's page is the one the subtitles menu shows.
     in-out property <bool> account-open: false;
-    in-out property <bool> signing-in: false;
-    /// Why the last sign-in failed, in words, or empty.
-    in-out property <string> sign-in-said;
     /// Why the sign-in's page opened: the refusal that sent the person there.
     property <string> sign-in-why;
-    /// Sign in with what was typed. Straight to the network thread, and
-    /// nowhere else (see `opensubtitles::account`).
-    callback sign-in(string, string);
-    callback sign-out();
-    property <bool> signed-in: root.find-account != "";
+    property <bool> signed-in: Find.account != "";
     /// How many results the search's page lists, from its second row.
-    property <int> find-hit-count: root.find-state == 2 ? root.find-hits.length : 0;
+    property <int> find-hit-count: Find.state == 2 ? Find.hits.length : 0;
     /// The account's row on the search's page, under the results, while
     /// someone is signed in.
     property <int> find-account-at: 1 + root.find-hit-count;
@@ -343,8 +321,8 @@ export component MainWindow inherits Window {
         root.menu-leaf = 3;
         root.find-open = true;
         root.focus-row = 0;
-        if (root.find-state != 1 && root.find-state != 2) {
-            root.find-subtitles();
+        if (Find.state != 1 && Find.state != 2) {
+            Find.search();
         }
     }
 
@@ -373,7 +351,7 @@ export component MainWindow inherits Window {
     /// The account's page, on its first field, or on *Sign out*.
     function open-account() {
         root.account-open = true;
-        root.sign-in-said = "";
+        Find.sign-in-said = "";
         root.focus-row = 1;
     }
 
@@ -392,7 +370,7 @@ export component MainWindow inherits Window {
         if (root.focus-row == 0) {
             root.close-account();
         } else if (root.signed-in) {
-            root.sign-out();
+            Find.sign-out();
             root.close-account();
         } else if (root.focus-row == 1) {
             root.focus-row = 2;
@@ -415,8 +393,8 @@ export component MainWindow inherits Window {
     }
 
     function fetch-row(row: int) {
-        if (root.find-fetching < 0 && row >= 0 && row < root.find-hits.length) {
-            root.fetch-subtitle(row);
+        if (Find.fetching < 0 && row >= 0 && row < Find.hits.length) {
+            Find.fetch(row);
         }
     }
 
@@ -425,8 +403,8 @@ export component MainWindow inherits Window {
     /// them, what is OpenSubtitles' rather than the film's: the account
     /// signed in, and the credit it asks for where its subtitles are picked.
     property <int> find-focus-count: 1 + root.find-hit-count + (root.signed-in ? 1 : 0);
-    property <length> find-natural: root.find-state == 2
-        ? root.find-hits.length * root.row-h : root.row-h;
+    property <length> find-natural: Find.state == 2
+        ? Find.hits.length * root.row-h : root.row-h;
     /// The credit's line: a heading's height, as a line about the rows
     /// rather than one of them.
     property <length> credit-h: Rows.heading;
@@ -436,7 +414,7 @@ export component MainWindow inherits Window {
         + (root.signed-in ? root.row-h : 0px) + root.credit-h;
     property <length> find-h: min(root.panel-pad + root.find-fixed + root.find-natural,
         root.panel-max-h);
-    property <length> find-list-h: root.find-state != 2 ? 0px
+    property <length> find-list-h: Find.state != 2 ? 0px
         : root.menu-moving ? root.find-rest-h
         : max(0px, menu.height - root.panel-pad - root.find-fixed);
     property <length> find-rest-h: min(root.find-natural,
@@ -446,8 +424,8 @@ export component MainWindow inherits Window {
     /// what is left, and *Sign out*.
     property <int> account-focus-count: root.signed-in ? 2 : 4;
     property <length> account-h: root.panel-pad + root.row-h * (root.signed-in
-        ? 3 + (root.find-left >= 0 ? 1 : 0)
-        : 4 + (root.sign-in-said != "" ? 1 : 0))
+        ? 3 + (Find.left >= 0 ? 1 : 0)
+        : 4 + (Find.sign-in-said != "" ? 1 : 0))
         + (!root.signed-in && root.sign-in-why != ""
             ? 2 * Rows.note-line + Rows.group-gap : 0px);
     // --- the subtitles' own pages ---------------------------------------------
@@ -651,7 +629,7 @@ export component MainWindow inherits Window {
     /// the one people reach for, then the ways to the pages of the one
     /// showing, then the search.
     property <int> subs-focus-count: root.subs-track-rows + (root.subs-showing ? 2 : 0)
-        + (root.find-offered ? 1 : 0);
+        + (Find.offered ? 1 : 0);
     property <int> subs-track-rows: root.has-subs ? 1 + root.sub-tracks.length : 0;
     /// Where the ways to the pages start: Timing, then Size & position.
     property <int> subs-pages-at: root.subs-track-rows;
@@ -2513,7 +2491,7 @@ export component MainWindow inherits Window {
     property <bool> has-subs: root.sub-tracks.length > 0;
     property <bool> has-audio: root.audio-tracks.length > 0;
     /// No tracks and nothing to search with.
-    property <bool> subs-empty: !root.has-subs && !root.find-offered;
+    property <bool> subs-empty: !root.has-subs && !Find.offered;
 
     /// The "Off" row belongs to the subtitle list, so it counts with it.
     out property <length> subs-natural: root.has-subs
@@ -2524,8 +2502,8 @@ export component MainWindow inherits Window {
     /// to the search.
     property <length> subs-fixed: (root.subs-showing ? 2 * root.row-h : 0px) + root.subs-below;
     /// The gap and the search, which come and go at once.
-    property <length> subs-below: (root.find-offered ? root.row-h : 0px)
-        + (root.has-subs && (root.subs-showing || root.find-offered) ? Rows.group-gap : 0px);
+    property <length> subs-below: (Find.offered ? root.row-h : 0px)
+        + (root.has-subs && (root.subs-showing || Find.offered) ? Rows.group-gap : 0px);
     /// The tracks and the ways to the pages as the menu eases to fit them, so
     /// they open and close with it, and the search under them keeps its place
     /// rather than dropping out of the menu and rising back.
@@ -3011,7 +2989,7 @@ export component MainWindow inherits Window {
                 }
             } else if (root.subs-page != 0) {
                 root.subs-page-activate();
-            } else if (root.find-offered && root.focus-row == root.subs-focus-count - 1) {
+            } else if (Find.offered && root.focus-row == root.subs-focus-count - 1) {
                 root.open-find();
             } else if (root.focus-row < root.subs-track-rows) {
                 root.select-subtitle(root.focus-row == 0
@@ -5369,7 +5347,7 @@ export component MainWindow inherits Window {
                 // however many tracks a film has and are never read as one
                 // more: the ways to the pages of the one showing, and to a
                 // page of other subtitles.
-                if root.has-subs && (root.subs-showing || root.find-offered): Rectangle {
+                if root.has-subs && (root.subs-showing || Find.offered): Rectangle {
                     height: Rows.group-gap;
                 }
                 // Opened and closed with the menu, each row standing where it
@@ -5412,7 +5390,7 @@ export component MainWindow inherits Window {
                         }
                     }
                 }
-                if root.find-offered: DrillRow {
+                if Find.offered: DrillRow {
                     icon: @image-url("../../../public/icons/search.svg");
                     label: @tr("Find subtitles");
                     focused: root.on-tracks && root.focus-row == root.subs-focus-count - 1;
@@ -5550,21 +5528,21 @@ export component MainWindow inherits Window {
                         root.close-find();
                     }
                 }
-                if root.find-state != 2: EmptyRow {
-                    label: root.find-state == 1 ? @tr("Searching OpenSubtitles…")
-                        : root.find-state == 3 ? @tr("No subtitles found")
-                        : root.find-said;
+                if Find.state != 2: EmptyRow {
+                    label: Find.state == 1 ? @tr("Searching OpenSubtitles…")
+                        : Find.state == 3 ? @tr("No subtitles found")
+                        : Find.said;
                 }
                 find-list := ScrollList {
                     height: root.find-list-h;
                     rest-height: root.find-rest-h;
-                    content-height: root.find-state == 2
-                        ? root.find-hits.length * root.row-h : 0px;
+                    content-height: Find.state == 2
+                        ? Find.hits.length * root.row-h : 0px;
 
-                    for hit[idx] in root.find-hits: FoundRow {
+                    for hit[idx] in Find.hits: FoundRow {
                         label: hit.label;
                         detail: hit.detail;
-                        busy: root.find-fetching == idx;
+                        busy: Find.fetching == idx;
                         focused: root.find-listing && root.focus-row == idx + 1;
                         picked => {
                             root.fetch-row(idx);
@@ -5579,8 +5557,8 @@ export component MainWindow inherits Window {
                 }
                 if root.signed-in: DrillRow {
                     icon: @image-url("../../../public/icons/account.svg");
-                    label: @tr("Signed in as {}", root.find-account);
-                    detail: root.find-left >= 0 ? @tr("{} left today", root.find-left) : "";
+                    label: @tr("Signed in as {}", Find.account);
+                    detail: Find.left >= 0 ? @tr("{} left today", Find.left) : "";
                     focused: root.find-listing && root.focus-row == root.find-account-at;
                     opened => {
                         root.open-account();
@@ -5603,11 +5581,11 @@ export component MainWindow inherits Window {
             height: root.menu-moving ? root.account-h : parent.height;
             y: root.menu-moving ? parent.height - self.height : 0;
             signed-in: root.signed-in;
-            account: root.find-account;
-            left: root.find-left;
-            busy: root.signing-in;
+            account: Find.account;
+            left: Find.left;
+            busy: Find.signing-in;
             why: root.sign-in-why;
-            said: root.sign-in-said;
+            said: Find.sign-in-said;
             ring-row: root.focus-row;
             active: root.account-shown;
             presses: root.sign-in-presses;
@@ -5615,10 +5593,10 @@ export component MainWindow inherits Window {
                 root.close-account();
             }
             submitted(name, password) => {
-                root.sign-in(name, password);
+                Find.sign-in(name, password);
             }
             sign-out => {
-                root.sign-out();
+                Find.sign-out();
                 root.close-account();
             }
             // Escape goes back a page, as everywhere; Enter is the row's own

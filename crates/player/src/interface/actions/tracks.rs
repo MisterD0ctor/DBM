@@ -1,5 +1,6 @@
 use slint::ComponentHandle;
 
+use crate::Find;
 use crate::MainWindow;
 use crate::app::App;
 use crate::playback::commands;
@@ -50,19 +51,21 @@ pub(super) fn wire_tracks(ui: &MainWindow, app: &App) {
 /// completions, which is where the rows are filled and the file loaded.
 pub(super) fn wire_finding(ui: &MainWindow, app: &App) {
     use dbm_library::opensubtitles;
+    let find = ui.global::<Find>();
     {
         let app = app.clone();
         let weak = ui.as_weak();
-        ui.on_find_subtitles(move || {
+        find.on_search(move || {
             app.activity.bump();
             let Some(ui) = weak.upgrade() else { return };
             let path = ui.get_current_path().to_string();
             if path.is_empty() {
                 return;
             }
-            app.find.clear();
-            ui.set_find_hits(Default::default());
-            ui.set_find_state(1);
+            app.search.clear();
+            let find = ui.global::<Find>();
+            find.set_hits(Default::default());
+            find.set_state(1);
             opensubtitles::search(
                 path,
                 search_languages(),
@@ -73,22 +76,22 @@ pub(super) fn wire_finding(ui: &MainWindow, app: &App) {
     {
         let app = app.clone();
         let weak = ui.as_weak();
-        ui.on_fetch_subtitle(move |row| {
+        find.on_fetch(move |row| {
             app.activity.bump();
             let Some(ui) = weak.upgrade() else { return };
-            let hit = app.find.hit(row);
+            let hit = app.search.hit(row);
             let path = ui.get_current_path().to_string();
             let Some(hit) = hit.filter(|_| !path.is_empty()) else {
                 return;
             };
-            ui.set_find_fetching(row);
+            ui.global::<Find>().set_fetching(row);
             opensubtitles::fetch(path, hit, app.worker.reporter(Completion::Fetched));
         });
     }
     {
         let app = app.clone();
         let weak = ui.as_weak();
-        ui.on_sign_in(move |name, password| {
+        find.on_sign_in(move |name, password| {
             app.activity.bump();
             let Some(ui) = weak.upgrade() else { return };
             // The player's one copy of the password, overwritten once it is
@@ -98,8 +101,9 @@ pub(super) fn wire_finding(ui: &MainWindow, app: &App) {
             if name.is_empty() || password.is_empty() {
                 return;
             }
-            ui.set_signing_in(true);
-            ui.set_sign_in_said(Default::default());
+            let find = ui.global::<Find>();
+            find.set_signing_in(true);
+            find.set_sign_in_said(Default::default());
             opensubtitles::account::sign_in(
                 name,
                 password,
@@ -110,12 +114,13 @@ pub(super) fn wire_finding(ui: &MainWindow, app: &App) {
     {
         let app = app.clone();
         let weak = ui.as_weak();
-        ui.on_sign_out(move || {
+        find.on_sign_out(move || {
             app.activity.bump();
             let Some(ui) = weak.upgrade() else { return };
             opensubtitles::account::sign_out();
-            ui.set_find_account(Default::default());
-            ui.set_find_left(-1);
+            let find = ui.global::<Find>();
+            find.set_account(Default::default());
+            find.set_left(-1);
         });
     }
 }

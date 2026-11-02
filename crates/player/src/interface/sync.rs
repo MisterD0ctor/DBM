@@ -15,11 +15,13 @@
 use dbm_mpv::tracks::{self, TrackKind};
 use slint::{ModelRc, SharedString, VecModel};
 
+use crate::Find;
 use crate::interface::format;
 use crate::playback::labels;
 use crate::playback::state::{Lists, PlayerState};
 use crate::worker::{Completion, Worker};
 use crate::{MainWindow, TrackItem};
+use slint::ComponentHandle;
 
 /// Push the scalar values the UI binds to.
 pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
@@ -67,7 +69,8 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     ui.set_current_path(player.path.clone().unwrap_or_default().into());
     // Searching needs a key the player was built with, and a film to look
     // for.
-    ui.set_find_offered(dbm_library::opensubtitles::available() && player.path.is_some());
+    ui.global::<Find>()
+        .set_offered(dbm_library::opensubtitles::available() && player.path.is_some());
 }
 
 /// Requests list reads and applies the results.

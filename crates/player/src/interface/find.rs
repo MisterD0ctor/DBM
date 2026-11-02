@@ -13,14 +13,14 @@ use dbm_library::opensubtitles::account::Account;
 use dbm_library::opensubtitles::{self, Failure, Fetched, Found, Hit};
 use dbm_mpv::Mpv;
 use dbm_naming::Media;
-use slint::{ModelRc, VecModel};
+use slint::{ComponentHandle, ModelRc, VecModel};
 
 use crate::playback::commands;
 use crate::worker::{Completion, Worker};
-use crate::{FoundItem, MainWindow};
+use crate::{Find, FoundItem, MainWindow};
 
 #[derive(Default)]
-pub struct Find(RefCell<State>);
+pub struct Search(RefCell<State>);
 
 #[derive(Default)]
 struct State {
@@ -32,7 +32,7 @@ struct State {
     waiting: Option<(String, Hit)>,
 }
 
-impl Find {
+impl Search {
     /// Forget the last search's rows, as a new one starts.
     pub fn clear(&self) {
         self.0.borrow_mut().found.clear();
@@ -48,7 +48,8 @@ impl Find {
 
     /// Fill the search's page with what OpenSubtitles found, or say why not.
     pub fn found(&self, ui: &MainWindow, playing: Option<&str>, found: Found) {
-        show_account(ui, found.account.as_ref());
+        let find = ui.global::<Find>();
+        show_account(&find, found.account.as_ref());
         if playing != Some(found.path.as_str()) {
             return;
         }
@@ -56,21 +57,22 @@ impl Find {
             Ok(hits) => {
                 let media = dbm_naming::parse(&found.path);
                 let rows: Vec<FoundItem> = hits.iter().map(|hit| found_row(hit, &media)).collect();
-                ui.set_find_hits(ModelRc::new(VecModel::from(rows)));
-                ui.set_find_state(if hits.is_empty() { 3 } else { 2 });
+                find.set_hits(ModelRc::new(VecModel::from(rows)));
+                find.set_state(if hits.is_empty() { 3 } else { 2 });
                 self.0.borrow_mut().found = hits;
             }
             Err(why) => {
-                ui.set_find_said(why.sentence().into());
-                ui.set_find_state(4);
+                find.set_said(why.sentence().into());
+                find.set_state(4);
             }
         }
     }
 
     /// Load a fetched subtitle and show it, or say why there is none.
     pub fn fetched(&self, ui: &MainWindow, mpv: &Mpv, playing: Option<&str>, fetched: Fetched) {
-        ui.set_find_fetching(-1);
-        show_account(ui, fetched.account.as_ref());
+        let find = ui.global::<Find>();
+        find.set_fetching(-1);
+        show_account(&find, fetched.account.as_ref());
         if playing != Some(fetched.path.as_str()) {
             return;
         }
@@ -106,11 +108,12 @@ impl Find {
         playing: Option<&str>,
         result: Result<Account, Failure>,
     ) {
-        ui.set_signing_in(false);
+        let find = ui.global::<Find>();
+        find.set_signing_in(false);
         match result {
             Ok(account) => {
-                show_account(ui, Some(&account));
-                ui.set_sign_in_said(Default::default());
+                show_account(&find, Some(&account));
+                find.set_sign_in_said(Default::default());
                 // Back to the search, on the row whose download goes on, if
                 // the sign-in's page is still the one showing.
                 if ui.get_menu_open() && ui.get_account_open() {
@@ -123,10 +126,10 @@ impl Find {
                 if playing != Some(path.as_str()) {
                     return;
                 }
-                ui.set_find_fetching(self.row_of(&hit));
+                find.set_fetching(self.row_of(&hit));
                 opensubtitles::fetch(path, hit, worker.reporter(Completion::Fetched));
             }
-            Err(why) => ui.set_sign_in_said(why.sentence().into()),
+            Err(why) => find.set_sign_in_said(why.sentence().into()),
         }
     }
 
@@ -143,9 +146,9 @@ impl Find {
 }
 
 /// Who is signed in to OpenSubtitles, on the search's page.
-fn show_account(ui: &MainWindow, account: Option<&Account>) {
-    ui.set_find_account(account.map(|a| a.name.as_str()).unwrap_or_default().into());
-    ui.set_find_left(
+fn show_account(find: &Find, account: Option<&Account>) {
+    find.set_account(account.map(|a| a.name.as_str()).unwrap_or_default().into());
+    find.set_left(
         account
             .and_then(|a| a.left)
             .map_or(-1, |left| left.clamp(0, i64::from(i32::MAX)) as i32),

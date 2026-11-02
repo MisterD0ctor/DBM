@@ -54,13 +54,13 @@ impl Driver {
             Completion::Synced(outcome) => {
                 subsync::answer(ui, &self.app.mpv, &self.player, outcome);
             }
-            Completion::Found(found) => self.app.find.found(ui, playing, found),
+            Completion::Found(found) => self.app.search.found(ui, playing, found),
             Completion::Fetched(fetched) => {
-                self.app.find.fetched(ui, &self.app.mpv, playing, fetched);
+                self.app.search.fetched(ui, &self.app.mpv, playing, fetched);
             }
             Completion::SignedIn(result) => {
                 self.app
-                    .find
+                    .search
                     .signed_in(ui, &self.app.worker, playing, result);
             }
             Completion::Kept { path, files } => self.put_back(&path, files),

@@ -6,6 +6,7 @@ use slint::platform::Key;
 use slint::{ComponentHandle, Model};
 
 use super::drive::{arrow, chord, click, hover, wheel};
+use crate::Find;
 use crate::MainWindow;
 
 /// Hold one surface open, with the chrome kept awake, for a capture: the
@@ -224,7 +225,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 match tick {
                     4 => ui.invoke_open_menu(true),
                     5 => ui.invoke_open_find(),
-                    7 if refused => ui.invoke_fetch_subtitle(0),
+                    7 if refused => ui.global::<Find>().invoke_fetch(0),
                     10 if refused => {
                         typed("fake");
                         arrow(&ui, Key::Return);
@@ -238,7 +239,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                     }
                     // Down until the ring is on the account's row, then in.
                     15 if surface == "account" => {
-                        let account = 1 + ui.get_find_hits().row_count() as i32;
+                        let account = 1 + ui.global::<Find>().get_hits().row_count() as i32;
                         for _ in 0..=account {
                             if ui.get_focus_row() == account {
                                 break;
