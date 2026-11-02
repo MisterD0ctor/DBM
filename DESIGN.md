@@ -750,7 +750,7 @@ losing nothing. Turned down, the pane clears.
 down; legibility is not on that page. Whatever absorption leaves, the glass
 lets through no more light than Body needs to keep `pipeline.LEGIBLE` of
 contrast on it: a ceiling worked out from `Paint.body` (`legible_ceiling`, in
-`gpu/pipeline.rs`), eased into from `glass.KNEE` of it so a bright area keeps
+`dbm_gpu::pipeline`), eased into from `glass.KNEE` of it so a bright area keeps
 its shading rather than going flat at a line. Over dark glass it does
 nothing; over a white frame the panes go to a mid grey, and over a coloured
 one keep its colour, darker. Like absorption it darkens the transmitted light
@@ -768,7 +768,7 @@ there is no ceiling either, and nothing but the words' own shadow between
 them and the film.
 
 **What the material is, and what you want of it, are different questions.**
-Two properties answer the first, and are constants in `gpu/pipeline.rs`
+Two properties answer the first, and are constants in `dbm_gpu::pipeline`
 rather than settings: the **bevel** (`BEVEL`: the rim is the corner) and the
 **index of refraction** (`IOR`: well past a window pane, short of the diamond
 that pulls a black oval across the top of the way in). Neither has a range
@@ -784,8 +784,8 @@ mirrored ray points back down, rising steeply to full at the very edge.
 window's own size. Past that the picture is averaged down a level at a time
 until what is left is under σ 6, blurred there, and drawn back with a cubic
 B-spline, whose smooth slope gives the refraction no seams to magnify (see
-`gpu/blur.rs`). So the top of the Blur slider costs about what its bottom does,
-and is still a Gaussian rather than a kernel cut short.
+`dbm_gpu::blur`). So the top of the Blur slider costs about what its bottom
+does, and is still a Gaussian rather than a kernel cut short.
 
 **The pane stays drawn over black.** Over a dark frame there is nothing for the
 glass to bend or blur, and a pane all but vanishes: a bar over a fade, or the
@@ -847,9 +847,9 @@ with no ffmpeg, keeps its last frame. It goes the moment the file is played
 or seeked again, or another opens.
 
 With no unfinished film, or no atlas for it, **the mark lights the window
-instead**: the logo, drawn into a tiny tile (see `gpu/mark.rs`) and given to the
-same pass, so it is covered, softened, dimmed and fallen away exactly as a
-film's frame would be. At that size the pass leaves no edge to read (a larger
+instead**: the logo, drawn into a tiny tile (see `dbm_library::mark`) and
+given to the same pass, so it is covered, softened, dimmed and fallen away
+exactly as a film's frame would be. At that size the pass leaves no edge to read (a larger
 tile still showed a face glowing behind the panel), so what reaches the glass
 is the mark's coral as light, brightest behind the panel and falling off across
 its rim, where refraction has something to show. A fresh install opens in this
@@ -909,7 +909,7 @@ scroll thumb is a capsule too. The switch is a capsule with a circular knob
 inset from its ends.
 
 The corners are the glass's own, and not a circle's: superelliptic, easing out
-of the straight edges over `CORNER_SOFTNESS` radii (in `gpu/pipeline.rs`) and
+of the straight edges over `CORNER_SOFTNESS` radii (in `dbm_gpu::pipeline`) and
 turning in further at the diagonal for it. Everything drawn on the glass or
 in its place takes the same outline — a row's wash, the end and skip pills'
 highlights, the fill that stands in where there is no glass — through
@@ -1450,7 +1450,7 @@ included, or a rail does not, so a highlighted row has no rim of its own. A pict
 seek preview's frame — is left alone, shadow and all.
 
 Like the list edges it is drawn by the player on the finished frame — see
-`gpu::shadow` — since Slint can shadow a rectangle and nothing else. It runs
+`dbm_gpu::shadow` — since Slint can shadow a rectangle and nothing else. It runs
 only where there is glass, and with the chrome asleep it does nothing. It finds
 the words by the white they added to the frame, and white on white adds none,
 so wherever it runs the glass pass hands Slint the frame held
@@ -1490,8 +1490,8 @@ has to take the press: an angle that took no pointer would hand it to the row
 under it, and play an episode nobody chose.
 
 It is drawn by the player rather than by Slint, over the finished frame once
-the soft edge is done — see `gpu::way`. Drawn by Slint it would stand in that
-edge and thin away with the rows; with the edge cut around it, the rows
+the soft edge is done — see `dbm_gpu::way`. Drawn by Slint it would stand in
+that edge and thin away with the rows; with the edge cut around it, the rows
 passing under it would show there whole and cut off. The angle is the
 icon itself, rendered by resvg, so there is still one drawing of it. The
 shadow comes after both and gives it its rim.
@@ -1507,7 +1507,7 @@ of an ellipsis. It comes on as the title outgrows the room, so one that fits
 is untouched.
 
 It is drawn by the player rather than by Slint, on the finished frame — see
-`gpu::fade` — which is why it is true blur and not a gradient laid over the
+`dbm_gpu::fade` — which is why it is true blur and not a gradient laid over the
 rows: what they thin away to is the frame underneath, whatever the film is
 doing in it.
 

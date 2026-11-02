@@ -89,7 +89,7 @@ truthfully claim any of this.
   carries the version of the way its entries are worked out, and forgets
   what another version kept. Records of what happened — files watched to the
   end, subtitles downloaded — have none and are never forgotten. See
-  `library/cache.rs`.
+  `dbm_library::cache`.
 - Runs on a high-refresh display; the interface is expected to move at the
   display's rate while video runs at the film's.
 

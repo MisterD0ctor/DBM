@@ -28,6 +28,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 PLAYER = REPO / "crates" / "player"
+GPU = REPO / "crates" / "gpu"
+LIBRARY = REPO / "crates" / "library"
 DESIGN_MD = REPO / "DESIGN.md"
 SIDECAR = REPO / ".impeccable" / "design.json"
 TEMPLATES = Path(__file__).resolve().parent / "design"
@@ -36,19 +38,19 @@ SIDECAR_TEMPLATE = TEMPLATES / "sidecar.json"
 
 # Rust and GLSL files a template may take a constant from, by a short name.
 MODULES = {
-    "pipeline": PLAYER / "src/gpu/pipeline.rs",
-    "shadow": PLAYER / "src/gpu/shadow.rs",
+    "pipeline": GPU / "src/pipeline.rs",
+    "shadow": GPU / "src/shadow.rs",
     "fades": PLAYER / "src/interface/fades.rs",
     "chrome": PLAYER / "src/interface/chrome.rs",
-    "way": PLAYER / "src/gpu/way.rs",
+    "way": GPU / "src/way.rs",
     "commands": PLAYER / "src/playback/commands.rs",
     "state": PLAYER / "src/playback/state.rs",
     "arrival": PLAYER / "src/playback/arrival.rs",
     "retrace": PLAYER / "src/playback/retrace.rs",
-    "preview": PLAYER / "src/library/preview.rs",
+    "preview": LIBRARY / "src/preview.rs",
     "window": PLAYER / "src/platform/window.rs",
-    "glass": PLAYER / "shaders/glass.frag",
-    "backdrop": PLAYER / "shaders/backdrop.frag",
+    "glass": GPU / "shaders/glass.frag",
+    "backdrop": GPU / "shaders/backdrop.frag",
 }
 
 # A value written out, which the generated files and the prose must not do.

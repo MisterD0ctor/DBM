@@ -273,6 +273,7 @@ you if you fork this.
 | path | what's in it |
 |---|---|
 | `crates/player/src/` | the application, in folders by concern; the table at the top of `main.rs` says what each one does |
+| `crates/library/`, `gpu/`, `mpv/`, `naming/`, `lang/` | what it is built on, a crate each: files on disk, the passes drawn over the video, the libmpv binding, reading names, and the words it speaks |
 | `crates/player/ui/` | the interface, in Slint |
 | `crates/gpu/shaders/` | the border, blur and glass shaders, and the background shown when nothing is playing |
 | `crates/lang/po/` | the translations |
