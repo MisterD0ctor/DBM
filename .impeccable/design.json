@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-02T01:55:48Z",
+  "generatedAt": "2026-11-02T02:05:35Z",
   "title": "Design System: Death by MPV",
   "extensions": {
     "colorMeta": {
@@ -370,7 +370,7 @@
         "bevel": "fraction of each panel's own corner radius",
         "cornerSoftness": "how many radii a corner's curve runs along each edge; 1 is a quarter ellipse, larger is squarer and smoother",
         "refract": "fraction of the bevel width",
-        "others": "see crates/player/src/settings.rs for ranges"
+        "others": "see crates/player/src/settings/registry.rs for ranges"
       },
       "backdrop": {
         "source": "one seek-preview tile of the last film left unfinished, taken at the point you stopped, or the player's own mark on a fresh install",
