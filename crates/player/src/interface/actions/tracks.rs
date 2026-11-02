@@ -60,7 +60,7 @@ pub(super) fn wire_finding(ui: &MainWindow, app: &App) {
             if path.is_empty() {
                 return;
             }
-            app.found.borrow_mut().clear();
+            app.find.clear();
             ui.set_find_hits(Default::default());
             ui.set_find_state(1);
             opensubtitles::search(
@@ -76,9 +76,7 @@ pub(super) fn wire_finding(ui: &MainWindow, app: &App) {
         ui.on_fetch_subtitle(move |row| {
             app.activity.bump();
             let Some(ui) = weak.upgrade() else { return };
-            let hit = usize::try_from(row)
-                .ok()
-                .and_then(|row| app.found.borrow().get(row).cloned());
+            let hit = app.find.hit(row);
             let path = ui.get_current_path().to_string();
             let Some(hit) = hit.filter(|_| !path.is_empty()) else {
                 return;

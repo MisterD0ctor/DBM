@@ -8,15 +8,14 @@
 //! UI thread only, like everything that holds one: the `Rc`s are not `Send`.
 //! The worker and the bus threads are given the `Arc<Mpv>` alone.
 
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
-use dbm_library::opensubtitles::Hit;
 use dbm_library::preview::Preview;
 use dbm_mpv::Mpv;
 
 use crate::interface::chrome::Activity;
+use crate::interface::find::Find;
 use crate::interface::scale::Scale;
 use crate::interface::subline::Subline;
 use crate::playback::arrival::Arrival;
@@ -67,13 +66,9 @@ pub struct Shared {
     /// Where subtitles sit. The callbacks move the line when the person
     /// does, the frame loop when the bar does, and both go through here.
     pub subline: Subline,
-    /// What the last search on OpenSubtitles found, in the order its rows
-    /// are drawn: the frame loop puts it here, a pressed row reads it back.
-    pub found: RefCell<Vec<Hit>>,
-    /// The result whose download was refused for want of an account, and the
-    /// film it was for: fetched again once the person signs in, which is what
-    /// they signed in for.
-    pub waiting: RefCell<Option<(String, Hit)>>,
+    /// The search for subtitles: the callbacks start it and read a pressed
+    /// row back, the frame loop hands it the answers.
+    pub find: Find,
     /// Arriving at a file with a place saved in it: the callbacks ask for
     /// files through it, the frame loop tells it what the playlist knows and
     /// when a file has loaded.

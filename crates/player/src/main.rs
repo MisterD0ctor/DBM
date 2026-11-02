@@ -62,7 +62,6 @@ mod run_mode;
 mod settings;
 mod worker;
 
-use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -124,8 +123,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }),
         subline: interface::subline::Subline::new(settings.clone()),
-        found: RefCell::default(),
-        waiting: RefCell::default(),
+        find: interface::find::Find::default(),
         arrival: playback::arrival::Arrival::default(),
         retrace: playback::retrace::Retrace::default(),
         scale: interface::scale::Scale::default(),

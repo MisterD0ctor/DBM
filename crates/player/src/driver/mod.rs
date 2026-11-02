@@ -33,7 +33,7 @@ use slint::{ComponentHandle, GraphicsAPI, RenderingState};
 
 use crate::app::App;
 use crate::interface::subline::Picture;
-use crate::interface::{fades, format, glass, playlist_panel, sync};
+use crate::interface::{fades, format, glass, playlist_panel, sync, warn};
 use crate::platform::modal_loop;
 use crate::playback::commands;
 use crate::playback::state::PlayerState;
@@ -637,16 +637,4 @@ impl Driver {
             ui.set_sub_pos_text(format::position(own).into());
         }
     }
-}
-
-/// Put one sentence on screen, in the action flash's capsule, since a packaged
-/// build has no console, and nobody reads its log as it happens.
-fn say(ui: &MainWindow, text: String) {
-    ui.global::<crate::Flash>().invoke_notice(text.into());
-}
-
-/// Say that something did not happen: the same sentence, with the warning
-/// mark before it. For a failure, never for news.
-fn warn(ui: &MainWindow, text: String) {
-    ui.global::<crate::Flash>().invoke_warn(text.into());
 }
