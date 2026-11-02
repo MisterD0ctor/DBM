@@ -378,6 +378,14 @@ pub(super) fn panel_test(ui: &MainWindow) -> Script {
         beat.next().await;
         report_panels(&ui, "settings language");
         beat.next().await;
+        ui.invoke_open_settings_page(6);
+        beat.next().await;
+        report_panels(&ui, "settings video");
+        beat.next().await;
+        ui.invoke_open_settings_page(7);
+        beat.next().await;
+        report_panels(&ui, "settings episodes");
+        beat.next().await;
         ui.invoke_open_settings(false);
         beat.next().await;
         report_panels(&ui, "closed again");

@@ -1090,3 +1090,11 @@ msgstr "{}%"
 msgctxt "MainWindow"
 msgid "Skip intros"
 msgstr "Salta le intro"
+
+msgctxt "MainWindow"
+msgid "Episodes"
+msgstr "Episodi"
+
+msgctxt "MainWindow"
+msgid "EPISODES"
+msgstr "EPISODI"

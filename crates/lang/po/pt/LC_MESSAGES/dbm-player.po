@@ -1091,3 +1091,11 @@ msgstr "{}%"
 msgctxt "MainWindow"
 msgid "Skip intros"
 msgstr "Pular aberturas"
+
+msgctxt "MainWindow"
+msgid "Episodes"
+msgstr "Episódios"
+
+msgctxt "MainWindow"
+msgid "EPISODES"
+msgstr "EPISÓDIOS"

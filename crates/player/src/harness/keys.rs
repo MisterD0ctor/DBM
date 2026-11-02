@@ -50,9 +50,10 @@ pub(super) fn reach_test(ui: &MainWindow) -> Script {
             "accessibility" => {
                 eprintln!("dbm: pressing S for the settings");
                 chord(&ui, &[], "s");
-                // S lands the ring on the first row, so two Downs reach
-                // Accessibility; Enter opens it; Down onto the switch.
-                for _ in 0..2 {
+                // S lands the ring on the first row, Video, so four Downs
+                // reach Accessibility; Enter opens it; two Downs past the
+                // interface's size onto Animations.
+                for _ in 0..4 {
                     beat.next().await;
                     chord(&ui, &[], down.as_str());
                     eprintln!("dbm: down -> row {}", ui.get_focus_row());
@@ -60,9 +61,11 @@ pub(super) fn reach_test(ui: &MainWindow) -> Script {
                 beat.next().await;
                 chord(&ui, &[], enter.as_str());
                 eprintln!("dbm: enter, opening the accessibility page");
-                beat.next().await;
-                chord(&ui, &[], down.as_str());
-                eprintln!("dbm: down -> row {}", ui.get_focus_row());
+                for _ in 0..2 {
+                    beat.next().await;
+                    chord(&ui, &[], down.as_str());
+                    eprintln!("dbm: down -> row {}", ui.get_focus_row());
+                }
                 for _ in 0..2 {
                     beat.next().await;
                     chord(&ui, &[], enter.as_str());
@@ -78,9 +81,13 @@ pub(super) fn reach_test(ui: &MainWindow) -> Script {
             "glass" => {
                 eprintln!("dbm: pressing S for the settings");
                 chord(&ui, &[], "s");
-                // S puts the ring on the first row, Liquid glass, so Enter
-                // opens it directly; a Down first would walk into the ambient
+                // S puts the ring on the first row, Video, so two Downs reach
+                // Liquid glass, and a third would walk into the ambient
                 // border's page.
+                for _ in 0..2 {
+                    beat.next().await;
+                    chord(&ui, &[], down.as_str());
+                }
                 beat.next().await;
                 chord(&ui, &[], enter.as_str());
                 eprintln!("dbm: enter, opening the glass page");

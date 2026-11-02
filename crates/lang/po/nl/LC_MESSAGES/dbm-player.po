@@ -1090,3 +1090,11 @@ msgstr "{}%"
 msgctxt "MainWindow"
 msgid "Skip intros"
 msgstr "Intro's overslaan"
+
+msgctxt "MainWindow"
+msgid "Episodes"
+msgstr "Afleveringen"
+
+msgctxt "MainWindow"
+msgid "EPISODES"
+msgstr "AFLEVERINGEN"

@@ -1513,22 +1513,26 @@ doing in it.
 
 ### The settings tree
 - **The first page:** three groups of drill rows. PLAYBACK, first, since how
-  the film plays is what is most often reached for mid-film: *Video*. Then
+  the film plays is what is most often reached for mid-film: *Video* and
+  *Episodes*. Then
   EFFECTS, the player's own look: *Liquid glass* and *Ambient border*. Then
   INTERFACE: *Accessibility*, *Shortcuts* and *Language*
 - **VIDEO:** *Speed*, a stepper on the ladder `<` and `>` climb, so the
   pointer has a way to it too; *Fill the window*, the bar's T as a switch; and
-  *Show the time left*, the timeline's right end as a switch. Then, after a
-  group gap, how a list plays on: *Skip intros*, *Autoplay next*, and *Skip
-  credits* while autoplay is on. Settings about every episode rather than
-  the one playing, set once and left, so they are kept here rather than
-  under the playlist, which is opened to pick an episode and would give up
-  rows of it to them. Then, between group gaps, the picture as mpv draws it, *Brightness*, *Contrast*,
+  *Show the time left*, the timeline's right end as a switch. Then, between
+  group gaps, the picture as mpv draws it, *Brightness*, *Contrast*,
   *Saturation* and *Gamma*, each from -100 to 100 and none by default, read
   as `+10` or `−20` and filled out from the middle of the track, where none of
   it is (see Sliders); and *Reset the picture*, which leaves the rows above it alone. A
   preference, as the subtitles' size is, not a film's: what a screen or a
   room needs, every film needs
+- **EPISODES:** how a list plays on: *Skip intros*, *Autoplay next*, and
+  *Skip credits* while autoplay is on. About every episode rather than the
+  one playing, and set once and left, so a page of their own rather than a
+  group on the video page, between the speed someone reaches for mid-film
+  and the picture a room needs; and not under the playlist, which is opened
+  to pick an episode and would give up rows of it to them. No reset, as on
+  the accessibility page: each row is its own undo
 - **ACCESSIBILITY:** *Interface size*, a stepper from 100% to 150% in tenths,
   on top of whatever the system's display scaling does (`interface::scale`):
   everything grows together, the glass with it, and the window's own floor
@@ -1612,8 +1616,8 @@ doing in it.
 - **Hover:** Soft wash; one target for the whole row
 - **Use:** Ambient border at the head of its own
   page, over the sliders that tune it, since whether comes before how; *Fill
-  the window* and *Show the time left* under the speed on the video page, and
-  *Skip intros*, *Autoplay next* and *Skip credits* in a group after them; and
+  the window* and *Show the time left* under the speed on the video page;
+  *Skip intros*, *Autoplay next* and *Skip credits* on the episodes page; and
   Animations, Darken bright glass, Tooltips and Shortcuts in tooltips on the
   accessibility page under its *Interface size* — a page with no reset,
   because each row is its own undo. B still turns the border on and off from anywhere, as the one
@@ -2013,7 +2017,7 @@ and for the seek preview when the preview reaches its column; a hover label
 that would land on it goes up a row instead. Glass never lies on glass.
 
 **Going on by itself.** For someone who turned on *Skip credits* on the
-video page, the pill counts down: a Button wash fills its capsule from the
+episodes page, the pill counts down: a Button wash fills its capsule from the
 start over `skips.COUNTDOWN` seconds of the film, the On ring wash when the
 ring is on it, and when it is full the pill is pressed for them. It goes
 only where autoplay would — the next file, or a scene after the credits —
@@ -2063,8 +2067,8 @@ read is noise.
 It needs nowhere to go, so the last episode of a season has it too; a film
 never does, for the reason it has no credits pill.
 
-**Skipped by itself.** For someone who turned on *Skip intros* on the video
-page, the sequence goes as it starts, with no count: an intro is short
+**Skipped by itself.** For someone who turned on *Skip intros* on the
+episodes page, the sequence goes as it starts, with no count: an intro is short
 and comes round every episode, and seconds spent showing the offer would be
 seconds of the thing being skipped. What shows it instead is the way back
 after (see *Going back after a jump*), *Back to 0:42*, from where the skip

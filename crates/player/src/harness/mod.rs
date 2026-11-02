@@ -42,8 +42,9 @@
 //!   right-hand pill instead of in the corner, so the hover label shows.
 //!   `tip-volume` rests it on the volume track, whose label is the level.
 //! * `DBM_SHOWCASE=window-max` presses the window's own maximize button.
-//! * `DBM_SHOWCASE=settings`, `video`, `glass`, `ambience`, `accessibility`,
-//!   `shortcuts` and `language` open the settings on that page.
+//! * `DBM_SHOWCASE=settings`, `video`, `episodes`, `glass`, `ambience`,
+//!   `accessibility`, `shortcuts` and `language` open the settings on that
+//!   page.
 //! * `DBM_SHOWCASE=muted` mutes, for the volume track with its fill gone.
 //! * `DBM_SHOWCASE=find`, `sign-in`, `sign-in-ring`, `signed-in` and
 //!   `account`, with `DBM_FIND_FAKE=spent`: the search's page, the sign-in a
@@ -82,7 +83,7 @@
 //! * `DBM_SHOWCASE=settings-drill` and `find-drill` do the same for the
 //!   settings, between the front page and the glass's, and for the subtitles
 //!   menu, between the tracks and the search's page (with `DBM_FIND_FAKE`).
-//!   `tucked` opens the video page and flips Autoplay next on every tick,
+//!   `tucked` opens the episodes page and flips Autoplay next on every tick,
 //!   for Skip credits sliding out from under it and back.
 //! * `DBM_SHOWCASE=ring-bar` walks the ring with Tab to the settings button,
 //!   for the disc of glass under it; `ring-row` and `ring-slider` put it on a

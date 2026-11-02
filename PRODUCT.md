@@ -65,7 +65,7 @@ truthfully claim any of this.
   another episode of its season — and where they were heard is kept in
   `intros.json` and `outros.json`, for that episode and the one it was
   compared with. Skipping either is offered by the corner pill; with *Skip
-  intros* or *Skip credits* on, on the video page of the settings, both off
+  intros* or *Skip credits* on, on the settings' Episodes page, both off
   until turned on,
   it is done for the person — the titles at once, with the way back
   offered, the credits once the pill has counted down. See

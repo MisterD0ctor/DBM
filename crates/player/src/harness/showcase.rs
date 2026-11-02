@@ -539,7 +539,8 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                 "accessibility" | "tips-off" => ui.invoke_open_settings_page(3),
                 "shortcuts" => ui.invoke_open_settings_page(4),
                 "language" | "language-walk" => ui.invoke_open_settings_page(5),
-                "video" | "tucked" => ui.invoke_open_settings_page(6),
+                "video" => ui.invoke_open_settings_page(6),
+                "episodes" | "tucked" => ui.invoke_open_settings_page(7),
                 // The subtitles menu's two pages, which want a subtitle on
                 // before they open (below).
                 "timing" | "placing" | "subs-drill" | "timing-drill" => {

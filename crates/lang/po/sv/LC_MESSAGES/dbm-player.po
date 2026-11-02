@@ -1087,3 +1087,11 @@ msgstr "{} %"
 msgctxt "MainWindow"
 msgid "Skip intros"
 msgstr "Hoppa över intron"
+
+msgctxt "MainWindow"
+msgid "Episodes"
+msgstr "Avsnitt"
+
+msgctxt "MainWindow"
+msgid "EPISODES"
+msgstr "AVSNITT"
