@@ -7,6 +7,7 @@ use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
 use super::drive::{arrow, chord, hover, wheel};
+use super::script::{self, Beat, Script, Verdict};
 use super::{playlist_rows, selected_label, short};
 use crate::{MainWindow, Playback, Playlist, Settings, Subtitles, Tracks};
 
@@ -23,124 +24,154 @@ fn report(ui: &MainWindow, label: &str) {
     );
 }
 
-pub(super) fn input_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(1500),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            // Alternating act / observe, so each report reflects a settled
-            // state rather than one still in flight.
-            match step {
-                0 => report(&ui, "start"),
-                1 => ui.global::<Playback>().invoke_toggle_pause(),
-                2 => report(&ui, "after toggle-pause"),
-                3 => ui.global::<Playback>().invoke_toggle_pause(),
-                4 => report(&ui, "after toggle again"),
-                5 => ui.global::<Playback>().invoke_seek_fraction(0.5),
-                6 => report(&ui, "after seek to 50%"),
-                7 => ui.global::<Playback>().invoke_nudge_volume(-15.0),
-                8 => report(&ui, "after volume -15"),
-                9 => ui.global::<Playback>().invoke_seek_relative(-3.0),
-                10 => report(&ui, "after seek -3s"),
-                11 => ui.global::<Playback>().invoke_toggle_mute(),
-                12 => report(&ui, "after toggle-mute"),
-                13 => ui.global::<Tracks>().invoke_select_audio(2),
-                14 => report(&ui, "after audio -> id 2"),
-                15 => ui.global::<Tracks>().invoke_select_subtitle(2),
-                16 => report(&ui, "after sub -> id 2"),
-                17 => ui.global::<Tracks>().invoke_select_subtitle(-1),
-                18 => report(&ui, "after subs off"),
-                19 => ui.global::<Subtitles>().invoke_toggle(),
-                20 => report(&ui, "after captions toggle"),
-                21 => ui.global::<Playback>().invoke_toggle_panscan(),
-                22 => eprintln!("dbm: panscan now {}", ui.global::<Playback>().get_panscan()),
-                23 => ui.global::<Playback>().invoke_toggle_panscan(),
-                24 => eprintln!(
-                    "dbm: panscan back to {}",
-                    ui.global::<Playback>().get_panscan()
-                ),
-                // The mute from step 11 is still on. Now the bar is used: the
-                // level has to arrive and the mute has to go, since either
-                // alone is a volume nobody can hear.
-                25 => report(&ui, "still muted, about to use the bar"),
-                26 => ui.global::<Playback>().invoke_set_volume(120.0),
-                27 => report(&ui, "after the bar was used while muted"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+pub(super) fn input_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        let verdict = Verdict::new("input");
+        let playback = ui.global::<Playback>();
+        let tracks = ui.global::<Tracks>();
+        let subtitles = ui.global::<Subtitles>();
+        let selected =
+            |rows: slint::ModelRc<crate::TrackItem>| rows.iter().find(|t| t.selected).map(|t| t.id);
+        let mut beat = Beat::new(Duration::from_millis(1500));
+        // Alternating act / observe, so each report reflects a settled
+        // state rather than one still in flight.
+        beat.next().await;
+        report(&ui, "start");
+        beat.next().await;
+        playback.invoke_toggle_pause();
+        beat.next().await;
+        report(&ui, "after toggle-pause");
+        verdict.check(playback.get_paused(), "a toggle pauses");
+        beat.next().await;
+        playback.invoke_toggle_pause();
+        beat.next().await;
+        report(&ui, "after toggle again");
+        verdict.check(!playback.get_paused(), "a second toggle plays on");
+        beat.next().await;
+        playback.invoke_seek_fraction(0.5);
+        beat.next().await;
+        report(&ui, "after seek to 50%");
+        verdict.check(
+            (playback.get_progress() - 0.5).abs() < 0.1,
+            "a seek to half way lands there",
+        );
+        beat.next().await;
+        let volume = playback.get_volume();
+        playback.invoke_nudge_volume(-15.0);
+        beat.next().await;
+        report(&ui, "after volume -15");
+        verdict.check(
+            (playback.get_volume() - (volume - 15.0)).abs() < 0.5,
+            "the volume comes down by what was asked",
+        );
+        beat.next().await;
+        let progress = playback.get_progress();
+        playback.invoke_seek_relative(-3.0);
+        beat.next().await;
+        report(&ui, "after seek -3s");
+        verdict.check(playback.get_progress() < progress, "a seek back goes back");
+        beat.next().await;
+        playback.invoke_toggle_mute();
+        beat.next().await;
+        report(&ui, "after toggle-mute");
+        verdict.check(playback.get_muted(), "a toggle mutes");
+        beat.next().await;
+        tracks.invoke_select_audio(2);
+        beat.next().await;
+        report(&ui, "after audio -> id 2");
+        verdict.check(
+            selected(tracks.get_audio()) == Some(2),
+            "the audio track picked plays",
+        );
+        beat.next().await;
+        tracks.invoke_select_subtitle(2);
+        beat.next().await;
+        report(&ui, "after sub -> id 2");
+        beat.next().await;
+        tracks.invoke_select_subtitle(-1);
+        beat.next().await;
+        report(&ui, "after subs off");
+        verdict.check(!subtitles.get_visible(), "subtitles turned off are off");
+        beat.next().await;
+        subtitles.invoke_toggle();
+        beat.next().await;
+        report(&ui, "after captions toggle");
+        verdict.check(
+            subtitles.get_visible() && selected(tracks.get_subtitles()).is_some(),
+            "a toggle turns subtitles on, on a track",
+        );
+        beat.next().await;
+        playback.invoke_toggle_panscan();
+        beat.next().await;
+        eprintln!("dbm: panscan now {}", playback.get_panscan());
+        verdict.check(playback.get_panscan(), "a toggle fills the window");
+        beat.next().await;
+        playback.invoke_toggle_panscan();
+        beat.next().await;
+        eprintln!("dbm: panscan back to {}", playback.get_panscan());
+        verdict.check(!playback.get_panscan(), "a second toggle fits it again");
+        beat.next().await;
+        // The mute is still on. Now the bar is used: the level has to arrive
+        // and the mute has to go, since either alone is a volume nobody can
+        // hear.
+        report(&ui, "still muted, about to use the bar");
+        beat.next().await;
+        playback.invoke_set_volume(120.0);
+        beat.next().await;
+        report(&ui, "after the bar was used while muted");
+        verdict.check(
+            !playback.get_muted() && (playback.get_volume() - 120.0).abs() < 0.5,
+            "the bar sets the level and unmutes",
+        );
+        verdict.finish();
+    })
 }
 
 /// Drag the timeline the way a hand does: many small position updates,
 /// arriving faster than mpv can service them.
-pub(super) fn scrub_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut tick = 0u32;
-    let mut started = std::time::Instant::now();
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(16),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            // Let playback settle before dragging.
-            if tick == 0 {
-                started = std::time::Instant::now();
-            }
-            tick += 1;
-            if tick < 120 {
-                return;
-            }
-            let step = tick - 120;
-            if step > 130 {
-                return;
-            }
-            if step == 0 {
-                started = std::time::Instant::now();
-                eprintln!(
-                    "dbm: --- scrub drag starting, paused={} ---",
-                    ui.global::<Playback>().get_paused()
-                );
-            }
+pub(super) fn scrub_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        let verdict = Verdict::new("scrub");
+        let mut beat = Beat::new(Duration::from_millis(16));
+        let playback = ui.global::<Playback>();
+        // Let playback settle before dragging.
+        beat.rest(120).await;
+        let started = std::time::Instant::now();
+        eprintln!(
+            "dbm: --- scrub drag starting, paused={} ---",
+            playback.get_paused()
+        );
+        // Sweep 10% -> 90%, several updates per tick, as a real drag
+        // delivers moves faster than a 16ms timer.
+        for step in 0..120u32 {
             if step == 60 {
-                eprintln!(
-                    "dbm: mid-drag paused={}",
-                    ui.global::<Playback>().get_paused()
-                );
+                eprintln!("dbm: mid-drag paused={}", playback.get_paused());
+                verdict.check(playback.get_paused(), "a drag holds the film still");
             }
-            // Sweep 10% -> 90%, several updates per tick, as a real drag
-            // delivers moves faster than a 16ms timer. Stop once released, or
-            // the next tick starts a fresh drag.
-            if step < 120 {
-                for sub in 0..4 {
-                    ui.global::<Playback>()
-                        .invoke_seek_scrub(0.1 + 0.8 * ((step * 4 + sub) as f32 / 480.0));
-                }
+            for sub in 0..4 {
+                playback.invoke_seek_scrub(0.1 + 0.8 * ((step * 4 + sub) as f32 / 480.0));
             }
-            if step == 120 {
-                // Release, so the coalescing report fires.
-                ui.global::<Playback>().invoke_seek_fraction(0.9);
-                eprintln!(
-                    "dbm: --- scrub drag done in {:.0}ms ---",
-                    started.elapsed().as_secs_f64() * 1000.0
-                );
+            beat.next().await;
+        }
+        // Release, so the coalescing report fires.
+        playback.invoke_seek_fraction(0.9);
+        eprintln!(
+            "dbm: --- scrub drag done in {:.0}ms ---",
+            started.elapsed().as_secs_f64() * 1000.0
+        );
+        // Two ticks later, so the resume has round-tripped through mpv.
+        beat.rest(2).await;
+        eprintln!("dbm: after release paused={}", playback.get_paused());
+        // On a busy machine the round trip can take longer than that.
+        for _ in 0..60 {
+            if !playback.get_paused() {
+                break;
             }
-            // A tick later, so the resume has round-tripped through mpv.
-            if step == 122 {
-                eprintln!(
-                    "dbm: after release paused={}",
-                    ui.global::<Playback>().get_paused()
-                );
-            }
-        },
-    );
-    timer
+            beat.next().await;
+        }
+        verdict.check(!playback.get_paused(), "the film plays on within a second");
+        verdict.finish();
+    })
 }
 
 /// Drag the timeline slowly, stop, and see what picture is on screen; then
@@ -156,7 +187,7 @@ pub(super) fn scrub_test(ui: &MainWindow) -> slint::Timer {
 /// Real pointer events, because a stopped pointer is noticed by a Slint timer
 /// that only a held button runs. Pair it with `DBM_TRACE=1` for how many of
 /// each drag's seeks were exact.
-pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
+pub(super) fn slow_scrub_test(ui: &MainWindow) -> Script {
     use super::drive::{press, release};
 
     // Three legs of sixty moves, a rest after each. `leg` is how many moves
@@ -167,18 +198,15 @@ pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
         323..=382 => Some(tick - 322 + 120),
         _ => None,
     };
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut tick = 0u32;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(16),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            tick += 1;
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(16));
+        let playback = ui.global::<Playback>();
+        for tick in 1..=585u32 {
+            beat.next().await;
             let y = ui.get_timeline_y() + 14.0;
             let x = |fraction: f32| ui.get_scrub_x() + ui.get_scrub_w() * fraction;
-            let picture = || ui.global::<Playback>().get_progress() * ui.global::<Playback>().get_duration();
+            let picture =
+                || ui.global::<Playback>().get_progress() * ui.global::<Playback>().get_duration();
             let report = |label: &str, fraction: f32| {
                 let wanted = fraction * ui.global::<Playback>().get_duration();
                 eprintln!(
@@ -211,7 +239,10 @@ pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
                 // The third: a drag that wanders off the track before the
                 // button comes up, which is how most of them end.
                 (520, _) => {
-                    eprintln!("dbm: scrub before the third drag paused={}", ui.global::<Playback>().get_paused());
+                    eprintln!(
+                        "dbm: scrub before the third drag paused={}",
+                        playback.get_paused()
+                    );
                     press(&ui, x(0.30), y);
                 }
                 (521..=530, _) => hover(&ui, x(0.30 + 0.001 * (tick - 520) as f32), y),
@@ -219,7 +250,7 @@ pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
                 (532, _) => release(&ui, x(0.31), y - 80.0),
                 (560, _) => {
                     report("let go off the track", 0.31);
-                    eprintln!("dbm: scrub after it paused={}", ui.global::<Playback>().get_paused());
+                    eprintln!("dbm: scrub after it paused={}", playback.get_paused());
                 }
                 // And no drag at all: a click still has to seek, since the
                 // button coming up is what seeks.
@@ -233,9 +264,8 @@ pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
                 }
                 _ => {}
             }
-        },
-    );
-    timer
+        }
+    })
 }
 
 /// Watch the bar fade out, in the value the pipeline is actually given.
@@ -245,39 +275,33 @@ pub(super) fn slow_scrub_test(ui: &MainWindow) -> slint::Timer {
 /// jump to nothing is a cut. Worth checking because the interface only asks
 /// for frames while it is on screen, so the fade-out depends on Slint driving
 /// its own animation.
-pub(super) fn fade_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut seen: Vec<f32> = Vec::new();
-    let mut settled = 0u32;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(16),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
+pub(super) fn fade_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(16));
+        // Every step the bar's opacity takes, until it has been gone a while.
+        let mut seen: Vec<f32> = Vec::new();
+        let mut settled = 0u32;
+        while settled < 12 {
+            beat.next().await;
             let Some(bar) = ui.get_glass_rects().row_data(0) else {
-                return;
+                continue;
             };
             let now = if bar.width > 0.0 { bar.opacity } else { 0.0 };
             if seen.last().is_none_or(|last| (last - now).abs() > 0.001) {
                 seen.push(now);
             }
-            if now > 0.0 {
-                return;
+            if now == 0.0 {
+                settled += 1;
             }
-            settled += 1;
-            if settled == 12 {
-                let steps: Vec<String> = seen.iter().map(|v| format!("{v:.2}")).collect();
-                eprintln!(
-                    "dbm: bar faded through {} value(s): {}",
-                    seen.len(),
-                    steps.join(" ")
-                );
-                eprintln!("dbm: --- fade test done ---");
-            }
-        },
-    );
-    timer
+        }
+        let steps: Vec<String> = seen.iter().map(|v| format!("{v:.2}")).collect();
+        eprintln!(
+            "dbm: bar faded through {} value(s): {}",
+            seen.len(),
+            steps.join(" ")
+        );
+        eprintln!("dbm: --- fade test done ---");
+    })
 }
 
 /// Walk the pointer along the timeline and read the preview off the far end.
@@ -285,34 +309,23 @@ pub(super) fn fade_test(ui: &MainWindow) -> slint::Timer {
 /// A real pointer move, not just the callback, because the preview only
 /// appears while the track is hovered. Checks that hovering raises it, and
 /// that the timestamp and the tile under the pointer are right.
-pub(super) fn preview_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(1100),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            let fractions = [0.0f32, 0.25, 0.5, 0.99];
-            // Report first, then move, since a value read in the same tick as
-            // its move belongs to the next label.
-            if step == 0 {
-                report_preview(&ui, "before hovering");
-            } else if step <= fractions.len() {
-                report_preview(&ui, &format!("at {:.0}%", fractions[step - 1] * 100.0));
-            }
-            if step < fractions.len() {
-                let x = ui.get_scrub_x() + ui.get_scrub_w() * fractions[step];
-                let y = ui.get_timeline_y() + 14.0;
-                hover(&ui, x, y);
-            } else if step == fractions.len() + 1 {
-                eprintln!("dbm: --- preview test done ---");
-            }
-            step += 1;
-        },
-    );
-    timer
+pub(super) fn preview_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(1100));
+        beat.next().await;
+        report_preview(&ui, "before hovering");
+        // Each place reported a beat after the move to it, since a value
+        // read in the same tick as its move belongs to the next one.
+        for fraction in [0.0f32, 0.25, 0.5, 0.99] {
+            let x = ui.get_scrub_x() + ui.get_scrub_w() * fraction;
+            let y = ui.get_timeline_y() + 14.0;
+            hover(&ui, x, y);
+            beat.next().await;
+            report_preview(&ui, &format!("at {:.0}%", fraction * 100.0));
+        }
+        beat.next().await;
+        eprintln!("dbm: --- preview test done ---");
+    })
 }
 
 /// Set the subtitles' timing on one file, go to the next, and come back.
@@ -321,7 +334,7 @@ pub(super) fn preview_test(ui: &MainWindow) -> slint::Timer {
 /// and the first should get its own back. Both halves, since either can fail
 /// alone. The watch-later file is written by hand before leaving rather than
 /// waiting for the ten-second checkpoint.
-pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
+pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
     let report = |ui: &MainWindow, mpv: &Mpv, label: &str| {
         eprintln!(
             "dbm: timing {label:<20} {:?} delay={:+.2} speed={:.4}",
@@ -330,37 +343,28 @@ pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
             ui.global::<Subtitles>().get_speed(),
         );
     };
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(700),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                // Let the film open and its playlist arrive first.
-                0..=3 => {}
-                4 => report(&ui, &mpv, "as it opened"),
-                5 => {
-                    ui.global::<Subtitles>().invoke_nudge_delay(-5.0);
-                    let _ = mpv.set_property("sub-speed", "1.04");
-                }
-                6 => {
-                    report(&ui, &mpv, "set on the first");
-                    let _ = mpv.command_async(0, &["write-watch-later-config"]);
-                }
-                7 => ui.global::<Playlist>().invoke_step(1),
-                10 => report(&ui, &mpv, "on the next file"),
-                11 => ui.global::<Playlist>().invoke_step(-1),
-                14 => report(&ui, &mpv, "back on the first"),
-                15 => eprintln!("dbm: --- timing test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(700));
+        // Let the film open and its playlist arrive first.
+        beat.rest(5).await;
+        report(&ui, &mpv, "as it opened");
+        beat.next().await;
+        ui.global::<Subtitles>().invoke_nudge_delay(-5.0);
+        let _ = mpv.set_property("sub-speed", "1.04");
+        beat.next().await;
+        report(&ui, &mpv, "set on the first");
+        let _ = mpv.command_async(0, &["write-watch-later-config"]);
+        beat.next().await;
+        ui.global::<Playlist>().invoke_step(1);
+        beat.rest(3).await;
+        report(&ui, &mpv, "on the next file");
+        beat.next().await;
+        ui.global::<Playlist>().invoke_step(-1);
+        beat.rest(3).await;
+        report(&ui, &mpv, "back on the first");
+        beat.next().await;
+        eprintln!("dbm: --- timing test done ---");
+    })
 }
 
 /// Turn the wheel over the picture, then over the volume track.
@@ -369,49 +373,48 @@ pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
 /// answer and the track must, with the level in the hover label at once
 /// rather than after a name's wait. The steps are shorter than that wait, so
 /// a label up by the next one can't have waited.
-pub(super) fn wheel_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(400),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            let (x, y) = (ui.get_vol_cx(), ui.get_vol_cy());
-            match step {
-                // Let the film start and the bar settle first.
-                0..=4 => {}
-                5 => report_wheel(&ui, "at rest"),
-                6 => {
-                    for _ in 0..3 {
-                        wheel(&ui, 640.0, 300.0, 120.0);
-                    }
-                }
-                7 => report_wheel(&ui, "three notches, picture"),
-                8 => {
-                    eprintln!("dbm: wheel over the volume track at ({x:.0}, {y:.0})");
-                    wheel(&ui, x, y, 120.0);
-                }
-                9 => report_wheel(&ui, "one notch up, track"),
-                10 => {
-                    for _ in 0..3 {
-                        wheel(&ui, x, y, -120.0);
-                    }
-                }
-                11 => report_wheel(&ui, "three notches down"),
-                12 => ui.global::<Playback>().invoke_toggle_mute(),
-                13 => report_wheel(&ui, "muted"),
-                14 => ui.global::<Playback>().invoke_toggle_mute(),
-                15 => hover(&ui, 640.0, 300.0),
-                16 => report_wheel(&ui, "pointer gone"),
-                17 => eprintln!("dbm: --- wheel test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+pub(super) fn wheel_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(400));
+        let playback = ui.global::<Playback>();
+        // Where the volume track is, read when it is wanted: the bar lays
+        // itself out once the window is up.
+        let track = || (ui.get_vol_cx(), ui.get_vol_cy());
+        // Let the film start and the bar settle first.
+        beat.rest(6).await;
+        report_wheel(&ui, "at rest");
+        beat.next().await;
+        for _ in 0..3 {
+            wheel(&ui, 640.0, 300.0, 120.0);
+        }
+        beat.next().await;
+        report_wheel(&ui, "three notches, picture");
+        beat.next().await;
+        let (x, y) = track();
+        eprintln!("dbm: wheel over the volume track at ({x:.0}, {y:.0})");
+        wheel(&ui, x, y, 120.0);
+        beat.next().await;
+        report_wheel(&ui, "one notch up, track");
+        beat.next().await;
+        let (x, y) = track();
+        for _ in 0..3 {
+            wheel(&ui, x, y, -120.0);
+        }
+        beat.next().await;
+        report_wheel(&ui, "three notches down");
+        beat.next().await;
+        playback.invoke_toggle_mute();
+        beat.next().await;
+        report_wheel(&ui, "muted");
+        beat.next().await;
+        playback.invoke_toggle_mute();
+        beat.next().await;
+        hover(&ui, 640.0, 300.0);
+        beat.next().await;
+        report_wheel(&ui, "pointer gone");
+        beat.next().await;
+        eprintln!("dbm: --- wheel test done ---");
+    })
 }
 
 fn report_wheel(ui: &MainWindow, label: &str) {
@@ -454,42 +457,48 @@ fn report_preview(ui: &MainWindow, label: &str) {
 /// `at-end` comes from mpv's `eof-reached`: autoplay off, so mpv holds the
 /// last frame, then a seek to the final moment and a wait. It then stays, so
 /// the window can be captured with the bar up and after it has gone.
-pub(super) fn end_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
+pub(super) fn end_test(ui: &MainWindow) -> Script {
     // `DBM_END_TEST=enter` goes on past the pill with Enter; anything else
     // holds the pill up to be captured.
     let enter = std::env::var("DBM_END_TEST").is_ok_and(|v| v == "enter");
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(1000),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                0 => report_end(&ui, "start"),
-                // Both halves: the callback tells mpv, the property moves the
-                // switch, exactly as clicking it does.
-                1 => {
-                    ui.global::<Settings>().invoke_set_autoplay(false);
-                    ui.global::<Settings>().set_autoplay(false);
-                }
-                2 => ui.global::<Playback>().invoke_seek_fraction(0.999),
-                3 | 4 => report_end(&ui, "seeking"),
-                5 => report_end(&ui, "at the end"),
-                6 if enter => {
-                    let key = slint::SharedString::from(slint::platform::Key::Return);
-                    chord(&ui, &[], &key);
-                }
-                7 | 8 if enter => report_end(&ui, "after enter"),
-                9 if enter => eprintln!("dbm: --- end-of-playback test done ---"),
-                6 => eprintln!("dbm: --- end-of-playback test: holding ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(1000));
+        let settings = ui.global::<Settings>();
+        beat.next().await;
+        report_end(&ui, "start");
+        beat.next().await;
+        // Both halves: the callback tells mpv, the property moves the
+        // switch, exactly as clicking it does.
+        settings.invoke_set_autoplay(false);
+        settings.set_autoplay(false);
+        beat.next().await;
+        ui.global::<Playback>().invoke_seek_fraction(0.999);
+        beat.next().await;
+        report_end(&ui, "seeking");
+        beat.next().await;
+        report_end(&ui, "seeking");
+        beat.next().await;
+        report_end(&ui, "at the end");
+        beat.next().await;
+        if enter {
+            let key = slint::SharedString::from(slint::platform::Key::Return);
+            chord(&ui, &[], &key);
+        } else {
+            eprintln!("dbm: --- end-of-playback test: holding ---");
+        }
+        beat.next().await;
+        if enter {
+            report_end(&ui, "after enter");
+        }
+        beat.next().await;
+        if enter {
+            report_end(&ui, "after enter");
+        }
+        beat.next().await;
+        if enter {
+            eprintln!("dbm: --- end-of-playback test done ---");
+        }
+    })
 }
 
 /// What the player is showing at the end of a file, and whether the pipeline
@@ -527,11 +536,7 @@ fn report_end(ui: &MainWindow, label: &str) {
 /// are supplied: an ffmetadata file, which mpv takes through `chapters-file`,
 /// naming the last two minutes `End Credits`. mpv reads it when a file opens,
 /// so the file is opened again, the way the dialog would.
-pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    let mut credits_at = 0.0f64;
+pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
     let own = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "own");
     let heard = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "heard");
     let scene = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "scene");
@@ -541,125 +546,133 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
     let played_at: Option<f64> = std::env::var("DBM_CREDITS_AT")
         .ok()
         .and_then(|at| at.parse().ok());
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(1000),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                // Nothing is given to the file and nothing read off it: where
-                // its credits are is for the player to have heard by the time
-                // it is played into its last twenty seconds.
-                2 if heard => {
-                    credits_at = f64::from(ui.global::<Playback>().get_duration()) - 25.0;
-                    eprintln!(
-                        "dbm: credits: {} chapters, playing into the last 20s",
-                        ui.global::<Playback>().get_chapter_marks().row_count()
-                    );
-                }
-                5 if heard => report_credits(&ui, "before"),
-                2 if own => {
-                    let marks = ui.global::<Playback>().get_chapter_marks();
-                    credits_at = marks
-                        .row_count()
-                        .checked_sub(1)
-                        .and_then(|last| marks.row_data(last))
-                        .map_or(0.0, f64::from);
-                    eprintln!(
-                        "dbm: credits: the file's own {} chapters, the last from {credits_at:.1}s",
-                        marks.row_count()
-                    );
-                }
-                2 => {
-                    let duration = f64::from(ui.global::<Playback>().get_duration());
-                    credits_at = (duration - 120.0).max(duration / 2.0);
-                    // With `=scene`, the credits stop forty seconds short, for
-                    // a scene of the episode's own; with `=mid`, they stop
-                    // for one forty seconds in, and the last forty are more.
-                    let mut marks = vec![(0.0, "Episode"), (credits_at, "End Credits")];
-                    if scene {
-                        marks.push((duration - 40.0, "Post-Credits Scene"));
-                    }
-                    if mid {
-                        marks.push((duration - 80.0, "Mid-Credits Scene"));
-                        marks.push((duration - 40.0, "Credits"));
-                    }
-                    let mut text = String::from(";FFMETADATA1\n");
-                    for (at, &(start, title)) in marks.iter().enumerate() {
-                        let end = marks.get(at + 1).map_or(duration, |next| next.0);
-                        text += &format!(
-                            "[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\ntitle={title}\n",
-                            (start * 1000.0) as u64,
-                            (end * 1000.0) as u64,
-                        );
-                    }
-                    let marks = std::env::temp_dir().join("dbm-credits-test.ffmeta");
-                    if let Err(e) = std::fs::write(&marks, text) {
-                        eprintln!("dbm: credits: cannot write chapters: {e}");
-                        return;
-                    }
-                    if let Err(e) = mpv.set_property("chapters-file", &marks.to_string_lossy()) {
-                        eprintln!("dbm: credits: mpv refused chapters-file: {e}");
-                    }
-                    eprintln!("dbm: credits from {credits_at:.0}s of {duration:.0}s");
-                    ui.global::<Playlist>()
-                        .invoke_open_path(ui.global::<Playback>().get_path(), true);
-                }
-                // As a click on its button opens it, with no ring.
-                5 if panel => ui.invoke_open_menu(true),
-                // The seek wakes the bar, as a click on the timeline does, so
-                // `=asleep` lands short of the credits for the bar to have
-                // gone by the time they start, and `=panel` for them to start
-                // behind the menu.
-                6 => {
-                    let duration = f64::from(ui.global::<Playback>().get_duration()).max(1.0);
-                    let to = played_at.unwrap_or(if asleep || panel {
-                        credits_at - 4.5
-                    } else {
-                        credits_at + 5.0
-                    });
-                    ui.global::<Playback>()
-                        .invoke_seek_fraction((to / duration) as f32);
-                }
-                7 => report_credits(&ui, "arrived"),
-                // Past `HIDE_AFTER`, with nothing touched since.
-                12 => report_credits(&ui, "left alone"),
-                // The pill came up behind the menu, so closing it is what
-                // brings the ring to the pill.
-                13 if panel => {
-                    let escape = slint::SharedString::from(slint::platform::Key::Escape);
-                    chord(&ui, &[], &escape);
-                }
-                14 if panel => report_credits(&ui, "closed"),
-                15 if panel => {
-                    let enter = slint::SharedString::from(slint::platform::Key::Return);
-                    chord(&ui, &[], &enter);
-                }
-                17 if panel => report_credits(&ui, "after enter"),
-                18 if panel => eprintln!("dbm: --- credits test: holding ---"),
-                // The ring came to the pill on its own, so Enter alone goes on.
-                13 => {
-                    let enter = slint::SharedString::from(slint::platform::Key::Return);
-                    chord(&ui, &[], &enter);
-                }
-                // The next file, and the ring gone with the pill rather than
-                // waiting on a stop that no longer exists.
-                15 => report_credits(&ui, "after enter"),
-                // Past the scene, into the rest of the credits, which go on.
-                16 if mid => {
-                    let duration = f64::from(ui.global::<Playback>().get_duration()).max(1.0);
-                    ui.global::<Playback>()
-                        .invoke_seek_fraction(((duration - 35.0) / duration) as f32);
-                }
-                17 if mid => report_credits(&ui, "resumed"),
-                16 if !mid && !panel => eprintln!("dbm: --- credits test: holding ---"),
-                18 if mid => eprintln!("dbm: --- credits test: holding ---"),
-                _ => {}
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(1000));
+        let playback = ui.global::<Playback>();
+        beat.rest(3).await;
+        // Nothing is given to the file and nothing read off it: where
+        // its credits are is for the player to have heard by the time
+        // it is played into its last twenty seconds.
+        let credits_at;
+        if heard {
+            credits_at = f64::from(playback.get_duration()) - 25.0;
+            eprintln!(
+                "dbm: credits: {} chapters, playing into the last 20s",
+                playback.get_chapter_marks().row_count()
+            );
+        } else if own {
+            let marks = playback.get_chapter_marks();
+            credits_at = marks
+                .row_count()
+                .checked_sub(1)
+                .and_then(|last| marks.row_data(last))
+                .map_or(0.0, f64::from);
+            eprintln!(
+                "dbm: credits: the file's own {} chapters, the last from {credits_at:.1}s",
+                marks.row_count()
+            );
+        } else {
+            let duration = f64::from(playback.get_duration());
+            credits_at = (duration - 120.0).max(duration / 2.0);
+            // With `=scene`, the credits stop forty seconds short, for
+            // a scene of the episode's own; with `=mid`, they stop
+            // for one forty seconds in, and the last forty are more.
+            let mut marks = vec![(0.0, "Episode"), (credits_at, "End Credits")];
+            if scene {
+                marks.push((duration - 40.0, "Post-Credits Scene"));
             }
-            step += 1;
-        },
-    );
-    timer
+            if mid {
+                marks.push((duration - 80.0, "Mid-Credits Scene"));
+                marks.push((duration - 40.0, "Credits"));
+            }
+            let mut text = String::from(";FFMETADATA1\n");
+            for (at, &(start, title)) in marks.iter().enumerate() {
+                let end = marks.get(at + 1).map_or(duration, |next| next.0);
+                text += &format!(
+                    "[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\ntitle={title}\n",
+                    (start * 1000.0) as u64,
+                    (end * 1000.0) as u64,
+                );
+            }
+            let marks = std::env::temp_dir().join("dbm-credits-test.ffmeta");
+            if let Err(e) = std::fs::write(&marks, text) {
+                eprintln!("dbm: credits: cannot write chapters: {e}");
+                return;
+            }
+            if let Err(e) = mpv.set_property("chapters-file", &marks.to_string_lossy()) {
+                eprintln!("dbm: credits: mpv refused chapters-file: {e}");
+            }
+            eprintln!("dbm: credits from {credits_at:.0}s of {duration:.0}s");
+            ui.global::<Playlist>()
+                .invoke_open_path(playback.get_path(), true);
+        }
+        beat.rest(3).await;
+        // As a click on its button opens it, with no ring.
+        if heard {
+            report_credits(&ui, "before");
+        } else if panel {
+            ui.invoke_open_menu(true);
+        }
+        beat.next().await;
+        // The seek wakes the bar, as a click on the timeline does, so
+        // `=asleep` lands short of the credits for the bar to have
+        // gone by the time they start, and `=panel` for them to start
+        // behind the menu.
+        let duration = f64::from(playback.get_duration()).max(1.0);
+        let to = played_at.unwrap_or(if asleep || panel {
+            credits_at - 4.5
+        } else {
+            credits_at + 5.0
+        });
+        playback.invoke_seek_fraction((to / duration) as f32);
+        beat.next().await;
+        report_credits(&ui, "arrived");
+        beat.rest(5).await;
+        // Past `HIDE_AFTER`, with nothing touched since.
+        report_credits(&ui, "left alone");
+        beat.next().await;
+        // The pill came up behind the menu, so closing it is what
+        // brings the ring to the pill.
+        // The ring came to the pill on its own, so Enter alone goes on.
+        if panel {
+            let escape = slint::SharedString::from(slint::platform::Key::Escape);
+            chord(&ui, &[], &escape);
+        } else {
+            let enter = slint::SharedString::from(slint::platform::Key::Return);
+            chord(&ui, &[], &enter);
+        }
+        beat.next().await;
+        if panel {
+            report_credits(&ui, "closed");
+        }
+        beat.next().await;
+        // The next file, and the ring gone with the pill rather than
+        // waiting on a stop that no longer exists.
+        if panel {
+            let enter = slint::SharedString::from(slint::platform::Key::Return);
+            chord(&ui, &[], &enter);
+        } else {
+            report_credits(&ui, "after enter");
+        }
+        beat.next().await;
+        // Past the scene, into the rest of the credits, which go on.
+        if mid {
+            let duration = f64::from(playback.get_duration()).max(1.0);
+            playback.invoke_seek_fraction(((duration - 35.0) / duration) as f32);
+        } else if !mid && !panel {
+            eprintln!("dbm: --- credits test: holding ---");
+        }
+        beat.next().await;
+        if panel {
+            report_credits(&ui, "after enter");
+        } else if mid {
+            report_credits(&ui, "resumed");
+        }
+        beat.next().await;
+        if panel || mid {
+            eprintln!("dbm: --- credits test: holding ---");
+        }
+    })
 }
 
 /// Play into an episode's title sequence and skip it.
@@ -668,62 +681,53 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
 /// named by a chapter, remembered, or heard — because the listening is the
 /// part with a real file and a real ffmpeg in it. Ten seconds short of the
 /// end is inside any sequence there is: none is shorter than fifteen.
-pub(super) fn intro_test(ui: &MainWindow) -> slint::Timer {
+pub(super) fn intro_test(ui: &MainWindow) -> Script {
     let hold = std::env::var("DBM_INTRO_TEST").is_ok_and(|v| v == "hold");
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    let mut waited = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(700),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            let end = ui.global::<Playback>().get_intro_end();
-            match step {
-                // Let the film open first.
-                0..=2 => {}
-                3 if end <= 0.0 => {
-                    waited += 1;
-                    if waited == 40 {
-                        eprintln!("dbm: intro: no title sequence found in 28 s");
-                        step = 100;
-                    }
-                    return;
-                }
-                3 => {
-                    eprintln!(
-                        "dbm: intro ends at {end:.1}s, known after {:.1}s of waiting",
-                        waited as f32 * 0.7
-                    );
-                    report_intro(&ui, "before");
-                    let duration = ui.global::<Playback>().get_duration().max(1.0);
-                    ui.global::<Playback>()
-                        .invoke_seek_fraction((end - 10.0) / duration);
-                    if hold && !ui.global::<Playback>().get_paused() {
-                        ui.global::<Playback>().invoke_toggle_pause();
-                    }
-                }
-                5 => report_intro(&ui, "arrived"),
-                6 if hold => {
-                    eprintln!("dbm: --- intro test: holding ---");
-                    step = 100;
-                }
-                // Past `HIDE_AFTER`, with nothing touched since.
-                10 => report_intro(&ui, "left alone"),
-                // The ring came to the pill on its own, so Enter alone skips.
-                11 => {
-                    let enter = slint::SharedString::from(slint::platform::Key::Return);
-                    chord(&ui, &[], &enter);
-                }
-                13 => report_intro(&ui, "after enter"),
-                14 => eprintln!("dbm: --- intro test done ---"),
-                _ => {}
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(700));
+        let playback = ui.global::<Playback>();
+        // Let the film open first, then wait for its title sequence to be
+        // found.
+        beat.rest(4).await;
+        let mut waited = 0usize;
+        while playback.get_intro_end() <= 0.0 {
+            waited += 1;
+            if waited == 40 {
+                eprintln!("dbm: intro: no title sequence found in 28 s");
+                return;
             }
-            step += 1;
-        },
-    );
-    timer
+            beat.next().await;
+        }
+        let end = playback.get_intro_end();
+        eprintln!(
+            "dbm: intro ends at {end:.1}s, known after {:.1}s of waiting",
+            waited as f32 * 0.7
+        );
+        report_intro(&ui, "before");
+        let duration = playback.get_duration().max(1.0);
+        playback.invoke_seek_fraction((end - 10.0) / duration);
+        if hold && !playback.get_paused() {
+            playback.invoke_toggle_pause();
+        }
+        beat.rest(2).await;
+        report_intro(&ui, "arrived");
+        beat.next().await;
+        if hold {
+            eprintln!("dbm: --- intro test: holding ---");
+            return;
+        }
+        // Past `HIDE_AFTER`, with nothing touched since.
+        beat.rest(4).await;
+        report_intro(&ui, "left alone");
+        // The ring came to the pill on its own, so Enter alone skips.
+        beat.next().await;
+        let enter = slint::SharedString::from(slint::platform::Key::Return);
+        chord(&ui, &[], &enter);
+        beat.rest(2).await;
+        report_intro(&ui, "after enter");
+        beat.next().await;
+        eprintln!("dbm: --- intro test done ---");
+    })
 }
 
 fn report_intro(ui: &MainWindow, label: &str) {
@@ -783,35 +787,28 @@ fn report_credits(ui: &MainWindow, label: &str) {
 /// where mpv keeps a file's resume position agrees with mpv's. So this plays a
 /// while, asks mpv to write that file, and then looks for it by the name we
 /// would look for it under — and reports what the rows say before and after.
-pub(super) fn progress_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(1200),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                0 => report_progress(&ui, &mpv, "on load"),
-                1 => ui.global::<Playback>().invoke_seek_fraction(0.3),
-                // What the ten-second checkpoint does, without the wait.
-                2 => {
-                    if let Err(e) = mpv.command_async(0, &["write-watch-later-config"]) {
-                        eprintln!("dbm: progress test: {e}");
-                    }
-                }
-                3 => report_resume_file(&mpv),
-                // Opening the panel is what asks for a fresh read.
-                4 => ui.invoke_open_playlist(true),
-                5 => report_progress(&ui, &mpv, "panel open"),
-                6 => eprintln!("dbm: --- progress test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+pub(super) fn progress_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(1200));
+        beat.next().await;
+        report_progress(&ui, &mpv, "on load");
+        beat.next().await;
+        ui.global::<Playback>().invoke_seek_fraction(0.3);
+        beat.next().await;
+        // What the ten-second checkpoint does, without the wait.
+        if let Err(e) = mpv.command_async(0, &["write-watch-later-config"]) {
+            eprintln!("dbm: progress test: {e}");
+        }
+        beat.next().await;
+        report_resume_file(&mpv);
+        beat.next().await;
+        // Opening the panel is what asks for a fresh read.
+        ui.invoke_open_playlist(true);
+        beat.next().await;
+        report_progress(&ui, &mpv, "panel open");
+        beat.next().await;
+        eprintln!("dbm: --- progress test done ---");
+    })
 }
 
 fn report_progress(ui: &MainWindow, mpv: &Mpv, label: &str) {
@@ -865,41 +862,35 @@ fn report_resume_file(mpv: &Mpv) {
 /// invoked callback would skip the exact statements under test. Each report
 /// names the glass rect published for the ring, which is what the flash
 /// actually is — the glyph is only what sits in it.
-pub(super) fn flash_test(ui: &MainWindow) -> slint::Timer {
+pub(super) fn flash_test(ui: &MainWindow) -> Script {
     use slint::platform::Key;
 
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(500),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                0 => report_flash(&ui, "before"),
-                1 => arrow(&ui, Key::RightArrow),
-                2 => report_flash(&ui, "seek forward"),
-                3 => arrow(&ui, Key::LeftArrow),
-                4 => report_flash(&ui, "seek back"),
-                // Held keys are the common case: the dwell has to restart
-                // rather than the second press landing on the first's fade.
-                5 => {
-                    for _ in 0..3 {
-                        chord(&ui, &[], "z");
-                    }
-                }
-                6 => report_flash(&ui, "delay, thrice"),
-                // Long enough for the dwell and the fade both.
-                7 | 8 => {}
-                9 => report_flash(&ui, "after it leaves"),
-                10 => eprintln!("dbm: --- flash test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(500));
+        beat.next().await;
+        report_flash(&ui, "before");
+        beat.next().await;
+        arrow(&ui, Key::RightArrow);
+        beat.next().await;
+        report_flash(&ui, "seek forward");
+        beat.next().await;
+        arrow(&ui, Key::LeftArrow);
+        beat.next().await;
+        report_flash(&ui, "seek back");
+        beat.next().await;
+        // Held keys are the common case: the dwell has to restart
+        // rather than the second press landing on the first's fade.
+        for _ in 0..3 {
+            chord(&ui, &[], "z");
+        }
+        beat.next().await;
+        report_flash(&ui, "delay, thrice");
+        // Long enough for the dwell and the fade both.
+        beat.rest(3).await;
+        report_flash(&ui, "after it leaves");
+        beat.next().await;
+        eprintln!("dbm: --- flash test done ---");
+    })
 }
 
 fn report_flash(ui: &MainWindow, label: &str) {

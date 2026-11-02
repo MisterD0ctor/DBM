@@ -1,0 +1,59 @@
+name: Nightly
+
+# The harness exercises that check what they see, run against a real libmpv
+# in a compositor with no screen, once a night and whenever asked for. Too
+# slow, and too dependent on the runner's software rendering, to hold up
+# every push; a failure here is a finding to look at, not a broken build.
+on:
+    schedule:
+        - cron: "17 3 * * *"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+    smoke:
+        name: Smoke exercises
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            # The build's libraries as in build.yml, and what a run needs on
+            # top: libmpv to play, ffmpeg to make the films and the previews,
+            # mutter and a session bus for `headless.sh`, and Mesa for GL with
+            # no GPU.
+            - name: Install system libraries
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y --no-install-recommends \
+                      libfontconfig1-dev libfreetype-dev libxkbcommon-dev \
+                      libwayland-dev libgl-dev \
+                      libmpv2 ffmpeg mutter dbus dbus-user-session \
+                      libgl1-mesa-dri libegl-mesa0
+
+            - name: Install Rust stable
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Rust cache
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: .
+
+            - name: Build with the harness
+              run: cargo build --release -p dbm-player --features harness
+
+            - name: Make the test films
+              run: scripts/smoke-media.sh "$RUNNER_TEMP/media"
+
+            # `headless.sh` keeps its compositor's socket in the runtime
+            # directory, which a runner doesn't set.
+            - name: Run the exercises
+              run: |
+                  export XDG_RUNTIME_DIR="$RUNNER_TEMP/runtime"
+                  mkdir -m 700 -p "$XDG_RUNTIME_DIR"
+                  scripts/smoke.sh ./target/release/dbm-player "$RUNNER_TEMP/media"

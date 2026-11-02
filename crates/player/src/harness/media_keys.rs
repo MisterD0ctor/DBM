@@ -5,6 +5,7 @@ use std::time::Duration;
 use dbm_mpv::Mpv;
 use slint::ComponentHandle;
 
+use super::script::{self, Beat, Script};
 use crate::{MainWindow, Playback};
 
 /// Drive the OS media overlay from both ends.
@@ -16,30 +17,26 @@ use crate::{MainWindow, Playback};
 /// route a headset button takes. Every report also names the session Windows
 /// has in front, which a real key press would reach instead.
 #[cfg(windows)]
-pub(super) fn smtc_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(1200),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                0 => report_smtc(&ui, &mpv, "start"),
-                1 => ask(Button::Pause),
-                2 => report_smtc(&ui, &mpv, "pause button"),
-                3 => ask(Button::Play),
-                4 => report_smtc(&ui, &mpv, "play button"),
-                5 => ask(Button::Next),
-                6 => report_smtc(&ui, &mpv, "next button"),
-                7 => eprintln!("dbm: --- media overlay test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+pub(super) fn smtc_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(1200));
+        beat.next().await;
+        report_smtc(&ui, &mpv, "start");
+        beat.next().await;
+        ask(Button::Pause);
+        beat.next().await;
+        report_smtc(&ui, &mpv, "pause button");
+        beat.next().await;
+        ask(Button::Play);
+        beat.next().await;
+        report_smtc(&ui, &mpv, "play button");
+        beat.next().await;
+        ask(Button::Next);
+        beat.next().await;
+        report_smtc(&ui, &mpv, "next button");
+        beat.next().await;
+        eprintln!("dbm: --- media overlay test done ---");
+    })
 }
 
 /// Ask Windows to deliver one transport button to *this* player's session.
@@ -156,47 +153,45 @@ fn current_session() -> Option<(String, String, String)> {
 /// play, a seek further than playing could carry the film between reports,
 /// the next file, and a stop, which pauses (see `mpris::Player::stop`).
 #[cfg(not(windows))]
-pub(super) fn mpris_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
-    let timer = slint::Timer::default();
+pub(super) fn mpris_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
     let bus = match zbus::blocking::Connection::session() {
         Ok(bus) => bus,
         Err(e) => {
             eprintln!("dbm: mpris test: no session bus ({e})");
-            return timer;
+            return script::run(ui, |_| async {});
         }
     };
     let heard = std::sync::Arc::new(Heard::default());
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(1200),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                0 => {
-                    neighbours(&bus);
-                    listen(&bus, heard.clone());
-                    report_mpris(&ui, &mpv, &bus, &heard, "start");
-                }
-                1 => press(&bus, "Pause", None),
-                2 => report_mpris(&ui, &mpv, &bus, &heard, "pause button"),
-                3 => press(&bus, "Play", None),
-                4 => report_mpris(&ui, &mpv, &bus, &heard, "play button"),
-                // Thirty seconds on, further than playing gets in a tick.
-                5 => press(&bus, "Seek", Some(30_000_000)),
-                6 => report_mpris(&ui, &mpv, &bus, &heard, "seek"),
-                7 => press(&bus, "Next", None),
-                8 => report_mpris(&ui, &mpv, &bus, &heard, "next button"),
-                9 => press(&bus, "Stop", None),
-                10 => report_mpris(&ui, &mpv, &bus, &heard, "stop button"),
-                11 => eprintln!("dbm: --- media controls test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(1200));
+        beat.next().await;
+        neighbours(&bus);
+        listen(&bus, heard.clone());
+        report_mpris(&ui, &mpv, &bus, &heard, "start");
+        beat.next().await;
+        press(&bus, "Pause", None);
+        beat.next().await;
+        report_mpris(&ui, &mpv, &bus, &heard, "pause button");
+        beat.next().await;
+        press(&bus, "Play", None);
+        beat.next().await;
+        report_mpris(&ui, &mpv, &bus, &heard, "play button");
+        beat.next().await;
+        // Thirty seconds on, further than playing gets in a tick.
+        press(&bus, "Seek", Some(30_000_000));
+        beat.next().await;
+        report_mpris(&ui, &mpv, &bus, &heard, "seek");
+        beat.next().await;
+        press(&bus, "Next", None);
+        beat.next().await;
+        report_mpris(&ui, &mpv, &bus, &heard, "next button");
+        beat.next().await;
+        press(&bus, "Stop", None);
+        beat.next().await;
+        report_mpris(&ui, &mpv, &bus, &heard, "stop button");
+        beat.next().await;
+        eprintln!("dbm: --- media controls test done ---");
+    })
 }
 
 /// What the player has been overheard saying, rather than what it answers

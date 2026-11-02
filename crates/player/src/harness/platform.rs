@@ -3,9 +3,9 @@
 use std::time::Duration;
 
 use dbm_mpv::Mpv;
-use slint::ComponentHandle;
 
 use super::drive::hover;
+use super::script::{self, Beat, Script};
 use crate::MainWindow;
 
 /// Watch the pointer disappear and come back.
@@ -16,44 +16,36 @@ use crate::MainWindow;
 ///
 /// The second half matters more: a pointer that doesn't come back the
 /// moment the hand moves is worse than one that never left.
-pub(super) fn cursor_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(500),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                0 => {
-                    // The real pointer, not a dispatched event: `ShowCursor`
-                    // only governs it while it is over this window, so asking
-                    // about one elsewhere would read another app's cursor.
-                    park_pointer(&ui);
-                    hover(&ui, 40.0, 40.0);
-                    report_cursor(&ui, "hand just moved");
-                }
-                2 => report_cursor(&ui, "a second later"),
-                // Past HIDE_AFTER, plus a poll for the clock to notice.
-                8 => report_cursor(&ui, "chrome faded"),
-                9 => {
-                    hover(&ui, 60.0, 80.0);
-                    eprintln!("dbm: cursor  --- the hand moves ---");
-                }
-                10 => report_cursor(&ui, "hand moved again"),
-                11 => eprintln!("dbm: --- cursor test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+pub(super) fn cursor_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(500));
+        beat.next().await;
+        // The real pointer, not a dispatched event: `ShowCursor`
+        // only governs it while it is over this window, so asking
+        // about one elsewhere would read another app's cursor.
+        park_pointer(&ui);
+        hover(&ui, 40.0, 40.0);
+        report_cursor(&ui, "hand just moved");
+        beat.rest(2).await;
+        report_cursor(&ui, "a second later");
+        beat.rest(6).await;
+        // Past HIDE_AFTER, plus a poll for the clock to notice.
+        report_cursor(&ui, "chrome faded");
+        beat.next().await;
+        hover(&ui, 60.0, 80.0);
+        eprintln!("dbm: cursor  --- the hand moves ---");
+        beat.next().await;
+        report_cursor(&ui, "hand moved again");
+        beat.next().await;
+        eprintln!("dbm: --- cursor test done ---");
+    })
 }
 
 /// Put the physical pointer in the middle of the window.
 #[cfg(windows)]
 fn park_pointer(ui: &MainWindow) {
+    use slint::ComponentHandle;
+
     let at = ui.window().position();
     let size = ui.window().size();
     let (x, y) = (at.x + size.width as i32 / 2, at.y + size.height as i32 / 2);
@@ -89,9 +81,10 @@ fn report_cursor(ui: &MainWindow, when: &str) {
 /// the code under test. The property writes block the UI thread, which is
 /// fine only in a harness.
 pub(super) fn audio_test(
+    ui: &MainWindow,
     mpv: std::sync::Arc<Mpv>,
     audio: std::rc::Rc<crate::playback::audio::Watchdog>,
-) -> slint::Timer {
+) -> Script {
     const BASELINE: &str = r#"[{"name":"auto","description":"Autoselect device"}]"#;
     const PLUS_ONE: &str = r#"[{"name":"auto","description":"Autoselect device"},
         {"name":"wasapi/harness","description":"A device that just turned up"}]"#;
@@ -99,49 +92,44 @@ pub(super) fn audio_test(
         {"name":"wasapi/harness","description":"A device that just turned up"},
         {"name":"wasapi/harness-2","description":"And another"}]"#;
 
-    let timer = slint::Timer::default();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(900),
-        move || {
-            match step {
-                0 => report_audio(&mpv, "start"),
-                // Take the baseline, so the next list reads as an arrival.
-                1 => audio.on_event(&device_list(BASELINE)),
-                // What mpv does by itself when the device under the output
-                // disappears: the track goes, playback does not.
-                2 => {
-                    if let Err(e) = mpv.set_property("aid", "no") {
-                        eprintln!("dbm: audio test: could not drop the track: {e}");
-                    }
-                }
-                3 => report_audio(&mpv, "device lost"),
-                4 => audio.on_event(&device_list(PLUS_ONE)),
-                // The settle is 1200ms and the rebuild is a worker round
-                // trip, so the result lands somewhere in these two steps.
-                5 | 6 => {}
-                7 => report_audio(&mpv, "after recovery"),
-                // Second half: silence somebody asked for is not a fault. The
-                // "Off" row, then another device turning up, which must leave
-                // it alone.
-                8 => {
-                    audio.note_user_selection(None);
-                    if let Err(e) = mpv.set_property("aid", "no") {
-                        eprintln!("dbm: audio test: could not turn audio off: {e}");
-                    }
-                }
-                9 => report_audio(&mpv, "user chose off"),
-                10 => audio.on_event(&device_list(PLUS_TWO)),
-                11 | 12 => {}
-                13 => report_audio(&mpv, "still off"),
-                14 => eprintln!("dbm: --- audio test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+    script::run(ui, move |_| async move {
+        let mut beat = Beat::new(Duration::from_millis(900));
+        beat.next().await;
+        report_audio(&mpv, "start");
+        beat.next().await;
+        // Take the baseline, so the next list reads as an arrival.
+        audio.on_event(&device_list(BASELINE));
+        beat.next().await;
+        // What mpv does by itself when the device under the output
+        // disappears: the track goes, playback does not.
+        if let Err(e) = mpv.set_property("aid", "no") {
+            eprintln!("dbm: audio test: could not drop the track: {e}");
+        }
+        beat.next().await;
+        report_audio(&mpv, "device lost");
+        beat.next().await;
+        audio.on_event(&device_list(PLUS_ONE));
+        // The settle is 1200ms and the rebuild is a worker round
+        // trip, so the result lands somewhere in these two steps.
+        beat.rest(3).await;
+        report_audio(&mpv, "after recovery");
+        beat.next().await;
+        // Second half: silence somebody asked for is not a fault. The
+        // "Off" row, then another device turning up, which must leave
+        // it alone.
+        audio.note_user_selection(None);
+        if let Err(e) = mpv.set_property("aid", "no") {
+            eprintln!("dbm: audio test: could not turn audio off: {e}");
+        }
+        beat.next().await;
+        report_audio(&mpv, "user chose off");
+        beat.next().await;
+        audio.on_event(&device_list(PLUS_TWO));
+        beat.rest(3).await;
+        report_audio(&mpv, "still off");
+        beat.next().await;
+        eprintln!("dbm: --- audio test done ---");
+    })
 }
 
 /// An `audio-device-list` change as mpv would report it.

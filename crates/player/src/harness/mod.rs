@@ -246,17 +246,20 @@
 //!   would see them. It also names every other player registered, since a
 //!   media key goes to one of them. Not Windows.
 //!
-//! Each returns a `Timer` that must be kept alive for the duration of the
-//! run; dropping it stops the exercise.
+//! Each is a script (see `script`): straight-line code on Slint's event
+//! loop, one step after another, held by the [`Harnesses`] `main` keeps and
+//! stopped as the window closes. The input, scrub and subtitle exercises also
+//! check what they see, and a run where a check failed exits with a failure:
+//! `scripts/smoke.sh` runs those three, as the nightly job does.
 //!
 //! On a desktop, run them through `scripts/headless.sh`: a harness window takes
 //! focus as it maps, and on Wayland nothing it asks can stop that, so the
 //! script gives the run a headless compositor of its own. Every run plays its
-//! film silently (see [`configure`]).
+//! film silently (see `playback::session::configure`).
 
 #![expect(
     clippy::match_same_arms,
-    reason = "the exercises number their steps, and two steps that do the same thing are still two steps"
+    reason = "the exercises that run on ticks name them, and two ticks that do the same thing are still two moments"
 )]
 
 mod drive;
@@ -266,24 +269,112 @@ mod media_keys;
 mod opening;
 mod platform;
 mod playback;
+pub mod script;
 mod settings;
 mod showcase;
 
 use slint::{Model, ModelRc};
 
 use crate::Playlist;
+use crate::app::App;
 use crate::{MainWindow, TrackItem};
+use script::Script;
 use slint::ComponentHandle;
 
-/// Handles for everything armed here. Kept in one value so `main` does not
-/// have to name each timer just to hold it open.
+/// The exercises under way, stopped when this is dropped, once the window
+/// has closed.
 pub struct Harnesses {
-    _timers: Vec<slint::Timer>,
+    _scripts: Vec<Script>,
 }
 
-pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
-    let (mpv, audio) = (&app.mpv, &app.audio);
-    let mut timers = Vec::new();
+/// How an exercise starts: the window, what the player shares, and the value
+/// of the variable that asked for it.
+type Start = fn(&MainWindow, &App, String) -> Script;
+
+/// Each exercise, by the variable that asks for it, in the order they start
+/// when several are asked for together.
+const EXERCISES: &[(&str, Start)] = &[
+    ("DBM_INPUT_TEST", |ui, _, _| playback::input_test(ui)),
+    ("DBM_RESIZE_TEST", |ui, _, _| layout::resize_test(ui)),
+    ("DBM_MODAL_TEST", |ui, _, _| layout::modal_test(ui)),
+    ("DBM_PARAM_TEST", |ui, _, _| settings::param_test(ui)),
+    ("DBM_TOGGLE_TEST", |ui, app, _| {
+        settings::toggle_test(ui, app.mpv.clone())
+    }),
+    ("DBM_OPEN_TEST", |ui, _, path| opening::open_test(ui, path)),
+    ("DBM_DIALOG_TEST", |ui, _, _| opening::dialog_test(ui)),
+    ("DBM_SHOWCASE", |ui, _, surface| {
+        showcase::showcase(ui, surface)
+    }),
+    ("DBM_FADE_TEST", |ui, _, _| playback::fade_test(ui)),
+    ("DBM_PAUSED_RESIZE_TEST", |ui, _, _| {
+        layout::paused_resize_test(ui)
+    }),
+    ("DBM_PREVIEW_TEST", |ui, _, _| playback::preview_test(ui)),
+    ("DBM_TIP_TEST", |ui, _, _| layout::tip_test(ui)),
+    ("DBM_FIRST_OPEN", |ui, _, panel| {
+        layout::first_open_test(ui, panel)
+    }),
+    ("DBM_SCROLL_TEST", |ui, _, _| layout::scroll_test(ui)),
+    ("DBM_WHEEL_TEST", |ui, _, _| playback::wheel_test(ui)),
+    ("DBM_TIMING_TEST", |ui, app, _| {
+        playback::timing_test(ui, app.mpv.clone())
+    }),
+    ("DBM_KEY_TEST", |ui, _, _| keys::key_test(ui)),
+    ("DBM_WAKE_TEST", |ui, _, _| keys::wake_test(ui)),
+    ("DBM_READ_TEST", |ui, app, _| {
+        keys::read_test(ui, app.mpv.clone())
+    }),
+    ("DBM_REACH_TEST", |ui, _, _| keys::reach_test(ui)),
+    ("DBM_CURSOR_TEST", |ui, _, _| platform::cursor_test(ui)),
+    ("DBM_PANEL_TEST", |ui, _, _| layout::panel_test(ui)),
+    ("DBM_SUBS_TEST", |ui, app, _| {
+        settings::subs_test(ui, app.mpv.clone())
+    }),
+    ("DBM_ADDED_TEST", |ui, app, _| {
+        settings::added_test(ui, app.mpv.clone())
+    }),
+    ("DBM_SYNC_TEST", |ui, app, _| {
+        settings::sync_test(ui, app.mpv.clone())
+    }),
+    ("DBM_SIGN_IN_TEST", |ui, _, _| settings::sign_in_test(ui)),
+    ("DBM_FIND_TEST", |ui, app, _| {
+        settings::find_test(ui, app.mpv.clone())
+    }),
+    ("DBM_AUDIO_TEST", |ui, app, _| {
+        platform::audio_test(ui, app.mpv.clone(), app.audio.clone())
+    }),
+    ("DBM_FLASH_TEST", |ui, _, _| playback::flash_test(ui)),
+    ("DBM_PROGRESS_TEST", |ui, app, _| {
+        playback::progress_test(ui, app.mpv.clone())
+    }),
+    ("DBM_SCAN_TEST", |ui, _, _| opening::scan_test(ui)),
+    ("DBM_END_TEST", |ui, _, _| playback::end_test(ui)),
+    ("DBM_SCRUB_TEST", |ui, _, how| match how.as_str() {
+        "slow" => playback::slow_scrub_test(ui),
+        _ => playback::scrub_test(ui),
+    }),
+    ("DBM_INTRO_TEST", |ui, _, _| playback::intro_test(ui)),
+    ("DBM_CREDITS_TEST", |ui, app, _| {
+        playback::credits_test(ui, app.mpv.clone())
+    }),
+];
+
+/// The exercises of one platform's own parts.
+#[cfg(windows)]
+const PLATFORM: &[(&str, Start)] = &[
+    ("DBM_SMTC_TEST", |ui, app, _| {
+        media_keys::smtc_test(ui, app.mpv.clone())
+    }),
+    ("DBM_DROP_TEST", |ui, _, path| opening::drop_test(ui, path)),
+];
+#[cfg(not(windows))]
+const PLATFORM: &[(&str, Start)] = &[("DBM_MPRIS_TEST", |ui, app, _| {
+    media_keys::mpris_test(ui, app.mpv.clone())
+})];
+
+pub fn install(ui: &MainWindow, app: &App) -> Harnesses {
+    let mut scripts = Vec::new();
     // First, so what follows starts at the size asked about. It waits for a
     // frame, because asked for before the window exists, the height took and
     // the width didn't.
@@ -294,152 +385,23 @@ pub fn install(ui: &MainWindow, app: &crate::app::App) -> Harnesses {
             h.trim().parse().ok()?,
         ))
     }) {
-        timers.push(layout::window_size(ui, size));
+        scripts.push(layout::window_size(ui, size));
     }
     if let Some(after) = std::env::var("DBM_QUIT_AFTER")
         .ok()
         .and_then(|ms| ms.parse().ok())
     {
-        use slint::ComponentHandle;
-        let timer = slint::Timer::default();
-        let weak = ui.as_weak();
-        timer.start(
-            slint::TimerMode::SingleShot,
-            std::time::Duration::from_millis(after),
-            move || {
-                if let Some(ui) = weak.upgrade() {
-                    ui.invoke_quit();
-                }
-            },
-        );
-        timers.push(timer);
+        scripts.push(script::run(ui, move |ui| async move {
+            script::sleep(std::time::Duration::from_millis(after)).await;
+            ui.invoke_quit();
+        }));
     }
-    if std::env::var_os("DBM_INPUT_TEST").is_some() {
-        timers.push(playback::input_test(ui));
+    for (variable, start) in EXERCISES.iter().chain(PLATFORM) {
+        if let Some(value) = std::env::var_os(variable) {
+            scripts.push(start(ui, app, value.to_string_lossy().into_owned()));
+        }
     }
-    if std::env::var_os("DBM_RESIZE_TEST").is_some() {
-        timers.push(layout::resize_test(ui));
-    }
-    if std::env::var_os("DBM_MODAL_TEST").is_some() {
-        timers.push(layout::modal_test(ui));
-    }
-    if std::env::var_os("DBM_PARAM_TEST").is_some() {
-        timers.push(settings::param_test(ui));
-    }
-    if std::env::var_os("DBM_TOGGLE_TEST").is_some() {
-        timers.push(settings::toggle_test(ui, mpv.clone()));
-    }
-    if let Some(path) = std::env::var_os("DBM_OPEN_TEST") {
-        timers.push(opening::open_test(ui, path.to_string_lossy().into_owned()));
-    }
-    if std::env::var_os("DBM_DIALOG_TEST").is_some() {
-        timers.push(opening::dialog_test(ui));
-    }
-    if let Some(surface) = std::env::var_os("DBM_SHOWCASE") {
-        timers.push(showcase::showcase(
-            ui,
-            surface.to_string_lossy().into_owned(),
-        ));
-    }
-    if std::env::var_os("DBM_FADE_TEST").is_some() {
-        timers.push(playback::fade_test(ui));
-    }
-    if std::env::var_os("DBM_PAUSED_RESIZE_TEST").is_some() {
-        timers.push(layout::paused_resize_test(ui));
-    }
-    if std::env::var_os("DBM_PREVIEW_TEST").is_some() {
-        timers.push(playback::preview_test(ui));
-    }
-    if std::env::var_os("DBM_TIP_TEST").is_some() {
-        timers.push(layout::tip_test(ui));
-    }
-    if let Some(panel) = std::env::var_os("DBM_FIRST_OPEN") {
-        timers.push(layout::first_open_test(
-            ui,
-            panel.to_string_lossy().into_owned(),
-        ));
-    }
-    if std::env::var_os("DBM_SCROLL_TEST").is_some() {
-        timers.push(layout::scroll_test(ui));
-    }
-    if std::env::var_os("DBM_WHEEL_TEST").is_some() {
-        timers.push(playback::wheel_test(ui));
-    }
-    if std::env::var_os("DBM_TIMING_TEST").is_some() {
-        timers.push(playback::timing_test(ui, mpv.clone()));
-    }
-    if std::env::var_os("DBM_KEY_TEST").is_some() {
-        timers.push(keys::key_test(ui));
-    }
-    if std::env::var_os("DBM_WAKE_TEST").is_some() {
-        timers.push(keys::wake_test(ui));
-    }
-    if std::env::var_os("DBM_READ_TEST").is_some() {
-        timers.push(keys::read_test(ui, mpv.clone()));
-    }
-    if std::env::var_os("DBM_REACH_TEST").is_some() {
-        timers.push(keys::reach_test(ui));
-    }
-    if std::env::var_os("DBM_CURSOR_TEST").is_some() {
-        timers.push(platform::cursor_test(ui));
-    }
-    if std::env::var_os("DBM_PANEL_TEST").is_some() {
-        timers.push(layout::panel_test(ui));
-    }
-    if std::env::var_os("DBM_SUBS_TEST").is_some() {
-        timers.push(settings::subs_test(ui, mpv.clone()));
-    }
-    if std::env::var_os("DBM_ADDED_TEST").is_some() {
-        timers.push(settings::added_test(ui, mpv.clone()));
-    }
-    if std::env::var_os("DBM_SYNC_TEST").is_some() {
-        timers.push(settings::sync_test(ui, mpv.clone()));
-    }
-    if std::env::var_os("DBM_SIGN_IN_TEST").is_some() {
-        timers.push(settings::sign_in_test(ui));
-    }
-    if std::env::var_os("DBM_FIND_TEST").is_some() {
-        timers.push(settings::find_test(ui, mpv.clone()));
-    }
-    if std::env::var_os("DBM_AUDIO_TEST").is_some() {
-        timers.push(platform::audio_test(mpv.clone(), audio.clone()));
-    }
-    #[cfg(windows)]
-    if std::env::var_os("DBM_SMTC_TEST").is_some() {
-        timers.push(media_keys::smtc_test(ui, mpv.clone()));
-    }
-    #[cfg(not(windows))]
-    if std::env::var_os("DBM_MPRIS_TEST").is_some() {
-        timers.push(media_keys::mpris_test(ui, mpv.clone()));
-    }
-    #[cfg(windows)]
-    if let Some(path) = std::env::var_os("DBM_DROP_TEST") {
-        timers.push(opening::drop_test(ui, path.to_string_lossy().into_owned()));
-    }
-    if std::env::var_os("DBM_FLASH_TEST").is_some() {
-        timers.push(playback::flash_test(ui));
-    }
-    if std::env::var_os("DBM_PROGRESS_TEST").is_some() {
-        timers.push(playback::progress_test(ui, mpv.clone()));
-    }
-    if std::env::var_os("DBM_SCAN_TEST").is_some() {
-        timers.push(opening::scan_test(ui));
-    }
-    if std::env::var_os("DBM_END_TEST").is_some() {
-        timers.push(playback::end_test(ui));
-    }
-    match std::env::var("DBM_SCRUB_TEST").as_deref() {
-        Ok("slow") => timers.push(playback::slow_scrub_test(ui)),
-        Ok(_) => timers.push(playback::scrub_test(ui)),
-        Err(_) => {}
-    }
-    if std::env::var_os("DBM_INTRO_TEST").is_some() {
-        timers.push(playback::intro_test(ui));
-    }
-    if std::env::var_os("DBM_CREDITS_TEST").is_some() {
-        timers.push(playback::credits_test(ui, mpv.clone()));
-    }
-    Harnesses { _timers: timers }
+    Harnesses { _scripts: scripts }
 }
 
 // ---------------------------------------------------------------------------

@@ -5,41 +5,35 @@ use std::time::Duration;
 use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
+use super::script::{self, Beat, Script, Verdict, sleep};
 use crate::{Find, MainWindow, Motion, Settings, Subtitles, Tracks};
 
 /// Open the settings panel and drive one parameter to its maximum, so the
 /// probe frame lands with a value nothing else would have produced.
-pub(super) fn param_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    timer.start(
-        slint::TimerMode::SingleShot,
-        Duration::from_millis(600),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            ui.set_settings_open(true);
-            // The glass tint amount, found by key rather than index, so the
-            // registry can be reordered. Tint runs 0..1, so the value is also
-            // the slider's fraction. A non-numeric value opens the panel
-            // without touching anything, to probe a value loaded from disk.
-            let tint_row = crate::settings::REGISTRY
-                .iter()
-                .position(|p| p.key == crate::settings::Key::Tint)
-                .expect("the registry has a tint row");
-            match std::env::var("DBM_PARAM_TEST")
-                .ok()
-                .and_then(|v| v.parse::<f32>().ok())
-            {
-                Some(tint) => {
-                    ui.global::<Settings>()
-                        .invoke_set_param(tint_row as i32, tint);
-                    eprintln!("dbm: settings opened, tint set to {tint}");
-                }
-                None => eprintln!("dbm: settings opened, values untouched"),
+pub(super) fn param_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        sleep(Duration::from_millis(600)).await;
+        ui.set_settings_open(true);
+        // The glass tint amount, found by key rather than index, so the
+        // registry can be reordered. Tint runs 0..1, so the value is also
+        // the slider's fraction. A non-numeric value opens the panel
+        // without touching anything, to probe a value loaded from disk.
+        let tint_row = crate::settings::REGISTRY
+            .iter()
+            .position(|p| p.key == crate::settings::Key::Tint)
+            .expect("the registry has a tint row");
+        match std::env::var("DBM_PARAM_TEST")
+            .ok()
+            .and_then(|v| v.parse::<f32>().ok())
+        {
+            Some(tint) => {
+                ui.global::<Settings>()
+                    .invoke_set_param(tint_row as i32, tint);
+                eprintln!("dbm: settings opened, tint set to {tint}");
             }
-        },
-    );
-    timer
+            None => eprintln!("dbm: settings opened, values untouched"),
+        }
+    })
 }
 
 /// What mpv holds against what the panel is showing.
@@ -75,68 +69,72 @@ fn report_subs(ui: &MainWindow, mpv: &Mpv, label: &str) {
 /// The clamp is the part worth driving: it is in `commands` so the value
 /// saved is the one mpv was given, and a drift between the two would only
 /// show as a setting that comes back wrong next run.
-pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(900),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                0 => report_subs(&ui, &mpv, "start"),
-                1 => {
-                    for _ in 0..4 {
-                        ui.global::<Subtitles>()
-                            .invoke_nudge_delay(ui.global::<Subtitles>().get_delay_step());
-                    }
-                }
-                2 => report_subs(&ui, &mpv, "delay +4 steps"),
-                3 => {
-                    for _ in 0..3 {
-                        ui.global::<Subtitles>()
-                            .invoke_nudge_scale(ui.global::<Subtitles>().get_scale_step());
-                    }
-                }
-                4 => report_subs(&ui, &mpv, "size +3 steps"),
-                5 => {
-                    for _ in 0..5 {
-                        ui.global::<Subtitles>()
-                            .invoke_nudge_pos(-ui.global::<Subtitles>().get_pos_step());
-                    }
-                }
-                6 => report_subs(&ui, &mpv, "position -5 steps"),
-                // Far past the ceiling in one go, which is what a held
-                // button amounts to.
-                7 => {
-                    for _ in 0..80 {
-                        ui.global::<Subtitles>()
-                            .invoke_nudge_scale(ui.global::<Subtitles>().get_scale_step());
-                    }
-                }
-                8 => report_subs(&ui, &mpv, "size held up"),
-                9 => {
-                    for _ in 0..120 {
-                        ui.global::<Subtitles>()
-                            .invoke_nudge_pos(-ui.global::<Subtitles>().get_pos_step());
-                    }
-                }
-                10 => report_subs(&ui, &mpv, "position held down"),
-                // Both resets of the subtitles menu's pages: size and
-                // position, which are saved, and the timing, the film's own.
-                11 => {
-                    ui.global::<Subtitles>().invoke_reset();
-                    ui.global::<Subtitles>().invoke_set_timing(0.0, 1.0);
-                }
-                12 => report_subs(&ui, &mpv, "after reset"),
-                13 => eprintln!("dbm: --- subtitle test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+    script::run(ui, move |ui| async move {
+        let verdict = Verdict::new("subtitle");
+        let subtitles = ui.global::<Subtitles>();
+        let read = |name: &str| {
+            mpv.get_property(name)
+                .and_then(|v| v.parse::<f64>().ok())
+                .unwrap_or(f64::NAN)
+        };
+        let near = |name: &str, want: f64| (read(name) - want).abs() < 0.005;
+        let mut beat = Beat::new(Duration::from_millis(900));
+        beat.next().await;
+        report_subs(&ui, &mpv, "start");
+        beat.next().await;
+        for _ in 0..4 {
+            subtitles.invoke_nudge_delay(subtitles.get_delay_step());
+        }
+        beat.next().await;
+        report_subs(&ui, &mpv, "delay +4 steps");
+        verdict.check(near("sub-delay", 0.4), "four steps of delay are 0.4 s");
+        beat.next().await;
+        for _ in 0..3 {
+            subtitles.invoke_nudge_scale(subtitles.get_scale_step());
+        }
+        beat.next().await;
+        report_subs(&ui, &mpv, "size +3 steps");
+        verdict.check(near("sub-scale", 1.15), "three steps of size are 1.15");
+        beat.next().await;
+        for _ in 0..5 {
+            subtitles.invoke_nudge_pos(-subtitles.get_pos_step());
+        }
+        beat.next().await;
+        report_subs(&ui, &mpv, "position -5 steps");
+        verdict.check(subtitles.get_pos_text() == "90%", "five steps up are 90%");
+        beat.next().await;
+        // Far past the ceiling in one go, which is what a held button
+        // amounts to.
+        for _ in 0..80 {
+            subtitles.invoke_nudge_scale(subtitles.get_scale_step());
+        }
+        beat.next().await;
+        report_subs(&ui, &mpv, "size held up");
+        verdict.check(near("sub-scale", 3.0), "the size stops at its ceiling");
+        beat.next().await;
+        for _ in 0..120 {
+            subtitles.invoke_nudge_pos(-subtitles.get_pos_step());
+        }
+        beat.next().await;
+        report_subs(&ui, &mpv, "position held down");
+        verdict.check(
+            subtitles.get_pos_text() == "0%",
+            "the place stops at the top",
+        );
+        beat.next().await;
+        // Both resets of the subtitles menu's pages: size and position,
+        // which are saved, and the timing, the film's own.
+        subtitles.invoke_reset();
+        subtitles.invoke_set_timing(0.0, 1.0);
+        beat.next().await;
+        report_subs(&ui, &mpv, "after reset");
+        verdict.check(
+            near("sub-delay", 0.0) && near("sub-scale", 1.0) && subtitles.get_pos_text() == "100%",
+            "the resets put everything back",
+        );
+        verdict.finish();
+    })
 }
 
 /// Open the subtitles menu, open its search, take the first result with the
@@ -144,7 +142,7 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
 /// presses, and report what the menu holds at each step. With `DBM_FIND_FAKE` set the search answers from a fixed list
 /// and the download is a subtitle written on the spot, so no key or
 /// connection is needed.
-pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
+pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
     use super::drive::chord;
     use slint::Model;
     use slint::platform::Key;
@@ -180,67 +178,60 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
             mpv.get_property("sub-text").unwrap_or_default()
         );
     };
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(500),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            let down = slint::SharedString::from(Key::DownArrow);
-            let up = slint::SharedString::from(Key::UpArrow);
-            let enter = slint::SharedString::from(Key::Return);
-            let delete = slint::SharedString::from(Key::Delete);
-            match step {
-                0..=3 => {}
-                4 => {
-                    let _ = mpv.set_property("pause", "yes");
-                    let _ = mpv.command_async(0, &["seek", "5", "absolute+exact"]);
-                    ui.invoke_open_menu(true);
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(500));
+        let down = slint::SharedString::from(Key::DownArrow);
+        let up = slint::SharedString::from(Key::UpArrow);
+        let enter = slint::SharedString::from(Key::Return);
+        let delete = slint::SharedString::from(Key::Delete);
+        beat.rest(5).await;
+        let _ = mpv.set_property("pause", "yes");
+        let _ = mpv.command_async(0, &["seek", "5", "absolute+exact"]);
+        ui.invoke_open_menu(true);
+        beat.next().await;
+        report(&ui, &mpv, "menu");
+        beat.next().await;
+        ui.invoke_open_find();
+        beat.rest(2).await;
+        report(&ui, &mpv, "searched");
+        beat.next().await;
+        // The ring onto the first result, and Enter on it.
+        chord(&ui, &[], down.as_str());
+        beat.next().await;
+        chord(&ui, &[], down.as_str());
+        beat.next().await;
+        eprintln!("dbm: find enter on row {}", ui.get_focus_row());
+        chord(&ui, &[], enter.as_str());
+        beat.rest(3).await;
+        report(&ui, &mpv, "fetched");
+        beat.rest(2).await;
+        // The ring onto the fetched track, wherever the film's own
+        // tracks put it, and Delete twice, since the first asks.
+        let fetched = ui
+            .global::<Tracks>()
+            .get_subtitles()
+            .iter()
+            .position(|t| t.external && t.selected)
+            .map(|i| i as i32 + 1);
+        if let Some(fetched) = fetched {
+            for _ in 0..8 {
+                let row = ui.get_focus_row();
+                if row == fetched {
+                    break;
                 }
-                5 => report(&ui, &mpv, "menu"),
-                6 => ui.invoke_open_find(),
-                8 => report(&ui, &mpv, "searched"),
-                // The ring onto the first result, and Enter on it.
-                9 => chord(&ui, &[], down.as_str()),
-                10 => chord(&ui, &[], down.as_str()),
-                11 => {
-                    eprintln!("dbm: find enter on row {}", ui.get_focus_row());
-                    chord(&ui, &[], enter.as_str());
-                }
-                14 => report(&ui, &mpv, "fetched"),
-                // The ring onto the fetched track, wherever the film's own
-                // tracks put it, and Delete twice, since the first asks.
-                16 => {
-                    let fetched = ui
-                        .global::<Tracks>()
-                        .get_subtitles()
-                        .iter()
-                        .position(|t| t.external && t.selected)
-                        .map(|i| i as i32 + 1);
-                    if let Some(fetched) = fetched {
-                        for _ in 0..8 {
-                            let row = ui.get_focus_row();
-                            if row == fetched {
-                                break;
-                            }
-                            let toward = if row < fetched { &down } else { &up };
-                            chord(&ui, &[], toward.as_str());
-                        }
-                    }
-                    eprintln!("dbm: find delete on row {}", ui.get_focus_row());
-                    chord(&ui, &[], delete.as_str());
-                }
-                17 => chord(&ui, &[], delete.as_str()),
-                18 => report(&ui, &mpv, "removed"),
-                19 => eprintln!("dbm: --- find test done ---"),
-                _ => {}
+                let toward = if row < fetched { &down } else { &up };
+                chord(&ui, &[], toward.as_str());
             }
-            step += 1;
-        },
-    );
-    timer
+        }
+        eprintln!("dbm: find delete on row {}", ui.get_focus_row());
+        chord(&ui, &[], delete.as_str());
+        beat.next().await;
+        chord(&ui, &[], delete.as_str());
+        beat.next().await;
+        report(&ui, &mpv, "removed");
+        beat.next().await;
+        eprintln!("dbm: --- find test done ---");
+    })
 }
 
 /// Run out of downloads without an account and sign in past them, all from
@@ -256,7 +247,7 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
 /// copy *leak*, and the name is pasted over with
 /// the clipboard. If the field kept its own, the name is still `fake` and the
 /// sign-in goes through; if it leaked, the name is *leak*, and it is refused.
-pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
+pub(super) fn sign_in_test(ui: &MainWindow) -> Script {
     use super::drive::chord;
     use slint::platform::Key;
 
@@ -282,152 +273,142 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> slint::Timer {
     let press = |ui: &MainWindow, key: Key| chord(ui, &[], &slint::SharedString::from(key));
     let control = |ui: &MainWindow, text: &str| chord(ui, &[Key::Control], text);
 
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    let mut clipboard = false;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(400),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                0..=3 => {}
-                4 => ui.invoke_open_menu(true),
-                5 => ui.invoke_open_find(),
-                // The ring up, onto the first result, and Enter on it.
-                7 => press(&ui, Key::DownArrow),
-                8 => press(&ui, Key::DownArrow),
-                9 => press(&ui, Key::Return),
-                // Refused, so the sign-in's page, on its first field.
-                11 => report(&ui, "refused"),
-                12 => typed(&ui, "fake"),
-                13 => press(&ui, Key::Return),
-                14 => typed(&ui, "nope"),
-                15 => press(&ui, Key::Return),
-                16 => report(&ui, "wrong password"),
-                // A second on, for the sign-ins' own limit: the name copied
-                // and pasted as the password.
-                19 => {
-                    press(&ui, Key::UpArrow);
-                    control(&ui, "a");
-                    control(&ui, "c");
-                    press(&ui, Key::DownArrow);
-                    control(&ui, "v");
-                    press(&ui, Key::Return);
-                }
-                21 => {
-                    clipboard = ui.global::<Find>().get_account() == "fake";
-                    if clipboard {
-                        report(&ui, "pasted, in");
-                    } else {
-                        report(&ui, "no clipboard");
-                        typed(&ui, "fake");
-                        press(&ui, Key::Return);
-                    }
-                }
-                23 => report(&ui, "signed in"),
-                25 => report(&ui, "fetched"),
-                26 => {
-                    ui.invoke_open_menu(true);
-                    ui.invoke_open_find();
-                }
-                // Down until the ring is on the account's row, under the
-                // results, however many presses that is from wherever it was
-                // left.
-                27 => {
-                    report(&ui, "searched again");
-                    let account = 1 + ui.global::<Find>().get_hits().row_count() as i32;
-                    for _ in 0..=account {
-                        if ui.get_focus_row() == account {
-                            break;
-                        }
-                        press(&ui, Key::DownArrow);
-                    }
-                    press(&ui, Key::Return);
-                }
-                28 => {
-                    report(&ui, "account again");
-                    press(&ui, Key::Return);
-                }
-                29 => report(&ui, "signed out"),
-                // The leak: a result pressed for the sign-in again, the
-                // password field told to copy, and the name pasted over with
-                // whatever it held.
-                30 if clipboard => press(&ui, Key::Return),
-                32 if clipboard => {
-                    typed(&ui, "fake");
-                    press(&ui, Key::DownArrow);
-                    typed(&ui, "leak");
-                    control(&ui, "a");
-                    control(&ui, "c");
-                    control(&ui, "a");
-                    press(&ui, Key::Backspace);
-                    press(&ui, Key::UpArrow);
-                    control(&ui, "a");
-                    control(&ui, "v");
-                    press(&ui, Key::DownArrow);
-                    typed(&ui, "fake");
-                    press(&ui, Key::Return);
-                }
-                34 if clipboard => {
-                    let kept = ui.global::<Find>().get_account() == "fake";
-                    report(&ui, if kept { "nothing copied" } else { "LEAKED" });
-                }
-                35 => eprintln!(
-                    "dbm: --- sign-in test done{} ---",
-                    if clipboard {
-                        ""
-                    } else {
-                        " (no clipboard, so no leak check)"
-                    }
-                ),
-                _ => {}
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(400));
+        let find = ui.global::<Find>();
+        beat.rest(5).await;
+        ui.invoke_open_menu(true);
+        beat.next().await;
+        ui.invoke_open_find();
+        beat.rest(2).await;
+        // The ring up, onto the first result, and Enter on it.
+        press(&ui, Key::DownArrow);
+        beat.next().await;
+        press(&ui, Key::DownArrow);
+        beat.next().await;
+        press(&ui, Key::Return);
+        beat.rest(2).await;
+        // Refused, so the sign-in's page, on its first field.
+        report(&ui, "refused");
+        beat.next().await;
+        typed(&ui, "fake");
+        beat.next().await;
+        press(&ui, Key::Return);
+        beat.next().await;
+        typed(&ui, "nope");
+        beat.next().await;
+        press(&ui, Key::Return);
+        beat.next().await;
+        report(&ui, "wrong password");
+        beat.rest(3).await;
+        // A second on, for the sign-ins' own limit: the name copied
+        // and pasted as the password.
+        press(&ui, Key::UpArrow);
+        control(&ui, "a");
+        control(&ui, "c");
+        press(&ui, Key::DownArrow);
+        control(&ui, "v");
+        press(&ui, Key::Return);
+        beat.rest(2).await;
+        let clipboard = find.get_account() == "fake";
+        if clipboard {
+            report(&ui, "pasted, in");
+        } else {
+            report(&ui, "no clipboard");
+            typed(&ui, "fake");
+            press(&ui, Key::Return);
+        }
+        beat.rest(2).await;
+        report(&ui, "signed in");
+        beat.rest(2).await;
+        report(&ui, "fetched");
+        beat.next().await;
+        ui.invoke_open_menu(true);
+        ui.invoke_open_find();
+        beat.next().await;
+        // Down until the ring is on the account's row, under the
+        // results, however many presses that is from wherever it was
+        // left.
+        report(&ui, "searched again");
+        let account = 1 + find.get_hits().row_count() as i32;
+        for _ in 0..=account {
+            if ui.get_focus_row() == account {
+                break;
             }
-            step += 1;
-        },
-    );
-    timer
+            press(&ui, Key::DownArrow);
+        }
+        press(&ui, Key::Return);
+        beat.next().await;
+        report(&ui, "account again");
+        press(&ui, Key::Return);
+        beat.next().await;
+        report(&ui, "signed out");
+        beat.next().await;
+        // The leak: a result pressed for the sign-in again, the
+        // password field told to copy, and the name pasted over with
+        // whatever it held.
+        if clipboard {
+            press(&ui, Key::Return);
+        }
+        beat.rest(2).await;
+        if clipboard {
+            typed(&ui, "fake");
+            press(&ui, Key::DownArrow);
+            typed(&ui, "leak");
+            control(&ui, "a");
+            control(&ui, "c");
+            control(&ui, "a");
+            press(&ui, Key::Backspace);
+            press(&ui, Key::UpArrow);
+            control(&ui, "a");
+            control(&ui, "v");
+            press(&ui, Key::DownArrow);
+            typed(&ui, "fake");
+            press(&ui, Key::Return);
+        }
+        beat.rest(2).await;
+        if clipboard {
+            let kept = find.get_account() == "fake";
+            report(&ui, if kept { "nothing copied" } else { "LEAKED" });
+        }
+        beat.next().await;
+        eprintln!(
+            "dbm: --- sign-in test done{} ---",
+            if clipboard {
+                ""
+            } else {
+                " (no clipboard, so no leak check)"
+            }
+        );
+    })
 }
 
 /// Adds a subtitle file to a paused film the way a finished download does,
 /// with the subtitles menu open, and then touches nothing, reporting what the
 /// menu knows of it. A paused film draws no frames of its own, so the menu
 /// has only the wake-ups to learn from.
-pub(super) fn added_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
+pub(super) fn added_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
     let file = std::env::var("DBM_ADDED_TEST").unwrap_or_default();
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut tick = 0u32;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(250),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            tick += 1;
-            match tick {
-                12 => crate::playback::commands::set_pause(&mpv, true),
-                16 => ui.invoke_open_menu(true),
-                20 => crate::playback::commands::add_subtitle(
-                    &mpv,
-                    std::path::Path::new(&file),
-                    "en",
-                    true,
-                ),
-                _ => {}
-            }
-            if (20..=40).contains(&tick) && tick.is_multiple_of(2) {
-                eprintln!(
-                    "dbm: added t+{:.1}s tracks={} current={} visible={}",
-                    (tick - 20) as f32 * 0.25,
-                    ui.global::<Tracks>().get_subtitles().row_count(),
-                    ui.global::<Tracks>().get_subtitle_current(),
-                    ui.global::<Subtitles>().get_visible(),
-                );
-            }
-        },
-    );
-    timer
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(250));
+        beat.rest(12).await;
+        crate::playback::commands::set_pause(&mpv, true);
+        beat.rest(4).await;
+        ui.invoke_open_menu(true);
+        beat.rest(4).await;
+        crate::playback::commands::add_subtitle(&mpv, std::path::Path::new(&file), "en", true);
+        // What the menu holds every half second for five seconds after.
+        for half in 0..=10 {
+            eprintln!(
+                "dbm: added t+{:.1}s tracks={} current={} visible={}",
+                half as f32 * 0.5,
+                ui.global::<Tracks>().get_subtitles().row_count(),
+                ui.global::<Tracks>().get_subtitle_current(),
+                ui.global::<Subtitles>().get_visible(),
+            );
+            beat.rest(2).await;
+        }
+    })
 }
 
 /// Sync the subtitles to the film's speech, from the keyboard, and read back
@@ -442,8 +423,9 @@ pub(super) fn added_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Ti
 /// last track, down once to Timing under the tracks, Enter into its page and
 /// down once to the sync), the path the menu's Enter answers and a click
 /// never touches. Then Enter again takes the sync back.
-pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
+pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
     use super::drive::chord;
+    use slint::SharedString;
     use slint::platform::Key;
 
     let track = std::env::var("DBM_SYNC_TEST").unwrap_or_default();
@@ -458,67 +440,61 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
             mpv.get_property("sub-text").unwrap_or_default(),
         );
     };
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    let mut waited = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(500),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            let down = slint::SharedString::from(Key::DownArrow);
-            let end = slint::SharedString::from(Key::End);
-            let enter = slint::SharedString::from(Key::Return);
-            match step {
-                // Let the film open first: there is no track to pick before.
-                0..=3 => {}
-                4 => {
-                    if track.parse::<i64>().is_ok() {
-                        let _ = mpv.set_property("sid", &track);
-                    } else {
-                        let _ = mpv.command_async(0, &["sub-add", &track, "select"]);
-                    }
-                    let _ = mpv.set_property("pause", "yes");
-                    let _ = mpv.command_async(0, &["seek", &at, "absolute+exact"]);
-                }
-                6 => report(&ui, &mpv, "before"),
-                7 => chord(&ui, &[], "v"),
-                8 => chord(&ui, &[], end.as_str()),
-                9 | 11 => chord(&ui, &[], down.as_str()),
-                10 => chord(&ui, &[], enter.as_str()),
-                15 => {
-                    eprintln!("dbm: sync enter on row {}", ui.get_focus_row());
-                    chord(&ui, &[], enter.as_str());
-                }
-                16 => {
-                    // Hold here until the row stops listening.
-                    if ui.global::<Subtitles>().get_sync_state() == 1 {
-                        waited += 1;
-                        if waited % 4 == 1 {
-                            eprintln!("dbm: sync listening...");
-                        }
-                        return;
-                    }
-                }
-                // A beat for mpv to redraw the line at its new timing.
-                18 => report(&ui, &mpv, "after the sync"),
-                // Only where there is a sync to take back, or Enter would
-                // start another. `DBM_SYNC_KEEP` leaves it standing, for a run
-                // that goes on to look at what was saved.
-                19 if ui.global::<Subtitles>().get_sync_state() == 2
-                    && std::env::var_os("DBM_SYNC_KEEP").is_none() =>
-                {
-                    chord(&ui, &[], enter.as_str());
-                }
-                21 => report(&ui, &mpv, "after taking it back"),
-                22 => eprintln!("dbm: --- sync test done ---"),
-                _ => {}
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(500));
+        let subtitles = ui.global::<Subtitles>();
+        let down = SharedString::from(Key::DownArrow);
+        let end = SharedString::from(Key::End);
+        let enter = SharedString::from(Key::Return);
+        // Let the film open first: there is no track to pick before.
+        beat.rest(5).await;
+        if track.parse::<i64>().is_ok() {
+            let _ = mpv.set_property("sid", &track);
+        } else {
+            let _ = mpv.command_async(0, &["sub-add", &track, "select"]);
+        }
+        let _ = mpv.set_property("pause", "yes");
+        let _ = mpv.command_async(0, &["seek", &at, "absolute+exact"]);
+        beat.rest(2).await;
+        report(&ui, &mpv, "before");
+        for key in [
+            "v",
+            end.as_str(),
+            down.as_str(),
+            enter.as_str(),
+            down.as_str(),
+        ] {
+            beat.next().await;
+            chord(&ui, &[], key);
+        }
+        beat.rest(4).await;
+        eprintln!("dbm: sync enter on row {}", ui.get_focus_row());
+        chord(&ui, &[], enter.as_str());
+        // Hold here until the row stops listening.
+        beat.next().await;
+        let mut waited = 0usize;
+        while subtitles.get_sync_state() == 1 {
+            waited += 1;
+            if waited % 4 == 1 {
+                eprintln!("dbm: sync listening...");
             }
-            step += 1;
-        },
-    );
-    timer
+            beat.next().await;
+        }
+        // A beat for mpv to redraw the line at its new timing.
+        beat.rest(2).await;
+        report(&ui, &mpv, "after the sync");
+        // Only where there is a sync to take back, or Enter would start
+        // another. `DBM_SYNC_KEEP` leaves it standing, for a run that goes on
+        // to look at what was saved.
+        beat.next().await;
+        if subtitles.get_sync_state() == 2 && std::env::var_os("DBM_SYNC_KEEP").is_none() {
+            chord(&ui, &[], enter.as_str());
+        }
+        beat.rest(2).await;
+        report(&ui, &mpv, "after taking it back");
+        beat.next().await;
+        eprintln!("dbm: --- sync test done ---");
+    })
 }
 
 /// The glass slider rows, as the panel would show them, named in the output
@@ -554,87 +530,73 @@ fn report_motion(ui: &MainWindow, label: &str) {
 /// What matters is not the property afterwards, which only says the click
 /// landed, but what the probe reads from the framebuffer between steps, and
 /// what mpv says `keep-open` became.
-pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(1200),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            // A panel has to be on screen for there to be glass to sample.
-            let flip = |name: &str, on: bool| eprintln!("dbm: {name} -> {on}");
-            match step {
-                0 => ui.set_settings_open(true),
-                // Only the ambient border has a switch. The probe still
-                // samples the glass under the open panel between steps.
-                1 => {
-                    ui.global::<Settings>().set_ambience_on(false);
-                    ui.global::<Settings>().invoke_set_ambience(false);
-                    flip("ambience", false);
-                }
-                2 => {
-                    ui.global::<Settings>().set_ambience_on(true);
-                    ui.global::<Settings>().invoke_set_ambience(true);
-                    flip("ambience", true);
-                }
-                3 => {
-                    ui.global::<Settings>().set_autoplay(false);
-                    ui.global::<Settings>().invoke_set_autoplay(false);
-                }
-                // A blocking read, acceptable only off the frame path.
-                // Autoplay has no picture to check, so mpv is the witness.
-                4 => eprintln!(
-                    "dbm: autoplay off -> keep-open={:?}",
-                    mpv.get_property("keep-open")
-                ),
-                5 => {
-                    ui.global::<Settings>().set_autoplay(true);
-                    ui.global::<Settings>().invoke_set_autoplay(true);
-                }
-                6 => eprintln!(
-                    "dbm: autoplay on  -> keep-open={:?}",
-                    mpv.get_property("keep-open")
-                ),
-                // Animations, the way the switch turns them off: `Motion`
-                // first, then the callback that saves it. The tokens every
-                // `animate` reads should be zero with it off, and back with it
-                // on.
-                7 => {
-                    ui.global::<Motion>().set_chosen(false);
-                    ui.global::<Settings>().invoke_set_animations(false);
-                    report_motion(&ui, "animations off");
-                }
-                8 => {
-                    ui.global::<Motion>().set_chosen(true);
-                    ui.global::<Settings>().invoke_set_animations(true);
-                    report_motion(&ui, "animations on");
-                }
-                // Reset: drive one slider somewhere it never is by default,
-                // put the section back, and read the row again. The row is
-                // what to check, since `DBM_PARAM_TEST` covers the pipeline,
-                // and a model rebuilt rather than updated in place would lose
-                // the drag. Tint is found by key, as in `param_test`.
-                9 => {
-                    let tint = crate::settings::REGISTRY
-                        .iter()
-                        .position(|p| p.key == crate::settings::Key::Tint)
-                        .expect("the registry has a tint row");
-                    ui.global::<Settings>().invoke_set_param(tint as i32, 1.0);
-                    eprintln!("dbm: tint driven to max");
-                }
-                10 => report_row(&ui, "after tint max"),
-                11 => {
-                    ui.global::<Settings>().invoke_reset_section(0);
-                    eprintln!("dbm: glass section reset");
-                }
-                12 => report_row(&ui, "after reset"),
-                13 => eprintln!("dbm: --- toggle test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(1200));
+        // A panel has to be on screen for there to be glass to sample.
+        let flip = |name: &str, on: bool| eprintln!("dbm: {name} -> {on}");
+        beat.next().await;
+        ui.set_settings_open(true);
+        beat.next().await;
+        // Only the ambient border has a switch. The probe still
+        // samples the glass under the open panel between steps.
+        ui.global::<Settings>().set_ambience_on(false);
+        ui.global::<Settings>().invoke_set_ambience(false);
+        flip("ambience", false);
+        beat.next().await;
+        ui.global::<Settings>().set_ambience_on(true);
+        ui.global::<Settings>().invoke_set_ambience(true);
+        flip("ambience", true);
+        beat.next().await;
+        ui.global::<Settings>().set_autoplay(false);
+        ui.global::<Settings>().invoke_set_autoplay(false);
+        beat.next().await;
+        // A blocking read, acceptable only off the frame path.
+        // Autoplay has no picture to check, so mpv is the witness.
+        eprintln!(
+            "dbm: autoplay off -> keep-open={:?}",
+            mpv.get_property("keep-open")
+        );
+        beat.next().await;
+        ui.global::<Settings>().set_autoplay(true);
+        ui.global::<Settings>().invoke_set_autoplay(true);
+        beat.next().await;
+        eprintln!(
+            "dbm: autoplay on  -> keep-open={:?}",
+            mpv.get_property("keep-open")
+        );
+        beat.next().await;
+        // Animations, the way the switch turns them off: `Motion`
+        // first, then the callback that saves it. The tokens every
+        // `animate` reads should be zero with it off, and back with it
+        // on.
+        ui.global::<Motion>().set_chosen(false);
+        ui.global::<Settings>().invoke_set_animations(false);
+        report_motion(&ui, "animations off");
+        beat.next().await;
+        ui.global::<Motion>().set_chosen(true);
+        ui.global::<Settings>().invoke_set_animations(true);
+        report_motion(&ui, "animations on");
+        beat.next().await;
+        // Reset: drive one slider somewhere it never is by default,
+        // put the section back, and read the row again. The row is
+        // what to check, since `DBM_PARAM_TEST` covers the pipeline,
+        // and a model rebuilt rather than updated in place would lose
+        // the drag. Tint is found by key, as in `param_test`.
+        let tint = crate::settings::REGISTRY
+            .iter()
+            .position(|p| p.key == crate::settings::Key::Tint)
+            .expect("the registry has a tint row");
+        ui.global::<Settings>().invoke_set_param(tint as i32, 1.0);
+        eprintln!("dbm: tint driven to max");
+        beat.next().await;
+        report_row(&ui, "after tint max");
+        beat.next().await;
+        ui.global::<Settings>().invoke_reset_section(0);
+        eprintln!("dbm: glass section reset");
+        beat.next().await;
+        report_row(&ui, "after reset");
+        beat.next().await;
+        eprintln!("dbm: --- toggle test done ---");
+    })
 }

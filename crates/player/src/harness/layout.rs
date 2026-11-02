@@ -5,25 +5,21 @@ use std::time::Duration;
 use slint::{ComponentHandle, Model};
 
 use super::drive::{click, drag, wheel};
+use super::script::{self, Beat, Script, sleep};
 use super::selected_label;
 use crate::platform::modal_loop;
 use crate::{MainWindow, Playback, Settings, Tracks};
 
-pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut tick = 0u32;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(8),
-        move || {
+pub(super) fn resize_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(8));
+        for tick in 1..=401u32 {
+            beat.next().await;
             // Stop after a while and hold the last size, so the settling path
             // is exercised too.
             if tick > 400 {
-                return;
+                continue;
             }
-            let Some(ui) = weak.upgrade() else { return };
-            tick += 1;
             // Pause partway in, since resizing while paused is where a
             // reallocated target that wasn't re-rendered would show black.
             if tick == 60 {
@@ -52,9 +48,8 @@ pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
             if tick % 10 == 5 {
                 eprintln!("dbm: resize lag {:.1}px", ui.get_resize_lag());
             }
-        },
-    );
-    timer
+        }
+    })
 }
 
 /// Open at a size other than the one `main` asks for.
@@ -66,38 +61,26 @@ pub(super) fn resize_test(ui: &MainWindow) -> slint::Timer {
 /// Repeated rather than fired once, because the size doesn't always take on
 /// the first frame and nothing says when it has. It stops once the window
 /// agrees, so nothing fights a real drag.
-pub(super) fn window_size(ui: &MainWindow, size: slint::LogicalSize) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut tries = 0u32;
-    let mut done = false;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(100),
-        move || {
-            if done {
-                return;
-            }
-            let Some(ui) = weak.upgrade() else { return };
-            let now = ui.window().size().to_logical(ui.window().scale_factor());
+pub(super) fn window_size(ui: &MainWindow, size: slint::LogicalSize) -> Script {
+    script::run(ui, move |ui| async move {
+        let window = ui.window();
+        for tries in 0.. {
+            sleep(Duration::from_millis(100)).await;
+            let now = window.size().to_logical(window.scale_factor());
             if (now.width - size.width).abs() < 1.0 && (now.height - size.height).abs() < 1.0 {
-                done = true;
                 eprintln!("dbm: window {}x{}", now.width, now.height);
                 return;
             }
-            tries += 1;
-            if tries > 20 {
-                done = true;
+            if tries == 20 {
                 eprintln!(
                     "dbm: window stayed {}x{}, asked for {}x{}",
                     now.width, now.height, size.width, size.height
                 );
                 return;
             }
-            ui.window().set_size(size);
-        },
-    );
-    timer
+            window.set_size(size);
+        }
+    })
 }
 
 /// Pause, resize, and then stop touching it.
@@ -106,64 +89,46 @@ pub(super) fn window_size(ui: &MainWindow, size: slint::LogicalSize) -> slint::T
 /// rect a frame or two late; playing, the next frame redraws the border from
 /// it, but paused there is no next frame, so the rect itself has to trigger
 /// the redraw.
-pub(super) fn paused_resize_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(1200),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                0 => {
-                    ui.global::<Playback>().invoke_toggle_pause();
-                    eprintln!("dbm: paused");
-                }
-                // Twice the height, so the letterbox bars are a different
-                // size afterwards and a stale rect cannot pass for a fresh
-                // one.
-                2 => {
-                    eprintln!("dbm: --- resizing while paused ---");
-                    ui.window().set_size(slint::LogicalSize::new(1000.0, 900.0));
-                }
-                4 => eprintln!("dbm: --- settled; the border must match ---"),
-                // Flipping the switch makes the probe take a fresh pixel
-                // reading of the letterbox with the new geometry.
-                5 => {
-                    ui.global::<Settings>().set_ambience_on(false);
-                    ui.global::<Settings>().invoke_set_ambience(false);
-                }
-                6 => {
-                    ui.global::<Settings>().set_ambience_on(true);
-                    ui.global::<Settings>().invoke_set_ambience(true);
-                }
-                8 => eprintln!("dbm: --- paused resize test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+pub(super) fn paused_resize_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(1200));
+        let settings = ui.global::<Settings>();
+        beat.next().await;
+        ui.global::<Playback>().invoke_toggle_pause();
+        eprintln!("dbm: paused");
+        beat.rest(2).await;
+        // Twice the height, so the letterbox bars are a different
+        // size afterwards and a stale rect cannot pass for a fresh
+        // one.
+        eprintln!("dbm: --- resizing while paused ---");
+        ui.window().set_size(slint::LogicalSize::new(1000.0, 900.0));
+        beat.rest(2).await;
+        eprintln!("dbm: --- settled; the border must match ---");
+        beat.next().await;
+        // Flipping the switch makes the probe take a fresh pixel
+        // reading of the letterbox with the new geometry.
+        settings.set_ambience_on(false);
+        settings.invoke_set_ambience(false);
+        beat.next().await;
+        settings.set_ambience_on(true);
+        settings.invoke_set_ambience(true);
+        beat.rest(2).await;
+        eprintln!("dbm: --- paused resize test done ---");
+    })
 }
 
 /// A tooltip, then another long after it went, then one just after. The
 /// second should wait `Motion.tip-delay` as the first did, and only the third
 /// come up at once, the bar being read. Reports the tip's glass a tenth of a
 /// second apart from each arrival.
-pub(super) fn tip_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut tick = 0u32;
+pub(super) fn tip_test(ui: &MainWindow) -> Script {
     // The settings and fullscreen buttons at the default size, and the
     // picture clear of the bar.
     let (gear, fullscreen, film) = ((1132.0, 664.0), (1224.0, 664.0), (640.0, 300.0));
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(100),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            tick += 1;
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(100));
+        for tick in 1..=61u32 {
+            beat.next().await;
             let (at, label) = match tick {
                 10 => (Some(film), ""),
                 11 => (Some(gear), "first"),
@@ -188,9 +153,8 @@ pub(super) fn tip_test(ui: &MainWindow) -> slint::Timer {
                     if tip.width > 0.0 { tip.opacity } else { 0.0 }
                 );
             }
-        },
-    );
-    timer
+        }
+    })
 }
 
 /// Opens one panel six seconds in, with nothing having asked for it before,
@@ -199,19 +163,17 @@ pub(super) fn tip_test(ui: &MainWindow) -> slint::Timer {
 /// first opening costs against the rest. The pointer moves over the picture
 /// half a second before each, as a hand reaching for the button would, so
 /// the bar is already up and only the panel arrives.
-pub(super) fn first_open_test(ui: &MainWindow, panel: String) -> slint::Timer {
+pub(super) fn first_open_test(ui: &MainWindow, panel: String) -> Script {
     let cycles: u32 = std::env::var("DBM_OPEN_CYCLES")
         .ok()
         .and_then(|n| n.parse().ok())
         .unwrap_or(2);
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut tick = 0u32;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(250),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(250));
+        // Until the window closes.
+        let mut tick = 0u32;
+        loop {
+            beat.next().await;
             tick += 1;
             // Two moves well apart, which the twitch filter lets through.
             if tick >= 22 && tick % 4 == 2 {
@@ -219,10 +181,10 @@ pub(super) fn first_open_test(ui: &MainWindow, panel: String) -> slint::Timer {
                 super::drive::hover(&ui, 640.0, 340.0);
             }
             let Some(step) = tick.checked_sub(24).filter(|t| t % 4 == 0) else {
-                return;
+                continue;
             };
             if step / 8 >= cycles {
-                return;
+                continue;
             }
             let open = step % 8 == 0;
             eprintln!(
@@ -237,9 +199,8 @@ pub(super) fn first_open_test(ui: &MainWindow, panel: String) -> slint::Timer {
                 "files" => ui.invoke_open_files(open),
                 _ => {}
             }
-        },
-    );
-    timer
+        }
+    })
 }
 
 /// How tall each tracks panel came out, against what its list wanted.
@@ -259,108 +220,96 @@ fn report_lists(ui: &MainWindow, label: &str) {
 ///
 /// A list sized correctly but stuck at the top looks the same as one that
 /// works, so the wheel is turned over each that can scroll.
-pub(super) fn scroll_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(1000),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                // Short enough that a long list runs into the panel's cap.
-                0 => {
-                    ui.window().set_size(slint::LogicalSize::new(1280.0, 540.0));
-                    ui.invoke_open_menu(true);
-                }
-                1 => report_lists(&ui, "tracks, short"),
-                2 => {
-                    // Into the subtitle list: below the panel top, the
-                    // padding and the heading.
-                    let x = ui.window().size().width as f32 / ui.window().scale_factor() - 100.0;
-                    let y = ui.get_timeline_y() - ui.get_subs_h() + 60.0;
-                    eprintln!("dbm: wheel over the subtitle list at ({x:.0}, {y:.0})");
-                    wheel(&ui, x, y, -120.0);
-                }
-                3 => eprintln!("dbm: subs scrolled to {:.0}", ui.get_subs_scroll()),
-                4 => {
-                    ui.window().set_size(slint::LogicalSize::new(1280.0, 720.0));
-                    ui.invoke_open_playlist(true);
-                }
-                5 => eprintln!(
-                    "dbm: playlist panel={:.0} list {:.0}/{:.0}",
-                    ui.get_playlist_h(),
-                    ui.get_playlist_list_h(),
-                    ui.get_playlist_natural(),
-                ),
-                6 => {
-                    let x = ui.get_playlist_anchor();
-                    let y = ui.get_timeline_y() - ui.get_playlist_h() + 60.0;
-                    eprintln!("dbm: wheel over the playlist at ({x:.0}, {y:.0})");
-                    wheel(&ui, x, y, -240.0);
-                }
-                7 => eprintln!("dbm: playlist scrolled to {:.0}", ui.get_playlist_scroll()),
-                // The scroll bar, which is a control and not only a hint. The
-                // wheel has left the list at its end, so a press on the rail
-                // near the head of it should bring the thumb, and the list,
-                // back to the start.
-                8 => {
-                    let (x, top) = playlist_bar(&ui);
-                    eprintln!("dbm: pressing the rail at ({x:.0}, {:.0})", top + 8.0);
-                    click(&ui, x, top + 8.0);
-                }
-                9 => eprintln!(
-                    "dbm: rail pressed at the head: {:.0}",
-                    ui.get_playlist_scroll()
-                ),
-                // Then the thumb, taken where it is and moved down 30px: the
-                // list should go as far as that is of the thumb's run.
-                10 => {
-                    let (x, top) = playlist_bar(&ui);
-                    drag(&ui, (x, top + 8.0), (x, top + 38.0));
-                }
-                11 => {
-                    let (shown, held) = (ui.get_playlist_list_h(), ui.get_playlist_natural());
-                    let rail = shown - 4.0;
-                    let run = rail - (rail * shown / held).max(24.0);
-                    eprintln!(
-                        "dbm: thumb dragged down 30: {:.0}, expected {:.0}",
-                        ui.get_playlist_scroll(),
-                        (shown - held) * 30.0 / run,
-                    );
-                }
-                12 => {
-                    let (x, top) = playlist_bar(&ui);
-                    let shown = ui.get_playlist_list_h();
-                    drag(&ui, (x, top + 38.0), (x, top + 38.0 + shown));
-                }
-                13 => eprintln!(
-                    "dbm: thumb dragged past the foot: {:.0}, the end is {:.0}",
-                    ui.get_playlist_scroll(),
-                    ui.get_playlist_list_h() - ui.get_playlist_natural(),
-                ),
-                // Back to the subtitles menu and click the first real
-                // subtitle row: the one below "Off", inside the scrolling list.
-                14 => ui.invoke_open_menu(true),
-                15 => {
-                    let top = ui.get_timeline_y() - ui.get_subs_h();
-                    let y = top + 14.0 + 28.0 + 34.0 + 17.0;
-                    let x = ui.get_subs_anchor();
-                    eprintln!("dbm: clicking a subtitle row at ({x:.0}, {y:.0})");
-                    click(&ui, x, y);
-                }
-                16 => eprintln!(
-                    "dbm: subtitle now {:?}",
-                    selected_label(&ui.global::<Tracks>().get_subtitles())
-                ),
-                17 => eprintln!("dbm: --- scroll test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+pub(super) fn scroll_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(1000));
+        beat.next().await;
+        // Short enough that a long list runs into the panel's cap.
+        ui.window().set_size(slint::LogicalSize::new(1280.0, 540.0));
+        ui.invoke_open_menu(true);
+        beat.next().await;
+        report_lists(&ui, "tracks, short");
+        beat.next().await;
+        // Into the subtitle list: below the panel top, the
+        // padding and the heading.
+        let x = ui.window().size().width as f32 / ui.window().scale_factor() - 100.0;
+        let y = ui.get_timeline_y() - ui.get_subs_h() + 60.0;
+        eprintln!("dbm: wheel over the subtitle list at ({x:.0}, {y:.0})");
+        wheel(&ui, x, y, -120.0);
+        beat.next().await;
+        eprintln!("dbm: subs scrolled to {:.0}", ui.get_subs_scroll());
+        beat.next().await;
+        ui.window().set_size(slint::LogicalSize::new(1280.0, 720.0));
+        ui.invoke_open_playlist(true);
+        beat.next().await;
+        eprintln!(
+            "dbm: playlist panel={:.0} list {:.0}/{:.0}",
+            ui.get_playlist_h(),
+            ui.get_playlist_list_h(),
+            ui.get_playlist_natural(),
+        );
+        beat.next().await;
+        let x = ui.get_playlist_anchor();
+        let y = ui.get_timeline_y() - ui.get_playlist_h() + 60.0;
+        eprintln!("dbm: wheel over the playlist at ({x:.0}, {y:.0})");
+        wheel(&ui, x, y, -240.0);
+        beat.next().await;
+        eprintln!("dbm: playlist scrolled to {:.0}", ui.get_playlist_scroll());
+        beat.next().await;
+        // The scroll bar, which is a control and not only a hint. The
+        // wheel has left the list at its end, so a press on the rail
+        // near the head of it should bring the thumb, and the list,
+        // back to the start.
+        let (x, top) = playlist_bar(&ui);
+        eprintln!("dbm: pressing the rail at ({x:.0}, {:.0})", top + 8.0);
+        click(&ui, x, top + 8.0);
+        beat.next().await;
+        eprintln!(
+            "dbm: rail pressed at the head: {:.0}",
+            ui.get_playlist_scroll()
+        );
+        beat.next().await;
+        // Then the thumb, taken where it is and moved down 30px: the
+        // list should go as far as that is of the thumb's run.
+        let (x, top) = playlist_bar(&ui);
+        drag(&ui, (x, top + 8.0), (x, top + 38.0));
+        beat.next().await;
+        let (shown, held) = (ui.get_playlist_list_h(), ui.get_playlist_natural());
+        let rail = shown - 4.0;
+        let run = rail - (rail * shown / held).max(24.0);
+        eprintln!(
+            "dbm: thumb dragged down 30: {:.0}, expected {:.0}",
+            ui.get_playlist_scroll(),
+            (shown - held) * 30.0 / run,
+        );
+        beat.next().await;
+        let (x, top) = playlist_bar(&ui);
+        let shown = ui.get_playlist_list_h();
+        drag(&ui, (x, top + 38.0), (x, top + 38.0 + shown));
+        beat.next().await;
+        eprintln!(
+            "dbm: thumb dragged past the foot: {:.0}, the end is {:.0}",
+            ui.get_playlist_scroll(),
+            ui.get_playlist_list_h() - ui.get_playlist_natural(),
+        );
+        beat.next().await;
+        // Back to the subtitles menu and click the first real
+        // subtitle row: the one below "Off", inside the scrolling list.
+        ui.invoke_open_menu(true);
+        beat.next().await;
+        let top = ui.get_timeline_y() - ui.get_subs_h();
+        let y = top + 14.0 + 28.0 + 34.0 + 17.0;
+        let x = ui.get_subs_anchor();
+        eprintln!("dbm: clicking a subtitle row at ({x:.0}, {y:.0})");
+        click(&ui, x, y);
+        beat.next().await;
+        eprintln!(
+            "dbm: subtitle now {:?}",
+            selected_label(&ui.global::<Tracks>().get_subtitles())
+        );
+        beat.next().await;
+        eprintln!("dbm: --- scroll test done ---");
+    })
 }
 
 /// Where the playlist's scroll bar is: its centre line, which runs 5.5px in
@@ -373,52 +322,68 @@ fn playlist_bar(ui: &MainWindow) -> (f32, f32) {
 ///
 /// The count is what to watch rather than the booleans: the panels share a
 /// corner, so two open at once would stack glass on glass.
-pub(super) fn panel_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(900),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                0 => report_panels(&ui, "nothing open"),
-                1 => ui.invoke_open_menu(true),
-                2 => report_panels(&ui, "subtitles"),
-                3 => ui.invoke_open_audio(true),
-                4 => report_panels(&ui, "audio over subtitles"),
-                5 => ui.invoke_open_playlist(true),
-                6 => report_panels(&ui, "playlist over audio"),
-                7 => ui.invoke_open_settings(true),
-                8 => report_panels(&ui, "settings over playlist"),
-                9 => ui.invoke_open_files(true),
-                10 => report_panels(&ui, "files over settings"),
-                11 => ui.invoke_open_menu(true),
-                12 => report_panels(&ui, "subtitles over files"),
-                // Each settings page sizes the panel from its own row
-                // count, so walk them and see what the pipeline is told.
-                13 => ui.invoke_open_settings_page(0),
-                14 => report_panels(&ui, "settings list"),
-                15 => ui.invoke_open_settings_page(1),
-                16 => report_panels(&ui, "settings glass"),
-                17 => ui.invoke_open_settings_page(2),
-                18 => report_panels(&ui, "settings ambience"),
-                19 => ui.invoke_open_settings_page(3),
-                20 => report_panels(&ui, "settings accessibility"),
-                21 => ui.invoke_open_settings_page(4),
-                22 => report_panels(&ui, "settings shortcuts"),
-                23 => ui.invoke_open_settings_page(5),
-                24 => report_panels(&ui, "settings language"),
-                25 => ui.invoke_open_settings(false),
-                26 => report_panels(&ui, "closed again"),
-                27 => eprintln!("dbm: --- panel test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+pub(super) fn panel_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(900));
+        beat.next().await;
+        report_panels(&ui, "nothing open");
+        beat.next().await;
+        ui.invoke_open_menu(true);
+        beat.next().await;
+        report_panels(&ui, "subtitles");
+        beat.next().await;
+        ui.invoke_open_audio(true);
+        beat.next().await;
+        report_panels(&ui, "audio over subtitles");
+        beat.next().await;
+        ui.invoke_open_playlist(true);
+        beat.next().await;
+        report_panels(&ui, "playlist over audio");
+        beat.next().await;
+        ui.invoke_open_settings(true);
+        beat.next().await;
+        report_panels(&ui, "settings over playlist");
+        beat.next().await;
+        ui.invoke_open_files(true);
+        beat.next().await;
+        report_panels(&ui, "files over settings");
+        beat.next().await;
+        ui.invoke_open_menu(true);
+        beat.next().await;
+        report_panels(&ui, "subtitles over files");
+        beat.next().await;
+        // Each settings page sizes the panel from its own row
+        // count, so walk them and see what the pipeline is told.
+        ui.invoke_open_settings_page(0);
+        beat.next().await;
+        report_panels(&ui, "settings list");
+        beat.next().await;
+        ui.invoke_open_settings_page(1);
+        beat.next().await;
+        report_panels(&ui, "settings glass");
+        beat.next().await;
+        ui.invoke_open_settings_page(2);
+        beat.next().await;
+        report_panels(&ui, "settings ambience");
+        beat.next().await;
+        ui.invoke_open_settings_page(3);
+        beat.next().await;
+        report_panels(&ui, "settings accessibility");
+        beat.next().await;
+        ui.invoke_open_settings_page(4);
+        beat.next().await;
+        report_panels(&ui, "settings shortcuts");
+        beat.next().await;
+        ui.invoke_open_settings_page(5);
+        beat.next().await;
+        report_panels(&ui, "settings language");
+        beat.next().await;
+        ui.invoke_open_settings(false);
+        beat.next().await;
+        report_panels(&ui, "closed again");
+        beat.next().await;
+        eprintln!("dbm: --- panel test done ---");
+    })
 }
 
 /// Which panels believe they are open, and how many rects that produces. A
@@ -442,18 +407,10 @@ fn report_panels(ui: &MainWindow, label: &str) {
     );
 }
 
-pub(super) fn modal_test(ui: &MainWindow) -> slint::Timer {
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    timer.start(
-        slint::TimerMode::SingleShot,
-        Duration::from_millis(3000),
-        move || {
-            if let Some(ui) = weak.upgrade() {
-                eprintln!("dbm: --- entering modal size loop ---");
-                modal_loop::enter_modal_size_loop_for_test(ui.window());
-            }
-        },
-    );
-    timer
+pub(super) fn modal_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        sleep(Duration::from_millis(3000)).await;
+        eprintln!("dbm: --- entering modal size loop ---");
+        modal_loop::enter_modal_size_loop_for_test(ui.window());
+    })
 }

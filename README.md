@@ -130,6 +130,16 @@ scripts/headless.sh env DBM_SHOWCASE=playlist DBM_CAPTURE=playlist.bmp \
     ./target/release/dbm-player path/to/video.mkv
 ```
 
+Three of the exercises (input, scrubbing and subtitles) check what they see
+and fail the run when something is off. `scripts/smoke.sh` runs them against
+two short films that `scripts/smoke-media.sh` makes with ffmpeg, and a nightly
+job does the same on GitHub:
+
+```sh
+scripts/smoke-media.sh /tmp/smoke
+scripts/smoke.sh ./target/release/dbm-player /tmp/smoke
+```
+
 If your change affects something the player caches (file lengths, title
 tags, where intros and credits are, timeline previews), bump that cache's
 version where it's declared, with a line saying what changed. Everything
@@ -280,4 +290,4 @@ you if you fork this.
 | `crates/player/vendor/` | libmpv and ffmpeg for Windows |
 | `packaging/` | the Windows installer, and the Flatpak in `flatpak/` |
 | `public/icons/` | the icons, drawn on a 24×24 grid |
-| `scripts/` | regenerating the app icons, running the harness headless, and managing translations |
+| `scripts/` | regenerating the app icons, running the harness headless and its smoke exercises, and managing translations |

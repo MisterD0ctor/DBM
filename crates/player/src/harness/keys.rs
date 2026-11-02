@@ -6,6 +6,7 @@ use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
 use super::drive::chord;
+use super::script::{self, Beat, Script};
 use crate::{MainWindow, Motion, Playback, Settings, Subtitles};
 
 /// Walk the keyboard into a panel and down it, with real key events.
@@ -14,112 +15,84 @@ use crate::{MainWindow, Motion, Playback, Settings, Subtitles};
 /// would prove the wash draws and nothing about whether the keys arrive.
 /// Twelve rows down because nine fit, and the three past the bottom edge are
 /// where the list has to follow the ring.
-pub(super) fn reach_test(ui: &MainWindow) -> slint::Timer {
+pub(super) fn reach_test(ui: &MainWindow) -> Script {
+    use slint::SharedString;
     use slint::platform::Key;
 
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(400),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            // `DBM_REACH_TEST=glass` walks into a settings page instead, where
-            // the rows are sliders and the interesting keys are left and right.
-            // `=up` opens the playlist the way the folder button does, with no
-            // key at all, so the ring starts hidden and the first Up has to
-            // both show it and land at the bottom.
-            let mode = std::env::var("DBM_REACH_TEST").unwrap_or_default();
-            if mode == "up" {
-                match step {
-                    0 => {
-                        // Not a key: this is what the folder button does.
-                        ui.invoke_open_playlist(true);
-                        eprintln!("dbm: playlist opened without a key");
-                    }
-                    1 | 2 => {
-                        chord(&ui, &[], slint::SharedString::from(Key::UpArrow).as_str());
-                        eprintln!("dbm: up -> row {}", ui.get_focus_row());
-                    }
-                    3 => eprintln!("dbm: --- reach test done ---"),
-                    _ => {}
+    // `DBM_REACH_TEST=glass` walks into a settings page instead, where the
+    // rows are sliders and the interesting keys are left and right. `=up`
+    // opens the playlist the way the folder button does, with no key at all,
+    // so the ring starts hidden and the first Up has to both show it and land
+    // at the bottom.
+    let mode = std::env::var("DBM_REACH_TEST").unwrap_or_default();
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(400));
+        let up = SharedString::from(Key::UpArrow);
+        let down = SharedString::from(Key::DownArrow);
+        let left = SharedString::from(Key::LeftArrow);
+        let enter = SharedString::from(Key::Return);
+        beat.next().await;
+        match mode.as_str() {
+            "up" => {
+                // Not a key: this is what the folder button does.
+                ui.invoke_open_playlist(true);
+                eprintln!("dbm: playlist opened without a key");
+                for _ in 0..2 {
+                    beat.next().await;
+                    chord(&ui, &[], up.as_str());
+                    eprintln!("dbm: up -> row {}", ui.get_focus_row());
                 }
-                step += 1;
-                return;
+                beat.next().await;
             }
             // The accessibility page's switch, pressed with Enter rather than
             // clicked: the keys reach it through `focus-activate-settings`,
             // which a click never touches. Twice, so the run leaves it on.
-            if mode == "accessibility" {
-                let down = slint::SharedString::from(Key::DownArrow);
-                let enter = slint::SharedString::from(Key::Return);
-                match step {
-                    0 => {
-                        eprintln!("dbm: pressing S for the settings");
-                        chord(&ui, &[], "s");
-                    }
-                    // S lands the ring on the first row, so two Downs reach
-                    // Accessibility; Enter opens it; Down onto the switch.
-                    1 | 2 | 4 => {
-                        chord(&ui, &[], down.as_str());
-                        eprintln!("dbm: down -> row {}", ui.get_focus_row());
-                    }
-                    3 => {
-                        chord(&ui, &[], enter.as_str());
-                        eprintln!("dbm: enter, opening the accessibility page");
-                    }
-                    5 | 6 => {
-                        chord(&ui, &[], enter.as_str());
-                        eprintln!(
-                            "dbm: enter on row {} -> animations {}, surface {}ms",
-                            ui.get_focus_row(),
-                            ui.global::<Motion>().get_enabled(),
-                            ui.global::<Motion>().get_surface()
-                        );
-                    }
-                    7 => eprintln!("dbm: --- reach test done ---"),
-                    _ => {}
+            "accessibility" => {
+                eprintln!("dbm: pressing S for the settings");
+                chord(&ui, &[], "s");
+                // S lands the ring on the first row, so two Downs reach
+                // Accessibility; Enter opens it; Down onto the switch.
+                for _ in 0..2 {
+                    beat.next().await;
+                    chord(&ui, &[], down.as_str());
+                    eprintln!("dbm: down -> row {}", ui.get_focus_row());
                 }
-                step += 1;
-                return;
-            }
-            let glass = mode == "glass";
-            match (glass, step) {
-                (false, 0) => {
-                    eprintln!("dbm: pressing P for the playlist");
-                    chord(&ui, &[], "p");
-                }
-                (false, 1..=12) => {
-                    chord(&ui, &[], slint::SharedString::from(Key::DownArrow).as_str());
+                beat.next().await;
+                chord(&ui, &[], enter.as_str());
+                eprintln!("dbm: enter, opening the accessibility page");
+                beat.next().await;
+                chord(&ui, &[], down.as_str());
+                eprintln!("dbm: down -> row {}", ui.get_focus_row());
+                for _ in 0..2 {
+                    beat.next().await;
+                    chord(&ui, &[], enter.as_str());
                     eprintln!(
-                        "dbm: down {} -> row {}, scrolled {}",
-                        step,
+                        "dbm: enter on row {} -> animations {}, surface {}ms",
                         ui.get_focus_row(),
-                        ui.get_playlist_scroll()
+                        ui.global::<Motion>().get_enabled(),
+                        ui.global::<Motion>().get_surface()
                     );
                 }
-                (true, 0) => {
-                    eprintln!("dbm: pressing S for the settings");
-                    chord(&ui, &[], "s");
-                }
-
+                beat.next().await;
+            }
+            "glass" => {
+                eprintln!("dbm: pressing S for the settings");
+                chord(&ui, &[], "s");
                 // S puts the ring on the first row, Liquid glass, so Enter
                 // opens it directly; a Down first would walk into the ambient
                 // border's page.
-                (true, 1) => {
-                    chord(&ui, &[], slint::SharedString::from(Key::Return).as_str());
-                    eprintln!("dbm: enter, opening the glass page");
-                }
+                beat.next().await;
+                chord(&ui, &[], enter.as_str());
+                eprintln!("dbm: enter, opening the glass page");
                 // Down onto the first slider.
-                (true, 2) => {
-                    chord(&ui, &[], slint::SharedString::from(Key::DownArrow).as_str());
-                    eprintln!("dbm: down -> row {}", ui.get_focus_row());
-                }
+                beat.next().await;
+                chord(&ui, &[], down.as_str());
+                eprintln!("dbm: down -> row {}", ui.get_focus_row());
                 // Named and read back, so a walk that lands on the wrong page
                 // says so rather than reporting a row number that fits any.
-                (true, 3..=10) => {
-                    chord(&ui, &[], slint::SharedString::from(Key::LeftArrow).as_str());
+                for _ in 0..8 {
+                    beat.next().await;
+                    chord(&ui, &[], left.as_str());
                     let row = ui.get_focus_row();
                     let slider = (row as usize)
                         .checked_sub(1)
@@ -128,13 +101,25 @@ pub(super) fn reach_test(ui: &MainWindow) -> slint::Timer {
                         .unwrap_or_default();
                     eprintln!("dbm: left on row {row} -> glass {slider}");
                 }
-                (_, 13) => eprintln!("dbm: --- reach test done ---"),
-                _ => {}
+                beat.rest(3).await;
             }
-            step += 1;
-        },
-    );
-    timer
+            _ => {
+                eprintln!("dbm: pressing P for the playlist");
+                chord(&ui, &[], "p");
+                for at in 1..=12 {
+                    beat.next().await;
+                    chord(&ui, &[], down.as_str());
+                    eprintln!(
+                        "dbm: down {at} -> row {}, scrolled {}",
+                        ui.get_focus_row(),
+                        ui.get_playlist_scroll()
+                    );
+                }
+                beat.next().await;
+            }
+        }
+        eprintln!("dbm: --- reach test done ---");
+    })
 }
 
 /// Drive the shortcuts that have nowhere visible to report.
@@ -142,66 +127,51 @@ pub(super) fn reach_test(ui: &MainWindow) -> slint::Timer {
 /// Ctrl+O puts a native dialog on screen, so there is no property to read
 /// afterwards — `dialog` traces the request instead, and that line is the
 /// evidence the chord arrived.
-pub(super) fn key_test(ui: &MainWindow) -> slint::Timer {
+pub(super) fn key_test(ui: &MainWindow) -> Script {
     use slint::platform::Key;
 
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(1200),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            match step {
-                // C, twice, on a file whose subtitles aren't showing: the first
-                // press must turn them on, not turn off a `sub-visibility` that
-                // already shows nothing.
-                //
-                // Before the dialogs, since a file chooser keeps the keyboard.
-                0 => {
-                    eprintln!(
-                        "dbm: subs showing {}",
-                        ui.global::<Subtitles>().get_visible()
-                    );
-                    eprintln!("dbm: pressing C");
-                    chord(&ui, &[], "c");
-                }
-                1 => {
-                    eprintln!(
-                        "dbm: subs showing {}",
-                        ui.global::<Subtitles>().get_visible()
-                    );
-                    eprintln!("dbm: pressing C again");
-                    chord(&ui, &[], "c");
-                }
-                2 => {
-                    eprintln!(
-                        "dbm: subs showing {}",
-                        ui.global::<Subtitles>().get_visible()
-                    );
-                    eprintln!("dbm: pressing B (ambience)");
-                    chord(&ui, &[], "b");
-                }
-                3 => eprintln!(
-                    "dbm: ambience now {}",
-                    ui.global::<Settings>().get_ambience_on()
-                ),
-                4 => {
-                    eprintln!("dbm: pressing Ctrl+O");
-                    chord(&ui, &[Key::Control], "o");
-                }
-                5 => {
-                    eprintln!("dbm: pressing Ctrl+Shift+O");
-                    chord(&ui, &[Key::Control, Key::Shift], "O");
-                }
-                7 => eprintln!("dbm: --- key test done ---"),
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(1200));
+        beat.next().await;
+        // C, twice, on a file whose subtitles aren't showing: the first
+        // press must turn them on, not turn off a `sub-visibility` that
+        // already shows nothing.
+        //
+        // Before the dialogs, since a file chooser keeps the keyboard.
+        eprintln!(
+            "dbm: subs showing {}",
+            ui.global::<Subtitles>().get_visible()
+        );
+        eprintln!("dbm: pressing C");
+        chord(&ui, &[], "c");
+        beat.next().await;
+        eprintln!(
+            "dbm: subs showing {}",
+            ui.global::<Subtitles>().get_visible()
+        );
+        eprintln!("dbm: pressing C again");
+        chord(&ui, &[], "c");
+        beat.next().await;
+        eprintln!(
+            "dbm: subs showing {}",
+            ui.global::<Subtitles>().get_visible()
+        );
+        eprintln!("dbm: pressing B (ambience)");
+        chord(&ui, &[], "b");
+        beat.next().await;
+        eprintln!(
+            "dbm: ambience now {}",
+            ui.global::<Settings>().get_ambience_on()
+        );
+        beat.next().await;
+        eprintln!("dbm: pressing Ctrl+O");
+        chord(&ui, &[Key::Control], "o");
+        beat.next().await;
+        eprintln!("dbm: pressing Ctrl+Shift+O");
+        chord(&ui, &[Key::Control, Key::Shift], "O");
+        beat.rest(2).await;
+        eprintln!("dbm: --- key test done ---");
+    })
 }
 
 /// The shortcuts page under the keys that read it.
@@ -211,70 +181,50 @@ pub(super) fn key_test(ui: &MainWindow) -> slint::Timer {
 /// film. `time-pos` is the evidence rather than the list, which is built
 /// inside the drill's conditional and can't be read from here: the film must
 /// not move and the page must not close.
-pub(super) fn read_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Timer {
+pub(super) fn read_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
     use slint::platform::Key;
 
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut step = 0usize;
-    let mut before = String::new();
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(900),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            let pos = || mpv.get_property("time-pos").unwrap_or_else(|| "-".into());
-            let key = |k: Key| chord(&ui, &[], &slint::SharedString::from(k));
-            match step {
-                // Straight there, by the key the page itself documents.
-                0 => {
-                    eprintln!("dbm: pressing ?");
-                    chord(&ui, &[], "?");
-                }
-                1 => {
-                    before = pos();
-                    // The page number stays private to the interface rather
-                    // than made public for a test. `?` opens the panel on the
-                    // shortcuts page or not at all.
-                    eprintln!(
-                        "dbm: settings-open={} time-pos={before}",
-                        ui.get_settings_open()
-                    );
-                    eprintln!("dbm: pressing End");
-                    key(Key::End);
-                }
-                2 => {
-                    eprintln!("dbm: pressing Home");
-                    key(Key::Home);
-                }
-                3 => {
-                    eprintln!("dbm: pressing PageDown");
-                    key(Key::PageDown);
-                }
-                4 => {
-                    eprintln!("dbm: pressing PageUp");
-                    key(Key::PageUp);
-                }
-                5 => {
-                    eprintln!("dbm: pressing Down");
-                    key(Key::DownArrow);
-                }
-                6 => {
-                    // Playing, so the two differ, but only by about the time
-                    // this test took, not back to zero.
-                    eprintln!(
-                        "dbm: settings-open={} time-pos={} (was {before})",
-                        ui.get_settings_open(),
-                        pos()
-                    );
-                    eprintln!("dbm: --- read test done ---");
-                }
-                _ => {}
-            }
-            step += 1;
-        },
-    );
-    timer
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(900));
+        let pos = || mpv.get_property("time-pos").unwrap_or_else(|| "-".into());
+        let key = |k: Key| chord(&ui, &[], &slint::SharedString::from(k));
+        beat.next().await;
+        // Straight there, by the key the page itself documents.
+        eprintln!("dbm: pressing ?");
+        chord(&ui, &[], "?");
+        beat.next().await;
+        let before = pos();
+        // The page number stays private to the interface rather
+        // than made public for a test. `?` opens the panel on the
+        // shortcuts page or not at all.
+        eprintln!(
+            "dbm: settings-open={} time-pos={before}",
+            ui.get_settings_open()
+        );
+        eprintln!("dbm: pressing End");
+        key(Key::End);
+        beat.next().await;
+        eprintln!("dbm: pressing Home");
+        key(Key::Home);
+        beat.next().await;
+        eprintln!("dbm: pressing PageDown");
+        key(Key::PageDown);
+        beat.next().await;
+        eprintln!("dbm: pressing PageUp");
+        key(Key::PageUp);
+        beat.next().await;
+        eprintln!("dbm: pressing Down");
+        key(Key::DownArrow);
+        beat.next().await;
+        // Playing, so the two differ, but only by about the time
+        // this test took, not back to zero.
+        eprintln!(
+            "dbm: settings-open={} time-pos={} (was {before})",
+            ui.get_settings_open(),
+            pos()
+        );
+        eprintln!("dbm: --- read test done ---");
+    })
 }
 
 /// Let the chrome go to sleep over a playing film, press one key or move the
@@ -285,20 +235,16 @@ pub(super) fn read_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::Tim
 ///
 /// No pointer event is sent but the mode's own. The key goes in five seconds
 /// after the start, by when the bar has slept.
-pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
+pub(super) fn wake_test(ui: &MainWindow) -> Script {
     use slint::platform::Key;
 
     let mode = std::env::var("DBM_WAKE_TEST").unwrap_or_default();
-    let timer = slint::Timer::default();
-    let weak = ui.as_weak();
-    let mut tick = 0u32;
     const PRESS: u32 = 20;
-    timer.start(
-        slint::TimerMode::Repeated,
-        Duration::from_millis(250),
-        move || {
-            let Some(ui) = weak.upgrade() else { return };
-            tick += 1;
+    script::run(ui, move |ui| async move {
+        let mut beat = Beat::new(Duration::from_millis(250));
+        let playback = ui.global::<Playback>();
+        for tick in 1..=PRESS + 21 {
+            beat.next().await;
             let key = |text: Key| chord(&ui, &[], slint::SharedString::from(text).as_str());
             let size = ui.window().size().to_logical(ui.window().scale_factor());
             // Two moves, far enough apart to be a hand rather than a twitch.
@@ -326,7 +272,11 @@ pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
                 // under the pointer.
                 ("hover", PRESS) => reach(size.width / 2.0, ui.get_timeline_y() + 30.0 + 26.0),
                 ("hover", t) if t == PRESS + 2 => {
-                    super::drive::hover(&ui, size.width / 2.0 + 2.0, ui.get_timeline_y() + 30.0 + 26.0);
+                    super::drive::hover(
+                        &ui,
+                        size.width / 2.0 + 2.0,
+                        ui.get_timeline_y() + 30.0 + 26.0,
+                    );
                 }
                 // What is loaded is up alone when the pointer comes low: the
                 // bar should grow from it.
@@ -350,14 +300,18 @@ pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
                 // Subtitles on, into a stretch with lines, while the open's
                 // bar is still up, for the line to rise onto the timeline.
                 ("seek-subs", 2) => {
-                    ui.global::<Playback>().invoke_seek_fraction(0.3);
+                    playback.invoke_seek_fraction(0.3);
                     chord(&ui, &[], "c");
                 }
                 (_, PRESS) => {
                     eprintln!("dbm: pressing {mode}");
                     match mode.as_str() {
                         "seek" | "seek-move" | "seek-subs" => key(Key::RightArrow),
-                        "fine" => chord(&ui, &[Key::Shift], slint::SharedString::from(Key::RightArrow).as_str()),
+                        "fine" => chord(
+                            &ui,
+                            &[Key::Shift],
+                            slint::SharedString::from(Key::RightArrow).as_str(),
+                        ),
                         "volume" => key(Key::UpArrow),
                         "mute" => chord(&ui, &[], "m"),
                         "subs" => chord(&ui, &[Key::Shift], "C"),
@@ -386,7 +340,7 @@ pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
                 if tick == PRESS + 21 {
                     eprintln!("dbm: --- wake test done ---");
                 }
-                return;
+                continue;
             }
             let rects = ui.get_glass_rects();
             let rect = |i: usize| rects.row_data(i).unwrap_or_default();
@@ -399,18 +353,25 @@ pub(super) fn wake_test(ui: &MainWindow) -> slint::Timer {
                 bar.width,
                 if bar.width > 0.0 { bar.height } else { 0.0 },
                 if bar.width > 0.0 { bar.opacity } else { 0.0 },
-                if window.width > 0.0 { window.opacity } else { 0.0 },
+                if window.width > 0.0 {
+                    window.opacity
+                } else {
+                    0.0
+                },
                 words.width,
-                if words.width > 0.0 { words.opacity } else { 0.0 },
+                if words.width > 0.0 {
+                    words.opacity
+                } else {
+                    0.0
+                },
                 ui.get_subtitle_lift(),
                 ui.get_subtitle_floor(),
                 chrome.get_idle(),
                 ui.get_pointer_hidden(),
                 ui.get_fullscreen(),
-                ui.global::<Playback>().get_paused(),
+                playback.get_paused(),
                 ui.get_settings_open(),
             );
-        },
-    );
-    timer
+        }
+    })
 }

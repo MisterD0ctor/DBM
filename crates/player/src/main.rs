@@ -172,5 +172,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     drop(idle_timer);
     drop(checkpoint);
     drop(saver);
+    // A harness run unwatched learns how it went from the exit code.
+    #[cfg(feature = "harness")]
+    if harness::script::failed() {
+        return Err("a harness check failed".into());
+    }
     Ok(())
 }
