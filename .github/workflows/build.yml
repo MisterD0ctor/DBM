@@ -61,12 +61,16 @@ jobs:
               run: cargo fmt --check
 
             # Warnings fail the build: a lint let through once is a lint
-            # nobody reads again.
+            # nobody reads again. Once as released and once with the harness,
+            # since each leaves code the other doesn't build.
             - name: Lint
-              run: cargo clippy -p dbm-player --all-targets -- -D warnings
+              run: cargo clippy --workspace --all-targets -- -D warnings
+
+            - name: Lint with the harness
+              run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
             - name: Test
-              run: cargo test -p dbm-player
+              run: cargo test --workspace --all-features
 
     build:
         name: Windows
@@ -102,15 +106,20 @@ jobs:
             # SMTC, the wake lock — is linted nowhere else. Formatting is
             # checked once, on the Linux side.
             - name: Lint
-              run: cargo clippy -p dbm-player --all-targets -- -D warnings
+              run: cargo clippy --workspace --all-targets -- -D warnings
 
+            - name: Lint with the harness
+              run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+            # Without the harness: this is the build that ships.
             - name: Build
               run: cargo build --release -p dbm-player
 
             - name: Test
-              run: cargo test --release -p dbm-player
+              run: cargo test --release --workspace --all-features
 
-            # The version lives in crates/player/Cargo.toml and nowhere else.
+            # The version lives in the top-level Cargo.toml, which every crate
+            # takes it from, and nowhere else.
             # A tag that disagrees with it would ship an installer whose name
             # and whose contents claim different versions, so it stops here
             # rather than at the point somebody notices.
@@ -118,7 +127,7 @@ jobs:
               if: startsWith(github.ref, 'refs/tags/v')
               shell: pwsh
               run: |
-                  $manifest = Get-Content crates/player/Cargo.toml -Raw
+                  $manifest = Get-Content Cargo.toml -Raw
                   $null = $manifest -match '(?m)^version\s*=\s*"([^"]+)"'
                   $crate = $Matches[1]
                   $tag = $env:GITHUB_REF_NAME -replace '^v', ''
@@ -143,7 +152,7 @@ jobs:
             - name: Portable zip
               shell: pwsh
               run: |
-                  $manifest = Get-Content crates/player/Cargo.toml -Raw
+                  $manifest = Get-Content Cargo.toml -Raw
                   $null = $manifest -match '(?m)^version\s*=\s*"([^"]+)"'
                   $version = $Matches[1]
                   Compress-Archive -Path target/package/* `

@@ -1,7 +1,8 @@
 //! Automated exercises for paths a keyboard and mouse would normally drive.
 //!
 //! For states that are awkward to reach by hand and impossible from a test
-//! that doesn't own a window:
+//! that doesn't own a window. Built in only with the `harness` feature, so a
+//! release answers none of these:
 //!
 //! * `DBM_INPUT_TEST=1` — drives the action callbacks in sequence and prints
 //!   the mirrored state after each, so the whole chain can be checked without a
@@ -271,24 +272,6 @@ mod showcase;
 use slint::{Model, ModelRc};
 
 use crate::{MainWindow, TrackItem};
-use dbm_mpv::Mpv;
-
-/// Options for a run nobody is watching. Before `mpv_initialize`, like the
-/// rest of mpv's configuration.
-///
-/// The film plays silently, through a zero-gain filter at the end of the
-/// audio chain rather than by muting or turning it down, which several
-/// exercises press and read back. The levels, the selected track and the
-/// device list all stay as they would be.
-pub fn configure(mpv: &Mpv) {
-    if !crate::run_mode::unattended() {
-        return;
-    }
-    match mpv.set_option("af", "lavfi=[volume=0]") {
-        Ok(()) => eprintln!("dbm: unattended - playing silently"),
-        Err(e) => eprintln!("dbm: unattended, but could not silence the audio: {e}"),
-    }
-}
 
 /// Handles for everything armed here. Kept in one value so `main` does not
 /// have to name each timer just to hold it open.

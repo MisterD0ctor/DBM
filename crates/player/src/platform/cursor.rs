@@ -63,7 +63,7 @@ impl Pointer {
 ///
 /// For the harness: the display count isn't readable, and our own record of
 /// what we asked proves nothing, so the system is asked.
-#[cfg(windows)]
+#[cfg(all(windows, feature = "harness"))]
 pub fn on_screen() -> Option<bool> {
     use windows::Win32::UI::WindowsAndMessaging::{CURSOR_SHOWING, CURSORINFO, GetCursorInfo};
 
@@ -102,7 +102,7 @@ impl Pointer {
     }
 }
 
-#[cfg(not(windows))]
+#[cfg(all(not(windows), feature = "harness"))]
 pub fn on_screen() -> Option<bool> {
     None
 }

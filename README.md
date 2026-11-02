@@ -105,8 +105,9 @@ the build:
 
 ```sh
 cargo fmt --check
-cargo clippy -p dbm-player --all-targets -- -D warnings
-cargo test -p dbm-player
+cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
+cargo test --workspace --all-features
 ```
 
 The tests cover everything that doesn't need a window: reading file and track
@@ -115,13 +116,16 @@ interface, playback, and the platform integrations) the player has a built-in
 test harness that you control with environment variables. Some of them run
 the player through a scenario and print what happened; others hold one screen
 still and save a screenshot. They're all listed at the top of
-[`crates/player/src/harness/mod.rs`](crates/player/src/harness/mod.rs).
+[`crates/player/src/harness/mod.rs`](crates/player/src/harness/mod.rs). The
+harness is only built in with the `harness` feature, so a release doesn't
+carry it.
 
 Run them through `scripts/headless.sh`. It starts a headless compositor (all
 it needs is GNOME's `mutter`) so the player's window doesn't pop up on your
 desktop:
 
 ```sh
+cargo build --release -p dbm-player --features harness
 scripts/headless.sh env DBM_SHOWCASE=playlist DBM_CAPTURE=playlist.bmp \
     ./target/release/dbm-player path/to/video.mkv
 ```
@@ -186,7 +190,7 @@ is in `packaging/death-by-mpv.nsi`.
 
 CI does the same on every push to `main`. Pushing a `v*` tag also creates a
 draft release with the installer, the portable zip and the Flatpak attached.
-The tag has to match the version in `crates/player/Cargo.toml` and the newest
+The tag has to match the version in the top-level `Cargo.toml` and the newest
 release in the Flatpak's metainfo.
 
 ### Flatpak

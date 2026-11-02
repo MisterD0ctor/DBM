@@ -89,6 +89,7 @@ fn bus_name() -> String {
 /// addresses the player from outside.
 static CLAIMED: OnceLock<String> = OnceLock::new();
 
+#[cfg(feature = "harness")]
 pub fn claimed() -> Option<&'static str> {
     CLAIMED.get().map(String::as_str)
 }

@@ -21,10 +21,11 @@ $stage = Join-Path $repo "target\package"
 $out = Join-Path $repo "target\installer"
 
 if (-not $Version) {
-    # One source for the version: the crate's own manifest.
-    $manifest = Get-Content (Join-Path $repo "crates\player\Cargo.toml") -Raw
+    # One source for the version: the workspace's manifest, which every
+    # crate takes it from.
+    $manifest = Get-Content (Join-Path $repo "Cargo.toml") -Raw
     if ($manifest -notmatch '(?m)^version\s*=\s*"([^"]+)"') {
-        throw "no version in crates/player/Cargo.toml"
+        throw "no version in Cargo.toml"
     }
     $Version = $Matches[1]
 }

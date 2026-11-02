@@ -5,6 +5,9 @@
 #   scripts/headless.sh env DBM_SHOWCASE=bar DBM_CAPTURE=bar.bmp \
 #       ./target/release/dbm-player path/to/video.mkv
 #
+# The exercises and showcases need a player built with them:
+# `cargo build --release -p dbm-player --features harness`.
+#
 # For the harness: a window it opens on the desktop takes focus as it maps,
 # and sits wherever a hand was about to click. Asking it not to is not
 # possible on Wayland — focus is the compositor's decision, and winit's

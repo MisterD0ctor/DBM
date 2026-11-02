@@ -136,7 +136,7 @@ unsafe extern "system" fn subclass_proc(
 /// Put the window into the modal size loop from code, the state a user
 /// creates by grabbing an edge, to test this path without a hand on the
 /// mouse, since a programmatic `set_size` doesn't reproduce it.
-#[cfg(windows)]
+#[cfg(all(windows, feature = "harness"))]
 pub fn enter_modal_size_loop_for_test(window: &slint::Window) {
     use windows::Win32::Foundation::{LPARAM, WPARAM};
     use windows::Win32::UI::WindowsAndMessaging::{PostMessageW, SC_SIZE, WM_SYSCOMMAND};
@@ -154,7 +154,7 @@ pub fn enter_modal_size_loop_for_test(window: &slint::Window) {
     };
 }
 
-#[cfg(not(windows))]
+#[cfg(all(not(windows), feature = "harness"))]
 pub fn enter_modal_size_loop_for_test(_window: &slint::Window) {}
 
 #[cfg(not(windows))]

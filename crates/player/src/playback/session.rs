@@ -74,6 +74,15 @@ pub fn configure(mpv: &Mpv) {
             log::info!("{key}: {e}");
         }
     }
+    // A run nobody is watching (see `run_mode`) plays silently, through a
+    // zero-gain filter at the end of the audio chain rather than by muting or
+    // turning it down, which several exercises press and read back.
+    if crate::run_mode::unattended() {
+        match mpv.set_option("af", "lavfi=[volume=0]") {
+            Ok(()) => eprintln!("dbm: unattended - playing silently"),
+            Err(e) => eprintln!("dbm: unattended, but could not silence the audio: {e}"),
+        }
+    }
 }
 
 /// Start checkpointing. The returned timer must be kept alive.

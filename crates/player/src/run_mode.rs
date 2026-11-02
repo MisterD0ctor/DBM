@@ -1,5 +1,8 @@
 //! Whether a person is watching this run, or the harness is driving it. Read
 //! from the environment once, since the answer can't change while it runs.
+//!
+//! The harness's switches count only in a build with the `harness` feature.
+//! A capture (see `diagnostics`) is unattended in any build.
 
 use std::sync::LazyLock;
 
@@ -9,10 +12,11 @@ use std::sync::LazyLock;
 /// wrong: `DBM_KEY_TEST` presses B, and B is the ambience switch.
 pub fn armed() -> bool {
     static ARMED: LazyLock<bool> = LazyLock::new(|| {
-        std::env::vars_os().any(|(k, _)| {
-            let k = k.to_string_lossy();
-            k.starts_with("DBM_") && k.ends_with("_TEST")
-        })
+        cfg!(feature = "harness")
+            && std::env::vars_os().any(|(k, _)| {
+                let k = k.to_string_lossy();
+                k.starts_with("DBM_") && k.ends_with("_TEST")
+            })
     });
     *ARMED
 }
@@ -23,7 +27,7 @@ pub fn armed() -> bool {
 pub fn unattended() -> bool {
     static UNATTENDED: LazyLock<bool> = LazyLock::new(|| {
         armed()
-            || std::env::var_os("DBM_SHOWCASE").is_some()
+            || (cfg!(feature = "harness") && std::env::var_os("DBM_SHOWCASE").is_some())
             || std::env::var_os("DBM_CAPTURE").is_some()
     });
     *UNATTENDED

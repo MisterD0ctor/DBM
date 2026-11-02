@@ -8,6 +8,11 @@ license.workspace = true
 repository.workspace = true
 publish.workspace = true
 
+[features]
+# OpenSubtitles stood in for by a fake service under `DBM_FIND_FAKE`, for the
+# player's harness — see `opensubtitles`.
+harness = []
+
 [dependencies]
 dbm-lang.workspace = true
 dbm-mpv.workspace = true

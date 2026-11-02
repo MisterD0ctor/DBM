@@ -185,7 +185,7 @@ impl Accepting {
 ///
 /// It can't test whether a real drag reaches us, which depends on the drop
 /// target being ours rather than winit's; only a drag from Explorer does.
-#[cfg(windows)]
+#[cfg(all(windows, feature = "harness"))]
 pub fn post_test_drop(ui: &crate::MainWindow, path: &str) -> Result<(), String> {
     use slint::ComponentHandle;
     use windows::Win32::Foundation::{LPARAM, POINT, WPARAM};

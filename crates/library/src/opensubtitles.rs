@@ -51,7 +51,7 @@ pub fn key() -> Option<&'static str> {
 /// Whether there is any searching to be done at all: a key, or the harness
 /// standing in for the service (see `fake`).
 pub fn available() -> bool {
-    key().is_some() || std::env::var_os("DBM_FIND_FAKE").is_some()
+    key().is_some() || fake::on()
 }
 
 /// Downloads kept, by the film they belong to.
@@ -693,6 +693,10 @@ fn hash(path: &Path) -> Option<String> {
 /// and downloads are a short one written on the spot. `DBM_FIND_FAKE=spent`
 /// starts with the key's own downloads used up, so a download asks for an
 /// account; the one account there is is `fake`, with the password `fake`.
+///
+/// Only in a build with the `harness` feature. Without it `on` is `false`
+/// before the variable is read, and the rest is never reached, so a release
+/// carries none of it, while it is still checked in every build.
 mod fake {
     use std::sync::atomic::{AtomicI64, Ordering};
 
@@ -705,7 +709,7 @@ mod fake {
     static LEFT: AtomicI64 = AtomicI64::new(20);
 
     pub fn on() -> bool {
-        std::env::var_os("DBM_FIND_FAKE").is_some()
+        cfg!(feature = "harness") && std::env::var_os("DBM_FIND_FAKE").is_some()
     }
 
     fn spent() -> bool {

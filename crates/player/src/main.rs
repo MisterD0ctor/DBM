@@ -39,7 +39,7 @@
 //! | `logging`     | where the player's own lines go                           |
 //! | `run_mode`    | whether a person is watching, or the harness is driving   |
 //! | `diagnostics` | opt-in instrumentation                                    |
-//! | `harness`     | opt-in automated exercises                                |
+//! | `harness`     | automated exercises, in a build with `--features harness` |
 //!
 //! Each folder's `mod.rs` says what is in it.
 //!
@@ -52,6 +52,7 @@
 mod app;
 mod diagnostics;
 mod driver;
+#[cfg(feature = "harness")]
 mod harness;
 mod interface;
 mod logging;
@@ -94,10 +95,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // SAFETY: each place `libmpv_path` looks holds a libmpv, or the one the
     // person named in `DBM_LIBMPV`.
     let mpv = unsafe {
-        dbm_mpv::Mpv::new(&playback::session::libmpv_path(), |mpv| {
-            playback::session::configure(mpv);
-            harness::configure(mpv);
-        })
+        dbm_mpv::Mpv::new(
+            &playback::session::libmpv_path(),
+            playback::session::configure,
+        )
     };
     let mpv = Arc::new(mpv?);
     playback::session::mask_subtitles(&mpv);
@@ -156,6 +157,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let checkpoint = playback::session::checkpoint_periodically(mpv.clone());
 
     ui.show()?;
+    #[cfg(feature = "harness")]
     let harnesses = harness::install(&ui, &app);
 
     ui.run()?;
@@ -167,6 +169,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // can see; OpenSubtitles asks for the token back when an app is done.
     dbm_library::opensubtitles::account::sign_out_before_quitting();
 
+    #[cfg(feature = "harness")]
     drop(harnesses);
     drop(idle_timer);
     drop(checkpoint);
