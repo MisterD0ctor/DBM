@@ -5,11 +5,13 @@
 
 import { FoundItem } from "models.slint";
 
+/// Where the search stands.
+export enum FindState { idle, searching, found, not-found, failed }
+
 export global Find {
     /// Whether there is any searching to be done: a key, and a film.
     in property <bool> offered;
-    /// 0 nothing asked yet, 1 searching, 2 results, 3 none found, 4 failed.
-    in-out property <int> state: 0;
+    in-out property <FindState> state: FindState.idle;
     /// Why a search failed, in words.
     in property <string> said;
     in property <[FoundItem]> hits;

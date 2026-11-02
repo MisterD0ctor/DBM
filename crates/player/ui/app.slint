@@ -5,13 +5,13 @@
 // So panels have no background of their own: a fill here would paint over
 // the glass, not on it.
 
-import { Find } from "find.slint";
+import { Find, FindState } from "find.slint";
 import { Tracks } from "tracks.slint";
-import { Subtitles } from "subtitles.slint";
+import { Subtitles, SyncState } from "subtitles.slint";
 import { Playlist } from "playlist.slint";
-import { Settings } from "settings.slint";
+import { Reset, Settings } from "settings.slint";
 import { Playback } from "playback.slint";
-import { Chrome, Flash, Tip } from "globals.slint";
+import { Chrome, Figure, Flash, Tip } from "globals.slint";
 import {
     FoundItem, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, ScrollFade, TrackItem
 } from "models.slint";
@@ -26,9 +26,61 @@ import { Ring } from "ring.slint";
 import { ScrollList } from "scroll_list.slint";
 import { Shapes, Squircle } from "squircle.slint";
 
-// What the Rust side reaches besides the window: the globals it drives and
-// the structs it fills in.
-export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem, Find, Tracks, Subtitles, Playlist, Settings, Playback }
+// What the Rust side reaches besides the window: the globals it drives, the
+// structs it fills in, and the enums both sides name.
+export {
+    Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem,
+    TrackItem, Find, Tracks, Subtitles, Playlist, Settings, Playback, Figure, FindState, Reset,
+    SyncState
+}
+
+/// The panels that open over the film.
+export enum Panel { none, subtitles, audio, playlist, files, settings }
+
+/// The settings panel's pages, in the order its front page lists them.
+export enum SettingsPage {
+    front, video, episodes, glass, border, accessibility, shortcuts, language
+}
+
+/// The subtitles menu's pages: the tracks, the two pages a subtitle on
+/// screen offers, and the search.
+export enum MenuPage {
+    tracks,
+    timing,
+    /// Size and position.
+    placing,
+    find,
+}
+
+/// What the corner pill offers.
+enum CornerOffer {
+    none,
+    /// The next file, or the next season at the end of one.
+    onward,
+    skip-intro,
+    /// The place autoplay passed over by starting the file from the top.
+    resume,
+    /// Past the credits, to the scene after them.
+    skip-credits,
+    /// Back to where a jump took the film from.
+    back,
+}
+
+/// The part of the bar that can be up on its own: the timeline, or what is
+/// loaded.
+enum BarPart { timeline, loaded }
+
+/// What a key does to the chrome once it has been handled.
+enum KeyWake {
+    /// Brings it up.
+    wake,
+    /// Brings up nothing, for a key whose own answer is enough (its flash,
+    /// the timeline, the picture), though what is up stays up.
+    keep,
+    /// Puts it away, for a key that asked for the picture: more of it, or
+    /// the film going on.
+    hide,
+}
 
 /// The marks on the bar's tracks, a chapter's start and the volume's unity.
 /// Both keep their size as a track grows under the pointer.
@@ -169,7 +221,7 @@ export component MainWindow inherits Window {
     property <string> sign-in-why;
     property <bool> signed-in: Find.account != "";
     /// How many results the search's page lists, from its second row.
-    property <int> find-hit-count: Find.state == 2 ? Find.hits.length : 0;
+    property <int> find-hit-count: Find.state == FindState.found ? Find.hits.length : 0;
     /// The account's row on the search's page, under the results, while
     /// someone is signed in.
     property <int> find-account-at: 1 + root.find-hit-count;
@@ -192,7 +244,7 @@ export component MainWindow inherits Window {
             }
             return false;
         }
-        if (root.find-open || root.subs-page != 0) {
+        if (root.find-open || root.subs-page != MenuPage.tracks) {
             return false;
         }
         if (root.focus-row >= 1 && root.focus-row <= Tracks.subtitles.length
@@ -209,11 +261,11 @@ export component MainWindow inherits Window {
     /// a list found a moment ago is still good. Public for the test that
     /// walks it.
     public function open-find() {
-        root.subs-page = 0;
-        root.menu-leaf = 3;
+        root.subs-page = MenuPage.tracks;
+        root.menu-leaf = MenuPage.find;
         root.find-open = true;
         root.focus-row = 0;
-        if (Find.state != 1 && Find.state != 2) {
+        if (Find.state != FindState.searching && Find.state != FindState.found) {
             Find.search();
         }
     }
@@ -295,7 +347,7 @@ export component MainWindow inherits Window {
     /// them, what is OpenSubtitles' rather than the film's: the account
     /// signed in, and the credit it asks for where its subtitles are picked.
     property <int> find-focus-count: 1 + root.find-hit-count + (root.signed-in ? 1 : 0);
-    property <length> find-natural: Find.state == 2
+    property <length> find-natural: Find.state == FindState.found
         ? Find.hits.length * root.row-h : root.row-h;
     /// The credit's line: a heading's height, as a line about the rows
     /// rather than one of them.
@@ -306,7 +358,7 @@ export component MainWindow inherits Window {
         + (root.signed-in ? root.row-h : 0px) + root.credit-h;
     property <length> find-h: min(root.panel-pad + root.find-fixed + root.find-natural,
         root.panel-max-h);
-    property <length> find-list-h: Find.state != 2 ? 0px
+    property <length> find-list-h: Find.state != FindState.found ? 0px
         : root.menu-moving ? root.find-rest-h
         : max(0px, menu.height - root.panel-pad - root.find-fixed);
     property <length> find-rest-h: min(root.find-natural,
@@ -327,14 +379,13 @@ export component MainWindow inherits Window {
     // every film's subtitles take. Both are judged by eye, so neither is
     // offered with nothing on screen to judge.
 
-    /// The page the menu shows when it isn't the search's: 0 the tracks,
-    /// 1 timing, 2 size and position.
-    property <int> subs-page: 0;
-    /// Which page the pane one step in draws: 1 timing, 2 size and position,
-    /// 3 the search. Held rather than read from `subs-page` and `find-open`,
-    /// which have gone back to the tracks while the page sliding out still
-    /// has to draw.
-    property <int> menu-leaf: 3;
+    /// The page the menu shows when it isn't the search's: the tracks, or one
+    /// of their two pages.
+    property <MenuPage> subs-page: MenuPage.tracks;
+    /// Which of the pages one step in the pane draws. Held rather than read
+    /// from `subs-page` and `find-open`, which have gone back to the tracks
+    /// while the page sliding out still has to draw.
+    property <MenuPage> menu-leaf: MenuPage.find;
     /// The timing's page: its way back, Sync to speech and Timing, then a gap
     /// and the reset while there is something to reset.
     property <length> timing-page-h: root.panel-pad + 2 * root.row-h + Rows.stepper-row
@@ -345,22 +396,25 @@ export component MainWindow inherits Window {
         + 2 * Rows.stepper-row + Rows.group-gap;
     /// The rows of whichever of the two is showing, counted the same way. The
     /// reset is the fourth row on both.
-    property <int> subs-page-count: root.subs-page == 1 && !root.timing-resettable ? 3 : 4;
+    property <int> subs-page-count: root.subs-page == MenuPage.timing
+        && !root.timing-resettable ? 3 : 4;
     /// What the reset on that page resets (see "resetting a page").
-    property <int> subs-page-reset: root.subs-page == 1 ? 3 : 4;
+    property <Reset> subs-page-reset: root.subs-page == MenuPage.timing ? Reset.timing
+        : Reset.placing;
 
     /// The ring is on the tracks' page, where the rows go by `focus-row`
     /// alone; on any other page the same number is another page's row.
-    property <bool> on-tracks: root.menu-open && !root.find-open && root.subs-page == 0;
+    property <bool> on-tracks: root.menu-open && !root.find-open
+        && root.subs-page == MenuPage.tracks;
     /// The ring is on `row` of page `page` of the two.
-    pure function subs-ring(page: int, row: int) -> bool {
+    pure function subs-ring(page: MenuPage, row: int) -> bool {
         return root.menu-open && !root.find-open && root.subs-page == page
             && root.focus-row == row;
     }
 
     /// Open one of the two pages on its way back, as a settings page opens.
     /// Public so a test can show one.
-    public function open-subs-page(page: int) {
+    public function open-subs-page(page: MenuPage) {
         if (!root.menu-open) {
             root.open-menu(true);
         }
@@ -376,8 +430,8 @@ export component MainWindow inherits Window {
 
     /// Back to the tracks, on the row that opened the page.
     function close-subs-page() {
-        root.focus-row = root.subs-pages-at + root.subs-page - 1;
-        root.subs-page = 0;
+        root.focus-row = root.subs-pages-at + (root.subs-page == MenuPage.placing ? 1 : 0);
+        root.subs-page = MenuPage.tracks;
     }
 
     /// Enter on one of the two pages. The steppers are moved by left and
@@ -385,7 +439,7 @@ export component MainWindow inherits Window {
     function subs-page-activate() {
         if (root.focus-row == 0) {
             root.close-subs-page();
-        } else if (root.subs-page == 1 && root.focus-row == 1) {
+        } else if (root.subs-page == MenuPage.timing && root.focus-row == 1) {
             root.sync-row();
         } else if (root.focus-row == 3) {
             root.reset-row(root.subs-page-reset);
@@ -395,13 +449,13 @@ export component MainWindow inherits Window {
     /// The subtitles menu's height: whichever of its pages is showing.
     property <length> menu-h: root.find-open
         ? (root.account-open ? root.account-h : root.find-h)
-        : root.subs-page == 1 ? root.timing-page-h
-        : root.subs-page == 2 ? root.placing-page-h
+        : root.subs-page == MenuPage.timing ? root.timing-page-h
+        : root.subs-page == MenuPage.placing ? root.placing-page-h
         : root.subs-h;
     /// A page sliding in over the tracks, as a settings page does, and the
     /// account's over the search's.
     property <float> menu-drill: root.find-open ? (root.account-open ? 2.0 : 1.0)
-        : root.subs-page != 0 ? 1.0 : 0.0;
+        : root.subs-page != MenuPage.tracks ? 1.0 : 0.0;
     animate menu-drill {
         duration: root.resizing ? 0ms : Motion.drill;
         easing: ease-in-out;
@@ -502,7 +556,7 @@ export component MainWindow inherits Window {
     property <int> focus-count:
         root.menu-open ? (root.find-open
             ? (root.account-open ? root.account-focus-count : root.find-focus-count)
-            : root.subs-page != 0 ? root.subs-page-count : root.subs-focus-count)
+            : root.subs-page != MenuPage.tracks ? root.subs-page-count : root.subs-focus-count)
         : root.audio-open ? Tracks.audio.length
         : root.playlist-open ? root.playlist-lead + root.playlist-rows
         : root.files-open ? 2
@@ -521,8 +575,8 @@ export component MainWindow inherits Window {
     /// these rather than wrapping, so Up from the top can't land on the row
     /// that throws a page of tuning away.
     property <bool> focus-has-reset: root.settings-open
-        ? root.settings-page == 1 || root.settings-page == 2 || root.settings-page == 6
-        : root.menu-open && !root.find-open && root.subs-page != 0
+        ? root.settings-page-reset != Reset.none
+        : root.menu-open && !root.find-open && root.subs-page != MenuPage.tracks
             && root.subs-page-count == 4;
     /// Per page: the rows, the way back, and the reset after them, plus the
     /// switch on the ambient border's, and on the video page the speed and
@@ -530,24 +584,24 @@ export component MainWindow inherits Window {
     /// since each row undoes itself, and the shortcuts page has only the way
     /// back.
     property <int> settings-focus-count:
-        root.settings-page == 0 ? 7
-        : root.settings-page == 1 ? 2 + Settings.glass-params.length
-        : root.settings-page == 2 ? 3 + Settings.border-params.length
-        : root.settings-page == 3 ? 2 + root.access-switches
-        : root.settings-page == 5 ? 1 + root.language-count
-        : root.settings-page == 6 ? 5 + Settings.picture-params.length
-        : root.settings-page == 7 ? 1 + root.episode-switches
+        root.settings-page == SettingsPage.front ? 7
+        : root.settings-page == SettingsPage.glass ? 2 + Settings.glass-params.length
+        : root.settings-page == SettingsPage.border ? 3 + Settings.border-params.length
+        : root.settings-page == SettingsPage.accessibility ? 2 + root.access-switches
+        : root.settings-page == SettingsPage.language ? 1 + root.language-count
+        : root.settings-page == SettingsPage.video ? 5 + Settings.picture-params.length
+        : root.settings-page == SettingsPage.episodes ? 1 + root.episode-switches
         : 1;
     /// The same count for `leaf-page`, which on the way back out isn't the
     /// page the keyboard is on. Counting off the live page would light the
     /// wrong reset row on a page halfway out of the panel.
     property <int> leaf-focus-count:
-        root.leaf-page == 1 ? 2 + Settings.glass-params.length
-        : root.leaf-page == 2 ? 3 + Settings.border-params.length
-        : root.leaf-page == 3 ? 2 + root.access-switches
-        : root.leaf-page == 6 ? 5 + Settings.picture-params.length
-        : root.leaf-page == 7 ? 1 + root.episode-switches
-        : root.leaf-page == 5 ? 1 + root.language-count
+        root.leaf-page == SettingsPage.glass ? 2 + Settings.glass-params.length
+        : root.leaf-page == SettingsPage.border ? 3 + Settings.border-params.length
+        : root.leaf-page == SettingsPage.accessibility ? 2 + root.access-switches
+        : root.leaf-page == SettingsPage.video ? 5 + Settings.picture-params.length
+        : root.leaf-page == SettingsPage.episodes ? 1 + root.episode-switches
+        : root.leaf-page == SettingsPage.language ? 1 + root.language-count
         : 1;
     /// The accessibility page's switches. Shortcuts in tooltips is there only
     /// while there are tooltips to put them in.
@@ -626,12 +680,17 @@ export component MainWindow inherits Window {
     in-out property <bool> playlist-open: false;
     in-out property <bool> files-open: false;
     in-out property <bool> settings-open: false;
-    /// Which page the settings panel shows: 0 the list, then its rows in
-    /// order (1 glass, 2 ambient border, 3 accessibility, 4 shortcuts,
-    /// 5 language), so the focused row plus one is its page.
-    /// Pages replace each other in place, so there is only one settings glass
-    /// rect. Out so a test can say which page a key left it on.
-    out property <int> settings-page: 0;
+    /// Which page the settings panel shows. Pages replace each other in
+    /// place, so there is only one settings glass rect. Out so a test can say
+    /// which page a key left it on.
+    out property <SettingsPage> settings-page: SettingsPage.front;
+    /// What the reset at the foot of that page resets, on the pages that have
+    /// one (see "resetting a page").
+    property <Reset> settings-page-reset: root.settings-page == SettingsPage.glass
+        ? Reset.glass
+        : root.settings-page == SettingsPage.border ? Reset.border
+        : root.settings-page == SettingsPage.video ? Reset.picture
+        : Reset.none;
     in-out property <bool> fullscreen: false;
     // Rust owns the idle clock; what it means is decided here. The chrome
     // stays up while a panel is open, while a film is paused, since pausing
@@ -719,7 +778,7 @@ export component MainWindow inherits Window {
     /// The seek is newer news than the file's name, so it takes the title's
     /// place.
     function glimpse-timeline() {
-        root.key-wake = 1;
+        root.key-wake = KeyWake.keep;
         root.timeline-glimpse = true;
         glimpse-timer.stop();
         glimpse-timer.start();
@@ -743,12 +802,8 @@ export component MainWindow inherits Window {
         title-timer.stop();
     }
 
-    /// What the key being handled does to the chrome: 0 wakes it; 1 brings
-    /// up nothing, for a key whose own answer is enough (its flash, the
-    /// timeline, the picture), though it keeps up what is; 2 puts it away,
-    /// for a key that asked for the picture: more of it, or the film going
-    /// on.
-    property <int> key-wake: 0;
+    /// What the key being handled does to the chrome.
+    property <KeyWake> key-wake: KeyWake.wake;
 
     /// Shift and the rest pressed alone, which arrive as keys of their own
     /// ahead of the key they modify, and would wake the bar before a Shift+→
@@ -760,9 +815,9 @@ export component MainWindow inherits Window {
     }
 
     function after-key(text: string) {
-        if (root.key-wake == 2) {
+        if (root.key-wake == KeyWake.hide) {
             root.put-away();
-        } else if ((root.key-wake == 0 && !root.lone-modifier(text)) || !Chrome.idle) {
+        } else if ((root.key-wake == KeyWake.wake && !root.lone-modifier(text)) || !Chrome.idle) {
             Chrome.bump();
         }
     }
@@ -807,9 +862,8 @@ export component MainWindow inherits Window {
     /// the bar leaves, so it fades out in the shape it had rather than
     /// shrinking first.
     property <bool> bar-whole: true;
-    /// Which part is up when the bar isn't whole: 0 the timeline, 1 what is
-    /// loaded.
-    property <int> bar-part: 0;
+    /// Which part is up when the bar isn't whole.
+    property <BarPart> bar-part: BarPart.timeline;
     /// Whether the bar takes its new shape at once, as it does when it was
     /// gone, rather than growing into it.
     property <bool> bar-snap: false;
@@ -826,8 +880,9 @@ export component MainWindow inherits Window {
     }
 
     /// The part to show alone, the seek's before the file's.
-    pure function part-alone() -> int {
-        return root.timeline-glimpse ? 0 : root.title-glimpse ? 1 : root.bar-part;
+    pure function part-alone() -> BarPart {
+        return root.timeline-glimpse ? BarPart.timeline
+            : root.title-glimpse ? BarPart.loaded : root.bar-part;
     }
 
     /// Scroll whichever list the ring is in to keep its row in view.
@@ -838,7 +893,7 @@ export component MainWindow inherits Window {
                 find-list.reveal((root.focus-row - 1) * root.row-h, root.row-h);
             }
         } else if (root.menu-open) {
-            if (root.subs-page == 0 && root.focus-row < root.subs-track-rows) {
+            if (root.subs-page == MenuPage.tracks && root.focus-row < root.subs-track-rows) {
                 subs-list.reveal(root.focus-row * root.row-h, root.row-h);
             }
         } else if (root.audio-open) {
@@ -851,8 +906,8 @@ export component MainWindow inherits Window {
                 playlist-leaf-list.reveal(
                     (root.focus-row - root.playlist-lead) * root.row-h, root.row-h);
             }
-        } else if (root.settings-open && root.settings-page != 4
-                && (root.settings-page == 0 || root.focus-row > 0)) {
+        } else if (root.settings-open && root.settings-page != SettingsPage.shortcuts
+                && (root.settings-page == SettingsPage.front || root.focus-row > 0)) {
             root.settings-reveal-top =
                 root.settings-row-top(root.settings-page, root.focus-row);
             root.settings-reveal-h =
@@ -986,10 +1041,12 @@ export component MainWindow inherits Window {
     /// growing, once the timeline has mostly risen out of its way.
     property <float> pills-shown: root.bar-shown * clamp(2 * root.bar-full - 1, 0, 1);
     /// What is loaded, which is up alone as a file starts.
-    property <float> loaded-shown: root.bar-part == 1 ? root.bar-shown : root.pills-shown;
+    property <float> loaded-shown: root.bar-part == BarPart.loaded ? root.bar-shown
+        : root.pills-shown;
     /// The timeline's row, which is up alone after a seek, and comes in
     /// like the buttons as the bar grows from what is loaded.
-    property <float> timeline-shown: root.bar-part == 1 ? root.pills-shown : root.bar-shown;
+    property <float> timeline-shown: root.bar-part == BarPart.loaded ? root.pills-shown
+        : root.bar-shown;
     property <float> menu-shown: root.menu-open ? 1.0 : 0.0;
     property <float> audio-shown: root.audio-open ? 1.0 : 0.0;
     property <float> playlist-shown: root.playlist-open ? 1.0 : 0.0;
@@ -1158,14 +1215,14 @@ export component MainWindow inherits Window {
     /// would and covers as little of the picture as it can; by the timeline
     /// over what is loaded, which keeps its place.
     property <length> bar-sink: (1.0 - root.bar-full)
-        * (root.bar-part == 1 ? root.timeline-h : root.pill-h);
+        * (root.bar-part == BarPart.loaded ? root.timeline-h : root.pill-h);
     /// The top of the bar's glass as drawn, which is what the subtitles and
     /// the corner pill keep above.
     property <length> bar-edge: root.bar-top + root.bar-sink;
     property <length> bar-drawn-h: root.bar-h - root.bar-sink;
     /// The pane's width: the window's, less the margins, or what is loaded
     /// with `bar-pad` round it, growing to the right from there.
-    property <length> bar-drawn-w: root.bar-part == 1
+    property <length> bar-drawn-w: root.bar-part == BarPart.loaded
         ? root.loaded-pane-w + (root.width - 2 * root.panel-margin - root.loaded-pane-w)
             * root.bar-full
         : root.width - 2 * root.panel-margin;
@@ -1173,7 +1230,7 @@ export component MainWindow inherits Window {
     /// How far below its place the timeline's row is drawn: with the bar's
     /// top when it is up alone, and in place while the bar grows over it
     /// from what is loaded.
-    property <length> timeline-sink: root.bar-part == 1 ? 0px : root.bar-sink;
+    property <length> timeline-sink: root.bar-part == BarPart.loaded ? 0px : root.bar-sink;
 
     /// Transport: previous, back, play, forward, next.
     property <length> center-w: 2 * root.pill-pad + 5 * root.btn + 4 * root.btn-gap;
@@ -1444,24 +1501,25 @@ export component MainWindow inherits Window {
     /// answer to what the hand just did.
     property <bool> corner-offered: root.credits-offered || root.intro-offered
         || root.resume-offered || root.back-offered;
-    /// Which: 0 the way on, 1 past the title sequence, 2 the place passed
-    /// over, 3 past the credits to the scene after them, 4 back to where a
-    /// jump took the film from; -1 for none.
-    property <int> corner-offer: root.back-offered ? 4
-        : root.resume-offered ? 2
-        : root.credits-offered ? (root.credits-skip ? 3 : 0)
-        : root.intro-offered ? 1
-        : -1;
+    /// Which of them.
+    property <CornerOffer> corner-offer: root.back-offered ? CornerOffer.back
+        : root.resume-offered ? CornerOffer.resume
+        : root.credits-offered
+            ? (root.credits-skip ? CornerOffer.skip-credits : CornerOffer.onward)
+        : root.intro-offered ? CornerOffer.skip-intro
+        : CornerOffer.none;
     /// Which the pill is dressed as. The offer ends the moment the pill is
     /// pressed, but the pill takes `Motion.surface` to fade, and has to keep
     /// saying the same thing meanwhile. So the last offer, and the place it
     /// named, are remembered until the next one.
-    property <int> corner-was: 0;
-    property <int> corner-says: root.corner-offer >= 0 ? root.corner-offer : root.corner-was;
+    property <CornerOffer> corner-was: CornerOffer.onward;
+    property <CornerOffer> corner-says: root.corner-offer != CornerOffer.none
+        ? root.corner-offer : root.corner-was;
     /// Either skip: further into this file.
-    property <bool> corner-says-skip: root.corner-says == 1 || root.corner-says == 3;
+    property <bool> corner-says-skip: root.corner-says == CornerOffer.skip-intro
+        || root.corner-says == CornerOffer.skip-credits;
     changed corner-offer => {
-        if (root.corner-offer >= 0) {
+        if (root.corner-offer != CornerOffer.none) {
             root.corner-was = root.corner-offer;
         }
     }
@@ -1480,12 +1538,12 @@ export component MainWindow inherits Window {
     /// Named like the end pill's way on: the next file as its row says it,
     /// or the next season at the end of one. *Next episode* when neither can
     /// be said.
-    out property <string> credits-label: root.corner-says == 4
+    out property <string> credits-label: root.corner-says == CornerOffer.back
         ? @tr("Back to {}", root.back-offer-said)
-        : root.corner-says == 2
+        : root.corner-says == CornerOffer.resume
         ? @tr("Continue from {}", root.resume-offer-said)
-        : root.corner-says == 1 ? @tr("Skip intro")
-        : root.corner-says == 3 ? @tr("Skip credits")
+        : root.corner-says == CornerOffer.skip-intro ? @tr("Skip intro")
+        : root.corner-says == CornerOffer.skip-credits ? @tr("Skip credits")
         : !Playback.at-last && Playback.next-label != "" ? Playback.next-label
         : Playback.at-last && Playback.onward-path != "" ? Playback.onward-label
         : @tr("Next episode");
@@ -1499,7 +1557,7 @@ export component MainWindow inherits Window {
     /// is loaded alone never reaches the pill's column, so the pill rises
     /// only as the bar grows from it.
     property <length> credits-y: root.height - root.panel-margin - root.pill-h
-        - (root.bar-part == 1 ? root.bar-shown * root.bar-full : root.bar-shown)
+        - (root.bar-part == BarPart.loaded ? root.bar-shown * root.bar-full : root.bar-shown)
             * (root.height - root.panel-margin - root.bar-edge + Rows.offset);
     /// The seek preview reaching the pill's column. The preview is what the
     /// pointer asked for, so the pill is the one that goes.
@@ -1529,7 +1587,7 @@ export component MainWindow inherits Window {
     property <bool> flash-is-notice: Flash.message != "";
     /// Whether the glyph ring is drawn: an acknowledgement has one, a notice
     /// and a figure are their words alone.
-    property <bool> flash-has-ring: !root.flash-is-notice && Flash.figure == 0;
+    property <bool> flash-has-ring: !root.flash-is-notice && Flash.figure == Figure.none;
     /// The track a J or # landed on, read live, because the list is re-read
     /// a moment after the cycle and the caption has to catch up.
     property <string> flash-sub-label: Subtitles.visible && Tracks.subtitle-current >= 0
@@ -1556,11 +1614,11 @@ export component MainWindow inherits Window {
     /// The words under the ring. Live, because mpv reports a new delay a beat
     /// after the key, and the figure has to be the one it lands on.
     property <string> flash-text: root.flash-is-notice ? Flash.message
-        : Flash.figure == 1 ? Playback.speed-text
-        : Flash.figure == 2 ? Playback.chapter-label
-        : Flash.figure == 3 ? root.flash-sub-label
-        : Flash.figure == 4 ? root.flash-audio-label
-        : Flash.figure == 5 ? root.volume-said
+        : Flash.figure == Figure.speed ? Playback.speed-text
+        : Flash.figure == Figure.chapter ? Playback.chapter-label
+        : Flash.figure == Figure.subtitle-track ? root.flash-sub-label
+        : Flash.figure == Figure.audio-track ? root.flash-audio-label
+        : Flash.figure == Figure.volume ? root.volume-said
         : Flash.icon == Flash.delay ? Subtitles.delay-text : "";
     property <length> flash-text-h: 28px;
     property <length> flash-text-pad: 14px;
@@ -1579,35 +1637,33 @@ export component MainWindow inherits Window {
             root.panel-margin,
             max(root.panel-margin, root.width - w - root.panel-margin));
     }
-    /// The panel the notice on show answers, and so sits beside: 1 the
-    /// subtitles menu, 2 the playlist, 3 the files, 4 the settings, 5 the
-    /// audio panel, 0 none.
+    /// The panel the notice on show answers, and so sits beside.
     ///
     /// A notice raised with a panel open is nearly always that panel's
     /// answer, and belongs by the row that asked rather than in the middle.
     /// Fixed when the notice is raised, so it stays beside its panel while
     /// both fade out.
-    property <int> flash-panel: 0;
-    property <length> flash-panel-x: root.flash-panel == 1 ? menu.x
-        : root.flash-panel == 2 ? playlist-panel.x
-        : root.flash-panel == 3 ? files-panel.x
-        : root.flash-panel == 5 ? audio-panel.x
+    property <Panel> flash-panel: Panel.none;
+    property <length> flash-panel-x: root.flash-panel == Panel.subtitles ? menu.x
+        : root.flash-panel == Panel.playlist ? playlist-panel.x
+        : root.flash-panel == Panel.files ? files-panel.x
+        : root.flash-panel == Panel.audio ? audio-panel.x
         : settings.x;
-    property <length> flash-panel-w: root.flash-panel == 1 ? menu.width
-        : root.flash-panel == 2 ? playlist-panel.width
-        : root.flash-panel == 3 ? files-panel.width
-        : root.flash-panel == 5 ? audio-panel.width
+    property <length> flash-panel-w: root.flash-panel == Panel.subtitles ? menu.width
+        : root.flash-panel == Panel.playlist ? playlist-panel.width
+        : root.flash-panel == Panel.files ? files-panel.width
+        : root.flash-panel == Panel.audio ? audio-panel.width
         : settings.width;
-    property <length> flash-panel-h: root.flash-panel == 1 ? menu.height
-        : root.flash-panel == 2 ? playlist-panel.height
-        : root.flash-panel == 3 ? files-panel.height
-        : root.flash-panel == 5 ? audio-panel.height
+    property <length> flash-panel-h: root.flash-panel == Panel.subtitles ? menu.height
+        : root.flash-panel == Panel.playlist ? playlist-panel.height
+        : root.flash-panel == Panel.files ? files-panel.height
+        : root.flash-panel == Panel.audio ? audio-panel.height
         : settings.height;
     /// To the panel's left, unless the panel is too far left for the words
     /// to fit.
     property <bool> flash-leftward: root.flash-panel-x - Rows.offset
         - root.flash-text-w >= root.panel-margin;
-    property <length> flash-text-x: root.flash-panel == 0
+    property <length> flash-text-x: root.flash-panel == Panel.none
         ? root.flash-x(root.flash-text-w)
         : root.flash-leftward
             ? root.flash-panel-x - Rows.offset - root.flash-text-w
@@ -1618,13 +1674,13 @@ export component MainWindow inherits Window {
     property <length> flash-row: -1px;
     /// A notice beside a panel slides out from it rather than rising: from
     /// the panel's edge to the offset it rests at.
-    property <length> flash-slide: root.flash-panel == 0 ? 0px
+    property <length> flash-slide: root.flash-panel == Panel.none ? 0px
         : (1.0 - root.flash-shown) * Rows.offset * (root.flash-leftward ? 1 : -1);
     property <length> flash-y: (root.height - root.flash-ring) / 2;
     /// Under the ring, or in its place when there is none, and under the way
     /// in when that is on screen, since both are centred and the notice would
     /// otherwise cover the rows it answers.
-    property <length> flash-text-y: root.flash-panel != 0
+    property <length> flash-text-y: root.flash-panel != Panel.none
         ? root.bar-top - root.flash-panel-h - Rows.offset
             + (root.flash-row < 0 ? 0px : root.flash-row - root.flash-text-h / 2)
         : !root.flash-has-ring
@@ -1636,7 +1692,7 @@ export component MainWindow inherits Window {
     /// key flickers rather than strobes. Longer for a figure, which is read
     /// rather than recognised, and longer still for a sentence.
     property <duration> flash-dwell: root.flash-is-notice ? 3200ms
-        : Flash.figure != 0 ? 1200ms : 700ms;
+        : Flash.figure != Figure.none ? 1200ms : 700ms;
     property <float> flash-shown: 0;
     animate flash-shown {
         duration: Motion.surface;
@@ -1644,20 +1700,20 @@ export component MainWindow inherits Window {
     }
     property <length> flash-rise: (1.0 - root.flash-shown) * root.lift;
     /// The caption's rise, which is zero beside a panel, where it slides.
-    property <length> flash-text-rise: root.flash-panel == 0 ? root.flash-rise : 0px;
+    property <length> flash-text-rise: root.flash-panel == Panel.none ? root.flash-rise : 0px;
 
     // Watched through a local property, because a `changed` handler must be
     // on the element that declares the property. Each raise restarts the
     // dwell rather than extending it.
     property <int> flash-seq: Flash.seq;
     changed flash-seq => {
-        root.flash-panel = !root.flash-is-notice ? 0
-            : root.menu-open ? 1
-            : root.playlist-open ? 2
-            : root.files-open ? 3
-            : root.settings-open ? 4
-            : root.audio-open ? 5 : 0;
-        root.flash-row = root.flash-panel == 4 || root.flash-panel == 1
+        root.flash-panel = !root.flash-is-notice ? Panel.none
+            : root.menu-open ? Panel.subtitles
+            : root.playlist-open ? Panel.playlist
+            : root.files-open ? Panel.files
+            : root.settings-open ? Panel.settings
+            : root.audio-open ? Panel.audio : Panel.none;
+        root.flash-row = root.flash-panel == Panel.settings || root.flash-panel == Panel.subtitles
             ? root.asked-row : -1px;
         root.flash-shown = 1.0;
         root.flash-waiting = false;
@@ -1674,11 +1730,11 @@ export component MainWindow inherits Window {
 
     /// A notice beside a panel goes when the panel does, or left beside
     /// nothing it would read as a new event.
-    property <bool> flash-panel-open: root.flash-panel == 1 ? root.menu-open
-        : root.flash-panel == 2 ? root.playlist-open
-        : root.flash-panel == 3 ? root.files-open
-        : root.flash-panel == 4 ? root.settings-open
-        : root.flash-panel == 5 ? root.audio-open : true;
+    property <bool> flash-panel-open: root.flash-panel == Panel.subtitles ? root.menu-open
+        : root.flash-panel == Panel.playlist ? root.playlist-open
+        : root.flash-panel == Panel.files ? root.files-open
+        : root.flash-panel == Panel.settings ? root.settings-open
+        : root.flash-panel == Panel.audio ? root.audio-open : true;
     changed flash-panel-open => {
         if (!root.flash-panel-open) {
             flash-timer.stop();
@@ -1706,10 +1762,8 @@ export component MainWindow inherits Window {
     property <bool> panel-open: root.menu-open || root.audio-open
         || root.playlist-open || root.files-open || root.settings-open;
     /// The panel drawn unseen this frame, at no opacity, so that its first
-    /// opening does not also pay for drawing it the first time (see `warm`):
-    /// 0 the subtitles menu, 1 audio, 2 the playlist, 3 settings, 4 opening a
-    /// file, -1 none.
-    in property <int> warming: -1;
+    /// opening does not also pay for drawing it the first time (see `warm`).
+    in property <Panel> warming: Panel.none;
 
     property <length> tip-h: 28px;
     property <length> tip-pad: 12px;
@@ -1848,7 +1902,7 @@ export component MainWindow inherits Window {
     /// Size or Timing is used or the page is left.
     out property <float> subtitle-lift: (root.controls-visible || root.timeline-glimpse
         || root.title-glimpse) && root.has-file && !(root.placing-subtitles && root.menu-open
-            && root.subs-page == 2) ? 1.0 : 0.0;
+            && root.subs-page == MenuPage.placing) ? 1.0 : 0.0;
     /// Whether Position was the last of the subtitles' three adjustments used.
     property <bool> placing-subtitles: false;
     animate subtitle-lift {
@@ -2095,35 +2149,35 @@ export component MainWindow inherits Window {
     /// What a page holds under its way back, unconstrained. From row counts
     /// rather than the layout's `preferred-height`, for the reason under
     /// "bar geometry".
-    pure function page-natural(page: int) -> length {
+    pure function page-natural(page: SettingsPage) -> length {
         // The controls, the gap, and the reset that follows them.
-        if (page == 1) {
+        if (page == SettingsPage.glass) {
             return Settings.glass-params.length * Rows.slider-row + Rows.group-gap + root.row-h;
         }
         // The switch and a gap before them.
-        if (page == 2) {
-            return root.sliders-top(2) + Settings.border-params.length * Rows.slider-row
+        if (page == SettingsPage.border) {
+            return root.sliders-top(page) + Settings.border-params.length * Rows.slider-row
                 + Rows.group-gap + root.row-h;
         }
         // The size, a gap, and the switches, with the note under Animations
         // while the system holds it off.
-        if (page == 3) {
+        if (page == SettingsPage.accessibility) {
             return Rows.stepper-row + Rows.group-gap + root.access-switches * root.toggle-h
                 + (root.motion-note ? root.note-h : 0px);
         }
-        if (page == 4) {
+        if (page == SettingsPage.shortcuts) {
             return root.shortcuts-natural;
         }
-        if (page == 5) {
+        if (page == SettingsPage.language) {
             return root.language-count * root.row-h;
         }
         // The speed and its two switches, then the picture's sliders between
         // gaps, and their reset.
-        if (page == 6) {
-            return root.sliders-top(6) + Settings.picture-params.length * Rows.slider-row
+        if (page == SettingsPage.video) {
+            return root.sliders-top(page) + Settings.picture-params.length * Rows.slider-row
                 + Rows.group-gap + root.row-h;
         }
-        if (page == 7) {
+        if (page == SettingsPage.episodes) {
             return root.episode-switches * root.toggle-h;
         }
         return 0px;
@@ -2156,71 +2210,75 @@ export component MainWindow inherits Window {
     property <length> settings-reveal-h;
     property <int> settings-reveal-tick;
 
+    pure function has-sliders(page: SettingsPage) -> bool {
+        return page == SettingsPage.glass || page == SettingsPage.border
+            || page == SettingsPage.video;
+    }
     /// How many sliders a page of them has, the row the first is, and how far
     /// down the list it starts: under the ambient border's switch and a gap.
-    pure function sliders-on(page: int) -> int {
-        return page == 1 ? Settings.glass-params.length
-            : page == 6 ? Settings.picture-params.length
+    pure function sliders-on(page: SettingsPage) -> int {
+        return page == SettingsPage.glass ? Settings.glass-params.length
+            : page == SettingsPage.video ? Settings.picture-params.length
             : Settings.border-params.length;
     }
-    pure function sliders-from(page: int) -> int {
-        return page == 2 ? 2 : page == 6 ? 4 : 1;
+    pure function sliders-from(page: SettingsPage) -> int {
+        return page == SettingsPage.border ? 2 : page == SettingsPage.video ? 4 : 1;
     }
-    pure function sliders-top(page: int) -> length {
-        return page == 2 ? root.toggle-h + Rows.group-gap
-            : page == 6 ? Rows.stepper-row + 2 * root.toggle-h + Rows.group-gap
+    pure function sliders-top(page: SettingsPage) -> length {
+        return page == SettingsPage.border ? root.toggle-h + Rows.group-gap
+            : page == SettingsPage.video ? Rows.stepper-row + 2 * root.toggle-h + Rows.group-gap
             : 0px;
     }
     /// Whether a row of a page of sliders is one of them.
-    pure function is-slider(page: int, row: int) -> bool {
-        return (page == 1 || page == 2 || page == 6) && row >= root.sliders-from(page)
+    pure function is-slider(page: SettingsPage, row: int) -> bool {
+        return root.has-sliders(page) && row >= root.sliders-from(page)
             && row < root.sliders-from(page) + root.sliders-on(page);
     }
     /// Where a row of a settings page is in its list, and how tall it is.
     /// Row 0 of every page but the first is the way back, which is not in
     /// the list.
-    pure function settings-row-top(page: int, row: int) -> length {
-        if (page == 0) {
+    pure function settings-row-top(page: SettingsPage, row: int) -> length {
+        if (page == SettingsPage.front) {
             // A heading over rows 0, 2 and 4, the later two after a gap.
             return row * root.row-h + root.heading-h
                 + (row >= 2 ? root.heading-h + Rows.group-gap : 0px)
                 + (row >= 4 ? root.heading-h + Rows.group-gap : 0px);
         }
         // The ambient border's switch, the sliders, then the gap and the reset.
-        if (page == 2 && row == 1) {
+        if (page == SettingsPage.border && row == 1) {
             return 0px;
         }
         // The speed, then its two switches.
-        if (page == 6 && row <= 3) {
+        if (page == SettingsPage.video && row <= 3) {
             return row == 1 ? 0px : Rows.stepper-row + (row - 2) * root.toggle-h;
         }
-        if (page == 1 || page == 2 || page == 6) {
+        if (root.has-sliders(page)) {
             return root.sliders-top(page) + (root.is-slider(page, row)
                 ? (row - root.sliders-from(page)) * Rows.slider-row
                 : root.sliders-on(page) * Rows.slider-row + Rows.group-gap);
         }
         // The size, a gap, then the switches, the note under the first.
-        if (page == 3) {
+        if (page == SettingsPage.accessibility) {
             return row == 1 ? 0px
                 : Rows.stepper-row + Rows.group-gap + (row - 2) * root.toggle-h
                     + (row >= 3 && root.motion-note ? root.note-h : 0px);
         }
-        if (page == 7) {
+        if (page == SettingsPage.episodes) {
             return (row - 1) * root.toggle-h;
         }
         return (row - 1) * root.row-h;
     }
-    pure function settings-row-h(page: int, row: int) -> length {
+    pure function settings-row-h(page: SettingsPage, row: int) -> length {
         if (root.is-slider(page, row)) {
             return Rows.slider-row;
         }
-        if ((page == 3 || page == 6) && row == 1) {
+        if ((page == SettingsPage.accessibility || page == SettingsPage.video) && row == 1) {
             return Rows.stepper-row;
         }
-        if ((page == 2 && row == 1) || (page == 6 && row <= 3)) {
+        if ((page == SettingsPage.border && row == 1) || (page == SettingsPage.video && row <= 3)) {
             return root.toggle-h;
         }
-        if (page == 3 || page == 7) {
+        if (page == SettingsPage.accessibility || page == SettingsPage.episodes) {
             return root.toggle-h;
         }
         return root.row-h;
@@ -2263,7 +2321,7 @@ export component MainWindow inherits Window {
     /// The timing's reset is offered while there is something to reset, and
     /// stays to be taken back.
     property <bool> timing-resettable: root.timing-moved
-        || root.reset-armed == 3 || root.reset-undoable == 3;
+        || root.reset-armed == Reset.timing || root.reset-undoable == Reset.timing;
     /// Timing's readout, as wide as the delay reads at its widest.
     property <length> timing-value-w: max(62px, delay-measure.preferred-width + 4px);
     out property <length> audio-natural: root.has-audio
@@ -2390,7 +2448,7 @@ export component MainWindow inherits Window {
         root.fade-within(audio-list.fade, root.audio-open, root.audio-shown,
             audio-panel.x, audio-panel.y, audio-panel.width, audio-panel.height),
         root.fade-within(find-list.fade, root.menu-open,
-            root.menu-leaf == 3 ? root.menu-shown : 0,
+            root.menu-leaf == MenuPage.find ? root.menu-shown : 0,
             menu.x, menu.y, menu.width, menu.height),
         root.fade-within(playlist-top-list.fade, root.playlist-open, root.playlist-shown,
             playlist-panel.x, playlist-panel.y,
@@ -2724,7 +2782,7 @@ export component MainWindow inherits Window {
                 } else {
                     root.fetch-row(root.focus-row - 1);
                 }
-            } else if (root.subs-page != 0) {
+            } else if (root.subs-page != MenuPage.tracks) {
                 root.subs-page-activate();
             } else if (Find.offered && root.focus-row == root.subs-focus-count - 1) {
                 root.open-find();
@@ -2733,7 +2791,8 @@ export component MainWindow inherits Window {
                     ? -1
                     : Tracks.subtitles[root.focus-row - 1].id);
             } else {
-                root.open-subs-page(root.focus-row - root.subs-pages-at + 1);
+                root.open-subs-page(root.focus-row == root.subs-pages-at
+                    ? MenuPage.timing : MenuPage.placing);
             }
             return true;
         }
@@ -2777,7 +2836,7 @@ export component MainWindow inherits Window {
             } else if (root.focus-row == root.invite-first + 2) {
                 root.open-settings(true);
             } else {
-                root.open-settings-page(4);
+                root.open-settings-page(SettingsPage.shortcuts);
             }
             return true;
         }
@@ -2788,20 +2847,24 @@ export component MainWindow inherits Window {
     /// a page of controls is its reset. Enter does nothing on a slider or a
     /// stepper, which left and right move.
     function focus-activate-settings() -> bool {
-        if (root.settings-page == 0) {
-            // The playback pages are the newest and come first; the rest are
-            // in the order they were numbered.
-            root.settings-page = root.focus-row < 2 ? 6 + root.focus-row : root.focus-row - 1;
+        if (root.settings-page == SettingsPage.front) {
+            root.settings-page = root.focus-row == 0 ? SettingsPage.video
+                : root.focus-row == 1 ? SettingsPage.episodes
+                : root.focus-row == 2 ? SettingsPage.glass
+                : root.focus-row == 3 ? SettingsPage.border
+                : root.focus-row == 4 ? SettingsPage.accessibility
+                : root.focus-row == 5 ? SettingsPage.shortcuts
+                : SettingsPage.language;
             // Start at the new page's top, since the row number that opened
             // it may not exist there.
             root.focus-row = 0;
             return true;
         }
         if (root.focus-row == 0) {
-            root.settings-page = 0;
+            root.settings-page = SettingsPage.front;
             return true;
         }
-        if (root.settings-page == 3) {
+        if (root.settings-page == SettingsPage.accessibility) {
             if (root.focus-row == 1) {
                 return false;
             } else if (root.focus-row == 2) {
@@ -2815,30 +2878,30 @@ export component MainWindow inherits Window {
             }
             return true;
         }
-        if (root.settings-page == 6 && root.focus-row == 2) {
+        if (root.settings-page == SettingsPage.video && root.focus-row == 2) {
             Playback.toggle-panscan();
             return true;
         }
-        if (root.settings-page == 6 && root.focus-row == 3) {
+        if (root.settings-page == SettingsPage.video && root.focus-row == 3) {
             root.set-remaining-shown(!Settings.show-remaining);
             return true;
         }
-        if (root.settings-page == 7) {
+        if (root.settings-page == SettingsPage.episodes) {
             root.episode-switch(root.focus-row - 1);
             return true;
         }
-        if (root.settings-page == 5) {
+        if (root.settings-page == SettingsPage.language) {
             root.pick-language(root.focus-row - 1);
             return true;
         }
-        if (root.settings-page == 2 && root.focus-row == 1) {
+        if (root.settings-page == SettingsPage.border && root.focus-row == 1) {
             Settings.ambience-on = !Settings.ambience-on;
             Settings.set-ambience(Settings.ambience-on);
             return true;
         }
         if (root.focus-row == root.settings-focus-count - 1) {
             if (root.focus-has-reset) {
-                root.reset-row(root.settings-page);
+                root.reset-row(root.settings-page-reset);
             }
             return true;
         }
@@ -2851,50 +2914,48 @@ export component MainWindow inherits Window {
     // tuned by eye can't be typed back in. The first press says what the
     // second will do; after the second, the same row offers to undo it until
     // the page is left.
-    //
-    // What each reset row resets: 1 the glass and 2 the ambient border, as
-    // `settings-page` numbers their pages; then, from the subtitles menu,
-    // 3 the timing, which is the film's alone and is undone from here rather
-    // than from what the settings saved, and 4 the size and position. Zero is
-    // none.
-    property <int> reset-armed: 0;
-    property <int> reset-undoable: 0;
+    property <Reset> reset-armed: Reset.none;
+    property <Reset> reset-undoable: Reset.none;
     /// The subtitle delay and speed that stood when the timing was reset.
     property <float> reset-delay: 0;
     property <float> reset-sub-speed: 1;
 
-    function reset-row(page: int) {
-        if (root.reset-undoable == page) {
-            if (page == 3) {
+    function reset-row(what: Reset) {
+        if (root.reset-undoable == what) {
+            // The timing is the film's alone, so it is put back from here
+            // rather than from what the settings saved.
+            if (what == Reset.timing) {
                 Subtitles.set-timing(root.reset-delay, root.reset-sub-speed);
             } else {
-                Settings.undo-reset(page);
+                Settings.undo-reset(what);
             }
-            root.reset-undoable = 0;
+            root.reset-undoable = Reset.none;
             return;
         }
-        if (root.reset-armed != page) {
-            root.reset-armed = page;
+        if (root.reset-armed != what) {
+            root.reset-armed = what;
             reset-timer.stop();
             reset-timer.start();
             return;
         }
         reset-timer.stop();
-        root.reset-armed = 0;
+        root.reset-armed = Reset.none;
         root.reset-delay = Subtitles.delay;
         root.reset-sub-speed = Subtitles.speed;
-        if (page == 1) {
-            Settings.reset-section(0);
-        } else if (page == 2) {
-            Settings.reset-section(1);
-        } else if (page == 6) {
-            Settings.reset-section(2);
-        } else if (page == 3) {
+        if (what == Reset.timing) {
             Subtitles.set-timing(0, 1);
-        } else {
+        } else if (what == Reset.placing) {
             Subtitles.reset();
+        } else {
+            Settings.reset-section(what);
         }
-        root.reset-undoable = page;
+        root.reset-undoable = what;
+    }
+
+    /// Whether a reset is one of the subtitles menu's rather than the
+    /// settings panel's.
+    pure function is-menu-reset(what: Reset) -> bool {
+        return what == Reset.timing || what == Reset.placing;
     }
 
     // --- removing a track ------------------------------------------------------
@@ -2944,17 +3005,17 @@ export component MainWindow inherits Window {
         root.asked-row = -1px;
         root.placing-subtitles = false;
         root.forget-sync();
-        if (root.reset-armed >= 3 || root.reset-undoable >= 3) {
-            root.reset-armed = 0;
-            root.reset-undoable = 0;
+        if (root.is-menu-reset(root.reset-armed) || root.is-menu-reset(root.reset-undoable)) {
+            root.reset-armed = Reset.none;
+            root.reset-undoable = Reset.none;
         }
     }
 
     // A page of the subtitle showing goes with it, whichever way it goes: C,
     // another file, or its track removed. It stays on the tracks, at Off.
     changed subs-showing => {
-        if (!root.subs-showing && root.subs-page != 0) {
-            root.subs-page = 0;
+        if (!root.subs-showing && root.subs-page != MenuPage.tracks) {
+            root.subs-page = MenuPage.tracks;
             root.focus-row = root.subs-open-row;
         }
     }
@@ -2984,9 +3045,9 @@ export component MainWindow inherits Window {
     // what it is, by itself, however it came.
     changed current-path => {
         root.forget-sync();
-        if (root.reset-armed == 3 || root.reset-undoable == 3) {
-            root.reset-armed = 0;
-            root.reset-undoable = 0;
+        if (root.reset-armed == Reset.timing || root.reset-undoable == Reset.timing) {
+            root.reset-armed = Reset.none;
+            root.reset-undoable = Reset.none;
         }
         root.stepped = false;
         root.glimpse-title();
@@ -3023,26 +3084,26 @@ export component MainWindow inherits Window {
     function sync-row() {
         // The sync is the timing page's first row, under its way back.
         root.asked-row = Rows.panel-pad + root.row-h + root.row-h / 2;
-        if (Subtitles.sync-state == 2) {
+        if (Subtitles.sync-state == SyncState.undoable) {
             Subtitles.set-timing(Subtitles.sync-was-delay, Subtitles.sync-was-speed);
-            Subtitles.sync-state = 0;
-        } else if (Subtitles.sync-state == 0) {
-            Subtitles.sync-state = 1;
+            Subtitles.sync-state = SyncState.idle;
+        } else if (Subtitles.sync-state == SyncState.idle) {
+            Subtitles.sync-state = SyncState.listening;
             Subtitles.sync();
         }
     }
 
     pure function sync-label() -> string {
-        return Subtitles.sync-state == 1 ? @tr("Listening…")
-            : Subtitles.sync-state == 2 ? @tr("Undo sync")
+        return Subtitles.sync-state == SyncState.listening ? @tr("Listening…")
+            : Subtitles.sync-state == SyncState.undoable ? @tr("Undo sync")
             : @tr("Sync to speech");
     }
 
     /// Leaving the page drops the undo. A run still listening is left to
     /// finish, and its answer is shown wherever the panel is by then.
     function forget-sync() {
-        if (Subtitles.sync-state == 2) {
-            Subtitles.sync-state = 0;
+        if (Subtitles.sync-state == SyncState.undoable) {
+            Subtitles.sync-state = SyncState.idle;
         }
     }
 
@@ -3134,17 +3195,17 @@ export component MainWindow inherits Window {
 
     /// The warning while the row is armed, since the next press throws a
     /// page of settings away.
-    pure function reset-icon(page: int) -> image {
-        return root.reset-armed == page && root.reset-undoable != page
+    pure function reset-icon(what: Reset) -> image {
+        return root.reset-armed == what && root.reset-undoable != what
             ? @image-url("../../../public/icons/warning.svg")
             : @image-url("../../../public/icons/reset.svg");
     }
 
-    pure function reset-label(page: int) -> string {
-        return root.reset-undoable == page ? @tr("Undo reset")
-            : root.reset-armed == page ? @tr("Press again to reset")
-            : page == 3 ? @tr("Reset timing")
-            : page == 6 ? @tr("Reset the picture")
+    pure function reset-label(what: Reset) -> string {
+        return root.reset-undoable == what ? @tr("Undo reset")
+            : root.reset-armed == what ? @tr("Press again to reset")
+            : what == Reset.timing ? @tr("Reset timing")
+            : what == Reset.picture ? @tr("Reset the picture")
             : @tr("Reset to defaults");
     }
 
@@ -3157,25 +3218,25 @@ export component MainWindow inherits Window {
         interval: root.armed-for;
         running: false;
         triggered => {
-            root.reset-armed = 0;
+            root.reset-armed = Reset.none;
             reset-timer.stop();
         }
     }
 
     changed settings-page => {
         root.asked-row = -1px;
-        root.reset-armed = 0;
-        root.reset-undoable = 0;
+        root.reset-armed = Reset.none;
+        root.reset-undoable = Reset.none;
         // Only on the way in, so the departing page stays drawn while it
         // slides out.
-        if (root.settings-page != 0) {
+        if (root.settings-page != SettingsPage.front) {
             root.leaf-page = root.settings-page;
         }
     }
 
     changed settings-open => {
-        root.reset-armed = 0;
-        root.reset-undoable = 0;
+        root.reset-armed = Reset.none;
+        root.reset-undoable = Reset.none;
         if (root.settings-open) {
             settings-rest.stop();
         } else {
@@ -3191,7 +3252,7 @@ export component MainWindow inherits Window {
         triggered => {
             settings-rest.stop();
             if (!root.settings-open) {
-                root.settings-page = 0;
+                root.settings-page = SettingsPage.front;
             }
         }
     }
@@ -3217,37 +3278,39 @@ export component MainWindow inherits Window {
     /// Left and right, only where the row under the ring is something they
     /// can move. Elsewhere this returns false, and `focus-sideways` decides.
     function focus-adjust(delta: int) -> bool {
-        if (root.menu-open && !root.find-open && root.subs-page != 0) {
+        if (root.menu-open && !root.find-open && root.subs-page != MenuPage.tracks) {
             return root.subs-page-adjust(delta);
         }
         if (!root.settings-open || root.focus-row < 1) {
             return false;
         }
-        if (root.settings-page == 1
+        if (root.settings-page == SettingsPage.glass
             && root.focus-row <= Settings.glass-params.length) {
             Settings.set-param(Settings.glass-params[root.focus-row - 1].index,
                 clamp(Settings.glass-params[root.focus-row - 1].fraction
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
-        if (root.settings-page == 2 && root.is-slider(2, root.focus-row)) {
+        if (root.settings-page == SettingsPage.border
+                && root.is-slider(root.settings-page, root.focus-row)) {
             Settings.set-param(Settings.border-params[root.focus-row - 2].index,
                 clamp(Settings.border-params[root.focus-row - 2].fraction
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
-        if (root.settings-page == 6 && root.is-slider(6, root.focus-row)) {
+        if (root.settings-page == SettingsPage.video
+                && root.is-slider(root.settings-page, root.focus-row)) {
             Settings.set-param(Settings.picture-params[root.focus-row - 4].index,
                 clamp(Settings.picture-params[root.focus-row - 4].fraction
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
         // The steppers: the speed, and the interface's size.
-        if (root.settings-page == 6 && root.focus-row == 1) {
+        if (root.settings-page == SettingsPage.video && root.focus-row == 1) {
             Playback.step-speed(Playback.speed, delta);
             return true;
         }
-        if (root.settings-page == 3 && root.focus-row == 1) {
+        if (root.settings-page == SettingsPage.accessibility && root.focus-row == 1) {
             Settings.step-scale(delta);
             return true;
         }
@@ -3257,15 +3320,15 @@ export component MainWindow inherits Window {
     /// The same on the subtitles menu's pages, whose steppers are Timing's
     /// second row, and Size and Position's first two.
     function subs-page-adjust(delta: int) -> bool {
-        if (root.subs-page == 1 && root.focus-row == 2) {
+        if (root.subs-page == MenuPage.timing && root.focus-row == 2) {
             root.step-sub-delay(delta);
             return true;
         }
-        if (root.subs-page == 2 && root.focus-row == 1) {
+        if (root.subs-page == MenuPage.placing && root.focus-row == 1) {
             root.step-sub-scale(delta);
             return true;
         }
-        if (root.subs-page == 2 && root.focus-row == 2) {
+        if (root.subs-page == MenuPage.placing && root.focus-row == 2) {
             root.step-sub-pos(delta);
             return true;
         }
@@ -3286,7 +3349,7 @@ export component MainWindow inherits Window {
         // The shortcuts page is read, not walked, so the arrows scroll its
         // list. Nested rather than one `&&` chain, because `on-read` acts, and
         // a call with an effect doesn't belong beside the test that guards it.
-        if (root.settings-open && root.settings-page == 4) {
+        if (root.settings-open && root.settings-page == SettingsPage.shortcuts) {
             if (root.on-read(text)) {
                 return true;
             }
@@ -3360,8 +3423,8 @@ export component MainWindow inherits Window {
     /// Back a page in the open panel, where it has one to go back to, and say
     /// whether it did. Escape's first step, and Left's.
     function page-back() -> bool {
-        if (root.settings-open && root.settings-page != 0) {
-            root.settings-page = 0;
+        if (root.settings-open && root.settings-page != SettingsPage.front) {
+            root.settings-page = SettingsPage.front;
             root.focus-row = 0;
             return true;
         }
@@ -3377,7 +3440,7 @@ export component MainWindow inherits Window {
             root.close-find();
             return true;
         }
-        if (root.menu-open && root.subs-page != 0) {
+        if (root.menu-open && root.subs-page != MenuPage.tracks) {
             root.close-subs-page();
             return true;
         }
@@ -3388,13 +3451,13 @@ export component MainWindow inherits Window {
     /// subtitles menu. Enter does the same; a row that plays or picks
     /// something is left to Enter alone.
     function focus-enter() {
-        if (root.settings-open && root.settings-page == 0) {
+        if (root.settings-open && root.settings-page == SettingsPage.front) {
             root.focus-activate-settings();
         } else if (root.playlist-open && root.playlist-top
                 && root.focus-row < root.playlist-rows
                 && !Playlist.groups[root.focus-row].leaf) {
             root.playlist-enter(root.focus-row);
-        } else if (root.menu-open && !root.find-open && root.subs-page == 0
+        } else if (root.menu-open && !root.find-open && root.subs-page == MenuPage.tracks
                 && root.focus-row >= root.subs-track-rows) {
             root.focus-activate();
         } else if (root.menu-open && root.find-open && !root.account-open
@@ -3502,7 +3565,7 @@ export component MainWindow inherits Window {
         if (text == " " || text == "k" || text == "K") {
             // Playing, every way, is the film going on, which the chrome
             // would only cover; pausing is looking for where you are.
-            root.key-wake = root.paused || root.at-end ? 2 : 0;
+            root.key-wake = root.paused || root.at-end ? KeyWake.hide : KeyWake.wake;
             // As the play button: at the end of a file there is nothing to
             // unpause, and on a saved place, playing goes on from it.
             if (root.arriving) {
@@ -3519,7 +3582,7 @@ export component MainWindow inherits Window {
         // rather than restart the film.
         if (text == Key.Home && !root.panel-open && root.arriving) {
             Playback.arrival-answer(true);
-            root.key-wake = 2;
+            root.key-wake = KeyWake.hide;
             return true;
         }
         if (text == Key.Home && !root.panel-open) {
@@ -3538,7 +3601,7 @@ export component MainWindow inherits Window {
         // Shift+N and Shift+P, through the playlist. At either end mpv does
         // nothing, so neither does the flash.
         if (shift && (text == "n" || text == "N" || text == "p" || text == "P")) {
-            root.key-wake = 1;
+            root.key-wake = KeyWake.keep;
             if ((text == "n" || text == "N") && !Playback.at-last) {
                 Playlist.step(1);
                 Flash.show(Flash.next, 0.5);
@@ -3575,7 +3638,7 @@ export component MainWindow inherits Window {
                 // From the end, forward is the end pill's first offer: the
                 // next file or season. Never the folder dialog, since an arrow
                 // held a moment too long is not deliberate enough for one.
-                root.key-wake = 2;
+                root.key-wake = KeyWake.hide;
                 if (!Playback.at-last) {
                     Playback.play-next();
                 } else if (Playback.onward-path != "") {
@@ -3598,21 +3661,21 @@ export component MainWindow inherits Window {
     function on-volume(text: string) -> bool {
         if (text == Key.UpArrow || text == Key.DownArrow) {
             Playback.nudge-volume(text == Key.UpArrow ? Playback.volume-step : -Playback.volume-step);
-            root.key-wake = 1;
-            Flash.show-figure(5);
+            root.key-wake = KeyWake.keep;
+            Flash.show-figure(Figure.volume);
             return true;
         }
         if (text == "m" || text == "M") {
             Playback.toggle-mute();
-            root.key-wake = 1;
-            Flash.show-figure(5);
+            root.key-wake = KeyWake.keep;
+            Flash.show-figure(Figure.volume);
             return true;
         }
         // mpv's own key for it.
         if (text == "#") {
             Tracks.cycle(false, 1);
-            root.key-wake = 1;
-            Flash.show-figure(4);
+            root.key-wake = KeyWake.keep;
+            Flash.show-figure(Figure.audio-track);
             return true;
         }
         return false;
@@ -3626,28 +3689,28 @@ export component MainWindow inherits Window {
             // Shown, because a scene with no dialogue shows nothing, and the
             // button's mark is under the bar while the bar is away. The same
             // caption as Shift+C, read live.
-            root.key-wake = 1;
-            Flash.show-figure(3);
+            root.key-wake = KeyWake.keep;
+            Flash.show-figure(Figure.subtitle-track);
             return true;
         }
         // Through the subtitle tracks, including none, saying which one it
         // landed on: C's own subject, one shift away.
         if (shift && (text == "c" || text == "C")) {
             Tracks.cycle(true, 1);
-            root.key-wake = 1;
-            Flash.show-figure(3);
+            root.key-wake = KeyWake.keep;
+            Flash.show-figure(Figure.subtitle-track);
             return true;
         }
         // YouTube's for the captions' size. = as well as +, which on most
         // keyboards is the same key unshifted. The line itself answers.
         if (text == "+" || text == "=" || text == "-") {
             root.step-sub-scale(text == "-" ? -1 : 1);
-            root.key-wake = 1;
+            root.key-wake = KeyWake.keep;
             return true;
         }
         if (text == "z" || text == "Z") {
             Subtitles.nudge-delay(shift ? Subtitles.delay-step : -Subtitles.delay-step);
-            root.key-wake = 1;
+            root.key-wake = KeyWake.keep;
             Flash.show(Flash.delay, 0.5);
             return true;
         }
@@ -3692,21 +3755,21 @@ export component MainWindow inherits Window {
     function on-pace(text: string) -> bool {
         if (text == "<" || text == ">") {
             Playback.step-speed(Playback.speed, text == ">" ? 1 : -1);
-            root.key-wake = 1;
-            Flash.show-figure(1);
+            root.key-wake = KeyWake.keep;
+            Flash.show-figure(Figure.speed);
             return true;
         }
         if (text == Key.Backspace) {
             Playback.reset-speed();
-            root.key-wake = 1;
-            Flash.show-figure(1);
+            root.key-wake = KeyWake.keep;
+            Flash.show-figure(Figure.speed);
             return true;
         }
         if (text == "," || text == ".") {
             Playback.frame-step(text == "." ? 1 : -1);
             root.stepped = true;
             root.step-landing = true;
-            root.key-wake = 1;
+            root.key-wake = KeyWake.keep;
             return true;
         }
         // Only with no panel open, for the reason Home gives above.
@@ -3718,11 +3781,11 @@ export component MainWindow inherits Window {
 
     /// A chapter on or back, from PgUp and PgDn or from Ctrl and the arrows.
     function chapter-key(direction: int) -> bool {
-        root.key-wake = 1;
+        root.key-wake = KeyWake.keep;
         // No flash for a file with no chapters to go to.
         if (Playback.chapter-marks.length > 0) {
             Playback.chapter-step(direction);
-            Flash.show-figure(2);
+            Flash.show-figure(Figure.chapter);
         }
         return true;
     }
@@ -3783,13 +3846,13 @@ export component MainWindow inherits Window {
     /// from credits a scene follows, on to the scene, and after a jump, back
     /// to where it was.
     function credits-activate() {
-        if (root.corner-offer == 4) {
+        if (root.corner-offer == CornerOffer.back) {
             Playback.take-back-offer();
-        } else if (root.corner-offer == 2) {
+        } else if (root.corner-offer == CornerOffer.resume) {
             Playback.take-resume-offer();
-        } else if (root.corner-offer == 1) {
+        } else if (root.corner-offer == CornerOffer.skip-intro) {
             Playback.skip-to(Playback.intro-end);
-        } else if (root.corner-offer == 3) {
+        } else if (root.corner-offer == CornerOffer.skip-credits) {
             Playback.skip-to(Playback.after-credits);
         } else if (!Playback.at-last) {
             Playback.play-next();
@@ -3853,7 +3916,7 @@ export component MainWindow inherits Window {
         if (text == Key.Return) {
             // Every choice on a pill is the way back to the film.
             if (root.bar-focus >= root.pill-stop) {
-                root.key-wake = 2;
+                root.key-wake = KeyWake.hide;
             }
             root.bar-activate(root.bar-focus);
             return true;
@@ -3863,7 +3926,7 @@ export component MainWindow inherits Window {
             // also leave fullscreen. The next press does that. Done with the
             // bar, so the bar goes with it.
             Chrome.focus-visible = false;
-            root.key-wake = 2;
+            root.key-wake = KeyWake.hide;
             return true;
         }
         return false;
@@ -4014,24 +4077,24 @@ export component MainWindow inherits Window {
         // the bar over it, so the chrome goes.
         if (text == "f" || text == "F" || text == Key.F11) {
             root.toggle-fullscreen();
-            root.key-wake = 2;
+            root.key-wake = KeyWake.hide;
             Chrome.settling = true;
             return true;
         }
         // The picture answers, as it does a frame step.
         if (root.has-file && (text == "t" || text == "T")) {
             Playback.toggle-panscan();
-            root.key-wake = 1;
+            root.key-wake = KeyWake.keep;
             return true;
         }
         // Straight to the shortcuts page, the player's one reference. Pressed
         // again there, it closes the panel, as S does.
         if (root.keys-act && text == "?") {
-            if (root.settings-open && root.settings-page == 4) {
+            if (root.settings-open && root.settings-page == SettingsPage.shortcuts) {
                 root.open-settings(false);
-                root.key-wake = 2;
+                root.key-wake = KeyWake.hide;
             } else {
-                root.open-settings-page(4);
+                root.open-settings-page(SettingsPage.shortcuts);
                 root.focus-show(0);
             }
             return true;
@@ -4045,7 +4108,7 @@ export component MainWindow inherits Window {
             if (root.settings-open) {
                 root.focus-show(0);
             } else {
-                root.key-wake = 2;
+                root.key-wake = KeyWake.hide;
             }
             return true;
         }
@@ -4057,7 +4120,7 @@ export component MainWindow inherits Window {
             if (root.audio-open) {
                 root.focus-show(root.focus-row);
             } else {
-                root.key-wake = 2;
+                root.key-wake = KeyWake.hide;
             }
             return true;
         }
@@ -4066,7 +4129,7 @@ export component MainWindow inherits Window {
             if (root.menu-open) {
                 root.focus-show(root.focus-row);
             } else {
-                root.key-wake = 2;
+                root.key-wake = KeyWake.hide;
             }
             return true;
         }
@@ -4075,7 +4138,7 @@ export component MainWindow inherits Window {
             if (root.playlist-open) {
                 root.focus-show(root.focus-row);
             } else {
-                root.key-wake = 2;
+                root.key-wake = KeyWake.hide;
             }
             return true;
         }
@@ -4084,7 +4147,7 @@ export component MainWindow inherits Window {
             // worth toggling mid-film. The picture's border answers it.
             Settings.ambience-on = !Settings.ambience-on;
             Settings.set-ambience(Settings.ambience-on);
-            root.key-wake = 1;
+            root.key-wake = KeyWake.keep;
             return true;
         }
         if (text == Key.Delete && (root.menu-open || root.audio-open)
@@ -4098,7 +4161,7 @@ export component MainWindow inherits Window {
             if (root.page-back()) {
                 return true;
             }
-            root.key-wake = 2;
+            root.key-wake = KeyWake.hide;
             if (root.settings-open) {
                 root.settings-open = false;
             } else if (root.playlist-open) {
@@ -4115,7 +4178,7 @@ export component MainWindow inherits Window {
                 if (root.fullscreen) {
                     Chrome.settling = true;
                 } else {
-                    root.key-wake = 1;
+                    root.key-wake = KeyWake.keep;
                 }
                 root.leave-fullscreen();
             }
@@ -4135,7 +4198,7 @@ export component MainWindow inherits Window {
             root.menu-open = true;
             root.find-open = false;
             root.account-open = false;
-            root.subs-page = 0;
+            root.subs-page = MenuPage.tracks;
             root.focus-row = root.subs-open-row;
             subs-list.centre(root.focus-row * root.row-h, root.row-h);
         }
@@ -4233,13 +4296,13 @@ export component MainWindow inherits Window {
         if (open) {
             root.close-others();
             root.settings-open = true;
-            root.settings-page = 0;
+            root.settings-page = SettingsPage.front;
         }
     }
 
     /// Show one settings page, opening the panel if it is shut. Public so a
     /// test can walk the pages and check each page's height.
-    public function open-settings-page(page: int) {
+    public function open-settings-page(page: SettingsPage) {
         root.open-settings(true);
         root.settings-page = page;
         root.focus-row = 0;
@@ -4271,7 +4334,7 @@ export component MainWindow inherits Window {
         // says how far (`key-wake`).
         key-pressed(event) => {
             Chrome.input-seq += 1;
-            root.key-wake = 0;
+            root.key-wake = KeyWake.wake;
             // The film's own keys only with a film, or they would flash over
             // the way in and change a volume nothing shows.
             if (root.on-bar(event.text, event.modifiers.shift)
@@ -4434,11 +4497,11 @@ export component MainWindow inherits Window {
 
     /// 0 on the front page, 1 on a page behind it. One number is enough
     /// because the tree is two deep.
-    property <float> drill: root.settings-page == 0 ? 0.0 : 1.0;
+    property <float> drill: root.settings-page == SettingsPage.front ? 0.0 : 1.0;
     /// Which page the drilled-in pane draws. Held rather than read from
-    /// `settings-page`, which is 0 during the way back, while the pane
-    /// sliding out still has to draw its page.
-    property <int> leaf-page: 1;
+    /// `settings-page`, which is the front page during the way back, while
+    /// the pane sliding out still has to draw its page.
+    property <SettingsPage> leaf-page: SettingsPage.glass;
 
     // Eased at both ends, since it is something moved rather than a surface
     // fading in.
@@ -4458,13 +4521,13 @@ export component MainWindow inherits Window {
     settings := Rectangle {
         /// The page, unconstrained: the front list, or a page's way back and
         /// what is under it. From row counts (see `page-natural`).
-        property <length> body: root.settings-page == 0 ? root.front-natural
+        property <length> body: root.settings-page == SettingsPage.front ? root.front-natural
             : root.row-h + root.page-natural(root.settings-page);
 
         // Wider on the shortcuts page, the one page with two columns of
         // words, a name and its keys: at the others' width the longest pairs
         // are cut in every language, and at this one in none of them.
-        width: root.settings-page == 4 ? 440px : root.words-w;
+        width: root.settings-page == SettingsPage.shortcuts ? 440px : root.words-w;
         height: min(root.panel-pad + self.body, root.panel-max-h);
         x: root.anchored-x(root.settings-anchor, self.width);
         // From its own height, so the panel keeps its bottom edge and grows
@@ -4477,7 +4540,7 @@ export component MainWindow inherits Window {
             duration: root.resizing ? 0ms : Motion.drill;
             easing: ease-in-out;
         }
-        visible: root.settings-shown > root.shown-epsilon || root.warming == 3;
+        visible: root.settings-shown > root.shown-epsilon || root.warming == Panel.settings;
         opacity: root.settings-shown;
         clip: true;
         border-radius: root.drill-corner;
@@ -4530,7 +4593,7 @@ export component MainWindow inherits Window {
                         label: @tr("Video");
                         focused: root.settings-open && root.focus-row == 0;
                         opened => {
-                            root.settings-page = 6;
+                            root.settings-page = SettingsPage.video;
                         }
                     }
                     // Next's glyph, as the credits pill has it for the next
@@ -4540,7 +4603,7 @@ export component MainWindow inherits Window {
                         label: @tr("Episodes");
                         focused: root.settings-open && root.focus-row == 1;
                         opened => {
-                            root.settings-page = 7;
+                            root.settings-page = SettingsPage.episodes;
                         }
                     }
 
@@ -4557,7 +4620,7 @@ export component MainWindow inherits Window {
                         label: @tr("Liquid glass");
                         focused: root.settings-open && root.focus-row == 2;
                         opened => {
-                            root.settings-page = 1;
+                            root.settings-page = SettingsPage.glass;
                         }
                     }
                     // The switch's glyph pair, so the icon says whether the
@@ -4569,7 +4632,7 @@ export component MainWindow inherits Window {
                         label: @tr("Ambient border");
                         focused: root.settings-open && root.focus-row == 3;
                         opened => {
-                            root.settings-page = 2;
+                            root.settings-page = SettingsPage.border;
                         }
                     }
 
@@ -4586,7 +4649,7 @@ export component MainWindow inherits Window {
                         label: @tr("Accessibility");
                         focused: root.settings-open && root.focus-row == 4;
                         opened => {
-                            root.settings-page = 3;
+                            root.settings-page = SettingsPage.accessibility;
                         }
                     }
                     DrillRow {
@@ -4594,7 +4657,7 @@ export component MainWindow inherits Window {
                         label: @tr("Shortcuts");
                         focused: root.settings-open && root.focus-row == 5;
                         opened => {
-                            root.settings-page = 4;
+                            root.settings-page = SettingsPage.shortcuts;
                         }
                     }
                     DrillRow {
@@ -4602,7 +4665,7 @@ export component MainWindow inherits Window {
                         label: @tr("Language");
                         focused: root.settings-open && root.focus-row == 6;
                         opened => {
-                            root.settings-page = 5;
+                            root.settings-page = SettingsPage.language;
                         }
                     }
                 }
@@ -4621,18 +4684,18 @@ export component MainWindow inherits Window {
                 padding-bottom: Rows.panel-pad;
                 alignment: start;
 
-                if root.leaf-page == 1: VerticalLayout {
+                if root.leaf-page == SettingsPage.glass: VerticalLayout {
                     BackRow {
                         label: @tr("LIQUID GLASS");
                         focused: root.focus-row == 0;
                         back => {
-                            root.settings-page = 0;
+                            root.settings-page = SettingsPage.front;
                         }
                     }
                     ScrollList {
                         height: root.leaf-list-h;
                         rest-height: root.leaf-rest-h;
-                        content-height: root.page-natural(1);
+                        content-height: root.page-natural(SettingsPage.glass);
                         init => {
                             root.leaf-fade = self.fade;
                         }
@@ -4663,28 +4726,28 @@ export component MainWindow inherits Window {
                             height: Rows.group-gap;
                         }
                         MenuRow {
-                            icon: root.reset-icon(1);
-                            label: root.reset-label(1);
+                            icon: root.reset-icon(Reset.glass);
+                            label: root.reset-label(Reset.glass);
                             focused: root.focus-row == root.leaf-focus-count - 1;
                             picked => {
-                                root.reset-row(1);
+                                root.reset-row(Reset.glass);
                             }
                         }
                     }
                 }
 
-                if root.leaf-page == 2: VerticalLayout {
+                if root.leaf-page == SettingsPage.border: VerticalLayout {
                     BackRow {
                         label: @tr("AMBIENT BORDER");
                         focused: root.focus-row == 0;
                         back => {
-                            root.settings-page = 0;
+                            root.settings-page = SettingsPage.front;
                         }
                     }
                     ScrollList {
                         height: root.leaf-list-h;
                         rest-height: root.leaf-rest-h;
-                        content-height: root.page-natural(2);
+                        content-height: root.page-natural(SettingsPage.border);
                         init => {
                             root.leaf-fade = self.fade;
                         }
@@ -4728,11 +4791,11 @@ export component MainWindow inherits Window {
                             height: Rows.group-gap;
                         }
                         MenuRow {
-                            icon: root.reset-icon(2);
-                            label: root.reset-label(2);
+                            icon: root.reset-icon(Reset.border);
+                            label: root.reset-label(Reset.border);
                             focused: root.focus-row == root.leaf-focus-count - 1;
                             picked => {
-                                root.reset-row(2);
+                                root.reset-row(Reset.border);
                             }
                         }
                     }
@@ -4740,18 +4803,18 @@ export component MainWindow inherits Window {
 
                 // How much the interface does on its own: moving, keeping its
                 // words readable, and explaining itself.
-                if root.leaf-page == 3: VerticalLayout {
+                if root.leaf-page == SettingsPage.accessibility: VerticalLayout {
                     BackRow {
                         label: @tr("ACCESSIBILITY");
                         focused: root.focus-row == 0;
                         back => {
-                            root.settings-page = 0;
+                            root.settings-page = SettingsPage.front;
                         }
                     }
                     ScrollList {
                         height: root.leaf-list-h;
                         rest-height: root.leaf-rest-h;
-                        content-height: root.page-natural(3);
+                        content-height: root.page-natural(SettingsPage.accessibility);
                         init => {
                             root.leaf-fade = self.fade;
                         }
@@ -4837,18 +4900,18 @@ export component MainWindow inherits Window {
                 // How the film plays and how it looks: what is otherwise only
                 // on keys, the speed, beside the bar's fill and the timeline's
                 // time left, then the picture as mpv draws it.
-                if root.leaf-page == 6: VerticalLayout {
+                if root.leaf-page == SettingsPage.video: VerticalLayout {
                     BackRow {
                         label: @tr("VIDEO");
                         focused: root.focus-row == 0;
                         back => {
-                            root.settings-page = 0;
+                            root.settings-page = SettingsPage.front;
                         }
                     }
                     ScrollList {
                         height: root.leaf-list-h;
                         rest-height: root.leaf-rest-h;
-                        content-height: root.page-natural(6);
+                        content-height: root.page-natural(SettingsPage.video);
                         init => {
                             root.leaf-fade = self.fade;
                         }
@@ -4909,11 +4972,11 @@ export component MainWindow inherits Window {
                             height: Rows.group-gap;
                         }
                         MenuRow {
-                            icon: root.reset-icon(6);
-                            label: root.reset-label(6);
+                            icon: root.reset-icon(Reset.picture);
+                            label: root.reset-label(Reset.picture);
                             focused: root.focus-row == root.leaf-focus-count - 1;
                             picked => {
-                                root.reset-row(6);
+                                root.reset-row(Reset.picture);
                             }
                         }
                     }
@@ -4923,18 +4986,18 @@ export component MainWindow inherits Window {
                 // playing: set once, so apart from what is reached for
                 // mid-film, and not under the playlist, which is opened to
                 // pick an episode.
-                if root.leaf-page == 7: VerticalLayout {
+                if root.leaf-page == SettingsPage.episodes: VerticalLayout {
                     BackRow {
                         label: @tr("EPISODES");
                         focused: root.focus-row == 0;
                         back => {
-                            root.settings-page = 0;
+                            root.settings-page = SettingsPage.front;
                         }
                     }
                     ScrollList {
                         height: root.leaf-list-h;
                         rest-height: root.leaf-rest-h;
-                        content-height: root.page-natural(7);
+                        content-height: root.page-natural(SettingsPage.episodes);
                         init => {
                             root.leaf-fade = self.fade;
                         }
@@ -4982,18 +5045,18 @@ export component MainWindow inherits Window {
                 // The system's language first, which the player speaks until
                 // told otherwise, then English, which it is written in, then
                 // the bundled ones, each under its own untranslated name.
-                if root.leaf-page == 5: VerticalLayout {
+                if root.leaf-page == SettingsPage.language: VerticalLayout {
                     BackRow {
                         label: @tr("LANGUAGE");
                         focused: root.focus-row == 0;
                         back => {
-                            root.settings-page = 0;
+                            root.settings-page = SettingsPage.front;
                         }
                     }
                     ScrollList {
                         height: root.leaf-list-h;
                         rest-height: root.leaf-rest-h;
-                        content-height: root.page-natural(5);
+                        content-height: root.page-natural(SettingsPage.language);
                         init => {
                             root.leaf-fade = self.fade;
                         }
@@ -5035,18 +5098,18 @@ export component MainWindow inherits Window {
                     }
                 }
 
-                if root.leaf-page == 4: VerticalLayout {
+                if root.leaf-page == SettingsPage.shortcuts: VerticalLayout {
                     BackRow {
                         label: @tr("SHORTCUTS");
                         focused: root.focus-row == 0;
                         back => {
-                            root.settings-page = 0;
+                            root.settings-page = SettingsPage.front;
                         }
                     }
                     ScrollList {
                         height: root.leaf-list-h;
                         rest-height: root.leaf-rest-h;
-                        content-height: root.page-natural(4);
+                        content-height: root.page-natural(SettingsPage.shortcuts);
                         init => {
                             root.leaf-fade = self.fade;
                         }
@@ -5098,7 +5161,7 @@ export component MainWindow inherits Window {
         }
         x: root.anchored-x(root.subs-anchor, self.width);
         y: root.bar-top - self.height - Rows.offset + root.menu-rise;
-        visible: root.menu-shown > root.shown-epsilon || root.warming == 0;
+        visible: root.menu-shown > root.shown-epsilon || root.warming == Panel.subtitles;
         opacity: root.menu-shown;
 
         // Catches what the rows don't, so a click on the padding doesn't
@@ -5200,7 +5263,7 @@ export component MainWindow inherits Window {
                                 && root.focus-row == root.subs-pages-at;
                             opened => {
                                 if (root.subs-showing) {
-                                    root.open-subs-page(1);
+                                    root.open-subs-page(MenuPage.timing);
                                 }
                             }
                         }
@@ -5211,7 +5274,7 @@ export component MainWindow inherits Window {
                                 && root.focus-row == root.subs-pages-at + 1;
                             opened => {
                                 if (root.subs-showing) {
-                                    root.open-subs-page(2);
+                                    root.open-subs-page(MenuPage.placing);
                                 }
                             }
                         }
@@ -5230,10 +5293,10 @@ export component MainWindow inherits Window {
 
         // Timing, or size and position, sliding in over the tracks as the
         // search's page does. Only built while one shows.
-        if root.menu-drill > 0.0 && root.menu-leaf != 3: Rectangle {
+        if root.menu-drill > 0.0 && root.menu-leaf != MenuPage.find: Rectangle {
             x: (1.0 - root.menu-drill) * parent.width;
             width: parent.width;
-            height: root.menu-leaf == 1 ? root.timing-page-h : root.placing-page-h;
+            height: root.menu-leaf == MenuPage.timing ? root.timing-page-h : root.placing-page-h;
             y: root.menu-moving ? parent.height - self.height : 0;
 
             VerticalLayout {
@@ -5241,10 +5304,10 @@ export component MainWindow inherits Window {
                 padding-bottom: Rows.panel-pad;
                 alignment: start;
 
-                if root.menu-leaf == 1: VerticalLayout {
+                if root.menu-leaf == MenuPage.timing: VerticalLayout {
                     BackRow {
                         label: @tr("TIMING");
-                        focused: root.subs-ring(1, 0);
+                        focused: root.subs-ring(MenuPage.timing, 0);
                         back => {
                             root.close-subs-page();
                         }
@@ -5255,7 +5318,7 @@ export component MainWindow inherits Window {
                         icon: @image-url("../../../public/icons/subtitle-time.svg");
                         label: root.sync-label();
                         hint: @tr("Listens to the film and moves the subtitles to match what is said");
-                        focused: root.subs-ring(1, 1);
+                        focused: root.subs-ring(MenuPage.timing, 1);
                         explained(on) => {
                             if (on) {
                                 root.asked-row = Rows.panel-pad + root.row-h + root.row-h / 2;
@@ -5273,7 +5336,7 @@ export component MainWindow inherits Window {
                     StepperRow {
                         icon: @image-url("../../../public/icons/clock.svg");
                         label: @tr("Shift");
-                        focused: root.subs-ring(1, 2);
+                        focused: root.subs-ring(MenuPage.timing, 2);
                         value: Subtitles.delay-text;
                         value-w: root.timing-value-w;
                         stepped(dir) => {
@@ -5284,20 +5347,20 @@ export component MainWindow inherits Window {
                         height: Rows.group-gap;
                     }
                     if root.timing-resettable: MenuRow {
-                        icon: root.reset-icon(3);
-                        label: root.reset-label(3);
-                        focused: root.subs-ring(1, 3);
+                        icon: root.reset-icon(Reset.timing);
+                        label: root.reset-label(Reset.timing);
+                        focused: root.subs-ring(MenuPage.timing, 3);
                         picked => {
-                            root.reset-row(3);
+                            root.reset-row(Reset.timing);
                         }
                     }
                 }
 
                 // Steppers, since these are read as numbers (see `StepperRow`).
-                if root.menu-leaf == 2: VerticalLayout {
+                if root.menu-leaf == MenuPage.placing: VerticalLayout {
                     BackRow {
                         label: @tr("SIZE & POSITION");
-                        focused: root.subs-ring(2, 0);
+                        focused: root.subs-ring(MenuPage.placing, 0);
                         back => {
                             root.close-subs-page();
                         }
@@ -5305,7 +5368,7 @@ export component MainWindow inherits Window {
                     StepperRow {
                         icon: @image-url("../../../public/icons/text-size.svg");
                         label: @tr("Size");
-                        focused: root.subs-ring(2, 1);
+                        focused: root.subs-ring(MenuPage.placing, 1);
                         value: Subtitles.scale-text;
                         stepped(dir) => {
                             root.step-sub-scale(dir);
@@ -5314,7 +5377,7 @@ export component MainWindow inherits Window {
                     StepperRow {
                         icon: @image-url("../../../public/icons/arrows-up-down.svg");
                         label: @tr("Position");
-                        focused: root.subs-ring(2, 2);
+                        focused: root.subs-ring(MenuPage.placing, 2);
                         value: Subtitles.pos-text;
                         stepped(dir) => {
                             root.step-sub-pos(dir);
@@ -5324,11 +5387,11 @@ export component MainWindow inherits Window {
                         height: Rows.group-gap;
                     }
                     MenuRow {
-                        icon: root.reset-icon(4);
-                        label: root.reset-label(4);
-                        focused: root.subs-ring(2, 3);
+                        icon: root.reset-icon(Reset.placing);
+                        label: root.reset-label(Reset.placing);
+                        focused: root.subs-ring(MenuPage.placing, 3);
                         picked => {
-                            root.reset-row(4);
+                            root.reset-row(Reset.placing);
                         }
                     }
                 }
@@ -5341,7 +5404,8 @@ export component MainWindow inherits Window {
             width: parent.width;
             height: root.menu-moving ? root.find-h : parent.height;
             y: root.menu-moving ? parent.height - self.height : 0;
-            visible: root.menu-drill > 0.0 && root.menu-drill < 2.0 && root.menu-leaf == 3;
+            visible: root.menu-drill > 0.0 && root.menu-drill < 2.0
+                && root.menu-leaf == MenuPage.find;
 
             VerticalLayout {
                 padding-top: Rows.panel-pad;
@@ -5355,15 +5419,15 @@ export component MainWindow inherits Window {
                         root.close-find();
                     }
                 }
-                if Find.state != 2: EmptyRow {
-                    label: Find.state == 1 ? @tr("Searching OpenSubtitles…")
-                        : Find.state == 3 ? @tr("No subtitles found")
+                if Find.state != FindState.found: EmptyRow {
+                    label: Find.state == FindState.searching ? @tr("Searching OpenSubtitles…")
+                        : Find.state == FindState.not-found ? @tr("No subtitles found")
                         : Find.said;
                 }
                 find-list := ScrollList {
                     height: root.find-list-h;
                     rest-height: root.find-rest-h;
-                    content-height: Find.state == 2
+                    content-height: Find.state == FindState.found
                         ? Find.hits.length * root.row-h : 0px;
 
                     for hit[idx] in Find.hits: FoundRow {
@@ -5456,7 +5520,7 @@ export component MainWindow inherits Window {
         clip: true;
         x: root.anchored-x(root.audio-anchor, self.width);
         y: root.bar-top - self.height - Rows.offset + root.audio-rise;
-        visible: root.audio-shown > root.shown-epsilon || root.warming == 1;
+        visible: root.audio-shown > root.shown-epsilon || root.warming == Panel.audio;
         opacity: root.audio-shown;
 
         TouchArea {
@@ -5511,7 +5575,7 @@ export component MainWindow inherits Window {
         clip: true;
         x: root.anchored-x(root.files-anchor, self.width);
         y: root.bar-top - self.height - Rows.offset + root.files-rise;
-        visible: root.files-shown > root.shown-epsilon || root.warming == 4;
+        visible: root.files-shown > root.shown-epsilon || root.warming == Panel.files;
         opacity: root.files-shown;
 
         TouchArea {
@@ -5562,7 +5626,7 @@ export component MainWindow inherits Window {
         }
         x: root.anchored-x(root.playlist-anchor, self.width);
         y: root.bar-top - self.height - Rows.offset + root.playlist-rise;
-        visible: root.playlist-shown > root.shown-epsilon || root.warming == 2;
+        visible: root.playlist-shown > root.shown-epsilon || root.warming == Panel.playlist;
         opacity: root.playlist-shown;
 
         TouchArea {
@@ -6127,7 +6191,7 @@ export component MainWindow inherits Window {
                 shortcut: "?";
                 focused: !root.has-file && root.focus-row == root.invite-first + 3;
                 picked => {
-                    root.open-settings-page(4);
+                    root.open-settings-page(SettingsPage.shortcuts);
                 }
             }
 
@@ -6369,8 +6433,10 @@ export component MainWindow inherits Window {
             // Next's glyph for the next file, and Skip's for further into
             // this one; not Forward's, which has its ten seconds drawn in.
             // The way back is Reset's, the arrow that turns back on itself.
-            icon: root.corner-says == 4 ? @image-url("../../../public/icons/reset.svg")
-                : root.corner-says == 2 ? @image-url("../../../public/icons/play.svg")
+            icon: root.corner-says == CornerOffer.back
+                ? @image-url("../../../public/icons/reset.svg")
+                : root.corner-says == CornerOffer.resume
+                ? @image-url("../../../public/icons/play.svg")
                 : root.corner-says-skip ? @image-url("../../../public/icons/skip.svg")
                 : @image-url("../../../public/icons/step-forward.svg");
             label: root.credits-label;

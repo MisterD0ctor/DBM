@@ -4,7 +4,7 @@ use slint::ComponentHandle;
 use super::{Driver, Gpu};
 use crate::interface::{format, sync};
 use crate::worker::Completion;
-use crate::{Find, MainWindow, Playback, Subtitles};
+use crate::{Find, FindState, MainWindow, Playback, Subtitles, SyncState};
 
 impl Driver {
     /// Ask for the background work the player's state calls for, and take
@@ -54,7 +54,7 @@ impl Driver {
         }
         ui.set_find_open(false);
         let find = ui.global::<Find>();
-        find.set_state(0);
+        find.set_state(FindState::Idle);
         find.set_fetching(-1);
         // Not until it has opened: a track added before then is lost with
         // the load it raced.
@@ -121,7 +121,7 @@ impl Driver {
         // A sync still listening is listening to the old film, and one that
         // could be undone was this film's to undo.
         dbm_library::subsync::supersede();
-        ui.global::<Subtitles>().set_sync_state(0);
+        ui.global::<Subtitles>().set_sync_state(SyncState::Idle);
         // The old file's decoders are gone by now, so what they held can go back.
         self.app
             .worker

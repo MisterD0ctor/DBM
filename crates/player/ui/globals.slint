@@ -85,6 +85,10 @@ export global Chrome {
     }
 }
 
+/// A figure the flash shows on its own, with no ring. The icon set has no
+/// glyph for these, and the figure is the whole answer anyway.
+export enum Figure { none, speed, chapter, subtitle-track, audio-track, volume }
+
 /// Brief feedback for an action whose effect is otherwise off screen.
 ///
 /// Only for what nothing else shows: which way a seek went, that the file
@@ -116,18 +120,14 @@ export global Flash {
     /// Bumped on every raise, so the window restarts the dwell even when the
     /// same action repeats, as it does for a held key.
     in-out property <int> seq: 0;
-    /// A figure shown on its own, with no ring: 1 the speed, 2 the chapter,
-    /// 3 the subtitle track, 4 the audio track, 5 the volume, 0 none. The
-    /// icon set has no glyph for these, and the figure is the whole answer
-    /// anyway.
-    in-out property <int> figure: 0;
+    in-out property <Figure> figure: Figure.none;
     /// The sentence is a hint, which stays for as long as it is wanted rather
     /// than for a dwell, and goes when `drop` takes it back.
     in-out property <bool> held: false;
     /// Bumped when a hint is taken back, for the window to put it away.
     in-out property <int> dropped: 0;
 
-    public function show-figure(kind: int) {
+    public function show-figure(kind: Figure) {
         Flash.figure = kind;
         Flash.message = "";
         Flash.at = 0.5;
@@ -137,7 +137,7 @@ export global Flash {
 
     public function show(icon: int, at: float) {
         Flash.icon = icon;
-        Flash.figure = 0;
+        Flash.figure = Figure.none;
         Flash.message = "";
         Flash.at = at;
         Flash.held = false;
@@ -150,7 +150,7 @@ export global Flash {
     public function notice(text: string) {
         Flash.message = text;
         Flash.warning = false;
-        Flash.figure = 0;
+        Flash.figure = Figure.none;
         Flash.at = 0.5;
         Flash.held = false;
         Flash.seq += 1;

@@ -6,6 +6,9 @@ import { Motion, Paint, Type } from "theme.slint";
 import { RingPane } from "ring.slint";
 import { Squircle } from "squircle.slint";
 
+/// The colours a `Glyph` comes in, each `Paint`'s of the same name.
+export enum Shade { lit, on-ring, dim }
+
 /// A glyph in one of the interface's fixed colours: a picture per colour, the
 /// one wanted shown, rather than one picture recoloured.
 ///
@@ -18,16 +21,19 @@ import { Squircle } from "squircle.slint";
 /// (`DBM_FIRST_OPEN`). These never change colour.
 export component Glyph inherits Rectangle {
     in property <image> source;
-    /// 0 white, as every word is; 1 dark on the ring's milk glass; 2 Dim.
-    in property <int> shade;
+    in property <Shade> shade;
 
-    for colour[index] in [Paint.lit, Paint.on-ring, Paint.dim]: Image {
+    for glyph in [
+        { shade: Shade.lit, colour: Paint.lit },
+        { shade: Shade.on-ring, colour: Paint.on-ring },
+        { shade: Shade.dim, colour: Paint.dim },
+    ]: Image {
         source: root.source;
         width: 100%;
         height: 100%;
         image-fit: contain;
-        colorize: colour;
-        visible: root.shade == index;
+        colorize: glyph.colour;
+        visible: root.shade == glyph.shade;
     }
 }
 
@@ -87,7 +93,7 @@ export component IconButton inherits Rectangle {
         // Lit whenever it can be pressed, because over a bright frame
         // anything less reads as greyed out; dark on the milk disc the window
         // lays under the ring or an open panel's button.
-        shade: !root.enabled ? 2 : root.ring || root.open ? 1 : 0;
+        shade: !root.enabled ? Shade.dim : root.ring || root.open ? Shade.on-ring : Shade.lit;
     }
 
     // The keyboard gets the same tip as the pointer, or a bar walked with Tab
@@ -267,7 +273,7 @@ export component EndChoice inherits Rectangle {
             width: 24px;
             height: 24px;
             y: (parent.height - self.height) / 2;
-            shade: root.ring ? 1 : 0;
+            shade: root.ring ? Shade.on-ring : Shade.lit;
         }
         Text {
             text: root.label;

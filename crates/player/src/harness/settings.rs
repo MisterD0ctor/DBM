@@ -6,7 +6,7 @@ use dbm_mpv::Mpv;
 use slint::{ComponentHandle, Model};
 
 use super::script::{self, Beat, Script, Verdict, sleep};
-use crate::{Find, MainWindow, Motion, Settings, Subtitles, Tracks};
+use crate::{Find, MainWindow, Motion, Reset, Settings, Subtitles, SyncState, Tracks};
 
 /// Open the settings panel and drive one parameter to its maximum, so the
 /// probe frame lands with a value nothing else would have produced.
@@ -161,7 +161,7 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
             .map(|h| format!("{} [{}]", h.label, h.detail))
             .collect();
         eprintln!(
-            "dbm: find {label:<14} offered={} open={} state={} row={} fetching={} said={:?}",
+            "dbm: find {label:<14} offered={} open={} state={:?} row={} fetching={} said={:?}",
             ui.global::<Find>().get_offered(),
             ui.get_find_open(),
             ui.global::<Find>().get_state(),
@@ -432,7 +432,7 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
     let at = std::env::var("DBM_SYNC_AT").unwrap_or_else(|_| "19".into());
     let report = move |ui: &MainWindow, mpv: &Mpv, label: &str| {
         eprintln!(
-            "dbm: sync {label:<20} state={} delay={:+.2} speed={:.4} said={:?} line={:?}",
+            "dbm: sync {label:<20} state={:?} delay={:+.2} speed={:.4} said={:?} line={:?}",
             ui.global::<Subtitles>().get_sync_state(),
             ui.global::<Subtitles>().get_delay(),
             ui.global::<Subtitles>().get_speed(),
@@ -473,7 +473,7 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         // Hold here until the row stops listening.
         beat.next().await;
         let mut waited = 0usize;
-        while subtitles.get_sync_state() == 1 {
+        while subtitles.get_sync_state() == SyncState::Listening {
             waited += 1;
             if waited % 4 == 1 {
                 eprintln!("dbm: sync listening...");
@@ -487,7 +487,9 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         // another. `DBM_SYNC_KEEP` leaves it standing, for a run that goes on
         // to look at what was saved.
         beat.next().await;
-        if subtitles.get_sync_state() == 2 && std::env::var_os("DBM_SYNC_KEEP").is_none() {
+        if subtitles.get_sync_state() == SyncState::Undoable
+            && std::env::var_os("DBM_SYNC_KEEP").is_none()
+        {
             chord(&ui, &[], enter.as_str());
         }
         beat.rest(2).await;
@@ -592,7 +594,7 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         beat.next().await;
         report_row(&ui, "after tint max");
         beat.next().await;
-        ui.global::<Settings>().invoke_reset_section(0);
+        ui.global::<Settings>().invoke_reset_section(Reset::Glass);
         eprintln!("dbm: glass section reset");
         beat.next().await;
         report_row(&ui, "after reset");

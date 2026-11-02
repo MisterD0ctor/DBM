@@ -12,9 +12,9 @@ use slint::ComponentHandle;
 
 use super::{format, say, warn};
 use crate::MainWindow;
-use crate::Subtitles;
 use crate::playback::commands;
 use crate::playback::state::PlayerState;
+use crate::{Subtitles, SyncState};
 
 /// Play the subtitles the way a sync found, and say what came of it.
 ///
@@ -22,7 +22,7 @@ use crate::playback::state::PlayerState;
 /// the two answers that change nothing on screen (already in step, and no
 /// answer) would otherwise look like a button that did nothing.
 pub fn answer(ui: &MainWindow, mpv: &Mpv, player: &PlayerState, outcome: Outcome) {
-    ui.global::<Subtitles>().set_sync_state(0);
+    ui.global::<Subtitles>().set_sync_state(SyncState::Idle);
     // For the film and the track it listened to, or for nothing: the
     // timing belongs to that pair and would be wrong for any other.
     if outcome.path.is_none() || player.path != outcome.path || player.sid != outcome.sid {
@@ -57,7 +57,7 @@ pub fn answer(ui: &MainWindow, mpv: &Mpv, player: &PlayerState, outcome: Outcome
     // What stood before, for the row to offer back.
     ui.global::<Subtitles>().set_sync_was_delay(was.0 as f32);
     ui.global::<Subtitles>().set_sync_was_speed(was.1 as f32);
-    ui.global::<Subtitles>().set_sync_state(2);
+    ui.global::<Subtitles>().set_sync_state(SyncState::Undoable);
     say(
         ui,
         if same_speed {

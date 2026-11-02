@@ -5,6 +5,10 @@
 
 import { ParamItem } from "models.slint";
 
+/// What a page's reset row puts back: a section of the settings, or, from
+/// the subtitles menu, the timing or the size and position.
+export enum Reset { none, glass, border, picture, timing, placing }
+
 export global Settings {
     in property <[ParamItem]> glass-params;
     in property <[ParamItem]> border-params;
@@ -29,11 +33,12 @@ export global Settings {
     in-out property <bool> skip-credits: false;
     /// Registry index and its new normalised position.
     callback set-param(int, float);
-    /// Restore one section to its defaults: 0 glass, 1 ambient border, 2 the
-    /// picture, as in `settings::Section`.
-    callback reset-section(int);
-    /// Take back the last reset of a settings page, as the panel numbers them.
-    callback undo-reset(int);
+    /// Restore one section to its defaults: the glass, the ambient border or
+    /// the picture, as in `settings::Section`.
+    callback reset-section(Reset);
+    /// Take back the last reset of a section, or of the subtitles' size and
+    /// position.
+    callback undo-reset(Reset);
     callback set-ambience(bool);
     callback set-autoplay(bool);
     callback set-skip-intros(bool);

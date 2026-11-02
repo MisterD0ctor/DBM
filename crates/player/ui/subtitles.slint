@@ -2,6 +2,10 @@
 // `interface::sync`), and what the subtitles menu asks of them: a nudge, a
 // reset, a sync against the film's speech (see `interface::subsync`).
 
+/// Where the sync row stands: at rest, listening to the film, or with a sync
+/// just made that it can take back.
+export enum SyncState { idle, listening, undoable }
+
 export global Subtitles {
     /// The subtitle delay as a number, beside `delay-text`, so undoing a
     /// reset can put it back.
@@ -9,9 +13,7 @@ export global Subtitles {
     /// The speed subtitles run at against the film, for the same undo. Never
     /// shown: it is 1 unless a sync found them timed for another frame rate.
     in property <float> speed: 1;
-    /// Where the sync row stands: 0 at rest, 1 listening to the film, 2 with
-    /// a sync just made that it can take back.
-    in-out property <int> sync-state: 0;
+    in-out property <SyncState> sync-state: SyncState.idle;
     /// The delay and speed that stood before that sync.
     in property <float> sync-was-delay;
     in property <float> sync-was-speed: 1;
@@ -32,7 +34,7 @@ export global Subtitles {
     /// The subtitles' size and position back to their defaults.
     callback reset();
     /// Listen to the film and move the subtitles onto its speech. The answer
-    /// arrives some seconds later, as `sync-state` leaving 1.
+    /// arrives some seconds later, as `sync-state` leaving `listening`.
     callback sync();
     /// Put this film's subtitles at a delay and a speed, and keep its place
     /// at once: what stood before a sync or a reset of the timing, or the

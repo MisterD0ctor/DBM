@@ -7,7 +7,7 @@ use crate::app::App;
 use crate::interface::sliders;
 use crate::playback::commands;
 use crate::settings::{REGISTRY, Section, Toggle};
-use crate::{MainWindow, Motion, Settings, Tip};
+use crate::{MainWindow, Motion, Reset, Settings, Tip};
 
 /// The glass and ambient border pages: sliders, resets and their undo, and
 /// the two switches beside them.
@@ -37,9 +37,9 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
     }
     {
         let (app, models, undo) = (app.clone(), models.clone(), undo.clone());
-        settings.on_reset_section(move |section| {
+        settings.on_reset_section(move |what| {
             app.activity.bump();
-            if let Some(section) = Section::from_index(section) {
+            if let Some(section) = section_of(what) {
                 undo.set(Some(app.settings.before()));
                 app.settings.reset(section);
                 if section == Section::Picture {
@@ -51,32 +51,30 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
             }
         });
     }
-    // Resets as the panels number them: 1 glass, 2 ambient border, 6 the
-    // picture, and from the subtitles menu 4 their size and position. 3,
-    // their timing, is put back by the menu itself, since it was never a
-    // setting.
+    // The subtitles' timing is put back by their menu itself, since it was
+    // never a setting.
     {
         let (app, models, undo) = (app.clone(), models.clone(), undo.clone());
-        settings.on_undo_reset(move |page| {
+        settings.on_undo_reset(move |what| {
             app.activity.bump();
             let Some(was) = undo.take() else {
                 return;
             };
-            match page {
-                1 => app.settings.restore(Section::Glass, &was),
-                2 => app.settings.restore(Section::Border, &was),
-                6 => {
+            match what {
+                Reset::Glass => app.settings.restore(Section::Glass, &was),
+                Reset::Border => app.settings.restore(Section::Border, &was),
+                Reset::Picture => {
                     app.settings.restore(Section::Picture, &was);
                     commands::set_picture(&app.mpv, &app.settings.picture());
                 }
-                4 => {
+                Reset::Placing => {
                     app.settings
                         .set_sub_scale(
                             commands::set_sub_scale(&app.mpv, f64::from(was.sub_scale)) as f32
                         );
                     app.subline.set(&app.mpv, f64::from(was.sub_pos));
                 }
-                _ => {}
+                Reset::None | Reset::Timing => {}
             }
             models.refresh_all(&app.settings);
         });
@@ -157,6 +155,16 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
                 models.say_again(&ui, &app.settings);
             }
         });
+    }
+}
+
+/// The section of the settings a reset row puts back, where it is one.
+fn section_of(what: Reset) -> Option<Section> {
+    match what {
+        Reset::Glass => Some(Section::Glass),
+        Reset::Border => Some(Section::Border),
+        Reset::Picture => Some(Section::Picture),
+        Reset::None | Reset::Timing | Reset::Placing => None,
     }
 }
 

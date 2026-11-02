@@ -406,8 +406,8 @@ impl Driver {
                 log::info!("mpv render context created on Slint's GL context");
                 // The two panels whose words are the player's own, drawn
                 // unseen once now there is something to draw them with.
-                self.warm.ask(crate::interface::warm::SETTINGS);
-                self.warm.ask(crate::interface::warm::FILES);
+                self.warm.ask(crate::Panel::Settings);
+                self.warm.ask(crate::Panel::Files);
                 // Open only now. With `vo=libmpv` there is no video output
                 // until the render context exists, so a file loaded earlier
                 // starts against a VO that cannot present and never produces

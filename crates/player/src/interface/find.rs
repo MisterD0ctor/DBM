@@ -17,7 +17,7 @@ use slint::{ComponentHandle, ModelRc, VecModel};
 
 use crate::playback::commands;
 use crate::worker::{Completion, Worker};
-use crate::{Find, FoundItem, MainWindow};
+use crate::{Find, FindState, FoundItem, MainWindow};
 
 #[derive(Default)]
 pub struct Search(RefCell<State>);
@@ -58,12 +58,16 @@ impl Search {
                 let media = dbm_naming::parse(found.path.as_str());
                 let rows: Vec<FoundItem> = hits.iter().map(|hit| found_row(hit, &media)).collect();
                 find.set_hits(ModelRc::new(VecModel::from(rows)));
-                find.set_state(if hits.is_empty() { 3 } else { 2 });
+                find.set_state(if hits.is_empty() {
+                    FindState::NotFound
+                } else {
+                    FindState::Found
+                });
                 self.0.borrow_mut().found = hits;
             }
             Err(why) => {
                 find.set_said(why.sentence().into());
-                find.set_state(4);
+                find.set_state(FindState::Failed);
             }
         }
     }

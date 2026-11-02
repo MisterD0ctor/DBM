@@ -3,7 +3,7 @@ use slint::ComponentHandle;
 use crate::app::App;
 use crate::playback::commands;
 use crate::worker::Completion;
-use crate::{Find, MainWindow, Subtitles, Tracks};
+use crate::{Find, FindState, MainWindow, Subtitles, Tracks};
 
 /// Subtitle and audio tracks.
 pub(super) fn wire_tracks(ui: &MainWindow, app: &App) {
@@ -64,7 +64,7 @@ pub(super) fn wire_finding(ui: &MainWindow, app: &App) {
             app.search.clear();
             let find = ui.global::<Find>();
             find.set_hits(Default::default());
-            find.set_state(1);
+            find.set_state(FindState::Searching);
             opensubtitles::search(
                 path,
                 search_languages(),

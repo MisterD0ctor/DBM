@@ -7,7 +7,7 @@ use slint::{ComponentHandle, Model};
 
 use super::drive::{arrow, chord, click, hover, wheel};
 use super::script::{self, Beat, Script};
-use crate::{Find, MainWindow, Playback, Playlist, Tracks};
+use crate::{Find, MainWindow, MenuPage, Playback, Playlist, SettingsPage, Tracks};
 
 /// Hold one surface open, with the chrome kept awake, for a capture: the
 /// interface hides after three still seconds, and half of it only exists
@@ -99,7 +99,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
             // glass's, and for the subtitles menu, between its tracks and the
             // search's page (with `DBM_FIND_FAKE`), Left taking it back.
             if surface == "settings-drill" && tick > 4 {
-                ui.invoke_open_settings_page(if tick.is_multiple_of(2) { 0 } else { 1 });
+                ui.invoke_open_settings_page(if tick.is_multiple_of(2) {
+                    SettingsPage::Front
+                } else {
+                    SettingsPage::Glass
+                });
             }
             // The interface's side alone, so nothing is saved or told to mpv.
             if surface == "tucked" && tick > 4 {
@@ -138,7 +142,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
             if tick == 8 {
                 match surface.as_str() {
                     "end-playlist" => ui.invoke_open_playlist(true),
-                    "end-settings" => ui.invoke_open_settings_page(0),
+                    "end-settings" => ui.invoke_open_settings_page(SettingsPage::Front),
                     _ => {}
                 }
             }
@@ -346,7 +350,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
             // left behind, and whether the film moved.
             if surface == "sideways" {
                 match tick {
-                    4 => ui.invoke_open_settings_page(0),
+                    4 => ui.invoke_open_settings_page(SettingsPage::Front),
                     5 | 15 | 16 | 20 => arrow(&ui, Key::DownArrow),
                     6 | 12 | 18 | 22 => arrow(&ui, Key::RightArrow),
                     8 | 10 | 19 => arrow(&ui, Key::LeftArrow),
@@ -358,7 +362,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                 }
                 if (5..=23).contains(&tick) {
                     eprintln!(
-                        "dbm: sideways t{tick:<2} settings={}:{} playlist={}:{} row={} at {} {}",
+                        "dbm: sideways t{tick:<2} settings={}:{:?} playlist={}:{} row={} at {} {}",
                         ui.get_settings_open(),
                         ui.get_settings_page(),
                         ui.get_playlist_open(),
@@ -431,7 +435,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                 ui.invoke_open_find();
             }
             if tick == 6 && (surface == "timing" || surface == "placing") {
-                ui.invoke_open_subs_page(if surface == "timing" { 1 } else { 2 });
+                ui.invoke_open_subs_page(if surface == "timing" {
+                    MenuPage::Timing
+                } else {
+                    MenuPage::Placing
+                });
             }
 
             // The subtitles menu's way into Size & position, or Timing, and
@@ -440,7 +448,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
             // grows round it.
             if surface == "subs-drill" || surface == "timing-drill" {
                 match tick {
-                    6 => ui.invoke_open_subs_page(if surface == "subs-drill" { 2 } else { 1 }),
+                    6 => ui.invoke_open_subs_page(if surface == "subs-drill" {
+                        MenuPage::Placing
+                    } else {
+                        MenuPage::Timing
+                    }),
                     7 => arrow(&ui, Key::DownArrow),
                     t if t > 7 => arrow(&ui, if t % 2 == 0 { Key::Escape } else { Key::Return }),
                     _ => {}
@@ -477,7 +489,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                     ui.invoke_open_playlist(true);
                 }
                 "armed" | "pages-flip" | "find-drill" => ui.invoke_open_menu(true),
-                "ring-slider" => ui.invoke_open_settings_page(1),
+                "ring-slider" => ui.invoke_open_settings_page(SettingsPage::Glass),
                 // The list of parts rather than the page the panel opens on.
                 "seasons" => {
                     ui.invoke_open_playlist(true);
@@ -504,7 +516,8 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                 }
                 // A caption-only flash — the speed, as `]` raises it.
                 "figure" => {
-                    ui.global::<crate::Flash>().invoke_show_figure(1);
+                    ui.global::<crate::Flash>()
+                        .invoke_show_figure(crate::Figure::Speed);
                 }
                 // The graphics failures need a driver that doesn't work, which
                 // a test can't arrange, so the pane is set by hand. Its wording
@@ -532,15 +545,19 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                 // A panel open under the pointer resting on the button that
                 // opened it. Tips stand down for any panel, so the right
                 // capture shows no tip.
-                "tip-open" => ui.invoke_open_settings_page(0),
-                "settings" => ui.invoke_open_settings_page(0),
-                "glass" => ui.invoke_open_settings_page(1),
-                "ambience" => ui.invoke_open_settings_page(2),
-                "accessibility" | "tips-off" => ui.invoke_open_settings_page(3),
-                "shortcuts" => ui.invoke_open_settings_page(4),
-                "language" | "language-walk" => ui.invoke_open_settings_page(5),
-                "video" => ui.invoke_open_settings_page(6),
-                "episodes" | "tucked" => ui.invoke_open_settings_page(7),
+                "tip-open" => ui.invoke_open_settings_page(SettingsPage::Front),
+                "settings" => ui.invoke_open_settings_page(SettingsPage::Front),
+                "glass" => ui.invoke_open_settings_page(SettingsPage::Glass),
+                "ambience" => ui.invoke_open_settings_page(SettingsPage::Border),
+                "accessibility" | "tips-off" => {
+                    ui.invoke_open_settings_page(SettingsPage::Accessibility);
+                }
+                "shortcuts" => ui.invoke_open_settings_page(SettingsPage::Shortcuts),
+                "language" | "language-walk" => {
+                    ui.invoke_open_settings_page(SettingsPage::Language);
+                }
+                "video" => ui.invoke_open_settings_page(SettingsPage::Video),
+                "episodes" | "tucked" => ui.invoke_open_settings_page(SettingsPage::Episodes),
                 // The subtitles menu's two pages, which want a subtitle on
                 // before they open (below).
                 "timing" | "placing" | "subs-drill" | "timing-drill" => {

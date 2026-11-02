@@ -78,8 +78,8 @@ impl Driver {
     fn take_lists(&mut self, ui: &MainWindow, lists: Lists) -> bool {
         let mut moved = self.feeds.lists.apply(ui, &mut self.player, lists);
         if moved {
-            self.warm.ask(crate::interface::warm::MENU);
-            self.warm.ask(crate::interface::warm::AUDIO);
+            self.warm.ask(crate::Panel::Subtitles);
+            self.warm.ask(crate::Panel::Audio);
         }
         // A read the lists have since moved past is thrown away, so the
         // newer one is asked for now: the poll in the frame has already
@@ -124,7 +124,7 @@ impl Driver {
 
     fn take_shelf(&mut self, ui: &MainWindow, shelf: Shelf) {
         if self.panel.show(ui, shelf) {
-            self.warm.ask(crate::interface::warm::PLAYLIST);
+            self.warm.ask(crate::Panel::Playlist);
         }
     }
 

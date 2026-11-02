@@ -11,27 +11,28 @@ use std::time::Duration;
 
 use slint::ComponentHandle;
 
-use crate::MainWindow;
+use crate::{MainWindow, Panel};
 
-/// The panels, numbered as `MainWindow.warming` names them.
-pub const MENU: i32 = 0;
-pub const AUDIO: i32 = 1;
-pub const PLAYLIST: i32 = 2;
-pub const SETTINGS: i32 = 3;
-pub const FILES: i32 = 4;
-pub const ALL: [i32; 5] = [MENU, AUDIO, PLAYLIST, SETTINGS, FILES];
+/// Every panel there is to draw unseen.
+pub const ALL: [Panel; 5] = [
+    Panel::Subtitles,
+    Panel::Audio,
+    Panel::Playlist,
+    Panel::Settings,
+    Panel::Files,
+];
 
 /// The panels waiting to be drawn unseen.
 #[derive(Default)]
 pub struct WarmUp {
-    due: Vec<i32>,
+    due: Vec<Panel>,
 }
 
 impl WarmUp {
     /// Have this panel drawn unseen soon, as it is now: at the start, and
     /// whenever what it holds has been replaced with words it may not have
     /// drawn yet.
-    pub fn ask(&mut self, panel: i32) {
+    pub fn ask(&mut self, panel: Panel) {
         if !self.due.contains(&panel) {
             self.due.push(panel);
         }
@@ -51,14 +52,14 @@ impl WarmUp {
             return;
         }
         let panel = self.due.remove(0);
-        log::debug!("drawing panel {panel} unseen");
+        log::debug!("drawing panel {panel:?} unseen");
         ui.set_warming(panel);
         // Taken back once this frame is drawn, so the panel, unseen as it is,
         // is never left there to catch a click.
         let weak = ui.as_weak();
         slint::Timer::single_shot(Duration::ZERO, move || {
             if let Some(ui) = weak.upgrade() {
-                ui.set_warming(-1);
+                ui.set_warming(Panel::None);
             }
         });
     }

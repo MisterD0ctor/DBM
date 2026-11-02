@@ -5,7 +5,7 @@
 
 import { Chrome, Flash, Tip } from "globals.slint";
 import { Motion, Paint, Rows, Type } from "theme.slint";
-import { Glyph, StepButton } from "controls.slint";
+import { Glyph, Shade, StepButton } from "controls.slint";
 import { RingPane } from "ring.slint";
 import { Squircle } from "squircle.slint";
 
@@ -153,7 +153,7 @@ export component MenuRow inherits Rectangle {
         y: (parent.height - self.height) / 2;
         width: 18px;
         height: 18px;
-        shade: root.ring ? 1 : 0;
+        shade: root.ring ? Shade.on-ring : Shade.lit;
     }
 
     Text {
@@ -261,7 +261,7 @@ export component MenuRow inherits Rectangle {
                 y: (parent.height - self.height) / 2;
                 width: 18px;
                 height: 18px;
-                shade: root.ring ? 1 : 0;
+                shade: root.ring ? Shade.on-ring : Shade.lit;
             }
         }
 
@@ -458,7 +458,7 @@ export component PlaylistRow inherits Rectangle {
         y: (parent.height - self.height) / 2;
         width: 18px;
         height: 18px;
-        shade: root.ring ? 1 : 0;
+        shade: root.ring ? Shade.on-ring : Shade.lit;
     }
 
     // How far into it you got. A hairline rather than a bar, since it is
@@ -574,7 +574,7 @@ export component GroupRow inherits Rectangle {
         y: (parent.height - self.height) / 2;
         width: root.chevron;
         height: root.chevron;
-        shade: root.ring ? 1 : 0;
+        shade: root.ring ? Shade.on-ring : Shade.lit;
     }
 
     touch := TouchArea {
@@ -630,7 +630,7 @@ export component ResumeRow inherits Rectangle {
         y: (parent.height - self.height) / 2;
         width: root.icon-size;
         height: root.icon-size;
-        shade: root.ring ? 1 : 0;
+        shade: root.ring ? Shade.on-ring : Shade.lit;
     }
 
     // At the title's weight: it is what the window is most often opened
@@ -832,7 +832,7 @@ export component ParamSlider inherits Rectangle {
                 height: 18px;
                 x: 0;
                 y: (parent.height - self.height) / 2;
-                shade: root.ring ? 1 : 0;
+                shade: root.ring ? Shade.on-ring : Shade.lit;
             }
         }
 
@@ -1088,7 +1088,7 @@ export component DrillRow inherits Rectangle {
                 y: (parent.height - self.height) / 2;
                 // With the words: the icon names the same subject, so the
                 // ring lights the two together.
-                shade: root.ring ? 1 : 0;
+                shade: root.ring ? Shade.on-ring : Shade.lit;
             }
         }
 
@@ -1119,7 +1119,7 @@ export component DrillRow inherits Rectangle {
                 height: 18px;
                 x: root.lean;
                 y: (parent.height - self.height) / 2;
-                shade: root.ring ? 1 : 0;
+                shade: root.ring ? Shade.on-ring : Shade.lit;
             }
         }
     }
@@ -1183,7 +1183,7 @@ export component StepperRow inherits Rectangle {
                 height: 18px;
                 x: 0;
                 y: (parent.height - self.height) / 2;
-                shade: root.ring ? 1 : 0;
+                shade: root.ring ? Shade.on-ring : Shade.lit;
             }
         }
 
@@ -1281,7 +1281,7 @@ export component BackRow inherits Rectangle {
                 height: 18px;
                 x: -root.lean;
                 y: (parent.height - self.height) / 2;
-                shade: root.ring ? 1 : 0;
+                shade: root.ring ? Shade.on-ring : Shade.lit;
             }
         }
 

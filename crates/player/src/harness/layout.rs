@@ -8,7 +8,7 @@ use super::drive::{click, drag, wheel};
 use super::script::{self, Beat, Script, sleep};
 use super::selected_label;
 use crate::platform::modal_loop;
-use crate::{MainWindow, Playback, Settings, Tracks};
+use crate::{MainWindow, Playback, Settings, SettingsPage, Tracks};
 
 pub(super) fn resize_test(ui: &MainWindow) -> Script {
     script::run(ui, move |ui| async move {
@@ -354,35 +354,35 @@ pub(super) fn panel_test(ui: &MainWindow) -> Script {
         beat.next().await;
         // Each settings page sizes the panel from its own row
         // count, so walk them and see what the pipeline is told.
-        ui.invoke_open_settings_page(0);
+        ui.invoke_open_settings_page(SettingsPage::Front);
         beat.next().await;
         report_panels(&ui, "settings list");
         beat.next().await;
-        ui.invoke_open_settings_page(1);
+        ui.invoke_open_settings_page(SettingsPage::Glass);
         beat.next().await;
         report_panels(&ui, "settings glass");
         beat.next().await;
-        ui.invoke_open_settings_page(2);
+        ui.invoke_open_settings_page(SettingsPage::Border);
         beat.next().await;
         report_panels(&ui, "settings ambience");
         beat.next().await;
-        ui.invoke_open_settings_page(3);
+        ui.invoke_open_settings_page(SettingsPage::Accessibility);
         beat.next().await;
         report_panels(&ui, "settings accessibility");
         beat.next().await;
-        ui.invoke_open_settings_page(4);
+        ui.invoke_open_settings_page(SettingsPage::Shortcuts);
         beat.next().await;
         report_panels(&ui, "settings shortcuts");
         beat.next().await;
-        ui.invoke_open_settings_page(5);
+        ui.invoke_open_settings_page(SettingsPage::Language);
         beat.next().await;
         report_panels(&ui, "settings language");
         beat.next().await;
-        ui.invoke_open_settings_page(6);
+        ui.invoke_open_settings_page(SettingsPage::Video);
         beat.next().await;
         report_panels(&ui, "settings video");
         beat.next().await;
-        ui.invoke_open_settings_page(7);
+        ui.invoke_open_settings_page(SettingsPage::Episodes);
         beat.next().await;
         report_panels(&ui, "settings episodes");
         beat.next().await;

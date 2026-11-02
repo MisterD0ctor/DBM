@@ -39,17 +39,6 @@ pub enum Section {
     Picture,
 }
 
-impl Section {
-    pub fn from_index(i: i32) -> Option<Self> {
-        match i {
-            0 => Some(Self::Glass),
-            1 => Some(Self::Border),
-            2 => Some(Self::Picture),
-            _ => None,
-        }
-    }
-}
-
 pub struct Param {
     pub key: Key,
     pub section: Section,
