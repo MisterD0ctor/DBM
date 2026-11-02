@@ -6,6 +6,7 @@ use slint::ComponentHandle;
 
 use super::playlist_rows;
 use crate::MainWindow;
+use crate::Playlist;
 
 /// Open a path the way the dialog does, and say what came of it.
 ///
@@ -24,7 +25,8 @@ pub(super) fn open_test(ui: &MainWindow, path: String) -> slint::Timer {
             match step {
                 0 => {
                     eprintln!("dbm: opening {path}");
-                    ui.invoke_open_path(path.as_str().into(), true);
+                    ui.global::<Playlist>()
+                        .invoke_open_path(path.as_str().into(), true);
                     // Whether the interface goes on saying so: true until mpv
                     // has loaded the new file, then false, even with a film
                     // already playing.
@@ -32,7 +34,10 @@ pub(super) fn open_test(ui: &MainWindow, path: String) -> slint::Timer {
                         let weak = weak.clone();
                         slint::Timer::single_shot(Duration::from_millis(ms), move || {
                             if let Some(ui) = weak.upgrade() {
-                                eprintln!("dbm: +{ms:>4}ms opening={}", ui.get_opening());
+                                eprintln!(
+                                    "dbm: +{ms:>4}ms opening={}",
+                                    ui.global::<Playlist>().get_opening()
+                                );
                             }
                         });
                     }
@@ -79,7 +84,7 @@ pub(super) fn dialog_test(ui: &MainWindow) -> slint::Timer {
         move || {
             if let Some(ui) = weak.upgrade() {
                 eprintln!("dbm: --- opening a file dialog; draws should continue ---");
-                ui.invoke_open_file();
+                ui.global::<Playlist>().invoke_open_file();
             }
         },
     );

@@ -1,0 +1,47 @@
+// The playlist as the Rust side lays it out (see `interface::playlist_panel`),
+// and what opening and playing from it ask for. The panel's pages and rows
+// stay with the window.
+
+import { PlaylistGroup } from "models.slint";
+
+export global Playlist {
+    /// The playlist in the parts the panel shows: its seasons, or the shows
+    /// and films of a folder holding several (see `shelf`). A single part is
+    /// shown as a plain list; several get a page listing them, and a page each.
+    in property <[PlaylistGroup]> groups;
+    /// Which part holds the file playing, or -1.
+    in property <int> current-group: -1;
+    /// Whether any part is more than one file, and so opens rather than
+    /// plays. File rows beside such a part leave the chevron's column empty,
+    /// so the columns line up.
+    in property <bool> drills;
+    /// What to call the playlist: the show's name when every entry is from
+    /// one, "PLAYLIST" otherwise. Decided on the Rust side, which parses the
+    /// names.
+    in property <string> heading: "PLAYLIST";
+    /// Whether that heading is a show's name or the generic label.
+    in property <bool> named;
+    /// The list of parts' row names and its parts' counts, one to a line, for
+    /// the measures that size the panel to that page (see `playlist-w`). The
+    /// files listed as themselves that draw a resume measure come apart.
+    in property <string> names;
+    in property <string> measured-names;
+    in property <string> details;
+    /// -1 previous, +1 next.
+    callback step(int);
+    callback play-index(int);
+    /// Ask for a video, or for a folder to play through.
+    callback open-file();
+    callback open-folder();
+    /// A path to open, from a dialog or a drop. The flag is whether arriving
+    /// at a file with a saved place asks where to start (see `arriving`),
+    /// which it does unless the opening was Continue.
+    callback open-path(string, bool);
+    /// Whether an open is in flight, from the path reaching the worker until
+    /// mpv has the file. That covers the scan, the playlist and mpv's own
+    /// open, during which there is nothing to show yet.
+    in property <bool> opening: false;
+    /// What is being opened, named the way a person would name it: the file
+    /// or the folder, not the path.
+    in property <string> opening-name: "";
+}

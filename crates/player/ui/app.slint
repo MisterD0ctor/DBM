@@ -8,6 +8,7 @@
 import { Find } from "find.slint";
 import { Tracks } from "tracks.slint";
 import { Subtitles } from "subtitles.slint";
+import { Playlist } from "playlist.slint";
 import { Chrome, Flash, Tip } from "globals.slint";
 import {
     FoundItem, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, ScrollFade, TrackItem
@@ -25,7 +26,7 @@ import { Shapes, Squircle } from "squircle.slint";
 
 // What the Rust side reaches besides the window: the globals it drives and
 // the structs it fills in.
-export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem, Find, Tracks, Subtitles }
+export { Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, TrackItem, Find, Tracks, Subtitles, Playlist }
 
 /// The marks on the bar's tracks, a chapter's start and the volume's unity.
 /// Both keep their size as a track grows under the pointer.
@@ -485,21 +486,11 @@ export component MainWindow inherits Window {
     /// place shows at its foot as the panel grows to it.
     property <bool> menu-moving: root.menu-drill > 0.0 && root.menu-drill < 2.0
         && root.menu-drill != 1.0;
-    /// The playlist in the parts the panel shows: its seasons, or the shows
-    /// and films of a folder holding several (see `shelf`). A single part is
-    /// shown as a plain list; several get a page listing them, and a page each.
-    in property <[PlaylistGroup]> playlist-groups;
-    /// Which part holds the file playing, or -1.
-    in property <int> playlist-current-group: -1;
-    /// Whether any part is more than one file, and so opens rather than
-    /// plays. File rows beside such a part leave the chevron's column empty,
-    /// so the columns line up.
-    in property <bool> playlist-drills;
     /// The page the panel is on: -1 for the list of parts, otherwise that
     /// part's files. `in-out` because the Rust side keeps it on the same part
     /// when the parts around it change.
     in-out property <int> playlist-page: 0;
-    property <bool> playlist-tiered: root.playlist-groups.length > 1;
+    property <bool> playlist-tiered: Playlist.groups.length > 1;
     property <bool> playlist-top: root.playlist-tiered && root.playlist-page < 0;
     /// 0 on the list of parts, 1 on a part's page: the playlist's `drill`,
     /// animated so the change of page can be followed. A single part has no
@@ -528,24 +519,12 @@ export component MainWindow inherits Window {
     /// The part on the drilled-in page, and its files.
     property <int> playlist-shown-group: root.playlist-tiered ? root.playlist-leaf : 0;
     property <[PlaylistItem]> playlist-entries:
-        root.playlist-groups[root.playlist-shown-group].entries;
+        Playlist.groups[root.playlist-shown-group].entries;
     /// The rows the list scrolls through, and whether a way back leads them
     /// as focus row 0.
     property <int> playlist-rows: root.playlist-top
-        ? root.playlist-groups.length : root.playlist-entries.length;
+        ? Playlist.groups.length : root.playlist-entries.length;
     property <int> playlist-lead: root.playlist-tiered && !root.playlist-top ? 1 : 0;
-    /// What to call the playlist: the show's name when every entry is from
-    /// one, "PLAYLIST" otherwise. Decided on the Rust side, which parses the
-    /// names.
-    in property <string> playlist-heading: "PLAYLIST";
-    /// Whether that heading is a show's name or the generic label.
-    in property <bool> playlist-named;
-    /// The list of parts' row names and its parts' counts, one to a line, for
-    /// the measures that size the panel to that page (see `playlist-w`). The
-    /// files listed as themselves that draw a resume measure come apart.
-    in property <string> playlist-names;
-    in property <string> playlist-measured-names;
-    in property <string> playlist-details;
     // One list per settings page, split on the Rust side so each page binds
     // straight to its own rows.
     in property <[ParamItem]> glass-params;
@@ -663,13 +642,6 @@ export component MainWindow inherits Window {
         root.choose-language(row);
     }
 
-    /// Whether an open is in flight, from the path reaching the worker until
-    /// mpv has the file. That covers the scan, the playlist and mpv's own
-    /// open, during which there is nothing to show yet.
-    in property <bool> opening: false;
-    /// What is being opened, named the way a person would name it: the file
-    /// or the folder, not the path.
-    in property <string> opening-name: "";
     // Effect switches: in-out because the saved settings push them at
     // startup, and a click or a key sets them here.
     in-out property <bool> ambience-on: true;
@@ -752,15 +724,6 @@ export component MainWindow inherits Window {
     /// arithmetic live on the Rust side, where they are tested.
     callback preview-at(float);
     callback nudge-volume(float);
-    /// -1 previous, +1 next.
-    callback playlist-step(int);
-    /// Ask for a video, or for a folder to play through.
-    callback open-file();
-    callback open-folder();
-    /// A path to open, from a dialog or a drop. The flag is whether arriving
-    /// at a file with a saved place asks where to start (see `arriving`),
-    /// which it does unless the opening was Continue.
-    callback open-path(string, bool);
     /// The file just opened was left part way, and is held paused there until
     /// the centre pill is answered: on from there, or from the beginning (see
     /// `playback::arrival`).
@@ -781,7 +744,6 @@ export component MainWindow inherits Window {
     /// back there (see `playback::retrace`).
     in property <string> back-offer;
     callback take-back-offer();
-    callback play-index(int);
     callback set-volume(float);
     /// A click on the video, deferred in Rust so that a double-click can
     /// cancel it rather than pause and unpause on the way to fullscreen.
@@ -898,7 +860,7 @@ export component MainWindow inherits Window {
     /// the rest: as a file starts, since its name is the one thing worth
     /// seeing then, and while an open is in flight, since "Opening …" there
     /// is the only sign a slow scan hasn't been ignored.
-    property <bool> title-glimpse: root.opening || root.title-lingering;
+    property <bool> title-glimpse: Playlist.opening || root.title-lingering;
     /// A file's three seconds of that, as it starts; an open's last as long
     /// as the open.
     property <bool> title-lingering: false;
@@ -1283,7 +1245,7 @@ export component MainWindow inherits Window {
 
     /// The line under the way in's rows: the drop hint, or what is being
     /// opened. Nothing when it has neither.
-    property <length> invite-note-h: root.drop-supported || root.opening
+    property <length> invite-note-h: root.drop-supported || Playlist.opening
         ? Rows.group-gap + root.note-line-h : 0px;
 
     /// The line under a failure saying what usually puts it right. Separate
@@ -1409,12 +1371,12 @@ export component MainWindow inherits Window {
     /// episodes share, and the episode is what tells them apart. Judged by
     /// the most room the title could have rather than the room it has, which
     /// the choice itself would change.
-    property <bool> title-short: !root.opening && root.media-episode != ""
+    property <bool> title-short: !Playlist.opening && root.media-episode != ""
         && title-measure.preferred-width > root.title-room-most;
     property <length> title-room-most: max(0px,
         root.center-x - root.bar-x - root.pill-gap - root.left-fixed);
     /// What the title says.
-    property <string> title-text: root.opening ? @tr("Opening {}…", root.opening-name)
+    property <string> title-text: Playlist.opening ? @tr("Opening {}…", Playlist.opening-name)
         : root.title-short ? root.media-episode
         : root.media-title;
 
@@ -2186,7 +2148,7 @@ export component MainWindow inherits Window {
     /// On the list of parts, a file listed as itself leaves the parts'
     /// chevron column empty beside its time.
     property <length> playlist-file-fixed: root.file-fixed
-        + (root.playlist-top && root.playlist-drills ? Rows.chevron-col : 0px);
+        + (root.playlist-top && Playlist.drills ? Rows.chevron-col : 0px);
     /// For the page showing, so a season of long titles doesn't widen the
     /// list of seasons.
     property <length> playlist-w: root.list-fit(max(
@@ -2523,7 +2485,7 @@ export component MainWindow inherits Window {
         ? root.playlist-leaf-list-h : root.playlist-top-list-h;
     /// What each page's rows add up to. The showing page's is also
     /// `playlist-natural`, which sizes the panel.
-    property <length> playlist-top-natural: root.playlist-groups.length * root.row-h;
+    property <length> playlist-top-natural: Playlist.groups.length * root.row-h;
     property <length> playlist-leaf-natural: root.playlist-entries.length * root.row-h;
 
     /// Where the showing list starts in the window, for the test that takes
@@ -2976,8 +2938,8 @@ export component MainWindow inherits Window {
         }
         if (!root.has-file && root.fatal == "") {
             if (root.focus-row < root.invite-first) {
-                if (!root.opening) {
-                    root.open-path(root.resume-path, false);
+                if (!Playlist.opening) {
+                    Playlist.open-path(root.resume-path, false);
                 }
             } else if (root.focus-row < root.invite-first + 2) {
                 root.request-open(root.focus-row == root.invite-first + 1);
@@ -3595,7 +3557,7 @@ export component MainWindow inherits Window {
             root.focus-activate-settings();
         } else if (root.playlist-open && root.playlist-top
                 && root.focus-row < root.playlist-rows
-                && !root.playlist-groups[root.focus-row].leaf) {
+                && !Playlist.groups[root.focus-row].leaf) {
             root.playlist-enter(root.focus-row);
         } else if (root.menu-open && !root.find-open && root.subs-page == 0
                 && root.focus-row >= root.subs-track-rows) {
@@ -3743,10 +3705,10 @@ export component MainWindow inherits Window {
         if (shift && (text == "n" || text == "N" || text == "p" || text == "P")) {
             root.key-wake = 1;
             if ((text == "n" || text == "N") && !root.at-last) {
-                root.playlist-step(1);
+                Playlist.step(1);
                 Flash.show(Flash.next, 0.5);
             } else if ((text == "p" || text == "P") && !root.at-first) {
-                root.playlist-step(-1);
+                Playlist.step(-1);
                 Flash.show(Flash.previous, 0.5);
             }
             return true;
@@ -3877,13 +3839,13 @@ export component MainWindow inherits Window {
     /// Every way the interface asks for a file or a folder comes through here,
     /// so an open already in flight is refused in one place.
     function request-open(folder: bool) {
-        if (root.opening) {
+        if (Playlist.opening) {
             return;
         }
         if (folder) {
-            root.open-folder();
+            Playlist.open-folder();
         } else {
-            root.open-file();
+            Playlist.open-file();
         }
     }
 
@@ -4003,8 +3965,8 @@ export component MainWindow inherits Window {
 
     function end-onward() {
         if (root.onward-path != "") {
-            if (!root.opening) {
-                root.open-path(root.onward-path, true);
+            if (!Playlist.opening) {
+                Playlist.open-path(root.onward-path, true);
             }
         } else {
             root.request-open(true);
@@ -4176,7 +4138,7 @@ export component MainWindow inherits Window {
             root.seek-relative(-root.seek-step);
         } else if (index == 3) {
             if (!root.at-first) {
-                root.playlist-step(-1);
+                Playlist.step(-1);
             }
         } else if (index == 4) {
             if (root.at-end) {
@@ -4186,7 +4148,7 @@ export component MainWindow inherits Window {
             }
         } else if (index == 5) {
             if (!root.at-last) {
-                root.playlist-step(1);
+                Playlist.step(1);
             }
         } else {
             root.seek-relative(root.seek-step);
@@ -4361,14 +4323,14 @@ export component MainWindow inherits Window {
             root.playlist-open = true;
             // On the part holding the file playing, at its row, or on the
             // list of parts when that file is a part of its own.
-            if (root.playlist-tiered && root.playlist-current-group >= 0
-                    && !root.playlist-groups[root.playlist-current-group].leaf) {
-                root.playlist-enter(root.playlist-current-group);
+            if (root.playlist-tiered && Playlist.current-group >= 0
+                    && !Playlist.groups[Playlist.current-group].leaf) {
+                root.playlist-enter(Playlist.current-group);
             } else {
                 root.playlist-page = root.playlist-tiered ? -1 : 0;
                 root.focus-row = max(0, root.playlist-tiered
-                    ? root.playlist-current-group
-                    : root.playlist-groups[0].open-row);
+                    ? Playlist.current-group
+                    : Playlist.groups[0].open-row);
                 // With a single part, its list is the drilled-in page.
                 if (root.playlist-tiered) {
                     playlist-top-list.centre(root.focus-row * root.row-h, root.row-h);
@@ -4383,9 +4345,9 @@ export component MainWindow inherits Window {
     /// or else the first not yet finished.
     function playlist-enter(group: int) {
         root.playlist-page = group;
-        root.focus-row = 1 + root.playlist-groups[group].open-row;
+        root.focus-row = 1 + Playlist.groups[group].open-row;
         playlist-leaf-list.centre(
-            root.playlist-groups[group].open-row * root.row-h, root.row-h);
+            Playlist.groups[group].open-row * root.row-h, root.row-h);
     }
 
     /// Back to the list of parts, on the part just left.
@@ -4399,8 +4361,8 @@ export component MainWindow inherits Window {
     function playlist-pick(row: int) {
         if (!root.playlist-top) {
             root.playlist-play(root.playlist-entries[row]);
-        } else if (root.playlist-groups[row].leaf) {
-            root.playlist-play(root.playlist-groups[row].entries[0]);
+        } else if (Playlist.groups[row].leaf) {
+            root.playlist-play(Playlist.groups[row].entries[0]);
         } else {
             root.playlist-enter(row);
         }
@@ -4410,9 +4372,9 @@ export component MainWindow inherits Window {
     /// rather than in it, open that season at that file.
     function playlist-play(entry: PlaylistItem) {
         if (entry.index >= 0) {
-            root.play-index(entry.index);
-        } else if (!root.opening) {
-            root.open-path(entry.path, true);
+            Playlist.play-index(entry.index);
+        } else if (!Playlist.opening) {
+            Playlist.open-path(entry.path, true);
         }
     }
 
@@ -5711,8 +5673,8 @@ export component MainWindow inherits Window {
                         alignment: start;
 
                         MenuHeading {
-                            text: root.playlist-heading;
-                            titular: root.playlist-named;
+                            text: Playlist.heading;
+                            titular: Playlist.named;
                             // The same mark as the button that opened the
                             // panel, whether the words beside it are
                             // PLAYLIST or a show's name.
@@ -5724,13 +5686,13 @@ export component MainWindow inherits Window {
                             height: root.playlist-top-list-h;
                             rest-height: root.playlist-top-rest-h;
                             content-height: root.playlist-top-natural;
-                            current-top: root.playlist-current-group * root.row-h;
-                            current-h: root.playlist-current-group >= 0 ? root.row-h : 0px;
+                            current-top: Playlist.current-group * root.row-h;
+                            current-h: Playlist.current-group >= 0 ? root.row-h : 0px;
 
                             VerticalLayout {
                                 alignment: start;
 
-                                for group[idx] in root.playlist-groups: Rectangle {
+                                for group[idx] in Playlist.groups: Rectangle {
                                     height: root.row-h;
 
                                     if group.leaf: PlaylistRow {
@@ -5744,7 +5706,7 @@ export component MainWindow inherits Window {
                                         // Leaves the chevron's column empty,
                                         // so this row's figures line up with
                                         // the parts' around it.
-                                        trail: root.playlist-drills
+                                        trail: Playlist.drills
                                             ? Rows.trail-x + Rows.chevron-col : Rows.trail-x;
                                         focused: root.playlist-open
                                             && root.playlist-top
@@ -5784,8 +5746,8 @@ export component MainWindow inherits Window {
                         // of parts, as a settings page is. A single part has
                         // no list to go back to, so it has the heading.
                         if root.playlist-tiered: BackRow {
-                            label: root.playlist-groups[root.playlist-leaf].heading;
-                            titular: root.playlist-groups[root.playlist-leaf].titular;
+                            label: Playlist.groups[root.playlist-leaf].heading;
+                            titular: Playlist.groups[root.playlist-leaf].titular;
                             focused: root.playlist-open && !root.playlist-top
                                 && root.focus-row == 0;
                             back => {
@@ -5793,8 +5755,8 @@ export component MainWindow inherits Window {
                             }
                         }
                         if !root.playlist-tiered: MenuHeading {
-                            text: root.playlist-heading;
-                            titular: root.playlist-named;
+                            text: Playlist.heading;
+                            titular: Playlist.named;
                             icon: @image-url("../../../public/icons/playlist.svg");
                         }
                         playlist-leaf-list := ScrollList {
@@ -5803,10 +5765,10 @@ export component MainWindow inherits Window {
                             content-height: root.playlist-leaf-natural;
                             // A part holding the file playing opens on it, so
                             // `open-row` is its row.
-                            current-top: root.playlist-groups[root.playlist-shown-group].open-row
+                            current-top: Playlist.groups[root.playlist-shown-group].open-row
                                 * root.row-h;
-                            current-h: root.playlist-current-group >= 0
-                                && root.playlist-current-group == root.playlist-shown-group
+                            current-h: Playlist.current-group >= 0
+                                && Playlist.current-group == root.playlist-shown-group
                                 ? root.row-h : 0px;
 
                             VerticalLayout {
@@ -6200,11 +6162,11 @@ export component MainWindow inherits Window {
                 progress: root.resume-progress;
                 left: root.resume-left;
                 focused: !root.has-file && root.focus-row == 0;
-                opacity: root.opening ? 0.5 : 1.0;
+                opacity: Playlist.opening ? 0.5 : 1.0;
                 animate opacity { duration: Motion.surface; easing: ease-out; }
                 picked => {
-                    if (!root.opening) {
-                        root.open-path(root.resume-path, false);
+                    if (!Playlist.opening) {
+                        Playlist.open-path(root.resume-path, false);
                     }
                 }
             }
@@ -6221,8 +6183,8 @@ export component MainWindow inherits Window {
                 label: @tr("Open file…");
                 shortcut: @tr("Ctrl+O");
                 focused: !root.has-file && root.focus-row == root.invite-first;
-                inert: root.opening;
-                opacity: root.opening ? 0.5 : 1.0;
+                inert: Playlist.opening;
+                opacity: Playlist.opening ? 0.5 : 1.0;
                 animate opacity { duration: Motion.surface; easing: ease-out; }
                 picked => {
                     root.request-open(false);
@@ -6232,8 +6194,8 @@ export component MainWindow inherits Window {
                 label: @tr("Open folder…");
                 shortcut: @tr("Ctrl+Shift+O");
                 focused: !root.has-file && root.focus-row == root.invite-first + 1;
-                inert: root.opening;
-                opacity: root.opening ? 0.5 : 1.0;
+                inert: Playlist.opening;
+                opacity: Playlist.opening ? 0.5 : 1.0;
                 animate opacity { duration: Motion.surface; easing: ease-out; }
                 picked => {
                     root.request-open(true);
@@ -6275,8 +6237,8 @@ export component MainWindow inherits Window {
                     Text {
                         // Two branches suffice, since the row exists only when
                         // one of them applies.
-                        text: root.opening
-                            ? @tr("Opening {}…", root.opening-name)
+                        text: Playlist.opening
+                            ? @tr("Opening {}…", Playlist.opening-name)
                             : @tr("Or drop a file or folder onto the window");
                         color: Paint.body;
                         font-size: Type.hint;
@@ -6595,8 +6557,8 @@ export component MainWindow inherits Window {
     }
 
     title-measure := Text {
-        text: root.opening
-            ? @tr("Opening {}…", root.opening-name)
+        text: Playlist.opening
+            ? @tr("Opening {}…", Playlist.opening-name)
             : root.media-title;
         font-size: Type.title;
         font-weight: Type.weight-title;
@@ -6653,8 +6615,8 @@ export component MainWindow inherits Window {
     }
 
     playlist-names-measure := Text {
-        text: root.playlist-top ? root.playlist-names
-            : root.playlist-groups[root.playlist-shown-group].names;
+        text: root.playlist-top ? Playlist.names
+            : Playlist.groups[root.playlist-shown-group].names;
         font-size: Type.body;
         font-weight: Type.weight-current;
         visible: false;
@@ -6663,8 +6625,8 @@ export component MainWindow inherits Window {
     }
 
     playlist-measured-measure := Text {
-        text: root.playlist-top ? root.playlist-measured-names
-            : root.playlist-groups[root.playlist-shown-group].measured-names;
+        text: root.playlist-top ? Playlist.measured-names
+            : Playlist.groups[root.playlist-shown-group].measured-names;
         font-size: Type.body;
         font-weight: Type.weight-current;
         visible: false;
@@ -6673,7 +6635,7 @@ export component MainWindow inherits Window {
     }
 
     playlist-details-measure := Text {
-        text: root.playlist-details;
+        text: Playlist.details;
         font-size: Type.readout;
         visible: false;
         width: 0px;
@@ -6685,9 +6647,9 @@ export component MainWindow inherits Window {
         // single part, by the playlist's heading.
         property <bool> backs: root.playlist-tiered && !root.playlist-top;
         property <bool> titular: self.backs
-            ? root.playlist-groups[root.playlist-shown-group].titular : root.playlist-named;
-        text: self.backs ? root.playlist-groups[root.playlist-shown-group].heading
-            : root.playlist-heading;
+            ? Playlist.groups[root.playlist-shown-group].titular : Playlist.named;
+        text: self.backs ? Playlist.groups[root.playlist-shown-group].heading
+            : Playlist.heading;
         font-size: self.titular ? Type.named : Type.label;
         font-weight: Type.weight-plain;
         letter-spacing: self.titular ? 0 : Type.label-track;
@@ -6862,7 +6824,7 @@ export component MainWindow inherits Window {
                 enabled: !root.at-first;
                 focused: root.bar-reach && root.bar-focus == 3;
                 clicked => {
-                    root.playlist-step(-1);
+                    Playlist.step(-1);
                 }
             }
             play-button := IconButton {
@@ -6893,7 +6855,7 @@ export component MainWindow inherits Window {
                 enabled: !root.at-last;
                 focused: root.bar-reach && root.bar-focus == 5;
                 clicked => {
-                    root.playlist-step(1);
+                    Playlist.step(1);
                 }
             }
             forward-button := IconButton {

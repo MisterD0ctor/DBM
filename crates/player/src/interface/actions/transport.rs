@@ -1,4 +1,7 @@
+use slint::ComponentHandle;
+
 use crate::MainWindow;
+use crate::Playlist;
 use crate::app::App;
 use crate::playback::commands;
 
@@ -27,10 +30,10 @@ pub(super) fn wire_transport(ui: &MainWindow, app: &App) {
         f64::from(v)
     ));
     // Not activity, for `on!`'s reason: Ctrl+arrows answer with a flash.
-    on_app!(ui, app, on_playlist_step, |app, delta| {
+    on_app!(ui.global::<Playlist>(), app, on_step, |app, delta| {
         app.arrival.step(&app.mpv, delta, None);
     });
-    on_app!(ui, app, on_play_index, |app, index| {
+    on_app!(ui.global::<Playlist>(), app, on_play_index, |app, index| {
         app.activity.bump();
         app.arrival.play_index(&app.mpv, i64::from(index), None);
     });

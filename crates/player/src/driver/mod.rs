@@ -31,6 +31,7 @@ use std::sync::Mutex;
 
 use slint::{ComponentHandle, GraphicsAPI, RenderingState};
 
+use crate::Playlist;
 use crate::Subtitles;
 use crate::app::App;
 use crate::interface::subline::Picture;
@@ -529,7 +530,7 @@ impl Driver {
             // read raises its `EndFile` failure here and `has_file` never
             // turns true, so without this the line would say "Opening…"
             // until the next successful one.
-            ui.set_opening(false);
+            ui.global::<Playlist>().set_opening(false);
             warn(ui, notice);
         }
         if moved {
@@ -583,7 +584,7 @@ impl Driver {
         if self.player.loads != self.loads_seen {
             self.loads_seen = self.player.loads;
             self.stumbled = false;
-            ui.set_opening(false);
+            ui.global::<Playlist>().set_opening(false);
         }
         // Back on the empty window after an open that came to nothing, which
         // offers what it would have at launch rather than the bare fill.

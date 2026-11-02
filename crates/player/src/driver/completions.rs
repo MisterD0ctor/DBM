@@ -12,9 +12,11 @@ use dbm_library::preview::{Sprite, Still};
 use dbm_library::resume::Resume;
 use dbm_library::shelf::{Beside, Shelf};
 use dbm_library::titles::{self, End};
+use slint::ComponentHandle;
 
 use super::{Driver, Gpu};
 use crate::MainWindow;
+use crate::Playlist;
 use crate::interface::{format, say, subsync, warn};
 use crate::playback::commands;
 use crate::playback::state::Lists;
@@ -141,7 +143,7 @@ impl Driver {
     fn not_opened(&mut self, ui: &MainWindow, e: String) {
         log::warn!("cannot open: {e}");
         // Nothing was found to load, so no file is coming.
-        ui.set_opening(false);
+        ui.global::<Playlist>().set_opening(false);
         self.stumbled = true;
         warn(ui, e);
     }

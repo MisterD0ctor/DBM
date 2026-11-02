@@ -10,8 +10,10 @@ use std::rc::Rc;
 use dbm_lang::{fill, tr};
 use dbm_library::durations::Progress;
 use dbm_library::shelf::{self, Beside, Entry, Group, Shelf};
+use slint::ComponentHandle;
 use slint::{Model, ModelRc, VecModel};
 
+use crate::Playlist;
 use crate::interface::format;
 use crate::playback::state::PlayerState;
 use crate::worker::{Completion, Worker};
@@ -89,22 +91,27 @@ impl Panel {
             return false;
         }
         ui.set_next_label(next_label(&shelf).into());
-        ui.set_playlist_named(shelf.heading.is_some());
-        ui.set_playlist_heading(match shelf.title() {
+        ui.global::<Playlist>().set_named(shelf.heading.is_some());
+        ui.global::<Playlist>().set_heading(match shelf.title() {
             Some(title) => title.into(),
             None => slint::SharedString::from(tr("PLAYLIST")),
         });
         // Where the panel opens: the part holding the file playing, on its row.
         let current = shelf.groups.iter().position(|g| g.current().is_some());
-        ui.set_playlist_current_group(current.map_or(-1, |g| g as i32));
-        ui.set_playlist_drills(shelf.groups.iter().any(|g| !g.leaf));
+        ui.global::<Playlist>()
+            .set_current_group(current.map_or(-1, |g| g as i32));
+        ui.global::<Playlist>()
+            .set_drills(shelf.groups.iter().any(|g| !g.leaf));
         let (measured, plain): (Vec<&Group>, Vec<&Group>) = shelf
             .groups
             .iter()
             .partition(|g| g.leaf && g.entries.first().is_some_and(draws_measure));
-        ui.set_playlist_names(lines(plain.into_iter().map(row_name)).into());
-        ui.set_playlist_measured_names(lines(measured.into_iter().map(row_name)).into());
-        ui.set_playlist_details(lines(shelf.groups.iter().filter(|g| !g.leaf).map(detail)).into());
+        ui.global::<Playlist>()
+            .set_names(lines(plain.into_iter().map(row_name)).into());
+        ui.global::<Playlist>()
+            .set_measured_names(lines(measured.into_iter().map(row_name)).into());
+        ui.global::<Playlist>()
+            .set_details(lines(shelf.groups.iter().filter(|g| !g.leaf).map(detail)).into());
 
         let rewritten = self.rewrite(&shelf);
         if !rewritten {
@@ -153,7 +160,7 @@ impl Panel {
         // found beside this one arrive later and go in around it.
         let shown = usize::try_from(ui.get_playlist_page())
             .ok()
-            .and_then(|page| ui.get_playlist_groups().row_data(page))
+            .and_then(|page| ui.global::<Playlist>().get_groups().row_data(page))
             .map(|group| group.label);
         self.pages = shelf
             .groups
@@ -179,7 +186,8 @@ impl Panel {
             );
         }
         let groups = Rc::new(VecModel::from(groups));
-        ui.set_playlist_groups(ModelRc::from(groups.clone()));
+        ui.global::<Playlist>()
+            .set_groups(ModelRc::from(groups.clone()));
         self.groups = Some(groups);
     }
 }

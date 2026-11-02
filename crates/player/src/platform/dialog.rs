@@ -12,8 +12,10 @@
 //! module knows nothing about mpv, playlists or the worker.
 
 use dbm_lang::tr;
+use slint::ComponentHandle;
 
 use crate::MainWindow;
+use crate::Playlist;
 
 /// What the user is being asked for.
 #[derive(Clone, Copy)]
@@ -50,7 +52,7 @@ pub fn pick(want: Want, start: Option<std::path::PathBuf>, ui: slint::Weak<MainW
         // Back to the UI thread, which owns the worker the scan has to go to.
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(ui) = ui.upgrade() {
-                ui.invoke_open_path(path.into(), true);
+                ui.global::<Playlist>().invoke_open_path(path.into(), true);
             }
         });
     });

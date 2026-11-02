@@ -1,6 +1,7 @@
 use slint::ComponentHandle;
 
 use crate::MainWindow;
+use crate::Playlist;
 use crate::app::App;
 use crate::platform::dialog;
 
@@ -12,7 +13,7 @@ use crate::platform::dialog;
 pub(super) fn wire_opening(ui: &MainWindow, app: &App) {
     {
         let (app, weak) = (app.clone(), ui.as_weak());
-        ui.on_open_file(move || {
+        ui.global::<Playlist>().on_open_file(move || {
             app.activity.bump();
             let start = weak
                 .upgrade()
@@ -23,7 +24,7 @@ pub(super) fn wire_opening(ui: &MainWindow, app: &App) {
     }
     {
         let (app, weak) = (app.clone(), ui.as_weak());
-        ui.on_open_folder(move || {
+        ui.global::<Playlist>().on_open_folder(move || {
             app.activity.bump();
             // The shelf above this file's folder: at the end of a season,
             // that is where the next one is.
@@ -36,7 +37,7 @@ pub(super) fn wire_opening(ui: &MainWindow, app: &App) {
     }
     {
         let (app, weak) = (app.clone(), ui.as_weak());
-        ui.on_open_path(move |path, ask| {
+        ui.global::<Playlist>().on_open_path(move |path, ask| {
             app.activity.bump();
             let path = std::path::PathBuf::from(path.as_str());
             // Said before handing it over, since everything past here is on
@@ -45,8 +46,9 @@ pub(super) fn wire_opening(ui: &MainWindow, app: &App) {
             // otherwise look like an ignored click. Set here, the one funnel
             // they share, so a drop and the command line get it too.
             if let Some(ui) = weak.upgrade() {
-                ui.set_opening_name(opening_name(&path).into());
-                ui.set_opening(true);
+                ui.global::<Playlist>()
+                    .set_opening_name(opening_name(&path).into());
+                ui.global::<Playlist>().set_opening(true);
             }
             // Same job the command line goes through, scan and all.
             app.worker.submit(move |_mpv| {

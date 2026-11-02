@@ -271,7 +271,9 @@ mod showcase;
 
 use slint::{Model, ModelRc};
 
+use crate::Playlist;
 use crate::{MainWindow, TrackItem};
+use slint::ComponentHandle;
 
 /// Handles for everything armed here. Kept in one value so `main` does not
 /// have to name each timer just to hold it open.
@@ -457,7 +459,8 @@ fn selected_label(model: &ModelRc<TrackItem>) -> String {
 /// panel shows it in. Files in seasons beside the list are left out: they are
 /// shown, not queued.
 fn playlist_rows(ui: &MainWindow) -> Vec<crate::PlaylistItem> {
-    ui.get_playlist_groups()
+    ui.global::<Playlist>()
+        .get_groups()
         .iter()
         .flat_map(|group| group.entries.iter().collect::<Vec<_>>())
         .filter(|entry| entry.index >= 0)

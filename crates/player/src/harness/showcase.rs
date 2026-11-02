@@ -8,6 +8,7 @@ use slint::{ComponentHandle, Model};
 use super::drive::{arrow, chord, click, hover, wheel};
 use crate::Find;
 use crate::MainWindow;
+use crate::Playlist;
 use crate::Tracks;
 
 /// Hold one surface open, with the chrome kept awake, for a capture: the
@@ -91,7 +92,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             if surface == "drill" && tick > 4 {
                 let page = ui.get_playlist_page();
                 ui.set_playlist_page(if page < 0 {
-                    ui.get_playlist_current_group().max(0)
+                    ui.global::<Playlist>().get_current_group().max(0)
                 } else {
                     -1
                 });
@@ -395,7 +396,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
             // the next file's watch-later entry first. Prints what happens.
             if surface.starts_with("arrival") {
                 if tick == 6 && surface != "arrival" && surface != "arrival-enter" {
-                    ui.invoke_playlist_step(1);
+                    ui.global::<Playlist>().invoke_step(1);
                 }
                 if tick == 12 && surface == "arrival-answer" {
                     ui.invoke_arrival_answer(true);
@@ -522,8 +523,9 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> slint::Timer {
                 // Held rather than provoked, since a local open clears it
                 // within a few frames; the slow case needs a network share.
                 "opening" => {
-                    ui.set_opening_name("Game of Thrones Season 7".into());
-                    ui.set_opening(true);
+                    ui.global::<Playlist>()
+                        .set_opening_name("Game of Thrones Season 7".into());
+                    ui.global::<Playlist>().set_opening(true);
                 }
                 // A panel open under the pointer resting on the button that
                 // opened it. Tips stand down for any panel, so the right

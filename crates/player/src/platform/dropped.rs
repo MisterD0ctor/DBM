@@ -148,8 +148,13 @@ fn open(path: String) {
     let Some(weak) = target else {
         return;
     };
+    use slint::ComponentHandle;
+
     log::info!("dropped {path}");
-    let _ = weak.upgrade_in_event_loop(move |ui| ui.invoke_open_path(path.into(), true));
+    let _ = weak.upgrade_in_event_loop(move |ui| {
+        ui.global::<crate::Playlist>()
+            .invoke_open_path(path.into(), true);
+    });
 }
 
 // ---------------------------------------------------------------------------

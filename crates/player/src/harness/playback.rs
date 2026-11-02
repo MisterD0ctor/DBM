@@ -9,6 +9,7 @@ use slint::{ComponentHandle, Model};
 use super::drive::{arrow, chord, hover, wheel};
 use super::{playlist_rows, selected_label, short};
 use crate::MainWindow;
+use crate::Playlist;
 use crate::Subtitles;
 use crate::Tracks;
 
@@ -342,9 +343,9 @@ pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::T
                     report(&ui, &mpv, "set on the first");
                     let _ = mpv.command_async(0, &["write-watch-later-config"]);
                 }
-                7 => ui.invoke_playlist_step(1),
+                7 => ui.global::<Playlist>().invoke_step(1),
                 10 => report(&ui, &mpv, "on the next file"),
-                11 => ui.invoke_playlist_step(-1),
+                11 => ui.global::<Playlist>().invoke_step(-1),
                 14 => report(&ui, &mpv, "back on the first"),
                 15 => eprintln!("dbm: --- timing test done ---"),
                 _ => {}
@@ -593,7 +594,8 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> slint::
                         eprintln!("dbm: credits: mpv refused chapters-file: {e}");
                     }
                     eprintln!("dbm: credits from {credits_at:.0}s of {duration:.0}s");
-                    ui.invoke_open_path(ui.get_current_path(), true);
+                    ui.global::<Playlist>()
+                        .invoke_open_path(ui.get_current_path(), true);
                 }
                 // As a click on its button opens it, with no ring.
                 5 if panel => ui.invoke_open_menu(true),
