@@ -101,6 +101,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
             if surface == "settings-drill" && tick > 4 {
                 ui.invoke_open_settings_page(if tick.is_multiple_of(2) { 0 } else { 1 });
             }
+            // The interface's side alone, so nothing is saved or told to mpv.
+            if surface == "tucked" && tick > 4 {
+                let settings = ui.global::<crate::Settings>();
+                settings.set_autoplay(!settings.get_autoplay());
+            }
             if surface == "find-drill" && tick > 5 {
                 if tick.is_multiple_of(2) {
                     arrow(&ui, Key::LeftArrow);
@@ -534,7 +539,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                 "accessibility" | "tips-off" => ui.invoke_open_settings_page(3),
                 "shortcuts" => ui.invoke_open_settings_page(4),
                 "language" | "language-walk" => ui.invoke_open_settings_page(5),
-                "video" => ui.invoke_open_settings_page(6),
+                "video" | "tucked" => ui.invoke_open_settings_page(6),
                 // The subtitles menu's two pages, which want a subtitle on
                 // before they open (below).
                 "timing" | "placing" | "subs-drill" | "timing-drill" => {

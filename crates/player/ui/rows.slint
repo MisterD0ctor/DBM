@@ -1014,6 +1014,33 @@ export component ToggleRow inherits Rectangle {
     }
 }
 
+/// A row that is there only while the switch above it is on, sliding out
+/// from underneath that switch rather than appearing, and back under it on
+/// the way out. At the panel's own pace, so the rows after it move with the
+/// panel's edge instead of jumping.
+export component Tucked inherits Rectangle {
+    in property <bool> shown;
+    /// Its height once out: the row's own.
+    in property <length> full: Rows.toggle-row;
+
+    height: root.shown ? root.full : 0px;
+    animate height {
+        duration: Motion.drill;
+        easing: ease-in-out;
+    }
+    // The part still underneath is cut off at the foot of the row above.
+    clip: true;
+    // Tucked away, it is out of reach of the pointer and a screen reader.
+    visible: self.height > 0;
+
+    Rectangle {
+        y: parent.height - root.full;
+        height: root.full;
+
+        @children
+    }
+}
+
 /// A row that leads somewhere: an icon naming the subject, the label, and a
 /// chevron. An effect that can be off shows it with its glyph rather than a
 /// switch, because a switch beside a chevron is two things to press in one row.

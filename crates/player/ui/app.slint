@@ -19,7 +19,7 @@ import { Motion, Paint, Rows, Type } from "theme.slint";
 import { EndChoice, IconButton } from "controls.slint";
 import {
     BackRow, DrillRow, EmptyRow, FoundRow, GroupRow, MenuHeading, MenuRow, NoteRow,
-    ParamSlider, PlaylistRow, ResumeRow, ShortcutRow, StepperRow, ToggleRow,
+    ParamSlider, PlaylistRow, ResumeRow, ShortcutRow, StepperRow, ToggleRow, Tucked,
 } from "rows.slint";
 import { AccountPage } from "account.slint";
 import { Ring } from "ring.slint";
@@ -4810,12 +4810,16 @@ export component MainWindow inherits Window {
                             }
                         }
                         // For someone who wants the names but knows the keys.
-                        if Tip.enabled: ToggleRow {
-                            label: @tr("Shortcuts in tooltips");
-                            checked: Tip.with-keys;
-                            focused: root.focus-row == 5;
-                            toggled(on) => {
-                                root.set-tip-keys-shown(on);
+                        Tucked {
+                            shown: Tip.enabled;
+
+                            ToggleRow {
+                                label: @tr("Shortcuts in tooltips");
+                                checked: Tip.with-keys;
+                                focused: root.focus-row == 5;
+                                toggled(on) => {
+                                    root.set-tip-keys-shown(on);
+                                }
                             }
                         }
                     }
@@ -4898,13 +4902,17 @@ export component MainWindow inherits Window {
                                 Settings.set-autoplay(on);
                             }
                         }
-                        if Settings.autoplay: ToggleRow {
-                            label: @tr("Skip credits");
-                            checked: Settings.skip-credits;
-                            focused: root.focus-row == 6;
-                            toggled(on) => {
-                                Settings.skip-credits = on;
-                                Settings.set-skip-credits(on);
+                        Tucked {
+                            shown: Settings.autoplay;
+
+                            ToggleRow {
+                                label: @tr("Skip credits");
+                                checked: Settings.skip-credits;
+                                focused: root.focus-row == 6;
+                                toggled(on) => {
+                                    Settings.skip-credits = on;
+                                    Settings.set-skip-credits(on);
+                                }
                             }
                         }
                         Rectangle {

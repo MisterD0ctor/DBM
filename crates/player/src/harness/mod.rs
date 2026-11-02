@@ -82,6 +82,8 @@
 //! * `DBM_SHOWCASE=settings-drill` and `find-drill` do the same for the
 //!   settings, between the front page and the glass's, and for the subtitles
 //!   menu, between the tracks and the search's page (with `DBM_FIND_FAKE`).
+//!   `tucked` opens the video page and flips Autoplay next on every tick,
+//!   for Skip credits sliding out from under it and back.
 //! * `DBM_SHOWCASE=ring-bar` walks the ring with Tab to the settings button,
 //!   for the disc of glass under it; `ring-row` and `ring-slider` put it on a
 //!   playlist row and on a glass slider.

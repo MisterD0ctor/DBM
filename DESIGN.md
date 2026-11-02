@@ -1621,9 +1621,13 @@ doing in it.
 - **Dependent:** a switch about something another switch has turned off is
   not there, rather than faded: a faded label would be the one word on the
   page under Body, which the glass is not held for, and turning the first
-  back on brings the second up under it, where the eye already is. The panel
-  grows and shrinks for it as it does between pages — Shortcuts in tooltips
-  only while Tooltips is on, and Skip credits only while Autoplay next is on,
+  back on brings the second up under it, where the eye already is. It slides
+  out from underneath the first, cut off at that row's foot, and back under
+  it on the way out, while the panel grows and shrinks for it as it does
+  between pages and at the same pace (`Motion.drill`, `Tucked`): the rows
+  after it move with the panel's edge rather than jumping, and the switch
+  is seen to come from the one it belongs to — Shortcuts in tooltips only
+  while Tooltips is on, and Skip credits only while Autoplay next is on,
   since going on from the credits goes no further than autoplay would
 
 ### Drill rows
