@@ -1,0 +1,125 @@
+//! Downloading: asking for a subtitle's link, fetching it, and keeping it
+//! in the player's own folder.
+
+use std::path::{Path, PathBuf};
+
+use serde_json::Value;
+use ureq::http::Method;
+use url::Url;
+
+use super::account::{self, Signed};
+use super::http::{Ask, failure, fetch_file, said, send_again_once};
+use super::{Failure, Hit, KEPT, fake};
+
+pub(super) fn download(path: &str, hit: &Hit) -> Result<(PathBuf, String), Failure> {
+    let file = keep_as(path, hit);
+    // Fetched before: no need to spend one of the day's downloads on it.
+    if file.is_file() {
+        remember(path, &file);
+        return Ok((file, hit.language.clone()));
+    }
+    let signed = account::signed();
+    let bytes = if fake::on() {
+        fake::download(signed.as_ref())?
+    } else {
+        let url = link(hit, signed.as_ref())?;
+        fetch_file(url)?
+    };
+    if let Some(parent) = file.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    std::fs::write(&file, bytes).map_err(|e| Failure::Said(e.to_string()))?;
+    remember(path, &file);
+    Ok((file, hit.language.clone()))
+}
+
+/// Where a download for `path` is kept: in the player's own folder, named
+/// after the film, the language and the subtitle's own id, so the same one
+/// asked for twice is the same file.
+fn keep_as(path: &str, hit: &Hit) -> PathBuf {
+    let stem = Path::new(path)
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "subtitles".into());
+    let stem: String = stem
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() || " .-_()".contains(c) {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    crate::paths::app_data_dir()
+        .join("subtitles")
+        .join(format!("{stem}.{}.{}.srt", hit.language, hit.file_id))
+}
+
+/// Where to fetch `hit` from, which costs one of the day's downloads: the
+/// key's own, or the account's when `signed` is.
+fn link(hit: &Hit, signed: Option<&Signed>) -> Result<Url, Failure> {
+    let body = serde_json::to_vec(&serde_json::json!({ "file_id": hit.file_id }))
+        .map_err(|_| Failure::Unreachable)?;
+    let reply = send_again_once(&Ask {
+        method: Method::POST,
+        path: "/download",
+        query: &[],
+        body: Some(&body),
+        account: signed,
+    })?;
+    if !(200..300).contains(&reply.status) {
+        let why = failure(reply.status, &reply.body, signed.is_some());
+        if let (Failure::Lapsed, Some(signed)) = (&why, signed) {
+            account::lapse(signed);
+        }
+        return Err(why);
+    }
+    if let (Some(signed), Some(left)) =
+        (signed, reply.body.get("remaining").and_then(Value::as_i64))
+    {
+        account::left(signed, left);
+    }
+    reply
+        .body
+        .get("link")
+        .and_then(Value::as_str)
+        .and_then(|link| Url::parse(link).ok())
+        .filter(|link| link.scheme() == "https")
+        .ok_or_else(|| said(&reply.body).unwrap_or(Failure::Unreachable))
+}
+
+fn remember(path: &str, file: &Path) {
+    let mut files = KEPT.load().remove(path).unwrap_or_default();
+    let file = file.to_string_lossy().into_owned();
+    if !files.contains(&file) {
+        files.push(file);
+        KEPT.set(path, files);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_kept_file_says_its_language_in_its_name() {
+        let hit = Hit {
+            file_id: 42,
+            language: "pt-br".into(),
+            release: String::new(),
+            downloads: 0,
+            exact: false,
+            hearing_impaired: false,
+            machine: false,
+        };
+        let file = keep_as("/films/Some Film (2019).mkv", &hit);
+        let name = file.file_name().unwrap().to_string_lossy().into_owned();
+        assert_eq!(name, "Some Film (2019).pt-br.42.srt");
+        let stem = file.file_stem().unwrap();
+        let code = Path::new(Path::new(stem).file_stem().unwrap())
+            .extension()
+            .unwrap();
+        assert_eq!(code, "pt-br");
+    }
+}

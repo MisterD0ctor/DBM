@@ -36,7 +36,8 @@ use serde_json::Value;
 use ureq::http::Method;
 use zeroize::Zeroizing;
 
-use super::{Ask, Failure, Host, fake, send};
+use super::http::{Ask, Host, TIMEOUT, said, send, send_within};
+use super::{Failure, fake};
 use crate::threads::Reporter;
 
 /// How long a token lasts, by OpenSubtitles' word, and the most the player
@@ -144,7 +145,7 @@ pub fn sign_in(
 /// signed out at once, whether or not it arrives.
 pub fn sign_out() {
     if let Some(session) = take() {
-        crate::threads::spawn("dbm-sign-out", move || log_out(session, super::TIMEOUT));
+        crate::threads::spawn("dbm-sign-out", move || log_out(session, TIMEOUT));
     }
 }
 
@@ -189,7 +190,7 @@ fn log_in(name: &str, password: &str) -> Result<Account, Failure> {
         401 => return Err(Failure::WrongPassword),
         403 => return Err(Failure::Refused),
         429 => return Err(Failure::Busy),
-        _ => return Err(super::said(&reply.body).unwrap_or(Failure::Unreachable)),
+        _ => return Err(said(&reply.body).unwrap_or(Failure::Unreachable)),
     }
     let (host, token) = granted(reply.body)?;
     let Some(host) = host else {
@@ -200,7 +201,7 @@ fn log_in(name: &str, password: &str) -> Result<Account, Failure> {
             token,
             session: 0,
         };
-        crate::threads::spawn("dbm-hand-back", move || hand_back(&refused, super::TIMEOUT));
+        crate::threads::spawn("dbm-hand-back", move || hand_back(&refused, TIMEOUT));
         return Err(Failure::Unreachable);
     };
     let fresh = Signed {
@@ -239,7 +240,7 @@ fn keep(name: &str, host: Host, token: Zeroizing<String>, left: Option<i64>) -> 
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .replace(session);
     if let Some(before) = before {
-        crate::threads::spawn("dbm-sign-out", move || log_out(before, super::TIMEOUT));
+        crate::threads::spawn("dbm-sign-out", move || log_out(before, TIMEOUT));
     }
     account
 }
@@ -310,7 +311,7 @@ fn hand_back(signed: &Signed, timeout: Duration) {
     if fake::on() {
         return;
     }
-    let _ = super::send_within(
+    let _ = send_within(
         &Ask {
             method: Method::DELETE,
             path: "/logout",
