@@ -43,6 +43,9 @@ pub fn shader_prologue(gl: &glow::Context) -> &'static str {
 ///
 /// Consumers need `scale()` to convert a position in the active image into a
 /// texture coordinate, since the texture is generally larger than the image.
+///
+/// Starts with nothing allocated; the first `ensure_size` makes the texture.
+#[derive(Default)]
 pub struct Target {
     fbo: Option<glow::Framebuffer>,
     tex: Option<glow::Texture>,
@@ -53,15 +56,6 @@ pub struct Target {
 }
 
 impl Target {
-    pub fn new() -> Self {
-        Self {
-            fbo: None,
-            tex: None,
-            alloc: (0, 0),
-            used: (0, 0),
-        }
-    }
-
     /// Size of the active image — what every caller means by "the size".
     pub fn size(&self) -> (u32, u32) {
         self.used
@@ -244,10 +238,10 @@ pub fn saved_draw_fbo(gl: &glow::Context) -> Option<glow::Framebuffer> {
 /// `include_str!` takes only a literal path.
 macro_rules! program {
     ($gl:expr, $name:literal) => {
-        $crate::gpu::gfx::Program::new(
+        $crate::gfx::Program::new(
             $gl,
-            include_str!("../../shaders/fullscreen.vert"),
-            include_str!(concat!("../../shaders/", $name, ".frag")),
+            include_str!("../shaders/fullscreen.vert"),
+            include_str!(concat!("../shaders/", $name, ".frag")),
         )
         .map_err(|e| format!("{}: {e}", $name))
     };

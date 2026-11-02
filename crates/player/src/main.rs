@@ -18,6 +18,7 @@
 //!
 //! | crate         | owns                                                      |
 //! |---------------|-----------------------------------------------------------|
+//! | `dbm_gpu`     | the passes drawn over the video: border, blur, glass      |
 //! | `dbm_lang`    | the language it speaks, and the words in each             |
 //! | `dbm_mpv`     | the libmpv binding, and the lists mpv keeps, read typed   |
 //! | `dbm_naming`  | what files, tracks and chapters are called, from names    |
@@ -31,7 +32,6 @@
 //! | `playback`    | mpv: its mirrored state, commands, resuming               |
 //! | `library`     | files on disk: playlists, lengths, preview sheets         |
 //! | `interface`   | the Rust side of `app.slint`: callbacks and properties    |
-//! | `gpu`         | the passes drawn over the video: border, blur, glass      |
 //! | `platform`    | what each OS has to be asked for in its own way           |
 //! | `worker`      | a thread for anything that would block the frame path     |
 //! | `settings`    | what the person has set, kept between runs                |
@@ -53,7 +53,6 @@
 mod app;
 mod diagnostics;
 mod driver;
-mod gpu;
 mod harness;
 mod interface;
 mod library;

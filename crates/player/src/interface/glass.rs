@@ -4,9 +4,9 @@
 //! that wants glass under it publishes its geometry through `glass-rects`,
 //! and this hands that to the pipeline once a frame.
 
+use dbm_gpu::pipeline::{GlassPanel, MAX_PANELS, OPEN_MILK, RING_MILK};
 use slint::{ComponentHandle, Model};
 
-use crate::gpu::pipeline::{GlassPanel, MAX_PANELS, OPEN_MILK, RING_MILK};
 use crate::{MainWindow, ScrollFade};
 
 /// Read the glass panel geometry out of Slint's own layout.

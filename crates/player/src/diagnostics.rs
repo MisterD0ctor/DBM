@@ -27,9 +27,9 @@
 use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
+use dbm_gpu::pipeline::{GlassPanel, Pipeline};
 use dbm_mpv::tracks::{self, TrackKind};
 
-use crate::gpu::pipeline::{GlassPanel, Pipeline};
 use crate::playback::labels;
 use crate::playback::state::PlayerState;
 
@@ -346,7 +346,7 @@ impl Probe {
             pipeline.glass_enabled, pipeline.border_enabled
         );
         self.sample_panel(pipeline, gl);
-        self.sample_rims(pipeline, gl, crate::gpu::pipeline::BEVEL);
+        self.sample_rims(pipeline, gl, dbm_gpu::pipeline::BEVEL);
         self.sample_letterbox(pipeline, gl, player);
         (pipeline.glass_enabled, pipeline.border_enabled)
     }

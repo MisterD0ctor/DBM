@@ -1,0 +1,20 @@
+[package]
+name = "dbm-gpu"
+description = "The passes Death by MPV draws over the film: border, blur, glass"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+glow.workspace = true
+log.workspace = true
+# Draws the angle a list points back to its current row with — see `way`.
+# Slint already renders its SVG icons with it, so this adds no crate to the
+# build.
+resvg.workspace = true
+
+[lints]
+workspace = true

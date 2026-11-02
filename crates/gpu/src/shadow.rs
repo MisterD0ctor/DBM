@@ -46,8 +46,8 @@ impl Shadow {
         Ok(Self {
             quad: ScreenQuad::new(gl)?,
             program: program!(gl, "ui_shadow")?,
-            copied: Target::new(),
-            across: Target::new(),
+            copied: Target::default(),
+            across: Target::default(),
         })
     }
 

@@ -7,7 +7,9 @@
 //! angle pointing a list back to its current row, which sits in that edge;
 //! `shadow`, the thin dark rim under the interface's words and marks, the
 //! angle's included; and `corners`, the window's round corners, cut from all
-//! of it. All of it runs inside Slint's GL context, driven by `driver`.
+//! of it. All of it runs inside Slint's GL context, driven by the player's
+//! `driver`, and none of it knows mpv: the film arrives as whatever draws it
+//! into a framebuffer.
 
 pub mod blur;
 pub mod corners;

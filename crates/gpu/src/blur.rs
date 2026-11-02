@@ -13,7 +13,7 @@
 //! tapered to nothing over its last deviation, and a cubic B-spline drawing
 //! it back past twice the size.
 
-use crate::gpu::gfx::{Program, ScreenQuad, Target, bind_texture, program};
+use crate::gfx::{Program, ScreenQuad, Target, bind_texture, program};
 
 /// The widest Gaussian run at any one level. Past it, the blur moves down a
 /// level, so a blur up to this stays at full size, exactly as sharp.
@@ -56,8 +56,8 @@ impl Blur {
             gauss: program!(gl, "blur_gauss")?,
             up: program!(gl, "blur_up")?,
             levels: Vec::new(),
-            across: Target::new(),
-            filtered: Target::new(),
+            across: Target::default(),
+            filtered: Target::default(),
         })
     }
 
@@ -87,7 +87,7 @@ impl Blur {
         // Down both axes until one reaches its level, then the other alone.
         let steps = target.0.max(target.1) as usize;
         while self.levels.len() < steps {
-            self.levels.push(Target::new());
+            self.levels.push(Target::default());
         }
         let mut at = (0, 0);
         for step in 0..steps {

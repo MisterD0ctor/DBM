@@ -33,9 +33,6 @@ use slint::{
 };
 
 use crate::app::App;
-use crate::gpu::Overlays;
-use crate::gpu::gfx::Target;
-use crate::gpu::pipeline::{Frame, GlassPanel, Pipeline};
 use crate::interface::subline::Picture;
 use crate::interface::{fades, format, glass, playlist_panel, sync};
 use crate::library::playlist;
@@ -45,6 +42,9 @@ use crate::playback::state::PlayerState;
 use crate::settings::Toggle;
 use crate::worker::Completion;
 use crate::{MainWindow, diagnostics};
+use dbm_gpu::Overlays;
+use dbm_gpu::gfx::Target;
+use dbm_gpu::pipeline::{Frame, GlassPanel, Pipeline};
 use dbm_lang::{fill, marked, tr};
 use dbm_mpv::tracks::{self, TrackKind};
 
@@ -92,9 +92,9 @@ struct Scratch {
     shaded: Vec<[i32; 4]>,
     /// The ends of scrolling lists to soften this frame. Reused, like the
     /// panels, to keep the frame path from allocating.
-    fades: Vec<crate::gpu::fade::Strip>,
+    fades: Vec<dbm_gpu::fade::Strip>,
     /// The angles pointing lists back to their current rows, reused the same way.
-    ways: Vec<crate::gpu::way::Way>,
+    ways: Vec<dbm_gpu::way::Way>,
     /// Reply ids seen this frame, routed below. Reused to avoid allocating
     /// on the frame path.
     replies: Vec<u64>,
@@ -270,13 +270,13 @@ impl Driver {
                         // over the edge it sits in, on its glass disc if it has
                         // one. Nothing Slint draws moves with its circle, so
                         // this asks for the frames it eases in over.
-                        if crate::gpu::way::GLASS {
+                        if dbm_gpu::way::GLASS {
                             let panes: Vec<_> = self
                                 .scratch
                                 .ways
                                 .iter()
                                 .filter(|w| w.on > 0.004)
-                                .map(crate::gpu::way::Way::pane)
+                                .map(dbm_gpu::way::Way::pane)
                                 .collect();
                             gpu.pipeline
                                 .glass_over(&gpu.gl, (size.width, size.height), &panes);
@@ -904,7 +904,7 @@ impl Driver {
         // glass pass held.
         self.scratch.shaded.clear();
         if gpu.overlays.shadow.is_some() {
-            crate::gpu::shadow::regions(
+            dbm_gpu::shadow::regions(
                 &self.scratch.panels,
                 (size.width, size.height),
                 ui.window().scale_factor(),
@@ -920,7 +920,11 @@ impl Driver {
             panels: &self.scratch.panels,
             shaded: &self.scratch.shaded,
         };
-        let rendered = match gpu.pipeline.render(&gpu.gl, &gpu.ctx, &frame) {
+        // Called only from inside `render`, so still in the notifier, with
+        // the context current.
+        let film =
+            |fbo, w, h| unsafe { gpu.ctx.render_to_fbo(fbo, w, h) }.map_err(|e| e.to_string());
+        let rendered = match gpu.pipeline.render(&gpu.gl, film, &frame) {
             Ok(v) => v,
             Err(e) => {
                 log::info!("pipeline: {e}");

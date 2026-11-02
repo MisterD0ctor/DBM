@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use std::f64::consts::FRAC_PI_2;
 use std::fmt::Write;
 
-use crate::gpu::pipeline::CORNER_SOFTNESS as SOFTNESS;
+use dbm_gpu::pipeline::CORNER_SOFTNESS as SOFTNESS;
 
 /// The furthest an outline strays from the curve it stands for, in logical
 /// pixels: a fiftieth of one, which no scale factor brings into view.

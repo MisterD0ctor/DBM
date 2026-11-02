@@ -57,8 +57,8 @@ impl Fader {
         Ok(Self {
             quad: ScreenQuad::new(gl)?,
             program: program!(gl, "scroll_fade")?,
-            copied: Target::new(),
-            across: Target::new(),
+            copied: Target::default(),
+            across: Target::default(),
         })
     }
 

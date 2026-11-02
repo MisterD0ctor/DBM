@@ -15,9 +15,9 @@
 
 use std::cell::{Cell, RefCell};
 
+use dbm_gpu::pipeline::{BorderParams, GlassParams};
 use dbm_lang::marked;
 
-use crate::gpu::pipeline::{BorderParams, GlassParams};
 use crate::playback::commands::{self, PictureParams};
 
 /// A preference that is a switch. Each rides in the saved file as 0 or 1, so

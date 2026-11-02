@@ -943,6 +943,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be1e0bca6c3637f992fc1cc7cbc52a78c1ef6db076dbf1059c4323d6a2048376"
 
 [[package]]
+name = "dbm-gpu"
+version = "0.5.1"
+dependencies = [
+ "glow 0.16.0",
+ "log",
+ "resvg 0.47.0",
+]
+
+[[package]]
 name = "dbm-lang"
 version = "0.5.1"
 dependencies = [
@@ -970,6 +979,7 @@ name = "dbm-player"
 version = "0.5.1"
 dependencies = [
  "base64 0.22.1",
+ "dbm-gpu",
  "dbm-lang",
  "dbm-mpv",
  "dbm-naming",

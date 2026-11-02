@@ -7,10 +7,10 @@
 //! and the angles `gpu::way` draws, in physical pixels and cut to the panel
 //! the list is in.
 
+use dbm_gpu::fade::{Edge, Strip};
+use dbm_gpu::way::Way;
 use slint::{ComponentHandle, Model};
 
-use crate::gpu::fade::{Edge, Strip};
-use crate::gpu::way::Way;
 use crate::{MainWindow, Paint};
 
 /// How tall a strip is, in logical pixels. `Rows.fade` in the interface is

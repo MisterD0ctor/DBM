@@ -270,7 +270,7 @@ you if you fork this.
 |---|---|
 | `crates/player/src/` | the application, in folders by concern; the table at the top of `main.rs` says what each one does |
 | `crates/player/ui/` | the interface, in Slint |
-| `crates/player/shaders/` | the border, blur and glass shaders, and the background shown when nothing is playing |
+| `crates/gpu/shaders/` | the border, blur and glass shaders, and the background shown when nothing is playing |
 | `crates/lang/po/` | the translations |
 | `crates/player/vendor/` | libmpv and ffmpeg for Windows |
 | `packaging/` | the Windows installer, and the Flatpak in `flatpak/` |

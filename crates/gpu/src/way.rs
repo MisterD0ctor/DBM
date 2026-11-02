@@ -15,8 +15,8 @@ use glow::HasContext;
 use super::gfx::{Program, ScreenQuad, bind_texture, program, saved_draw_fbo};
 use super::pipeline::GlassPanel;
 
-const UP: &[u8] = include_bytes!("../../../../public/icons/angle-small-up.svg");
-const DOWN: &[u8] = include_bytes!("../../../../public/icons/angle-small-down.svg");
+const UP: &[u8] = include_bytes!("../../../public/icons/angle-small-up.svg");
+const DOWN: &[u8] = include_bytes!("../../../public/icons/angle-small-down.svg");
 
 /// The angle's side, in logical pixels: the icon set's smaller size.
 const ICON: f32 = 18.0;

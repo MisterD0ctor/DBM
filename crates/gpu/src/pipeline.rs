@@ -18,12 +18,11 @@
 //! are read from Slint's layout in the same frame, so the glass can't drift
 //! from its widget.
 
-use dbm_mpv::RenderContext;
 use glow::HasContext;
 
-use crate::gpu::blur::{self, Blur};
-use crate::gpu::gfx::{Program, ScreenQuad, Target, bind_texture, program, saved_draw_fbo};
-use crate::gpu::shadow::HEADROOM;
+use crate::blur::{self, Blur};
+use crate::gfx::{Program, ScreenQuad, Target, bind_texture, program, saved_draw_fbo};
+use crate::shadow::HEADROOM;
 
 /// How far the glass's corners ease into its straight edges: the corner's
 /// curve runs this many radii along each, where 1 is a quarter of an ellipse
@@ -363,16 +362,16 @@ impl Pipeline {
             quad: ScreenQuad::new(gl)?,
             prog_extend: program!(gl, "border_extend")?,
             prog_spread: program!(gl, "border_spread")?,
-            video: Target::new(),
-            extended: Target::new(),
-            composite: Target::new(),
-            blur_out: Target::new(),
-            glassed: Target::new(),
+            video: Target::default(),
+            extended: Target::default(),
+            composite: Target::default(),
+            blur_out: Target::default(),
+            glassed: Target::default(),
             prog_glass: program!(gl, "glass")?,
             blur_chain: Blur::new(gl)?,
-            over_base: Target::new(),
-            over_blur: Target::new(),
-            over_out: Target::new(),
+            over_base: Target::default(),
+            over_blur: Target::default(),
+            over_out: Target::default(),
             panels: Vec::new(),
             shaded: Vec::new(),
             glass: GlassParams::default(),
@@ -496,12 +495,13 @@ impl Pipeline {
         }
     }
 
-    /// mpv's picture, into the video target. It re-renders the frame it holds
-    /// when asked, so a paused film is drawn again as well as a playing one.
+    /// The film's picture, into the video target. mpv re-renders the frame
+    /// it holds when asked, so a paused film is drawn again as well as a
+    /// playing one.
     fn render_film(
         &self,
         gl: &glow::Context,
-        ctx: &RenderContext,
+        film: &impl Fn(u32, i32, i32) -> Result<(), String>,
         w: u32,
         h: u32,
     ) -> Result<bool, String> {
@@ -513,10 +513,10 @@ impl Pipeline {
             gl.bind_framebuffer(glow::FRAMEBUFFER, Some(fbo));
             let mut viewport = [0i32; 4];
             gl.get_parameter_i32_slice(glow::VIEWPORT, &mut viewport);
-            let res = ctx.render_to_fbo(fbo.0.get(), w as i32, h as i32);
+            let res = film(fbo.0.get(), w as i32, h as i32);
             gl.bind_framebuffer(glow::FRAMEBUFFER, saved);
             gl.viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
-            res.map_err(|e| e.to_string())?;
+            res?;
         }
         Ok(true)
     }
@@ -585,14 +585,17 @@ impl Pipeline {
         (ok, resized)
     }
 
-    /// Pull mpv's current frame and run the whole chain.
+    /// Pull the film's current frame and run the whole chain.
+    ///
+    /// `film` draws the picture into the framebuffer it is handed, at the
+    /// width and height given: mpv's render context, in the player.
     ///
     /// Returns false if nothing could be rendered (a zero-sized window, or a
     /// failed allocation), in which case the previous textures still stand.
     pub fn render(
         &mut self,
         gl: &glow::Context,
-        ctx: &RenderContext,
+        film: impl Fn(u32, i32, i32) -> Result<(), String>,
         frame: &Frame,
     ) -> Result<bool, String> {
         let Frame {
@@ -636,14 +639,14 @@ impl Pipeline {
         let mut drew_film_again = false;
         if self.show_backdrop && self.backdrop.is_some() {
             if resized || self.backdrop_arriving() {
-                if self.backdrop_over_film && !self.render_film(gl, ctx, w, h)? {
+                if self.backdrop_over_film && !self.render_film(gl, &film, w, h)? {
                     return Ok(false);
                 }
                 self.draw_backdrop(gl, w, h);
                 drew_backdrop = true;
             }
         } else if new_frame || resized || self.film_wanted {
-            if !self.render_film(gl, ctx, w, h)? {
+            if !self.render_film(gl, &film, w, h)? {
                 return Ok(false);
             }
             drew_film_again = std::mem::take(&mut self.film_wanted);
