@@ -142,6 +142,11 @@ impl Beat {
     }
 }
 
+/// How long [`Verdict::expect`] waits for a step to come through. On one
+/// core and software GL, sharing it with ffmpeg making the previews, a switch
+/// of audio track takes over a second and a half to reach the window.
+const GRACE: Duration = Duration::from_secs(5);
+
 thread_local! {
     /// Checks failed in the run so far.
     static FAILED: Cell<u32> = const { Cell::new(0) };
@@ -163,6 +168,16 @@ impl Verdict {
             name,
             failed: Cell::new(0),
         }
+    }
+
+    /// Say whether `what` holds, given up to [`GRACE`] to come true: a step
+    /// it follows is checked for taking effect, not for how fast it did.
+    pub async fn expect(&self, holds: impl Fn() -> bool, what: &str) {
+        let until = Instant::now() + GRACE;
+        while !holds() && Instant::now() < until {
+            sleep(Duration::from_millis(100)).await;
+        }
+        self.check(holds(), what);
     }
 
     /// Say whether `what` held.

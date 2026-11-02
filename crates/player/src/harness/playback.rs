@@ -34,56 +34,73 @@ pub(super) fn input_test(ui: &MainWindow) -> Script {
             |rows: slint::ModelRc<crate::TrackItem>| rows.iter().find(|t| t.selected).map(|t| t.id);
         script::loaded(&ui).await;
         let mut beat = Beat::new(Duration::from_millis(1500));
-        // Alternating act / observe, so each report reflects a settled
-        // state rather than one still in flight.
+        // Alternating act / observe. Each report follows its check, so it
+        // shows the state the check waited for rather than one in flight.
         beat.next().await;
         report(&ui, "start");
         beat.next().await;
         playback.invoke_toggle_pause();
         beat.next().await;
+        verdict
+            .expect(|| playback.get_paused(), "a toggle pauses")
+            .await;
         report(&ui, "after toggle-pause");
-        verdict.check(playback.get_paused(), "a toggle pauses");
         beat.next().await;
         playback.invoke_toggle_pause();
         beat.next().await;
+        verdict
+            .expect(|| !playback.get_paused(), "a second toggle plays on")
+            .await;
         report(&ui, "after toggle again");
-        verdict.check(!playback.get_paused(), "a second toggle plays on");
         beat.next().await;
         playback.invoke_seek_fraction(0.5);
         beat.next().await;
+        verdict
+            .expect(
+                || (playback.get_progress() - 0.5).abs() < 0.1,
+                "a seek to half way lands there",
+            )
+            .await;
         report(&ui, "after seek to 50%");
-        verdict.check(
-            (playback.get_progress() - 0.5).abs() < 0.1,
-            "a seek to half way lands there",
-        );
         beat.next().await;
         let volume = playback.get_volume();
         playback.invoke_nudge_volume(-15.0);
         beat.next().await;
+        verdict
+            .expect(
+                || (playback.get_volume() - (volume - 15.0)).abs() < 0.5,
+                "the volume comes down by what was asked",
+            )
+            .await;
         report(&ui, "after volume -15");
-        verdict.check(
-            (playback.get_volume() - (volume - 15.0)).abs() < 0.5,
-            "the volume comes down by what was asked",
-        );
         beat.next().await;
         let progress = playback.get_progress();
         playback.invoke_seek_relative(-3.0);
         beat.next().await;
+        verdict
+            .expect(
+                || playback.get_progress() < progress,
+                "a seek back goes back",
+            )
+            .await;
         report(&ui, "after seek -3s");
-        verdict.check(playback.get_progress() < progress, "a seek back goes back");
         beat.next().await;
         playback.invoke_toggle_mute();
         beat.next().await;
+        verdict
+            .expect(|| playback.get_muted(), "a toggle mutes")
+            .await;
         report(&ui, "after toggle-mute");
-        verdict.check(playback.get_muted(), "a toggle mutes");
         beat.next().await;
         tracks.invoke_select_audio(2);
         beat.next().await;
+        verdict
+            .expect(
+                || selected(tracks.get_audio()) == Some(2),
+                "the audio track picked plays",
+            )
+            .await;
         report(&ui, "after audio -> id 2");
-        verdict.check(
-            selected(tracks.get_audio()) == Some(2),
-            "the audio track picked plays",
-        );
         beat.next().await;
         tracks.invoke_select_subtitle(2);
         beat.next().await;
@@ -91,26 +108,34 @@ pub(super) fn input_test(ui: &MainWindow) -> Script {
         beat.next().await;
         tracks.invoke_select_subtitle(-1);
         beat.next().await;
+        verdict
+            .expect(|| !subtitles.get_visible(), "subtitles turned off are off")
+            .await;
         report(&ui, "after subs off");
-        verdict.check(!subtitles.get_visible(), "subtitles turned off are off");
         beat.next().await;
         subtitles.invoke_toggle();
         beat.next().await;
+        verdict
+            .expect(
+                || subtitles.get_visible() && selected(tracks.get_subtitles()).is_some(),
+                "a toggle turns subtitles on, on a track",
+            )
+            .await;
         report(&ui, "after captions toggle");
-        verdict.check(
-            subtitles.get_visible() && selected(tracks.get_subtitles()).is_some(),
-            "a toggle turns subtitles on, on a track",
-        );
         beat.next().await;
         playback.invoke_toggle_panscan();
         beat.next().await;
+        verdict
+            .expect(|| playback.get_panscan(), "a toggle fills the window")
+            .await;
         eprintln!("dbm: panscan now {}", playback.get_panscan());
-        verdict.check(playback.get_panscan(), "a toggle fills the window");
         beat.next().await;
         playback.invoke_toggle_panscan();
         beat.next().await;
+        verdict
+            .expect(|| !playback.get_panscan(), "a second toggle fits it again")
+            .await;
         eprintln!("dbm: panscan back to {}", playback.get_panscan());
-        verdict.check(!playback.get_panscan(), "a second toggle fits it again");
         beat.next().await;
         // The mute is still on. Now the bar is used: the level has to arrive
         // and the mute has to go, since either alone is a volume nobody can
@@ -119,11 +144,13 @@ pub(super) fn input_test(ui: &MainWindow) -> Script {
         beat.next().await;
         playback.invoke_set_volume(120.0);
         beat.next().await;
+        verdict
+            .expect(
+                || !playback.get_muted() && (playback.get_volume() - 120.0).abs() < 0.5,
+                "the bar sets the level and unmutes",
+            )
+            .await;
         report(&ui, "after the bar was used while muted");
-        verdict.check(
-            !playback.get_muted() && (playback.get_volume() - 120.0).abs() < 0.5,
-            "the bar sets the level and unmutes",
-        );
         verdict.finish();
     })
 }
