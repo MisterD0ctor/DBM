@@ -1518,8 +1518,12 @@ doing in it.
   INTERFACE: *Accessibility*, *Shortcuts* and *Language*
 - **VIDEO:** *Speed*, a stepper on the ladder `<` and `>` climb, so the
   pointer has a way to it too; *Fill the window*, the bar's T as a switch; and
-  *Show the time left*, the timeline's right end as a switch. Then, between
-  group gaps, the picture as mpv draws it, *Brightness*, *Contrast*,
+  *Show the time left*, the timeline's right end as a switch. Then, after a
+  group gap, how a list plays on: *Skip intros*, *Autoplay next*, and *Skip
+  credits* while autoplay is on. Settings about every episode rather than
+  the one playing, set once and left, so they are kept here rather than
+  under the playlist, which is opened to pick an episode and would give up
+  rows of it to them. Then, between group gaps, the picture as mpv draws it, *Brightness*, *Contrast*,
   *Saturation* and *Gamma*, each from -100 to 100 and none by default, read
   as `+10` or `−20` and filled out from the middle of the track, where none of
   it is (see Sliders); and *Reset the picture*, which leaves the rows above it alone. A
@@ -1587,9 +1591,9 @@ doing in it.
   parameters, where the eye judges the result and the number is incidental.
 
 ### Switches
-- **Row:** `Rows.toggle-row`; switch first, label after it at Body (the rows'
-  own step, because a switch sits under a list as a setting *about* it, and at
-  Strong the autoplay row would out-ink the episodes it governs)
+- **Row:** `Rows.toggle-row`; switch first, label after it at Body, the rows'
+  own step, as a drill row's label is: a switch is one more row of its page,
+  and at Strong it would out-ink the rows around it
 - **Shape:** a capsule (`ToggleRow.toggle`, `ToggleRow.track`) with a knob
   inset in it (`ToggleRow.knob`). Both are drawn from shapes (`ui/shapes/`)
   rather than as rounded rectangles: the renderer lays a rounded corner down as
@@ -1606,9 +1610,10 @@ doing in it.
   knob; off, track at On ring rail and knob at On ring
 - **Motion:** `Motion.switch` ease-out on the knob and on the track colour
 - **Hover:** Soft wash; one target for the whole row
-- **Use:** Autoplay under the playlist; Ambient border at the head of its own
+- **Use:** Ambient border at the head of its own
   page, over the sliders that tune it, since whether comes before how; *Fill
-  the window* and *Show the time left* under the speed on the video page; and
+  the window* and *Show the time left* under the speed on the video page, and
+  *Skip intros*, *Autoplay next* and *Skip credits* in a group after them; and
   Animations, Darken bright glass, Tooltips and Shortcuts in tooltips on the
   accessibility page under its *Interface size* — a page with no reset,
   because each row is its own undo. B still turns the border on and off from anywhere, as the one
@@ -1618,7 +1623,8 @@ doing in it.
   page under Body, which the glass is not held for, and turning the first
   back on brings the second up under it, where the eye already is. The panel
   grows and shrinks for it as it does between pages — Shortcuts in tooltips
-  only while Tooltips is on
+  only while Tooltips is on, and Skip credits only while Autoplay next is on,
+  since going on from the credits goes no further than autoplay would
 
 ### Drill rows
 - **Row:** `Rows.row`; a row icon and the label, both at Body, with a chevron
@@ -2002,6 +2008,23 @@ end pill it is not tied to the idle clock. It stands aside for an open panel
 and for the seek preview when the preview reaches its column; a hover label
 that would land on it goes up a row instead. Glass never lies on glass.
 
+**Going on by itself.** For someone who turned on *Skip credits* on the
+video page, the pill counts down: a Button wash fills its capsule from the
+start over `skips.COUNTDOWN` seconds of the film, the On ring wash when the
+ring is on it, and when it is full the pill is pressed for them. It goes
+only where autoplay would — the next file, or a scene after the credits —
+so it counts down to nothing at the end of a season, where the way on is a
+folder autoplay never opens, and the switch is there only while autoplay
+is on. The next file comes in as autoplay brings one, from the top with its
+place offered. The credits are a guess often enough — a short last chapter,
+a song two episodes share — that going on without showing it first would
+cut a scene short unseen; the count is the showing. Seconds of the film, so
+a pause holds it; a seek stops it, because seeking in the credits is
+wanting to see them, and they roll to the end as they would have. Pressing
+the pill goes at once. It counts only while the pill is the credits': the
+way back after a jump and a passed-over place each take the corner, and
+the count starts when they have gone.
+
 **Skipping to a scene after the credits.** Where something of the episode's
 own follows its credits, or stops them part way — a scene, a last shot —
 going on from them would skip it, so the capsule says *Skip credits*
@@ -2036,6 +2059,18 @@ read is noise.
 It needs nowhere to go, so the last episode of a season has it too; a film
 never does, for the reason it has no credits pill.
 
+**Skipped by itself.** For someone who turned on *Skip intros* on the video
+page, the sequence goes as it starts, with no count: an intro is short
+and comes round every episode, and seconds spent showing the offer would be
+seconds of the thing being skipped. What shows it instead is the way back
+after (see *Going back after a jump*), *Back to 0:42*, from where the skip
+left, so a sequence heard wrong costs one press. Once a file: going back to
+it is wanting to see it, and a seek that lands part way into it — not at
+its start, where a file starting over lands — is too, so either leaves it
+to play with *Skip intro* offered by hand. It waits for the place autoplay
+passed over, which is offered from the file's first frame and would be
+lost to the jump, and goes once that offer has.
+
 **Going back to where you were.** The same pill again, for a file autoplay
 brought in from the beginning though it had been left part way: for its first
 seconds (`arrival.OFFER_FOR`) it says *Continue from 12:34*, with the play
@@ -2059,6 +2094,8 @@ time in one press; either throws away the place a film had been watched to,
 the one thing the player keeps that nothing on screen shows again. Jumping
 again while it is offered keeps the first place, the one that was lost; going
 anywhere else, or playing on past its seconds, ends it, and a pause keeps it.
+A title sequence the player skipped by itself is offered back the same way
+however short or early the jump, since nobody's hand chose it.
 It takes the corner from every other offer, being the answer to what the hand
 just did. The arrows seek by steps someone chose, and offer nothing; nor does a
 jump from the film's first minute (`retrace.WORTH_KEEPING`), a place Home goes

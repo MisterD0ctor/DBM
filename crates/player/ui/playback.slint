@@ -148,6 +148,10 @@ export global Playback {
     /// back there (see `playback::retrace`).
     in property <string> back-offer;
     callback take-back-offer();
+    /// How far the credits pill has counted towards going on by itself, 0
+    /// to 1, for someone who asked for the credits to be skipped (see
+    /// `playback::skips`). 0 while nothing counts.
+    in property <float> credits-count;
     /// The playing file, for the dialogs to open near.
     in property <string> path;
 }

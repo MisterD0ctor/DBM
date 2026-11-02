@@ -16,6 +16,11 @@ pub enum Toggle {
     Glass,
     /// Advance through the playlist at the end of a file.
     Autoplay,
+    /// Skip an episode's title sequence as it starts (see `skips`).
+    SkipIntros,
+    /// Go on from an episode's credits as they start, once their pill has
+    /// counted down. Only as far as autoplay goes, so only while it is on.
+    SkipCredits,
     /// Whether anything in the interface moves (see `Motion` in theme.slint),
     /// including the backdrop the pipeline fades up.
     Animations,
@@ -35,10 +40,12 @@ pub enum Toggle {
 impl Toggle {
     /// Every switch, in the order the file lists them and in declaration
     /// order, which indexes `Store::toggles`.
-    pub(super) const ALL: [Self; 8] = [
+    pub(super) const ALL: [Self; 10] = [
         Self::Ambience,
         Self::Glass,
         Self::Autoplay,
+        Self::SkipIntros,
+        Self::SkipCredits,
         Self::Animations,
         Self::LegibleGlass,
         Self::Tips,
@@ -52,6 +59,8 @@ impl Toggle {
             Self::Ambience => "ambience.enabled",
             Self::Glass => "glass.enabled",
             Self::Autoplay => "playback.autoplay",
+            Self::SkipIntros => "playback.skip-intros",
+            Self::SkipCredits => "playback.skip-credits",
             Self::Animations => "accessibility.animations",
             Self::LegibleGlass => "accessibility.legible-glass",
             Self::Tips => "accessibility.tooltips",
@@ -60,9 +69,10 @@ impl Toggle {
         }
     }
 
-    /// Before the person says otherwise.
+    /// Before the person says otherwise. The skips cut something out of an
+    /// episode, so only someone who asked for that gets it.
     pub(super) const fn default_on(self) -> bool {
-        !matches!(self, Self::Remaining)
+        !matches!(self, Self::Remaining | Self::SkipIntros | Self::SkipCredits)
     }
 }
 

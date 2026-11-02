@@ -308,4 +308,23 @@ mod tests {
         older.apply_saved(&[("accessibility.animations".to_string(), 0.0)]);
         assert!(older.is_on(Toggle::Tips) && older.is_on(Toggle::TipKeys));
     }
+
+    #[test]
+    fn skipping_is_off_until_asked_for_and_then_kept() {
+        let store = Store::default();
+        assert!(
+            !store.is_on(Toggle::SkipIntros) && !store.is_on(Toggle::SkipCredits),
+            "nothing is cut from an episode unasked"
+        );
+        store.turn(Toggle::SkipIntros, true);
+        store.turn(Toggle::SkipCredits, true);
+        let loaded = Store::default();
+        loaded.apply_saved(&store.to_saved());
+        assert!(loaded.is_on(Toggle::SkipIntros) && loaded.is_on(Toggle::SkipCredits));
+
+        // A file from before the switches skips nothing.
+        let older = Store::default();
+        older.apply_saved(&[("playback.autoplay".to_string(), 1.0)]);
+        assert!(!older.is_on(Toggle::SkipIntros) && !older.is_on(Toggle::SkipCredits));
+    }
 }

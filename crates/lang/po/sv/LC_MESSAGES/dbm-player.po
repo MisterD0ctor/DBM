@@ -1083,3 +1083,7 @@ msgstr ","
 msgctxt "MainWindow"
 msgid "{}%"
 msgstr "{} %"
+
+msgctxt "MainWindow"
+msgid "Skip intros"
+msgstr "Hoppa över intron"

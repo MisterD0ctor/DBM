@@ -6,7 +6,8 @@
 //! key, a tenth of the film at a time, does it in one press. For ten seconds
 //! of the film after either moves it more than half a minute, the corner pill
 //! offers the way back (see `back-offer` in app.slint). The arrows seek by
-//! steps someone chose, and are left alone.
+//! steps someone chose, and are left alone. A title sequence the player
+//! skipped by itself is offered back the same way (see `skips`).
 
 use std::cell::RefCell;
 
@@ -81,6 +82,18 @@ impl Retrace {
                 to,
                 arrived: false,
             });
+    }
+
+    /// The player skipped from `from` to `to` by itself (see `skips`). That
+    /// is offered back however short or early it was, because nobody chose
+    /// it. The skips wait for the corner, so no other way back is lost.
+    pub fn skipped(&self, path: &MediaPath, from: f64, to: f64) {
+        self.state.borrow_mut().offer = Some(Offer {
+            path: path.clone(),
+            from,
+            to,
+            arrived: false,
+        });
     }
 
     /// The place to go back to, while it is offered.
@@ -165,5 +178,14 @@ mod tests {
         assert_eq!(retrace.offered(Some(&a), 240.0), None);
         retrace.landed(&a, 240.0, 900.0);
         assert_eq!(retrace.offered(Some(&"b.mkv".into()), 900.0), None);
+    }
+
+    #[test]
+    fn a_skip_the_player_made_is_offered_back_from_the_start() {
+        let retrace = Retrace::default();
+        let a = MediaPath::from("a.mkv");
+        retrace.skipped(&a, 2.0, 40.0);
+        assert_eq!(retrace.offered(Some(&a), 40.0), Some(2.0));
+        assert_eq!(retrace.offered(Some(&a), 51.0), None);
     }
 }

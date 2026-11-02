@@ -579,6 +579,8 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script 
     script::run(ui, move |ui| async move {
         let mut beat = Beat::new(Duration::from_millis(1000));
         let playback = ui.global::<Playback>();
+        // The pill is what is tested, so nothing presses it for the person.
+        turn_skips(&ui, false);
         beat.rest(3).await;
         // Nothing is given to the file and nothing read off it: where
         // its credits are is for the player to have heard by the time
@@ -615,22 +617,9 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script 
                 marks.push((duration - 80.0, "Mid-Credits Scene"));
                 marks.push((duration - 40.0, "Credits"));
             }
-            let mut text = String::from(";FFMETADATA1\n");
-            for (at, &(start, title)) in marks.iter().enumerate() {
-                let end = marks.get(at + 1).map_or(duration, |next| next.0);
-                text += &format!(
-                    "[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\ntitle={title}\n",
-                    (start * 1000.0) as u64,
-                    (end * 1000.0) as u64,
-                );
-            }
-            let marks = std::env::temp_dir().join("dbm-credits-test.ffmeta");
-            if let Err(e) = std::fs::write(&marks, text) {
-                eprintln!("dbm: credits: cannot write chapters: {e}");
+            if let Err(e) = give_chapters(&mpv, &marks, duration) {
+                eprintln!("dbm: credits: {e}");
                 return;
-            }
-            if let Err(e) = mpv.set_property("chapters-file", &marks.to_string_lossy()) {
-                eprintln!("dbm: credits: mpv refused chapters-file: {e}");
             }
             eprintln!("dbm: credits from {credits_at:.0}s of {duration:.0}s");
             ui.global::<Playlist>()
@@ -716,6 +705,7 @@ pub(super) fn intro_test(ui: &MainWindow) -> Script {
     script::run(ui, move |ui| async move {
         let mut beat = Beat::new(Duration::from_millis(700));
         let playback = ui.global::<Playback>();
+        turn_skips(&ui, false);
         // Let the film open first, then wait for its title sequence to be
         // found.
         beat.rest(4).await;
@@ -757,6 +747,139 @@ pub(super) fn intro_test(ui: &MainWindow) -> Script {
         report_intro(&ui, "after enter");
         beat.next().await;
         eprintln!("dbm: --- intro test done ---");
+    })
+}
+
+/// Give the files opened from now on `marks` for chapters, each running to
+/// the next and the last to `duration`: an ffmetadata file, which mpv reads
+/// through `chapters-file` as a file opens.
+fn give_chapters(mpv: &Mpv, marks: &[(f64, &str)], duration: f64) -> Result<(), String> {
+    let mut text = String::from(";FFMETADATA1\n");
+    for (at, &(start, title)) in marks.iter().enumerate() {
+        let end = marks.get(at + 1).map_or(duration, |next| next.0);
+        text += &format!(
+            "[CHAPTER]\nTIMEBASE=1/1000\nSTART={}\nEND={}\ntitle={title}\n",
+            (start * 1000.0) as u64,
+            (end * 1000.0) as u64,
+        );
+    }
+    let file = std::env::temp_dir().join("dbm-chapters-test.ffmeta");
+    std::fs::write(&file, text).map_err(|e| format!("cannot write chapters: {e}"))?;
+    mpv.set_property("chapters-file", &file.to_string_lossy())
+        .map_err(|e| format!("mpv refused chapters-file: {e}"))
+}
+
+/// Turn both skips on or off, as their switches do. The test settings
+/// outlive a run, so an exercise that cares sets them itself.
+fn turn_skips(ui: &MainWindow, on: bool) {
+    let settings = ui.global::<Settings>();
+    settings.set_skip_intros(on);
+    settings.invoke_set_skip_intros(on);
+    settings.set_skip_credits(on);
+    settings.invoke_set_skip_credits(on);
+}
+
+/// Skip a title sequence and go on from the credits without a hand on
+/// anything, as someone who turned both on would see it.
+///
+/// The chapters are supplied, as for `credits_test`: titles from 0:05 to
+/// 0:20 and credits over the last fifteen seconds, which fits the minute-long
+/// episodes `smoke-media.sh` makes. Needs an episode with a later one beside
+/// it.
+pub(super) fn skip_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+    script::run(ui, move |ui| async move {
+        let verdict = Verdict::new("skip");
+        let playback = ui.global::<Playback>();
+        script::loaded(&ui).await;
+        let duration = f64::from(playback.get_duration());
+        let credits_at = duration - 15.0;
+        let marks = [
+            (0.0, "Cold Open"),
+            (5.0, "Opening"),
+            (20.0, "Part A"),
+            (credits_at, "End Credits"),
+        ];
+        if let Err(e) = give_chapters(&mpv, &marks, duration) {
+            verdict.check(false, &e);
+            verdict.finish();
+            return;
+        }
+        let film = playback.get_path();
+        ui.global::<Playlist>().invoke_open_path(film.clone(), true);
+        verdict
+            .expect(
+                || playback.get_chapter_marks().row_count() == marks.len(),
+                "the file opens again with its titles and credits marked",
+            )
+            .await;
+        turn_skips(&ui, true);
+        let settings = ui.global::<Settings>();
+        settings.set_autoplay(true);
+        settings.invoke_set_autoplay(true);
+        let at = || f64::from(playback.get_progress()) * duration;
+        let seek = |to: f64| playback.invoke_seek_fraction((to / duration) as f32);
+
+        seek(2.0);
+        verdict
+            .expect(|| at() > 4.0, "the film plays up to its titles")
+            .await;
+        // Further than five seconds of playing could take it.
+        verdict
+            .expect(|| at() >= 19.5, "the titles are skipped as they start")
+            .await;
+        verdict
+            .expect(
+                || playback.get_back_offer() == "0:05",
+                "the corner offers the way back to them",
+            )
+            .await;
+        playback.invoke_take_back_offer();
+        verdict
+            .expect(|| (5.0..8.0).contains(&at()), "the way back goes to them")
+            .await;
+        Beat::new(Duration::from_millis(3000)).next().await;
+        verdict.check(
+            at() < 19.0 && playback.get_intro_rolling(),
+            "and they play, offered to skip by hand",
+        );
+
+        seek(credits_at - 2.0);
+        verdict
+            .expect(
+                || playback.get_credits_count() > 0.0,
+                "the credits pill counts down",
+            )
+            .await;
+        verdict
+            .expect(|| at() >= credits_at + 2.5, "the count runs with the film")
+            .await;
+        // Back to read a name, and still in the credits.
+        seek(credits_at);
+        verdict
+            .expect(|| playback.get_credits_count() == 0.0, "a seek stops it")
+            .await;
+        Beat::new(Duration::from_millis(6000)).next().await;
+        verdict.check(
+            playback.get_path() == film && playback.get_credits_rolling(),
+            "and the credits roll",
+        );
+
+        // Back out of them and into them again, for a fresh count.
+        seek(credits_at - 2.0);
+        verdict
+            .expect(
+                || playback.get_credits_count() >= 0.5,
+                "the next count gets half way",
+            )
+            .await;
+        verdict
+            .expect(
+                || playback.get_path() != film,
+                "and goes on to the next episode before the end",
+            )
+            .await;
+        turn_skips(&ui, false);
+        verdict.finish();
     })
 }
 

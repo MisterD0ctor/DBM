@@ -21,6 +21,12 @@ export global Settings {
     callback choose-language(int);
     in-out property <bool> ambience-on: true;
     in-out property <bool> autoplay: true;
+    /// Whether an episode's title sequence is skipped as it starts, and its
+    /// credits gone on from once their pill has counted down (see
+    /// `playback::skips`). The second only goes as far as autoplay would, so
+    /// it is offered only while autoplay is on.
+    in-out property <bool> skip-intros: false;
+    in-out property <bool> skip-credits: false;
     /// Registry index and its new normalised position.
     callback set-param(int, float);
     /// Restore one section to its defaults: 0 glass, 1 ambient border, 2 the
@@ -30,6 +36,8 @@ export global Settings {
     callback undo-reset(int);
     callback set-ambience(bool);
     callback set-autoplay(bool);
+    callback set-skip-intros(bool);
+    callback set-skip-credits(bool);
     /// The accessibility page's switch. `Motion.chosen` is already set when
     /// this runs; it saves the choice.
     callback set-animations(bool);

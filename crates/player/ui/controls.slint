@@ -211,6 +211,9 @@ export component EndChoice inherits Rectangle {
     /// pill's: zero when it fills the pill, the pill's padding when it shares
     /// it with another.
     in property <length> inset;
+    /// How much of the capsule a count has filled from its start, 0 to 1:
+    /// the credits pill counting down to going on by itself.
+    in property <float> filled;
     private property <bool> ring: root.focused && Chrome.focus-visible;
     callback picked();
 
@@ -234,6 +237,23 @@ export component EndChoice inherits Rectangle {
     RingPane {
         radius: root.height / 2;
         on: root.ring;
+    }
+
+    // A whole capsule's wash clipped to the share counted, so the start
+    // keeps the capsule's curve.
+    Rectangle {
+        x: 0px;
+        width: root.filled * root.width;
+        visible: root.filled > 0;
+        clip: true;
+
+        Squircle {
+            x: 0px;
+            width: root.width;
+            radius: root.height / 2;
+            inset: root.inset;
+            fill: root.ring ? Paint.on-ring-wash : Paint.wash-button;
+        }
     }
 
     HorizontalLayout {

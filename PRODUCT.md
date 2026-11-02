@@ -64,7 +64,12 @@ truthfully claim any of this.
   from the file's chapters, or by listening for the stretch it shares with
   another episode of its season — and where they were heard is kept in
   `intros.json` and `outros.json`, for that episode and the one it was
-  compared with.
+  compared with. Skipping either is offered by the corner pill; with *Skip
+  intros* or *Skip credits* on, on the video page of the settings, both off
+  until turned on,
+  it is done for the person — the titles at once, with the way back
+  offered, the credits once the pill has counted down. See
+  `playback/skips.rs`.
 - Subtitles can be fetched from OpenSubtitles for the film playing: a search
   by the file's own hash and by its name, in the interface's language and
   English, and a pick from the list. This is the **only** thing the player

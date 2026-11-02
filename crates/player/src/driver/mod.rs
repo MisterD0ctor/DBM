@@ -36,6 +36,7 @@ use crate::interface::subline::Picture;
 use crate::interface::{fades, format, glass, playlist_panel, sync, warn};
 use crate::platform::modal_loop;
 use crate::playback::commands;
+use crate::playback::skips::{Skip, Skips, Wanted};
 use crate::playback::state::PlayerState;
 use crate::settings::Toggle;
 use crate::worker::Completion;
@@ -184,6 +185,7 @@ pub struct Driver {
     hooks: Hooks,
     feeds: Feeds,
     per_file: PerFile,
+    skips: Skips,
 }
 
 /// The sentence every `Failure` is said under.
@@ -234,6 +236,7 @@ impl Driver {
             },
             feeds: Feeds::default(),
             per_file: PerFile::default(),
+            skips: Skips::default(),
         }
     }
 
@@ -577,6 +580,10 @@ impl Driver {
             .retrace
             .offered(self.player.path.as_ref(), self.player.time_pos);
         playback.set_back_offer(back.map(format::time).unwrap_or_default().into());
+        let corner_free =
+            held.is_none() && offered.is_none() && back.is_none() && !self.app.arrival.holding();
+        self.skip(corner_free);
+        playback.set_credits_count(self.skips.counted(&self.player));
         // An open is over when mpv finishes opening a file, not when it has
         // one, which is already true while a film plays. Failures end it their
         // own ways: a scan that found nothing where the scan reports back, and
@@ -617,6 +624,28 @@ impl Driver {
             commands::set_pause(&self.app.mpv, true);
         }
         moved
+    }
+
+    /// Skip the titles or the credits, where the person asked for that and
+    /// one is playing (see `skips`).
+    fn skip(&mut self, corner_free: bool) {
+        let settings = &self.app.settings;
+        let wanted = Wanted {
+            intros: settings.is_on(Toggle::SkipIntros),
+            credits: settings.is_on(Toggle::SkipCredits) && settings.is_on(Toggle::Autoplay),
+        };
+        let mpv = &self.app.mpv;
+        match self.skips.follow(&self.player, wanted, corner_free) {
+            Some(Skip::Intro { from, to }) => {
+                commands::seek_to(mpv, to);
+                if let Some(path) = &self.player.path {
+                    self.app.retrace.skipped(path, from, to);
+                }
+            }
+            Some(Skip::Scene(at)) => commands::seek_to(mpv, at),
+            Some(Skip::Next) => self.app.arrival.go_on(mpv),
+            None => {}
+        }
     }
 
     /// Bring everything that follows the player up to date with it: the OS

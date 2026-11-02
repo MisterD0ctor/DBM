@@ -236,7 +236,14 @@
 //!   not change while it fades out. Needs an episode with another of its season
 //!   beside it; point `APPDATA` at a scratch directory to watch it listen,
 //!   since what it hears is kept. `=hold` pauses inside the sequence instead
-//!   of pressing anything, to be captured.
+//!   of pressing anything, to be captured. This and `DBM_CREDITS_TEST` turn
+//!   the automatic skips off, since the pill is what they press.
+//! * `DBM_SKIP_TEST=1` — turns both automatic skips on, gives the file a
+//!   title sequence from 0:05 to 0:20 and credits over its last fifteen
+//!   seconds, and checks that the titles go as they start and are offered
+//!   back, and that the credits count down, stop for a seek, and go on to
+//!   the next episode before the end. Needs an episode with a later one
+//!   beside it; the smoke test's minute-long episodes are enough.
 //! * `DBM_SMTC_TEST=1` — presses the real media keys and reads the OS media
 //!   session back, checking both directions against Windows rather than our
 //!   own copy of what it was told. Windows only.
@@ -355,6 +362,9 @@ const EXERCISES: &[(&str, Start)] = &[
         _ => playback::scrub_test(ui),
     }),
     ("DBM_INTRO_TEST", |ui, _, _| playback::intro_test(ui)),
+    ("DBM_SKIP_TEST", |ui, app, _| {
+        playback::skip_test(ui, app.mpv.clone())
+    }),
     ("DBM_CREDITS_TEST", |ui, app, _| {
         playback::credits_test(ui, app.mpv.clone())
     }),

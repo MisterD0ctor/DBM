@@ -47,6 +47,18 @@ enum Then {
     Over { play: bool, offer: Option<f64> },
 }
 
+/// What becomes of a file autoplay brings in: nothing, where nothing is
+/// saved for it, and otherwise it starts from the top, with its place
+/// offered where it was left part way.
+fn autoplayed(progress: &Progress) -> Option<Then> {
+    let offer = match Saved::of(progress) {
+        Saved::Nothing => return None,
+        Saved::Over => None,
+        Saved::Place(from) => Some(from),
+    };
+    Some(Then::Over { play: true, offer })
+}
+
 #[derive(Default)]
 struct State {
     /// Every playlist entry's path and what is saved for it, in order: what
@@ -164,18 +176,32 @@ impl Arrival {
             return;
         }
         let mut state = self.state.borrow_mut();
-        let saved = state
+        let Some(then) = state
             .rows
             .iter()
             .find(|(path, _)| path == next)
-            .map_or(Saved::Nothing, |(_, progress)| Saved::of(progress));
-        let offer = match saved {
-            Saved::Nothing => return,
-            Saved::Over => None,
-            Saved::Place(from) => Some(from),
+            .and_then(|(_, progress)| autoplayed(progress))
+        else {
+            return;
         };
         commands::set_pause(mpv, true);
-        Self::expect(&mut state, next.clone(), Then::Over { play: true, offer });
+        Self::expect(&mut state, next.clone(), then);
+    }
+
+    /// Autoplay going on before the file playing has ended, from its credits
+    /// (see `skips`): the next entry starts from the top, playing, as after
+    /// [`played_out`](Self::played_out).
+    pub fn go_on(&self, mpv: &Mpv) {
+        let mut state = self.state.borrow_mut();
+        let Some(index) = state.pos.map(|pos| pos + 1) else {
+            return;
+        };
+        let then = state
+            .rows
+            .get(index)
+            .filter(|_| !crate::run_mode::armed())
+            .and_then(|(path, progress)| Some((path.clone(), autoplayed(progress)?)));
+        Self::ask_for(&mut state, mpv, index as i64, then, Some(true));
     }
 
     /// The place autoplay passed over in the file playing, while it is still
@@ -234,6 +260,17 @@ impl Arrival {
             };
             Some((path.clone(), then))
         });
+        Self::ask_for(&mut state, mpv, index, then, play);
+    }
+
+    /// Ask mpv for entry `index`, and note what to do once it has loaded.
+    fn ask_for(
+        state: &mut State,
+        mpv: &Mpv,
+        index: i64,
+        then: Option<(MediaPath, Then)>,
+        play: Option<bool>,
+    ) {
         // Whatever was being asked about or offered gives way to another
         // file.
         state.asking = None;
@@ -251,7 +288,7 @@ impl Arrival {
             Some((wanted, then)) => {
                 commands::set_pause(mpv, true);
                 commands::playlist_play(mpv, index);
-                Self::expect(&mut state, wanted, then);
+                Self::expect(state, wanted, then);
             }
         }
     }

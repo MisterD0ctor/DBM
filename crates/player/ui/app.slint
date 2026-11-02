@@ -504,7 +504,7 @@ export component MainWindow inherits Window {
             ? (root.account-open ? root.account-focus-count : root.find-focus-count)
             : root.subs-page != 0 ? root.subs-page-count : root.subs-focus-count)
         : root.audio-open ? Tracks.audio.length
-        : root.playlist-open ? root.playlist-lead + root.playlist-rows + 1
+        : root.playlist-open ? root.playlist-lead + root.playlist-rows
         : root.files-open ? 2
         : root.settings-open ? root.settings-focus-count
         : (!root.has-file && root.fatal == "") ? 4 + root.invite-first
@@ -525,16 +525,16 @@ export component MainWindow inherits Window {
         : root.menu-open && !root.find-open && root.subs-page != 0
             && root.subs-page-count == 4;
     /// Per page: the rows, the way back, and the reset after them, plus the
-    /// switch on the ambient border's, and on the video page the speed and
-    /// its two switches. Accessibility has no reset, since each row undoes
-    /// itself, and the shortcuts page has only the way back.
+    /// switch on the ambient border's, and on the video page the speed, its
+    /// two switches and the list's. Accessibility has no reset, since each row
+    /// undoes itself, and the shortcuts page has only the way back.
     property <int> settings-focus-count:
         root.settings-page == 0 ? 6
         : root.settings-page == 1 ? 2 + Settings.glass-params.length
         : root.settings-page == 2 ? 3 + Settings.border-params.length
         : root.settings-page == 3 ? 2 + root.access-switches
         : root.settings-page == 5 ? 1 + root.language-count
-        : root.settings-page == 6 ? 5 + Settings.picture-params.length
+        : root.settings-page == 6 ? root.picture-from + Settings.picture-params.length + 1
         : 1;
     /// The same count for `leaf-page`, which on the way back out isn't the
     /// page the keyboard is on. Counting off the live page would light the
@@ -543,12 +543,17 @@ export component MainWindow inherits Window {
         root.leaf-page == 1 ? 2 + Settings.glass-params.length
         : root.leaf-page == 2 ? 3 + Settings.border-params.length
         : root.leaf-page == 3 ? 2 + root.access-switches
-        : root.leaf-page == 6 ? 5 + Settings.picture-params.length
+        : root.leaf-page == 6 ? root.picture-from + Settings.picture-params.length + 1
         : root.leaf-page == 5 ? 1 + root.language-count
         : 1;
     /// The accessibility page's switches. Shortcuts in tooltips is there only
     /// while there are tooltips to put them in.
     property <int> access-switches: Tip.enabled ? 4 : 3;
+    /// The video page's switches about how a list plays, from row 4: Skip
+    /// intros, Autoplay next, and Skip credits while autoplay is on, since
+    /// it goes no further than autoplay. The picture's sliders follow them.
+    property <int> list-switches: Settings.autoplay ? 3 : 2;
+    property <int> picture-from: 4 + root.list-switches;
 
     /// Its rows, the two fixed ones included.
     property <int> language-count: 2 + Settings.language-names.length;
@@ -2111,8 +2116,8 @@ export component MainWindow inherits Window {
         if (page == 5) {
             return root.language-count * root.row-h;
         }
-        // The speed and its two switches, then the picture's sliders between
-        // gaps, and their reset.
+        // The speed and its two switches, the list's switches, then the
+        // picture's sliders, each group after a gap, and their reset.
         if (page == 6) {
             return root.sliders-top(6) + Settings.picture-params.length * Rows.slider-row
                 + Rows.group-gap + root.row-h;
@@ -2155,13 +2160,17 @@ export component MainWindow inherits Window {
             : Settings.border-params.length;
     }
     pure function sliders-from(page: int) -> int {
-        return page == 2 ? 2 : page == 6 ? 4 : 1;
+        return page == 2 ? 2 : page == 6 ? root.picture-from : 1;
     }
     pure function sliders-top(page: int) -> length {
         return page == 2 ? root.toggle-h + Rows.group-gap
-            : page == 6 ? Rows.stepper-row + 2 * root.toggle-h + Rows.group-gap
+            : page == 6 ? root.list-switches-top + root.list-switches * root.toggle-h
+                + Rows.group-gap
             : 0px;
     }
+    /// Where the video page's list switches start: under the speed and its
+    /// two switches, and a gap.
+    property <length> list-switches-top: Rows.stepper-row + 2 * root.toggle-h + Rows.group-gap;
     /// Whether a row of a page of sliders is one of them.
     pure function is-slider(page: int, row: int) -> bool {
         return (page == 1 || page == 2 || page == 6) && row >= root.sliders-from(page)
@@ -2181,9 +2190,12 @@ export component MainWindow inherits Window {
         if (page == 2 && row == 1) {
             return 0px;
         }
-        // The speed, then its two switches.
+        // The speed, then its two switches, then a gap and the list's.
         if (page == 6 && row <= 3) {
             return row == 1 ? 0px : Rows.stepper-row + (row - 2) * root.toggle-h;
+        }
+        if (page == 6 && row < root.picture-from) {
+            return root.list-switches-top + (row - 4) * root.toggle-h;
         }
         if (page == 1 || page == 2 || page == 6) {
             return root.sliders-top(page) + (root.is-slider(page, row)
@@ -2205,7 +2217,7 @@ export component MainWindow inherits Window {
         if ((page == 3 || page == 6) && row == 1) {
             return Rows.stepper-row;
         }
-        if ((page == 2 && row == 1) || (page == 6 && row <= 3)) {
+        if ((page == 2 && row == 1) || (page == 6 && row < root.picture-from)) {
             return root.toggle-h;
         }
         if (page == 3) {
@@ -2271,19 +2283,16 @@ export component MainWindow inherits Window {
     property <length> playlist-head-h: root.playlist-lead > 0 ? root.row-h : root.heading-h;
     out property <length> playlist-natural: root.playlist-rows * root.row-h;
     out property <length> playlist-h: min(
-        root.panel-pad + root.playlist-head-h + root.playlist-natural
-            + Rows.group-gap + root.toggle-h,
+        root.panel-pad + root.playlist-head-h + root.playlist-natural,
         root.panel-max-h);
-    /// The room the two pages share: the panel inside its padding, less the
-    /// switch below them, which belongs to neither page.
+    /// The room the two pages share: the panel inside its padding.
     ///
     /// From the panel's height this frame rather than `playlist-h`, its
-    /// destination, which differs during a drill's animation; otherwise the
-    /// switch, packed after this, would jump while the panel eased. Reading a
-    /// height property is not a layout query, so the "bar geometry" rule
-    /// holds.
-    property <length> playlist-pages-h: max(0px,
-        playlist-panel.height - root.panel-pad - Rows.group-gap - root.toggle-h);
+    /// destination, which differs during a drill's animation, so the lists
+    /// ease with the panel rather than taking their new height at once.
+    /// Reading a height property is not a layout query, so the "bar
+    /// geometry" rule holds.
+    property <length> playlist-pages-h: max(0px, playlist-panel.height - root.panel-pad);
     /// Each page's list under its own head: a heading on the list of parts,
     /// a way back on a part's page. Both are needed while the two slide past
     /// each other.
@@ -2299,8 +2308,7 @@ export component MainWindow inherits Window {
     /// Each list's height once the panel has finished moving to its page:
     /// all of its rows, or what the tallest panel leaves for them (see
     /// `rest-height` on the list).
-    property <length> playlist-pages-rest-h: max(0px,
-        root.panel-max-h - root.panel-pad - Rows.group-gap - root.toggle-h);
+    property <length> playlist-pages-rest-h: max(0px, root.panel-max-h - root.panel-pad);
     property <length> playlist-top-rest-h: min(root.playlist-top-natural,
         max(0px, root.playlist-pages-rest-h - root.heading-h));
     property <length> playlist-leaf-rest-h: min(root.playlist-leaf-natural,
@@ -2738,11 +2746,8 @@ export component MainWindow inherits Window {
         if (root.playlist-open) {
             if (root.focus-row < root.playlist-lead) {
                 root.playlist-back();
-            } else if (root.focus-row < root.playlist-lead + root.playlist-rows) {
-                root.playlist-pick(root.focus-row - root.playlist-lead);
             } else {
-                Settings.autoplay = !Settings.autoplay;
-                Settings.set-autoplay(Settings.autoplay);
+                root.playlist-pick(root.focus-row - root.playlist-lead);
             }
             return true;
         }
@@ -2816,6 +2821,11 @@ export component MainWindow inherits Window {
         }
         if (root.settings-page == 6 && root.focus-row == 3) {
             root.set-remaining-shown(!Settings.show-remaining);
+            return true;
+        }
+        if (root.settings-page == 6 && root.focus-row >= 4
+                && root.focus-row < root.picture-from) {
+            root.list-switch(root.focus-row - 4);
             return true;
         }
         if (root.settings-page == 5) {
@@ -3228,8 +3238,8 @@ export component MainWindow inherits Window {
             return true;
         }
         if (root.settings-page == 6 && root.is-slider(6, root.focus-row)) {
-            Settings.set-param(Settings.picture-params[root.focus-row - 4].index,
-                clamp(Settings.picture-params[root.focus-row - 4].fraction
+            Settings.set-param(Settings.picture-params[root.focus-row - root.picture-from].index,
+                clamp(Settings.picture-params[root.focus-row - root.picture-from].fraction
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
@@ -3421,7 +3431,7 @@ export component MainWindow inherits Window {
     }
 
     /// The list's own rows: not the way back above a part's page, nor the
-    /// autoplay switch under the playlist, nor the pages and the search under
+    /// pages and the search under
     /// the tracks, nor the account under the search's results.
     property <bool> find-listing: root.menu-open && root.find-open && !root.account-open;
     property <int> list-first: root.playlist-open ? root.playlist-lead
@@ -4194,6 +4204,21 @@ export component MainWindow inherits Window {
         }
     }
 
+    /// One of the video page's switches about how a list plays, pressed,
+    /// counted from Skip intros (see `list-switches`).
+    function list-switch(at: int) {
+        if (at == 0) {
+            Settings.skip-intros = !Settings.skip-intros;
+            Settings.set-skip-intros(Settings.skip-intros);
+        } else if (at == 1) {
+            Settings.autoplay = !Settings.autoplay;
+            Settings.set-autoplay(Settings.autoplay);
+        } else {
+            Settings.skip-credits = !Settings.skip-credits;
+            Settings.set-skip-credits(Settings.skip-credits);
+        }
+    }
+
     /// Play a file of the list, or, for one in a season beside the list
     /// rather than in it, open that season at that file.
     function playlist-play(entry: PlaylistItem) {
@@ -4798,7 +4823,8 @@ export component MainWindow inherits Window {
 
                 // How the film plays and how it looks: what is otherwise only
                 // on keys, the speed, beside the bar's fill and the timeline's
-                // time left, then the picture as mpv draws it.
+                // time left; how a list plays on; then the picture as mpv
+                // draws it.
                 if root.leaf-page == 6: VerticalLayout {
                     BackRow {
                         label: @tr("VIDEO");
@@ -4851,6 +4877,39 @@ export component MainWindow inherits Window {
                         Rectangle {
                             height: Rows.group-gap;
                         }
+                        // How a list plays rather than any one film: set once,
+                        // so kept here rather than under the playlist, which is
+                        // opened to pick an episode.
+                        ToggleRow {
+                            label: @tr("Skip intros");
+                            checked: Settings.skip-intros;
+                            focused: root.focus-row == 4;
+                            toggled(on) => {
+                                Settings.skip-intros = on;
+                                Settings.set-skip-intros(on);
+                            }
+                        }
+                        ToggleRow {
+                            label: @tr("Autoplay next");
+                            checked: Settings.autoplay;
+                            focused: root.focus-row == 5;
+                            toggled(on) => {
+                                Settings.autoplay = on;
+                                Settings.set-autoplay(on);
+                            }
+                        }
+                        if Settings.autoplay: ToggleRow {
+                            label: @tr("Skip credits");
+                            checked: Settings.skip-credits;
+                            focused: root.focus-row == 6;
+                            toggled(on) => {
+                                Settings.skip-credits = on;
+                                Settings.set-skip-credits(on);
+                            }
+                        }
+                        Rectangle {
+                            height: Rows.group-gap;
+                        }
                         for item[idx] in Settings.picture-params: ParamSlider {
                             label: item.label;
                             name-w: root.param-name-w;
@@ -4859,12 +4918,12 @@ export component MainWindow inherits Window {
                             origin: item.origin;
                             fraction: item.fraction;
                             readout: item.readout;
-                            focused: root.focus-row == idx + 4;
+                            focused: root.focus-row == idx + root.picture-from;
                             moved(f) => {
                                 Settings.set-param(item.index, f);
                             }
                             explained(on) => {
-                                root.explain-row(on, item.hint, idx + 4);
+                                root.explain-row(on, item.hint, idx + root.picture-from);
                             }
                         }
                         Rectangle {
@@ -5620,21 +5679,6 @@ export component MainWindow inherits Window {
                     }
                 }
             }
-            // Fixed at the bottom rather than scrolling or sliding with the
-            // pages, as a setting about whichever list is showing.
-            Rectangle {
-                height: Rows.group-gap;
-            }
-            ToggleRow {
-                label: @tr("Autoplay next");
-                checked: Settings.autoplay;
-                focused: root.playlist-open
-                    && root.focus-row == root.playlist-lead + root.playlist-rows;
-                toggled(on) => {
-                    Settings.autoplay = on;
-                    Settings.set-autoplay(on);
-                }
-            }
         }
     }
 
@@ -6291,6 +6335,7 @@ export component MainWindow inherits Window {
                 : root.corner-says-skip ? @image-url("../../../public/icons/skip.svg")
                 : @image-url("../../../public/icons/step-forward.svg");
             label: root.credits-label;
+            filled: Playback.credits-count;
             picked => {
                 root.credits-activate();
             }

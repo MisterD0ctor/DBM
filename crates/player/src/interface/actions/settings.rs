@@ -93,6 +93,15 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
         app.settings.turn(Toggle::Autoplay, on);
         commands::set_autoplay(&app.mpv, on);
     });
+    // Read by the frame loop as it plays (see `skips`), so saving is all.
+    on_app!(settings, app, on_set_skip_intros, |app, on| {
+        app.activity.bump();
+        app.settings.turn(Toggle::SkipIntros, on);
+    });
+    on_app!(settings, app, on_set_skip_credits, |app, on| {
+        app.activity.bump();
+        app.settings.turn(Toggle::SkipCredits, on);
+    });
     // `Motion.enabled` is already set on the Slint side, so this saves the
     // choice, which the driver also hands the pipeline for the backdrop's
     // fade.
@@ -184,6 +193,10 @@ pub(super) fn restore_preferences(ui: &MainWindow, app: &App) {
         .set_ambience_on(settings.is_on(Toggle::Ambience));
     ui.global::<Settings>()
         .set_autoplay(settings.is_on(Toggle::Autoplay));
+    ui.global::<Settings>()
+        .set_skip_intros(settings.is_on(Toggle::SkipIntros));
+    ui.global::<Settings>()
+        .set_skip_credits(settings.is_on(Toggle::SkipCredits));
     ui.global::<Motion>()
         .set_chosen(settings.is_on(Toggle::Animations));
     ui.global::<Settings>()
