@@ -145,11 +145,19 @@ pub fn corner_radius(_window: &slint::Window) -> f32 {
 /// path until the window exists (see [`UntilWindow`]).
 ///
 /// A window with no frame stays square unless it asks. Windows then rounds it
-/// as it does its own, and squares it again while it is maximized or snapped.
+/// as it does its own, and squares it again while it is maximized or snapped,
+/// but not while it is fullscreen: there the round corners and the thin
+/// border Windows draws with them would stay at the screen's edges. So the
+/// window asks for square corners and no border for as long as it is
+/// fullscreen, and for round ones again after.
 #[derive(Default)]
 pub struct Rounding {
     #[cfg(windows)]
     until: UntilWindow,
+    /// Whether the corners were last asked for fullscreen, once they have
+    /// been asked for at all.
+    #[cfg(windows)]
+    asked_fullscreen: Option<bool>,
 }
 
 impl Rounding {
@@ -159,8 +167,20 @@ impl Rounding {
 
     #[cfg(windows)]
     pub fn poll(&mut self, window: &slint::Window) {
-        if let Attempt::GaveUp(e) = self.until.poll(|| round_corners(window)) {
-            log::warn!("cannot round the window's corners ({e})");
+        let fullscreen = window.is_fullscreen();
+        match self.asked_fullscreen {
+            None => match self.until.poll(|| round_corners(window, fullscreen)) {
+                Attempt::Took(()) => self.asked_fullscreen = Some(fullscreen),
+                Attempt::Waiting => {}
+                Attempt::GaveUp(e) => log::warn!("cannot round the window's corners ({e})"),
+            },
+            Some(asked) if asked != fullscreen => {
+                if let Err(e) = round_corners(window, fullscreen) {
+                    log::warn!("cannot fit the window's corners to fullscreen ({e})");
+                }
+                self.asked_fullscreen = Some(fullscreen);
+            }
+            Some(_) => {}
         }
     }
 
@@ -173,14 +193,21 @@ impl Rounding {
     pub fn poll(&mut self, _window: &slint::Window) {}
 }
 
+/// Round corners and the border Windows draws with them, or, for
+/// fullscreen, square ones and none.
 #[cfg(windows)]
-fn round_corners(window: &slint::Window) -> Result<(), String> {
+fn round_corners(window: &slint::Window, fullscreen: bool) -> Result<(), String> {
     use windows::Win32::Graphics::Dwm::{
-        DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND, DwmSetWindowAttribute,
+        DWMWA_BORDER_COLOR, DWMWA_COLOR_DEFAULT, DWMWA_COLOR_NONE, DWMWA_WINDOW_CORNER_PREFERENCE,
+        DWMWCP_DONOTROUND, DWMWCP_ROUND, DwmSetWindowAttribute,
     };
 
     let hwnd = hwnd(window)?;
-    let preference = DWMWCP_ROUND;
+    let (preference, border) = if fullscreen {
+        (DWMWCP_DONOTROUND, DWMWA_COLOR_NONE)
+    } else {
+        (DWMWCP_ROUND, DWMWA_COLOR_DEFAULT)
+    };
     let asked = unsafe {
         DwmSetWindowAttribute(
             hwnd,
@@ -188,11 +215,19 @@ fn round_corners(window: &slint::Window) -> Result<(), String> {
             std::ptr::from_ref(&preference).cast(),
             std::mem::size_of_val(&preference) as u32,
         )
+        .and_then(|()| {
+            DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_BORDER_COLOR,
+                std::ptr::from_ref(&border).cast(),
+                std::mem::size_of_val(&border) as u32,
+            )
+        })
     };
-    // Windows 10 refuses it, having no round corners to give. That is an
-    // answer too, so it is not asked again.
+    // Windows 10 refuses both, having no round corners or border colour to
+    // give. That is an answer too, so it is not asked again.
     if let Err(e) = asked {
-        log::debug!("the window's corners stay square ({e})");
+        log::debug!("the window's corners stay as Windows draws them ({e})");
     }
     Ok(())
 }
