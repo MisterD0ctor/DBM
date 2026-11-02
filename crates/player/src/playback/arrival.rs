@@ -26,7 +26,7 @@ use std::cell::RefCell;
 
 use dbm_library::durations::Progress;
 use dbm_library::resume::Saved;
-use dbm_mpv::Mpv;
+use dbm_mpv::{MediaPath, Mpv};
 
 use crate::playback::commands;
 
@@ -51,13 +51,13 @@ enum Then {
 struct State {
     /// Every playlist entry's path and what is saved for it, in order: what
     /// the driver last read of the lists.
-    rows: Vec<(String, Progress)>,
+    rows: Vec<(MediaPath, Progress)>,
     /// The entry playing, whether it is paused, how many files mpv has
     /// loaded and which is loaded now, as of the last frame.
     pos: Option<usize>,
     paused: bool,
     loads: u64,
-    path: Option<String>,
+    path: Option<MediaPath>,
     /// A file asked for and not loaded yet, and what then.
     pending: Option<Pending>,
     /// The file held on its saved place, waiting for an answer.
@@ -68,24 +68,24 @@ struct State {
 
 #[derive(Debug, Clone)]
 struct Pending {
-    wanted: String,
+    wanted: MediaPath,
     then: Then,
     /// How many files had loaded, and which was playing, when it was asked
     /// for. A load alone isn't enough, since mpv says a file has loaded a
     /// moment before it says which.
     loads: u64,
-    left: Option<String>,
+    left: Option<MediaPath>,
 }
 
 #[derive(Debug, Clone)]
 struct Offer {
-    path: String,
+    path: MediaPath,
     from: f64,
 }
 
 #[derive(Debug, Clone)]
 struct Asking {
-    path: String,
+    path: MediaPath,
     from: f64,
     /// Whether the position has been seen on the saved place yet. Until it
     /// has, it is still arriving there and its wandering means nothing.
@@ -100,7 +100,7 @@ pub struct Arrival {
 
 impl Arrival {
     /// What the playlist knows of each entry, whenever the lists are read.
-    pub fn learn(&self, rows: Vec<(String, Progress)>) {
+    pub fn learn(&self, rows: Vec<(MediaPath, Progress)>) {
         self.state.borrow_mut().rows = rows;
     }
 
@@ -113,14 +113,14 @@ impl Arrival {
         pos: Option<usize>,
         paused: bool,
         loads: u64,
-        path: Option<&str>,
+        path: Option<&MediaPath>,
     ) {
         let mut state = self.state.borrow_mut();
         state.pos = pos;
         state.paused = paused;
         state.loads = loads;
-        if state.path.as_deref() != path {
-            state.path = path.map(str::to_owned);
+        if state.path.as_ref() != path {
+            state.path = path.cloned();
         }
         let Some(pending) = &state.pending else {
             return;
@@ -128,10 +128,10 @@ impl Arrival {
         if loads <= pending.loads {
             return;
         }
-        if path != Some(pending.wanted.as_str()) {
+        if path != Some(&pending.wanted) {
             // Still the file being left, and the news is on its way; or a
             // file nobody here asked for, and the request is over.
-            if path.is_some() && path != pending.left.as_deref() {
+            if path.is_some() && path != pending.left.as_ref() {
                 state.pending = None;
             }
             return;
@@ -159,7 +159,7 @@ impl Arrival {
     /// `next`. mpv would resume it at its saved place; this starts it from
     /// the top instead, offering the place for a while. Paused at once, since
     /// mpv is already opening it, usually in time to play nothing from there.
-    pub fn played_out(&self, mpv: &Mpv, next: &str) {
+    pub fn played_out(&self, mpv: &Mpv, next: &MediaPath) {
         if crate::run_mode::armed() {
             return;
         }
@@ -175,17 +175,13 @@ impl Arrival {
             Saved::Place(from) => Some(from),
         };
         commands::set_pause(mpv, true);
-        Self::expect(
-            &mut state,
-            next.to_owned(),
-            Then::Over { play: true, offer },
-        );
+        Self::expect(&mut state, next.clone(), Then::Over { play: true, offer });
     }
 
     /// The place autoplay passed over in the file playing, while it is still
     /// offered: for the first ten seconds of it, and not after anything else
     /// has been asked for.
-    pub fn offered(&self, path: Option<&str>, time_pos: f64) -> Option<f64> {
+    pub fn offered(&self, path: Option<&MediaPath>, time_pos: f64) -> Option<f64> {
         let mut state = self.state.borrow_mut();
         let offer = state.offer.as_ref()?;
         // The position passes through the place on the way (mpv resumes it
@@ -193,7 +189,7 @@ impl Arrival {
         // first ten seconds anywhere but the place ends the offer. Following
         // the position in and out would flicker.
         let at_place = (time_pos - offer.from).abs() <= WANDER;
-        if path != Some(offer.path.as_str()) || time_pos >= OFFER_FOR && !at_place {
+        if path != Some(&offer.path) || time_pos >= OFFER_FOR && !at_place {
             state.offer = None;
             return None;
         }
@@ -208,7 +204,7 @@ impl Arrival {
     }
 
     /// Note a request for `wanted`, to be carried out once it has loaded.
-    fn expect(state: &mut State, wanted: String, then: Then) {
+    fn expect(state: &mut State, wanted: MediaPath, then: Then) {
         state.pending = Some(Pending {
             wanted,
             then,
@@ -283,7 +279,7 @@ impl Arrival {
     /// A playlist about to be loaded whose first file is `path`, with
     /// `saved` for it. Whether the load should leave it paused, which it
     /// should while there is something to do once it is in.
-    pub fn open_list(&self, mpv: &Mpv, path: String, saved: Saved) -> bool {
+    pub fn open_list(&self, mpv: &Mpv, path: MediaPath, saved: Saved) -> bool {
         let mut state = self.state.borrow_mut();
         state.asking = None;
         let then = match saved {
@@ -313,12 +309,12 @@ impl Arrival {
     /// Where the file being held was left, or `None` once the choice has been
     /// made, by the pill or otherwise: playing on, a seek away from the
     /// place, another file.
-    pub fn asking(&self, path: Option<&str>, time_pos: f64, paused: bool) -> Option<f64> {
+    pub fn asking(&self, path: Option<&MediaPath>, time_pos: f64, paused: bool) -> Option<f64> {
         let mut state = self.state.borrow_mut();
         let asking = state.asking.as_mut()?;
         let near = (time_pos - asking.from).abs() <= WANDER;
         asking.settled |= near;
-        let held = path == Some(asking.path.as_str()) && paused && (near || !asking.settled);
+        let held = path == Some(&asking.path) && paused && (near || !asking.settled);
         let from = asking.from;
         if !held {
             state.asking = None;

@@ -12,6 +12,7 @@
 //! properties are read on the worker, and only when a count or selection
 //! actually moves.
 
+use dbm_mpv::MediaPath;
 use dbm_mpv::tracks::{self, TrackKind};
 use slint::ComponentHandle;
 use slint::{ModelRc, SharedString, VecModel};
@@ -67,7 +68,7 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     push_what_the_lists_decide(ui, player);
     // Where the dialogs open: beside this file, or on the shelf above its
     // folder.
-    playback.set_path(player.path.clone().unwrap_or_default().into());
+    playback.set_path(player.path.as_ref().map_or("", MediaPath::as_str).into());
     // Searching needs a key the player was built with, and a film to look
     // for.
     ui.global::<Find>()
@@ -114,7 +115,7 @@ impl ListSync {
         self.requested = generation;
         self.in_flight = worker.submit(move |mpv| {
             let playlist = tracks::read_playlist(mpv);
-            let paths: Vec<String> = playlist.iter().map(|e| e.filename.clone()).collect();
+            let paths: Vec<MediaPath> = playlist.iter().map(|e| e.filename.clone()).collect();
             Some(Completion::Lists(Lists {
                 tracks: tracks::read_tracks(mpv),
                 chapters: tracks::read_chapters(mpv),

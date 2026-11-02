@@ -12,6 +12,7 @@ use dbm_library::preview::{Sprite, Still};
 use dbm_library::resume::Resume;
 use dbm_library::shelf::{Beside, Shelf};
 use dbm_library::titles::{self, End};
+use dbm_mpv::MediaPath;
 use slint::ComponentHandle;
 
 use super::{Driver, Gpu};
@@ -30,7 +31,7 @@ impl Driver {
         gpu: &mut Gpu,
         completion: Completion,
     ) -> bool {
-        let playing = self.player.path.as_deref();
+        let playing = self.player.path.as_ref();
         match completion {
             // The three that can move the playlist's rows.
             Completion::Lists(lists) => return self.take_lists(ui, lists),
@@ -112,9 +113,9 @@ impl Driver {
 
     /// The seasons found beside the playlist, for the list it was looked for
     /// beside, or for nothing.
-    fn take_beside(&mut self, paths: &[String], seasons: Vec<Beside>) -> bool {
-        let playing = self.player.playlist.iter().map(|e| e.filename.as_str());
-        if playing.eq(paths.iter().map(String::as_str)) && self.player.beside != seasons {
+    fn take_beside(&mut self, paths: &[MediaPath], seasons: Vec<Beside>) -> bool {
+        let playing = self.player.playlist.iter().map(|e| &e.filename);
+        if playing.eq(paths) && self.player.beside != seasons {
             self.player.beside = seasons;
             return true;
         }
@@ -168,8 +169,8 @@ impl Driver {
     /// Subtitles fetched for this film before, back in the list as the
     /// film's own tracks are, without taking the place of whichever one it
     /// opened on.
-    fn put_back(&self, path: &str, files: Vec<(std::path::PathBuf, String)>) {
-        if self.player.path.as_deref() == Some(path) {
+    fn put_back(&self, path: &MediaPath, files: Vec<(std::path::PathBuf, String)>) {
+        if self.player.path.as_ref() == Some(path) {
             for (file, language) in files {
                 commands::add_subtitle(&self.app.mpv, &file, &language, false);
             }
@@ -180,8 +181,8 @@ impl Driver {
     /// own, the end is lit by the mark, as a fresh install's empty window
     /// is: it still dims a last frame that may be a white one, and the
     /// season's line still has that to read on.
-    fn light_the_end_with(&mut self, gpu: &mut Gpu, from: String, still: Option<Still>) {
-        if self.player.path.as_deref() != Some(from.as_str()) {
+    fn light_the_end_with(&mut self, gpu: &mut Gpu, from: MediaPath, still: Option<Still>) {
+        if self.player.path.as_ref() != Some(&from) {
             return;
         }
         self.per_file.end_marked = still.is_none();
@@ -193,12 +194,12 @@ impl Driver {
 
     /// What to go on to after `from`. An answer for a file that has since
     /// been replaced is dropped.
-    fn offer_onward(&self, ui: &MainWindow, from: &str, to: Option<Onward>) {
+    fn offer_onward(&self, ui: &MainWindow, from: &MediaPath, to: Option<Onward>) {
         let playback = ui.global::<Playback>();
-        if self.player.path.as_deref() == Some(from)
+        if self.player.path.as_ref() == Some(from)
             && let Some(onward) = to
         {
-            playback.set_onward_path(onward.path.as_str().into());
+            playback.set_onward_path(onward.path.to_string_lossy().as_ref().into());
             playback.set_onward_label(onward.label.as_str().into());
             playback.set_onward_season(onward.season);
         }
@@ -249,7 +250,7 @@ impl Driver {
                 ""
             }
         );
-        playback.set_resume_path(resume.path.into());
+        playback.set_resume_path(resume.path.as_str().into());
         playback.set_resume_show(resume.show.unwrap_or_default().into());
         playback.set_resume_title(resume.title.into());
         playback.set_resume_progress(resume.fraction);

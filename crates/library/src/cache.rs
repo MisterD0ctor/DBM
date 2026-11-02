@@ -24,6 +24,7 @@ use std::marker::PhantomData;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, Once};
 
+use dbm_mpv::MediaPath;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
@@ -73,14 +74,14 @@ impl<V: Serialize + DeserializeOwned + PartialEq> PathMap<V> {
     /// **Blocking.** Worker thread only. A missing or unreadable file, or one
     /// kept at another version, is an empty map rather than an error: nothing
     /// is known yet.
-    pub fn load(&self) -> HashMap<String, V> {
+    pub fn load(&self) -> HashMap<MediaPath, V> {
         read(&self.file(), self.version)
     }
 
     /// Remember one entry, rewriting the file only if it changed.
     ///
     /// **Blocking.** Worker thread only.
-    pub fn set(&self, path: &str, value: V) {
+    pub fn set(&self, path: &MediaPath, value: V) {
         let _guard = self
             .write
             .lock()
@@ -93,10 +94,10 @@ impl<V: Serialize + DeserializeOwned + PartialEq> PathMap<V> {
 #[derive(Serialize, Deserialize)]
 struct Versioned<V> {
     version: u32,
-    entries: HashMap<String, V>,
+    entries: HashMap<MediaPath, V>,
 }
 
-fn read<V: DeserializeOwned>(file: &Path, version: u32) -> HashMap<String, V> {
+fn read<V: DeserializeOwned>(file: &Path, version: u32) -> HashMap<MediaPath, V> {
     let Some(text) = std::fs::read_to_string(file).ok() else {
         return HashMap::new();
     };
@@ -117,14 +118,14 @@ fn read<V: DeserializeOwned>(file: &Path, version: u32) -> HashMap<String, V> {
 fn update<V: Serialize + DeserializeOwned + PartialEq>(
     file: &Path,
     version: u32,
-    path: &str,
+    path: &MediaPath,
     value: V,
 ) {
     let mut entries = read(file, version);
     if entries.get(path) == Some(&value) {
         return;
     }
-    entries.insert(path.to_string(), value);
+    entries.insert(path.clone(), value);
     let Ok(json) = serde_json::to_string(&Versioned { version, entries }) else {
         return;
     };
@@ -237,8 +238,8 @@ mod tests {
         )
         .unwrap();
 
-        update(&file, 3, "C:/films/b.mkv", 600.0);
-        let map: HashMap<String, f64> = read(&file, 3);
+        update(&file, 3, &"C:/films/b.mkv".into(), 600.0);
+        let map: HashMap<MediaPath, f64> = read(&file, 3);
         assert_eq!(map.get("C:/films/a.mkv"), Some(&1200.0));
         assert_eq!(map.get("C:/films/b.mkv"), Some(&600.0));
 
@@ -260,8 +261,8 @@ mod tests {
         assert!(read::<f64>(&file, 2).is_empty());
 
         // And the next write starts over, at the version that wrote it.
-        update(&file, 2, "C:/films/b.mkv", 600.0);
-        let map: HashMap<String, f64> = read(&file, 2);
+        update(&file, 2, &"C:/films/b.mkv".into(), 600.0);
+        let map: HashMap<MediaPath, f64> = read(&file, 2);
         assert_eq!(map.len(), 1);
         assert_eq!(map.get("C:/films/b.mkv"), Some(&600.0));
         std::fs::remove_file(&file).ok();
@@ -272,7 +273,7 @@ mod tests {
         let file = scratch("bare.json");
         std::fs::write(&file, r#"{"C:/films/a.mkv":1200.0}"#).unwrap();
         // Kept by a record, and by a cache that has not changed since.
-        let map: HashMap<String, f64> = read(&file, UNVERSIONED);
+        let map: HashMap<MediaPath, f64> = read(&file, UNVERSIONED);
         assert_eq!(map.get("C:/films/a.mkv"), Some(&1200.0));
         // Forgotten by one that has.
         assert!(read::<f64>(&file, 2).is_empty());

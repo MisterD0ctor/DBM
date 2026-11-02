@@ -4,6 +4,7 @@
 //! a change sends anything to the worker.
 
 use dbm_library::{durations, probe, shelf};
+use dbm_mpv::MediaPath;
 
 use crate::playback::state::PlayerState;
 use crate::worker::{Completion, Worker};
@@ -16,13 +17,13 @@ use crate::worker::{Completion, Worker};
 pub struct Recorder {
     /// What was last handed to the worker, so the same fact isn't rewritten
     /// every frame.
-    last: Option<(String, f64)>,
+    last: Option<(MediaPath, f64)>,
     /// The file playing, its length, and whether it was within a moment of
     /// its end. Autoplay moves straight past the end of a file and mpv never
     /// reports reaching it, so this is how that file is still counted.
-    playing: Option<(String, f64, bool)>,
+    playing: Option<(MediaPath, f64, bool)>,
     /// The last file written down as finished, so it is written once.
-    finished: Option<String>,
+    finished: Option<MediaPath>,
 }
 
 /// How near the end a file autoplay moved on from must have been: a frame or
@@ -32,7 +33,7 @@ const NEAR_END: f64 = 2.0;
 impl Recorder {
     pub fn poll(&mut self, worker: &Worker, player: &PlayerState) {
         self.watch_ending(worker, player);
-        let Some(path) = player.path.as_deref() else {
+        let Some(path) = player.path.clone() else {
             return;
         };
         let seconds = player.duration;
@@ -44,25 +45,24 @@ impl Recorder {
         if self
             .last
             .as_ref()
-            .is_some_and(|(p, s)| p == path && *s == seconds)
+            .is_some_and(|(p, s)| *p == path && *s == seconds)
         {
             return;
         }
-        self.last = Some((path.to_string(), seconds));
-        let path = path.to_string();
+        self.last = Some((path.clone(), seconds));
         worker.run(move |_mpv| durations::record(&path, seconds));
     }
 
     /// Notices a file reaching its ending: its credits, its last frame, or
     /// its last moments before autoplay took the next one.
     fn watch_ending(&mut self, worker: &Worker, player: &PlayerState) {
-        if self.playing.as_ref().map(|p| p.0.as_str()) != player.path.as_deref() {
+        if self.playing.as_ref().map(|p| &p.0) != player.path.as_ref() {
             if let Some((path, duration, true)) = self.playing.take() {
                 self.finish(worker, path, duration);
             }
             self.playing = player.path.clone().map(|p| (p, 0.0, false));
         }
-        let Some(path) = player.path.as_deref() else {
+        let Some(path) = player.path.as_ref() else {
             return;
         };
         // The file's own numbers, and past its halfway point, since for a
@@ -75,13 +75,13 @@ impl Recorder {
         }
         let ended = player.credits_rolling()
             || (player.eof_reached && player.time_pos >= player.duration - NEAR_END);
-        if into_it && ended && self.finished.as_deref() != Some(path) {
-            self.finish(worker, path.to_string(), player.time_pos);
+        if into_it && ended && self.finished.as_ref() != Some(path) {
+            self.finish(worker, path.clone(), player.time_pos);
         }
     }
 
-    fn finish(&mut self, worker: &Worker, path: String, at: f64) {
-        if self.finished.as_deref() == Some(path.as_str()) {
+    fn finish(&mut self, worker: &Worker, path: MediaPath, at: f64) {
+        if self.finished.as_ref() == Some(&path) {
             return;
         }
         self.finished = Some(path.clone());
@@ -94,7 +94,7 @@ impl Recorder {
 pub struct Scan {
     /// The paths the running scan was started for, so a list read that
     /// changed only the tracks does not start the same scan over.
-    requested: Vec<String>,
+    requested: Vec<MediaPath>,
 }
 
 impl Scan {
@@ -102,7 +102,7 @@ impl Scan {
     ///
     /// Called when a list read lands, not per frame. Compares, and returns at
     /// once when the paths are the ones already being scanned.
-    pub fn request(&mut self, paths: &[String], worker: &Worker) {
+    pub fn request(&mut self, paths: &[MediaPath], worker: &Worker) {
         if paths == self.requested.as_slice() {
             return;
         }
@@ -114,7 +114,7 @@ impl Scan {
 /// Asks for the seasons beside the playlist, once per list.
 #[derive(Default)]
 pub struct Neighbours {
-    asked: Vec<String>,
+    asked: Vec<MediaPath>,
     /// Ask again for the same list, since progress is written to disk without
     /// an event, and opening the panel is when it is worth reading again.
     stale: bool,
@@ -129,7 +129,7 @@ impl Neighbours {
     ///
     /// Returns whether the list itself changed, so what was found beside the
     /// old one can be put away rather than shown around another show.
-    pub fn request(&mut self, paths: &[String], worker: &Worker) -> bool {
+    pub fn request(&mut self, paths: &[MediaPath], worker: &Worker) -> bool {
         let moved = paths != self.asked.as_slice();
         if !moved && !self.stale {
             return false;

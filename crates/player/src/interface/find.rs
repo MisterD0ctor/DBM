@@ -11,7 +11,7 @@ use std::cell::RefCell;
 use dbm_lang::tr;
 use dbm_library::opensubtitles::account::Account;
 use dbm_library::opensubtitles::{self, Failure, Fetched, Found, Hit};
-use dbm_mpv::Mpv;
+use dbm_mpv::{MediaPath, Mpv};
 use dbm_naming::Media;
 use slint::{ComponentHandle, ModelRc, VecModel};
 
@@ -29,7 +29,7 @@ struct State {
     /// The result whose download was refused for want of an account, and the
     /// film it was for: fetched again once the person signs in, which is what
     /// they signed in for.
-    waiting: Option<(String, Hit)>,
+    waiting: Option<(MediaPath, Hit)>,
 }
 
 impl Search {
@@ -47,15 +47,15 @@ impl Search {
     }
 
     /// Fill the search's page with what OpenSubtitles found, or say why not.
-    pub fn found(&self, ui: &MainWindow, playing: Option<&str>, found: Found) {
+    pub fn found(&self, ui: &MainWindow, playing: Option<&MediaPath>, found: Found) {
         let find = ui.global::<Find>();
         show_account(&find, found.account.as_ref());
-        if playing != Some(found.path.as_str()) {
+        if playing != Some(&found.path) {
             return;
         }
         match found.hits {
             Ok(hits) => {
-                let media = dbm_naming::parse(&found.path);
+                let media = dbm_naming::parse(found.path.as_str());
                 let rows: Vec<FoundItem> = hits.iter().map(|hit| found_row(hit, &media)).collect();
                 find.set_hits(ModelRc::new(VecModel::from(rows)));
                 find.set_state(if hits.is_empty() { 3 } else { 2 });
@@ -69,11 +69,17 @@ impl Search {
     }
 
     /// Load a fetched subtitle and show it, or say why there is none.
-    pub fn fetched(&self, ui: &MainWindow, mpv: &Mpv, playing: Option<&str>, fetched: Fetched) {
+    pub fn fetched(
+        &self,
+        ui: &MainWindow,
+        mpv: &Mpv,
+        playing: Option<&MediaPath>,
+        fetched: Fetched,
+    ) {
         let find = ui.global::<Find>();
         find.set_fetching(-1);
         show_account(&find, fetched.account.as_ref());
-        if playing != Some(fetched.path.as_str()) {
+        if playing != Some(&fetched.path) {
             return;
         }
         match fetched.result {
@@ -105,7 +111,7 @@ impl Search {
         &self,
         ui: &MainWindow,
         worker: &Worker,
-        playing: Option<&str>,
+        playing: Option<&MediaPath>,
         result: Result<Account, Failure>,
     ) {
         let find = ui.global::<Find>();
@@ -123,7 +129,7 @@ impl Search {
                 let Some((path, hit)) = waiting else {
                     return;
                 };
-                if playing != Some(path.as_str()) {
+                if playing != Some(&path) {
                     return;
                 }
                 find.set_fetching(self.row_of(&hit));

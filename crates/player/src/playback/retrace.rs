@@ -10,7 +10,7 @@
 
 use std::cell::RefCell;
 
-use dbm_mpv::Mpv;
+use dbm_mpv::{MediaPath, Mpv};
 
 use crate::playback::commands;
 
@@ -42,7 +42,7 @@ struct State {
 }
 
 struct Offer {
-    path: String,
+    path: MediaPath,
     /// The place to go back to.
     from: f64,
     /// Where the seek landed.
@@ -62,7 +62,7 @@ impl Retrace {
     /// A jump landed at `to`, the pointer letting go of the timeline or a
     /// number key, with the film at `at`. Jumping again while the way back is
     /// offered keeps the first place, since that is the one lost.
-    pub fn landed(&self, path: &str, at: f64, to: f64) {
+    pub fn landed(&self, path: &MediaPath, at: f64, to: f64) {
         // An exercise seeks to get somewhere, a file's credits or its end,
         // and the offer would take the corner from what it is there to see.
         if crate::run_mode::armed() {
@@ -71,12 +71,12 @@ impl Retrace {
         let mut state = self.state.borrow_mut();
         let left = state.holding.take().unwrap_or(at);
         let from = match &state.offer {
-            Some(offer) if offer.path == path => offer.from,
+            Some(offer) if offer.path == *path => offer.from,
             _ => left,
         };
         state.offer =
             ((to - from).abs() > WORTH_OFFERING && from >= WORTH_KEEPING).then(|| Offer {
-                path: path.to_owned(),
+                path: path.clone(),
                 from,
                 to,
                 arrived: false,
@@ -84,11 +84,11 @@ impl Retrace {
     }
 
     /// The place to go back to, while it is offered.
-    pub fn offered(&self, path: Option<&str>, time_pos: f64) -> Option<f64> {
+    pub fn offered(&self, path: Option<&MediaPath>, time_pos: f64) -> Option<f64> {
         let mut state = self.state.borrow_mut();
         let offer = state.offer.as_mut()?;
         offer.arrived |= (time_pos - offer.to).abs() <= WANDER;
-        let gone = path != Some(offer.path.as_str())
+        let gone = path != Some(&offer.path)
             || offer.arrived && (time_pos < offer.to - WANDER || time_pos > offer.to + OFFER_FOR);
         if gone {
             state.offer = None;
@@ -112,52 +112,58 @@ mod tests {
     #[test]
     fn a_long_click_offers_the_place_it_left() {
         let retrace = Retrace::default();
-        retrace.landed("a.mkv", 2106.0, 300.0);
-        assert_eq!(retrace.offered(Some("a.mkv"), 2106.0), Some(2106.0));
-        assert_eq!(retrace.offered(Some("a.mkv"), 300.0), Some(2106.0));
-        assert_eq!(retrace.offered(Some("a.mkv"), 309.0), Some(2106.0));
-        assert_eq!(retrace.offered(Some("a.mkv"), 311.0), None);
+        let a = MediaPath::from("a.mkv");
+        retrace.landed(&a, 2106.0, 300.0);
+        assert_eq!(retrace.offered(Some(&a), 2106.0), Some(2106.0));
+        assert_eq!(retrace.offered(Some(&a), 300.0), Some(2106.0));
+        assert_eq!(retrace.offered(Some(&a), 309.0), Some(2106.0));
+        assert_eq!(retrace.offered(Some(&a), 311.0), None);
     }
 
     #[test]
     fn a_nudge_offers_nothing() {
         let retrace = Retrace::default();
-        retrace.landed("a.mkv", 100.0, 120.0);
-        assert_eq!(retrace.offered(Some("a.mkv"), 120.0), None);
+        let a = MediaPath::from("a.mkv");
+        retrace.landed(&a, 100.0, 120.0);
+        assert_eq!(retrace.offered(Some(&a), 120.0), None);
     }
 
     #[test]
     fn the_start_is_not_a_place_to_go_back_to() {
         let retrace = Retrace::default();
-        retrace.landed("a.mkv", 20.0, 1200.0);
-        assert_eq!(retrace.offered(Some("a.mkv"), 1200.0), None);
+        let a = MediaPath::from("a.mkv");
+        retrace.landed(&a, 20.0, 1200.0);
+        assert_eq!(retrace.offered(Some(&a), 1200.0), None);
     }
 
     #[test]
     fn a_drag_offers_where_it_started() {
         let retrace = Retrace::default();
+        let a = MediaPath::from("a.mkv");
         retrace.hold(500.0);
         retrace.hold(700.0);
-        retrace.landed("a.mkv", 900.0, 1500.0);
-        assert_eq!(retrace.offered(Some("a.mkv"), 1500.0), Some(500.0));
+        retrace.landed(&a, 900.0, 1500.0);
+        assert_eq!(retrace.offered(Some(&a), 1500.0), Some(500.0));
     }
 
     #[test]
     fn seeking_again_keeps_the_first_place() {
         let retrace = Retrace::default();
-        retrace.landed("a.mkv", 2106.0, 300.0);
-        assert_eq!(retrace.offered(Some("a.mkv"), 300.0), Some(2106.0));
-        retrace.landed("a.mkv", 300.0, 1200.0);
-        assert_eq!(retrace.offered(Some("a.mkv"), 1200.0), Some(2106.0));
+        let a = MediaPath::from("a.mkv");
+        retrace.landed(&a, 2106.0, 300.0);
+        assert_eq!(retrace.offered(Some(&a), 300.0), Some(2106.0));
+        retrace.landed(&a, 300.0, 1200.0);
+        assert_eq!(retrace.offered(Some(&a), 1200.0), Some(2106.0));
     }
 
     #[test]
     fn going_elsewhere_ends_it() {
         let retrace = Retrace::default();
-        retrace.landed("a.mkv", 2106.0, 300.0);
-        assert_eq!(retrace.offered(Some("a.mkv"), 300.0), Some(2106.0));
-        assert_eq!(retrace.offered(Some("a.mkv"), 240.0), None);
-        retrace.landed("a.mkv", 240.0, 900.0);
-        assert_eq!(retrace.offered(Some("b.mkv"), 900.0), None);
+        let a = MediaPath::from("a.mkv");
+        retrace.landed(&a, 2106.0, 300.0);
+        assert_eq!(retrace.offered(Some(&a), 300.0), Some(2106.0));
+        assert_eq!(retrace.offered(Some(&a), 240.0), None);
+        retrace.landed(&a, 240.0, 900.0);
+        assert_eq!(retrace.offered(Some(&"b.mkv".into()), 900.0), None);
     }
 }

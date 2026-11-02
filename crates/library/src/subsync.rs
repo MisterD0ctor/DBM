@@ -26,8 +26,8 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use dbm_mpv::Mpv;
 use dbm_mpv::tracks;
+use dbm_mpv::{MediaPath, Mpv};
 
 use crate::ffmpeg;
 use crate::threads::Reporter;
@@ -71,7 +71,8 @@ pub enum Failure {
 /// film or the track has changed can be dropped.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Outcome {
-    pub path: String,
+    /// `None` when mpv had no file to name.
+    pub path: Option<MediaPath>,
     pub sid: Option<String>,
     pub result: Result<Fit, Failure>,
 }
@@ -95,9 +96,15 @@ pub fn spawn(mpv: Arc<Mpv>, reporter: Reporter<Outcome>) {
     crate::threads::spawn("dbm-subsync", move || {
         // Read here rather than handed over, since these block on mpv's core
         // lock, which the UI thread must not.
-        let path = mpv.get_property("path").unwrap_or_default();
+        let path = mpv
+            .get_property("path")
+            .filter(|path| !path.is_empty())
+            .map(MediaPath::from);
         let sid = mpv.get_property("sid");
-        let result = ask(&mpv, &path).and_then(|asked| run(&asked, ticket));
+        let result = match &path {
+            Some(path) => ask(&mpv, path).and_then(|asked| run(&asked, ticket)),
+            None => Err(Failure::NoSubtitles),
+        };
         if !ticket.current() {
             return;
         }
@@ -133,8 +140,8 @@ struct Asked {
     subtitles: Source,
 }
 
-fn ask(mpv: &Mpv, path: &str) -> Result<Asked, Failure> {
-    if path.is_empty() || mpv.get_f64("current-tracks/sub/id").is_none() {
+fn ask(mpv: &Mpv, path: &MediaPath) -> Result<Asked, Failure> {
+    if mpv.get_f64("current-tracks/sub/id").is_none() {
         return Err(Failure::NoSubtitles);
     }
     let codec = mpv
@@ -165,7 +172,7 @@ fn ask(mpv: &Mpv, path: &str) -> Result<Asked, Failure> {
         .get_f64("current-tracks/audio/demux-channel-count")
         .unwrap_or(0.0) as i64;
     Ok(Asked {
-        video: PathBuf::from(path),
+        video: path.as_path().to_path_buf(),
         audio: mpv
             .get_f64("current-tracks/audio/ff-index")
             .filter(|_| own_audio)

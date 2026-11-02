@@ -3,6 +3,8 @@
 
 use std::path::{Path, PathBuf};
 
+use dbm_mpv::MediaPath;
+
 use super::cache::{cached, sprite_path, write_meta};
 use super::{GRID, Sprite, TILE_H};
 use crate::ffmpeg;
@@ -34,7 +36,7 @@ const KEYFRAME_SLICE: f64 = 20.0;
 /// Returns `None` for every ordinary reason a thumbnail might not exist (no
 /// ffmpeg, an unreadable file, a superseded request), since none is worth
 /// interrupting playback over.
-pub(super) fn build(video: &Path, ticket: Ticket) -> Option<Sprite> {
+pub(super) fn build(video: &MediaPath, ticket: Ticket) -> Option<Sprite> {
     if let Some(cached) = cached(video) {
         return Some(cached);
     }
@@ -44,7 +46,7 @@ pub(super) fn build(video: &Path, ticket: Ticket) -> Option<Sprite> {
         return None;
     }
 
-    let (duration, aspect) = probe(&ffmpeg, video)?;
+    let (duration, aspect) = probe(&ffmpeg, video.as_path())?;
     if duration <= 0.0 {
         return None;
     }
@@ -63,7 +65,7 @@ pub(super) fn build(video: &Path, ticket: Ticket) -> Option<Sprite> {
     std::fs::create_dir_all(&tiles).ok()?;
     let _cleanup = Cleanup(tiles.clone());
 
-    if !extract(&ffmpeg, video, &tiles, duration, tile_w, ticket) {
+    if !extract(&ffmpeg, video.as_path(), &tiles, duration, tile_w, ticket) {
         return None;
     }
     if !assemble(&ffmpeg, &tiles, &sprite, tile_w, ticket) {

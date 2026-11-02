@@ -84,8 +84,11 @@ impl PlayerState {
     }
 
     fn is_episode(&self) -> bool {
-        self.path.as_deref().is_some_and(|path| {
-            matches!(dbm_naming::parse(path), dbm_naming::Media::Episode { .. })
+        self.path.as_ref().is_some_and(|path| {
+            matches!(
+                dbm_naming::parse(path.as_str()),
+                dbm_naming::Media::Episode { .. }
+            )
         })
     }
 
@@ -99,7 +102,7 @@ impl PlayerState {
     /// Where this file's credits were heard to be, in pieces. In its second
     /// half, like everything else that is taken for an ending.
     fn credits_heard_pieces(&self) -> Option<&[(f64, f64)]> {
-        let path = self.path.as_deref()?;
+        let path = self.path.as_ref()?;
         let (of, pieces) = self.credits_heard.as_ref()?;
         let starts = pieces.first()?.0;
         (of == path && self.duration > 0.0 && starts >= self.duration / 2.0)
@@ -142,7 +145,7 @@ impl PlayerState {
     /// An episode's only, since a film's opening titles are part of the film,
     /// as its credits are (see [`credits_rolling`](Self::credits_rolling)).
     pub fn intro(&self) -> Option<(f64, f64)> {
-        let path = self.path.as_deref()?;
+        let path = self.path.as_ref()?;
         let span = self.intro_named().or_else(|| {
             self.intro_heard
                 .as_ref()
@@ -150,7 +153,11 @@ impl PlayerState {
                 .map(|(_, span)| *span)
         })?;
         // Last, being the one that parses a name.
-        matches!(dbm_naming::parse(path), dbm_naming::Media::Episode { .. }).then_some(span)
+        matches!(
+            dbm_naming::parse(path.as_str()),
+            dbm_naming::Media::Episode { .. }
+        )
+        .then_some(span)
     }
 
     /// The title sequence where a chapter is named for it: from that

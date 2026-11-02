@@ -1,8 +1,7 @@
 //! Searching: what OpenSubtitles holds for a file, asked by its hash and by
 //! its name.
 
-use std::path::Path;
-
+use dbm_mpv::MediaPath;
 use dbm_naming::Media;
 use serde_json::Value;
 use ureq::http::Method;
@@ -15,7 +14,7 @@ use super::{Failure, Hit, fake};
 /// The most results shown. Past a screenful the list is releases nobody has.
 const MOST: usize = 40;
 
-pub(super) fn look(path: &str, languages: &[String]) -> Result<Vec<Hit>, Failure> {
+pub(super) fn look(path: &MediaPath, languages: &[String]) -> Result<Vec<Hit>, Failure> {
     if fake::on() {
         return Ok(fake::hits());
     }
@@ -36,15 +35,20 @@ pub(super) fn look(path: &str, languages: &[String]) -> Result<Vec<Hit>, Failure
 }
 
 /// The search, as `signed` or as nobody.
-fn look_as(path: &str, languages: &[String], signed: Option<&Signed>) -> Result<Vec<Hit>, Failure> {
+fn look_as(
+    path: &MediaPath,
+    languages: &[String],
+    signed: Option<&Signed>,
+) -> Result<Vec<Hit>, Failure> {
     let ask = |query: &[(&str, String)]| ask(query, signed);
     let languages = languages.join(",");
     let mut hits: Vec<Hit> = Vec::new();
     // By hash first: those are the ones timed for this very file, and they
     // stay at the top of the list whatever their download counts.
-    if let Some(hash) = Path::new(path)
+    if let Some(hash) = path
+        .as_path()
         .is_file()
-        .then(|| hash(Path::new(path)))
+        .then(|| hash(path.as_path()))
         .flatten()
     {
         let query = [("languages", languages.clone()), ("moviehash", hash)];
@@ -66,9 +70,9 @@ fn look_as(path: &str, languages: &[String], signed: Option<&Signed>) -> Result<
 
 /// The search by name: a show's season and episode, or a film and its year.
 /// In alphabetical order, which is what their API asks of a query string.
-fn by_name(path: &str, languages: &str) -> Vec<(&'static str, String)> {
+fn by_name(path: &MediaPath, languages: &str) -> Vec<(&'static str, String)> {
     let mut query = vec![("languages", languages.to_string())];
-    match dbm_naming::parse(path) {
+    match dbm_naming::parse(path.as_str()) {
         Media::Episode {
             show,
             season,
@@ -145,7 +149,7 @@ mod tests {
 
     #[test]
     fn an_episode_is_asked_for_by_show_season_and_episode_in_order() {
-        let query = by_name("/tv/The.Walking.Dead.S04E08.1080p.mkv", "en,sv");
+        let query = by_name(&"/tv/The.Walking.Dead.S04E08.1080p.mkv".into(), "en,sv");
         let names: Vec<&str> = query.iter().map(|(n, _)| *n).collect();
         assert_eq!(
             names,
@@ -157,7 +161,7 @@ mod tests {
 
     #[test]
     fn a_film_is_asked_for_by_title_and_year() {
-        let query = by_name("/films/Alien (1979).mkv", "en");
+        let query = by_name(&"/films/Alien (1979).mkv".into(), "en");
         assert!(query.contains(&("query", "Alien".into())));
         assert!(query.contains(&("year", "1979".into())));
     }

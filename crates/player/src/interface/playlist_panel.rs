@@ -10,6 +10,7 @@ use std::rc::Rc;
 use dbm_lang::{fill, tr};
 use dbm_library::durations::Progress;
 use dbm_library::shelf::{self, Beside, Entry, Group, Shelf};
+use dbm_mpv::MediaPath;
 use slint::ComponentHandle;
 use slint::{Model, ModelRc, VecModel};
 
@@ -21,7 +22,7 @@ use crate::{MainWindow, Playback, Playlist, PlaylistGroup, PlaylistItem};
 /// A playlist row as the player had it when the panel was asked for, owned so
 /// it can cross to the worker.
 struct Row {
-    path: String,
+    path: MediaPath,
     title: Option<String>,
     index: i64,
     current: bool,
@@ -66,7 +67,7 @@ impl Panel {
             let items: Vec<shelf::Item> = rows
                 .iter()
                 .map(|row| shelf::Item {
-                    path: &row.path,
+                    path: row.path.clone(),
                     title: row.title.as_deref(),
                     index: row.index,
                     current: row.current,
@@ -334,9 +335,9 @@ fn entry_item(entry: &Entry) -> PlaylistItem {
 mod tests {
     use super::*;
 
-    fn item(path: &str, index: i64, current: bool) -> shelf::Item<'_> {
+    fn item(path: &str, index: i64, current: bool) -> shelf::Item<'static> {
         shelf::Item {
-            path,
+            path: path.into(),
             title: None,
             index,
             current,

@@ -22,8 +22,9 @@
 //! ffmpeg processes from outliving it.
 
 use std::cell::RefCell;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
+use dbm_mpv::MediaPath;
 use dbm_mpv::tracks::Chapter;
 
 use crate::threads::Reporter;
@@ -75,7 +76,7 @@ static BUILDS: Supersede = Supersede::new();
 ///
 /// Returns immediately. A build that produces nothing says nothing: see
 /// [`build`] for why that is the ordinary case rather than an error.
-pub fn spawn(video: PathBuf, reporter: Reporter<Atlas>) {
+pub fn spawn(video: MediaPath, reporter: Reporter<Atlas>) {
     let ticket = BUILDS.next();
     crate::threads::spawn("dbm-preview", move || {
         let Some(sprite) = build(&video, ticket) else {
@@ -123,7 +124,7 @@ struct Known {
     sprite: Option<Sprite>,
     /// The file the current atlas belongs to, so a request is made once per
     /// file rather than once per frame.
-    source: Option<PathBuf>,
+    source: Option<MediaPath>,
     /// Where the pointer last asked about, so an atlas that arrives while the
     /// timeline is already hovered can fill in the tile straight away instead
     /// of waiting for the pointer to move.
@@ -162,12 +163,12 @@ impl Preview {
 
     /// Whether this path is new, claiming it if so. The caller starts a build
     /// on `true` and does nothing on `false`.
-    pub fn claim(&self, path: &Path) -> bool {
+    pub fn claim(&self, path: &MediaPath) -> bool {
         let mut known = self.0.borrow_mut();
-        if known.source.as_deref() == Some(path) {
+        if known.source.as_ref() == Some(path) {
             return false;
         }
-        known.source = Some(path.to_path_buf());
+        known.source = Some(path.clone());
         true
     }
 

@@ -8,8 +8,8 @@
 //! Failures are logged rather than propagated, since a rejected seek
 //! shouldn't take the player down.
 
-use dbm_mpv::Mpv;
 use dbm_mpv::tracks::{self, TrackKind};
+use dbm_mpv::{MediaPath, Mpv};
 
 /// Arrow-key seek, in seconds.
 pub const SEEK_STEP: f64 = 10.0;
@@ -239,7 +239,7 @@ pub fn set_audio_track(mpv: &Mpv, id: Option<i64>) {
 ///
 /// `first`, the entry it starts on, says where the list's files are, since
 /// they all come from one folder.
-pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &str) {
+pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &MediaPath) {
     save_before_leaving(mpv);
     set_prop(mpv, "playlist-start", &start.to_string());
     // The document portal is a FUSE mount, which mpv takes for a network
@@ -247,7 +247,7 @@ pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &str) {
     // that are almost always on a local disk. Most of its paths are played from
     // where they really are, but not one whose real place is out of reach (see
     // `platform::documents`), which plays as a local file does.
-    let portal = crate::platform::documents::is_portal(std::path::Path::new(first));
+    let portal = crate::platform::documents::is_portal(first.as_path());
     set_prop(mpv, "cache", if portal { "no" } else { "auto" });
     let args = ["loadlist", &*m3u.to_string_lossy(), "replace"];
     if let Err(e) = mpv.command_async(REPLY_LOADLIST, &args) {

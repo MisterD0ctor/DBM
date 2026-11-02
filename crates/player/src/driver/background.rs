@@ -106,10 +106,9 @@ impl Driver {
         let preview = &self.app.preview;
         preview.set_duration(self.player.duration);
         preview.set_chapters(&self.player.chapters);
-        let Some(path) = self.player.path.as_deref() else {
+        let Some(path) = self.player.path.clone() else {
             return;
         };
-        let path = std::path::PathBuf::from(path);
         if !preview.claim(&path) {
             return;
         }
@@ -168,7 +167,7 @@ impl Driver {
         if let dbm_naming::Media::Episode {
             season: Some(season @ 1..),
             ..
-        } = dbm_naming::parse(&path)
+        } = dbm_naming::parse(path.as_str())
         {
             playback.set_season_done(fill(tr("Season {} finished"), &[&season]).into());
         }
@@ -186,14 +185,12 @@ impl Driver {
         let Some(path) = self.player.path.clone() else {
             return;
         };
-        if !self.player.eof_reached
-            || self.per_file.end_light_asked.as_deref() == Some(path.as_str())
-        {
+        if !self.player.eof_reached || self.per_file.end_light_asked.as_ref() == Some(&path) {
             return;
         }
         self.per_file.end_light_asked = Some(path.clone());
         self.app.worker.submit(move |_mpv| {
-            let still = dbm_library::preview::lit_still(std::path::Path::new(&path), 0.9);
+            let still = dbm_library::preview::lit_still(&path, 0.9);
             Some(Completion::EndLight { from: path, still })
         });
     }
@@ -206,17 +203,17 @@ impl Driver {
     /// that could make the whole thing unnecessary arrive in the same read.
     fn listen_for_the_titles(&mut self) {
         use dbm_library::titles::{self, End};
-        let Some(path) = self.player.path.as_deref() else {
+        let Some(path) = self.player.path.as_ref() else {
             return;
         };
-        if self.per_file.titles_asked.as_deref() == Some(path)
+        if self.per_file.titles_asked.as_ref() == Some(path)
             || self.player.duration <= 0.0
             || !self.feeds.lists.settled(&self.player)
-            || !self.player.playlist.iter().any(|e| e.filename == path)
+            || !self.player.playlist.iter().any(|e| e.filename == *path)
         {
             return;
         }
-        self.per_file.titles_asked = Some(path.to_string());
+        self.per_file.titles_asked = Some(path.clone());
         // The opening first: it is the one that is about to play.
         let mut ends = Vec::new();
         if self.player.intro_named().is_none() {
@@ -234,7 +231,7 @@ impl Driver {
             return;
         }
         titles::spawn(
-            path.to_string(),
+            path.clone(),
             ends,
             beside,
             self.player.duration,

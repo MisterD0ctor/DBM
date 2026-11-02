@@ -11,16 +11,15 @@
 //! episode means that season, so they are not queued; they are shown, and an
 //! episode picked from one opens its folder at that episode.
 
-use std::path::Path;
-
 use dbm_lang::{fill, tr};
+use dbm_mpv::MediaPath;
 use dbm_naming::Media;
 
 use crate::durations::Progress;
 
 /// A file as the playlist has it.
 pub struct Item<'a> {
-    pub path: &'a str,
+    pub path: MediaPath,
     /// The container's own title, where one is known.
     pub title: Option<&'a str>,
     pub index: i64,
@@ -35,14 +34,14 @@ pub struct Item<'a> {
 pub struct Beside {
     pub season: u32,
     /// Its files in watching order, and how far into each you got.
-    pub files: Vec<(String, Progress)>,
+    pub files: Vec<(MediaPath, Progress)>,
 }
 
 /// One row of a part's page.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Entry {
     pub label: String,
-    pub path: String,
+    pub path: MediaPath,
     /// Its place in mpv's playlist, or `None` for a file in a season beside it.
     pub index: Option<i64>,
     pub current: bool,
@@ -114,7 +113,7 @@ enum Part {
 
 /// Lay a playlist out in parts, with any seasons found beside it.
 pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
-    let heading = dbm_naming::listing(items.iter().map(|i| (i.path, i.title))).heading;
+    let heading = dbm_naming::listing(items.iter().map(|i| (i.path.as_str(), i.title))).heading;
 
     // Runs of consecutive files rather than a gathering by key. The list is in
     // watching order, which already keeps a show's files together; were one
@@ -122,7 +121,7 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
     // will do than one part collected from both ends of the queue.
     let mut runs: Vec<(Part, Option<String>, Vec<usize>)> = Vec::new();
     for (i, item) in items.iter().enumerate() {
-        let (part, show) = match dbm_naming::parse(item.path) {
+        let (part, show) = match dbm_naming::parse(item.path.as_str()) {
             Media::Episode { show, season, .. } => {
                 (Part::Show(show.to_lowercase(), season), Some(show))
             }
@@ -150,11 +149,15 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
             };
             let labels: Vec<String> = if leaf {
                 let item = &items[members[0]];
-                vec![dbm_naming::titled(item.path, item.title)]
+                vec![dbm_naming::titled(item.path.as_str(), item.title)]
             } else {
                 in_season(
-                    dbm_naming::listing(members.iter().map(|&i| (items[i].path, items[i].title)))
-                        .rows,
+                    dbm_naming::listing(
+                        members
+                            .iter()
+                            .map(|&i| (items[i].path.as_str(), items[i].title)),
+                    )
+                    .rows,
                     season,
                 )
             };
@@ -170,7 +173,7 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
                     let item = &items[i];
                     Entry {
                         label,
-                        path: item.path.to_string(),
+                        path: item.path.clone(),
                         index: Some(item.index),
                         current: item.current,
                         progress: item.progress,
@@ -260,7 +263,7 @@ fn part_label(season: Option<u32>, show: Option<&str>, one_show: bool) -> (Strin
 /// own, looks in each folder there, and reads every file's resume point.
 ///
 /// Nothing for a list that is not one season of one show in one folder.
-pub fn look_beside(paths: &[String]) -> Vec<Beside> {
+pub fn look_beside(paths: &[MediaPath]) -> Vec<Beside> {
     let Some(first) = paths.first() else {
         return Vec::new();
     };
@@ -268,15 +271,15 @@ pub fn look_beside(paths: &[String]) -> Vec<Beside> {
         show,
         season: Some(season),
         ..
-    } = dbm_naming::parse(first)
+    } = dbm_naming::parse(first.as_str())
     else {
         return Vec::new();
     };
-    let folder = Path::new(first).parent();
+    let folder = first.as_path().parent();
     let one_season = paths.iter().all(|p| {
-        Path::new(p).parent() == folder
+        p.as_path().parent() == folder
             && matches!(
-                dbm_naming::parse(p),
+                dbm_naming::parse(p.as_str()),
                 Media::Episode { show: ref s, season: Some(n), .. }
                     if n == season && s.eq_ignore_ascii_case(&show)
             )
@@ -284,13 +287,13 @@ pub fn look_beside(paths: &[String]) -> Vec<Beside> {
     if !one_season {
         return Vec::new();
     }
-    crate::playlist::seasons_beside(Path::new(first))
+    crate::playlist::seasons_beside(first.as_path())
         .into_iter()
         .filter_map(|(dir, season)| {
-            let files: Vec<String> = crate::playlist::scan_flat(&dir)
+            let files: Vec<MediaPath> = crate::playlist::scan_flat(&dir)
                 .ok()?
                 .iter()
-                .map(|p| p.to_string_lossy().into_owned())
+                .map(|p| MediaPath::from(p.as_path()))
                 .collect();
             let progress = crate::durations::of(&files);
             Some(Beside {
@@ -305,9 +308,9 @@ pub fn look_beside(paths: &[String]) -> Vec<Beside> {
 mod tests {
     use super::*;
 
-    fn item(path: &str, index: i64) -> Item<'_> {
+    fn item(path: &str, index: i64) -> Item<'static> {
         Item {
-            path,
+            path: path.into(),
             title: None,
             index,
             current: false,
@@ -400,7 +403,7 @@ mod tests {
     fn a_page_opens_where_watching_carries_on() {
         let entry = |progress: Progress| Entry {
             label: String::new(),
-            path: String::new(),
+            path: "Show.S01E01.mkv".into(),
             index: None,
             current: false,
             progress,

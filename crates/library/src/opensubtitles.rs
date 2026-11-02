@@ -21,6 +21,7 @@
 use std::path::{Path, PathBuf};
 
 use dbm_lang::tr;
+use dbm_mpv::MediaPath;
 
 use crate::cache::PathMap;
 use crate::threads::{Reporter, Supersede};
@@ -113,7 +114,7 @@ impl Failure {
 /// A search's answer, for the file it was asked about, and who was signed in
 /// once it was done.
 pub struct Found {
-    pub path: String,
+    pub path: MediaPath,
     pub hits: Result<Vec<Hit>, Failure>,
     pub account: Option<Account>,
 }
@@ -121,14 +122,14 @@ pub struct Found {
 /// A download's answer: the subtitle on disk, and its language; and who was
 /// signed in once it was done, with what they have left.
 pub struct Fetched {
-    pub path: String,
+    pub path: MediaPath,
     pub hit: Hit,
     pub result: Result<(PathBuf, String), Failure>,
     pub account: Option<Account>,
 }
 
 /// Look for subtitles for `path` in `languages`, on a thread of its own.
-pub fn search(path: String, languages: Vec<String>, reporter: Reporter<Found>) {
+pub fn search(path: MediaPath, languages: Vec<String>, reporter: Reporter<Found>) {
     let ticket = SEARCHES.next();
     crate::threads::spawn("dbm-search", move || {
         let hits = search::look(&path, &languages);
@@ -145,7 +146,7 @@ pub fn search(path: String, languages: Vec<String>, reporter: Reporter<Found>) {
 
 /// Fetch one subtitle for `path`, on a thread of its own, keep it, and say
 /// where it is.
-pub fn fetch(path: String, hit: Hit, reporter: Reporter<Fetched>) {
+pub fn fetch(path: MediaPath, hit: Hit, reporter: Reporter<Fetched>) {
     crate::threads::spawn("dbm-download", move || {
         let result = download::download(&path, &hit);
         let account = account::current();
@@ -162,7 +163,7 @@ pub fn fetch(path: String, hit: Hit, reporter: Reporter<Fetched>) {
 /// language, which is in its name (see `download::keep_as`).
 ///
 /// **Blocking.** Worker thread only.
-pub fn kept(path: &str) -> Vec<(PathBuf, String)> {
+pub fn kept(path: &MediaPath) -> Vec<(PathBuf, String)> {
     KEPT.load()
         .remove(path)
         .unwrap_or_default()
@@ -186,7 +187,7 @@ pub fn kept(path: &str) -> Vec<(PathBuf, String)> {
 /// one beside the film is the person's own.
 ///
 /// **Blocking.** Worker thread only.
-pub fn forget(path: &str, file: &str) {
+pub fn forget(path: &MediaPath, file: &str) {
     let mut files = KEPT.load().remove(path).unwrap_or_default();
     let before = files.len();
     files.retain(|kept| kept != file);

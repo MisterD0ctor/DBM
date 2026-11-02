@@ -5,9 +5,10 @@
 //! season of the show where one sits beside this one on disk, and failing
 //! that, whatever else was left unfinished.
 
-use std::path::Path;
+use std::path::PathBuf;
 
 use dbm_lang::{fill, tr};
+use dbm_mpv::MediaPath;
 
 use crate::{playlist, resume};
 
@@ -16,7 +17,8 @@ use crate::{playlist, resume};
 /// Named here rather than in the interface, since what it is called depends
 /// on whether it is a season or a film, which are found in different ways.
 pub struct Onward {
-    pub path: String,
+    /// A season's folder, or a film.
+    pub path: PathBuf,
     /// What the pill says: a noun, like *Season 8*, for the thing you are
     /// going to.
     pub label: String,
@@ -29,14 +31,14 @@ pub struct Onward {
 ///
 /// **Blocking.** Worker thread only: it lists the folder above this file's,
 /// and failing that reads the resume files.
-pub fn after(path: &str) -> Option<Onward> {
+pub fn after(path: &MediaPath) -> Option<Onward> {
     next_season(path).or_else(|| unfinished(path))
 }
 
-fn next_season(path: &str) -> Option<Onward> {
-    let (folder, season) = playlist::next_season(Path::new(path))?;
+fn next_season(path: &MediaPath) -> Option<Onward> {
+    let (folder, season) = playlist::next_season(path.as_path())?;
     Some(Onward {
-        path: folder.to_string_lossy().into_owned(),
+        path: folder,
         label: fill(tr("Season {}"), &[&season]),
         season: true,
     })
@@ -45,14 +47,14 @@ fn next_season(path: &str) -> Option<Onward> {
 /// Nothing of this show comes after it: a film, or the last season on disk.
 /// The way on is then whatever else was left unfinished, the same film the
 /// empty window offers to continue.
-fn unfinished(path: &str) -> Option<Onward> {
-    let film = resume::last_watched().filter(|r| r.path != path)?;
+fn unfinished(path: &MediaPath) -> Option<Onward> {
+    let film = resume::last_watched().filter(|r| r.path != *path)?;
     Some(Onward {
         label: match &film.show {
             Some(show) => format!("{show} · {}", film.title),
             None => film.title.clone(),
         },
-        path: film.path,
+        path: film.path.as_path().to_path_buf(),
         season: false,
     })
 }

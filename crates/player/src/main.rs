@@ -21,7 +21,7 @@
 //! |---------------|-----------------------------------------------------------|
 //! | `dbm_library` | files on disk: playlists, lengths, previews, subtitles    |
 //! | `dbm_gpu`     | the passes drawn over the video: border, blur, glass      |
-//! | `dbm_mpv`     | the libmpv binding, and the lists mpv keeps, read typed   |
+//! | `dbm_mpv`     | the libmpv binding, its lists read typed, and `MediaPath` |
 //! | `dbm_naming`  | what files, tracks and chapters are called, from names    |
 //! | `dbm_lang`    | the language it speaks, and the words in each             |
 //!

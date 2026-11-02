@@ -24,6 +24,8 @@
 use std::path::Path;
 use std::time::{Duration, Instant};
 
+use dbm_mpv::MediaPath;
+
 use crate::cache::PathMap;
 use crate::ffmpeg;
 use crate::threads::Reporter;
@@ -32,7 +34,7 @@ use crate::threads::{Supersede, Ticket};
 /// One file, described.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Found {
-    pub path: String,
+    pub path: MediaPath,
     /// Zero when the container does not say.
     pub seconds: f64,
     /// The container's own title tag, if it has one.
@@ -51,7 +53,7 @@ const BATCH: Duration = Duration::from_secs(1);
 
 /// Describe `paths` on a thread of its own, calling off any scan still
 /// running. An empty list only calls it off.
-pub fn scan(paths: Vec<String>, reporter: Reporter<Vec<Found>>) {
+pub fn scan(paths: Vec<MediaPath>, reporter: Reporter<Vec<Found>>) {
     let ticket = SCANS.next();
     if paths.is_empty() {
         return;
@@ -64,13 +66,13 @@ pub fn scan(paths: Vec<String>, reporter: Reporter<Vec<Found>>) {
     }
 }
 
-fn run(paths: Vec<String>, ticket: Ticket, reporter: Reporter<Vec<Found>>) {
+fn run(paths: Vec<MediaPath>, ticket: Ticket, reporter: Reporter<Vec<Found>>) {
     let lengths = crate::durations::load();
     let titles = TITLES.load();
 
     // Everything already known goes back in one delivery before any ffmpeg
     // starts, so a folder opened again is complete as soon as its list is.
-    let (known, unknown): (Vec<String>, Vec<String>) = paths
+    let (known, unknown): (Vec<MediaPath>, Vec<MediaPath>) = paths
         .into_iter()
         .partition(|path| lengths.get(path).is_some_and(|s| *s > 0.0) && titles.contains_key(path));
     let known: Vec<Found> = known
@@ -126,13 +128,13 @@ fn run(paths: Vec<String>, ticket: Ticket, reporter: Reporter<Vec<Found>>) {
 ///
 /// `None` for anything that isn't a file on disk, since a stream URL would
 /// mean a network request, and mpv reports those once they play.
-fn probe(ffmpeg: &Path, path: &str) -> Option<Found> {
-    if !Path::new(path).is_file() {
+fn probe(ffmpeg: &Path, path: &MediaPath) -> Option<Found> {
+    if !path.as_path().is_file() {
         return None;
     }
-    let report = ffmpeg::describe(ffmpeg, Path::new(path))?;
+    let report = ffmpeg::describe(ffmpeg, path.as_path())?;
     Some(Found {
-        path: path.to_string(),
+        path: path.clone(),
         seconds: ffmpeg::parse_duration(&report).unwrap_or(0.0),
         title: parse_title(&report),
     })
@@ -160,7 +162,8 @@ pub fn parse_title(report: &str) -> Option<String> {
 // The title cache
 // ---------------------------------------------------------------------------
 
-/// Path to title. An empty string is a file that was asked and has none.
+/// Each file's title tag. An empty string is a file that was asked and has
+/// none.
 ///
 /// One scan writes at a time in practice, but a superseded one can still be
 /// finishing its last file as the next starts.
@@ -169,7 +172,7 @@ pub fn parse_title(report: &str) -> Option<String> {
 static TITLES: PathMap<String> = PathMap::cache("titles.json", 1);
 
 /// **Blocking.**
-fn record_title(path: &str, title: Option<&str>) {
+fn record_title(path: &MediaPath, title: Option<&str>) {
     TITLES.set(path, title.unwrap_or("").to_string());
 }
 

@@ -25,7 +25,7 @@ pub fn answer(ui: &MainWindow, mpv: &Mpv, player: &PlayerState, outcome: Outcome
     ui.global::<Subtitles>().set_sync_state(0);
     // For the film and the track it listened to, or for nothing: the
     // timing belongs to that pair and would be wrong for any other.
-    if player.path.as_deref() != Some(outcome.path.as_str()) || player.sid != outcome.sid {
+    if outcome.path.is_none() || player.path != outcome.path || player.sid != outcome.sid {
         return;
     }
     let fit = match outcome.result {

@@ -3,7 +3,7 @@ use slint::ComponentHandle;
 use crate::app::App;
 use crate::playback::commands;
 use crate::worker::Completion;
-use crate::{Find, MainWindow, Playback, Subtitles, Tracks};
+use crate::{Find, MainWindow, Subtitles, Tracks};
 
 /// Subtitle and audio tracks.
 pub(super) fn wire_tracks(ui: &MainWindow, app: &App) {
@@ -38,7 +38,7 @@ pub(super) fn wire_tracks(ui: &MainWindow, app: &App) {
                 return;
             };
             if let Some(path) = mpv.get_property("path") {
-                dbm_library::opensubtitles::forget(&path, &file);
+                dbm_library::opensubtitles::forget(&path.into(), &file);
             }
         });
     });
@@ -58,10 +58,9 @@ pub(super) fn wire_finding(ui: &MainWindow, app: &App) {
         find.on_search(move || {
             app.activity.bump();
             let Some(ui) = weak.upgrade() else { return };
-            let path = ui.global::<Playback>().get_path().to_string();
-            if path.is_empty() {
+            let Some(path) = super::playing(&ui) else {
                 return;
-            }
+            };
             app.search.clear();
             let find = ui.global::<Find>();
             find.set_hits(Default::default());
@@ -79,9 +78,7 @@ pub(super) fn wire_finding(ui: &MainWindow, app: &App) {
         find.on_fetch(move |row| {
             app.activity.bump();
             let Some(ui) = weak.upgrade() else { return };
-            let hit = app.search.hit(row);
-            let path = ui.global::<Playback>().get_path().to_string();
-            let Some(hit) = hit.filter(|_| !path.is_empty()) else {
+            let Some((path, hit)) = super::playing(&ui).zip(app.search.hit(row)) else {
                 return;
             };
             ui.global::<Find>().set_fetching(row);

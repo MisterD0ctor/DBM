@@ -1,4 +1,4 @@
-use std::path::Path;
+use dbm_mpv::MediaPath;
 
 use super::cache::cached;
 use super::decode::cut;
@@ -18,7 +18,7 @@ pub struct Still {
 ///
 /// Only from the cache, never by building, since a frame for the empty window
 /// isn't worth 64 ffmpeg spawns at startup.
-pub fn still(video: &Path, fraction: f32) -> Option<Still> {
+pub fn still(video: &MediaPath, fraction: f32) -> Option<Still> {
     let sprite = cached(video)?;
     let ffmpeg = ffmpeg::path()?;
     let (width, height) = (sprite.tile_w, sprite.tile_h);
@@ -36,7 +36,7 @@ pub fn still(video: &Path, fraction: f32) -> Option<Still> {
 ///
 /// **Blocking.** Worker thread only: it runs ffmpeg once, for the whole atlas,
 /// and from the cache only, as [`still`] does.
-pub fn lit_still(video: &Path, within: f32) -> Option<Still> {
+pub fn lit_still(video: &MediaPath, within: f32) -> Option<Still> {
     let sprite = cached(video)?;
     let ffmpeg = ffmpeg::path()?;
     let (width, height, grid) = (sprite.tile_w, sprite.tile_h, sprite.grid);

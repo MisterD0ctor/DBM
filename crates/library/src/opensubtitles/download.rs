@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
+use dbm_mpv::MediaPath;
 use serde_json::Value;
 use ureq::http::Method;
 use url::Url;
@@ -11,7 +12,7 @@ use super::account::{self, Signed};
 use super::http::{Ask, failure, fetch_file, said, send_again_once};
 use super::{Failure, Hit, KEPT, fake};
 
-pub(super) fn download(path: &str, hit: &Hit) -> Result<(PathBuf, String), Failure> {
+pub(super) fn download(path: &MediaPath, hit: &Hit) -> Result<(PathBuf, String), Failure> {
     let file = keep_as(path, hit);
     // Fetched before: no need to spend one of the day's downloads on it.
     if file.is_file() {
@@ -36,8 +37,9 @@ pub(super) fn download(path: &str, hit: &Hit) -> Result<(PathBuf, String), Failu
 /// Where a download for `path` is kept: in the player's own folder, named
 /// after the film, the language and the subtitle's own id, so the same one
 /// asked for twice is the same file.
-fn keep_as(path: &str, hit: &Hit) -> PathBuf {
-    let stem = Path::new(path)
+fn keep_as(path: &MediaPath, hit: &Hit) -> PathBuf {
+    let stem = path
+        .as_path()
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| "subtitles".into());
@@ -89,7 +91,7 @@ fn link(hit: &Hit, signed: Option<&Signed>) -> Result<Url, Failure> {
         .ok_or_else(|| said(&reply.body).unwrap_or(Failure::Unreachable))
 }
 
-fn remember(path: &str, file: &Path) {
+fn remember(path: &MediaPath, file: &Path) {
     let mut files = KEPT.load().remove(path).unwrap_or_default();
     let file = file.to_string_lossy().into_owned();
     if !files.contains(&file) {
@@ -113,7 +115,7 @@ mod tests {
             hearing_impaired: false,
             machine: false,
         };
-        let file = keep_as("/films/Some Film (2019).mkv", &hit);
+        let file = keep_as(&"/films/Some Film (2019).mkv".into(), &hit);
         let name = file.file_name().unwrap().to_string_lossy().into_owned();
         assert_eq!(name, "Some Film (2019).pt-br.42.srt");
         let stem = file.file_stem().unwrap();

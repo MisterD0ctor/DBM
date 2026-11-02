@@ -8,7 +8,7 @@
 
 use dbm_lang::{fill, tr};
 use dbm_mpv::tracks::{PlaylistEntry, Track};
-use dbm_mpv::{Event, Format, Mpv, Value};
+use dbm_mpv::{Event, Format, MediaPath, Mpv, Value};
 
 /// Every property the player observes. Its position in [`Prop::ALL`] is the
 /// id mpv reports it under.
@@ -231,7 +231,7 @@ pub struct Lists {
 pub struct PlayerState {
     pub filename: Option<String>,
     pub media_title: Option<String>,
-    pub path: Option<String>,
+    pub path: Option<MediaPath>,
     pub duration: f64,
     pub time_pos: f64,
     pub percent_pos: f64,
@@ -268,11 +268,11 @@ pub struct PlayerState {
     /// Where an episode's title sequence was heard to be, in seconds, and the
     /// file that is true of (see `titles`). Kept with its path, so a new file
     /// needs nothing cleared.
-    pub intro_heard: Option<(String, (f64, f64))>,
+    pub intro_heard: Option<(MediaPath, (f64, f64))>,
     /// Where its closing credits were heard to be, kept the same way: in
     /// pieces, with a scene of the file's own between two, or after the last
     /// where it stops short of the end.
-    pub credits_heard: Option<(String, Vec<(f64, f64)>)>,
+    pub credits_heard: Option<(MediaPath, Vec<(f64, f64)>)>,
     /// Playlist entries that wouldn't play, by mpv's id, with the notice
     /// that said so, so their rows can say it again after it has gone. By id
     /// rather than path, since a file that fails at once has no path reported
@@ -307,7 +307,7 @@ pub struct PlayerState {
     /// Only added to, and read over `playlist` and `progress` rather than
     /// written into them, since those are replaced by every list read, and a
     /// read begun before a probe landed would undo it.
-    pub probed: std::collections::HashMap<String, dbm_library::probe::Found>,
+    pub probed: std::collections::HashMap<MediaPath, dbm_library::probe::Found>,
     /// Seasons of the show found beside a playlist that is one season of it
     /// (see [`dbm_library::shelf`]). Shown rather than queued, and opened
     /// when picked.
@@ -355,7 +355,7 @@ impl PlayerState {
         match prop {
             Prop::Filename => set(&mut self.filename, text),
             Prop::MediaTitle => set(&mut self.media_title, text),
-            Prop::Path => set(&mut self.path, text),
+            Prop::Path => set(&mut self.path, text.map(MediaPath::from)),
             Prop::Duration => set(&mut self.duration, num.unwrap_or(0.0)),
             Prop::TimePos => set(&mut self.time_pos, num.unwrap_or(0.0)),
             Prop::PercentPos => set(&mut self.percent_pos, num.unwrap_or(0.0)),
@@ -416,7 +416,7 @@ impl PlayerState {
     }
 
     /// The playlist's files, in order.
-    pub fn playlist_paths(&self) -> Vec<String> {
+    pub fn playlist_paths(&self) -> Vec<MediaPath> {
         self.playlist.iter().map(|e| e.filename.clone()).collect()
     }
 
@@ -541,7 +541,8 @@ impl PlayerState {
 
     fn title_path(&self) -> &str {
         self.path
-            .as_deref()
+            .as_ref()
+            .map(MediaPath::as_str)
             .or(self.filename.as_deref())
             .unwrap_or("")
     }
@@ -552,7 +553,7 @@ impl PlayerState {
     /// title of its own, and that fallback isn't a title.
     fn embedded_title(&self) -> Option<&str> {
         let title = self.media_title.as_deref()?;
-        let name = dbm_naming::strip_path(self.path.as_deref().unwrap_or(""));
+        let name = dbm_naming::strip_path(self.path.as_ref().map_or("", MediaPath::as_str));
         let bare = self.filename.as_deref().unwrap_or("");
         (!title.is_empty() && title != name && title != bare).then_some(title)
     }

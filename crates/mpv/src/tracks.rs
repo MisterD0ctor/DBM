@@ -11,7 +11,7 @@
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
-use crate::Mpv;
+use crate::{MediaPath, Mpv};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -66,8 +66,7 @@ pub struct PlaylistEntry {
     /// reordered, and is what an ended file is named by.
     #[serde(default)]
     pub id: i64,
-    #[serde(default)]
-    pub filename: String,
+    pub filename: MediaPath,
     #[serde(default, deserialize_with = "non_empty")]
     pub title: Option<String>,
     /// Left out by mpv but for the one entry that is.

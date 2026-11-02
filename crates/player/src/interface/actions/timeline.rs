@@ -19,11 +19,10 @@ pub(super) fn wire_timeline(ui: &MainWindow, app: &App) {
             let Some(ui) = weak.upgrade() else { return };
             let duration = f64::from(ui.global::<Playback>().get_duration());
             let to = f64::from(fraction) * duration;
-            app.retrace.landed(
-                &ui.global::<Playback>().get_path(),
-                f64::from(ui.global::<Playback>().get_progress()) * duration,
-                to,
-            );
+            if let Some(path) = super::playing(&ui) {
+                let at = f64::from(ui.global::<Playback>().get_progress()) * duration;
+                app.retrace.landed(&path, at, to);
+            }
             commands::seek_to(&app.mpv, to);
         });
     }
@@ -39,13 +38,12 @@ pub(super) fn wire_timeline(ui: &MainWindow, app: &App) {
         let (app, weak) = (app.clone(), ui.as_weak());
         playback.on_seek_fraction(move |f| {
             app.activity.bump();
-            if let Some(ui) = weak.upgrade() {
+            if let Some(ui) = weak.upgrade()
+                && let Some(path) = super::playing(&ui)
+            {
                 let duration = f64::from(ui.global::<Playback>().get_duration());
-                app.retrace.landed(
-                    &ui.global::<Playback>().get_path(),
-                    f64::from(ui.global::<Playback>().get_progress()) * duration,
-                    f64::from(f) * duration,
-                );
+                let at = f64::from(ui.global::<Playback>().get_progress()) * duration;
+                app.retrace.landed(&path, at, f64::from(f) * duration);
             }
             app.scrubber.release(&app.mpv, f);
         });

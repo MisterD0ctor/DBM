@@ -39,7 +39,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
-use dbm_mpv::Mpv;
+use dbm_mpv::{MediaPath, Mpv};
 use zbus::blocking::Connection;
 use zbus::names::InterfaceName;
 use zbus::object_server::SignalEmitter;
@@ -240,8 +240,8 @@ struct Shown {
     /// replaced. `SetPosition` uses it to refuse a seek meant for the file
     /// before.
     track: u64,
-    /// mpv's `path`, as it was given. Empty when nothing is loaded.
-    path: String,
+    /// mpv's `path`, as it was given.
+    path: Option<MediaPath>,
     /// mpv's `media-title`, which arrives after the path does.
     media_title: String,
     /// The name as the bar shows it (`PlayerState::display_title`).
@@ -264,7 +264,7 @@ impl Default for Shown {
     fn default() -> Self {
         Self {
             track: 0,
-            path: String::new(),
+            path: None,
             media_title: String::new(),
             title: String::new(),
             length: 0,
@@ -281,7 +281,7 @@ impl Shown {
     fn of(player: &PlayerState, track: u64) -> Self {
         Self {
             track,
-            path: player.path.clone().unwrap_or_default(),
+            path: player.path.clone(),
             media_title: player.media_title.clone().unwrap_or_default(),
             title: player.display_title(),
             length: micros(player.duration),
@@ -299,7 +299,7 @@ impl Shown {
     /// parses a title, which allocates, and while a film plays every frame
     /// reaches here. So the test is against what the title is parsed from.
     fn describes(&self, player: &PlayerState) -> bool {
-        self.path == player.path.as_deref().unwrap_or_default()
+        self.path == player.path
             && self.media_title == player.media_title.as_deref().unwrap_or_default()
             && self.length == micros(player.duration)
             && self.paused == player.paused
@@ -311,11 +311,11 @@ impl Shown {
 
     /// Whether a different file is loaded than the one this describes.
     fn switched(&self, player: &PlayerState) -> bool {
-        self.path != player.path.as_deref().unwrap_or_default()
+        self.path != player.path
     }
 
     fn has_file(&self) -> bool {
-        !self.path.is_empty()
+        self.path.is_some()
     }
 
     /// `Stopped` covers both nothing loaded and nothing to load, which is
@@ -348,8 +348,8 @@ impl Shown {
         meta.insert("xesam:title", Value::from(self.title.clone()));
         // Only an absolute path can become a URI, and mpv reports the path it
         // was given, which a command-line argument can leave relative.
-        if self.path.starts_with('/') {
-            meta.insert("xesam:url", Value::from(file_uri(&self.path)));
+        if let Some(path) = self.path.as_ref().filter(|p| p.as_str().starts_with('/')) {
+            meta.insert("xesam:url", Value::from(file_uri(path)));
         }
         meta
     }
@@ -771,9 +771,9 @@ fn micros(seconds: f64) -> i64 {
 /// Written out rather than taken from a crate, since the rule is one line:
 /// every byte outside the unreserved set becomes a percent triple. Bytes
 /// rather than characters, so a name in any encoding survives intact.
-fn file_uri(path: &str) -> String {
+fn file_uri(path: &MediaPath) -> String {
     let mut uri = String::from("file://");
-    for byte in path.as_bytes() {
+    for byte in path.as_str().as_bytes() {
         match byte {
             b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' | b'/' => {
                 uri.push(*byte as char);

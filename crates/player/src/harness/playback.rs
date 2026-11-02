@@ -841,7 +841,7 @@ fn report_resume_file(mpv: &Mpv) {
         eprintln!("dbm: progress: nothing playing");
         return;
     };
-    let name = dbm_library::durations::watch_later_name(&path);
+    let name = dbm_library::durations::watch_later_name(&path.into());
     let file = dbm_library::paths::watch_later_dir().join(&name);
     let start = std::fs::read_to_string(&file)
         .ok()

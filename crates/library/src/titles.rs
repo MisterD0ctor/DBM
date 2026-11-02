@@ -21,6 +21,7 @@ use std::io::Read;
 use std::path::Path;
 use std::process::Stdio;
 
+use dbm_mpv::MediaPath;
 use dbm_naming::Media;
 
 use crate::cache::PathMap;
@@ -136,7 +137,7 @@ const HEARD: u32 = 4;
 /// A run's answer: the file it listened to, which end of it, and what it
 /// found there, in pieces.
 pub struct Outcome {
-    pub path: String,
+    pub path: MediaPath,
     pub end: End,
     pub pieces: Option<Vec<Span>>,
 }
@@ -153,21 +154,21 @@ static LISTENS: Supersede = Supersede::new();
 /// nearest because they also change within one (a cast member gone, a second
 /// cut from the halfway point). Which are tried, and in what order, depends
 /// on what is already known of them; see [`worth_trying`].
-pub fn beside(path: &str, playlist: &[String]) -> Vec<(String, usize)> {
-    let Media::Episode { show, season, .. } = dbm_naming::parse(path) else {
+pub fn beside(path: &MediaPath, playlist: &[MediaPath]) -> Vec<(MediaPath, usize)> {
+    let Media::Episode { show, season, .. } = dbm_naming::parse(path.as_str()) else {
         return Vec::new();
     };
     let Some(here) = playlist.iter().position(|p| p == path) else {
         return Vec::new();
     };
-    let same = |other: &String| {
+    let same = |other: &MediaPath| {
         matches!(
-            dbm_naming::parse(other),
+            dbm_naming::parse(other.as_str()),
             Media::Episode { show: s, season: n, .. }
                 if n == season && s.eq_ignore_ascii_case(&show)
         )
     };
-    let mut near: Vec<(usize, usize, &String)> = playlist
+    let mut near: Vec<(usize, usize, &MediaPath)> = playlist
         .iter()
         .enumerate()
         .filter(|(at, other)| *at != here && same(other))
@@ -188,10 +189,10 @@ pub fn beside(path: &str, playlist: &[String]) -> Vec<(String, usize)> {
 /// listen to. Those heard to hold none go last, worth a try only in case
 /// that was wrong.
 fn worth_trying<'a>(
-    beside: &'a [(String, usize)],
-    known: &HashMap<String, Option<Vec<Span>>>,
-) -> Vec<(&'a str, Option<Option<Vec<Span>>>)> {
-    let mut ranked: Vec<(usize, &(String, usize))> = beside.iter().enumerate().collect();
+    beside: &'a [(MediaPath, usize)],
+    known: &HashMap<MediaPath, Option<Vec<Span>>>,
+) -> Vec<(&'a MediaPath, Option<Option<Vec<Span>>>)> {
+    let mut ranked: Vec<(usize, &(MediaPath, usize))> = beside.iter().enumerate().collect();
     ranked.sort_by_key(|&(near, (other, away))| {
         let held = known.get(other);
         let holds = matches!(held, Some(Some(_)));
@@ -201,7 +202,7 @@ fn worth_trying<'a>(
     ranked
         .into_iter()
         .take(TRIES)
-        .map(|(_, (other, _))| (other.as_str(), known.get(other).cloned()))
+        .map(|(_, (other, _))| (other, known.get(other).cloned()))
         .collect()
 }
 
@@ -215,9 +216,9 @@ fn worth_trying<'a>(
 /// couldn't listen at all (no ffmpeg, nothing beside it), since nothing is
 /// waiting on the answer.
 pub fn spawn(
-    path: String,
+    path: MediaPath,
     ends: Vec<End>,
-    beside: Vec<(String, usize)>,
+    beside: Vec<(MediaPath, usize)>,
     duration: f64,
     reporter: Reporter<Outcome>,
 ) {
@@ -254,9 +255,9 @@ pub fn spawn(
 /// `None` when there is no answer; `Some(None)` when the answer is that
 /// there is no sequence.
 fn find(
-    path: &str,
+    path: &MediaPath,
     end: End,
-    beside: &[(String, usize)],
+    beside: &[(MediaPath, usize)],
     duration: f64,
     ticket: Ticket,
 ) -> Option<Option<Vec<Span>>> {
@@ -275,14 +276,14 @@ fn find(
         End::Opening => 0.0,
         End::Closing => (length - reach).max(0.0),
     };
-    let ours = listen(&ffmpeg, Path::new(path), from(duration), reach, ticket)?;
+    let ours = listen(&ffmpeg, path.as_path(), from(duration), reach, ticket)?;
 
     let mut compared = false;
     // A match shorter than a title sequence is held while the rest are
     // tried, in case one shares more: credits that are a short cut of
     // another episode's share only the cut, and an episode heard to hold
     // only part of its credits offers only that part.
-    let mut short: Option<(Span, &str, Vec<Span>, Vec<Span>)> = None;
+    let mut short: Option<(Span, &MediaPath, Vec<Span>, Vec<Span>)> = None;
     for (other, held) in worth_trying(beside, &known) {
         // How long the other file is, for the credits: where they end is
         // judged against it, and where they are in a file not heard before
@@ -291,7 +292,7 @@ fn find(
         // titles.
         let length_there = match end {
             End::Opening => None,
-            End::Closing => match length(&ffmpeg, Path::new(other)) {
+            End::Closing => match length(&ffmpeg, other.as_path()) {
                 Some(length) => Some(length),
                 None => continue,
             },
@@ -309,7 +310,7 @@ fn find(
             (_, Some(length)) => (from(length), reach),
             (_, None) => (0.0, reach),
         };
-        let Some(theirs) = listen(&ffmpeg, Path::new(other), theirs_from, long, ticket) else {
+        let Some(theirs) = listen(&ffmpeg, other.as_path(), theirs_from, long, ticket) else {
             if !ticket.current() {
                 return None;
             }
@@ -367,9 +368,9 @@ fn find(
 /// missed.
 fn keep(
     heard: &PathMap<Option<Vec<Span>>>,
-    path: &str,
+    path: &MediaPath,
     here: &[Span],
-    other: &str,
+    other: &MediaPath,
     there: Vec<Span>,
 ) {
     heard.set(path, Some(here.to_vec()));
@@ -572,21 +573,21 @@ impl Samples {
 mod tests {
     use super::*;
 
-    fn list(names: &[&str]) -> Vec<String> {
-        names.iter().map(std::string::ToString::to_string).collect()
+    fn list(names: &[&str]) -> Vec<MediaPath> {
+        names.iter().map(|&name| name.into()).collect()
     }
 
-    fn away(names: &[(&str, usize)]) -> Vec<(String, usize)> {
-        names.iter().map(|&(n, a)| (n.to_string(), a)).collect()
+    fn away(names: &[(&str, usize)]) -> Vec<(MediaPath, usize)> {
+        names.iter().map(|&(n, a)| (n.into(), a)).collect()
     }
 
     fn tried<'a>(
-        near: &'a [(String, usize)],
-        known: &HashMap<String, Option<Vec<Span>>>,
+        near: &'a [(MediaPath, usize)],
+        known: &HashMap<MediaPath, Option<Vec<Span>>>,
     ) -> Vec<&'a str> {
         worth_trying(near, known)
             .into_iter()
-            .map(|(other, _)| other)
+            .map(|(other, _)| other.as_str())
             .collect()
     }
 
@@ -599,7 +600,7 @@ mod tests {
             "Show.S02E04.mkv",
         ]);
         assert_eq!(
-            beside("Show.S02E02.mkv", &season),
+            beside(&"Show.S02E02.mkv".into(), &season),
             away(&[
                 ("Show.S02E03.mkv", 1),
                 ("Show.S02E01.mkv", 1),
@@ -608,7 +609,7 @@ mod tests {
         );
         // The last has nothing after it, so those before, nearest first.
         assert_eq!(
-            beside("Show.S02E04.mkv", &season),
+            beside(&"Show.S02E04.mkv".into(), &season),
             away(&[
                 ("Show.S02E03.mkv", 1),
                 ("Show.S02E02.mkv", 2),
@@ -620,13 +621,15 @@ mod tests {
     #[test]
     fn of_two_as_near_one_known_to_hold_the_titles_goes_first() {
         // A show in eleven-minute halves: the titles on every other one.
-        let season: Vec<String> = (1..=9).map(|e| format!("Show.S07E{e:02}.mkv")).collect();
-        let near = beside("Show.S07E05.mkv", &season);
+        let season: Vec<MediaPath> = (1..=9)
+            .map(|e| format!("Show.S07E{e:02}.mkv").into())
+            .collect();
+        let near = beside(&"Show.S07E05.mkv".into(), &season);
         let mut known = HashMap::new();
-        known.insert("Show.S07E06.mkv".to_string(), None);
-        known.insert("Show.S07E04.mkv".to_string(), None);
-        known.insert("Show.S07E03.mkv".to_string(), Some(vec![(0.0, 25.0)]));
-        known.insert("Show.S07E09.mkv".to_string(), Some(vec![(0.0, 25.0)]));
+        known.insert("Show.S07E06.mkv".into(), None);
+        known.insert("Show.S07E04.mkv".into(), None);
+        known.insert("Show.S07E03.mkv".into(), Some(vec![(0.0, 25.0)]));
+        known.insert("Show.S07E09.mkv".into(), Some(vec![(0.0, 25.0)]));
         // The one that holds them ahead of the one as near not yet heard,
         // then the next nearest, the later of two as near. The further one
         // that holds them is not reached, and nor are the two either side,
@@ -646,10 +649,17 @@ mod tests {
     fn titles_that_change_partway_are_found_after_the_change() {
         // A season whose second half has titles of its own, and the first
         // half already heard.
-        let season: Vec<String> = (1..=22).map(|e| format!("Show.S01E{e:02}.mkv")).collect();
-        let near = beside("Show.S01E12.mkv", &season);
+        let season: Vec<MediaPath> = (1..=22)
+            .map(|e| format!("Show.S01E{e:02}.mkv").into())
+            .collect();
+        let near = beside(&"Show.S01E12.mkv".into(), &season);
         let known = (1..=11)
-            .map(|e| (format!("Show.S01E{e:02}.mkv"), Some(vec![(50.0, 140.0)])))
+            .map(|e| {
+                (
+                    format!("Show.S01E{e:02}.mkv").into(),
+                    Some(vec![(50.0, 140.0)]),
+                )
+            })
             .collect();
         // Outward from the change, so the second half's own are reached
         // rather than all of the first half's.
@@ -761,7 +771,7 @@ mod tests {
             "Show.S02E03.mkv",
         ]);
         assert_eq!(
-            beside("Show.S02E01.mkv", &mixed),
+            beside(&"Show.S02E01.mkv".into(), &mixed),
             away(&[("Show.S02E03.mkv", 2)])
         );
     }
@@ -769,9 +779,9 @@ mod tests {
     #[test]
     fn a_film_or_a_lone_episode_has_nothing_beside_it() {
         let films = list(&["Some Film (2019).mkv", "Another Film (2020).mkv"]);
-        assert!(beside("Some Film (2019).mkv", &films).is_empty());
-        assert!(beside("Show.S02E01.mkv", &list(&["Show.S02E01.mkv"])).is_empty());
-        assert!(beside("Show.S02E01.mkv", &[]).is_empty());
+        assert!(beside(&"Some Film (2019).mkv".into(), &films).is_empty());
+        assert!(beside(&"Show.S02E01.mkv".into(), &list(&["Show.S02E01.mkv"])).is_empty());
+        assert!(beside(&"Show.S02E01.mkv".into(), &[]).is_empty());
     }
 
     #[test]

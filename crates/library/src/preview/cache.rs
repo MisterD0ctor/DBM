@@ -2,6 +2,8 @@
 
 use std::path::{Path, PathBuf};
 
+use dbm_mpv::MediaPath;
+
 use super::Sprite;
 use crate::cache::Folder;
 
@@ -15,9 +17,9 @@ static PREVIEWS: Folder = Folder::cache("previews", 1);
 /// Where a video's atlas lives. Named for the path so the same file found
 /// twice is built once, and checked against its modification time so an
 /// edited file is not shown yesterday's frames.
-pub(super) fn sprite_path(video: &Path) -> PathBuf {
+pub(super) fn sprite_path(video: &MediaPath) -> PathBuf {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for byte in video.to_string_lossy().as_bytes() {
+    for byte in video.as_str().as_bytes() {
         hash ^= u64::from(*byte);
         hash = hash.wrapping_mul(0x1000_0000_01b3);
     }
@@ -35,8 +37,10 @@ fn modified(path: &Path) -> Option<u64> {
 
 /// `<mtime> <tile_w> <tile_h> <grid>`: four numbers, so reading it back
 /// needs no real parser.
-pub(super) fn write_meta(sprite: &Sprite, video: &Path) {
-    let Some(mtime) = modified(video) else { return };
+pub(super) fn write_meta(sprite: &Sprite, video: &MediaPath) {
+    let Some(mtime) = modified(video.as_path()) else {
+        return;
+    };
     let text = format!(
         "{mtime} {} {} {}",
         sprite.tile_w, sprite.tile_h, sprite.grid
@@ -44,7 +48,7 @@ pub(super) fn write_meta(sprite: &Sprite, video: &Path) {
     let _ = std::fs::write(meta_path(&sprite.path), text);
 }
 
-pub(super) fn cached(video: &Path) -> Option<Sprite> {
+pub(super) fn cached(video: &MediaPath) -> Option<Sprite> {
     let sprite = sprite_path(video);
     if !sprite.is_file() {
         return None;
@@ -52,7 +56,7 @@ pub(super) fn cached(video: &Path) -> Option<Sprite> {
     let text = std::fs::read_to_string(meta_path(&sprite)).ok()?;
     let mut parts = text.split_whitespace();
     let stamp: u64 = parts.next()?.parse().ok()?;
-    if modified(video)? != stamp {
+    if modified(video.as_path())? != stamp {
         return None;
     }
     Some(Sprite {

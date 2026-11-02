@@ -7,12 +7,14 @@
 //! among those paths is the last thing left unfinished, and its `start=` is
 //! where.
 
+use dbm_mpv::MediaPath;
+
 use crate::durations::Progress;
 use crate::paths;
 
 /// The file you stopped part-way through most recently.
 pub struct Resume {
-    pub path: String,
+    pub path: MediaPath,
     /// The show it is an episode of, if it is one. Kept apart from the title
     /// so the way in can give it a line of its own, leaving the episode room
     /// for its number.
@@ -33,7 +35,7 @@ pub struct Resume {
 /// duration cache and reads one watch-later file.
 pub fn last_watched() -> Option<Resume> {
     let dir = paths::watch_later_dir();
-    let mut candidates: Vec<(std::time::SystemTime, String, f64)> = crate::durations::load()
+    let mut candidates: Vec<(std::time::SystemTime, MediaPath, f64)> = crate::durations::load()
         .into_iter()
         .filter(|(_, seconds)| *seconds > 0.0)
         .filter_map(|(path, seconds)| {
@@ -52,17 +54,17 @@ pub fn last_watched() -> Option<Resume> {
         let start = crate::durations::resume_point(&dir, &path)?;
         if start <= 0.0
             || crate::durations::is_finished(&finished, &path, start)
-            || !std::path::Path::new(&path).is_file()
+            || !path.as_path().is_file()
         {
             return None;
         }
         let fraction = (start / seconds).clamp(0.0, 1.0) as f32;
-        let (show, title) = dbm_naming::described(&path, None);
+        let (show, title) = dbm_naming::described(path.as_str(), None);
         Some(Resume {
             seconds_left: (seconds - start).max(0.0),
             show,
             title,
-            still: crate::preview::still(std::path::Path::new(&path), fraction),
+            still: crate::preview::still(&path, fraction),
             path,
             fraction,
         })

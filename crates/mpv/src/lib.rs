@@ -14,14 +14,17 @@
 //! `ffi` is the C side: the types as mpv's headers lay them out, and the
 //! entry points loaded from the library. `render` draws through the render
 //! API, and `tracks` reads the list-shaped properties into types of their
-//! own. This is the only crate in the player that calls C.
+//! own. A file to play is a [`MediaPath`] from here up. This is the only
+//! crate in the player that calls C.
 
 #![warn(clippy::undocumented_unsafe_blocks)]
 
 mod ffi;
+mod media_path;
 mod render;
 pub mod tracks;
 
+pub use media_path::MediaPath;
 pub use render::RenderContext;
 
 use std::ffi::{CStr, CString, c_char, c_int, c_void};

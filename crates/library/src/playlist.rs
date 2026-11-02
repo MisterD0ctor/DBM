@@ -15,6 +15,7 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use dbm_lang::{fill, tr};
+use dbm_mpv::MediaPath;
 
 use crate::resume::Saved;
 
@@ -49,12 +50,12 @@ pub fn prepare(path: &Path) -> Result<Prepared, String> {
     let selection = resolve(path)?;
     let m3u = crate::paths::playlist_m3u();
     write_m3u(&selection.videos, &m3u)?;
-    // As mpv will be told it, which is what it will report and hash.
+    // As the list tells mpv it, which is what it will report and hash.
     let first = selection
         .videos
         .get(selection.start)
-        .map(|video| video.display().to_string())
-        .unwrap_or_default();
+        .map(|video| MediaPath::from(video.as_path()))
+        .ok_or_else(|| fill(tr("There is nothing at {}"), &[&folder_name(path)]))?;
     let saved = crate::durations::of(std::slice::from_ref(&first))
         .first()
         .map_or(Saved::Nothing, Saved::of);
@@ -76,7 +77,7 @@ pub struct Prepared {
     pub start: usize,
     pub count: usize,
     /// That entry's path, and what is saved for it (see `arrival`).
-    pub first: String,
+    pub first: MediaPath,
     pub saved: Saved,
     /// Whether arriving at it with a place saved asks where to start, which
     /// it doesn't after the way in's Continue.

@@ -34,5 +34,5 @@ pub fn embedded_title(entry: &PlaylistEntry) -> Option<&str> {
     entry
         .title
         .as_deref()
-        .filter(|t| *t != dbm_naming::strip_path(&entry.filename))
+        .filter(|t| *t != dbm_naming::strip_path(entry.filename.as_str()))
 }

@@ -44,6 +44,7 @@ use dbm_gpu::Overlays;
 use dbm_gpu::pipeline::{GlassPanel, Pipeline};
 use dbm_lang::{fill, marked, tr};
 use dbm_library::playlist;
+use dbm_mpv::MediaPath;
 use dbm_mpv::tracks::{self, TrackKind};
 
 /// Identity of what a Slint image property points at: texture id, active
@@ -131,19 +132,19 @@ struct Feeds {
 #[derive(Default)]
 struct PerFile {
     /// The file the way on was last looked for on behalf of.
-    onward_asked: Option<String>,
+    onward_asked: Option<MediaPath>,
     /// The file whose end was last given a light, and the file whose end has
     /// one now (see `light_the_end`).
-    end_light_asked: Option<String>,
-    end_lit: Option<String>,
+    end_light_asked: Option<MediaPath>,
+    end_lit: Option<MediaPath>,
     /// Whether that light is the mark, for want of a frame of the file's own.
     end_marked: bool,
     /// The file whose title sequence and credits were last looked for, so
     /// each is looked for once.
-    titles_asked: Option<String>,
+    titles_asked: Option<MediaPath>,
     /// The file subtitles fetched before were last put back for, and the
     /// search's page last closed for: both once a file.
-    kept_asked: Option<String>,
+    kept_asked: Option<MediaPath>,
 }
 
 pub struct Driver {
@@ -555,10 +556,10 @@ impl Driver {
             self.player.playlist_pos,
             self.player.paused,
             self.player.loads,
-            self.player.path.as_deref(),
+            self.player.path.as_ref(),
         );
         let held = self.app.arrival.asking(
-            self.player.path.as_deref(),
+            self.player.path.as_ref(),
             self.player.time_pos,
             self.player.paused,
         );
@@ -569,12 +570,12 @@ impl Driver {
         let offered = self
             .app
             .arrival
-            .offered(self.player.path.as_deref(), self.player.time_pos);
+            .offered(self.player.path.as_ref(), self.player.time_pos);
         playback.set_resume_offer(offered.map(format::time).unwrap_or_default().into());
         let back = self
             .app
             .retrace
-            .offered(self.player.path.as_deref(), self.player.time_pos);
+            .offered(self.player.path.as_ref(), self.player.time_pos);
         playback.set_back_offer(back.map(format::time).unwrap_or_default().into());
         // An open is over when mpv finishes opening a file, not when it has
         // one, which is already true while a film plays. Failures end it their
