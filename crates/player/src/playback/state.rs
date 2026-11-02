@@ -242,8 +242,9 @@ pub struct PlayerState {
     /// Nothing loaded and nothing on its way, which is where a file that
     /// wouldn't play leaves mpv when it was the last.
     pub idle: bool,
-    pub playlist_pos: i64,
-    pub playlist_count: i64,
+    /// The entry playing, from 0, where one is.
+    pub playlist_pos: Option<usize>,
+    pub playlist_count: usize,
     pub sub_visibility: bool,
     pub sub_delay: f64,
     /// The speed subtitles run at against the film. Zero until mpv first
@@ -259,8 +260,8 @@ pub struct PlayerState {
     pub panscan: f64,
     /// Playback speed. Zero until mpv first reports it, which reads as 1.
     pub speed: f64,
-    /// The chapter playing, from 0, or -1 before the first mark.
-    pub chapter: i64,
+    /// The chapter playing, from 0, where the file has one and it has begun.
+    pub chapter: Option<usize>,
     pub chapter_count: i64,
     /// Read on the worker with the tracks (see `worker`).
     pub chapters: Vec<dbm_mpv::tracks::Chapter>,
@@ -363,9 +364,9 @@ impl PlayerState {
             Prop::Volume => set(&mut self.volume, num.unwrap_or(0.0)),
             Prop::EofReached => set(&mut self.eof_reached, flag),
             Prop::IdleActive => set(&mut self.idle, flag),
-            Prop::PlaylistPos => set(&mut self.playlist_pos, num.unwrap_or(-1.0) as i64),
+            Prop::PlaylistPos => set(&mut self.playlist_pos, num.and_then(index)),
             Prop::PlaylistCount => {
-                let moved = set(&mut self.playlist_count, num.unwrap_or(0.0) as i64);
+                let moved = set(&mut self.playlist_count, num.map_or(0, |n| n as usize));
                 self.lists_moved(moved)
             }
             Prop::SubVisibility => set(&mut self.sub_visibility, flag),
@@ -374,7 +375,7 @@ impl PlayerState {
             Prop::SubScale => set(&mut self.sub_scale, num.unwrap_or(1.0)),
             Prop::Panscan => set(&mut self.panscan, num.unwrap_or(0.0)),
             Prop::Speed => set(&mut self.speed, num.unwrap_or(1.0)),
-            Prop::Chapter => set(&mut self.chapter, num.map_or(-1, |n| n as i64)),
+            Prop::Chapter => set(&mut self.chapter, num.and_then(index)),
             Prop::ChapterCount => {
                 let moved = set(&mut self.chapter_count, num.unwrap_or(0.0) as i64);
                 self.lists_moved(moved)
@@ -435,11 +436,22 @@ impl PlayerState {
         changed
     }
 
+    /// Whether nothing follows the entry playing: it is the last, or there
+    /// is no list.
+    pub fn at_last(&self) -> bool {
+        self.playlist_pos.map_or(0, |pos| pos + 1) >= self.playlist_count
+    }
+
+    /// Whether nothing comes before the entry playing.
+    pub fn at_first(&self) -> bool {
+        self.playlist_pos.is_none_or(|pos| pos == 0)
+    }
+
     /// What the chapter playing is called: its own title where the file has
     /// one, and its number out of how many where it does not. Empty with no
     /// chapters.
     pub fn chapter_label(&self) -> String {
-        let Ok(index) = usize::try_from(self.chapter) else {
+        let Some(index) = self.chapter else {
             return String::new();
         };
         let Some(chapter) = self.chapters.get(index) else {
@@ -609,6 +621,11 @@ impl PlayerState {
     }
 }
 
+/// A position as mpv reports one, where -1 is none.
+fn index(n: f64) -> Option<usize> {
+    (n >= 0.0).then_some(n as usize)
+}
+
 /// Assign and report whether the value actually moved.
 fn set<T: PartialEq>(slot: &mut T, value: T) -> bool {
     if *slot == value {
@@ -628,5 +645,21 @@ mod tests {
             assert_eq!(prop.id(), index as u64, "{prop:?}");
             assert_eq!(Prop::of(prop.id()), Some(prop));
         }
+    }
+
+    #[test]
+    fn the_playlist_ends_are_read_as_mpv_reports_them() {
+        let at = |pos, count| PlayerState {
+            playlist_pos: pos,
+            playlist_count: count,
+            ..Default::default()
+        };
+        assert!(at(None, 0).at_last() && at(None, 0).at_first());
+        assert!(
+            !at(None, 3).at_last(),
+            "nothing playing yet, with more to come"
+        );
+        assert!(at(Some(0), 3).at_first() && !at(Some(0), 3).at_last());
+        assert!(at(Some(2), 3).at_last() && !at(Some(2), 3).at_first());
     }
 }

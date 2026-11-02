@@ -54,7 +54,7 @@ struct State {
     rows: Vec<(String, Progress)>,
     /// The entry playing, whether it is paused, how many files mpv has
     /// loaded and which is loaded now, as of the last frame.
-    pos: i64,
+    pos: Option<usize>,
     paused: bool,
     loads: u64,
     path: Option<String>,
@@ -107,7 +107,14 @@ impl Arrival {
     /// Where the playlist is, whether it is paused, how many files have
     /// loaded and which is loaded now: every frame. Carries out what was
     /// decided for a file asked for, once it is the one loaded.
-    pub fn follow(&self, mpv: &Mpv, pos: i64, paused: bool, loads: u64, path: Option<&str>) {
+    pub fn follow(
+        &self,
+        mpv: &Mpv,
+        pos: Option<usize>,
+        paused: bool,
+        loads: u64,
+        path: Option<&str>,
+    ) {
         let mut state = self.state.borrow_mut();
         state.pos = pos;
         state.paused = paused;
@@ -258,7 +265,9 @@ impl Arrival {
     pub fn step(&self, mpv: &Mpv, delta: i32, play: Option<bool>) {
         let (target, known) = {
             let state = self.state.borrow();
-            (state.pos + i64::from(delta), state.rows.len() as i64)
+            // Nothing playing is just before the first.
+            let from = state.pos.map_or(-1, |pos| pos as i64);
+            (from + i64::from(delta), state.rows.len() as i64)
         };
         if (0..known).contains(&target) {
             self.play_index(mpv, target, play);

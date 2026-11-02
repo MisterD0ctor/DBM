@@ -141,8 +141,8 @@ impl Driver {
     /// the file is over. The offer belongs to the file that asked for it, so
     /// a new one takes it back down.
     fn look_onward(&mut self, ui: &MainWindow) {
-        let ending = (self.player.eof_reached || self.player.credits_rolling())
-            && self.player.playlist_pos + 1 >= self.player.playlist_count;
+        let ending =
+            (self.player.eof_reached || self.player.credits_rolling()) && self.player.at_last();
         if self.player.path != self.per_file.onward_asked
             && self.per_file.onward_asked.take().is_some()
         {

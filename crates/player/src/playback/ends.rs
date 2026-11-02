@@ -66,7 +66,7 @@ impl PlayerState {
                         dbm_naming::is_credits(title) || dbm_naming::is_preview(title)
                     })
             };
-            let current = usize::try_from(self.chapter).ok()?;
+            let current = self.chapter?;
             if current < first || current >= self.chapters.len() || !ending(current) {
                 return None;
             }
@@ -220,10 +220,11 @@ mod tests {
     ];
 
     fn playing(path: &str, chapter: i64, marks: &[(f64, &str)]) -> PlayerState {
+        // -1 for none, as mpv says it.
         PlayerState {
             path: Some(path.into()),
             duration: 3600.0,
-            chapter,
+            chapter: usize::try_from(chapter).ok(),
             chapters: marks
                 .iter()
                 .map(|(time, title)| Chapter {

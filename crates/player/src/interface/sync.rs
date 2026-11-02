@@ -43,9 +43,9 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     // `eof-reached` while holding the last frame, which is when the interface
     // has something to offer.
     ui.set_at_end(player.eof_reached && player.path.is_some());
-    ui.set_at_last(player.playlist_pos + 1 >= player.playlist_count);
+    ui.set_at_last(player.at_last());
     // The other end, so previous can say there is nothing before this.
-    ui.set_at_first(player.playlist_pos <= 0);
+    ui.set_at_first(player.at_first());
     // Raw, beside the formatted text, so undoing a reset can put the number
     // back without parsing it out of "+0.30 s".
     ui.set_sub_delay(player.sub_delay as f32);
