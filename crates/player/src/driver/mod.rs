@@ -28,6 +28,7 @@ mod feeds;
 
 use std::num::NonZeroU32;
 use std::sync::Mutex;
+use std::time::Instant;
 
 use slint::{ComponentHandle, GraphicsAPI, RenderingState};
 
@@ -635,7 +636,10 @@ impl Driver {
             credits: settings.is_on(Toggle::SkipCredits) && settings.is_on(Toggle::Autoplay),
         };
         let mpv = &self.app.mpv;
-        match self.skips.follow(&self.player, wanted, corner_free) {
+        match self
+            .skips
+            .follow(&self.player, wanted, corner_free, Instant::now())
+        {
             Some(Skip::Intro { from, to }) => {
                 commands::seek_to(mpv, to);
                 if let Some(path) = &self.player.path {

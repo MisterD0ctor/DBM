@@ -9,16 +9,18 @@
 //!
 //! This decides; the frame loop carries it out.
 
+use std::time::Instant;
+
 use super::state::PlayerState;
 
 /// How long the credits pill counts down before going on, in seconds of
 /// the film.
 const COUNTDOWN: f64 = 5.0;
 
-/// How far the position may move from one frame to the next before it is
-/// taken for a seek. Frames come at the display's rate, so playing moves it
-/// this far only when the window stalls, and taking that for a seek only
-/// leaves the titles or the credits to play.
+/// A seek moves the position more than this from one frame to the next, and
+/// more than this away from where playing would have taken it in the time
+/// between. A window that stalls while the film plays on moves it as far as
+/// the clock, which is no seek.
 const JUMP: f64 = 2.0;
 
 /// Which skips the person asked for.
@@ -43,9 +45,9 @@ pub enum Skip {
 
 #[derive(Default)]
 pub struct Skips {
-    /// The position on the last frame and the load it was in, so a seek can
+    /// The load, the position and the time on the last frame, so a seek can
     /// be told from playing.
-    last: Option<(u64, f64)>,
+    last: Option<(u64, f64, Instant)>,
     /// The load whose title sequence is done with: skipped, or landed in by a
     /// seek, which is wanting to see it.
     intro_done: Option<u64>,
@@ -69,20 +71,32 @@ enum Counting {
 }
 
 impl Skips {
-    /// What to skip this frame, if anything. `corner_free` is whether the
-    /// corner pill is the skips' to use: no file held or on its way in to be
-    /// held, and no other offer in it.
+    /// What to skip this frame, the one drawn at `now`, if anything.
+    /// `corner_free` is whether the corner pill is the skips' to use: no file
+    /// held or on its way in to be held, and no other offer in it.
     pub fn follow(
         &mut self,
         player: &PlayerState,
         wanted: Wanted,
         corner_free: bool,
+        now: Instant,
     ) -> Option<Skip> {
-        let seeked = self.last.is_some_and(|(loads, at)| {
-            loads == player.loads && (player.time_pos - at).abs() > JUMP
-        });
-        self.last = Some((player.loads, player.time_pos));
         let playing = player.path.is_some() && !player.paused && !player.eof_reached;
+        let seeked = self.last.is_some_and(|(loads, at, then)| {
+            let moved = player.time_pos - at;
+            let speed = if player.speed > 0.0 {
+                player.speed
+            } else {
+                1.0
+            };
+            let played = if playing {
+                now.saturating_duration_since(then).as_secs_f64() * speed
+            } else {
+                0.0
+            };
+            loads == player.loads && moved.abs() > JUMP && (moved - played).abs() > JUMP
+        });
+        self.last = Some((player.loads, player.time_pos, now));
         self.intro(player, wanted.intros && playing && corner_free, seeked)
             .or_else(|| self.credits(player, wanted.credits && corner_free, seeked))
     }
@@ -165,6 +179,8 @@ impl Skips {
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use dbm_mpv::tracks::Chapter;
 
     use super::*;
@@ -218,7 +234,7 @@ mod tests {
         while player.time_pos < to {
             let next = (player.time_pos + 0.25).min(to);
             at(player, next);
-            done.extend(skips.follow(player, wanted, corner_free));
+            done.extend(skips.follow(player, wanted, corner_free, Instant::now()));
         }
         done
     }
@@ -256,8 +272,26 @@ mod tests {
         play(&mut skips, &mut player, 100.0, ALL);
         // The way back lands where the skip left.
         at(&mut player, 95.0);
-        assert_eq!(skips.follow(&player, ALL, true), None);
+        assert_eq!(skips.follow(&player, ALL, true, Instant::now()), None);
         assert!(play(&mut skips, &mut player, 190.0, ALL).is_empty());
+    }
+
+    #[test]
+    fn a_window_that_stalls_into_the_titles_still_skips_them() {
+        let mut skips = Skips::default();
+        let mut player = episode();
+        let then = Instant::now();
+        at(&mut player, 94.0);
+        skips.follow(&player, ALL, true, then);
+        // Four seconds without a frame, while the film played on.
+        at(&mut player, 98.0);
+        assert_eq!(
+            skips.follow(&player, ALL, true, then + Duration::from_secs(4)),
+            Some(Skip::Intro {
+                from: 98.0,
+                to: 185.0
+            })
+        );
     }
 
     #[test]
@@ -265,7 +299,7 @@ mod tests {
         let mut skips = Skips::default();
         let mut player = episode();
         at(&mut player, 1800.0);
-        skips.follow(&player, ALL, true);
+        skips.follow(&player, ALL, true, Instant::now());
         at(&mut player, 140.0);
         assert!(play(&mut skips, &mut player, 190.0, ALL).is_empty());
     }
@@ -278,10 +312,10 @@ mod tests {
         player.chapters[0].time = 0.0;
         // Opened at its saved place, then started over from the top.
         at(&mut player, 1800.0);
-        skips.follow(&player, ALL, true);
+        skips.follow(&player, ALL, true, Instant::now());
         at(&mut player, 0.0);
         assert!(matches!(
-            skips.follow(&player, ALL, true),
+            skips.follow(&player, ALL, true, Instant::now()),
             Some(Skip::Intro { .. })
         ));
     }
@@ -293,7 +327,7 @@ mod tests {
         assert!(play_beside(&mut skips, &mut player, 106.0, ALL, false).is_empty());
         player.time_pos = 106.25;
         assert_eq!(
-            skips.follow(&player, ALL, true),
+            skips.follow(&player, ALL, true, Instant::now()),
             Some(Skip::Intro {
                 from: 106.25,
                 to: 185.0
@@ -307,7 +341,7 @@ mod tests {
         let mut player = episode();
         at(&mut player, 96.0);
         player.paused = true;
-        assert_eq!(skips.follow(&player, ALL, true), None);
+        assert_eq!(skips.follow(&player, ALL, true, Instant::now()), None);
     }
 
     #[test]
@@ -327,7 +361,7 @@ mod tests {
         let mut skips = Skips::default();
         let mut player = episode();
         at(&mut player, 3420.0);
-        skips.follow(&player, ALL, true);
+        skips.follow(&player, ALL, true, Instant::now());
         assert_eq!(skips.counted(&player), 0.0);
         play(&mut skips, &mut player, 3422.5, ALL);
         assert_eq!(skips.counted(&player), 0.5);
@@ -338,10 +372,10 @@ mod tests {
         let mut skips = Skips::default();
         let mut player = episode();
         at(&mut player, 3420.0);
-        skips.follow(&player, ALL, true);
+        skips.follow(&player, ALL, true, Instant::now());
         player.paused = true;
         for _ in 0..1000 {
-            assert_eq!(skips.follow(&player, ALL, true), None);
+            assert_eq!(skips.follow(&player, ALL, true, Instant::now()), None);
         }
         player.paused = false;
         assert_eq!(play(&mut skips, &mut player, 3426.0, ALL), [Skip::Next]);
@@ -355,7 +389,7 @@ mod tests {
         play(&mut skips, &mut player, 3423.0, ALL);
         // Back to read a name.
         at(&mut player, 3420.5);
-        assert_eq!(skips.follow(&player, ALL, true), None);
+        assert_eq!(skips.follow(&player, ALL, true, Instant::now()), None);
         assert_eq!(skips.counted(&player), 0.0);
         assert!(play(&mut skips, &mut player, 3599.0, ALL).is_empty());
     }
@@ -393,7 +427,7 @@ mod tests {
         at(&mut player, 3420.0);
         for _ in 0..40 {
             player.time_pos += 0.25;
-            assert_eq!(skips.follow(&player, ALL, false), None);
+            assert_eq!(skips.follow(&player, ALL, false, Instant::now()), None);
             assert_eq!(skips.counted(&player), 0.0);
         }
         // The count starts once the corner is the credits pill's.
