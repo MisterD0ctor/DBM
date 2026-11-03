@@ -47,7 +47,7 @@ pub fn available() -> bool {
 }
 
 /// Downloads kept, by the film they belong to.
-static KEPT: PathMap<Vec<String>> = PathMap::record("downloaded-subtitles.json");
+pub(crate) static KEPT: PathMap<Vec<String>> = PathMap::record("downloaded-subtitles.json");
 
 static SEARCHES: Supersede = Supersede::new();
 

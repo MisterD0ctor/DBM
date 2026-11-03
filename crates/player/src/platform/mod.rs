@@ -4,8 +4,7 @@
 //! dropped on the window, frames during a Windows resize, minimizing, the
 //! window's round corners, whether the desktop asks for less motion, the
 //! media keys (SMTC on Windows, MPRIS on Linux), where the files a Flatpak is
-//! handed really are, one path for each file however it was reached, and
-//! handing freed memory back. Each module covers both platforms, even where
+//! handed really are, and handing freed memory back. Each module covers both platforms, even where
 //! one does nothing, so nothing outside this folder needs a `cfg`.
 
 pub mod awake;
@@ -13,7 +12,6 @@ pub mod cursor;
 pub mod dialog;
 pub mod documents;
 pub mod dropped;
-pub mod links;
 pub mod media_keys;
 pub mod memory;
 pub mod modal_loop;
@@ -23,11 +21,12 @@ pub mod window;
 use std::path::{Path, PathBuf};
 
 /// Where a path handed to the player really is: a portal's document looked up
-/// (see `documents`), then every link in it followed (see `links`).
+/// (see `documents`). Links are followed when it is scanned, by
+/// `dbm_library::playlist`.
 ///
 /// The command line and the open dialog both put a path through this before
 /// it is scanned, so there is one answer to what a path means. **Blocking**:
 /// worker thread only.
 pub fn real_place(path: &Path) -> PathBuf {
-    links::resolved(&documents::real(path))
+    documents::real(path)
 }

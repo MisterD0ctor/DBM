@@ -104,6 +104,25 @@ impl<V: Serialize + DeserializeOwned + PartialEq> PathMap<V> {
         });
     }
 
+    /// File each entry kept under a key of `moves` under its value instead,
+    /// unless an entry is kept there already.
+    ///
+    /// **Blocking.** Worker thread only.
+    pub fn refile(&self, moves: &HashMap<MediaPath, MediaPath>) {
+        self.edit(|kept| {
+            let mut changed = false;
+            for (from, to) in moves {
+                if !kept.contains_key(to)
+                    && let Some(value) = kept.remove(from)
+                {
+                    kept.insert(to.clone(), value);
+                    changed = true;
+                }
+            }
+            changed
+        });
+    }
+
     /// Change the map in one read and one write, with no other write between
     /// them. `change` says whether it changed anything, and the file is
     /// rewritten only if it did.

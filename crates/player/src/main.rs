@@ -104,6 +104,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     playback::state::observe(&mpv);
 
     let worker = Rc::new(worker::Worker::spawn(mpv.clone(), ui.as_weak()));
+    dbm_library::real_paths::move_once();
     let settings = Rc::new(settings::Store::default());
     let app = App::new(Shared {
         mpv: mpv.clone(),

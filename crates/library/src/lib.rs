@@ -28,6 +28,7 @@ pub mod paths;
 pub mod playlist;
 pub mod preview;
 pub mod probe;
+pub mod real_paths;
 pub mod resume;
 pub mod shelf;
 pub mod subsync;

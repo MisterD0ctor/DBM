@@ -22,7 +22,7 @@ use crate::cache::PathMap;
 pub type Cache = HashMap<MediaPath, f64>;
 
 /// Versioned as caches are (see `cache`). 1: the container's own duration.
-static LENGTHS: PathMap<f64> = PathMap::cache("durations.json", 1);
+pub(crate) static LENGTHS: PathMap<f64> = PathMap::cache("durations.json", 1);
 
 /// Every length known. **Blocking.** Worker thread only.
 pub fn load() -> Cache {
@@ -126,7 +126,7 @@ pub fn watch_later_name(path: &MediaPath) -> String {
 /// credits, or its length when it simply ran out.
 pub type Finished = HashMap<MediaPath, f64>;
 
-static FINISHED: PathMap<f64> = PathMap::record("finished.json");
+pub(crate) static FINISHED: PathMap<f64> = PathMap::record("finished.json");
 
 /// mpv checkpoints the position every ten seconds, so a file left in its
 /// credits can hold a resume point a little before the moment they were
