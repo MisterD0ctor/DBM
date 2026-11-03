@@ -70,8 +70,13 @@ pub fn delay_widest() -> String {
 /// What is left of a film, as the timeline's right end says it when asked
 /// to: `−12:34`, a minus sign rather than a hyphen, to stand as wide as the
 /// digits do.
+///
+/// Rounded up, as the time played is rounded down, so the two add up to the
+/// length and the count reaches nought only at the end. Within a hair of a
+/// whole second counts as that second, or the sum of two times read from mpv
+/// would flick a second either way.
 pub fn remaining(seconds: f64) -> String {
-    format!("\u{2212}{}", time(seconds.max(0.0)))
+    format!("\u{2212}{}", time((seconds - 0.001).ceil().max(0.0)))
 }
 
 /// A subtitle size, as a multiple of the default: `1.15×`.
@@ -150,6 +155,16 @@ mod tests {
         assert_eq!(left(43.0 * 60.0), "43 min left");
         assert_eq!(left(2.0 * 3600.0), "2 h left");
         assert_eq!(left(72.0 * 60.0), "1 h 12 min left");
+    }
+
+    #[test]
+    fn what_is_left_and_what_was_played_add_up_to_the_length() {
+        // Half a second into a minute: 0:00 played.
+        assert_eq!(remaining(59.5), "\u{2212}1:00");
+        assert_eq!(remaining(60.0 - 59.99), "\u{2212}0:01");
+        assert_eq!(remaining(0.0), "\u{2212}0:00");
+        // Two times read from mpv, a hair off a whole second.
+        assert_eq!(remaining(12.000_000_1), "\u{2212}0:12");
     }
 
     #[test]
