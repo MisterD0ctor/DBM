@@ -44,8 +44,20 @@ fn keep_as(path: &MediaPath, hit: &Hit) -> PathBuf {
         .file_stem()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| "subtitles".into());
-    let stem: String = stem
-        .chars()
+    // The language is the service's word, so it is filtered too, and loses
+    // its dots, since `kept` reads the code back from between two.
+    let language = safe(&hit.language).replace('.', "_");
+    crate::paths::app_data_dir().join("subtitles").join(format!(
+        "{}.{language}.{}.srt",
+        safe(&stem),
+        hit.file_id
+    ))
+}
+
+/// `text` with anything that can't go in a file name on every system made
+/// an underscore.
+fn safe(text: &str) -> String {
+    text.chars()
         .map(|c| {
             if c.is_alphanumeric() || " .-_()".contains(c) {
                 c
@@ -53,10 +65,7 @@ fn keep_as(path: &MediaPath, hit: &Hit) -> PathBuf {
                 '_'
             }
         })
-        .collect();
-    crate::paths::app_data_dir()
-        .join("subtitles")
-        .join(format!("{stem}.{}.{}.srt", hit.language, hit.file_id))
+        .collect()
 }
 
 /// Where to fetch `hit` from, which costs one of the day's downloads: the
@@ -127,5 +136,17 @@ mod tests {
             .extension()
             .unwrap();
         assert_eq!(code, "pt-br");
+
+        // A code that would leave the folder, or move the dots, can't.
+        let odd = Hit {
+            language: "../x.y".into(),
+            ..hit
+        };
+        let file = keep_as(&"/films/Some Film (2019).mkv".into(), &odd);
+        assert_eq!(
+            file.file_name().unwrap().to_string_lossy(),
+            "Some Film (2019).___x_y.42.srt"
+        );
+        assert_eq!(file.parent().unwrap().file_name().unwrap(), "subtitles");
     }
 }
