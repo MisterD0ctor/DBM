@@ -501,6 +501,7 @@ impl Driver {
             return;
         };
         self.hooks.install(&ui);
+        crate::interface::actions::follow_fullscreen(&ui);
 
         let t = self.diag.begin();
         let moved = self.take_events(&ui);

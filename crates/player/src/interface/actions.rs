@@ -55,6 +55,8 @@ mod tracks;
 mod transport;
 mod window;
 
+pub use window::follow_fullscreen;
+
 pub fn wire(ui: &MainWindow, app: &App) {
     push_constants(ui);
     // First, since some of what the wiring hands the interface is words.

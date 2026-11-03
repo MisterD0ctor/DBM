@@ -85,3 +85,15 @@ pub(super) fn set_fullscreen(ui: &MainWindow, on: bool) {
     ui.window().set_fullscreen(on);
     ui.set_fullscreen(on);
 }
+
+/// Mirror a change the window manager made by itself, such as a desktop
+/// shortcut or a monitor coming or going taking the window out of
+/// fullscreen. Nothing calls back for one, so this is asked every frame;
+/// otherwise the window could not be dragged, and Esc and the chrome would
+/// act as though it were still fullscreen.
+pub fn follow_fullscreen(ui: &MainWindow) {
+    let fullscreen = ui.window().is_fullscreen();
+    if ui.get_fullscreen() != fullscreen {
+        ui.set_fullscreen(fullscreen);
+    }
+}
