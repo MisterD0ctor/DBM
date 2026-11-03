@@ -25,6 +25,18 @@ enum CornerOffer {
     back,
 }
 
+/// What the end pill says, which it holds through its fade.
+struct EndWords {
+    /// Whether it offers a second thing (see `EndPill.two`).
+    two: bool,
+    /// The only choice, or the second of two.
+    label: string,
+    /// The first of two.
+    first-label: string,
+    /// The first choice's, or the only one's.
+    first-icon: image,
+}
+
 /// One pill in the middle of the picture, where the film just stopped and
 /// nothing else competes for the eye. Not tied to the bar: the bar hides
 /// after a few still seconds, and this should still be there when it does.
@@ -81,7 +93,7 @@ export component EndPill inherits Rectangle {
     /// Whether there is a second thing to offer: the way on, at the end of
     /// the last file, or Continue for a file held on its saved place. Restart
     /// alone at the end of a season or a lone film is the least wanted offer.
-    out property <bool> two: Playback.at-last || Playback.arriving;
+    out property <bool> two: root.said.two;
     /// With two choices, each is a capsule inset by a bar button's padding,
     /// which keeps it concentric with the pill: 24px outside, a 4px gap, 20px
     /// inside.
@@ -155,26 +167,53 @@ export component EndPill inherits Rectangle {
         duration: root.resizing ? 0ms : Motion.surface;
         easing: ease-out;
     }
-    /// Restart at the end of the last file, and otherwise the next file by
-    /// name (which is only seen with autoplay off). Named for the same reason
-    /// as the way on; the bare *Next* is for when the list can't say.
-    property <string> label: Playback.arriving ? @tr("From the beginning")
-        : Playback.at-last ? @tr("Restart")
-        : Playback.next-label != "" ? Playback.next-label : @tr("Next");
-    /// What the first of two choices says: the way on, or, for a file held on
-    /// its saved place, going on from that time, since the time is what to
-    /// decide by.
-    property <string> first-label: Playback.arriving
-        ? @tr("Continue from {}", Playback.arrival-from)
-        : root.onward-label;
-
+    property <EndWords> words: {
+        two: Playback.at-last || Playback.arriving,
+        // Restart at the end of the last file, and otherwise the next file by
+        // name (which is only seen with autoplay off). Named for the same
+        // reason as the way on; the bare *Next* is for when the list can't
+        // say.
+        label: Playback.arriving ? @tr("From the beginning")
+            : Playback.at-last ? @tr("Restart")
+            : Playback.next-label != "" ? Playback.next-label : @tr("Next"),
+        // The way on, or, for a file held on its saved place, going on from
+        // that time, since the time is what to decide by.
+        first-label: Playback.arriving
+            ? @tr("Continue from {}", Playback.arrival-from)
+            : root.onward-label,
+        first-icon: Playback.arriving || (Playback.at-last && root.onward-elsewhere)
+            ? @image-url("../../../public/icons/play.svg")
+            : !Playback.at-last || Playback.onward-path != ""
+            ? @image-url("../../../public/icons/step-forward.svg")
+            : @image-url("../../../public/icons/folder-open.svg"),
+    };
+    /// What the pill is dressed in. The offer ends the moment it is
+    /// answered, but the pill takes `Motion.surface` to fade, and has to keep
+    /// saying the same thing at the same width meanwhile. So what it said
+    /// while up is held until it is up again.
+    property <EndWords> held;
+    property <EndWords> said: root.up ? root.words : root.held;
+    changed words => {
+        if (root.up) {
+            root.held = root.words;
+        }
+    }
+    changed up => {
+        if (root.up) {
+            root.held = root.words;
+        }
+    }
 
     /// The end pill's choices, from the keyboard. With two, the first is the
-    /// way on and the second is Restart.
+    /// way on and the second is Restart. Nothing once the pill is going, so
+    /// a second click on it as it fades doesn't answer something else.
     public function activate(choice: int) {
+        if (!root.up) {
+            return;
+        }
         if (Playback.arriving) {
             Playback.arrival-answer(choice == 1);
-        } else if (!root.two) {
+        } else if (!Playback.at-last) {
             Playback.play-next();
         } else if (choice == 0) {
             Playlist.open-onward();
@@ -227,12 +266,8 @@ export component EndPill inherits Rectangle {
             // Only while the pill is up, so the choice takes the ring's pane as
             // it arrives rather than holding it unseen behind the credits pill.
             focused: root.ring-at == 0;
-            icon: Playback.arriving || (root.two && root.onward-elsewhere)
-                ? @image-url("../../../public/icons/play.svg")
-                : !root.two || Playback.onward-path != ""
-                ? @image-url("../../../public/icons/step-forward.svg")
-                : @image-url("../../../public/icons/folder-open.svg");
-            label: root.two ? root.first-label : root.label;
+            icon: root.said.first-icon;
+            label: root.two ? root.said.first-label : root.said.label;
             picked => {
                 root.activate(0);
             }
@@ -248,7 +283,7 @@ export component EndPill inherits Rectangle {
             gap: Bar.choice-gap;
             focused: root.ring-at == 1;
             icon: @image-url("../../../public/icons/rewind.svg");
-            label: root.label;
+            label: root.said.label;
             picked => {
                 root.activate(1);
             }
@@ -256,13 +291,13 @@ export component EndPill inherits Rectangle {
     }
 
     first-measure := Measure {
-        text: root.two ? root.first-label : root.label;
+        text: root.two ? root.said.first-label : root.said.label;
         font-size: Type.prompt;
         font-weight: Type.weight-title;
     }
 
     second-measure := Measure {
-        text: root.label;
+        text: root.said.label;
         font-size: Type.prompt;
         font-weight: Type.weight-title;
     }
@@ -424,7 +459,8 @@ export component CornerPill inherits Rectangle {
     /// On to the next episode: the next file, or the next season when this
     /// was the last of one. Or, from the title sequence, on to the episode,
     /// from credits a scene follows, on to the scene, and after a jump, back
-    /// to where it was.
+    /// to where it was. Nothing once the offer has ended, so a second click
+    /// on the pill as it fades doesn't take something else.
     public function activate() {
         if (root.offer == CornerOffer.back) {
             Playback.take-back-offer();
@@ -434,9 +470,9 @@ export component CornerPill inherits Rectangle {
             Playback.skip-to(Playback.intro-end);
         } else if (root.offer == CornerOffer.skip-credits) {
             Playback.skip-to(Playback.after-credits);
-        } else if (!Playback.at-last) {
+        } else if (root.offer == CornerOffer.onward && !Playback.at-last) {
             Playback.play-next();
-        } else {
+        } else if (root.offer == CornerOffer.onward) {
             Playlist.open-onward();
         }
     }
