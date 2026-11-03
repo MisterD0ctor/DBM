@@ -19,6 +19,10 @@ import { Motion, Paint, Rows, Type } from "theme.slint";
 /// binding that depends on a layout forces a full layout pass each time it is
 /// read, which dragged resizing down to 4fps.
 export global Bar {
+    /// How far one notch of a mouse wheel scrolls, as Slint reports it. The
+    /// wheel's handlers take a step a notch, adding up the small amounts a
+    /// touchpad sends, which would otherwise each take a whole step.
+    out property <length> notch: 60px;
     out property <length> btn: 40px;
     out property <length> btn-gap: 6px;
     out property <length> pill-pad: 4px;
@@ -634,13 +638,27 @@ export component ControlBar inherits Rectangle {
                     Playback.seek-scrub(self.mouse-x / self.width);
                 }
             }
+            /// Wheel travel not yet taken as a step (see `Bar.notch`).
+            property <length> wheel;
             // A wheel raises no pointer event, and the seek doesn't count as
-            // activity, since a key's seek mustn't wake the bar.
+            // activity, since a key's seek mustn't wake the bar. A sideways
+            // scroll is not a seek.
             scroll-event(event) => {
+                if (event.delta-y == 0) {
+                    return EventResult.reject;
+                }
                 Chrome.bump();
-                Playback.seek-relative(event.delta-y > 0
-                    ? Playback.scroll-seek-step
-                    : -Playback.scroll-seek-step);
+                // Turned back the other way, it starts over.
+                if ((self.wheel > 0) != (event.delta-y > 0)) {
+                    self.wheel = 0;
+                }
+                self.wheel += event.delta-y;
+                let steps = self.wheel > 0
+                    ? floor(self.wheel / Bar.notch) : ceil(self.wheel / Bar.notch);
+                self.wheel -= steps * Bar.notch;
+                if (steps != 0) {
+                    Playback.seek-relative(steps * Playback.scroll-seek-step);
+                }
                 return EventResult.accept;
             }
         }
@@ -1009,13 +1027,25 @@ export component ControlBar inherits Rectangle {
                             Playback.set-volume(vol-track.dragged-to(self.mouse-x));
                         }
                     }
-                    // The one place the wheel is the volume. Activity for the
-                    // timeline's wheel's reason.
+                    /// Wheel travel not yet taken as a step (see `Bar.notch`).
+                    property <length> wheel;
+                    // The one place the wheel is the volume. Activity, and a
+                    // step a notch, for the timeline's wheel's reasons.
                     scroll-event(event) => {
+                        if (event.delta-y == 0) {
+                            return EventResult.reject;
+                        }
                         Chrome.bump();
-                        Playback.nudge-volume(event.delta-y > 0
-                            ? Playback.volume-step
-                            : -Playback.volume-step);
+                        if ((self.wheel > 0) != (event.delta-y > 0)) {
+                            self.wheel = 0;
+                        }
+                        self.wheel += event.delta-y;
+                        let steps = self.wheel > 0
+                            ? floor(self.wheel / Bar.notch) : ceil(self.wheel / Bar.notch);
+                        self.wheel -= steps * Bar.notch;
+                        if (steps != 0) {
+                            Playback.nudge-volume(steps * Playback.volume-step);
+                        }
                         return EventResult.accept;
                     }
                     changed has-hover => {
