@@ -16,8 +16,8 @@
 
 use std::cmp::Ordering;
 use std::collections::HashSet;
+use std::fmt::Write as _;
 use std::fs;
-use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
 use dbm_lang::{fill, tr};
@@ -54,7 +54,10 @@ pub fn is_video_file(path: &Path) -> bool {
 pub fn prepare(path: &Path) -> Result<Prepared, String> {
     let selection = resolve(path)?;
     let m3u = crate::paths::playlist_m3u();
-    write_m3u(&selection.videos, &m3u)?;
+    write_m3u(&selection.videos, &m3u).map_err(|e| {
+        log::warn!("could not write {}: {e}", m3u.display());
+        fill(tr("Could not make a playlist — {}"), &[&e])
+    })?;
     // As the list tells mpv it, which is what it will report and hash.
     let first = selection
         .videos
@@ -462,18 +465,15 @@ fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, String> {
 ///
 /// One command regardless of length, which mpv parses far faster than it
 /// would service a `loadfile` per file.
-pub fn write_m3u(videos: &[PathBuf], dest: &Path) -> Result<(), String> {
+fn write_m3u(videos: &[PathBuf], dest: &Path) -> std::io::Result<()> {
     if let Some(parent) = dest.parent() {
         let _ = fs::create_dir_all(parent);
     }
-    let file = fs::File::create(dest).map_err(|e| format!("create {}: {e}", dest.display()))?;
-    let mut out = BufWriter::new(file);
-    writeln!(out, "#EXTM3U").map_err(|e| format!("write m3u: {e}"))?;
+    let mut text = String::from("#EXTM3U\n");
     for video in videos {
-        writeln!(out, "{}", video.display()).map_err(|e| format!("write m3u: {e}"))?;
+        let _ = writeln!(text, "{}", video.display());
     }
-    out.flush().map_err(|e| format!("flush m3u: {e}"))?;
-    Ok(())
+    fs::write(dest, text)
 }
 
 #[cfg(test)]

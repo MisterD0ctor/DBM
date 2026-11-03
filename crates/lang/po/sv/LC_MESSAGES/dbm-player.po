@@ -1215,3 +1215,7 @@ msgstr "Visa återstående tid"
 msgctxt "SettingsPanel"
 msgid "Show chapters"
 msgstr "Visa kapitel"
+
+msgctxt "player"
+msgid "Could not make a playlist — {}"
+msgstr "Kunde inte skapa en spellista — {}"

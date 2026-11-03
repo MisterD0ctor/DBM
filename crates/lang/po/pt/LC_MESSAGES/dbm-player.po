@@ -1219,3 +1219,7 @@ msgstr "Mostrar o tempo restante"
 msgctxt "SettingsPanel"
 msgid "Show chapters"
 msgstr "Mostrar os capítulos"
+
+msgctxt "player"
+msgid "Could not make a playlist — {}"
+msgstr "Não foi possível criar uma lista de reprodução — {}"

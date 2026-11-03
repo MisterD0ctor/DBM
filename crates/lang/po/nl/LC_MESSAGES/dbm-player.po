@@ -1218,3 +1218,7 @@ msgstr "Resterende tijd tonen"
 msgctxt "SettingsPanel"
 msgid "Show chapters"
 msgstr "Hoofdstukken tonen"
+
+msgctxt "player"
+msgid "Could not make a playlist — {}"
+msgstr "Afspeellijst kon niet worden gemaakt — {}"
