@@ -133,22 +133,28 @@ fn file() -> std::path::PathBuf {
     dbm_library::paths::app_data_dir().join(name)
 }
 
-/// Read the saved settings. A missing or unreadable file isn't an error; the
-/// defaults stand.
+/// Read the saved settings. A missing file isn't an error; the defaults
+/// stand. A file where no line could be read is moved aside first, so the
+/// next save doesn't write defaults over it.
 fn load(path: &std::path::Path) -> Vec<(String, f32)> {
     let Ok(text) = std::fs::read_to_string(path) else {
         return Vec::new();
     };
-    text.lines()
+    let lines = text
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'));
+    let saved: Vec<(String, f32)> = lines
+        .clone()
         .filter_map(|line| {
-            let line = line.trim();
-            if line.is_empty() || line.starts_with('#') {
-                return None;
-            }
             let (name, value) = line.split_once('=')?;
             Some((name.trim().to_string(), value.trim().parse().ok()?))
         })
-        .collect()
+        .collect();
+    if saved.is_empty() && lines.count() > 0 {
+        dbm_library::paths::set_aside(path);
+    }
+    saved
 }
 
 /// Writes settings out shortly after they stop changing.
@@ -233,7 +239,7 @@ fn save(path: &std::path::Path, values: &[(String, f32)]) -> Result<(), String> 
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    std::fs::write(path, out).map_err(|e| {
+    dbm_library::paths::write_atomic(path, out).map_err(|e| {
         log::warn!("could not save settings: {e}");
         dbm_lang::fill(dbm_lang::tr("Settings could not be saved — {}"), &[&e])
     })
@@ -242,6 +248,16 @@ fn save(path: &std::path::Path, values: &[(String, f32)]) -> Result<(), String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_file_with_nothing_readable_is_kept_aside() {
+        let file = std::env::temp_dir().join(format!("dbm-settings-junk-{}", std::process::id()));
+        let aside = std::path::PathBuf::from(format!("{}.unreadable", file.display()));
+        std::fs::write(&file, "\0\0\0\0").unwrap();
+        assert!(load(&file).is_empty());
+        assert!(aside.is_file() && !file.exists());
+        std::fs::remove_file(&aside).ok();
+    }
 
     #[test]
     fn animations_survive_a_save_and_a_load() {

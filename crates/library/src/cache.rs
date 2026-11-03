@@ -4,8 +4,9 @@
 //!
 //! The maps (lengths, title tags, endings, title sequences and credits,
 //! downloaded subtitles) share their whole life: read whole, changed one
-//! entry at a time from more than one thread, and written whole. So that is
-//! written once, here.
+//! entry at a time from more than one thread, and written whole, by way of a
+//! file beside it, so a crash never leaves half of one. So that is written
+//! once, here.
 //!
 //! Every write re-reads the file first rather than holding the map in memory.
 //! The files are a few tens of kilobytes at worst, and reading first merges a
@@ -71,9 +72,10 @@ impl<V> PathMap<V> {
 impl<V: Serialize + DeserializeOwned + PartialEq> PathMap<V> {
     /// The whole map.
     ///
-    /// **Blocking.** Worker thread only. A missing or unreadable file, or one
-    /// kept at another version, is an empty map rather than an error: nothing
-    /// is known yet.
+    /// **Blocking.** Worker thread only. A missing file, or one kept at
+    /// another version, is an empty map rather than an error: nothing is known
+    /// yet. So is an unreadable one, which is first moved aside, to
+    /// `<name>.unreadable`.
     pub fn load(&self) -> HashMap<MediaPath, V> {
         read(&self.file(), self.version)
     }
@@ -109,9 +111,31 @@ fn read<V: DeserializeOwned>(file: &Path, version: u32) -> HashMap<MediaPath, V>
         };
     }
     // The bare map every file was before it had a version.
-    match serde_json::from_str(&text) {
-        Ok(entries) if version == UNVERSIONED => entries,
-        _ => HashMap::new(),
+    if version == UNVERSIONED
+        && let Ok(entries) = serde_json::from_str(&text)
+    {
+        return entries;
+    }
+    // Another version's entries may have had another shape, and are
+    // forgotten whatever it was.
+    if written_at(&text).is_some_and(|kept| kept != u64::from(version)) {
+        return HashMap::new();
+    }
+    if !text.trim().is_empty() {
+        crate::paths::set_aside(file);
+    }
+    HashMap::new()
+}
+
+/// The version a map was written at, judged from its shape alone: `None`
+/// where it is not a map at all.
+fn written_at(text: &str) -> Option<u64> {
+    match serde_json::from_str(text).ok()? {
+        serde_json::Value::Object(map) => match map.get("version") {
+            Some(version) => version.as_u64(),
+            None => Some(u64::from(UNVERSIONED)),
+        },
+        _ => None,
     }
 }
 
@@ -129,7 +153,7 @@ fn update<V: Serialize + DeserializeOwned + PartialEq>(
     let Ok(json) = serde_json::to_string(&Versioned { version, entries }) else {
         return;
     };
-    if let Err(e) = std::fs::write(file, json) {
+    if let Err(e) = crate::paths::write_atomic(file, json) {
         log::warn!("could not write {}: {e}", file.display());
     }
 }
@@ -243,11 +267,41 @@ mod tests {
         assert_eq!(map.get("C:/films/a.mkv"), Some(&1200.0));
         assert_eq!(map.get("C:/films/b.mkv"), Some(&600.0));
 
-        // Missing or not JSON is nothing known, not an error.
-        std::fs::write(&file, "not json").unwrap();
-        assert!(read::<f64>(&file, 3).is_empty());
+        // Missing is nothing known, not an error.
         std::fs::remove_file(&file).ok();
         assert!(read::<f64>(&file, 3).is_empty());
+    }
+
+    #[test]
+    fn an_unreadable_record_survives_the_next_write() {
+        let file = scratch("unreadable.json");
+        let aside = PathBuf::from(format!("{}.unreadable", file.display()));
+        // Cut short by a crash, by a player that wrote in place.
+        std::fs::write(&file, r#"{"C:/films/a.mkv":tr"#).unwrap();
+
+        assert!(read::<bool>(&file, UNVERSIONED).is_empty());
+        update(&file, UNVERSIONED, &"C:/films/b.mkv".into(), true);
+        assert_eq!(
+            std::fs::read_to_string(&aside).unwrap(),
+            r#"{"C:/films/a.mkv":tr"#
+        );
+        let map: HashMap<MediaPath, bool> = read(&file, UNVERSIONED);
+        assert_eq!(map.get("C:/films/b.mkv"), Some(&true));
+        std::fs::remove_file(&file).ok();
+        std::fs::remove_file(&aside).ok();
+    }
+
+    #[test]
+    fn another_versions_entries_are_forgotten_whatever_their_shape() {
+        let file = scratch("reshaped.json");
+        std::fs::write(
+            &file,
+            r#"{"version":1,"entries":{"C:/films/a.mkv":"once a word"}}"#,
+        )
+        .unwrap();
+        assert!(read::<f64>(&file, 2).is_empty());
+        assert!(!PathBuf::from(format!("{}.unreadable", file.display())).exists());
+        std::fs::remove_file(&file).ok();
     }
 
     #[test]

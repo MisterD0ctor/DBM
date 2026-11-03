@@ -29,7 +29,8 @@ pub(super) fn download(path: &MediaPath, hit: &Hit) -> Result<(PathBuf, String),
     if let Some(parent) = file.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    std::fs::write(&file, bytes).map_err(|e| Failure::Said(e.to_string()))?;
+    // Whole or not at all, since a file found here is never fetched again.
+    crate::paths::write_atomic(&file, bytes).map_err(|e| Failure::Said(e.to_string()))?;
     remember(path, &file);
     Ok((file, hit.language.clone()))
 }

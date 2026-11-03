@@ -53,6 +53,46 @@ fn made(dir: PathBuf) -> PathBuf {
     dir
 }
 
+/// Write `bytes` to `path` whole or not at all.
+///
+/// They go to a file beside it first, which is then renamed over it, so a
+/// crash or power cut mid-write leaves the old file rather than half of the
+/// new one. The scratch name holds the process and a count, so two writers
+/// never share one.
+pub fn write_atomic(path: &Path, bytes: impl AsRef<[u8]>) -> std::io::Result<()> {
+    use std::io::Write as _;
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static COUNT: AtomicU32 = AtomicU32::new(0);
+
+    let bytes = bytes.as_ref();
+    let mut name = path.file_name().unwrap_or_default().to_os_string();
+    name.push(format!(
+        ".{}-{}.tmp",
+        std::process::id(),
+        COUNT.fetch_add(1, Ordering::Relaxed)
+    ));
+    let scratch = path.with_file_name(name);
+    let written = std::fs::File::create(&scratch).and_then(|mut file| {
+        file.write_all(bytes)?;
+        file.sync_all()
+    });
+    let renamed = written.and_then(|()| std::fs::rename(&scratch, path));
+    let Err(e) = renamed else {
+        return Ok(());
+    };
+    let _ = std::fs::remove_file(&scratch);
+    // Windows refuses to replace a file another program holds open, such as
+    // an editor. Better a plain write than none.
+    if cfg!(windows) && path.is_file() {
+        log::warn!(
+            "could not replace {} ({e}), writing it in place",
+            path.display()
+        );
+        return std::fs::write(path, bytes);
+    }
+    Err(e)
+}
+
 #[cfg(test)]
 thread_local! {
     /// A test's stand-in for `APPDATA`. Per thread, so tests running in
@@ -107,4 +147,43 @@ pub fn playlist_m3u() -> PathBuf {
 /// `session::mask_subtitles`).
 pub fn subtitle_mask() -> PathBuf {
     app_data_dir().join("subtitle-mask.glsl")
+}
+
+/// Move a file the player can't read out of the way, to `<name>.unreadable`,
+/// so the next write can't erase what a person might still recover from it
+/// by hand.
+pub fn set_aside(file: &Path) {
+    let mut aside = file.as_os_str().to_os_string();
+    aside.push(".unreadable");
+    let aside = PathBuf::from(aside);
+    match std::fs::rename(file, &aside) {
+        Ok(()) => log::warn!(
+            "{} could not be read, moved to {}",
+            file.display(),
+            aside.display()
+        ),
+        Err(e) => log::warn!("{} could not be read nor moved: {e}", file.display()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_atomic_write_replaces_the_file_and_leaves_nothing_beside_it() {
+        let dir = std::env::temp_dir().join(format!("dbm-atomic-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("finished.json");
+        std::fs::write(&file, "old").unwrap();
+
+        write_atomic(&file, "new").unwrap();
+        assert_eq!(std::fs::read_to_string(&file).unwrap(), "new");
+        let names: Vec<_> = std::fs::read_dir(&dir)
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name())
+            .collect();
+        assert_eq!(names, ["finished.json"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
 }

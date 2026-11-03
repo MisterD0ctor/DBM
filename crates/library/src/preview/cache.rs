@@ -45,7 +45,7 @@ pub(super) fn write_meta(sprite: &Sprite, video: &MediaPath) {
         "{mtime} {} {} {}",
         sprite.tile_w, sprite.tile_h, sprite.grid
     );
-    let _ = std::fs::write(meta_path(&sprite.path), text);
+    let _ = crate::paths::write_atomic(&meta_path(&sprite.path), text);
 }
 
 pub(super) fn cached(video: &MediaPath) -> Option<Sprite> {
