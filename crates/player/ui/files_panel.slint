@@ -4,7 +4,8 @@
 import { Playlist } from "playlist.slint";
 import { ShortcutRow } from "rows.slint";
 import { GlassPanel } from "panel.slint";
-import { Rows } from "theme.slint";
+import { Measure } from "measure.slint";
+import { Rows, Type } from "theme.slint";
 
 export component FilesPanel inherits GlassPanel {
     /// The row the keyboard's ring is on, which every panel shares.
@@ -20,7 +21,16 @@ export component FilesPanel inherits GlassPanel {
         Playlist.request-open(row != 0);
     }
 
-    width: 260px;
+    property <string> file-label: @tr("Open file…");
+    property <string> file-keys: @tr("Ctrl+O");
+    property <string> folder-label: @tr("Open folder…");
+    property <string> folder-keys: @tr("Ctrl+Shift+O");
+
+    /// As wide as its rows' words and keys ask, which in some languages is
+    /// wider than in English, and never narrower than in English. 12px is
+    /// the row's own gap between the two.
+    width: max(260px, Rows.label-x + labels.preferred-width + 12px
+        + keys.preferred-width + Rows.trail-x);
     height: root.panel-pad + 2 * root.row-h;
 
     VerticalLayout {
@@ -28,20 +38,29 @@ export component FilesPanel inherits GlassPanel {
         padding-bottom: Rows.panel-pad;
 
         ShortcutRow {
-            label: @tr("Open file…");
-            shortcut: @tr("Ctrl+O");
+            label: root.file-label;
+            shortcut: root.file-keys;
             focused: root.open && root.ring-row == 0;
             picked => {
                 root.activate(0);
             }
         }
         ShortcutRow {
-            label: @tr("Open folder…");
-            shortcut: @tr("Ctrl+Shift+O");
+            label: root.folder-label;
+            shortcut: root.folder-keys;
             focused: root.open && root.ring-row == 1;
             picked => {
                 root.activate(1);
             }
         }
+    }
+
+    labels := Measure {
+        text: root.file-label + "\n" + root.folder-label;
+        font-size: Type.body;
+    }
+    keys := Measure {
+        text: root.file-keys + "\n" + root.folder-keys;
+        font-size: Type.readout;
     }
 }
