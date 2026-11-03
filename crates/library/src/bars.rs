@@ -18,7 +18,7 @@ use std::process::Command;
 use dbm_mpv::MediaPath;
 use serde::{Deserialize, Serialize};
 
-use crate::cache::PathMap;
+use crate::cache::{PathMap, Stamped};
 use crate::ffmpeg;
 use crate::threads::{Reporter, Supersede, Ticket};
 
@@ -57,7 +57,9 @@ const INSET: u32 = 2;
 ///
 /// 1. Sixteen keyframes from 5% to 90% of the film, edges where three agree,
 ///    even bars over 1%, two pixels in.
-static FOUND: PathMap<Option<Crop>> = PathMap::cache("bars.json", 1);
+/// 2. Kept with the file's modification time and size, and no answer once
+///    either changes.
+static FOUND: PathMap<Stamped<Option<Crop>>> = PathMap::cache("bars.json", 2);
 
 /// The picture inside a frame, in the frame's own pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -91,14 +93,14 @@ pub fn spawn(paths: Vec<MediaPath>, reporter: Reporter<Found>) {
             if !ticket.current() {
                 return;
             }
-            let crop = match known.get(&path) {
+            let crop = match known.get(&path).and_then(|kept| kept.still(&path)) {
                 Some(crop) => *crop,
                 None => {
                     let Some(crop) = look(&path, ticket) else {
                         continue;
                     };
                     log::info!("bars in {path}: {crop:?}");
-                    FOUND.set(&path, crop);
+                    FOUND.set_stamped(&path, crop);
                     crop
                 }
             };

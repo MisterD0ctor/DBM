@@ -137,6 +137,75 @@ impl<V: Serialize + DeserializeOwned + PartialEq> PathMap<V> {
     }
 }
 
+impl<V: Serialize + DeserializeOwned + PartialEq> PathMap<Stamped<V>> {
+    /// Remember what was worked out from `path` as the file is now, unless
+    /// the file can't be looked at.
+    ///
+    /// **Blocking.** Worker thread only.
+    pub fn set_stamped(&self, path: &MediaPath, value: V) {
+        if let Some(stamped) = Stamped::new(path, value) {
+            self.set(path, stamped);
+        }
+    }
+}
+
+/// A cache's answer about a file, with when the file was last changed and
+/// how big it was then.
+///
+/// A file replaced under the same name, such as a better release of the same
+/// episode, differs in one or both, and what was worked out from the old one
+/// is no answer for it.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Stamped<V> {
+    modified: u64,
+    size: u64,
+    value: V,
+}
+
+impl<V> Stamped<V> {
+    /// `value`, as worked out from `path` as it is now. `None` where the file
+    /// can't be looked at. **Blocking.**
+    pub fn new(path: &MediaPath, value: V) -> Option<Self> {
+        let (modified, size) = stamp(path)?;
+        Some(Self {
+            modified,
+            size,
+            value,
+        })
+    }
+
+    /// The answer, if `path` is still the file it was worked out from.
+    /// **Blocking.**
+    pub fn still(&self, path: &MediaPath) -> Option<&V> {
+        (stamp(path) == Some((self.modified, self.size))).then_some(&self.value)
+    }
+}
+
+impl<V: Clone> Stamped<V> {
+    /// The answers kept for `paths` that are still true of their files.
+    /// **Blocking**: looks at each file.
+    pub fn current<'a>(
+        kept: &HashMap<MediaPath, Self>,
+        paths: impl IntoIterator<Item = &'a MediaPath>,
+    ) -> HashMap<MediaPath, V> {
+        paths
+            .into_iter()
+            .filter_map(|path| Some((path.clone(), kept.get(path)?.still(path)?.clone())))
+            .collect()
+    }
+}
+
+/// When the file was last changed, in whole seconds, and its size.
+fn stamp(path: &MediaPath) -> Option<(u64, u64)> {
+    let meta = std::fs::metadata(path.as_path()).ok()?;
+    let modified = meta
+        .modified()
+        .ok()?
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()?;
+    Some((modified.as_secs(), meta.len()))
+}
+
 /// A map as it is written, under the version it was written at.
 #[derive(Serialize, Deserialize)]
 struct Versioned<V> {
@@ -353,6 +422,20 @@ mod tests {
         assert!(read::<f64>(&file, 2).is_empty());
         assert!(!PathBuf::from(format!("{}.unreadable", file.display())).exists());
         std::fs::remove_file(&file).ok();
+    }
+
+    #[test]
+    fn an_answer_about_a_replaced_file_is_no_answer() {
+        let film = scratch("film.mkv");
+        std::fs::write(&film, "first release").unwrap();
+        let path = MediaPath::from(film.as_path());
+        let kept = Stamped::new(&path, 7).unwrap();
+        assert_eq!(kept.still(&path), Some(&7));
+
+        std::fs::write(&film, "a better release").unwrap();
+        assert_eq!(kept.still(&path), None);
+        std::fs::remove_file(&film).ok();
+        assert_eq!(kept.still(&path), None);
     }
 
     #[test]

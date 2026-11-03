@@ -24,7 +24,7 @@ use std::process::Stdio;
 use dbm_mpv::MediaPath;
 use dbm_naming::Media;
 
-use crate::cache::PathMap;
+use crate::cache::{PathMap, Stamped};
 use crate::ffmpeg;
 use crate::fingerprint::{self, Print};
 use crate::threads::Reporter;
@@ -108,9 +108,9 @@ impl End {
     ///
     /// Both are kept, since an episode with no sequence is as much work to
     /// hear as one with, and would otherwise be heard again every time.
-    fn heard(self) -> &'static PathMap<Option<Vec<Span>>> {
-        static OPENINGS: PathMap<Option<Vec<Span>>> = PathMap::cache("intros.json", HEARD);
-        static CLOSINGS: PathMap<Option<Vec<Span>>> = PathMap::cache("outros.json", HEARD);
+    fn heard(self) -> &'static PathMap<Stamped<Heard>> {
+        static OPENINGS: PathMap<Stamped<Heard>> = PathMap::cache("intros.json", HEARD);
+        static CLOSINGS: PathMap<Stamped<Heard>> = PathMap::cache("outros.json", HEARD);
         match self {
             Self::Opening => &OPENINGS,
             Self::Closing => &CLOSINGS,
@@ -120,6 +120,9 @@ impl End {
 
 /// Where a sequence starts and ends, in seconds.
 pub type Span = (f64, f64);
+
+/// What listening found at one end of a file: the pieces, or none.
+type Heard = Option<Vec<Span>>;
 
 /// The version of how a sequence is heard, which what was heard is kept under
 /// (see `cache`). Bumped whenever a change would hear one differently.
@@ -132,7 +135,9 @@ pub type Span = (f64, f64);
 /// 4. Credits in pieces, with a scene between two, or after the last, where
 ///    the other's music goes straight on and this one's stops; otherwise
 ///    one, to the end of the file.
-const HEARD: u32 = 4;
+/// 5. Kept with the file's modification time and size, and no answer once
+///    either changes.
+const HEARD: u32 = 5;
 
 /// A run's answer: the file it listened to, which end of it, and what it
 /// found there, in pieces.
@@ -262,7 +267,10 @@ fn find(
     ticket: Ticket,
 ) -> Option<Option<Vec<Span>>> {
     let heard = end.heard();
-    let known = heard.load();
+    let known = Stamped::current(
+        &heard.load(),
+        std::iter::once(path).chain(beside.iter().map(|(other, _)| other)),
+    );
     if let Some(found) = known.get(path) {
         return Some(found.clone());
     }
@@ -356,7 +364,7 @@ fn find(
     if !compared {
         return None;
     }
-    heard.set(path, None);
+    heard.set_stamped(path, None);
     Some(None)
 }
 
@@ -367,18 +375,22 @@ fn find(
 /// was the one playing, only a finding of none, which that run must have
 /// missed.
 fn keep(
-    heard: &PathMap<Option<Vec<Span>>>,
+    heard: &PathMap<Stamped<Heard>>,
     path: &MediaPath,
     here: &[Span],
     other: &MediaPath,
     there: Vec<Span>,
 ) {
     heard.edit(|kept| {
-        let here = Some(here.to_vec());
-        let mut changed = kept.get(path) != Some(&here);
-        kept.insert(path.clone(), here);
-        if !matches!(kept.get(other), Some(Some(_))) {
-            kept.insert(other.clone(), Some(there));
+        let mut changed = false;
+        if let Some(here) = Stamped::new(path, Some(here.to_vec())) {
+            changed |= kept.insert(path.clone(), here.clone()) != Some(here);
+        }
+        let held = kept.get(other).and_then(|kept| kept.still(other));
+        if !matches!(held, Some(Some(_)))
+            && let Some(there) = Stamped::new(other, Some(there))
+        {
+            kept.insert(other.clone(), there);
             changed = true;
         }
         changed
