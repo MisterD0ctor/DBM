@@ -9,7 +9,7 @@
 use std::fs::File;
 use std::io::{LineWriter, Write};
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, PoisonError};
+use std::sync::mpsc::{self, Receiver, Sender, SyncSender};
 use std::time::Instant;
 
 /// How much of one run the file keeps. The previous run's is kept beside it.
@@ -23,9 +23,16 @@ pub fn install() {
     } else {
         log::LevelFilter::Info
     };
-    let file = open(&file());
+    let file = open(&file()).and_then(|file| {
+        let (lines, heard) = mpsc::channel();
+        std::thread::Builder::new()
+            .name("dbm-log".into())
+            .spawn(move || write(file, &heard))
+            .ok()?;
+        Some(lines)
+    });
     if log::set_boxed_logger(Box::new(Logger {
-        file: file.map(|file| Mutex::new(Kept { file, written: 0 })),
+        file,
         started: Instant::now(),
     }))
     .is_ok()
@@ -52,14 +59,37 @@ fn open(path: &Path) -> Option<LineWriter<File>> {
     File::create(path).ok().map(LineWriter::new)
 }
 
-struct Kept {
-    /// Line-buffered, so a crash loses at most the line being written.
-    file: LineWriter<File>,
-    written: u64,
+/// What the file's thread is handed.
+enum Line {
+    Text(String),
+    /// Answered once everything handed over before it is written.
+    Flush(SyncSender<()>),
+}
+
+/// The file's thread. Lines are written here rather than where they are
+/// logged, which is often the frame path, where a slow or network home folder
+/// would hold up the picture. Line-buffered, so a crash loses at most the
+/// lines not yet handed over.
+fn write(mut file: LineWriter<File>, lines: &Receiver<Line>) {
+    let mut written = 0;
+    for line in lines {
+        match line {
+            Line::Text(text) if written < MOST => {
+                if file.write_all(text.as_bytes()).is_ok() {
+                    written += text.len() as u64;
+                }
+            }
+            Line::Text(_) => {}
+            Line::Flush(done) => {
+                let _ = file.flush();
+                let _ = done.send(());
+            }
+        }
+    }
 }
 
 struct Logger {
-    file: Option<Mutex<Kept>>,
+    file: Option<Sender<Line>>,
     started: Instant,
 }
 
@@ -87,13 +117,9 @@ impl log::Log for Logger {
         if own {
             eprintln!("dbm: {}", record.args());
         }
-        let Some(kept) = &self.file else {
+        let Some(file) = &self.file else {
             return;
         };
-        let mut kept = kept.lock().unwrap_or_else(PoisonError::into_inner);
-        if kept.written >= MOST {
-            return;
-        }
         let at = self.started.elapsed().as_secs_f64();
         let level = record.level();
         let line = if own {
@@ -105,18 +131,18 @@ impl log::Log for Logger {
                 record.args()
             )
         };
-        if kept.file.write_all(line.as_bytes()).is_ok() {
-            kept.written += line.len() as u64;
-        }
+        let _ = file.send(Line::Text(line));
     }
 
+    /// Waits until everything logged so far is in the file, as the end of
+    /// a run must before the process takes the thread down with it.
     fn flush(&self) {
-        if let Some(kept) = &self.file {
-            let _ = kept
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner)
-                .file
-                .flush();
+        let Some(file) = &self.file else {
+            return;
+        };
+        let (done, written) = mpsc::sync_channel(1);
+        if file.send(Line::Flush(done)).is_ok() {
+            let _ = written.recv();
         }
     }
 }

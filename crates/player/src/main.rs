@@ -174,6 +174,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     drop(idle_timer);
     drop(checkpoint);
     drop(saver);
+    // The file's lines are written on a thread of their own, which ends
+    // with the process.
+    log::logger().flush();
     // A harness run unwatched learns how it went from the exit code.
     #[cfg(feature = "harness")]
     if harness::script::failed() {
