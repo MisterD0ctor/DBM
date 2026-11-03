@@ -130,6 +130,18 @@ pub fn resolve(path: &Path) -> Result<Selection, String> {
     }
 }
 
+/// Judge the folder `video` is in, for a name shown where no playlist of
+/// that folder has judged it, as on the way in.
+///
+/// **Blocking.** Worker thread only: it lists the folder.
+pub(crate) fn notice_folder_of(video: &Path) {
+    if let Some(dir) = video.parent() {
+        // Listing it is what judges it. One that can't be listed leaves the
+        // name to say what it is on its own.
+        let _ = scan_flat(dir);
+    }
+}
+
 /// Videos directly in `dir`, in watching order, each at its real path. No
 /// recursion: the siblings of an episode are its season, not the whole
 /// library.
@@ -191,7 +203,19 @@ impl Found {
 
 /// Real paths, in the order the paths they were found at are watched in,
 /// each once: two links to one file are one entry.
+///
+/// Their folders are judged here, since every listing passes through: by the
+/// paths found, which the order reads, and the real ones, which everything
+/// after reads.
 fn in_watching_order(found: Vec<Found>) -> Vec<PathBuf> {
+    let mut names = Vec::new();
+    for found in &found {
+        names.push(found.seen.to_string_lossy());
+        if found.real != found.seen {
+            names.push(found.real.to_string_lossy());
+        }
+    }
+    dbm_naming::notice(&names);
     let mut kept = HashSet::new();
     ordered(found, |found| &found.seen)
         .into_iter()
@@ -364,14 +388,16 @@ pub fn seasons_beside(current: &Path) -> Vec<(PathBuf, u32)> {
         let Ok(entries) = fs::read_dir(&dir) else {
             continue;
         };
-        let first = entries
+        let videos: Vec<PathBuf> = entries
             .filter_map(Result::ok)
             .map(|e| e.path())
             .filter(|p| is_video_file(p) && p.is_file())
-            .min_by(|a, b| natural_path(a, b));
-        let Some(first) = first else {
+            .collect();
+        let Some(first) = videos.iter().min_by(|a, b| natural_path(a, b)) else {
             continue;
         };
+        let names: Vec<_> = videos.iter().map(|video| video.to_string_lossy()).collect();
+        dbm_naming::notice(&names);
         if let dbm_naming::Media::Episode {
             show: other,
             season: Some(n),
@@ -677,6 +703,55 @@ mod tests {
             beside,
             [(root.join("Show S02 a"), 2), (root.join("Show S03"), 3)]
         );
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_numbered_show_is_kept_together_once_listed() {
+        // Name order puts the other file between the two release groups'.
+        let root = folder(
+            "numbered",
+            &[
+                "[A] Show 01 One.mkv",
+                "[B] Show 02 Two.mkv",
+                "[A] Show 03 Three.mkv",
+                "[A] Zebra.mkv",
+                "[B] Show 04 Four.mkv",
+            ],
+        );
+        let videos = scan_flat(&root).unwrap();
+        assert_eq!(
+            videos,
+            [
+                root.join("[A] Show 01 One.mkv"),
+                root.join("[B] Show 02 Two.mkv"),
+                root.join("[A] Show 03 Three.mkv"),
+                root.join("[B] Show 04 Four.mkv"),
+                root.join("[A] Zebra.mkv"),
+            ]
+        );
+        assert!(matches!(
+            dbm_naming::parse(&videos[1].to_string_lossy()),
+            dbm_naming::Media::Episode { episode: 2, .. }
+        ));
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn season_folders_of_numbered_files_are_seasons_beside() {
+        let episodes = ["01.mkv", "02.mkv", "03.mkv", "04.mkv"];
+        let files: Vec<String> = ["Season 1", "Season 2"]
+            .iter()
+            .flat_map(|season| episodes.map(|episode| format!("Show/{season}/{episode}")))
+            .collect();
+        let root = folder(
+            "numbered-seasons",
+            &files.iter().map(String::as_str).collect::<Vec<_>>(),
+        );
+        let first = scan_flat(&root.join("Show/Season 1")).unwrap()[0].clone();
+        assert_eq!(seasons_beside(&first), [(root.join("Show/Season 2"), 2)]);
         fs::remove_dir_all(&root).unwrap();
     }
 

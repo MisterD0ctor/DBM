@@ -400,6 +400,19 @@ mod tests {
     }
 
     #[test]
+    fn a_listed_folder_of_numbered_files_is_one_show() {
+        let paths: Vec<String> = (1..=4)
+            .map(|n| format!("/Shows/Fate Zero/Fate Zero {n:02} Title {n} (BD1080p AC3 10bit).mkv"))
+            .collect();
+        dbm_naming::notice(&paths);
+        let items: Vec<Item> = (0..).zip(&paths).map(|(i, path)| item(path, i)).collect();
+        let shelf = arrange(&items, &[]);
+        assert_eq!(shelf.title().as_deref(), Some("Fate Zero"));
+        assert_eq!(labels(&shelf), ["Episodes"]);
+        assert_eq!(shelf.groups[0].entries[0].label, "E01 · Title 1");
+    }
+
+    #[test]
     fn a_page_opens_where_watching_carries_on() {
         let entry = |progress: Progress| Entry {
             label: String::new(),

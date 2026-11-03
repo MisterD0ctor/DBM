@@ -32,7 +32,7 @@ pub struct Resume {
 /// Find it.
 ///
 /// **Blocking.** Worker thread only: it stats a file per entry in the
-/// duration cache and reads one watch-later file.
+/// duration cache, reads one watch-later file and lists that file's folder.
 pub fn last_watched() -> Option<Resume> {
     let dir = paths::watch_later_dir();
     let mut candidates: Vec<(std::time::SystemTime, MediaPath, f64)> = crate::durations::load()
@@ -59,6 +59,7 @@ pub fn last_watched() -> Option<Resume> {
             return None;
         }
         let fraction = (start / seconds).clamp(0.0, 1.0) as f32;
+        crate::playlist::notice_folder_of(path.as_path());
         let (show, title) = dbm_naming::described(path.as_str(), None);
         Some(Resume {
             seconds_left: (seconds - start).max(0.0),

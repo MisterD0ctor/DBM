@@ -7,6 +7,8 @@
 //!   metadata that means nothing once the file is playing. Fansub releases
 //!   often have no season at all (`[Group] Show - 01 (1080p)`) and number a
 //!   show's episodes straight through. See `media`.
+//! * A file numbered without a marker, `Fate Zero 01`, is named the way a
+//!   film's sequel is, and only the files around it say which. See `runs`.
 //! * A track carries a language code, sometimes a title, the same release
 //!   junk again for external subtitles (where mpv uses the filename as the
 //!   title), and the flags that matter: forced, SDH, commentary. See `tracks`
@@ -14,18 +16,21 @@
 //! * A chapter is called `End Credits`, or `Outro`, or its own start time.
 //!   See `chapters`.
 //!
-//! `clean` holds what all of them share. Everything here is a pure function
-//! over strings, with no mpv, UI or I/O, because guesswork wants tests, which
-//! are easiest with nothing to set up.
+//! `clean` holds what all of them share. Everything here works on strings,
+//! with no mpv, UI or I/O, because guesswork wants tests, which are easiest
+//! with nothing to set up. The one thing kept is what each folder's names
+//! were judged to be, handed in by whoever lists the folder (see [`notice`]).
 
 mod chapters;
 mod clean;
 mod language;
 mod media;
+mod runs;
 mod tracks;
 
 pub use chapters::{is_credits, is_intro, is_preview, is_unnamed_chapter};
 pub use clean::strip_path;
 pub use language::language_name;
 pub use media::{Media, described, listing, parse, past_named, titled, without_season};
+pub use runs::notice;
 pub use tracks::{TrackInfo, track_labels};

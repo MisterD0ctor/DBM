@@ -3,6 +3,7 @@
 use super::clean::{
     authored, clean_separators, strip_extension, strip_group, strip_metadata, strip_path, trim_junk,
 };
+use super::runs;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Media {
@@ -29,12 +30,7 @@ pub enum Media {
 /// the filename.
 pub fn parse(path: &str) -> Media {
     let stem = strip_group(strip_extension(strip_path(path)));
-    if let Some(episode) = parse_episode(stem) {
-        return episode;
-    }
-    // Only once there is no marker. `S2 - 01` has the same dash and number as
-    // `Show - 01`, and the season in front of it is the part worth having.
-    if let Some(episode) = parse_absolute(stem) {
+    if let Some(episode) = named_episode(stem).or_else(|| runs::episode(path, stem)) {
         return episode;
     }
     let (title, year) = split_year(&clean_separators(stem));
@@ -42,6 +38,15 @@ pub fn parse(path: &str) -> Media {
         title: strip_metadata(&title),
         year,
     }
+}
+
+/// The episode a name says it is on its own, without its folder.
+pub(super) fn named_episode(stem: &str) -> Option<Media> {
+    // A marker first. `S2 - 01` has the same dash and number as `Show - 01`,
+    // and the season in front of it is the part worth having.
+    parse_episode(stem)
+        .or_else(|| parse_episode_word(stem))
+        .or_else(|| parse_absolute(stem))
 }
 
 /// One line for a bar or a menu row, given what the container says about
@@ -385,6 +390,57 @@ fn parse_absolute(stem: &str) -> Option<Media> {
     None
 }
 
+/// `Show Ep.17` or `Show Episode 17`: an episode numbered without a season,
+/// with the word for one in front of the number.
+///
+/// Not with a year after the number, since `Star Wars Episode 1 - The Phantom
+/// Menace (1999)` is a film named the same way.
+fn parse_episode_word(stem: &str) -> Option<Media> {
+    let chars: Vec<char> = stem.chars().collect();
+    for i in 0..chars.len() {
+        if i > 0 && chars[i - 1].is_alphanumeric() {
+            continue;
+        }
+        let Some(after) = ["episode", "ep"]
+            .into_iter()
+            .find_map(|word| word_at(&chars, i, word))
+        else {
+            continue;
+        };
+        let start = skip_separators(&chars, after);
+        let Some((episode, end)) = take_number(&chars, start, 3) else {
+            continue;
+        };
+        if chars.get(end).is_some_and(|c| c.is_alphanumeric()) {
+            continue;
+        }
+        let rest = clean_separators(&chars[end..].iter().collect::<String>());
+        if rest.split(' ').any(|word| year_of(word).is_some()) {
+            return None;
+        }
+        let show = trim_junk(&clean_separators(&chars[..i].iter().collect::<String>()));
+        let title = strip_metadata(&trim_junk(&clean_separators(&without_brackets(&rest))));
+        return Some(Media::Episode {
+            show,
+            season: None,
+            episode,
+            episode_end: None,
+            title: (!title.is_empty()).then_some(title),
+        });
+    }
+    None
+}
+
+/// Where `word` ends, if it is written at `i` in any case.
+fn word_at(chars: &[char], i: usize, word: &str) -> Option<usize> {
+    let end = i + word.len();
+    let here = chars.get(i..end)?;
+    here.iter()
+        .zip(word.chars())
+        .all(|(c, w)| c.eq_ignore_ascii_case(&w))
+        .then_some(end)
+}
+
 fn skip_gap(chars: &[char], i: usize) -> usize {
     let mut j = i;
     while chars.get(j).is_some_and(|c| matches!(c, ' ' | '_')) {
@@ -394,7 +450,7 @@ fn skip_gap(chars: &[char], i: usize) -> usize {
 }
 
 /// A string with every `[...]` group taken out.
-fn without_brackets(s: &str) -> String {
+pub(super) fn without_brackets(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut depth = 0usize;
     for c in s.chars() {
@@ -513,19 +569,12 @@ fn skip_separators(chars: &[char], i: usize) -> usize {
 
 /// A four-digit year in parentheses or standing alone, and the name without
 /// it. Only plausible years, since `1080` and `2160` are resolutions.
-fn split_year(name: &str) -> (String, Option<u32>) {
+pub(super) fn split_year(name: &str) -> (String, Option<u32>) {
     let words: Vec<&str> = name.split(' ').collect();
     for (i, w) in words.iter().enumerate().rev() {
-        let bare = w.trim_matches(|c: char| !c.is_ascii_digit());
-        if bare.len() != 4 {
-            continue;
-        }
-        let Ok(year) = bare.parse::<u32>() else {
+        let Some(year) = year_of(w) else {
             continue;
         };
-        if !(1900..=2099).contains(&year) {
-            continue;
-        }
         // A year at the very front is part of the title, as in `1917`.
         if i == 0 {
             continue;
@@ -533,6 +582,16 @@ fn split_year(name: &str) -> (String, Option<u32>) {
         return (words[..i].join(" "), Some(year));
     }
     (name.to_string(), None)
+}
+
+/// The year a word is, bracketed or bare, where it is a plausible one.
+pub(super) fn year_of(word: &str) -> Option<u32> {
+    let bare = word.trim_matches(|c: char| !c.is_ascii_digit());
+    if bare.len() != 4 {
+        return None;
+    }
+    let year = bare.parse::<u32>().ok()?;
+    (1900..=2099).contains(&year).then_some(year)
 }
 
 #[cfg(test)]
@@ -646,6 +705,24 @@ mod tests {
         assert_eq!(show, "Wandering Road");
         assert_eq!((s, e, end), (None, 1, None));
         assert_eq!(title, None);
+    }
+    #[test]
+    fn the_word_for_an_episode_numbers_it_without_a_season() {
+        let (show, s, e, end, title) = episode("Moribito  Ep.17.mkv");
+        assert_eq!((show.as_str(), s, e, end), ("Moribito", None, 17, None));
+        assert_eq!(title, None);
+        let (show, _, e, _, title) = episode("Show Episode 3 - Old Friends [ABCD1234].mkv");
+        assert_eq!((show.as_str(), e), ("Show", 3));
+        assert_eq!(title.as_deref(), Some("Old Friends"));
+        assert_eq!(episode("Show.EP03.720p.mkv").2, 3);
+    }
+    #[test]
+    fn the_word_for_an_episode_in_a_film_s_name_is_not_a_marker() {
+        let star_wars = "Star Wars Episode 1 - The Phantom Menace (1999).mkv";
+        assert!(matches!(parse(star_wars), Media::Movie { .. }));
+        // Only as a word of its own.
+        assert!(matches!(parse("Epic 3.mkv"), Media::Movie { .. }));
+        assert!(matches!(parse("Sleep 3.mkv"), Media::Movie { .. }));
     }
     #[test]
     fn a_checksum_alone_is_not_a_title() {

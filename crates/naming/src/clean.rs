@@ -95,15 +95,33 @@ const METADATA: &[&str] = &[
 /// Cut the name at the first release tag.
 ///
 /// Truncating rather than removing word by word, because everything after the
-/// first tag is metadata too: `1080p WEB-DL x264-GROUP` hides no title.
+/// first tag is metadata too: `1080p WEB-DL x264-GROUP` hides no title. A tag
+/// inside brackets takes the brackets with it, as in `Title (BD1080p AC3)`.
 pub fn strip_metadata(s: &str) -> String {
     let words: Vec<&str> = s.split(' ').collect();
     for (i, w) in words.iter().enumerate() {
         if is_metadata(w) {
-            return trim_junk(&words[..i].join(" "));
+            let kept = words[..i].join(" ");
+            let cut = unclosed(&kept).unwrap_or(kept.len());
+            return trim_junk(&kept[..cut]);
         }
     }
     trim_junk(s)
+}
+
+/// Where the outermost bracket still open at the end of `s` opens.
+fn unclosed(s: &str) -> Option<usize> {
+    let mut open = Vec::new();
+    for (i, c) in s.char_indices() {
+        match c {
+            '(' | '[' | '{' => open.push(i),
+            ')' | ']' | '}' => {
+                open.pop();
+            }
+            _ => {}
+        }
+    }
+    open.first().copied()
 }
 
 /// Whether one word is a release marker rather than part of a name.
@@ -288,6 +306,15 @@ mod tests {
         assert_eq!(trim_junk(") Title"), "Title");
         assert_eq!(trim_junk("[1080p]"), "[1080p]");
         assert_eq!(trim_junk("((Title)"), "(Title)");
+    }
+    #[test]
+    fn a_tag_in_brackets_takes_the_brackets() {
+        assert_eq!(
+            strip_metadata("The Summoning of Heroes (BD1080p AC3 10bit)"),
+            "The Summoning of Heroes"
+        );
+        // A pair closed before the tag is the name's own.
+        assert_eq!(strip_metadata("Queen (1) 1080p"), "Queen (1)");
     }
     #[test]
     fn paths_are_stripped() {
