@@ -255,43 +255,61 @@ pub struct Program {
     locations: RefCell<HashMap<String, Option<glow::UniformLocation>>>,
 }
 
+/// One shader compiled, or what its compiler said, leaving nothing behind.
+fn compile(
+    gl: &glow::Context,
+    kind: u32,
+    source: &str,
+) -> Result<<glow::Context as HasContext>::Shader, String> {
+    unsafe {
+        let shader = gl.create_shader(kind)?;
+        gl.shader_source(shader, source);
+        gl.compile_shader(shader);
+        if gl.get_shader_compile_status(shader) {
+            return Ok(shader);
+        }
+        let log = gl.get_shader_info_log(shader);
+        gl.delete_shader(shader);
+        Err(log)
+    }
+}
+
 impl Program {
     pub fn new(gl: &glow::Context, vert: &str, frag: &str) -> Result<Self, String> {
         unsafe {
             let program = gl.create_program()?;
             let prologue = shader_prologue(gl);
             let mut shaders = Vec::new();
-            for (kind, src) in [(glow::VERTEX_SHADER, vert), (glow::FRAGMENT_SHADER, frag)] {
-                let shader = gl.create_shader(kind)?;
-                gl.shader_source(shader, &format!("{prologue}{src}"));
-                gl.compile_shader(shader);
-                if !gl.get_shader_compile_status(shader) {
-                    let log = gl.get_shader_info_log(shader);
-                    gl.delete_shader(shader);
-                    for s in shaders {
-                        gl.delete_shader(s);
+            let mut built = Ok(());
+            for (stage, kind, src) in [
+                ("vertex", glow::VERTEX_SHADER, vert),
+                ("fragment", glow::FRAGMENT_SHADER, frag),
+            ] {
+                match compile(gl, kind, &format!("{prologue}{src}")) {
+                    Ok(shader) => {
+                        gl.attach_shader(program, shader);
+                        shaders.push(shader);
                     }
-                    gl.delete_program(program);
-                    let stage = if kind == glow::VERTEX_SHADER {
-                        "vertex"
-                    } else {
-                        "fragment"
-                    };
-                    return Err(format!("{stage} shader: {log}"));
+                    Err(log) => {
+                        built = Err(format!("{stage} shader: {log}"));
+                        break;
+                    }
                 }
-                gl.attach_shader(program, shader);
-                shaders.push(shader);
             }
-            gl.link_program(program);
-            let ok = gl.get_program_link_status(program);
+            if built.is_ok() {
+                gl.link_program(program);
+                if !gl.get_program_link_status(program) {
+                    built = Err(format!("link: {}", gl.get_program_info_log(program)));
+                }
+            }
+            // Whichever way it went, so a failure part-way leaves nothing.
             for s in shaders {
                 gl.detach_shader(program, s);
                 gl.delete_shader(s);
             }
-            if !ok {
-                let log = gl.get_program_info_log(program);
+            if let Err(e) = built {
                 gl.delete_program(program);
-                return Err(format!("link: {log}"));
+                return Err(e);
             }
             Ok(Self {
                 program,
