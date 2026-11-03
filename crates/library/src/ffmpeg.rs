@@ -103,6 +103,43 @@ pub fn spawn_behind(cmd: &mut Command) -> std::io::Result<Child> {
     Ok(child)
 }
 
+/// Runs started and not yet waited for, killed and waited for if they are
+/// dropped that way.
+///
+/// Dropping a `Child` does neither, so a run called off part-way would leave
+/// each process going, writing into a folder being deleted, and then a
+/// zombie until the player quits.
+#[derive(Default)]
+pub struct Children(Vec<Child>);
+
+impl Children {
+    pub fn push(&mut self, child: Child) {
+        self.0.push(child);
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Hand each child over to be waited for, in the order they started.
+    pub fn wait_each(&mut self, each: impl FnMut(Child)) {
+        self.0.drain(..).for_each(each);
+    }
+}
+
+impl Drop for Children {
+    fn drop(&mut self) {
+        for child in &mut self.0 {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+}
+
 /// Ask ffmpeg to describe a file, and return what it said.
 ///
 /// `-i` with no output makes ffmpeg read the container header, print what it

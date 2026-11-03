@@ -127,7 +127,7 @@ fn extract(
     // black frame every film opens on and the last is not past the end.
     let step = duration / f64::from(total);
     let keyframes = step >= KEYFRAME_SLICE;
-    let mut pending = Vec::new();
+    let mut pending = ffmpeg::Children::default();
     for index in 0..total {
         if !ticket.current() {
             return false;
@@ -171,14 +171,14 @@ fn extract(
             Err(_) => return false,
         }
         if pending.len() >= PARALLEL {
-            for mut child in pending.drain(..) {
+            pending.wait_each(|mut child| {
                 let _ = child.wait();
-            }
+            });
         }
     }
-    for mut child in pending {
+    pending.wait_each(|mut child| {
         let _ = child.wait();
-    }
+    });
     ticket.current()
 }
 

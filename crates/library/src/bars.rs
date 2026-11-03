@@ -141,7 +141,7 @@ fn sample(ffmpeg: &Path, video: &Path, duration: f64, ticket: Ticket) -> Option<
     let start = duration * BODY.0;
     let step = duration * (BODY.1 - BODY.0) / f64::from(SAMPLES);
     let mut seen = Vec::new();
-    let mut pending = Vec::new();
+    let mut pending = ffmpeg::Children::default();
     for index in 0..SAMPLES {
         if !ticket.current() {
             return None;
@@ -151,12 +151,11 @@ fn sample(ffmpeg: &Path, video: &Path, duration: f64, ticket: Ticket) -> Option<
             pending.push(child);
         }
         if pending.len() >= PARALLEL || index + 1 == SAMPLES {
-            for child in pending.drain(..) {
-                let Ok(out) = child.wait_with_output() else {
-                    continue;
-                };
-                seen.extend(parse_crop(&String::from_utf8_lossy(&out.stderr)));
-            }
+            pending.wait_each(|child| {
+                if let Ok(out) = child.wait_with_output() {
+                    seen.extend(parse_crop(&String::from_utf8_lossy(&out.stderr)));
+                }
+            });
         }
     }
     ticket.current().then_some(seen)
