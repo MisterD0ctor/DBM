@@ -138,9 +138,20 @@ pub fn vendored(names: &[&str]) -> Option<PathBuf> {
         .find(|candidate| candidate.is_file())
 }
 
-/// Scratch file the current playlist is written to for mpv's `loadlist`.
+/// A new scratch file to write a playlist to for mpv's `loadlist`.
+///
+/// One per open and per process: mpv reads it a moment after it is written,
+/// by when the next open, or another copy of the player, could have written
+/// over a shared one. Whoever loads it deletes it once mpv has read it. In
+/// the temp folder, so the system clears any a crash leaves behind.
 pub fn playlist_m3u() -> PathBuf {
-    app_data_dir().join("playlist.m3u")
+    use std::sync::atomic::{AtomicU32, Ordering};
+    static COUNT: AtomicU32 = AtomicU32::new(0);
+    std::env::temp_dir().join(format!(
+        "dbm-playlist-{}-{}.m3u8",
+        std::process::id(),
+        COUNT.fetch_add(1, Ordering::Relaxed)
+    ))
 }
 
 /// The shader mpv marks subtitles with, written out for it to load (see

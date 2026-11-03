@@ -248,8 +248,9 @@ pub fn set_audio_track(mpv: &Mpv, id: Option<i64>) {
 /// [`REPLY_LOADLIST`], since other work waits on the list.
 ///
 /// `first`, the entry it starts on, says where the list's files are, since
-/// they all come from one folder.
-pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &MediaPath) {
+/// they all come from one folder. Returns whether the list went to mpv,
+/// which then answers with that reply.
+pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &MediaPath) -> bool {
     save_before_leaving(mpv);
     set_prop(mpv, "playlist-start", &start.to_string());
     // The document portal is a FUSE mount, which mpv takes for a network
@@ -263,7 +264,9 @@ pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &MediaPa
     if let Err(e) = mpv.command_async(REPLY_LOADLIST, &args) {
         log::warn!("loadlist failed: {e}");
         crate::playback::session::settled();
+        return false;
     }
+    true
 }
 
 pub fn playlist_play(mpv: &Mpv, index: i64) {

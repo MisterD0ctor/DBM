@@ -138,7 +138,18 @@ impl Driver {
                 .arrival
                 .open_list(&self.app.mpv, list.first.clone(), list.saved);
         }
-        commands::load_list(&self.app.mpv, &list.m3u, list.start, &list.first);
+        if commands::load_list(&self.app.mpv, &list.m3u, list.start, &list.first) {
+            self.lists_loading.push_back(list.m3u);
+        } else {
+            self.delete_list(list.m3u);
+        }
+    }
+
+    /// Delete a playlist file mpv is done with, off the frame path.
+    pub(super) fn delete_list(&self, m3u: std::path::PathBuf) {
+        self.app.worker.run(move |_mpv| {
+            let _ = std::fs::remove_file(m3u);
+        });
     }
 
     fn not_opened(&mut self, ui: &MainWindow, e: String) {

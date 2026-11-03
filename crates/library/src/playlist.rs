@@ -79,7 +79,8 @@ pub fn prepare(path: &Path) -> Result<Prepared, String> {
 
 /// A playlist that has been scanned and written out, ready to hand to mpv.
 pub struct Prepared {
-    /// The M3U on disk.
+    /// The M3U on disk, this open's own, for whoever loads it to delete once
+    /// mpv has read it.
     pub m3u: PathBuf,
     /// Which entry to start on.
     pub start: usize,

@@ -174,6 +174,10 @@ pub struct Driver {
     /// Whether a `loadlist` is on its way, so that its reply knows to start
     /// playback.
     loading_list: bool,
+    /// The files of the lists given to `loadlist` and not yet answered, in
+    /// the order they were given, each deleted when its answer comes, by
+    /// when mpv has read it.
+    lists_loading: std::collections::VecDeque<std::path::PathBuf>,
     /// Whether an open came to nothing since a file last loaded, so that if
     /// nothing plays now, the empty window looks for what to offer as it
     /// does at launch.
@@ -226,6 +230,7 @@ impl Driver {
             warm: crate::interface::warm::WarmUp::default(),
             playlist_open: false,
             loading_list: false,
+            lists_loading: std::collections::VecDeque::new(),
             stumbled: false,
             loads_seen: 0,
             diag: diagnostics::Probe::new(),
@@ -606,6 +611,11 @@ impl Driver {
             completions::look_for_resume(&self.app.worker);
         }
         for id in std::mem::take(&mut self.scratch.replies) {
+            if id == commands::REPLY_LOADLIST
+                && let Some(m3u) = self.lists_loading.pop_front()
+            {
+                self.delete_list(m3u);
+            }
             match id {
                 commands::REPLY_SCRUB => self.app.scrubber.on_reply(&self.app.mpv),
                 // The list exists now, and which entry plays was settled
