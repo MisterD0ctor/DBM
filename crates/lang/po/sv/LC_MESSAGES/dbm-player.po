@@ -1219,3 +1219,7 @@ msgstr "Visa kapitel"
 msgctxt "player"
 msgid "Could not make a playlist — {}"
 msgstr "Kunde inte skapa en spellista — {}"
+
+msgctxt "player"
+msgid "Playing a video"
+msgstr "Spelar en video"

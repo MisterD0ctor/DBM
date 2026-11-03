@@ -1222,3 +1222,7 @@ msgstr "Mostra i capitoli"
 msgctxt "player"
 msgid "Could not make a playlist — {}"
 msgstr "Impossibile creare una playlist — {}"
+
+msgctxt "player"
+msgid "Playing a video"
+msgstr "Riproduzione di un video"

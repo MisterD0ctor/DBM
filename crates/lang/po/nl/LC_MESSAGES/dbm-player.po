@@ -1222,3 +1222,7 @@ msgstr "Hoofdstukken tonen"
 msgctxt "player"
 msgid "Could not make a playlist — {}"
 msgstr "Afspeellijst kon niet worden gemaakt — {}"
+
+msgctxt "player"
+msgid "Playing a video"
+msgstr "Er wordt een video afgespeeld"

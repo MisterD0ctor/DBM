@@ -177,11 +177,13 @@ Windows and Linux are both supported. macOS isn't planned.
 
 Media keys and the desktop's media controls work on both: through SMTC on
 Windows and MPRIS on Linux (see `platform/media_keys`, and run with
-`DBM_MPRIS_TEST=1` to watch it work). A few things are still Windows-only and
-don't exist on Linux yet:
+`DBM_MPRIS_TEST=1` to watch it work). So does keeping the screen awake while
+a video plays: through the desktop portal on Linux, or
+`org.freedesktop.ScreenSaver` where there is no portal (see
+`platform/awake`). A few things are still Windows-only and don't exist on
+Linux yet:
 
 - dropping files onto the window
-- keeping the screen awake while a video plays
 - the interface continuing to redraw while you drag the window's edge
 
 ## Packaging
