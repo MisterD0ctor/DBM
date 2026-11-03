@@ -337,7 +337,15 @@ impl PlayerState {
                 self.played_out = Some(*entry);
                 true
             }
-            Event::StartFile | Event::EndFile { .. } | Event::Seek | Event::PlaybackRestart => true,
+            // The chapters are the last file's until the new file's are read,
+            // and its index, length and time would be read against them. So
+            // they go now, and a read still on its way for the last file is
+            // let go.
+            Event::StartFile => {
+                self.chapters.clear();
+                self.lists_moved(true)
+            }
+            Event::EndFile { .. } | Event::Seek | Event::PlaybackRestart => true,
             // Filtered out by the event drain before reaching here: command
             // completions are routed to whoever issued them.
             Event::CommandReply { .. } | Event::Shutdown => false,

@@ -244,6 +244,20 @@ mod tests {
     }
 
     #[test]
+    fn a_new_file_reads_nothing_from_the_last_ones_chapters() {
+        // Arrived inside the last file's titles and its credits, before the
+        // new file's chapters are read.
+        let mut state = playing("Show.Name.S01E03.1080p.mkv", 1, OPENED);
+        state.apply(&dbm_mpv::Event::StartFile);
+        state.time_pos = 120.0;
+        assert_eq!(state.intro(), None);
+        assert!(!state.intro_rolling());
+        state.chapter = Some(3);
+        state.time_pos = 3450.0;
+        assert!(!state.credits_rolling());
+    }
+
+    #[test]
     fn the_credits_roll_from_their_chapter_to_the_end() {
         assert!(!playing(EPISODE, 0, MARKS).credits_rolling());
         assert!(playing(EPISODE, 1, MARKS).credits_rolling());
