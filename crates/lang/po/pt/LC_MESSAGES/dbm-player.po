@@ -1220,6 +1220,14 @@ msgctxt "SettingsPanel"
 msgid "Show chapters"
 msgstr "Mostrar os capítulos"
 
+msgctxt "GroupRow"
+msgid "{}, {}"
+msgstr "{}, {}"
+
+msgctxt "ShortcutRow"
+msgid "{}, {}"
+msgstr "{}, {}"
+
 msgctxt "player"
 msgid "Could not make a playlist — {}"
 msgstr "Não foi possível criar uma lista de reprodução — {}"

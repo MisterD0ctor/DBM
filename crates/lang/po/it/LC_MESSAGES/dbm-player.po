@@ -1219,6 +1219,14 @@ msgctxt "SettingsPanel"
 msgid "Show chapters"
 msgstr "Mostra i capitoli"
 
+msgctxt "GroupRow"
+msgid "{}, {}"
+msgstr "{}, {}"
+
+msgctxt "ShortcutRow"
+msgid "{}, {}"
+msgstr "{}, {}"
+
 msgctxt "player"
 msgid "Could not make a playlist — {}"
 msgstr "Impossibile creare una playlist — {}"

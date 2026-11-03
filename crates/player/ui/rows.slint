@@ -532,7 +532,7 @@ export component GroupRow inherits Rectangle {
     height: Rows.row;
 
     accessible-role: button;
-    accessible-label: root.label + ", " + root.detail;
+    accessible-label: @tr("{}, {}", root.label, root.detail);
     accessible-action-default => {
         root.opened();
     }
@@ -709,7 +709,8 @@ export component ShortcutRow inherits Rectangle {
     // by being a disabled one.
     accessible-role: button;
     accessible-enabled: !root.inert;
-    accessible-label: root.shortcut == "" ? root.label : root.label + ", " + root.shortcut;
+    accessible-label: root.shortcut == "" ? root.label
+        : @tr("{}, {}", root.label, root.shortcut);
     accessible-action-default => {
         if (!root.inert) {
             root.picked();

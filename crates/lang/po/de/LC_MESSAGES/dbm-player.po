@@ -373,7 +373,7 @@ msgstr "Stumm"
 
 msgctxt "Playback"
 msgid "Volume {}%"
-msgstr "Lautstärke {} %"
+msgstr "Lautstärke {}%"
 
 msgctxt "ControlBar"
 msgid "Fit the window"
@@ -941,7 +941,7 @@ msgstr "Leertaste / K"
 
 msgctxt "SettingsPanel"
 msgid "Jump to 0%–90%"
-msgstr "Zu 0–90 % springen"
+msgstr "Zu 0–90% springen"
 
 msgctxt "SettingsPanel"
 msgid "Skip intro or credits"
@@ -1085,7 +1085,7 @@ msgstr ","
 
 msgctxt "ControlBar"
 msgid "{}%"
-msgstr "{} %"
+msgstr "{}%"
 
 msgctxt "SettingsPanel"
 msgid "Skip intros"
@@ -1218,6 +1218,14 @@ msgstr "Restzeit anzeigen"
 msgctxt "SettingsPanel"
 msgid "Show chapters"
 msgstr "Kapitel anzeigen"
+
+msgctxt "GroupRow"
+msgid "{}, {}"
+msgstr "{}, {}"
+
+msgctxt "ShortcutRow"
+msgid "{}, {}"
+msgstr "{}, {}"
 
 msgctxt "player"
 msgid "Could not make a playlist — {}"
