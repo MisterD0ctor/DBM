@@ -165,8 +165,34 @@ fn load(path: &std::path::Path) -> Vec<(String, f32)> {
 pub struct Persister {
     store: std::rc::Rc<Store>,
     worker: std::rc::Rc<crate::worker::Worker>,
+    path: std::path::PathBuf,
     /// When the pending change was noticed, or `None` if nothing is pending.
     since: Cell<Option<std::time::Instant>>,
+    /// How many times the values have been taken to be written. See [`save`].
+    taken: Cell<u64>,
+}
+
+/// Keeps settings saving as they change, until it is dropped.
+pub struct Saving {
+    persister: std::rc::Rc<Persister>,
+    _poll: slint::Timer,
+}
+
+impl Saving {
+    /// Write any change still settling, now and on this thread.
+    ///
+    /// For the end of a run, once the window is gone: a change made in the
+    /// last second would otherwise be lost with the timer. Not through the
+    /// worker, whose queue may hold slow jobs.
+    pub fn flush(&self) {
+        let persister = &self.persister;
+        if persister.store.take_unsaved() || persister.since.take().is_some() {
+            let (taken, values) = persister.take();
+            if let Err(e) = save(&persister.path, &values, taken) {
+                log::warn!("settings not saved before quitting: {e}");
+            }
+        }
+    }
 }
 
 impl Persister {
@@ -176,13 +202,11 @@ impl Persister {
     const POLL: std::time::Duration = std::time::Duration::from_millis(250);
 
     /// Load whatever was saved, then start watching for changes.
-    ///
-    /// The returned timer must be kept alive; dropping it stops saving.
     #[must_use]
     pub fn install(
         store: std::rc::Rc<Store>,
         worker: std::rc::Rc<crate::worker::Worker>,
-    ) -> slint::Timer {
+    ) -> Saving {
         let path = file();
         let saved = load(&path);
         if !saved.is_empty() {
@@ -190,19 +214,31 @@ impl Persister {
             log::info!("loaded {} saved setting(s)", saved.len());
         }
 
-        let this = Self {
+        let persister = std::rc::Rc::new(Self {
             store,
             worker,
+            path,
             since: Cell::new(None),
-        };
-        let timer = slint::Timer::default();
-        timer.start(slint::TimerMode::Repeated, Self::POLL, move || {
-            this.poll(&path);
+            taken: Cell::new(0),
         });
-        timer
+        let poll = slint::Timer::default();
+        poll.start(slint::TimerMode::Repeated, Self::POLL, {
+            let persister = persister.clone();
+            move || persister.poll()
+        });
+        Saving {
+            persister,
+            _poll: poll,
+        }
     }
 
-    fn poll(&self, path: &std::path::Path) {
+    /// The values to write, numbered in the order they were taken.
+    fn take(&self) -> (u64, Vec<(String, f32)>) {
+        self.taken.set(self.taken.get() + 1);
+        (self.taken.get(), self.store.to_saved())
+    }
+
+    fn poll(&self) {
         // Any change restarts the clock, so a drag in progress never writes.
         if self.store.take_unsaved() {
             self.since.set(Some(std::time::Instant::now()));
@@ -215,23 +251,33 @@ impl Persister {
             return;
         }
         self.since.set(None);
-        let values = self.store.to_saved();
-        let path = path.to_path_buf();
+        let (taken, values) = self.take();
+        let path = self.path.clone();
         // `submit` rather than `run`, so a failure reaches the person tuning,
         // whose adjustments are in it.
         self.worker.submit(move |_mpv| {
-            save(&path, &values)
+            save(&path, &values, taken)
                 .err()
                 .map(crate::worker::Completion::Warning)
         });
     }
 }
 
-/// Write settings out. Runs on the worker, and returns what to say on failure
-/// rather than panicking: losing a saved slider must not take the player
-/// down, nor pass in silence.
-fn save(path: &std::path::Path, values: &[(String, f32)]) -> Result<(), String> {
+/// The number of the values last written. A save queued on the worker can
+/// run after a newer one written by [`Saving::flush`], and must not undo it.
+static WRITTEN: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
+
+/// Write settings out, unless newer ones have been already. Returns what to
+/// say on failure rather than panicking: losing a saved slider must not take
+/// the player down, nor pass in silence.
+fn save(path: &std::path::Path, values: &[(String, f32)], taken: u64) -> Result<(), String> {
     use std::fmt::Write as _;
+    let mut written = WRITTEN
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if taken < *written {
+        return Ok(());
+    }
     let mut out = String::from("# Death by MPV settings\n");
     for (name, value) in values {
         let _ = writeln!(out, "{name} = {value}");
@@ -242,7 +288,9 @@ fn save(path: &std::path::Path, values: &[(String, f32)]) -> Result<(), String> 
     dbm_library::paths::write_atomic(path, out).map_err(|e| {
         log::warn!("could not save settings: {e}");
         dbm_lang::fill(dbm_lang::tr("Settings could not be saved — {}"), &[&e])
-    })
+    })?;
+    *written = taken;
+    Ok(())
 }
 
 #[cfg(test)]

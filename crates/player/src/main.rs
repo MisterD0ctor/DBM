@@ -162,6 +162,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // First, so the place is on disk before anything slow.
     playback::session::save_before_quitting(&mpv);
+    saver.flush();
 
     // The window is gone by now, so a slow answer holds up nothing anyone
     // can see; OpenSubtitles asks for the token back when an app is done.
