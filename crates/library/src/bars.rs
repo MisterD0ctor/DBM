@@ -79,12 +79,18 @@ pub struct Found {
 /// Called on every run.
 static RUNS: Supersede = Supersede::new();
 
+/// Files ffmpeg couldn't make out this run. Not kept on disk, since a later
+/// ffmpeg might manage, but not asked of this one again, at sixteen runs a
+/// time, each time the file plays.
+static UNREADABLE: std::sync::Mutex<Vec<MediaPath>> = std::sync::Mutex::new(Vec::new());
+
 /// Find the picture in each of `paths`, in order, and report each one, from
 /// what was found before where there is an answer kept.
 ///
 /// Returns immediately. A file that cannot be looked at (not on disk, no
 /// ffmpeg, a run called off) is not reported, and is looked at again when
-/// next asked for.
+/// next asked for; one ffmpeg can't make out, not until the next run of the
+/// player.
 pub fn spawn(paths: Vec<MediaPath>, reporter: Reporter<Found>) {
     let ticket = RUNS.next();
     crate::threads::spawn("dbm-bars", move || {
@@ -95,14 +101,20 @@ pub fn spawn(paths: Vec<MediaPath>, reporter: Reporter<Found>) {
             }
             let crop = match known.get(&path).and_then(|kept| kept.still(&path)) {
                 Some(crop) => *crop,
-                None => {
-                    let Some(crop) = look(&path, ticket) else {
+                None if unreadable().contains(&path) => continue,
+                None => match look(&path, ticket) {
+                    Looked::Seen(crop) => {
+                        log::info!("bars in {path}: {crop:?}");
+                        FOUND.set_stamped(&path, crop);
+                        crop
+                    }
+                    Looked::Unreadable => {
+                        log::info!("ffmpeg could not make out {path}, not looked at again");
+                        unreadable().push(path);
                         continue;
-                    };
-                    log::info!("bars in {path}: {crop:?}");
-                    FOUND.set_stamped(&path, crop);
-                    crop
-                }
+                    }
+                    Looked::Not => continue,
+                },
             };
             if !reporter.send(Found { path, crop }) {
                 return;
@@ -111,29 +123,54 @@ pub fn spawn(paths: Vec<MediaPath>, reporter: Reporter<Found>) {
     });
 }
 
-/// The picture in one file, `Some(None)` for a file without bars, or `None`
-/// where it could not be looked at. **Blocking**: runs ffmpeg.
-fn look(path: &MediaPath, ticket: Ticket) -> Option<Option<Crop>> {
+fn unreadable() -> std::sync::MutexGuard<'static, Vec<MediaPath>> {
+    UNREADABLE
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// What looking at one file came to.
+enum Looked {
+    /// Its picture, or `None` for a file without bars.
+    Seen(Option<Crop>),
+    /// ffmpeg ran and couldn't make it out.
+    Unreadable,
+    /// Not looked at: not on disk, no ffmpeg, or the run was called off.
+    Not,
+}
+
+/// Look at one file. **Blocking**: runs ffmpeg.
+fn look(path: &MediaPath, ticket: Ticket) -> Looked {
     if !path.as_path().is_file() {
-        return None;
+        return Looked::Not;
     }
-    let ffmpeg = ffmpeg::path()?;
+    let Some(ffmpeg) = ffmpeg::path() else {
+        return Looked::Not;
+    };
     ffmpeg::announce(&ffmpeg);
-    let report = ffmpeg::describe(&ffmpeg, path.as_path())?;
+    let Some(report) = ffmpeg::describe(&ffmpeg, path.as_path()) else {
+        return Looked::Not;
+    };
     // ffmpeg finds bars in the frame turned upright, and it is not certain
     // that mpv crops it the same way up.
     if turned(&report) {
-        return Some(None);
+        return Looked::Seen(None);
     }
-    let frame = ffmpeg::parse_size(&report)?;
-    let duration = ffmpeg::parse_duration(&report).filter(|d| *d > 0.0)?;
-    let seen = sample(&ffmpeg, path.as_path(), duration, ticket)?;
+    let (Some(frame), Some(duration)) = (
+        ffmpeg::parse_size(&report),
+        ffmpeg::parse_duration(&report).filter(|d| *d > 0.0),
+    ) else {
+        return Looked::Unreadable;
+    };
+    let Some(seen) = sample(&ffmpeg, path.as_path(), duration, ticket) else {
+        return Looked::Not;
+    };
     // Too few frames decoded to agree on anything, as when this ffmpeg lacks
     // the codec, which is no reason to remember the file as having no bars.
     if seen.len() < AGREE {
-        return None;
+        return Looked::Unreadable;
     }
-    Some(settle(frame, &seen))
+    Looked::Seen(settle(frame, &seen))
 }
 
 /// The lit rectangle of a keyframe at the middle of each of `SAMPLES` equal
