@@ -271,7 +271,7 @@ export component MainWindow inherits Window {
             root.open-panel = panel;
             root.focus-row = 0;
         } else if (root.open-panel == panel) {
-            root.open-panel = Panel.none;
+            root.close-panel();
         }
     }
 
@@ -798,8 +798,13 @@ export component MainWindow inherits Window {
     /// pages nest deeply enough on their own for the compiler.
     function focus-activate() -> bool {
         // The ring can outlive its row, since opening a file replaces the
-        // playlist and the tracks, so check before indexing a model.
+        // playlist and the tracks. It is then on no row, so this press only
+        // shows where it is now, rather than pressing a row nobody chose.
         if (root.focus-row >= root.focus-count) {
+            if (root.focus-count > 0) {
+                root.focus-show(0);
+                return true;
+            }
             root.focus-row = 0;
         }
         if (root.menu-open) {
@@ -1492,7 +1497,7 @@ export component MainWindow inherits Window {
             }
             root.key-wake = KeyWake.hide;
             if (root.panel-open) {
-                root.open-panel = Panel.none;
+                root.close-panel();
             } else {
                 // Out of fullscreen as into it, and with nothing to leave,
                 // nothing to bring up.
@@ -1903,7 +1908,7 @@ export component MainWindow inherits Window {
         floor: bar.top;
         ring-row: root.focus-row;
         chosen => {
-            root.open-panel = Panel.none;
+            root.close-panel();
         }
     }
 
