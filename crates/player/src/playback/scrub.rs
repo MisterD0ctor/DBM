@@ -228,10 +228,14 @@ impl Drag {
 
     /// Send a seek, as exact as the drag currently is. Returns whether one
     /// went out: none does when the picture asked for is the one already
-    /// there, and then there is no reply to wait for.
+    /// there, nor when mpv refused it, and then there is no reply to wait
+    /// for.
     fn send(&mut self, mpv: &Mpv, fraction: f32) -> bool {
         let exact = self.slow;
         if !worth_sending(self.sent, fraction, exact) {
+            return false;
+        }
+        if !commands::seek_scrub(mpv, fraction, exact) {
             return false;
         }
         self.sent = Some((fraction, exact));
@@ -239,7 +243,6 @@ impl Drag {
         if exact {
             self.exact += 1;
         }
-        commands::seek_scrub(mpv, fraction, exact);
         true
     }
 }

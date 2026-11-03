@@ -324,8 +324,9 @@ pub fn seek_fraction(mpv: &Mpv, fraction: f32) {
 /// Seek for a drag in progress: to the keyframe before the target unless
 /// `exact`, so mpv needn't decode up to it. The scrubber asks for exactness
 /// only while the hand is slow enough to see it. Issued with a distinct reply
-/// id, so the scrubber can tell its own completions apart.
-pub fn seek_scrub(mpv: &Mpv, fraction: f32, exact: bool) {
+/// id, so the scrubber can tell its own completions apart. Returns whether
+/// the seek went out, and so whether that reply will come.
+pub fn seek_scrub(mpv: &Mpv, fraction: f32, exact: bool) -> bool {
     let how = if exact {
         "absolute-percent+exact"
     } else {
@@ -334,7 +335,9 @@ pub fn seek_scrub(mpv: &Mpv, fraction: f32, exact: bool) {
     let args = ["seek", &fmt(percent_of(fraction)), how];
     if let Err(e) = mpv.command_async(REPLY_SCRUB, &args) {
         log::warn!("scrub seek failed: {e}");
+        return false;
     }
+    true
 }
 
 fn percent_of(fraction: f32) -> f64 {
