@@ -134,8 +134,9 @@ fn file() -> std::path::PathBuf {
 }
 
 /// Read the saved settings. A missing file isn't an error; the defaults
-/// stand. A file where no line could be read is moved aside first, so the
-/// next save doesn't write defaults over it.
+/// stand. Nor is a value that isn't a finite number, which costs only the
+/// setting it names. A file where no line could be read is moved aside first,
+/// so the next save doesn't write defaults over it.
 fn load(path: &std::path::Path) -> Vec<(String, f32)> {
     let Ok(text) = std::fs::read_to_string(path) else {
         return Vec::new();
@@ -148,7 +149,8 @@ fn load(path: &std::path::Path) -> Vec<(String, f32)> {
         .clone()
         .filter_map(|line| {
             let (name, value) = line.split_once('=')?;
-            Some((name.trim().to_string(), value.trim().parse().ok()?))
+            let value = value.trim().parse().ok().filter(|v: &f32| v.is_finite())?;
+            Some((name.trim().to_string(), value))
         })
         .collect();
     if saved.is_empty() && lines.count() > 0 {
@@ -296,6 +298,18 @@ fn save(path: &std::path::Path, values: &[(String, f32)], taken: u64) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_value_that_is_not_a_number_is_skipped() {
+        let file = std::env::temp_dir().join(format!("dbm-settings-nan-{}", std::process::id()));
+        std::fs::write(
+            &file,
+            "glass.refract = NaN\nglass.blur = inf\nsubtitles.pos = 0.5\n",
+        )
+        .unwrap();
+        assert_eq!(load(&file), [("subtitles.pos".to_string(), 0.5)]);
+        std::fs::remove_file(&file).ok();
+    }
 
     #[test]
     fn a_file_with_nothing_readable_is_kept_aside() {
