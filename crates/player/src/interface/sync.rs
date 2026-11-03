@@ -90,6 +90,14 @@ pub struct ListSync {
     /// an event (the playing file's every ten seconds), so the lists are read
     /// again when the playlist is opened, the moment it matters.
     forced: bool,
+    /// The list and the file playing the progress was last read for.
+    ///
+    /// Reading it costs a file per entry, and the lists are read again on
+    /// every change of track or subtitle, so in a large folder the track
+    /// menu would wait on it. mpv writes a place when it leaves a file, so
+    /// the progress is read again when the file or the list changes, or when
+    /// asked for.
+    progress_read: Option<(Vec<MediaPath>, Option<MediaPath>)>,
 }
 
 impl ListSync {
@@ -111,15 +119,27 @@ impl ListSync {
         if self.in_flight || (self.requested == generation && !self.forced) {
             return;
         }
-        self.forced = false;
+        let read_for = if std::mem::take(&mut self.forced) {
+            None
+        } else {
+            self.progress_read.clone()
+        };
         self.requested = generation;
         self.in_flight = worker.submit(move |mpv| {
             let playlist = tracks::read_playlist(mpv);
             let paths: Vec<MediaPath> = playlist.iter().map(|e| e.filename.clone()).collect();
+            // mpv's own word on what is playing, from the same read, since
+            // the frame's can lag a file behind as one gives way to the next.
+            let playing = playlist
+                .iter()
+                .find(|e| e.current)
+                .map(|e| e.filename.clone());
+            let same = read_for.is_some_and(|(list, was)| list == paths && was == playing);
             Some(Completion::Lists(Lists {
                 tracks: tracks::read_tracks(mpv),
                 chapters: tracks::read_chapters(mpv),
-                progress: dbm_library::durations::of(&paths),
+                progress: (!same).then(|| dbm_library::durations::of(&paths)),
+                playing,
                 playlist,
                 generation,
             }))
@@ -130,6 +150,10 @@ impl ListSync {
     /// new, which is the caller's cue to have the playlist laid out again.
     pub fn apply(&mut self, ui: &MainWindow, player: &mut PlayerState, lists: Lists) -> bool {
         self.in_flight = false;
+        if lists.generation == player.tracks_generation && lists.progress.is_some() {
+            let paths = lists.playlist.iter().map(|e| e.filename.clone()).collect();
+            self.progress_read = Some((paths, lists.playing.clone()));
+        }
         let moved = player.apply_lists(lists);
         if moved {
             push_lists(ui, player);

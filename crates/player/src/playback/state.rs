@@ -219,7 +219,12 @@ pub struct Lists {
     /// One per playlist entry, in the same order: how long it is and how far
     /// in the resume point sits. Read here rather than in a job of its own,
     /// because the lookup needs the playlist's paths, which are read here.
-    pub progress: Vec<dbm_library::durations::Progress>,
+    /// `None` where it was not read again, the list and the file playing
+    /// being the same as when it last was (see `ListSync`).
+    pub progress: Option<Vec<dbm_library::durations::Progress>>,
+    /// mpv's current entry as this was read, which the progress, where read,
+    /// is true as of.
+    pub playing: Option<MediaPath>,
     /// The file's chapter marks. Invalidated with the tracks, by a new file.
     pub chapters: Vec<dbm_mpv::tracks::Chapter>,
     /// The generation this was read for, so a stale result can be discarded
@@ -431,7 +436,9 @@ impl PlayerState {
         }
         let mut changed = set(&mut self.tracks, lists.tracks);
         changed |= set(&mut self.playlist, lists.playlist);
-        changed |= set(&mut self.progress, lists.progress);
+        if let Some(progress) = lists.progress {
+            changed |= set(&mut self.progress, progress);
+        }
         changed |= set(&mut self.chapters, lists.chapters);
         changed
     }

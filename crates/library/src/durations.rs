@@ -34,10 +34,13 @@ pub fn load() -> Cache {
 /// **Blocking.** Worker thread only. Two threads write here: the worker, as
 /// files play, and the probe, as a folder is scanned.
 pub fn record(path: &MediaPath, seconds: f64) {
-    if seconds <= 0.0 {
-        return;
-    }
-    LENGTHS.set(path, seconds);
+    record_many([(path.clone(), seconds)]);
+}
+
+/// Remember several files' lengths in one write. **Blocking.** Worker thread
+/// only.
+pub fn record_many(lengths: impl IntoIterator<Item = (MediaPath, f64)>) {
+    LENGTHS.set_many(lengths.into_iter().filter(|(_, seconds)| *seconds > 0.0));
 }
 
 /// What is known about one playlist entry.

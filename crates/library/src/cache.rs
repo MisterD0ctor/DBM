@@ -3,15 +3,15 @@
 //! cache directory.
 //!
 //! The maps (lengths, title tags, endings, title sequences and credits,
-//! downloaded subtitles) share their whole life: read whole, changed one
-//! entry at a time from more than one thread, and written whole, by way of a
-//! file beside it, so a crash never leaves half of one. So that is written
+//! downloaded subtitles) share their whole life: read whole, changed a few
+//! entries at a time from more than one thread, and written whole, by way of
+//! a file beside it, so a crash never leaves half of one. So that is written
 //! once, here.
 //!
 //! Every write re-reads the file first rather than holding the map in memory.
-//! The files are a few tens of kilobytes at worst, and reading first merges a
-//! file edited by hand, or by another copy of the player, rather than
-//! clobbering it.
+//! That merges a file edited by hand, or by another copy of the player,
+//! rather than clobbering it. The cost grows with the library, so whoever
+//! has many entries to remember at once writes them together (`set_many`).
 //!
 //! Most are caches of what the player worked out, and an entry doesn't say
 //! how it was reached. So each cache carries a version, written into its
@@ -84,12 +84,23 @@ impl<V: Serialize + DeserializeOwned + PartialEq> PathMap<V> {
     ///
     /// **Blocking.** Worker thread only.
     pub fn set(&self, path: &MediaPath, value: V) {
+        self.set_many([(path.clone(), value)]);
+    }
+
+    /// Remember several entries in one write, rewriting the file only if any
+    /// changed.
+    ///
+    /// **Blocking.** Worker thread only.
+    pub fn set_many(&self, entries: impl IntoIterator<Item = (MediaPath, V)>) {
         self.edit(|kept| {
-            if kept.get(path) == Some(&value) {
-                return false;
+            let mut changed = false;
+            for (path, value) in entries {
+                if kept.get(&path) != Some(&value) {
+                    kept.insert(path, value);
+                    changed = true;
+                }
             }
-            kept.insert(path.clone(), value);
-            true
+            changed
         });
     }
 

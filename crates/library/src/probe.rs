@@ -102,26 +102,43 @@ fn run(paths: Vec<MediaPath>, ticket: Ticket, reporter: Reporter<Vec<Found>>) {
     let mut handed = Instant::now();
     for path in unknown {
         if !ticket.current() {
-            return;
+            break;
         }
         let Some(found) = probe(&ffmpeg, &path) else {
             continue;
         };
-        if found.seconds > 0.0 {
-            crate::durations::record(&path, found.seconds);
-        }
-        record_title(&path, found.title.as_deref());
         batch.push(found);
         if handed.elapsed() >= BATCH {
+            remember(&batch);
             if !reporter.send(std::mem::take(&mut batch)) {
                 return;
             }
             handed = Instant::now();
         }
     }
+    remember(&batch);
     if !batch.is_empty() && ticket.current() {
         reporter.send(batch);
     }
+}
+
+/// Keep what a batch found, in one write to each cache rather than one per
+/// file: each write rewrites the whole file, which across a large folder
+/// would cost the square of its size.
+fn remember(batch: &[Found]) {
+    if batch.is_empty() {
+        return;
+    }
+    crate::durations::record_many(
+        batch
+            .iter()
+            .map(|found| (found.path.clone(), found.seconds)),
+    );
+    TITLES.set_many(
+        batch
+            .iter()
+            .map(|found| (found.path.clone(), found.title.clone().unwrap_or_default())),
+    );
 }
 
 /// Ask ffmpeg about one file. **Blocking**: spawns a process and waits.
@@ -170,11 +187,6 @@ pub fn parse_title(report: &str) -> Option<String> {
 ///
 /// Versioned as caches are (see `cache`). 1: the container's `title` tag.
 static TITLES: PathMap<String> = PathMap::cache("titles.json", 1);
-
-/// **Blocking.**
-fn record_title(path: &MediaPath, title: Option<&str>) {
-    TITLES.set(path, title.unwrap_or("").to_string());
-}
 
 #[cfg(test)]
 mod tests {
