@@ -59,6 +59,11 @@ export global Settings {
     /// video page's switch changes it here, and Rust saves it.
     in-out property <bool> show-remaining;
     callback set-show-remaining(bool);
+    /// Whether the timeline marks the file's chapters and the seek preview
+    /// names them, from the video page; Rust saves it. The chapter keys go on
+    /// working either way.
+    in-out property <bool> show-chapters: true;
+    callback set-show-chapters(bool);
     /// Whether the glass is held dark enough for its words over a bright
     /// frame, from the same page; Rust saves it and tells the pipeline.
     in-out property <bool> legible-glass: true;
@@ -84,6 +89,10 @@ export global Settings {
     public function turn-remaining(on: bool) {
         Settings.show-remaining = on;
         Settings.set-show-remaining(on);
+    }
+    public function turn-chapters(on: bool) {
+        Settings.show-chapters = on;
+        Settings.set-show-chapters(on);
     }
     /// Turn the tips on or off, the same way. None is visible while this page
     /// is open, but one can be held under it, so turning them off clears it.

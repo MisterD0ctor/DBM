@@ -327,4 +327,27 @@ mod tests {
         older.apply_saved(&[("playback.autoplay".to_string(), 1.0)]);
         assert!(!older.is_on(Toggle::SkipIntros) && !older.is_on(Toggle::SkipCredits));
     }
+
+    #[test]
+    fn chapters_survive_a_save_and_a_load() {
+        let store = Store::default();
+        assert!(
+            store.is_on(Toggle::Chapters),
+            "the timeline marks chapters until told not to"
+        );
+        store.turn(Toggle::Chapters, false);
+        let saved = store.to_saved();
+        assert!(
+            saved.contains(&("playback.chapters".to_string(), 0.0)),
+            "{saved:?}"
+        );
+        let loaded = Store::default();
+        loaded.apply_saved(&saved);
+        assert!(!loaded.is_on(Toggle::Chapters));
+
+        // A file from before the switch keeps them.
+        let older = Store::default();
+        older.apply_saved(&[("playback.remaining".to_string(), 1.0)]);
+        assert!(older.is_on(Toggle::Chapters));
+    }
 }

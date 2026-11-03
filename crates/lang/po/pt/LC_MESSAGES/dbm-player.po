@@ -1215,3 +1215,7 @@ msgstr "Preencher a janela"
 msgctxt "SettingsPanel"
 msgid "Show the time left"
 msgstr "Mostrar o tempo restante"
+
+msgctxt "SettingsPanel"
+msgid "Show chapters"
+msgstr "Mostrar os capítulos"

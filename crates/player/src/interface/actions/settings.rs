@@ -113,6 +113,11 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
         app.activity.bump();
         app.settings.turn(Toggle::Remaining, on);
     });
+    // Read where the marks are drawn, so saving is all.
+    on_app!(settings, app, on_set_show_chapters, |app, on| {
+        app.activity.bump();
+        app.settings.turn(Toggle::Chapters, on);
+    });
     {
         let (app, weak) = (app.clone(), ui.as_weak());
         settings.on_step_scale(move |direction| {
@@ -218,6 +223,8 @@ pub(super) fn restore_preferences(ui: &MainWindow, app: &App) {
     commands::set_picture(&app.mpv, &settings.picture());
     ui.global::<Settings>()
         .set_show_remaining(settings.is_on(Toggle::Remaining));
+    ui.global::<Settings>()
+        .set_show_chapters(settings.is_on(Toggle::Chapters));
     // Given the window on the first frame (see `Scale::frame`), once the
     // system has given it its own.
     ui.global::<Settings>().set_scale(settings.scale());

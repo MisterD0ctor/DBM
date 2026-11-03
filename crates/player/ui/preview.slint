@@ -3,6 +3,7 @@
 
 import { GlassRect } from "models.slint";
 import { Playback } from "playback.slint";
+import { Settings } from "settings.slint";
 import { Measure } from "measure.slint";
 import { Bounds, Surfaces } from "surface.slint";
 import { Motion, Paint, Rows, Type } from "theme.slint";
@@ -75,8 +76,10 @@ export component SeekPreview inherits Rectangle {
     /// the radii differ by the padding between them.
     property <length> tile-radius: root.radius - root.pad;
     property <length> caption: 22px;
-    /// A line for the chapter's name over the time, where there is one.
-    property <length> chapter-h: Playback.preview-chapter != "" ? Rows.note-line : 0px;
+    /// The chapter's name, unless the video page's switch has chapters off,
+    /// and a line for it over the time, where there is one.
+    property <string> chapter: Settings.show-chapters ? Playback.preview-chapter : "";
+    property <length> chapter-h: root.chapter != "" ? Rows.note-line : 0px;
     property <length> cursor: clamp(root.pointer-x, 0px, root.track-w);
     /// The preview landing on the open panel, which was there first, so the
     /// preview fades out (still following the pointer) rather than lay glass
@@ -99,7 +102,7 @@ export component SeekPreview inherits Rectangle {
     property <length> rise: (1.0 - root.shown) * Surfaces.lift;
 
     chapter-measure := Measure {
-        text: Playback.preview-chapter;
+        text: root.chapter;
         font-size: Type.readout;
     }
 
@@ -137,14 +140,14 @@ export component SeekPreview inherits Rectangle {
             }
         }
 
-        if Playback.preview-chapter != "": Text {
+        if root.chapter != "": Text {
             x: root.pad;
             y: root.has-tile
                 ? root.preview-h - root.caption - root.pad - root.chapter-h + 4px
                 : 6px;
             width: parent.width - 2 * root.pad;
             height: root.chapter-h;
-            text: Playback.preview-chapter;
+            text: root.chapter;
             color: Paint.body;
             font-size: Type.readout;
             horizontal-alignment: center;

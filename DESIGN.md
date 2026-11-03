@@ -1117,6 +1117,9 @@ by under a pixel at the corner.
   brighter lens. None at the very start, which is the start rather than a
   boundary, and none at all for the many files without chapters. The seek
   preview names the chapter under the pointer, where the file names it.
+  The video page's *Show chapters* turns both off, leaving the played length
+  one run; PgUp and PgDn still step through the chapters, and the skips
+  still read them.
 
 ### Volume
 - **Track:** `Bar.vol-w` long, at Rail, growing like the timeline's
@@ -1518,8 +1521,10 @@ doing in it.
   EFFECTS, the player's own look: *Liquid glass* and *Ambient border*. Then
   INTERFACE: *Accessibility*, *Shortcuts* and *Language*
 - **VIDEO:** *Speed*, a stepper on the ladder `<` and `>` climb, so the
-  pointer has a way to it too; *Fill the window*, the bar's T as a switch; and
-  *Show the time left*, the timeline's right end as a switch. Then, between
+  pointer has a way to it too; *Fill the window*, the bar's T as a switch;
+  *Show the time left*, the timeline's right end as a switch; and *Show
+  chapters*, the timeline's chapter marks and the preview's chapter name,
+  on until turned off, for a file whose chapters are noise. Then, between
   group gaps, the picture as mpv draws it, *Brightness*, *Contrast*,
   *Saturation* and *Gamma*, each from -100 to 100 and none by default, read
   as `+10` or `−20` and filled out from the middle of the track, where none of
@@ -1616,7 +1621,8 @@ doing in it.
 - **Hover:** Soft wash; one target for the whole row
 - **Use:** Ambient border at the head of its own
   page, over the sliders that tune it, since whether comes before how; *Fill
-  the window* and *Show the time left* under the speed on the video page;
+  the window*, *Show the time left* and *Show chapters* under the speed on
+  the video page;
   *Skip intros*, *Autoplay next* and *Skip credits* on the episodes page; and
   Animations, Darken bright glass, Tooltips and Shortcuts in tooltips on the
   accessibility page under its *Interface size* — a page with no reset,

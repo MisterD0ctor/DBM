@@ -84,8 +84,8 @@ export component SettingsPanel inherits GlassPanel {
         }
         if (root.page == SettingsPage.video
                 && root.is-slider(root.page, root.ring-row)) {
-            Settings.set-param(Settings.picture-params[root.ring-row - 4].index,
-                clamp(Settings.picture-params[root.ring-row - 4].fraction
+            Settings.set-param(Settings.picture-params[root.ring-row - 5].index,
+                clamp(Settings.picture-params[root.ring-row - 5].fraction
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
@@ -147,7 +147,7 @@ export component SettingsPanel inherits GlassPanel {
     property <length> param-name-w: param-measure.preferred-width + 2px;
     /// Per page: the rows, the way back, and the reset after them, plus the
     /// switch on the ambient border's, and on the video page the speed and
-    /// its two switches. Accessibility and the episodes page have no reset,
+    /// its three switches. Accessibility and the episodes page have no reset,
     /// since each row undoes itself, and the shortcuts page has only the way
     /// back.
     out property <int> rows:
@@ -156,7 +156,7 @@ export component SettingsPanel inherits GlassPanel {
         : root.page == SettingsPage.border ? 3 + Settings.border-params.length
         : root.page == SettingsPage.accessibility ? 2 + root.access-switches
         : root.page == SettingsPage.language ? 1 + root.language-count
-        : root.page == SettingsPage.video ? 5 + Settings.picture-params.length
+        : root.page == SettingsPage.video ? 6 + Settings.picture-params.length
         : root.page == SettingsPage.episodes ? 1 + root.episode-switches
         : 1;
     /// The same count for `leaf-page`, which on the way back out isn't the
@@ -166,7 +166,7 @@ export component SettingsPanel inherits GlassPanel {
         root.leaf-page == SettingsPage.glass ? 2 + Settings.glass-params.length
         : root.leaf-page == SettingsPage.border ? 3 + Settings.border-params.length
         : root.leaf-page == SettingsPage.accessibility ? 2 + root.access-switches
-        : root.leaf-page == SettingsPage.video ? 5 + Settings.picture-params.length
+        : root.leaf-page == SettingsPage.video ? 6 + Settings.picture-params.length
         : root.leaf-page == SettingsPage.episodes ? 1 + root.episode-switches
         : root.leaf-page == SettingsPage.language ? 1 + root.language-count
         : 1;
@@ -293,8 +293,8 @@ export component SettingsPanel inherits GlassPanel {
         if (page == SettingsPage.language) {
             return root.language-count * root.row-h;
         }
-        // The speed and its two switches, then the picture's sliders between
-        // gaps, and their reset.
+        // The speed and its three switches, then the picture's sliders
+        // between gaps, and their reset.
         if (page == SettingsPage.video) {
             return root.sliders-top(page) + Settings.picture-params.length * Rows.slider-row
                 + Rows.group-gap + root.row-h;
@@ -343,11 +343,11 @@ export component SettingsPanel inherits GlassPanel {
             : Settings.border-params.length;
     }
     pure function sliders-from(page: SettingsPage) -> int {
-        return page == SettingsPage.border ? 2 : page == SettingsPage.video ? 4 : 1;
+        return page == SettingsPage.border ? 2 : page == SettingsPage.video ? 5 : 1;
     }
     pure function sliders-top(page: SettingsPage) -> length {
         return page == SettingsPage.border ? root.toggle-h + Rows.group-gap
-            : page == SettingsPage.video ? Rows.stepper-row + 2 * root.toggle-h + Rows.group-gap
+            : page == SettingsPage.video ? Rows.stepper-row + 3 * root.toggle-h + Rows.group-gap
             : 0px;
     }
     /// Whether a row of a page of sliders is one of them.
@@ -369,8 +369,8 @@ export component SettingsPanel inherits GlassPanel {
         if (page == SettingsPage.border && row == 1) {
             return 0px;
         }
-        // The speed, then its two switches.
-        if (page == SettingsPage.video && row <= 3) {
+        // The speed, then its three switches.
+        if (page == SettingsPage.video && row <= 4) {
             return row == 1 ? 0px : Rows.stepper-row + (row - 2) * root.toggle-h;
         }
         if (root.has-sliders(page)) {
@@ -396,7 +396,7 @@ export component SettingsPanel inherits GlassPanel {
         if ((page == SettingsPage.accessibility || page == SettingsPage.video) && row == 1) {
             return Rows.stepper-row;
         }
-        if ((page == SettingsPage.border && row == 1) || (page == SettingsPage.video && row <= 3)) {
+        if ((page == SettingsPage.border && row == 1) || (page == SettingsPage.video && row <= 4)) {
             return root.toggle-h;
         }
         if (page == SettingsPage.accessibility || page == SettingsPage.episodes) {
@@ -450,6 +450,10 @@ export component SettingsPanel inherits GlassPanel {
         }
         if (root.page == SettingsPage.video && root.ring-row == 3) {
             Settings.turn-remaining(!Settings.show-remaining);
+            return true;
+        }
+        if (root.page == SettingsPage.video && root.ring-row == 4) {
+            Settings.turn-chapters(!Settings.show-chapters);
             return true;
         }
         if (root.page == SettingsPage.episodes) {
@@ -990,7 +994,7 @@ export component SettingsPanel inherits GlassPanel {
 
             // How the film plays and how it looks: what is otherwise only
             // on keys, the speed, beside the bar's fill and the timeline's
-            // time left, then the picture as mpv draws it.
+            // time left and chapters, then the picture as mpv draws it.
             if root.leaf-page == SettingsPage.video: VerticalLayout {
                 BackRow {
                     label: @tr("VIDEO");
@@ -1040,6 +1044,16 @@ export component SettingsPanel inherits GlassPanel {
                             Settings.turn-remaining(on);
                         }
                     }
+                    // For a file whose chapters are noise, every few minutes
+                    // or one per scene, which would crowd the timeline.
+                    ToggleRow {
+                        label: @tr("Show chapters");
+                        checked: Settings.show-chapters;
+                        focused: root.ring-row == 4;
+                        toggled(on) => {
+                            Settings.turn-chapters(on);
+                        }
+                    }
                     Rectangle {
                         height: Rows.group-gap;
                     }
@@ -1051,12 +1065,12 @@ export component SettingsPanel inherits GlassPanel {
                         origin: item.origin;
                         fraction: item.fraction;
                         readout: item.readout;
-                        focused: root.ring-row == idx + 4;
+                        focused: root.ring-row == idx + 5;
                         moved(f) => {
                             Settings.set-param(item.index, f);
                         }
                         explained(on) => {
-                            root.explain-row(on, item.hint, idx + 4);
+                            root.explain-row(on, item.hint, idx + 5);
                         }
                     }
                     Rectangle {

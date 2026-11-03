@@ -1214,3 +1214,7 @@ msgstr "Riempi la finestra"
 msgctxt "SettingsPanel"
 msgid "Show the time left"
 msgstr "Mostra il tempo rimanente"
+
+msgctxt "SettingsPanel"
+msgid "Show chapters"
+msgstr "Mostra i capitoli"

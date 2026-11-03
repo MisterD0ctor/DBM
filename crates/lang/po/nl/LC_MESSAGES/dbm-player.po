@@ -1214,3 +1214,7 @@ msgstr "Venster vullen"
 msgctxt "SettingsPanel"
 msgid "Show the time left"
 msgstr "Resterende tijd tonen"
+
+msgctxt "SettingsPanel"
+msgid "Show chapters"
+msgstr "Hoofdstukken tonen"

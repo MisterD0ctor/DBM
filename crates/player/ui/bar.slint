@@ -561,11 +561,14 @@ export component ControlBar inherits Rectangle {
             animate height { duration: Motion.track-grow; easing: ease-out; }
 
             property <length> played-x: self.width * clamp(Playback.progress, 0, 1);
+            /// None while the video page's switch has them off, which leaves
+            /// the played length one run.
+            property <[float]> marks: Settings.show-chapters ? Playback.chapter-marks : [];
 
             // Chapter starts as dots ahead of the played length, gone as soon
             // as it reaches one. A mark at the very start is left out, since
             // it is the start, not a boundary.
-            for mark in Playback.chapter-marks: Rectangle {
+            for mark in self.marks: Rectangle {
                 property <length> at: parent.width * clamp(mark / max(Playback.duration, 1), 0, 1);
 
                 visible: Playback.duration > 0 && mark > 0.5
@@ -582,22 +585,22 @@ export component ControlBar inherits Rectangle {
             // each chapter to the next. Sized by width rather than clipped, so
             // it stays crisp without a layer.
             TrackRun {
-                to: Playback.chapter-marks.length > 0
-                    ? parent.width * clamp(Playback.chapter-marks[0] / max(Playback.duration, 1), 0, 1)
+                to: timeline-rail.marks.length > 0
+                    ? parent.width * clamp(timeline-rail.marks[0] / max(Playback.duration, 1), 0, 1)
                         - Marks.cut / 2
                     : parent.width;
-                cut-after: Playback.chapter-marks.length > 0 && Playback.chapter-marks[0] > 0.5;
+                cut-after: timeline-rail.marks.length > 0 && timeline-rail.marks[0] > 0.5;
                 reach: timeline-rail.played-x;
                 fill: Paint.played;
             }
-            for mark[i] in Playback.chapter-marks: TrackRun {
-                property <bool> last: i + 1 >= Playback.chapter-marks.length;
+            for mark[i] in timeline-rail.marks: TrackRun {
+                property <bool> last: i + 1 >= timeline-rail.marks.length;
 
                 from: mark > 0.5
                     ? parent.width * clamp(mark / max(Playback.duration, 1), 0, 1) + Marks.cut / 2
                     : 0px;
                 to: self.last ? parent.width
-                    : parent.width * clamp(Playback.chapter-marks[i + 1] / max(Playback.duration, 1), 0, 1)
+                    : parent.width * clamp(timeline-rail.marks[i + 1] / max(Playback.duration, 1), 0, 1)
                         - Marks.cut / 2;
                 cut-before: mark > 0.5;
                 cut-after: !self.last;

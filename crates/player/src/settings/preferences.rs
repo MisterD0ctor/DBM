@@ -35,12 +35,16 @@ pub enum Toggle {
     /// Whether the timeline's right end says what is left rather than the
     /// whole length.
     Remaining,
+    /// Whether the timeline marks the file's chapters and the seek preview
+    /// names them. Only what is drawn: the chapter keys and the skips still
+    /// read them.
+    Chapters,
 }
 
 impl Toggle {
     /// Every switch, in the order the file lists them and in declaration
     /// order, which indexes `Store::toggles`.
-    pub(super) const ALL: [Self; 10] = [
+    pub(super) const ALL: [Self; 11] = [
         Self::Ambience,
         Self::Glass,
         Self::Autoplay,
@@ -51,6 +55,7 @@ impl Toggle {
         Self::Tips,
         Self::TipKeys,
         Self::Remaining,
+        Self::Chapters,
     ];
 
     /// The name it is saved under, which outlives any label it is shown with.
@@ -66,6 +71,7 @@ impl Toggle {
             Self::Tips => "accessibility.tooltips",
             Self::TipKeys => "accessibility.tooltip-keys",
             Self::Remaining => "playback.remaining",
+            Self::Chapters => "playback.chapters",
         }
     }
 
