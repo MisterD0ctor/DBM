@@ -1688,6 +1688,17 @@ export component MainWindow inherits Window {
         key-pressed(event) => {
             Chrome.input-seq += 1;
             root.key-wake = KeyWake.wake;
+            // A letter under Ctrl or the system key is another program's
+            // shortcut, or the desktop's (copy, paste, select all), and not
+            // the player's letter, so only Ctrl+O is taken. Windows sends
+            // AltGr as Ctrl+Alt, which types a letter as plainly as Shift does.
+            if (((event.modifiers.control && !event.modifiers.alt) || event.modifiers.meta)
+                    && event.text.to-lowercase() != event.text.to-uppercase()) {
+                let taken = root.on-open(event.text, event.modifiers.control,
+                    event.modifiers.shift);
+                root.after-key(event.text);
+                return taken ? EventResult.accept : EventResult.reject;
+            }
             // The film's own keys only with a film, or they would flash over
             // the way in and change a volume nothing shows.
             if (root.on-bar(event.text, event.modifiers.shift)
