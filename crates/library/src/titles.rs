@@ -373,10 +373,16 @@ fn keep(
     other: &MediaPath,
     there: Vec<Span>,
 ) {
-    heard.set(path, Some(here.to_vec()));
-    if !matches!(heard.load().get(other), Some(Some(_))) {
-        heard.set(other, Some(there));
-    }
+    heard.edit(|kept| {
+        let here = Some(here.to_vec());
+        let mut changed = kept.get(path) != Some(&here);
+        kept.insert(path.clone(), here);
+        if !matches!(kept.get(other), Some(Some(_))) {
+            kept.insert(other.clone(), Some(there));
+            changed = true;
+        }
+        changed
+    });
 }
 
 /// Whether a stretch two episodes share near their ends is where this one's

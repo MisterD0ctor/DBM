@@ -93,12 +93,15 @@ fn link(hit: &Hit, signed: Option<&Signed>) -> Result<Url, Failure> {
 }
 
 fn remember(path: &MediaPath, file: &Path) {
-    let mut files = KEPT.load().remove(path).unwrap_or_default();
     let file = file.to_string_lossy().into_owned();
-    if !files.contains(&file) {
-        files.push(file);
-        KEPT.set(path, files);
-    }
+    KEPT.edit(|kept| {
+        let files = kept.entry(path.clone()).or_default();
+        let new = !files.contains(&file);
+        if new {
+            files.push(file);
+        }
+        new
+    });
 }
 
 #[cfg(test)]

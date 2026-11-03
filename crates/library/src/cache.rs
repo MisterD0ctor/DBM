@@ -84,11 +84,26 @@ impl<V: Serialize + DeserializeOwned + PartialEq> PathMap<V> {
     ///
     /// **Blocking.** Worker thread only.
     pub fn set(&self, path: &MediaPath, value: V) {
+        self.edit(|kept| {
+            if kept.get(path) == Some(&value) {
+                return false;
+            }
+            kept.insert(path.clone(), value);
+            true
+        });
+    }
+
+    /// Change the map in one read and one write, with no other write between
+    /// them. `change` says whether it changed anything, and the file is
+    /// rewritten only if it did.
+    ///
+    /// **Blocking.** Worker thread only.
+    pub fn edit(&self, change: impl FnOnce(&mut HashMap<MediaPath, V>) -> bool) {
         let _guard = self
             .write
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        update(&self.file(), self.version, path, value);
+        edit(&self.file(), self.version, change);
     }
 }
 
@@ -139,17 +154,15 @@ fn written_at(text: &str) -> Option<u64> {
     }
 }
 
-fn update<V: Serialize + DeserializeOwned + PartialEq>(
+fn edit<V: Serialize + DeserializeOwned>(
     file: &Path,
     version: u32,
-    path: &MediaPath,
-    value: V,
+    change: impl FnOnce(&mut HashMap<MediaPath, V>) -> bool,
 ) {
     let mut entries = read(file, version);
-    if entries.get(path) == Some(&value) {
+    if !change(&mut entries) {
         return;
     }
-    entries.insert(path.clone(), value);
     let Ok(json) = serde_json::to_string(&Versioned { version, entries }) else {
         return;
     };
@@ -248,6 +261,12 @@ fn settle(dir: &Path, version: u32) {
 mod tests {
     use super::*;
 
+    fn update(file: &Path, version: u32, path: &MediaPath, value: f64) {
+        edit(file, version, |kept| {
+            kept.insert(path.clone(), value) != Some(value)
+        });
+    }
+
     fn scratch(name: &str) -> PathBuf {
         std::env::temp_dir().join(format!("dbm-cache-{name}-{}", std::process::id()))
     }
@@ -280,7 +299,9 @@ mod tests {
         std::fs::write(&file, r#"{"C:/films/a.mkv":tr"#).unwrap();
 
         assert!(read::<bool>(&file, UNVERSIONED).is_empty());
-        update(&file, UNVERSIONED, &"C:/films/b.mkv".into(), true);
+        edit(&file, UNVERSIONED, |kept| {
+            kept.insert("C:/films/b.mkv".into(), true).is_none()
+        });
         assert_eq!(
             std::fs::read_to_string(&aside).unwrap(),
             r#"{"C:/films/a.mkv":tr"#

@@ -188,13 +188,18 @@ pub fn kept(path: &MediaPath) -> Vec<(PathBuf, String)> {
 ///
 /// **Blocking.** Worker thread only.
 pub fn forget(path: &MediaPath, file: &str) {
-    let mut files = KEPT.load().remove(path).unwrap_or_default();
-    let before = files.len();
-    files.retain(|kept| kept != file);
-    if files.len() == before {
+    let mut forgot = false;
+    KEPT.edit(|kept| {
+        if let Some(files) = kept.get_mut(path) {
+            let before = files.len();
+            files.retain(|kept| kept != file);
+            forgot = files.len() != before;
+        }
+        forgot
+    });
+    if !forgot {
         return;
     }
-    KEPT.set(path, files);
     let ours = crate::paths::app_data_dir().join("subtitles");
     if Path::new(file).starts_with(&ours) {
         let _ = std::fs::remove_file(file);
