@@ -330,9 +330,10 @@ fn digits(chars: &mut std::iter::Peekable<std::str::Chars>) -> String {
 /// **Blocking.** Worker thread only: it lists the folder above this one and
 /// looks inside each sibling.
 ///
-/// A folder is judged by the first video in it, read the way every other name
-/// in the player is read. Where two folders hold the same season, the first
-/// found stands for it.
+/// A folder is judged by the first video in it in name order, read the way
+/// every other name in the player is read. Where two folders hold the same
+/// season, the first in name order stands for it, so the answer is the same
+/// on every run, whatever order the disk lists them in.
 pub fn seasons_beside(current: &Path) -> Vec<(PathBuf, u32)> {
     let dbm_naming::Media::Episode {
         show,
@@ -348,18 +349,22 @@ pub fn seasons_beside(current: &Path) -> Vec<(PathBuf, u32)> {
     let Some(Ok(dirs)) = folder.parent().map(fs::read_dir) else {
         return Vec::new();
     };
+    let mut dirs: Vec<PathBuf> = dirs
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|dir| dir != folder && dir.is_dir())
+        .collect();
+    dirs.sort_by(|a, b| natural_path(a, b));
     let mut found: Vec<(PathBuf, u32)> = Vec::new();
-    for dir in dirs.filter_map(Result::ok).map(|e| e.path()) {
-        if !dir.is_dir() || dir == folder {
-            continue;
-        }
+    for dir in dirs {
         let Ok(entries) = fs::read_dir(&dir) else {
             continue;
         };
         let first = entries
             .filter_map(Result::ok)
             .map(|e| e.path())
-            .find(|p| p.is_file() && is_video_file(p));
+            .filter(|p| is_video_file(p) && p.is_file())
+            .min_by(|a, b| natural_path(a, b));
         let Some(first) = first else {
             continue;
         };
@@ -649,6 +654,28 @@ mod tests {
         let root = folder("alone", &["clip.vob", "notes.txt"]);
         let chosen = resolve(&root.join("clip.vob")).unwrap();
         assert_eq!(chosen.videos, [root.join("clip.vob")]);
+        fs::remove_dir_all(&root).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn seasons_beside_are_judged_the_same_on_every_run() {
+        let root = folder(
+            "beside",
+            &[
+                "Show S01/Show S01E01.mkv",
+                "Show S02 b/Show S02E01.mkv",
+                "Show S02 a/Show S02E01.mkv",
+                // Named first, so it judges its folder whatever the disk lists first.
+                "Show S03/Show S03E01.mkv",
+                "Show S03/Show S04E01.mkv",
+            ],
+        );
+        let beside = seasons_beside(&root.join("Show S01/Show S01E01.mkv"));
+        assert_eq!(
+            beside,
+            [(root.join("Show S02 a"), 2), (root.join("Show S03"), 3)]
+        );
         fs::remove_dir_all(&root).unwrap();
     }
 
