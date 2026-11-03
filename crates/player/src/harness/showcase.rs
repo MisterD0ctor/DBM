@@ -215,6 +215,12 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                 playback.invoke_toggle_mute();
             }
 
+            // Fill the window, for the picture filling it rather than its
+            // frame, where the frame carries bars.
+            if surface == "fill" && tick == 6 {
+                playback.invoke_toggle_panscan();
+            }
+
             // Finding subtitles, with `DBM_FIND_FAKE=spent`: the search's page;
             // the sign-in a refused download opens, with a name and a password
             // typed, and then with the ring on the name; the search's page

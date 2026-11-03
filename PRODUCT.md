@@ -70,6 +70,16 @@ truthfully claim any of this.
   it is done for the person — the titles at once, with the way back
   offered, the credits once the pill has counted down. See
   `playback/skips.rs`.
+- Black bars a film carries inside its own frame — a 2.39 picture encoded in
+  a 16:9 one — are found once per file by ffmpeg, from keyframes across the
+  body of the film, and kept in `bars.json`; the next file in the list is
+  looked at while one plays. mpv is handed the picture as `video-crop`, so
+  the ambient border fills those bars as it fills a real letterbox, and
+  *Fill the window* fills the window with the picture. Anything uncertain —
+  a film too dark to show its edges, bars of different widths, something lit
+  in one — leaves the frame whole, as does a styled (ASS) subtitle track
+  while it is selected, whose signs mpv would move and squash to fit the
+  crop. See `dbm_library::bars` and `playback/bars.rs`.
 - Subtitles can be fetched from OpenSubtitles for the film playing: a search
   by the file's own hash and by its name, in the interface's language and
   English, and a pick from the list. This is the **only** thing the player
@@ -91,8 +101,8 @@ truthfully claim any of this.
 - Seek-preview thumbnails are cached per file under `previews/`, keyed on path
   and modification time: on Linux in `~/.cache/Death by MPV/`, apart from the
   settings, and on Windows beside them.
-- Every cache — lengths, title tags, title sequences and credits, previews —
-  carries the version of the way its entries are worked out, and forgets
+- Every cache — lengths, title tags, title sequences and credits, bars,
+  previews — carries the version of the way its entries are worked out, and forgets
   what another version kept. Records of what happened — files watched to the
   end, subtitles downloaded — have none and are never forgotten. See
   `dbm_library::cache`.

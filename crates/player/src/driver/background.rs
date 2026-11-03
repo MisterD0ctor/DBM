@@ -42,8 +42,37 @@ impl Driver {
         self.look_onward(ui);
         self.light_the_end();
         self.listen_for_the_titles();
+        self.look_for_bars();
+        // After the drain, so an answer is acted on in the frame it arrives
+        // in: a paused film may draw no other.
+        let tracks_read = self.feeds.lists.settled(&self.player);
+        self.bars.follow(&self.app.mpv, &self.player, tracks_read);
         self.put_back_downloads(ui);
         self.say_it_again(ui);
+    }
+
+    /// Have the playing file's frame looked at for bars, and then the next
+    /// file's, so that one is known by the time it opens. Once per file, and
+    /// not until the lists have been read for it, which is when the next is
+    /// known.
+    fn look_for_bars(&mut self) {
+        let Some(path) = self.player.path.as_ref() else {
+            return;
+        };
+        if self.per_file.bars_asked.as_ref() == Some(path)
+            || !self.feeds.lists.settled(&self.player)
+        {
+            return;
+        }
+        self.per_file.bars_asked = Some(path.clone());
+        let playlist = &self.player.playlist;
+        let next = playlist
+            .iter()
+            .position(|entry| entry.filename == *path)
+            .and_then(|row| playlist.get(row + 1))
+            .map(|entry| entry.filename.clone());
+        let paths = std::iter::once(path.clone()).chain(next).collect();
+        dbm_library::bars::spawn(paths, self.app.worker.reporter(Completion::Bars));
     }
 
     /// Put back the subtitles fetched for this file on an earlier visit,

@@ -121,6 +121,12 @@ pub fn is_pictures(codec: &str) -> bool {
         .any(|kind| codec.contains(kind))
 }
 
+/// Whether a subtitle codec is a styled script (ASS or SSA), whose lines and
+/// signs are placed against the whole frame rather than left to the player.
+pub fn is_styled(codec: &str) -> bool {
+    matches!(codec, "ass" | "ssa")
+}
+
 /// A string, but `None` where it is empty, as mpv's never-set fields can be.
 fn non_empty<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>, D::Error> {
     Ok(Option::<String>::deserialize(d)?.filter(|s| !s.is_empty()))
@@ -142,6 +148,14 @@ mod tests {
         }
         for codec in ["subrip", "ass", "webvtt", "mov_text"] {
             assert!(!is_pictures(codec), "{codec}");
+        }
+    }
+
+    #[test]
+    fn styled_subtitles_are_told_from_plain_text() {
+        assert!(is_styled("ass") && is_styled("ssa"));
+        for codec in ["subrip", "webvtt", "mov_text", "hdmv_pgs_subtitle"] {
+            assert!(!is_styled(codec), "{codec}");
         }
     }
 

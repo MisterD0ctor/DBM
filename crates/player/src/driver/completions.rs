@@ -53,6 +53,7 @@ impl Driver {
                 ui.set_backdrop(true);
             }
             Completion::Titles(heard) => self.take_titles(ui, heard),
+            Completion::Bars(found) => self.bars.take(found, playing),
             Completion::Synced(outcome) => {
                 subsync::answer(ui, &self.app.mpv, &self.player, outcome);
             }

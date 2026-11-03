@@ -109,21 +109,8 @@ fn parse_aspect(text: &str) -> Option<f64> {
             }
         }
     }
-    // `Video: h264 (High), yuv420p(tv), 1920x1080 [SAR 1:1 DAR 16:9], ...`
-    let rest = text.split("Video:").nth(1)?;
-    for token in rest.split([',', ' ']) {
-        let token = token.trim();
-        let Some((w, h)) = token.split_once('x') else {
-            continue;
-        };
-        let (Ok(w), Ok(h)) = (w.parse::<f64>(), h.parse::<f64>()) else {
-            continue;
-        };
-        if w > 0.0 && h > 0.0 {
-            return Some(w / h);
-        }
-    }
-    None
+    let (w, h) = ffmpeg::parse_size(text)?;
+    Some(f64::from(w) / f64::from(h))
 }
 
 /// One frame per tile, each by its own seek, `PARALLEL` at a time.

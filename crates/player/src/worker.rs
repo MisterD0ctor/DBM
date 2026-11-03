@@ -70,6 +70,9 @@ pub enum Completion {
     /// credits, found by listening or remembered from the last time.
     /// Reported from the run's own thread (see `titles`).
     Titles(dbm_library::titles::Outcome),
+    /// The picture inside a file's frame, where the frame carries black bars
+    /// around it. Reported from the run's own thread (see `bars`).
+    Bars(dbm_library::bars::Found),
     /// The playlist laid out in its parts, for the panel to show (see
     /// `playlist_panel`).
     Shelved(dbm_library::shelf::Shelf),

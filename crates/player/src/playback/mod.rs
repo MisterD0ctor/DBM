@@ -6,11 +6,13 @@
 //! interface sends, resuming where a film was left (and asking whether to),
 //! putting audio back when its device returns, turning a timeline drag into
 //! seeks mpv can keep up with, offering back the place a click on the
-//! timeline or a number key left, and skipping an episode's titles and
-//! credits for someone who asked to.
+//! timeline or a number key left, skipping an episode's titles and credits
+//! for someone who asked to, and cropping away the black bars a film carries
+//! in its frame.
 
 pub mod arrival;
 pub mod audio;
+pub mod bars;
 pub mod commands;
 pub mod ends;
 pub mod labels;

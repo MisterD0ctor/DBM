@@ -1,12 +1,13 @@
 //! ffmpeg, which is not libmpv and not a dependency of this crate.
 //!
-//! Four things shell out to it: the seek preview, which cuts a sheet of
+//! Five things shell out to it: the seek preview, which cuts a sheet of
 //! frames out of a film; the playlist scan, which asks each file how long it
 //! is and what it is called; the subtitle sync, which listens to a film's
-//! audio; and the search for an episode's title sequence and credits, which
-//! listens to two. Without it each degrades rather than fails (the preview to
-//! the timestamp alone, the rows to what mpv has said, titles and credits to
-//! the chapters), so it is mentioned once.
+//! audio; the search for an episode's title sequence and credits, which
+//! listens to two; and the look for bars encoded into a film's frame. Without
+//! it each degrades rather than fails (the preview to the timestamp alone, the
+//! rows to what mpv has said, titles and credits to the chapters, the bars to
+//! staying in the picture), so it is mentioned once.
 
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -128,6 +129,17 @@ pub fn parse_duration(text: &str) -> Option<f64> {
     Some(h * 3600.0 + m * 60.0 + s)
 }
 
+/// The first video stream's frame size:
+/// `Video: hevc (Main 10) (hev1 / 0x31766568), yuv420p10le(tv), 1920x1080 [SAR 1:1 DAR 16:9]`.
+pub fn parse_size(text: &str) -> Option<(u32, u32)> {
+    let line = text.split("Video:").nth(1)?.lines().next()?;
+    line.split([',', ' ']).find_map(|token| {
+        let (w, h) = token.trim().split_once('x')?;
+        let (w, h) = (w.parse::<u32>().ok()?, h.parse::<u32>().ok()?);
+        (w > 0 && h > 0).then_some((w, h))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -137,5 +149,13 @@ mod tests {
         let text = "  Duration: 01:23:45.67, start: 0.000000, bitrate: 1234 kb/s";
         let seconds = parse_duration(text).unwrap();
         assert!((seconds - 5025.67).abs() < 0.01, "{seconds}");
+    }
+
+    #[test]
+    fn size_is_read_past_the_codec_tag() {
+        let text = "Stream #0:0: Video: hevc (Main 10) (hev1 / 0x31766568), \
+                    yuv420p10le(tv, bt709), 1920x1080 [SAR 1:1 DAR 16:9], 23.98 fps";
+        assert_eq!(parse_size(text), Some((1920, 1080)));
+        assert_eq!(parse_size("Stream #0:0: Audio: aac, 48000 Hz"), None);
     }
 }

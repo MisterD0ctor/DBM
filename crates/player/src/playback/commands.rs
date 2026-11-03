@@ -8,6 +8,7 @@
 //! Failures are logged rather than propagated, since a rejected seek
 //! shouldn't take the player down.
 
+use dbm_library::bars::Crop;
 use dbm_mpv::tracks::{self, TrackKind};
 use dbm_mpv::{MediaPath, Mpv};
 
@@ -137,6 +138,15 @@ pub fn toggle_pause(mpv: &Mpv) {
 /// this stays stateless like the rest.
 pub fn toggle_panscan(mpv: &Mpv) {
     run(mpv, &["cycle-values", "panscan", "1.0", "0.0"]);
+}
+
+/// Show only `crop` of the playing file's frame, or the whole of it.
+///
+/// File-local, so mpv puts the whole frame back when the file ends and the
+/// next one never opens with this one's crop.
+pub fn crop(mpv: &Mpv, crop: Option<Crop>) {
+    let spec = crop.map_or_else(String::new, |c| format!("{}x{}+{}+{}", c.w, c.h, c.x, c.y));
+    set_prop(mpv, "file-local-options/video-crop", &spec);
 }
 
 pub fn toggle_mute(mpv: &Mpv) {

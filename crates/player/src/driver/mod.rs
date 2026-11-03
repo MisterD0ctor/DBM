@@ -36,6 +36,7 @@ use crate::app::App;
 use crate::interface::subline::Picture;
 use crate::interface::{fades, format, glass, playlist_panel, sync, warn};
 use crate::platform::modal_loop;
+use crate::playback::bars::Bars;
 use crate::playback::commands;
 use crate::playback::skips::{Skip, Skips, Wanted};
 use crate::playback::state::PlayerState;
@@ -147,6 +148,8 @@ struct PerFile {
     /// The file subtitles fetched before were last put back for, and the
     /// search's page last closed for: both once a file.
     kept_asked: Option<MediaPath>,
+    /// The file whose frame was last looked at for bars.
+    bars_asked: Option<MediaPath>,
 }
 
 pub struct Driver {
@@ -187,6 +190,7 @@ pub struct Driver {
     feeds: Feeds,
     per_file: PerFile,
     skips: Skips,
+    bars: Bars,
 }
 
 /// The sentence every `Failure` is said under.
@@ -238,6 +242,7 @@ impl Driver {
             feeds: Feeds::default(),
             per_file: PerFile::default(),
             skips: Skips::default(),
+            bars: Bars::default(),
         }
     }
 

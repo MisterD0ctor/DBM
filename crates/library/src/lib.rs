@@ -3,7 +3,8 @@
 //! What opening a path means — a folder, a season, the files beside one —
 //! and what each file is: its name read for the show, season and episode in
 //! it (with `dbm_naming`), how long it is and how far in you got, its title
-//! tag, and a sheet of its frames for the seek preview. And at either end of
+//! tag, a sheet of its frames for the seek preview, and the black bars its
+//! frame carries around the picture (`bars`). And at either end of
 //! watching, what to offer: the film left unfinished, and where to go when a
 //! list runs out, and a still to light the window with, from the film or from
 //! the player's own logo (`mark`).
@@ -15,6 +16,7 @@
 //! off the UI thread, on threads of its own (`threads`). Where on disk the
 //! player keeps what it learns is `paths`.
 
+pub mod bars;
 pub mod cache;
 pub mod durations;
 pub mod ffmpeg;

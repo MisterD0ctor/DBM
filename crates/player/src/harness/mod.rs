@@ -46,6 +46,7 @@
 //!   `accessibility`, `shortcuts` and `language` open the settings on that
 //!   page.
 //! * `DBM_SHOWCASE=muted` mutes, for the volume track with its fill gone.
+//! * `DBM_SHOWCASE=fill` turns on Fill the window.
 //! * `DBM_SHOWCASE=find`, `sign-in`, `sign-in-ring`, `signed-in` and
 //!   `account`, with `DBM_FIND_FAKE=spent`: the search's page, the sign-in a
 //!   refused download opens with a name and a password typed, the same with
