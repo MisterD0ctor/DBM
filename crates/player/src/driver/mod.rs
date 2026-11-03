@@ -145,9 +145,12 @@ struct PerFile {
     /// The file whose title sequence and credits were last looked for, so
     /// each is looked for once.
     titles_asked: Option<MediaPath>,
-    /// The file subtitles fetched before were last put back for, and the
-    /// search's page last closed for: both once a file.
+    /// The file subtitles fetched before were last put back for, once it
+    /// had opened.
     kept_asked: Option<MediaPath>,
+    /// What was playing when the search's page was last closed, which it is
+    /// as soon as anything else plays, or nothing does.
+    find_closed: Option<MediaPath>,
     /// The file whose frame was last looked at for bars.
     bars_asked: Option<MediaPath>,
 }

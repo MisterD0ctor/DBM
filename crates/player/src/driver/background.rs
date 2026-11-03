@@ -78,13 +78,16 @@ impl Driver {
     /// Put back the subtitles fetched for this file on an earlier visit,
     /// once it has opened, and close a search still open for the last one.
     fn put_back_downloads(&mut self, ui: &MainWindow) {
+        if self.player.path != self.per_file.find_closed {
+            self.per_file.find_closed.clone_from(&self.player.path);
+            ui.set_find_open(false);
+            let find = ui.global::<Find>();
+            find.set_state(FindState::Idle);
+            find.set_fetching(-1);
+        }
         if self.player.path == self.per_file.kept_asked {
             return;
         }
-        ui.set_find_open(false);
-        let find = ui.global::<Find>();
-        find.set_state(FindState::Idle);
-        find.set_fetching(-1);
         // Not until it has opened: a track added before then is lost with
         // the load it raced.
         let Some(path) = self
