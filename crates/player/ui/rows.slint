@@ -516,7 +516,7 @@ export component PlaylistRow inherits Rectangle {
 export component GroupRow inherits Rectangle {
     /// Under the pointer its glyph leans the way it goes (`Rows.lean`).
     private property <length> lean: touch.has-hover ? Rows.lean : 0px;
-    animate lean { duration: Motion.highlight; easing: ease-out; }
+    animate lean { duration: Motion.lean; easing: ease-out; }
 
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
@@ -601,7 +601,7 @@ export component GroupRow inherits Rectangle {
 export component ResumeRow inherits Rectangle {
     /// Under the pointer its glyph leans the way it goes (`Rows.lean`).
     private property <length> lean: touch.has-hover ? Rows.lean : 0px;
-    animate lean { duration: Motion.highlight; easing: ease-out; }
+    animate lean { duration: Motion.lean; easing: ease-out; }
 
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
@@ -1051,7 +1051,7 @@ export component Tucked inherits Rectangle {
 export component DrillRow inherits Rectangle {
     /// Under the pointer its glyph leans the way it goes (`Rows.lean`).
     private property <length> lean: touch.has-hover ? Rows.lean : 0px;
-    animate lean { duration: Motion.highlight; easing: ease-out; }
+    animate lean { duration: Motion.lean; easing: ease-out; }
 
     /// Whether the keyboard is on this row.
     in property <bool> focused;
@@ -1243,7 +1243,7 @@ export component StepperRow inherits Rectangle {
 export component BackRow inherits Rectangle {
     /// Under the pointer its glyph leans the way it goes (`Rows.lean`).
     private property <length> lean: touch.has-hover ? Rows.lean : 0px;
-    animate lean { duration: Motion.highlight; easing: ease-out; }
+    animate lean { duration: Motion.lean; easing: ease-out; }
 
     /// Whether the keyboard is on this row.
     in property <bool> focused;

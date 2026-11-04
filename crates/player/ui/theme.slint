@@ -26,6 +26,9 @@ export global Motion {
     /// one gesture at different speeds makes an interface feel loose. Short,
     /// because feedback that lands after the eye has moved on is missed.
     out property <duration> highlight: Motion.enabled ? 45ms : 0ms;
+    /// A row's chevron or Play glyph leans the way the row goes while the pointer
+    /// is on it. Slower than a highlight because motion is more noticeable.
+    out property <duration> lean: Motion.enabled ? 90ms : 0ms;
     /// A track thickening under the pointer: the timeline, the volume, the
     /// sliders and the scroll bars.
     out property <duration> track-grow: Motion.enabled ? 100ms : 0ms;
