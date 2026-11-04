@@ -275,7 +275,7 @@ pub(super) fn scroll_test(ui: &MainWindow) -> Script {
         drag(&ui, (x, top + 8.0), (x, top + 38.0));
         beat.next().await;
         let (shown, held) = (ui.get_playlist_list_h(), ui.get_playlist_natural());
-        let rail = shown - 4.0;
+        let rail = shown - 2.0 * RAIL_INSET;
         let run = rail - (rail * shown / held).max(24.0);
         eprintln!(
             "dbm: thumb dragged down 30: {:.0}, expected {:.0}",
@@ -313,10 +313,18 @@ pub(super) fn scroll_test(ui: &MainWindow) -> Script {
 }
 
 /// Where the playlist's scroll bar is: its centre line, which runs 5.5px in
-/// from the panel's right edge, and the top of the list it belongs to.
+/// from the panel's right edge, and the top of its rail, `RAIL_INSET` below
+/// the top of the list.
 fn playlist_bar(ui: &MainWindow) -> (f32, f32) {
-    (ui.get_panel_right() - 5.5, ui.get_playlist_list_top())
+    (
+        ui.get_panel_right() - 5.5,
+        ui.get_playlist_list_top() + RAIL_INSET,
+    )
 }
+
+/// How far the rail stops short of each end of its list: where the panel's
+/// corner ends (`ScrollList.rail-inset`).
+const RAIL_INSET: f32 = 16.0;
 
 /// Open each panel in turn and count what reaches the pipeline.
 ///

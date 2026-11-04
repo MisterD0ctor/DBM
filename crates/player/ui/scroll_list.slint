@@ -261,8 +261,10 @@ export component ScrollList inherits Rectangle {
 
     /// How far the list can go: what it holds, less what it shows.
     property <length> reach: max(0px, root.content-height - root.height);
-    /// The rail, inset from the list's top and bottom.
-    property <length> rail-inset: 2px;
+    /// The rail, inset from each end of the list by as far as the panel's
+    /// corner reaches past it, so it runs only beside the straight part of
+    /// the panel's side and never closer to the glass's edge than there.
+    property <length> rail-inset: Rows.panel-radius - Rows.panel-pad;
     property <length> rail-h: root.height - 2 * root.rail-inset;
     /// In proportion to how much of the list is on screen, with a floor so a
     /// very long list still leaves something to see and take hold of.

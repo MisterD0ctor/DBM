@@ -1421,8 +1421,14 @@ row already has, beside the fact that is already there.
 
 ### Scroll bar
 - **Shape:** a thin rail at Soft wash (`ScrollList.bar`), near the list's right
-  edge and inset top and bottom; the thumb a capsule at Quiet, proportional to
-  how much of the list is visible, with a floor so it can still be taken hold of
+  edge; the thumb a capsule at Quiet, proportional to how much of the list is
+  visible, with a floor so it can still be taken hold of
+- **Ends:** the rail stops where the panel's corners begin, the corner radius
+  less the panel's padding in from each end of the list, so it stays as far
+  from the glass's edge all the way along as it is beside the straight side.
+  Run on into a corner, its ends would all but touch the curve. Every list
+  stops its rail there, including one whose end is not at a corner, so the
+  bars match from panel to panel
 - **Under the pointer:** rail and thumb grow (`Motion.track-grow`) about their
   own centre line, the way every track does, and for a drag as well. No change
   of colour: the growing is the answer, as it is on a slider
