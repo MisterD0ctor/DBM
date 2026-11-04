@@ -4,7 +4,7 @@
 // a list are no special case (see `Rows`).
 
 import { Chrome, Flash, Tip } from "globals.slint";
-import { Motion, Paint, Rows, Type } from "theme.slint";
+import { Icons, Motion, Paint, Rails, Rows, Type } from "theme.slint";
 import { Glyph, Shade, StepButton } from "controls.slint";
 import { RingPane } from "ring.slint";
 import { Squircle } from "squircle.slint";
@@ -151,13 +151,13 @@ export component MenuRow inherits Rectangle {
         source: root.icon;
         x: Rows.label-x;
         y: (parent.height - self.height) / 2;
-        width: 18px;
-        height: 18px;
+        width: Icons.row;
+        height: Icons.row;
         shade: root.ring ? Shade.on-ring : Shade.lit;
     }
 
     Text {
-        x: Rows.label-x + (root.iconic ? 26px : 0px);
+        x: Rows.label-x + (root.iconic ? Icons.row + Rows.dense-gap : 0px);
         width: (root.armed ? root.ask-x - 8px
             : parent.width - Rows.trail-x - (root.removable ? root.bin + Rows.group-gap : 0px))
             - self.x;
@@ -191,12 +191,15 @@ export component MenuRow inherits Rectangle {
     // one miss that does the opposite.
     private property <length> bin: Rows.bin;
     private property <length> bin-x: root.width - Rows.trail-x - root.bin + 6px;
+    /// How far before the disc, or before the question while it asks, the
+    /// button begins: its press, and the capsule the question stands on.
+    private property <length> bin-lead: 12px;
 
     // While armed, the question stands on a capsule that drains towards the
     // button as the wait runs out, so how long the row will go on asking is
     // in sight. It stays full while it is being read, and with animations
     // off.
-    private property <length> ask-x: root.bin-x - question.width - 12px;
+    private property <length> ask-x: root.bin-x - question.width - root.bin-lead;
     private property <bool> bin-hovered;
     private property <bool> hold: root.armed
         && (touch.has-hover || root.bin-hovered || root.ring);
@@ -233,7 +236,7 @@ export component MenuRow inherits Rectangle {
     if root.removable: Rectangle {
         // The question is part of the button while it asks, as a press on
         // the word is a press meant for it.
-        x: root.armed ? root.ask-x : root.bin-x - 12px;
+        x: root.armed ? root.ask-x : root.bin-x - root.bin-lead;
         width: parent.width - self.x;
         height: parent.height;
 
@@ -259,8 +262,8 @@ export component MenuRow inherits Rectangle {
                     : @image-url("../../../public/icons/trash.svg");
                 x: (parent.width - self.width) / 2;
                 y: (parent.height - self.height) / 2;
-                width: 18px;
-                height: 18px;
+                width: Icons.row;
+                height: Icons.row;
                 shade: root.ring ? Shade.on-ring : Shade.lit;
             }
         }
@@ -456,8 +459,8 @@ export component PlaylistRow inherits Rectangle {
         visible: root.failed;
         x: parent.width - root.trail - self.width;
         y: (parent.height - self.height) / 2;
-        width: 18px;
-        height: 18px;
+        width: Icons.row;
+        height: Icons.row;
         shade: root.ring ? Shade.on-ring : Shade.lit;
     }
 
@@ -473,7 +476,7 @@ export component PlaylistRow inherits Rectangle {
         x: parent.width - root.trail - root.time-col - Rows.group-gap - Rows.measure;
         y: (parent.height - self.height) / 2;
         width: Rows.measure;
-        height: 4px;
+        height: Rails.measure;
         visible: root.measured;
         background: root.ring ? Paint.on-ring-rail : Paint.rail;
         border-radius: self.height / 2;
@@ -522,7 +525,6 @@ export component GroupRow inherits Rectangle {
     in property <string> detail;
     /// It holds the file playing.
     in property <bool> active;
-    private property <length> chevron: 18px;
     /// Where the figure's column ends: clear of the chevron by a drill row's
     /// spacing. A file row beside this one is given the same end.
     private property <length> column-end: root.width - Rows.trail-x - Rows.chevron-col;
@@ -570,10 +572,10 @@ export component GroupRow inherits Rectangle {
 
     Glyph {
         source: @image-url("../../../public/icons/angle-small-right.svg");
-        x: parent.width - Rows.trail-x - root.chevron + root.lean;
+        x: parent.width - Rows.trail-x - Icons.row + root.lean;
         y: (parent.height - self.height) / 2;
-        width: root.chevron;
-        height: root.chevron;
+        width: Icons.row;
+        height: Icons.row;
         shade: root.ring ? Shade.on-ring : Shade.lit;
     }
 
@@ -607,8 +609,6 @@ export component ResumeRow inherits Rectangle {
     in property <float> progress;
     /// How much is left, already worded: "43 min left".
     in property <string> left;
-    private property <length> icon-size: 18px;
-    private property <length> icon-gap: 10px;
     callback picked();
 
     height: Rows.row;
@@ -628,15 +628,15 @@ export component ResumeRow inherits Rectangle {
         source: @image-url("../../../public/icons/play.svg");
         x: Rows.label-x + root.lean;
         y: (parent.height - self.height) / 2;
-        width: root.icon-size;
-        height: root.icon-size;
+        width: Icons.row;
+        height: Icons.row;
         shade: root.ring ? Shade.on-ring : Shade.lit;
     }
 
     // At the title's weight: it is what the window is most often opened
     // for, and every word is the same white, so weight is what can say so.
     Text {
-        x: Rows.label-x + root.icon-size + root.icon-gap;
+        x: Rows.label-x + Icons.row + Rows.drill-gap;
         width: left-text.x - Rows.group-gap - Rows.measure - Rows.group-gap - self.x;
         height: 100%;
         text: root.label;
@@ -664,7 +664,7 @@ export component ResumeRow inherits Rectangle {
         x: left-text.x - Rows.group-gap - Rows.measure;
         y: (parent.height - self.height) / 2;
         width: Rows.measure;
-        height: 4px;
+        height: Rails.measure;
         background: root.ring ? Paint.on-ring-rail : Paint.rail;
         border-radius: self.height / 2;
 
@@ -725,7 +725,7 @@ export component ShortcutRow inherits Rectangle {
     HorizontalLayout {
         padding-left: Rows.label-x;
         padding-right: Rows.trail-x;
-        spacing: 12px;
+        spacing: Rows.keys-gap;
 
         Text {
             text: root.label;
@@ -820,17 +820,17 @@ export component ParamSlider inherits Rectangle {
     }
 
     layout := HorizontalLayout {
-        spacing: 8px;
+        spacing: Rows.dense-gap;
         padding-left: Rows.label-x;
         padding-right: Rows.trail-x;
 
         Rectangle {
-            width: 18px;
+            width: Icons.row;
 
             Glyph {
                 source: root.icon;
-                width: 18px;
-                height: 18px;
+                width: Icons.row;
+                height: Icons.row;
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 shade: root.ring ? Shade.on-ring : Shade.lit;
@@ -851,7 +851,7 @@ export component ParamSlider inherits Rectangle {
             rail := Rectangle {
                 y: (parent.height - self.height) / 2;
                 width: 100%;
-                height: drag.has-hover || drag.pressed ? 6px : 4px;
+                height: drag.has-hover || drag.pressed ? Rails.slider + Rails.grow : Rails.slider;
                 border-radius: self.height / 2;
                 background: root.ring ? Paint.on-ring-rail : Paint.rail;
                 animate height { duration: Motion.track-grow; easing: ease-out; }
@@ -959,6 +959,9 @@ export component ToggleRow inherits Rectangle {
             width: 34px;
 
             track := Rectangle {
+                /// The rail showing round the knob.
+                property <length> inset: 2px;
+
                 y: (parent.height - self.height) / 2;
                 width: 100%;
                 height: 18px;
@@ -972,10 +975,10 @@ export component ToggleRow inherits Rectangle {
                     animate colorize { duration: Motion.switch; easing: ease-out; }
                 }
                 knob := Image {
-                    x: root.checked ? parent.width - self.width - 2px : 2px;
-                    y: 2px;
-                    width: 14px;
-                    height: 14px;
+                    x: root.checked ? parent.width - self.width - track.inset : track.inset;
+                    y: track.inset;
+                    width: track.height - 2 * track.inset;
+                    height: self.width;
                     source: @image-url("shapes/switch-knob.svg");
                     // Dark on the lit track, light on the dark one: the knob
                     // reads as a hole punched in the switch either way. Full
@@ -1076,15 +1079,15 @@ export component DrillRow inherits Rectangle {
     HorizontalLayout {
         padding-left: Rows.label-x;
         padding-right: Rows.trail-x;
-        spacing: 10px;
+        spacing: Rows.drill-gap;
 
         Rectangle {
-            width: 18px;
+            width: Icons.row;
 
             Glyph {
                 source: root.icon;
-                width: 18px;
-                height: 18px;
+                width: Icons.row;
+                height: Icons.row;
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 // With the words: the icon names the same subject, so the
@@ -1112,12 +1115,12 @@ export component DrillRow inherits Rectangle {
         }
 
         Rectangle {
-            width: 18px;
+            width: Icons.row;
 
             Glyph {
                 source: @image-url("../../../public/icons/angle-small-right.svg");
-                width: 18px;
-                height: 18px;
+                width: Icons.row;
+                height: Icons.row;
                 x: root.lean;
                 y: (parent.height - self.height) / 2;
                 shade: root.ring ? Shade.on-ring : Shade.lit;
@@ -1148,7 +1151,7 @@ export component StepperRow inherits Rectangle {
     in property <string> label;
     in property <string> value;
     /// How wide the value is set, for one that reads wider than a number.
-    in property <length> value-w: 62px;
+    in property <length> value-w: Rows.stepper-value;
     /// -1 or +1; the caller owns the step size.
     callback stepped(float);
 
@@ -1173,15 +1176,15 @@ export component StepperRow inherits Rectangle {
     layout := HorizontalLayout {
         padding-left: Rows.label-x;
         padding-right: Rows.trail-x;
-        spacing: 8px;
+        spacing: Rows.dense-gap;
 
         Rectangle {
-            width: 18px;
+            width: Icons.row;
 
             Glyph {
                 source: root.icon;
-                width: 18px;
-                height: 18px;
+                width: Icons.row;
+                height: Icons.row;
                 x: 0;
                 y: (parent.height - self.height) / 2;
                 shade: root.ring ? Shade.on-ring : Shade.lit;
@@ -1198,7 +1201,7 @@ export component StepperRow inherits Rectangle {
         }
 
         Rectangle {
-            width: 26px;
+            width: Rows.stepper-disc;
 
             StepButton {
                 y: (parent.height - self.height) / 2;
@@ -1221,7 +1224,7 @@ export component StepperRow inherits Rectangle {
         }
 
         Rectangle {
-            width: 26px;
+            width: Rows.stepper-disc;
 
             StepButton {
                 y: (parent.height - self.height) / 2;
@@ -1271,15 +1274,15 @@ export component BackRow inherits Rectangle {
     layout := HorizontalLayout {
         padding-left: Rows.label-x;
         padding-right: Rows.trail-x;
-        spacing: 10px;
+        spacing: Rows.drill-gap;
 
         Rectangle {
-            width: 18px;
+            width: Icons.row;
 
             Glyph {
                 source: @image-url("../../../public/icons/angle-small-left.svg");
-                width: 18px;
-                height: 18px;
+                width: Icons.row;
+                height: Icons.row;
                 x: -root.lean;
                 y: (parent.height - self.height) / 2;
                 shade: root.ring ? Shade.on-ring : Shade.lit;
@@ -1367,22 +1370,18 @@ export component MenuHeading inherits Rectangle {
     /// say it twice.
     in property <image> icon;
     private property <bool> iconic: root.icon.width > 0;
-    /// A row's 18px, although the words beside it are smaller: the 24×24
-    /// drawings are only checked at 24px and 18px, and at 16px their 2px lines
-    /// fall to 1.33px, which no pixel can hold.
-    private property <length> icon-size: 18px;
-    private property <length> icon-gap: 8px;
+    private property <length> icon-gap: Rows.drill-gap;
 
     height: Rows.heading + (root.after-content ? Rows.group-gap : 0px);
 
     // Where the row labels start, with the words moved over for it, because
-    // the 14px margin to the wash's edge can't hold an 18px mark.
+    // the margin to the wash's edge can't hold the mark.
     if root.iconic: Image {
         source: root.icon;
         x: Rows.label-x;
         y: parent.height - Rows.heading + (Rows.heading - self.height) / 2;
-        width: root.icon-size;
-        height: root.icon-size;
+        width: Icons.row;
+        height: Icons.row;
         image-fit: contain;
         // The heading's own alpha, so the mark and the words are one thing.
         colorize: Paint.body;
@@ -1390,7 +1389,7 @@ export component MenuHeading inherits Rectangle {
 
     Text {
         // Aligned with the row labels below it, not with the panel edge.
-        x: Rows.label-x + (root.iconic ? root.icon-size + root.icon-gap : 0px);
+        x: Rows.label-x + (root.iconic ? Icons.row + root.icon-gap : 0px);
         width: parent.width - self.x - Rows.trail-x;
         // Held to the bottom, so the gap above stays above.
         y: parent.height - self.height;

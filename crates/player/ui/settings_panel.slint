@@ -142,9 +142,10 @@ export component SettingsPanel inherits GlassPanel {
     height: min(root.panel-pad + root.body, root.panel-max-h);
     drills: true;
 
-    /// 2px wider than the widest name, so with the row's 8px spacing the
-    /// track sits 10px off the words.
-    property <length> param-name-w: param-measure.preferred-width + 2px;
+    /// The widest name, and room after it for the track to sit at least 10px
+    /// off the words where the row's spacing alone would put it closer.
+    property <length> param-name-w: param-measure.preferred-width
+        + max(0px, 10px - Rows.dense-gap);
     /// Per page: the rows, the way back, and the reset after them, plus the
     /// switch on the ambient border's, and on the video page the speed and
     /// its three switches. Accessibility and the episodes page have no reset,

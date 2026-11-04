@@ -9,46 +9,7 @@ import { Settings } from "settings.slint";
 import { IconButton } from "controls.slint";
 import { Measure } from "measure.slint";
 import { Panel, Surfaces } from "surface.slint";
-import { Motion, Paint, Rows, Type } from "theme.slint";
-
-/// The bar's fixed sizes, which the pills over the picture share so they
-/// stand as tall as its row of buttons.
-///
-/// Every length the bar is placed by is arithmetic on these and the window's
-/// width, never read from a layout: the glass is sampled every frame, and a
-/// binding that depends on a layout forces a full layout pass each time it is
-/// read, which dragged resizing down to 4fps.
-export global Bar {
-    /// How far one notch of a mouse wheel scrolls, as Slint reports it. The
-    /// wheel's handlers take a step a notch, adding up the small amounts a
-    /// touchpad sends, which would otherwise each take a whole step.
-    out property <length> notch: 60px;
-    out property <length> btn: 40px;
-    out property <length> btn-gap: 6px;
-    out property <length> pill-pad: 4px;
-    out property <length> vol-w: 96px;
-    /// Inset for text at the end of a row of buttons: after the title, and
-    /// in the end-of-file and credits pills, where `pill-pad` would run the
-    /// words into the capsule's curve.
-    out property <length> pill-text-pad: 18px;
-    out property <length> pill-h: Bar.btn + 2 * Bar.pill-pad;
-    out property <length> pill-radius: Bar.pill-h / 2;
-    out property <length> pill-gap: 10px;
-    /// Between a pill choice's glyph and its words.
-    out property <length> choice-gap: 12px;
-    /// Shorter than the row of buttons under it, since it holds a line of
-    /// type rather than a 24px glyph.
-    out property <length> timeline-h: 30px;
-    /// How far in from the bar's ends the end buttons' drawings start: the
-    /// row's padding, the 24px glyph centred in its button, and the 1px the
-    /// icon set leaves round its 22px drawings.
-    out property <length> glyph-inset: Bar.pill-pad + (Bar.btn - 24px) / 2 + 1px;
-    /// The glass round the bar's rows, on every side: as much as takes the
-    /// end buttons' corner out to the panels', so the bar's corner is
-    /// concentric with them and the same as the panels'.
-    out property <length> pad: Rows.panel-radius - Bar.pill-radius;
-    out property <length> height: 2 * Bar.pad + Bar.timeline-h + Bar.pill-h;
-}
+import { Bar, Motion, Paint, Rails, Rows, Type } from "theme.slint";
 
 /// The part of the bar that can be up on its own: the timeline, or what is
 /// loaded.
@@ -59,9 +20,9 @@ enum BarPart { timeline, loaded }
 global Marks {
     /// The dot ahead of the fill.
     out property <length> dot: 3px;
-    /// The cut it leaves in the fill once passed: half a pixel of rail either
-    /// side.
-    out property <length> cut: 4px;
+    /// The cut it leaves in the fill once passed: the dot with half a pixel
+    /// of rail either side.
+    out property <length> cut: Marks.dot + 2 * 0.5px;
 }
 
 /// One run of a bar track's fill, between the cuts its marks leave in it. It
@@ -536,7 +497,7 @@ export component ControlBar inherits Rectangle {
         }
     }
 
-    // The hit area is the row's full height rather than the 5px track, which
+    // The hit area is the row's full height rather than the thin track, which
     // would be miserable to grab.
     Rectangle {
         x: root.scrub-x;
@@ -559,7 +520,7 @@ export component ControlBar inherits Rectangle {
         timeline-rail := Rectangle {
             y: (parent.height - self.height) / 2;
             width: 100%;
-            height: scrub.has-hover || scrub.pressed ? 7px : 5px;
+            height: scrub.has-hover || scrub.pressed ? Rails.bar + Rails.grow : Rails.bar;
             border-radius: self.height / 2;
             background: Paint.rail;
             animate height { duration: Motion.track-grow; easing: ease-out; }
@@ -965,7 +926,7 @@ export component ControlBar inherits Rectangle {
                 vol-rail := Rectangle {
                     y: (parent.height - self.height) / 2;
                     width: 100%;
-                    height: vol.has-hover || vol.pressed ? 7px : 5px;
+                    height: vol.has-hover || vol.pressed ? Rails.bar + Rails.grow : Rails.bar;
                     border-radius: self.height / 2;
                     background: Paint.rail;
                     animate height { duration: Motion.track-grow; easing: ease-out; }

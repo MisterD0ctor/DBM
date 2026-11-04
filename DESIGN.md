@@ -1687,7 +1687,7 @@ doing in it.
   of a group does not know that it is last
 - **Heading icons:** a heading over rows without icons of their own carries
   one — the playlist, SUBTITLES and AUDIO over the tracks panels, every group on
-  the shortcuts page. A row's size (`MenuHeading.icon-size`), since icons come
+  the shortcuts page. A row's size (`Icons.row`), since icons come
   at two sizes and nothing between (see Don'ts); at the heading's own alpha, so
   mark and words are one thing; starting on the row-label line with the words
   after it. It cannot hang in the margin: the margin ends at the edge of the
@@ -2289,8 +2289,8 @@ for a moment (`WayIn.copied-timer.interval`), and *Close the player*.
 - **Don't** substitute an icon library. The set in `public/icons/` is drawn on
   one grid as one family; extend it rather than replacing it.
 - **Don't** show an icon at any size but the one it is drawn at (the bar's,
-  `IconButton.glyph`) and three quarters of it (a row's,
-  `MenuHeading.icon-size`). Those keep the drawings' line on whole and half
+  `Icons.full`) and three quarters of it (a row's,
+  `Icons.row`). Those keep the drawings' line on whole and half
   pixels, and both stay legible; at two thirds the line falls a third of a
   pixel off the grid, and at a half every line lands on a pixel boundary and
   turns to two grey rows, so detailed icons blur into blobs. A smaller size

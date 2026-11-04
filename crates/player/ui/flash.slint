@@ -12,7 +12,7 @@ import { Subtitles } from "subtitles.slint";
 import { Tracks } from "tracks.slint";
 import { Measure } from "measure.slint";
 import { Bounds, Panel, Surfaces } from "surface.slint";
-import { Motion, Paint, Rows, Type } from "theme.slint";
+import { Bar, Icons, Motion, Paint, Rows, Type } from "theme.slint";
 
 /// Laid over the whole window, which it takes its middle and margins from.
 export component ActionFlash inherits Rectangle {
@@ -59,10 +59,11 @@ export component ActionFlash inherits Rectangle {
     ];
     /// The size the icon set is drawn for: the ring gives it presence, so
     /// it isn't scaled up.
-    property <length> glyph: 24px;
-    /// 16px of air around the glyph, twice a bar button's. Any wider and the
-    /// ring becomes the subject rather than the glyph's setting.
-    property <length> ring: root.glyph + 2 * 16px;
+    property <length> glyph: Icons.full;
+    /// Twice a bar button's air round its glyph. Any wider and the ring
+    /// becomes the subject rather than the glyph's setting.
+    property <length> air: 2 * Bar.btn-air;
+    property <length> ring: root.glyph + 2 * root.air;
     /// Whether this is the player speaking rather than acknowledging a key.
     property <bool> is-notice: Flash.message != "";
     /// Whether the glyph ring is drawn: an acknowledgement has one, a notice
@@ -103,7 +104,7 @@ export component ActionFlash inherits Rectangle {
         measure.preferred-width + 2 * root.text-pad + root.mark-w, root.widest);
     /// A failure's warning mark and the gap after it; nothing otherwise.
     property <bool> warns: root.is-notice && Flash.warning;
-    property <length> mark: 18px;
+    property <length> mark: Icons.row;
     property <length> mark-w: root.warns ? root.mark + 8px : 0px;
     /// Centred on `Flash.at`, kept inside the window's margins.
     pure function centred-x(w: length) -> length {

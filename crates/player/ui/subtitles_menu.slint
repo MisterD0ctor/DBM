@@ -463,8 +463,10 @@ export component SubtitlesMenu inherits GlassPanel {
     /// stays to be taken back.
     property <bool> timing-resettable: root.timing-moved
         || Resets.armed == Reset.timing || Resets.undoable == Reset.timing;
-    /// Timing's readout, as wide as the delay reads at its widest.
-    property <length> timing-value-w: max(62px, delay-measure.preferred-width + 4px);
+    /// Timing's readout, as wide as the delay reads at its widest, and never
+    /// narrower than any other stepper's.
+    property <length> timing-value-w: max(Rows.stepper-value,
+        delay-measure.preferred-width + 4px);
     out property <length> tracks-h: min(
         root.panel-pad + root.heading-h + root.natural + root.subs-fixed,
         root.panel-max-h);

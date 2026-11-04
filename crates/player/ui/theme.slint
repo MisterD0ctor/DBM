@@ -193,10 +193,11 @@ export global Type {
     /// heading.
     out property <length> label-track: 1px;
     /// A character standing in for an icon: the stepper's minus and plus.
-    /// Sized against the 26px disc it sits in, not against the text.
+    /// Sized against the disc it sits in (`Rows.stepper-disc`), not against
+    /// the text.
     out property <length> glyph: 16px;
     /// The one thing said louder than the rest: the word on the end-of-file
-    /// pill, sized against the 24px arrow beside it.
+    /// pill, sized against the full-size arrow beside it.
     out property <length> prompt: 16px;
 
     /// The only three weights the bundled files carry. Plain is Medium,
@@ -207,6 +208,35 @@ export global Type {
     out property <int> weight-title: 600;
     /// The current row in a list.
     out property <int> weight-current: 700;
+}
+
+/// The two sizes the icon set is shown at: the one its 24×24 drawings are
+/// made for, and three quarters of it. Both keep the drawings' 2px line on
+/// whole and half pixels; at any other size it falls off the pixel grid and
+/// blurs, so a smaller size needs its own drawing.
+export global Icons {
+    /// A glyph standing on its own: the bar's buttons and the window's, the
+    /// end-of-file pill's choices, the flash.
+    out property <length> full: 24px;
+    /// A glyph beside words in a row: its icon, chevron or warning, and a
+    /// heading's mark, although a heading's words are smaller.
+    out property <length> row: 18px;
+}
+
+/// How thick the tracks are drawn. Each one a hand can take thickens by
+/// `grow` under the pointer or a drag, about its centre line, so every track
+/// answers the hand alike.
+export global Rails {
+    /// The bar's timeline and volume.
+    out property <length> bar: 5px;
+    /// A slider in a panel: thinner than the bar's, because it sits inside a
+    /// panel of rows rather than alone on glass.
+    out property <length> slider: 4px;
+    /// A resume measure, which nothing drags, so it never grows.
+    out property <length> measure: 4px;
+    /// A scroll bar.
+    out property <length> scroll: 3px;
+    out property <length> grow: 2px;
 }
 
 /// Metrics for the rows and the washes behind them.
@@ -230,6 +260,15 @@ export global Rows {
     /// so text sits inside the wash rather than on its rim.
     out property <length> label-x: Rows.gap + 14px;
     out property <length> trail-x: Rows.gap + 10px;
+    /// Between a row's icon and its words: a drill row's, and the rows laid
+    /// out like one, a way back and Continue.
+    out property <length> drill-gap: 14px;
+    /// Between the parts of the two denser rows: a slider's icon, name, track
+    /// and value, and a stepper's icon, name, discs and value.
+    out property <length> dense-gap: 14px;
+    /// Between a row's words and the keys after them, which a tip keeps too,
+    /// since a tip is one row of the shortcuts list.
+    out property <length> keys-gap: 12px;
     /// How far a row's chevron or Play glyph leans the way the row goes while
     /// the pointer is on it. Words and glyphs are already full white, so a
     /// hover can't light them; a lean is a change you see without one.
@@ -244,7 +283,11 @@ export global Rows {
     /// its rows ask to be.
     out property <length> bin: 28px;
     out property <length> time-col: 48px;
-    out property <length> chevron-col: 28px;
+    out property <length> chevron-col: Icons.row + Rows.drill-gap;
+    /// A stepper's minus and plus discs, and how wide it sets its value
+    /// unless the row asks for more or less room.
+    out property <length> stepper-disc: 26px;
+    out property <length> stepper-value: 62px;
     /// A resume measure's length. Fixed rather than a share of the row, so it
     /// reads the same at any panel width and never grows into a rule; shorter
     /// than any likely title, so it doesn't read as part of the words.
@@ -275,4 +318,45 @@ export global Rows {
     /// taller than a line of text.
     out property <length> toggle-row: 40px;
 
+}
+
+/// The bar's fixed sizes, which the pills over the picture share so they
+/// stand as tall as its row of buttons.
+///
+/// Every length the bar is placed by is arithmetic on these and the window's
+/// width, never read from a layout: the glass is sampled every frame, and a
+/// binding that depends on a layout forces a full layout pass each time it is
+/// read, which dragged resizing down to 4fps.
+export global Bar {
+    /// How far one notch of a mouse wheel scrolls, as Slint reports it. The
+    /// wheel's handlers take a step a notch, adding up the small amounts a
+    /// touchpad sends, which would otherwise each take a whole step.
+    out property <length> notch: 60px;
+    out property <length> btn: 40px;
+    /// The air either side of a button's glyph.
+    out property <length> btn-air: (Bar.btn - Icons.full) / 2;
+    out property <length> btn-gap: 6px;
+    out property <length> pill-pad: 4px;
+    out property <length> vol-w: 96px;
+    /// Inset for text at the end of a row of buttons: after the title, and
+    /// in the end-of-file and credits pills, where `pill-pad` would run the
+    /// words into the capsule's curve.
+    out property <length> pill-text-pad: 18px;
+    out property <length> pill-h: Bar.btn + 2 * Bar.pill-pad;
+    out property <length> pill-radius: Bar.pill-h / 2;
+    out property <length> pill-gap: 10px;
+    /// Between a pill choice's glyph and its words.
+    out property <length> choice-gap: 12px;
+    /// Shorter than the row of buttons under it, since it holds a line of
+    /// type rather than a glyph.
+    out property <length> timeline-h: 30px;
+    /// How far in from the bar's ends the end buttons' drawings start: the
+    /// row's padding, the air round the glyph in its button, and the 1px the
+    /// icon set leaves round each drawing.
+    out property <length> glyph-inset: Bar.pill-pad + Bar.btn-air + 1px;
+    /// The glass round the bar's rows, on every side: as much as takes the
+    /// end buttons' corner out to the panels', so the bar's corner is
+    /// concentric with them and the same as the panels'.
+    out property <length> pad: Rows.panel-radius - Bar.pill-radius;
+    out property <length> height: 2 * Bar.pad + Bar.timeline-h + Bar.pill-h;
 }

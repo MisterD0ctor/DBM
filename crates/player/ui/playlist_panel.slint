@@ -9,7 +9,7 @@ import { BackRow, GroupRow, MenuHeading, PlaylistRow } from "rows.slint";
 import { Measure } from "measure.slint";
 import { GlassPanel } from "panel.slint";
 import { ScrollList } from "scroll_list.slint";
-import { Motion, Rows, Type } from "theme.slint";
+import { Icons, Motion, Rows, Type } from "theme.slint";
 
 export component PlaylistPanel inherits GlassPanel {
     /// The row the keyboard's ring is on, which every panel shares.
@@ -131,8 +131,8 @@ export component PlaylistPanel inherits GlassPanel {
     property <length> part-fixed: Rows.label-x + Rows.group-gap
         + max(Rows.time-col, details-measure.preferred-width)
         + Rows.chevron-col + Rows.trail-x;
-    /// A way back's 18px arrow and 10px gap, a heading's mark taking 2px less.
-    property <length> heading-fixed: Rows.label-x + 28px + Rows.trail-x;
+    /// A way back's arrow and its gap, the same as a heading's mark and its.
+    property <length> heading-fixed: Rows.label-x + Icons.row + Rows.drill-gap + Rows.trail-x;
     /// On the list of parts, a file listed as itself leaves the parts'
     /// chevron column empty beside its time.
     property <length> entry-fixed: root.file-fixed

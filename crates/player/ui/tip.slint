@@ -40,9 +40,8 @@ export component HoverTip inherits Rectangle {
 
     property <length> tip-h: 28px;
     property <length> pad: 12px;
-    /// Between the name and the key, matching the shortcuts list, since a
-    /// tip is one row of that list.
-    property <length> gap: 12px;
+    /// Between the name and the key (see `Rows.keys-gap`).
+    property <length> gap: Rows.keys-gap;
     property <length> tip-w: min(
         label-measure.preferred-width
             + (root.keys != "" ? root.gap + keys-measure.preferred-width : 0px)

@@ -26,10 +26,9 @@ export component FilesPanel inherits GlassPanel {
     property <string> folder-label: @tr("Open folder…");
     property <string> folder-keys: @tr("Ctrl+Shift+O");
 
-    /// As wide as its rows' words and keys ask, which in some languages is
-    /// wider than in English, and never narrower than in English. 12px is
-    /// the row's own gap between the two.
-    width: max(260px, Rows.label-x + labels.preferred-width + 12px
+    /// As wide as its rows' words and keys ask with the rows' gap between
+    /// them: in some languages wider than in English, and never narrower.
+    width: max(260px, Rows.label-x + labels.preferred-width + Rows.keys-gap
         + keys.preferred-width + Rows.trail-x);
     height: root.panel-pad + 2 * root.row-h;
 

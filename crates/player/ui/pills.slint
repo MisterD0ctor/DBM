@@ -7,9 +7,8 @@ import { Playlist } from "playlist.slint";
 import { GlassRect } from "models.slint";
 import { EndChoice } from "controls.slint";
 import { Measure } from "measure.slint";
-import { Bar } from "bar.slint";
 import { Bounds, Surfaces } from "surface.slint";
-import { Motion, Paint, Rows, Type } from "theme.slint";
+import { Bar, Icons, Motion, Paint, Rows, Type } from "theme.slint";
 
 /// What the corner pill offers.
 enum CornerOffer {
@@ -115,11 +114,11 @@ export component EndPill inherits Rectangle {
     /// picture rather than a banner across it.
     property <length> max-w: root.widest / 2;
     property <length> first-w: min(
-        2 * root.choice-pad + 24px + Bar.choice-gap + first-measure.preferred-width,
+        2 * root.choice-pad + Icons.full + Bar.choice-gap + first-measure.preferred-width,
         root.max-w - (root.two
             ? 2 * root.inset + Bar.btn-gap + root.second-w : 0px));
     property <length> second-w:
-        2 * root.choice-pad + 24px + Bar.choice-gap + second-measure.preferred-width;
+        2 * root.choice-pad + Icons.full + Bar.choice-gap + second-measure.preferred-width;
     property <length> pill-w: root.two
         ? 2 * root.inset + root.first-w + Bar.btn-gap + root.second-w
         : root.first-w;
@@ -442,7 +441,7 @@ export component CornerPill inherits Rectangle {
     /// No wider than the bar's right group, the corner it keeps to, so a long
     /// episode title elides rather than reach over the rolling names.
     property <length> pill-w: min(
-        2 * Bar.pill-text-pad + 24px + Bar.choice-gap + measure.preferred-width,
+        2 * Bar.pill-text-pad + Icons.full + Bar.choice-gap + measure.preferred-width,
         root.widest);
     property <length> pill-x: root.width - Surfaces.margin - root.pill-w;
     /// Driven by the bar's own fade, so it moves exactly with the bar. What

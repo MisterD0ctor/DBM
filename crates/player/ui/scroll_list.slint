@@ -2,7 +2,7 @@
 
 import { Chrome } from "globals.slint";
 import { ScrollFade } from "models.slint";
-import { Motion, Paint, Rows } from "theme.slint";
+import { Motion, Paint, Rails, Rows } from "theme.slint";
 
 /// The press target for the angle at one end of a list that points to its
 /// current row: a row-sized square, centred across that end.
@@ -290,7 +290,7 @@ export component ScrollList inherits Rectangle {
     bar := Rectangle {
         x: parent.width - 5.5px - self.width / 2;
         y: root.rail-inset;
-        width: grip.has-hover || grip.pressed ? 5px : 3px;
+        width: grip.has-hover || grip.pressed ? Rails.scroll + Rails.grow : Rails.scroll;
         height: root.rail-h;
         border-radius: self.width / 2;
         background: Paint.wash-soft;

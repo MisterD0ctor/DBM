@@ -2,7 +2,7 @@
 // choices on the end-of-file pill.
 
 import { Chrome, Tip } from "globals.slint";
-import { Motion, Paint, Type } from "theme.slint";
+import { Bar, Icons, Motion, Paint, Rows, Type } from "theme.slint";
 import { RingPane } from "ring.slint";
 import { Squircle } from "squircle.slint";
 
@@ -46,8 +46,8 @@ export component IconButton inherits Rectangle {
     in property <image> icon;
     /// The panel this button opens is showing, so its wash is held.
     in property <bool> open;
-    /// The icon set is drawn for 24x24; any other size resamples it.
-    in property <length> glyph: 24px;
+    /// Any size but the one the icon set is drawn for resamples it.
+    in property <length> glyph: Icons.full;
     /// What this button is called, and the key that does the same thing.
     /// A button with no `tip` shows none rather than an empty one.
     in property <string> tip;
@@ -64,8 +64,8 @@ export component IconButton inherits Rectangle {
     out property <bool> hovered: touch.has-hover;
     callback clicked();
 
-    width: 40px;
-    height: 40px;
+    width: Bar.btn;
+    height: Bar.btn;
     border-radius: self.height / 2;
     // Under glass the ring and the open state are the disc the window lays
     // under the button (`MainWindow.ring-disc`, `MainWindow.open-disc`).
@@ -174,8 +174,8 @@ export component StepButton inherits Rectangle {
         root.clicked();
     }
 
-    width: 26px;
-    height: 26px;
+    width: Rows.stepper-disc;
+    height: Rows.stepper-disc;
     border-radius: self.height / 2;
     background: root.lit ? (touch.has-hover ? Paint.on-ring-wash : Paint.on-ring-rail)
         : touch.has-hover ? Paint.wash-strong : Paint.wash-button;
@@ -270,8 +270,8 @@ export component EndChoice inherits Rectangle {
 
         glyph := Glyph {
             source: root.icon;
-            width: 24px;
-            height: 24px;
+            width: Icons.full;
+            height: Icons.full;
             y: (parent.height - self.height) / 2;
             shade: root.ring ? Shade.on-ring : Shade.lit;
         }
