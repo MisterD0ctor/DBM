@@ -24,14 +24,14 @@
      inkscape:deskcolor="#505050"
      inkscape:document-units="px"
      showgrid="true"
-     inkscape:zoom="17.456699"
-     inkscape:cx="-13.605092"
-     inkscape:cy="16.125615"
+     inkscape:zoom="6.1718751"
+     inkscape:cx="0.081012657"
+     inkscape:cy="76.55696"
      inkscape:window-width="3440"
      inkscape:window-height="1403"
-     inkscape:window-x="0"
-     inkscape:window-y="0"
-     inkscape:window-maximized="1"
+     inkscape:window-x="26"
+     inkscape:window-y="23"
+     inkscape:window-maximized="0"
      inkscape:current-layer="layer1">
     <inkscape:grid
        id="grid3"
@@ -91,16 +91,16 @@
      id="layer1">
     <path
        style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:round;stroke-linejoin:round"
-       d="M 1.0583333,1.5875 H 5.2916666"
+       d="M 0.79374999,1.5875 H 5.55625"
        id="path1"
        sodipodi:nodetypes="cc" />
     <path
-       style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:round;stroke-linejoin:round"
-       d="M 1.5875,1.5875 V 5.0334802 A 0.78735305,0.78735305 45 0 0 2.3748531,5.8208333 H 3.9751469 A 0.78735305,0.78735305 135 0 0 4.7624999,5.0334802 V 1.5875"
+       style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:butt;stroke-linejoin:round;stroke-dasharray:none"
+       d="M 1.3229167,1.5875 1.5383863,5.0350136 A 0.83809891,0.83809891 43.211833 0 0 2.3748531,5.8208333 H 3.9751469 A 0.83809893,0.83809893 136.78817 0 0 4.8116136,5.0350136 L 5.0270833,1.5875"
        id="path2"
        sodipodi:nodetypes="cccc"
        inkscape:path-effect="#path-effect5"
-       inkscape:original-d="M 1.5875,1.5875 V 5.8208333 H 4.7624999 V 1.5875" />
+       inkscape:original-d="M 1.3229167,1.5875 1.5875,5.8208333 H 4.7624999 L 5.0270833,1.5875" />
     <path
        style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:round;stroke-linejoin:round"
        d="M 2.1166666,1.5875 V 1.0569937 A 0.52782701,0.52782701 135 0 1 2.6444936,0.52916666 H 3.7055063 A 0.52782701,0.52782701 45 0 1 4.2333333,1.0569937 V 1.5875"
@@ -110,7 +110,7 @@
        inkscape:original-d="M 2.1166666,1.5875 V 0.52916666 H 4.2333333 V 1.5875" />
     <path
        style="fill:none;stroke:#ffffff;stroke-width:0.529167;stroke-linecap:round;stroke-linejoin:round"
-       d="M 2.6458333,2.6458333 V 4.4979166"
+       d="m 2.6458333,2.6458333 0,1.8520833"
        id="path4"
        sodipodi:nodetypes="cc" />
     <path
