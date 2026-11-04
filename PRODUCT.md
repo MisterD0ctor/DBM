@@ -179,7 +179,7 @@ is told rides a drawn frame and a player with no film draws none.
 - Public repository `github.com/MisterD0ctor/DBM`; GitHub Actions builds the
   Windows installer and zip and the Flatpak on push, pull request and `v*`
   tags, and a tag's draft release carries all three.
-- Released as 1.0.0, the version the top-level `Cargo.toml` holds.
+- Released as 1.1.0, the version the top-level `Cargo.toml` holds.
 - The logo and icon set named above.
 - Licensed GPL-3.0-or-later, forced by Slint's open-source terms and by the
   GPLv3 builds of libmpv and ffmpeg that ship with it; `THIRD-PARTY.md`
