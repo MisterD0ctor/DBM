@@ -182,6 +182,12 @@ jobs:
             # flatpak-builder sandboxes every build with bubblewrap, which
             # needs namespaces a container isn't given by default.
             options: --privileged
+            # Updating a runtime renames its old copy aside, which fails with
+            # "Invalid cross-device link" on hosts whose Docker overlay can't
+            # rename a folder out of an image layer. A volume starts as a copy
+            # of the image's folder and isn't overlay.
+            volumes:
+                - /var/lib/flatpak
 
         steps:
             - uses: actions/checkout@v4
