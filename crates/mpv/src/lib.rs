@@ -42,9 +42,9 @@ use std::time::{Duration, Instant};
 
 use ffi::{
     END_FILE_REASON_EOF, END_FILE_REASON_ERROR, EVENT_COMMAND_REPLY, EVENT_END_FILE,
-    EVENT_FILE_LOADED, EVENT_PLAYBACK_RESTART, EVENT_PROPERTY_CHANGE, EVENT_SEEK,
+    EVENT_FILE_LOADED, EVENT_NONE, EVENT_PLAYBACK_RESTART, EVENT_PROPERTY_CHANGE, EVENT_SEEK,
     EVENT_SET_PROPERTY_REPLY, EVENT_SHUTDOWN, EVENT_START_FILE, FORMAT_STRING, Lib, MpvHandle,
-    RawEventEndFile, RawEventProperty,
+    RawEvent, RawEventEndFile, RawEventProperty,
 };
 use prop::KeepOpen;
 
@@ -342,14 +342,35 @@ impl Mpv {
     /// # Safety
     /// Never on two threads at once: mpv hands every caller the same struct.
     pub unsafe fn poll_event(&self) -> Option<Event> {
-        // SAFETY: `handle` is live, and the caller keeps this to one thread.
-        let raw = unsafe { (self.lib.mpv_wait_event)(self.handle, 0.0) };
-        if raw.is_null() {
-            return None;
+        loop {
+            // SAFETY: `handle` is live, and the caller keeps this to one
+            // thread.
+            let raw = unsafe { (self.lib.mpv_wait_event)(self.handle, 0.0) };
+            if raw.is_null() {
+                return None;
+            }
+            // SAFETY: non-null, and valid until the next `mpv_wait_event`,
+            // which cannot come while `ev` is borrowed from `self`.
+            let ev = unsafe { &*raw };
+            if ev.event_id == EVENT_NONE {
+                return None;
+            }
+            // One nothing here acts on is passed over rather than taken for
+            // the end of the queue, which would leave what is behind it
+            // waiting for a wakeup that has already been and gone.
+            // SAFETY: `ev` is the event mpv just handed back.
+            if let Some(event) = unsafe { self.translate(ev) } {
+                return Some(event);
+            }
         }
-        // SAFETY: non-null, and valid until the next `mpv_wait_event`, which
-        // cannot come while `ev` is borrowed from `self`.
-        let ev = unsafe { &*raw };
+    }
+
+    /// Copy an event out of mpv's struct, or `None` for one nothing here acts
+    /// on.
+    ///
+    /// # Safety
+    /// `ev` is the event the last `mpv_wait_event` returned.
+    unsafe fn translate(&self, ev: &RawEvent) -> Option<Event> {
         match ev.event_id {
             EVENT_SHUTDOWN => Some(Event::Shutdown),
             EVENT_COMMAND_REPLY | EVENT_SET_PROPERTY_REPLY => Some(Event::Reply {
@@ -390,7 +411,6 @@ impl Mpv {
                     value: unsafe { Value::read(prop.format, prop.data) },
                 })
             }
-            // `MPV_EVENT_NONE` for an empty queue, or an event nothing here acts on.
             _ => None,
         }
     }

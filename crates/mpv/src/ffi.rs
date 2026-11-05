@@ -65,7 +65,8 @@ pub(super) const FORMAT_FLAG: c_int = 3;
 pub(super) const FORMAT_INT64: c_int = 4;
 pub(super) const FORMAT_DOUBLE: c_int = 5;
 
-// `mpv_event_id`, the handful we act on.
+// `mpv_event_id`, the handful we act on, and the one for an empty queue.
+pub(super) const EVENT_NONE: c_int = 0;
 pub(super) const EVENT_SHUTDOWN: c_int = 1;
 pub(super) const EVENT_START_FILE: c_int = 6;
 pub(super) const EVENT_END_FILE: c_int = 7;
