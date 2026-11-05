@@ -103,7 +103,7 @@ impl PlayerState {
     /// half, like everything else that is taken for an ending.
     fn credits_heard_pieces(&self) -> Option<&[(f64, f64)]> {
         let path = self.path.as_ref()?;
-        let (of, pieces) = self.credits_heard.as_ref()?;
+        let (of, pieces) = self.found.credits_heard.as_ref()?;
         let starts = pieces.first()?.0;
         (of == path && self.duration > 0.0 && starts >= self.duration / 2.0)
             .then_some(pieces.as_slice())
@@ -147,7 +147,8 @@ impl PlayerState {
     pub fn intro(&self) -> Option<(f64, f64)> {
         let path = self.path.as_ref()?;
         let span = self.intro_named().or_else(|| {
-            self.intro_heard
+            self.found
+                .intro_heard
                 .as_ref()
                 .filter(|(of, _)| of == path)
                 .map(|(_, span)| *span)
@@ -335,17 +336,17 @@ mod tests {
     fn a_sequence_that_was_heard_stands_in_where_no_chapter_names_one() {
         let mut state = at(playing(EPISODE, 1, ACTS), 280.0);
         assert!(!state.intro_rolling());
-        state.intro_heard = Some((EPISODE.into(), (274.1, 308.9)));
+        state.found.intro_heard = Some((EPISODE.into(), (274.1, 308.9)));
         assert!(state.intro_rolling());
         // Heard in another file, it says nothing about this one.
-        state.intro_heard = Some(("Show.Name.S01E03.1080p.mkv".into(), (274.1, 308.9)));
+        state.found.intro_heard = Some(("Show.Name.S01E03.1080p.mkv".into(), (274.1, 308.9)));
         assert!(!state.intro_rolling());
     }
 
     #[test]
     fn chapters_are_believed_over_what_was_heard() {
         let mut state = playing(EPISODE, 1, OPENED);
-        state.intro_heard = Some((EPISODE.into(), (10.0, 40.0)));
+        state.found.intro_heard = Some((EPISODE.into(), (10.0, 40.0)));
         assert_eq!(state.intro(), Some((95.0, 185.0)));
     }
 
@@ -353,21 +354,22 @@ mod tests {
     fn credits_that_were_heard_roll_where_no_chapter_marks_them() {
         let mut state = at(playing(EPISODE, -1, &[]), 3500.0);
         assert!(!state.credits_rolling());
-        state.credits_heard = Some((EPISODE.into(), vec![(3480.0, 3600.0)]));
+        state.found.credits_heard = Some((EPISODE.into(), vec![(3480.0, 3600.0)]));
         assert!(state.credits_rolling());
         assert!(!at(state.clone(), 3470.0).credits_rolling());
         // Heard in another file, or in a film, they say nothing here.
-        state.credits_heard = Some(("Show.Name.S01E03.1080p.mkv".into(), vec![(3480.0, 3600.0)]));
+        state.found.credits_heard =
+            Some(("Show.Name.S01E03.1080p.mkv".into(), vec![(3480.0, 3600.0)]));
         assert!(!state.credits_rolling());
         let mut film = at(playing("Some Film (2019).mkv", -1, &[]), 3500.0);
-        film.credits_heard = Some(("Some Film (2019).mkv".into(), vec![(3480.0, 3600.0)]));
+        film.found.credits_heard = Some(("Some Film (2019).mkv".into(), vec![(3480.0, 3600.0)]));
         assert!(!film.credits_rolling());
     }
 
     #[test]
     fn a_scene_heard_after_the_credits_is_skipped_to() {
         let mut state = at(playing(EPISODE, -1, &[]), 3500.0);
-        state.credits_heard = Some((EPISODE.into(), vec![(3480.0, 3560.0)]));
+        state.found.credits_heard = Some((EPISODE.into(), vec![(3480.0, 3560.0)]));
         // A moment before the music stops, which the scene may start under.
         assert_eq!(state.after_credits(), Some(3557.0));
         assert!(state.credits_rolling());
@@ -375,7 +377,7 @@ mod tests {
         assert!(!at(state.clone(), 3557.0).credits_rolling());
         // Credits that run to the end have nothing after them, though the
         // length they were heard against is a little off mpv's.
-        state.credits_heard = Some((EPISODE.into(), vec![(3480.0, 3599.6)]));
+        state.found.credits_heard = Some((EPISODE.into(), vec![(3480.0, 3599.6)]));
         assert_eq!(state.after_credits(), None);
         assert!(at(state, 3590.0).credits_rolling());
     }
@@ -383,7 +385,8 @@ mod tests {
     #[test]
     fn credits_heard_to_stop_for_a_scene_skip_to_it_and_go_on_after() {
         let mut state = at(playing(EPISODE, -1, &[]), 3320.0);
-        state.credits_heard = Some((EPISODE.into(), vec![(3300.0, 3350.0), (3440.0, 3600.0)]));
+        state.found.credits_heard =
+            Some((EPISODE.into(), vec![(3300.0, 3350.0), (3440.0, 3600.0)]));
         assert_eq!(state.after_credits(), Some(3347.0));
         assert!(state.credits_rolling());
         // The scene is the episode's.
@@ -417,7 +420,7 @@ mod tests {
     #[test]
     fn chapters_are_believed_over_credits_that_were_heard() {
         let mut state = at(playing(EPISODE, 0, MARKS), 3300.0);
-        state.credits_heard = Some((EPISODE.into(), vec![(3200.0, 3600.0)]));
+        state.found.credits_heard = Some((EPISODE.into(), vec![(3200.0, 3600.0)]));
         assert!(state.credits_marked());
         assert!(!state.credits_rolling());
     }

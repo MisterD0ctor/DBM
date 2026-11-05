@@ -38,6 +38,9 @@
 //! * `DBM_UNPLAYABLE_TEST=1` — with a list whose first file won't play,
 //!   checks that file's row says why, and says it in Swedish once Swedish is
 //!   chosen.
+//! * `DBM_IDLE_TEST=1` — with a list whose second file won't play,
+//!   minimises the window, moves on to it, and checks the player hears the
+//!   failure though no frame is drawn.
 //! * `DBM_DIALOG_TEST=1` — puts a real file dialog on screen. Pair it with
 //!   `DBM_TRACE=1` to see that draws carry on while it is open, which is why
 //!   the dialog doesn't run on this thread.
@@ -318,6 +321,9 @@ const EXERCISES: &[(&str, Start)] = &[
     ("DBM_OPEN_TEST", |ui, _, path| opening::open_test(ui, path)),
     ("DBM_UNPLAYABLE_TEST", |ui, _, _| {
         opening::unplayable_test(ui)
+    }),
+    ("DBM_IDLE_TEST", |ui, app, _| {
+        opening::idle_test(ui, app.mpv.clone())
     }),
     ("DBM_DIALOG_TEST", |ui, _, _| opening::dialog_test(ui)),
     ("DBM_SHOWCASE", |ui, _, surface| {

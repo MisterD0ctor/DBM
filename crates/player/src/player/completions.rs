@@ -4,10 +4,9 @@
 //! adding a kind of background job is a compile error until its result has
 //! somewhere to go (see `worker`). Each arm hands its result to whatever owns
 //! what it changes: the search to `interface::find`, a sync to
-//! `interface::subsync`, and what the driver holds itself to a method below.
+//! `interface::subsync`, and what the player holds itself to a method below.
 
 use dbm_library::onward::Onward;
-use dbm_library::playlist::Prepared;
 use dbm_library::preview::{Sprite, Still};
 use dbm_library::resume::Resume;
 use dbm_library::shelf::{Beside, Shelf};
@@ -15,27 +14,22 @@ use dbm_library::titles::{self, End};
 use dbm_mpv::MediaPath;
 use slint::ComponentHandle;
 
-use super::{Driver, Gpu};
+use super::Player;
 use crate::interface::{format, say, subsync, warn};
 use crate::playback::commands;
 use crate::playback::state::Lists;
 use crate::worker::{Completion, Worker};
-use crate::{MainWindow, Playback, Playlist};
+use crate::{MainWindow, Playback};
 
-impl Driver {
+impl Player {
     /// Take delivery of one finished job. Returns whether the playlist needs
     /// laying out again, which the caller asks for once however many did.
-    pub(super) fn receive(
-        &mut self,
-        ui: &MainWindow,
-        gpu: &mut Gpu,
-        completion: Completion,
-    ) -> bool {
-        let playing = self.player.path.as_ref();
+    pub(super) fn receive(&mut self, ui: &MainWindow, completion: Completion) -> bool {
+        let playing = self.state.path.as_ref();
         match completion {
             // The three that can move the playlist's rows.
             Completion::Lists(lists) => return self.take_lists(ui, lists),
-            Completion::Probed(found) => return self.player.apply_probed(found),
+            Completion::Probed(found) => return self.state.apply_probed(found),
             Completion::Beside { paths, seasons } => return self.take_beside(&paths, seasons),
 
             Completion::Shelved(shelf) => self.take_shelf(ui, shelf),
@@ -43,19 +37,19 @@ impl Driver {
             Completion::Opened(Err(e)) => self.not_opened(ui, e),
             Completion::Notice(text) => say(ui, text),
             Completion::Warning(text) => warn(ui, text),
-            Completion::Resume(Some(resume)) => self.offer_resume(ui, gpu, resume),
+            Completion::Resume(Some(resume)) => self.offer_resume(ui, resume),
             // Nothing to continue, which on a fresh install is every time:
             // the window is lit by the player's own mark instead.
             Completion::Resume(None) => light_with_the_mark(&self.app.worker),
             Completion::Preview { sprite, pixels } => self.show_atlas(ui, sprite, pixels),
             Completion::Mark(still) => {
-                show_backdrop(gpu, &still);
+                self.backdrop = Some(still);
                 ui.set_backdrop(true);
             }
             Completion::Titles(heard) => self.take_titles(ui, heard),
             Completion::Bars(found) => self.bars.take(found, playing),
             Completion::Synced(outcome) => {
-                subsync::answer(ui, &self.app.mpv, &self.player, outcome);
+                subsync::answer(ui, &self.app.mpv, &self.state, outcome);
             }
             Completion::Found(found) => self.app.search.found(ui, playing, found),
             Completion::Fetched(fetched) => {
@@ -67,7 +61,7 @@ impl Driver {
                     .signed_in(ui, &self.app.worker, playing, result);
             }
             Completion::Kept { path, files } => self.put_back(&path, files),
-            Completion::EndLight { from, still } => self.light_the_end_with(gpu, from, still),
+            Completion::EndLight { from, still } => self.light_the_end_with(from, still),
             Completion::Onward { from, to } => self.offer_onward(ui, &from, to),
         }
         false
@@ -77,22 +71,21 @@ impl Driver {
     /// mirrored state, and the work that follows from the playlist's paths
     /// asked for.
     fn take_lists(&mut self, ui: &MainWindow, lists: Lists) -> bool {
-        let mut moved = self.feeds.lists.apply(ui, &mut self.player, lists);
+        let mut moved = self.feeds.lists.apply(ui, &mut self.state, lists);
         if moved {
             self.warm.ask(crate::Panel::Subtitles);
             self.warm.ask(crate::Panel::Audio);
         }
         // A read the lists have since moved past is thrown away, so the
-        // newer one is asked for now: the poll in the frame has already
-        // run, and a paused film may draw no other.
-        self.feeds.lists.poll(&self.app.worker, &self.player);
+        // newer one is asked for now: this run's poll has already been.
+        self.feeds.lists.poll(&self.app.worker, &self.state);
         // What is saved for each entry, for choosing one on purpose.
         self.app.arrival.learn(
-            (0..self.player.playlist.len())
+            (0..self.state.playlist.len())
                 .map(|row| {
                     (
-                        self.player.playlist[row].filename.clone(),
-                        self.player.known_progress(row),
+                        self.state.playlist[row].filename.clone(),
+                        self.state.known_progress(row),
                     )
                 })
                 .collect(),
@@ -100,13 +93,14 @@ impl Driver {
         // Here because this is where the playlist's paths become
         // known. The scan compares them with the last request and
         // does nothing when only the tracks moved.
-        let paths = self.player.playlist_paths();
+        let paths = self.state.playlist_paths();
         self.feeds.scan.request(&paths, &self.app.worker);
         // What was found beside the old list is put away rather than
         // shown around another show.
-        if self.feeds.neighbours.request(&paths, &self.app.worker) && !self.player.beside.is_empty()
+        if self.feeds.neighbours.request(&paths, &self.app.worker)
+            && !self.state.found.beside.is_empty()
         {
-            self.player.beside.clear();
+            self.state.found.beside.clear();
             moved = true;
         }
         moved
@@ -115,9 +109,9 @@ impl Driver {
     /// The seasons found beside the playlist, for the list it was looked for
     /// beside, or for nothing.
     fn take_beside(&mut self, paths: &[MediaPath], seasons: Vec<Beside>) -> bool {
-        let playing = self.player.playlist.iter().map(|e| &e.filename);
-        if playing.eq(paths) && self.player.beside != seasons {
-            self.player.beside = seasons;
+        let playing = self.state.playlist.iter().map(|e| &e.filename);
+        if playing.eq(paths) && self.state.found.beside != seasons {
+            self.state.found.beside = seasons;
             return true;
         }
         false
@@ -127,37 +121,6 @@ impl Driver {
         if self.panel.show(ui, shelf) {
             self.warm.ask(crate::Panel::Playlist);
         }
-    }
-
-    /// Load what an open found.
-    fn load(&mut self, list: Prepared) {
-        log::info!("opened {} file(s), starting at {}", list.count, list.start);
-        self.loading_list = true;
-        if list.ask {
-            self.app
-                .arrival
-                .open_list(&self.app.mpv, list.first.clone(), list.saved);
-        }
-        if commands::load_list(&self.app.mpv, &list.m3u, list.start, &list.first) {
-            self.lists_loading.push_back(list.m3u);
-        } else {
-            self.delete_list(list.m3u);
-        }
-    }
-
-    /// Delete a playlist file mpv is done with, off the frame path.
-    pub(super) fn delete_list(&self, m3u: std::path::PathBuf) {
-        self.app.worker.run(move |_mpv| {
-            let _ = std::fs::remove_file(m3u);
-        });
-    }
-
-    fn not_opened(&mut self, ui: &MainWindow, e: String) {
-        log::warn!("cannot open: {e}");
-        // Nothing was found to load, so no file is coming.
-        ui.global::<Playlist>().set_opening(false);
-        self.stumbled = true;
-        warn(ui, e);
     }
 
     /// Where the title sequence or the credits were heard. Kept with its
@@ -170,19 +133,19 @@ impl Driver {
         match heard.end {
             // A title sequence is heard as the one piece.
             End::Opening => {
-                self.player.intro_heard = pieces.first().map(|&span| (heard.path, span));
+                self.state.found.intro_heard = pieces.first().map(|&span| (heard.path, span));
             }
-            End::Closing => self.player.credits_heard = Some((heard.path, pieces)),
+            End::Closing => self.state.found.credits_heard = Some((heard.path, pieces)),
         }
         // Pushed here, since a paused film reports nothing else that would.
-        crate::interface::sync::push_scalars(ui, &self.player);
+        crate::interface::sync::push_scalars(ui, &self.state);
     }
 
     /// Subtitles fetched for this film before, back in the list as the
     /// film's own tracks are, without taking the place of whichever one it
     /// opened on.
     fn put_back(&self, path: &MediaPath, files: Vec<(std::path::PathBuf, String)>) {
-        if self.player.path.as_ref() == Some(path) {
+        if self.state.path.as_ref() == Some(path) {
             for (file, language) in files {
                 commands::add_subtitle(&self.app.mpv, &file, &language, false);
             }
@@ -193,13 +156,13 @@ impl Driver {
     /// own, the end is lit by the mark, as a fresh install's empty window
     /// is: it still dims a last frame that may be a white one, and the
     /// season's line still has that to read on.
-    fn light_the_end_with(&mut self, gpu: &mut Gpu, from: MediaPath, still: Option<Still>) {
-        if self.player.path.as_ref() != Some(&from) {
+    fn light_the_end_with(&mut self, from: MediaPath, still: Option<Still>) {
+        if self.state.path.as_ref() != Some(&from) {
             return;
         }
         self.per_file.end_marked = still.is_none();
         if let Some(still) = still.or_else(dbm_library::mark::still) {
-            show_backdrop(gpu, &still);
+            self.backdrop = Some(still);
             self.per_file.end_lit = Some(from);
         }
     }
@@ -208,7 +171,7 @@ impl Driver {
     /// been replaced is dropped.
     fn offer_onward(&self, ui: &MainWindow, from: &MediaPath, to: Option<Onward>) {
         let playback = ui.global::<Playback>();
-        if self.player.path.as_ref() == Some(from)
+        if self.state.path.as_ref() == Some(from)
             && let Some(onward) = to
         {
             playback.set_onward_path(onward.path.to_string_lossy().as_ref().into());
@@ -244,13 +207,13 @@ impl Driver {
         playback.set_preview_clip_y(answer.y);
         // An end reached before its atlas was built had no frame of its
         // own to be lit with, and now may.
-        if self.per_file.end_lit != self.player.path || self.per_file.end_marked {
+        if self.per_file.end_lit != self.state.path || self.per_file.end_marked {
             self.per_file.end_light_asked = None;
         }
     }
 
     /// Put the film left unfinished on the way in, and its frame behind it.
-    fn offer_resume(&mut self, ui: &MainWindow, gpu: &mut Gpu, resume: Resume) {
+    fn offer_resume(&mut self, ui: &MainWindow, resume: Resume) {
         let playback = ui.global::<Playback>();
         log::info!(
             "last unfinished {} at {:.0}%{}",
@@ -268,9 +231,9 @@ impl Driver {
         playback.set_resume_progress(resume.fraction);
         playback.set_resume_left(format::left(resume.seconds_left).into());
         self.resume_left = Some(resume.seconds_left);
-        match &resume.still {
+        match resume.still {
             Some(still) => {
-                show_backdrop(gpu, still);
+                self.backdrop = Some(still);
                 // With no backdrop the way in's glass has nothing to bend and
                 // gives itself a ground, so this is set only where one was
                 // drawn.
@@ -279,11 +242,6 @@ impl Driver {
             None => light_with_the_mark(&self.app.worker),
         }
     }
-}
-
-fn show_backdrop(gpu: &mut Gpu, still: &Still) {
-    gpu.pipeline
-        .set_backdrop(&gpu.gl, &still.rgba, still.width, still.height);
 }
 
 /// Find what the empty window can offer to pick back up. A stat per played

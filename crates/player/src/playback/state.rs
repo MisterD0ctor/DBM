@@ -1,7 +1,10 @@
-//! Mirror of the mpv properties the UI cares about.
+//! What the player knows about what is playing.
 //!
-//! mpv's typed event queue is drained on the UI thread straight into this
-//! struct, which is then pushed into Slint properties.
+//! Three parts. Most fields mirror the mpv properties the interface cares
+//! about: mpv's event queue is drained on the UI thread straight into them
+//! (see [`PlayerState::apply`]). Then mpv's lists, read on the worker when a
+//! count moves. And [`Found`]: what the player found out for itself, about
+//! the files and the playlist, which `apply` never touches.
 //!
 //! Plain fields rather than signals, since Slint's properties provide the
 //! reactivity, and duplicating it here would make two sources of truth.
@@ -181,22 +184,6 @@ pub struct PlayerState {
     pub chapter_count: i64,
     /// Read on the worker with the tracks (see `worker`).
     pub chapters: Vec<dbm_mpv::tracks::Chapter>,
-    /// Where an episode's title sequence was heard to be, in seconds, and the
-    /// file that is true of (see `titles`). Kept with its path, so a new file
-    /// needs nothing cleared.
-    pub intro_heard: Option<(MediaPath, (f64, f64))>,
-    /// Where its closing credits were heard to be, kept the same way: in
-    /// pieces, with a scene of the file's own between two, or after the last
-    /// where it stops short of the end.
-    pub credits_heard: Option<(MediaPath, Vec<(f64, f64)>)>,
-    /// Playlist entries that wouldn't play, by mpv's id, with mpv's reason,
-    /// so their rows can say it again after the notice has gone (see
-    /// `unplayable`). By id rather than path, since a file that fails at once
-    /// has no path reported yet.
-    pub failed: std::collections::HashMap<i64, String>,
-    /// The entry that last played to its end, by mpv's id, for the frame to
-    /// take: what autoplay is moving on from (see `arrival`).
-    pub played_out: Option<i64>,
     pub track_count: i64,
     pub sid: Option<TrackChoice>,
     pub aid: Option<TrackChoice>,
@@ -205,7 +192,7 @@ pub struct PlayerState {
     /// moving within it.
     pub tracks_generation: u64,
     /// How many files mpv has finished opening this run, which tells the
-    /// driver when an open is over: when one loads, not when one exists.
+    /// player when an open is over: when one loads, not when one exists.
     pub loads: u64,
     pub osd: OsdDims,
     /// Display size of the video itself, aspect already applied.
@@ -215,8 +202,16 @@ pub struct PlayerState {
     /// Read on the worker thread (see `worker`). Not written by `apply`.
     pub tracks: Vec<Track>,
     pub playlist: Vec<PlaylistEntry>,
-    /// Parallel to `playlist`, and only as long as it: read in the same job,
-    /// applied in the same step.
+    pub found: Found,
+}
+
+/// What the player found out for itself about the files playing and the
+/// playlist, beside what mpv reports.
+#[derive(Debug, Clone, Default)]
+pub struct Found {
+    /// How far into each playlist entry its saved place is. Parallel to
+    /// `playlist`, and only as long as it: read in the same job, applied in
+    /// the same step.
     pub progress: Vec<dbm_library::durations::Progress>,
     /// What `probe` found, by path.
     ///
@@ -228,6 +223,19 @@ pub struct PlayerState {
     /// (see [`dbm_library::shelf`]). Shown rather than queued, and opened
     /// when picked.
     pub beside: Vec<dbm_library::shelf::Beside>,
+    /// Playlist entries that wouldn't play, by mpv's id, with mpv's reason,
+    /// so their rows can say it again after the notice has gone (see
+    /// `unplayable`). By id rather than path, since a file that fails at once
+    /// has no path reported yet.
+    pub failed: std::collections::HashMap<i64, String>,
+    /// Where an episode's title sequence was heard to be, in seconds, and the
+    /// file that is true of (see `titles`). Kept with its path, so a new file
+    /// needs nothing cleared.
+    pub intro_heard: Option<(MediaPath, (f64, f64))>,
+    /// Where its closing credits were heard to be, kept the same way: in
+    /// pieces, with a scene of the file's own between two, or after the last
+    /// where it stops short of the end.
+    pub credits_heard: Option<(MediaPath, Vec<(f64, f64)>)>,
 }
 
 impl PlayerState {
@@ -241,12 +249,6 @@ impl PlayerState {
             Event::FileLoaded => {
                 self.loads = self.loads.wrapping_add(1);
                 self.lists_moved(true)
-            }
-            Event::EndFile {
-                eof: true, entry, ..
-            } => {
-                self.played_out = Some(*entry);
-                true
             }
             // The chapters are the last file's until the new file's are read,
             // and its index, length and time would be read against them. So
@@ -378,7 +380,7 @@ impl PlayerState {
         let mut changed = set(&mut self.tracks, lists.tracks);
         changed |= set(&mut self.playlist, lists.playlist);
         if let Some(progress) = lists.progress {
-            changed |= set(&mut self.progress, progress);
+            changed |= set(&mut self.found.progress, progress);
         }
         changed |= set(&mut self.chapters, lists.chapters);
         changed
@@ -512,18 +514,18 @@ impl PlayerState {
     /// the ordinary case, and its answer (no length, no progress) is the
     /// default.
     pub fn progress_of(&self, row: usize) -> dbm_library::durations::Progress {
-        self.progress.get(row).copied().unwrap_or_default()
+        self.found.progress.get(row).copied().unwrap_or_default()
     }
 
     /// Take delivery of described files. Returns whether any row changes.
     pub fn apply_probed(&mut self, found: Vec<dbm_library::probe::Found>) -> bool {
         let mut changed = false;
         for f in found {
-            if self.probed.get(&f.path) == Some(&f) {
+            if self.found.probed.get(&f.path) == Some(&f) {
                 continue;
             }
             changed |= self.playlist.iter().any(|e| e.filename == f.path);
-            self.probed.insert(f.path.clone(), f);
+            self.found.probed.insert(f.path.clone(), f);
         }
         changed
     }
@@ -556,7 +558,7 @@ impl PlayerState {
     }
 
     fn probed_for(&self, row: usize) -> Option<&dbm_library::probe::Found> {
-        self.probed.get(&self.playlist.get(row)?.filename)
+        self.found.probed.get(&self.playlist.get(row)?.filename)
     }
 
     /// Playback progress in 0..1, preferring the elapsed/duration ratio so it

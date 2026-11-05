@@ -92,20 +92,36 @@ pub fn cycle_track(mpv: &Mpv, subtitles: bool, direction: i32) {
     }
 }
 
-/// Reply ids for async commands. The scrubber and the list's load wait on
-/// their own, and a move to another file is told apart for when it fails (see
-/// `move_to`); everything else fires and forgets.
-pub const REPLY_IGNORED: u64 = 0;
-pub const REPLY_SCRUB: u64 = 1;
-pub const REPLY_LOADLIST: u64 = 2;
-pub const REPLY_MOVE: u64 = 3;
+/// What a queued command's answer is for. The scrubber and the list's load
+/// wait on their own, and a move to another file is told apart for when it
+/// fails (see `move_to`); everything else fires and forgets.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Reply {
+    Ignored,
+    Scrub,
+    LoadList,
+    Move,
+}
+
+impl Reply {
+    const ALL: [Self; 4] = [Self::Ignored, Self::Scrub, Self::LoadList, Self::Move];
+
+    /// The id mpv hands back with the answer.
+    pub const fn id(self) -> u64 {
+        self as u64
+    }
+
+    pub fn of(id: u64) -> Option<Self> {
+        Self::ALL.into_iter().find(|reply| reply.id() == id)
+    }
+}
 
 /// Queue a command. Never blocks.
 ///
 /// Nothing on an interactive path may wait on mpv's core: a synchronous
 /// exact seek holds the UI thread for about 200ms.
 fn run(mpv: &Mpv, command: Command<'_>) {
-    if let Err(e) = mpv.run(REPLY_IGNORED, command) {
+    if let Err(e) = mpv.run(Reply::Ignored.id(), command) {
         log::warn!("mpv command {command:?} failed: {e}");
     }
 }
@@ -263,7 +279,7 @@ pub fn set_audio_track(mpv: &Mpv, id: Option<i64>) {
 /// rather than selected after: `loadlist` starts entry 0 at once, and a file
 /// mpv opens and leaves a moment later counts as stopped at the beginning, so
 /// mpv would delete its watch-later entry. Completion still arrives as
-/// [`REPLY_LOADLIST`], since other work waits on the list.
+/// [`Reply::LoadList`], since other work waits on the list.
 ///
 /// `first`, the entry it starts on, says where the list's files are, since
 /// they all come from one folder. Returns whether the list went to mpv,
@@ -282,7 +298,7 @@ pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &MediaPa
         prop::CACHE,
         if portal { Cache::No } else { Cache::Auto },
     );
-    if let Err(e) = mpv.run(REPLY_LOADLIST, Command::LoadList(m3u)) {
+    if let Err(e) = mpv.run(Reply::LoadList.id(), Command::LoadList(m3u)) {
         log::warn!("loadlist failed: {e}");
         crate::playback::session::settled();
         return false;
@@ -296,11 +312,11 @@ pub fn playlist_play(mpv: &Mpv, index: i64) {
 
 /// Go to another entry in the playlist, saving the place in this one first.
 ///
-/// One past either end goes nowhere, and mpv's refusal (`REPLY_MOVE`) is
+/// One past either end goes nowhere, and mpv's refusal (`Reply::Move`) is
 /// then the only sign that nothing is opening after all.
 fn move_to(mpv: &Mpv, command: Command<'_>) {
     save_before_leaving(mpv);
-    if let Err(e) = mpv.run(REPLY_MOVE, command) {
+    if let Err(e) = mpv.run(Reply::Move.id(), command) {
         log::warn!("mpv command {command:?} failed: {e}");
         crate::playback::session::settled();
     }
@@ -354,7 +370,7 @@ pub fn seek_scrub(mpv: &Mpv, fraction: f32, exact: bool) -> bool {
         to: percent_of(fraction),
         exact,
     };
-    if let Err(e) = mpv.run(REPLY_SCRUB, seek) {
+    if let Err(e) = mpv.run(Reply::Scrub.id(), seek) {
         log::warn!("scrub seek failed: {e}");
         return false;
     }

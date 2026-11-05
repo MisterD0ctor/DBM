@@ -3,7 +3,7 @@
 //! it.
 //!
 //! The sync row starts the work (see `actions`), and the answer arrives here
-//! through the driver's completions.
+//! through the player's completions.
 
 use dbm_lang::{fill, tr};
 use dbm_library::subsync::{Failure, Outcome};

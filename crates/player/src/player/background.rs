@@ -1,15 +1,15 @@
 use dbm_lang::{fill, tr};
 use slint::ComponentHandle;
 
-use super::{Driver, Gpu};
+use super::Player;
 use crate::interface::{format, sync};
 use crate::worker::Completion;
 use crate::{Find, FindState, MainWindow, Playback, Subtitles, SyncState};
 
-impl Driver {
+impl Player {
     /// Ask for the background work the player's state calls for, and take
     /// delivery of whatever finished.
-    pub(super) fn background(&mut self, ui: &MainWindow, gpu: &mut Gpu) {
+    pub fn background(&mut self, ui: &MainWindow) {
         // Opening the playlist is the cue to go and look at the resume
         // positions again: they are written to disk behind our back, and this
         // is the moment somebody cares what they say.
@@ -22,31 +22,30 @@ impl Driver {
 
         // Each of these asks only when what it follows has moved; the work
         // itself is on the worker.
-        self.feeds.lists.poll(&self.app.worker, &self.player);
-        self.feeds.durations.poll(&self.app.worker, &self.player);
+        self.feeds.lists.poll(&self.app.worker, &self.state);
+        self.feeds.durations.poll(&self.app.worker, &self.state);
         self.poll_preview(ui);
 
         // Several probe results can land in one drain, and seasons found
         // beside the list with them; the playlist is laid out once for all.
-        // The worker's own handle, so the drain does not hold the driver
+        // The worker's own handle, so the drain does not hold the player
         // borrowed while each result is taken in.
         let worker = self.app.worker.clone();
         let mut playlist_moved = false;
         for completion in worker.drain() {
-            playlist_moved |= self.receive(ui, gpu, completion);
+            playlist_moved |= self.receive(ui, completion);
         }
         if playlist_moved {
-            self.panel.request(&self.player, &self.app.worker);
+            self.panel.request(&self.state, &self.app.worker);
         }
 
         self.look_onward(ui);
         self.light_the_end();
         self.listen_for_the_titles();
         self.look_for_bars();
-        // After the drain, so an answer is acted on in the frame it arrives
-        // in: a paused film may draw no other.
-        let tracks_read = self.feeds.lists.settled(&self.player);
-        self.bars.follow(&self.app.mpv, &self.player, tracks_read);
+        // After the drain, so an answer is acted on in the run it arrives in.
+        let tracks_read = self.feeds.lists.settled(&self.state);
+        self.bars.follow(&self.app.mpv, &self.state, tracks_read);
         self.put_back_downloads(ui);
         self.say_it_again(ui);
     }
@@ -56,16 +55,15 @@ impl Driver {
     /// not until the lists have been read for it, which is when the next is
     /// known.
     fn look_for_bars(&mut self) {
-        let Some(path) = self.player.path.as_ref() else {
+        let Some(path) = self.state.path.as_ref() else {
             return;
         };
-        if self.per_file.bars_asked.as_ref() == Some(path)
-            || !self.feeds.lists.settled(&self.player)
+        if self.per_file.bars_asked.as_ref() == Some(path) || !self.feeds.lists.settled(&self.state)
         {
             return;
         }
         self.per_file.bars_asked = Some(path.clone());
-        let playlist = &self.player.playlist;
+        let playlist = &self.state.playlist;
         let next = playlist
             .iter()
             .position(|entry| entry.filename == *path)
@@ -78,23 +76,23 @@ impl Driver {
     /// Put back the subtitles fetched for this file on an earlier visit,
     /// once it has opened, and close a search still open for the last one.
     fn put_back_downloads(&mut self, ui: &MainWindow) {
-        if self.player.path != self.per_file.find_closed {
-            self.per_file.find_closed.clone_from(&self.player.path);
+        if self.state.path != self.per_file.find_closed {
+            self.per_file.find_closed.clone_from(&self.state.path);
             ui.set_find_open(false);
             let find = ui.global::<Find>();
             find.set_state(FindState::Idle);
             find.set_fetching(-1);
         }
-        if self.player.path == self.per_file.kept_asked {
+        if self.state.path == self.per_file.kept_asked {
             return;
         }
         // Not until it has opened: a track added before then is lost with
         // the load it raced.
         let Some(path) = self
-            .player
+            .state
             .path
             .clone()
-            .filter(|_| self.player.duration > 0.0)
+            .filter(|_| self.state.duration > 0.0)
         else {
             return;
         };
@@ -115,9 +113,9 @@ impl Driver {
             return;
         }
         self.language_seen = changes;
-        sync::push_lists(ui, &self.player);
-        sync::push_scalars(ui, &self.player);
-        self.panel.request(&self.player, &self.app.worker);
+        sync::push_lists(ui, &self.state);
+        sync::push_scalars(ui, &self.state);
+        self.panel.request(&self.state, &self.app.worker);
         // Every panel's words have changed for ones it may not have drawn.
         for panel in crate::interface::warm::ALL {
             self.warm.ask(panel);
@@ -136,9 +134,9 @@ impl Driver {
     fn poll_preview(&self, ui: &MainWindow) {
         let playback = ui.global::<Playback>();
         let preview = &self.app.preview;
-        preview.set_duration(self.player.duration);
-        preview.set_chapters(&self.player.chapters);
-        let Some(path) = self.player.path.clone() else {
+        preview.set_duration(self.state.duration);
+        preview.set_chapters(&self.state.chapters);
+        let Some(path) = self.state.path.clone() else {
             return;
         };
         if !preview.claim(&path) {
@@ -179,8 +177,8 @@ impl Driver {
     fn look_onward(&mut self, ui: &MainWindow) {
         let playback = ui.global::<Playback>();
         let ending =
-            (self.player.eof_reached || self.player.credits_rolling()) && self.player.at_last();
-        if self.player.path != self.per_file.onward_asked
+            (self.state.eof_reached || self.state.credits_rolling()) && self.state.at_last();
+        if self.state.path != self.per_file.onward_asked
             && self.per_file.onward_asked.take().is_some()
         {
             playback.set_onward_path("".into());
@@ -191,7 +189,7 @@ impl Driver {
         if !ending || self.per_file.onward_asked.is_some() {
             return;
         }
-        let Some(path) = self.player.path.clone() else {
+        let Some(path) = self.state.path.clone() else {
             return;
         };
         self.per_file.onward_asked = Some(path.clone());
@@ -214,10 +212,10 @@ impl Driver {
     /// the most lit frame of the file itself, before its credits. Never of
     /// what comes next, whose frame would show a scene before it is watched.
     fn light_the_end(&mut self) {
-        let Some(path) = self.player.path.clone() else {
+        let Some(path) = self.state.path.clone() else {
             return;
         };
-        if !self.player.eof_reached || self.per_file.end_light_asked.as_ref() == Some(&path) {
+        if !self.state.eof_reached || self.per_file.end_light_asked.as_ref() == Some(&path) {
             return;
         }
         self.per_file.end_light_asked = Some(path.clone());
@@ -235,29 +233,29 @@ impl Driver {
     /// that could make the whole thing unnecessary arrive in the same read.
     fn listen_for_the_titles(&mut self) {
         use dbm_library::titles::{self, End};
-        let Some(path) = self.player.path.as_ref() else {
+        let Some(path) = self.state.path.as_ref() else {
             return;
         };
         if self.per_file.titles_asked.as_ref() == Some(path)
-            || self.player.duration <= 0.0
-            || !self.feeds.lists.settled(&self.player)
-            || !self.player.playlist.iter().any(|e| e.filename == *path)
+            || self.state.duration <= 0.0
+            || !self.feeds.lists.settled(&self.state)
+            || !self.state.playlist.iter().any(|e| e.filename == *path)
         {
             return;
         }
         self.per_file.titles_asked = Some(path.clone());
         // The opening first: it is the one that is about to play.
         let mut ends = Vec::new();
-        if self.player.intro_named().is_none() {
+        if self.state.intro_named().is_none() {
             ends.push(End::Opening);
         }
-        if !self.player.credits_marked() {
+        if !self.state.credits_marked() {
             ends.push(End::Closing);
         }
         if ends.is_empty() {
             return;
         }
-        let paths = self.player.playlist_paths();
+        let paths = self.state.playlist_paths();
         let beside = titles::beside(path, &paths);
         if beside.is_empty() {
             return;
@@ -266,7 +264,7 @@ impl Driver {
             path.clone(),
             ends,
             beside,
-            self.player.duration,
+            self.state.duration,
             self.app.worker.reporter(Completion::Titles),
         );
     }

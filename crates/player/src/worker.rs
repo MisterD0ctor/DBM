@@ -5,9 +5,9 @@
 //! as much per drag update, and scanning a folder far more.
 //!
 //! So: one background thread, a queue of jobs in, a queue of completions out.
-//! Jobs get a `&Mpv` and may block as long as they like. Completions are
-//! drained on the UI thread once per frame, and the loop is woken so a paused
-//! player notices them promptly rather than waiting for the next video frame.
+//! Jobs get a `&Mpv` and may block as long as they like. Each completion
+//! wakes the player, which takes it in on the UI thread whether or not a
+//! frame is coming (see `player::wake`).
 //!
 //! Completions are an enum rather than a boxed `Any` so that every kind of
 //! background work is visible in one place, and adding one is a compile
@@ -19,8 +19,6 @@ use std::thread::JoinHandle;
 
 use dbm_library::threads::Reporter;
 use dbm_mpv::{MediaPath, Mpv};
-
-use crate::MainWindow;
 
 /// Work that finished. Add a variant per kind of background job.
 pub enum Completion {
@@ -111,21 +109,13 @@ pub struct Worker {
     /// Kept so other threads can report through the same queue (see
     /// [`Worker::reporter`]).
     reply: Sender<Completion>,
-    waker: slint::Weak<MainWindow>,
-}
-
-/// Nudge a paused loop, which draws no frames that would drain what just
-/// arrived.
-fn wake(ui: &slint::Weak<MainWindow>) {
-    let _ = ui.upgrade_in_event_loop(|ui| slint::ComponentHandle::window(&ui).request_redraw());
 }
 
 impl Worker {
-    pub fn spawn(mpv: Arc<Mpv>, ui: slint::Weak<MainWindow>) -> Self {
+    pub fn spawn(mpv: Arc<Mpv>) -> Self {
         let (jobs_tx, jobs_rx) = mpsc::channel::<Job>();
         let (results_tx, results_rx) = mpsc::channel::<Completion>();
         let reply = results_tx.clone();
-        let waker = ui.clone();
 
         let thread = std::thread::Builder::new()
             .name("dbm-worker".into())
@@ -139,7 +129,7 @@ impl Worker {
                     if results_tx.send(completion).is_err() {
                         break;
                     }
-                    wake(&ui);
+                    crate::player::wake();
                 }
             })
             .expect("spawning the worker thread");
@@ -149,7 +139,6 @@ impl Worker {
             results: results_rx,
             thread: Some(thread),
             reply,
-            waker,
         }
     }
 
@@ -179,14 +168,14 @@ impl Worker {
     ///
     /// Some background work shouldn't queue behind the worker (a large
     /// folder's scan would hold the track menu empty until it finished), but
-    /// its results still belong in the one enum drained each frame, which
+    /// its results still belong in the one enum the player drains, which
     /// `wrap` puts them in.
     pub fn reporter<T: 'static>(&self, wrap: fn(T) -> Completion) -> Reporter<T> {
-        let (reply, waker) = (self.reply.clone(), self.waker.clone());
+        let reply = self.reply.clone();
         Reporter::new(move |value| {
             let delivered = reply.send(wrap(value)).is_ok();
             if delivered {
-                wake(&waker);
+                crate::player::wake();
             }
             delivered
         })

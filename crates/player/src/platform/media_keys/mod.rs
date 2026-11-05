@@ -11,7 +11,8 @@
 //! that doesn't exist for the first few frames and is told what changed,
 //! while MPRIS on Linux claims a bus name at startup and serves properties to
 //! any client at any moment. Both have the same face (`Controls::new(mpv)`,
-//! then `publish` once a frame), so the frame loop never learns which it got.
+//! then `publish` on each run of the player), so the player never learns
+//! which it got.
 
 #[cfg(not(windows))]
 pub mod mpris;

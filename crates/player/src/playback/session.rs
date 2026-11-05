@@ -112,7 +112,10 @@ pub fn checkpoint(mpv: &Mpv) {
     if OPENING.load(Ordering::Relaxed) {
         return;
     }
-    if let Err(e) = mpv.run(commands::REPLY_IGNORED, Command::WriteWatchLaterConfig) {
+    if let Err(e) = mpv.run(
+        commands::Reply::Ignored.id(),
+        Command::WriteWatchLaterConfig,
+    ) {
         log::info!("watch-later checkpoint: {e}");
     }
 }
@@ -172,7 +175,7 @@ pub fn mask_subtitles(mpv: &Mpv) {
     let loaded = std::fs::write(&path, include_str!("../../shaders/subtitle_mask.glsl"))
         .map_err(|e| e.to_string())
         .and_then(|()| {
-            mpv.run(commands::REPLY_IGNORED, Command::AppendShader(&path))
+            mpv.run(commands::Reply::Ignored.id(), Command::AppendShader(&path))
                 .map_err(|e| e.to_string())
         });
     if let Err(e) = loaded {

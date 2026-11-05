@@ -1,7 +1,9 @@
 //! Opening things: a path, the file dialog, a drop, and the playlist scan.
 
+use std::sync::Arc;
 use std::time::Duration;
 
+use dbm_mpv::Mpv;
 use slint::ComponentHandle;
 
 use super::playlist_rows;
@@ -73,6 +75,32 @@ pub(super) fn unplayable_test(ui: &MainWindow) -> Script {
             )
             .await;
         eprintln!("dbm: unplayable said {:?}", why());
+        verdict.finish();
+    })
+}
+
+/// Move on to a file that won't play, minimised and touching nothing. A
+/// minimised window is asked for no frames, and with nothing loaded mpv draws
+/// none either, so this shows whether the player still hears mpv then.
+pub(super) fn idle_test(ui: &MainWindow, mpv: Arc<Mpv>) -> Script {
+    script::run(ui, move |ui| async move {
+        let verdict = Verdict::new("idle");
+        let playback = ui.global::<Playback>();
+        verdict
+            .expect(|| playback.get_has_file(), "the first file plays")
+            .await;
+        ui.window().set_minimized(true);
+        sleep(Duration::from_millis(500)).await;
+        crate::playback::commands::advance(&mpv, 1);
+        // In whatever language the run speaks, which is the system's.
+        let why = || playlist_rows(&ui).iter().any(|row| !row.why.is_empty());
+        verdict
+            .expect(|| !playback.get_has_file(), "nothing is left playing")
+            .await;
+        verdict
+            .expect(why, "the row of the file that failed says why")
+            .await;
+        ui.window().set_minimized(false);
         verdict.finish();
     })
 }

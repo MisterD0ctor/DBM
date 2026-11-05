@@ -86,8 +86,8 @@ impl Controls {
     /// Tell the overlay what is playing, registering first if that has not
     /// managed to happen yet.
     ///
-    /// Called every frame, because registration is retried until the window
-    /// exists. `moved` says whether any mpv property changed, since reading
+    /// Called on every run of the player, because registration is retried
+    /// until the window exists. `moved` says whether any mpv property changed, since reading
     /// the state costs a title parse and an allocation.
     pub fn publish(&self, window: &slint::Window, player: &PlayerState, moved: bool) {
         let mut state = self.state.borrow_mut();
@@ -218,8 +218,7 @@ fn for_window(window: &slint::Window) -> Result<SystemMediaTransportControls, St
 /// **Runs on a Windows thread pool thread**, not the UI thread. That is
 /// fine and deliberate: mpv's commands are thread-safe and asynchronous,
 /// so the press is queued without touching anything of ours. Marshalling
-/// it to the UI thread would only add a hop — and a button pressed while
-/// the interface is asleep would wait for a frame that is not coming.
+/// it to the UI thread would only add a hop.
 fn pressed(mpv: &Mpv, button: SystemMediaTransportControlsButton) {
     use crate::playback::commands;
     match button {

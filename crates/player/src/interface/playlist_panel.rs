@@ -60,13 +60,14 @@ impl Panel {
                 current: e.current,
                 progress: player.known_progress(row),
                 why: player
+                    .found
                     .failed
                     .get(&e.id)
                     .map(|reason| unplayable::could_not_play(reason, Some(&e.filename)))
                     .unwrap_or_default(),
             })
             .collect();
-        let beside: Vec<Beside> = player.beside.clone();
+        let beside: Vec<Beside> = player.found.beside.clone();
         worker.submit(move |_mpv| {
             let items: Vec<shelf::Item> = rows
                 .iter()

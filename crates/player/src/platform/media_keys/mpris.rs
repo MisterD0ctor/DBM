@@ -22,13 +22,8 @@
 //! is excluded from `PropertiesChanged`, and clients read it when they want
 //! it. It rides an atomic the frame path stores and the bus thread loads.
 //!
-//! The outbound half rests on frames: `publish` is called from the render
-//! driver, where mpv's events are drained, and a frame happens only when
-//! there is something to draw. While a film plays, or is paused with the
-//! window on screen, there always is; when nothing is drawn the last thing
-//! said stands, and asking Slint for a frame doesn't change that. Hence
-//! `Player::stop` pauses rather than unloading. The Windows side has the
-//! same limitation.
+//! The outbound half is `publish`, called on every run of the player (see
+//! `player`), which comes whenever mpv says something, drawn or not.
 
 use std::borrow::Cow;
 use std::cell::RefCell;
@@ -473,8 +468,7 @@ struct Player {
 
 /// Every method below **runs on a bus thread**, not the UI thread, as the
 /// Windows button handler does. mpv's commands are queued and thread-safe,
-/// and a press marshalled to the UI thread while the interface is asleep
-/// would wait for a frame that isn't coming.
+/// so a press goes straight to mpv rather than by way of the UI thread.
 #[zbus::interface(name = "org.mpris.MediaPlayer2.Player")]
 impl Player {
     /// Skipping is stepping and playing, as the button at the end of a file
@@ -508,14 +502,13 @@ impl Player {
 
     /// Stop, which here means pause.
     ///
-    /// MPRIS means stop and rewind, and mpv's `stop` does that by unloading.
-    /// But a player with no film draws nothing, and everything the bus is
-    /// told rides a frame, so the bus would go on saying `Playing` with the
-    /// old title until the window was touched. Rewinding without unloading is
-    /// worse: the resume checkpoint would write the zero over the person's
-    /// place. Pausing stops the sound, which is what pressing it wants, and
-    /// keeps what the bus reports true. Windows doesn't implement Stop at all
-    /// (`smtc::pressed` lets it fall through).
+    /// MPRIS means stop and rewind, and mpv's `stop` does that by unloading,
+    /// which would first have to save the person's place, as moving to
+    /// another file does (see `commands::move_to`). Rewinding without
+    /// unloading is worse: the resume checkpoint would write the zero over
+    /// that place. Pausing stops the sound, which is what pressing it wants.
+    /// Windows doesn't implement Stop at all (`smtc::pressed` lets it fall
+    /// through).
     fn stop(&self) {
         commands::set_pause(&self.mpv, true);
     }

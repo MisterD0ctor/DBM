@@ -30,7 +30,8 @@
 //! | module        | owns                                                      |
 //! |---------------|-----------------------------------------------------------|
 //! | `app`         | the handles the rest share, in one value                  |
-//! | `driver`      | the frame: Slint's rendering notifier, and all it runs    |
+//! | `player`      | what is playing, run whenever mpv or the worker speaks    |
+//! | `driver`      | the frame: the GPU, from Slint's rendering notifier       |
 //! | `playback`    | mpv: its mirrored state, commands, resuming               |
 //! | `interface`   | the Rust side of `app.slint`: callbacks and properties    |
 //! | `platform`    | what each OS has to be asked for in its own way           |
@@ -58,6 +59,7 @@ mod interface;
 mod logging;
 mod platform;
 mod playback;
+mod player;
 mod run_mode;
 mod settings;
 mod worker;
@@ -103,7 +105,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     playback::session::mask_subtitles(&mpv);
     playback::state::observe(&mpv);
 
-    let worker = Rc::new(worker::Worker::spawn(mpv.clone(), ui.as_weak()));
+    let worker = Rc::new(worker::Worker::spawn(mpv.clone()));
     dbm_library::real_paths::move_once();
     let settings = Rc::new(settings::Store::default());
     let app = App::new(Shared {
@@ -137,16 +139,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // held until the event loop returns.
     let idle_timer = interface::chrome::install(&ui, app.activity.clone());
 
-    let mut driver = driver::Driver::new(
+    let player = player::Player::new(
         ui.as_weak(),
         app.clone(),
-        file,
-        // On Windows this registers itself from the frame path: the window
+        // On Windows this registers itself from the player's runs: the window
         // handle it needs does not exist yet and will not until the loop has
         // turned. On Linux there is no handle in it, so the bus name is
         // claimed here and now — see `mpris`.
         platform::media_keys::Controls::new(mpv.clone()),
     );
+    let mut driver = driver::Driver::new(ui.as_weak(), app.clone(), file, player);
     ui.window()
         .set_rendering_notifier(move |state, api| driver.on(state, api))?;
 
@@ -161,7 +163,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ui.run()?;
 
     // First, so the place is on disk before anything slow.
-    // SAFETY: the event loop has returned, so nothing drains mpv's events.
+    // SAFETY: the event loop has returned, and with it every run of the
+    // player, the one other reader of mpv's events.
     unsafe { playback::session::save_before_quitting(&mpv) };
     saver.flush();
 

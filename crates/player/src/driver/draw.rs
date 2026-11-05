@@ -3,12 +3,20 @@ use dbm_gpu::pipeline::Frame;
 use slint::{BorrowedOpenGLTextureBuilder, BorrowedOpenGLTextureOrigin, ComponentHandle};
 
 use super::{Driver, Gpu, Published};
+use crate::MainWindow;
+use crate::player::Player;
 use crate::settings::Toggle;
-use crate::{MainWindow, Playback};
 
 impl Driver {
     /// Run the pipeline and hand Slint the result.
-    pub(super) fn draw(&mut self, ui: &MainWindow, gpu: &mut Gpu, t: std::time::Instant) {
+    pub(super) fn draw(
+        &mut self,
+        ui: &MainWindow,
+        gpu: &mut Gpu,
+        player: &Player,
+        t: std::time::Instant,
+    ) {
+        let state = player.state();
         // Material parameters, if a slider moved. Coalesced in the store,
         // so a drag costs one update per frame however fast it moves.
         let mut params_dirty = false;
@@ -28,20 +36,16 @@ impl Driver {
 
         // The backdrop stands in while nothing is loaded, and at the end of a
         // file once its light has come.
-        let ended = self.player.eof_reached
-            && self.per_file.end_lit.is_some()
-            && self.per_file.end_lit == self.player.path;
-        ui.global::<Playback>().set_end_lit(ended);
         gpu.pipeline.show_backdrop(
-            self.player.path.is_none() || ended,
-            self.player.path.is_some(),
+            state.path.is_none() || player.end_lit(),
+            state.path.is_some(),
         );
         let paint = ui.global::<crate::Paint>();
         gpu.pipeline.text_floor = f32::from(paint.get_body().alpha()) / 255.0;
 
         let size = ui.window().size();
         // For the size being rendered at, not the one mpv last reported on.
-        let rect = self.player.video_rect(size.width, size.height);
+        let rect = state.video_rect(size.width, size.height);
         // Poll exactly once: reading the update flag also clears it, so a
         // second call would swallow the frame it reported. The context is
         // current, this being Slint's rendering notifier.
@@ -87,7 +91,7 @@ impl Driver {
             new_frame,
             &gpu.pipeline,
             &gpu.gl,
-            &self.player,
+            state,
             size.width,
             size.height,
         );

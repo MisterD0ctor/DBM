@@ -62,7 +62,7 @@ fn autoplayed(progress: &Progress) -> Option<Then> {
 #[derive(Default)]
 struct State {
     /// Every playlist entry's path and what is saved for it, in order: what
-    /// the driver last read of the lists.
+    /// the player last read of the lists.
     rows: Vec<(MediaPath, Progress)>,
     /// The entry playing, whether it is paused, how many files mpv has
     /// loaded and which is loaded now, as of the last frame.
@@ -117,8 +117,8 @@ impl Arrival {
     }
 
     /// Where the playlist is, whether it is paused, how many files have
-    /// loaded and which is loaded now: every frame. Carries out what was
-    /// decided for a file asked for, once it is the one loaded.
+    /// loaded and which is loaded now: on every run of the player. Carries
+    /// out what was decided for a file asked for, once it is the one loaded.
     pub fn follow(
         &self,
         mpv: &Mpv,
