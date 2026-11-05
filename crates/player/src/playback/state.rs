@@ -9,138 +9,85 @@
 use dbm_lang::{fill, tr};
 use dbm_mpv::prop::{self, TrackChoice};
 use dbm_mpv::tracks::{PlaylistEntry, Track};
-use dbm_mpv::{AnyProperty, Event, FromMpv, MediaPath, Mpv, Value};
+use dbm_mpv::{AnyProperty, Event, MediaPath, Mpv, Property, Value};
 
-/// Every property the player observes. Its position in [`Prop::ALL`] is the
-/// id mpv reports it under.
-///
-/// List-shaped properties (`track-list`, `playlist`) are absent, since
-/// observing them as nodes would marshal a tree across FFI on every change.
-/// Their counts are observed instead, and the list is pulled when one moves.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Prop {
-    Filename,
-    MediaTitle,
-    Path,
-    Duration,
-    TimePos,
-    PercentPos,
-    Pause,
-    Mute,
-    Volume,
-    EofReached,
-    IdleActive,
-    PlaylistPos,
-    PlaylistCount,
-    SubVisibility,
-    SubDelay,
-    SubSpeed,
-    SubScale,
-    Panscan,
-    Speed,
-    Chapter,
-    ChapterCount,
-    TrackCount,
+/// Declares [`Prop`] from one list, so each property's id, its place in
+/// [`Prop::ALL`] and the mpv property it mirrors can't drift apart.
+macro_rules! observed {
+    ($($(#[$doc:meta])* $variant:ident = $property:path,)*) => {
+        /// Every property the player observes. Its position in [`Prop::ALL`]
+        /// is the id mpv reports it under.
+        ///
+        /// List-shaped properties (`track-list`, `playlist`) are absent, since
+        /// observing them as nodes would marshal a tree across FFI on every
+        /// change. Their counts are observed instead, and the list is pulled
+        /// when one moves.
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        pub enum Prop {
+            $($(#[$doc])* $variant,)*
+        }
+
+        impl Prop {
+            /// In declaration order, which makes each one's index its id.
+            pub const ALL: &[Self] = &[$(Self::$variant,)*];
+
+            /// The mpv property it mirrors, whose type says what it arrives as.
+            pub fn property(self) -> AnyProperty {
+                match self {
+                    $(Self::$variant => $property.into(),)*
+                }
+            }
+        }
+    };
+}
+
+observed! {
+    Filename = prop::FILENAME,
+    MediaTitle = prop::MEDIA_TITLE,
+    Path = prop::PATH,
+    Duration = prop::DURATION,
+    TimePos = prop::TIME_POS,
+    PercentPos = prop::PERCENT_POS,
+    Pause = prop::PAUSE,
+    Mute = prop::MUTE,
+    Volume = prop::VOLUME,
+    EofReached = prop::EOF_REACHED,
+    IdleActive = prop::IDLE_ACTIVE,
+    PlaylistPos = prop::PLAYLIST_POS,
+    PlaylistCount = prop::PLAYLIST_COUNT,
+    SubVisibility = prop::SUB_VISIBILITY,
+    SubDelay = prop::SUB_DELAY,
+    SubSpeed = prop::SUB_SPEED,
+    SubScale = prop::SUB_SCALE,
+    Panscan = prop::PANSCAN,
+    Speed = prop::SPEED,
+    Chapter = prop::CHAPTER,
+    ChapterCount = prop::CHAPTER_COUNT,
+    TrackCount = prop::TRACK_COUNT,
     /// Selecting a different track does not change the list's length, so
     /// this and `Aid` are what keep the `selected` flags from going stale.
-    Sid,
-    Aid,
+    Sid = prop::SID,
+    Aid = prop::AID,
     /// The video's own size after aspect correction. Enough, with `panscan`,
     /// to work out where a frame will land without waiting to be told.
-    Dwidth,
-    Dheight,
+    Dwidth = prop::DWIDTH,
+    Dheight = prop::DHEIGHT,
     /// Where mpv actually laid the video out. Observed rather than polled,
     /// since a blocking read on the render path cost 220ms a frame during a
     /// resize, when mpv's core lock is contended.
-    OsdW,
-    OsdH,
-    OsdMl,
-    OsdMt,
-    OsdMr,
-    OsdMb,
+    OsdW = prop::OSD_W,
+    OsdH = prop::OSD_H,
+    OsdMl = prop::OSD_ML,
+    OsdMt = prop::OSD_MT,
+    OsdMr = prop::OSD_MR,
+    OsdMb = prop::OSD_MB,
     /// Never shown: observed because observing it is what starts mpv's
     /// hotplug monitor, which the audio watchdog needs to put sound back
     /// when a device returns (see `audio`).
-    AudioDeviceList,
+    AudioDeviceList = prop::AUDIO_DEVICE_LIST,
 }
 
 impl Prop {
-    /// In declaration order, which makes each one's index its id.
-    pub const ALL: [Self; 33] = [
-        Self::Filename,
-        Self::MediaTitle,
-        Self::Path,
-        Self::Duration,
-        Self::TimePos,
-        Self::PercentPos,
-        Self::Pause,
-        Self::Mute,
-        Self::Volume,
-        Self::EofReached,
-        Self::IdleActive,
-        Self::PlaylistPos,
-        Self::PlaylistCount,
-        Self::SubVisibility,
-        Self::SubDelay,
-        Self::SubSpeed,
-        Self::SubScale,
-        Self::Panscan,
-        Self::Speed,
-        Self::Chapter,
-        Self::ChapterCount,
-        Self::TrackCount,
-        Self::Sid,
-        Self::Aid,
-        Self::Dwidth,
-        Self::Dheight,
-        Self::OsdW,
-        Self::OsdH,
-        Self::OsdMl,
-        Self::OsdMt,
-        Self::OsdMr,
-        Self::OsdMb,
-        Self::AudioDeviceList,
-    ];
-
-    /// The mpv property it mirrors, whose type says what it arrives as.
-    pub fn property(self) -> AnyProperty {
-        match self {
-            Self::Filename => prop::FILENAME.into(),
-            Self::MediaTitle => prop::MEDIA_TITLE.into(),
-            Self::Path => prop::PATH.into(),
-            Self::Duration => prop::DURATION.into(),
-            Self::TimePos => prop::TIME_POS.into(),
-            Self::PercentPos => prop::PERCENT_POS.into(),
-            Self::Pause => prop::PAUSE.into(),
-            Self::Mute => prop::MUTE.into(),
-            Self::Volume => prop::VOLUME.into(),
-            Self::EofReached => prop::EOF_REACHED.into(),
-            Self::IdleActive => prop::IDLE_ACTIVE.into(),
-            Self::PlaylistPos => prop::PLAYLIST_POS.into(),
-            Self::PlaylistCount => prop::PLAYLIST_COUNT.into(),
-            Self::SubVisibility => prop::SUB_VISIBILITY.into(),
-            Self::SubDelay => prop::SUB_DELAY.into(),
-            Self::SubSpeed => prop::SUB_SPEED.into(),
-            Self::SubScale => prop::SUB_SCALE.into(),
-            Self::Panscan => prop::PANSCAN.into(),
-            Self::Speed => prop::SPEED.into(),
-            Self::Chapter => prop::CHAPTER.into(),
-            Self::ChapterCount => prop::CHAPTER_COUNT.into(),
-            Self::TrackCount => prop::TRACK_COUNT.into(),
-            Self::Sid => prop::SID.into(),
-            Self::Aid => prop::AID.into(),
-            Self::Dwidth => prop::DWIDTH.into(),
-            Self::Dheight => prop::DHEIGHT.into(),
-            Self::OsdW => prop::OSD_W.into(),
-            Self::OsdH => prop::OSD_H.into(),
-            Self::OsdMl => prop::OSD_ML.into(),
-            Self::OsdMt => prop::OSD_MT.into(),
-            Self::OsdMr => prop::OSD_MR.into(),
-            Self::OsdMb => prop::OSD_MB.into(),
-            Self::AudioDeviceList => prop::AUDIO_DEVICE_LIST.into(),
-        }
-    }
-
     pub const fn id(self) -> u64 {
         self as u64
     }
@@ -155,7 +102,7 @@ impl Prop {
 
 /// Ask mpv for every [`Prop`], under its id.
 pub fn observe(mpv: &Mpv) {
-    for prop in Prop::ALL {
+    for &prop in Prop::ALL {
         if let Err(e) = mpv.observe(prop.id(), prop.property()) {
             log::warn!("cannot observe {}: {e}", prop.property().name());
         }
@@ -316,72 +263,90 @@ impl PlayerState {
         }
     }
 
-    fn apply_property(&mut self, prop: Prop, value: Option<&Value>) -> bool {
-        // No value is normal (`time-pos` has none until something plays), so
-        // it clears the field rather than being an error.
-        let num = match value {
-            Some(Value::Double(d)) if d.is_finite() => Some(*d),
-            _ => None,
-        };
-        let int = match value {
-            Some(Value::Int(n)) => Some(*n),
-            _ => None,
-        };
-        let flag = matches!(value, Some(Value::Flag(true)));
-        let text = match value {
-            Some(Value::Str(s)) if !s.is_empty() => Some(s.clone()),
-            _ => None,
-        };
-        let track = || value.cloned().and_then(TrackChoice::from_mpv);
-
-        match prop {
-            Prop::Filename => set(&mut self.filename, text),
-            Prop::MediaTitle => set(&mut self.media_title, text),
-            Prop::Path => set(&mut self.path, text.map(MediaPath::from)),
-            Prop::Duration => set(&mut self.duration, num.unwrap_or(0.0)),
-            Prop::TimePos => set(&mut self.time_pos, num.unwrap_or(0.0)),
-            Prop::PercentPos => set(&mut self.percent_pos, num.unwrap_or(0.0)),
-            Prop::Pause => set(&mut self.paused, flag),
-            Prop::Mute => set(&mut self.muted, flag),
-            Prop::Volume => set(&mut self.volume, num.unwrap_or(0.0)),
-            Prop::EofReached => set(&mut self.eof_reached, flag),
-            Prop::IdleActive => set(&mut self.idle, flag),
-            Prop::PlaylistPos => set(&mut self.playlist_pos, int.and_then(index)),
+    /// No value is normal (`time-pos` has none until something plays), so it
+    /// clears the field rather than being an error.
+    fn apply_property(&mut self, which: Prop, value: Option<&Value>) -> bool {
+        match which {
+            Prop::Filename => set(&mut self.filename, text(prop::FILENAME, value)),
+            Prop::MediaTitle => set(&mut self.media_title, text(prop::MEDIA_TITLE, value)),
+            Prop::Path => set(&mut self.path, prop::PATH.decode(value)),
+            Prop::Duration => set(
+                &mut self.duration,
+                number(prop::DURATION, value).unwrap_or(0.0),
+            ),
+            Prop::TimePos => set(
+                &mut self.time_pos,
+                number(prop::TIME_POS, value).unwrap_or(0.0),
+            ),
+            Prop::PercentPos => set(
+                &mut self.percent_pos,
+                number(prop::PERCENT_POS, value).unwrap_or(0.0),
+            ),
+            Prop::Pause => set(&mut self.paused, flag(prop::PAUSE, value)),
+            Prop::Mute => set(&mut self.muted, flag(prop::MUTE, value)),
+            Prop::Volume => set(&mut self.volume, number(prop::VOLUME, value).unwrap_or(0.0)),
+            Prop::EofReached => set(&mut self.eof_reached, flag(prop::EOF_REACHED, value)),
+            Prop::IdleActive => set(&mut self.idle, flag(prop::IDLE_ACTIVE, value)),
+            Prop::PlaylistPos => set(
+                &mut self.playlist_pos,
+                prop::PLAYLIST_POS.decode(value).and_then(index),
+            ),
             Prop::PlaylistCount => {
-                let moved = set(&mut self.playlist_count, int.and_then(index).unwrap_or(0));
+                let count = prop::PLAYLIST_COUNT.decode(value).and_then(index);
+                let moved = set(&mut self.playlist_count, count.unwrap_or(0));
                 self.lists_moved(moved)
             }
-            Prop::SubVisibility => set(&mut self.sub_visibility, flag),
-            Prop::SubDelay => set(&mut self.sub_delay, num.unwrap_or(0.0)),
-            Prop::SubSpeed => set(&mut self.sub_speed, num.unwrap_or(1.0)),
-            Prop::SubScale => set(&mut self.sub_scale, num.unwrap_or(1.0)),
-            Prop::Panscan => set(&mut self.panscan, num.unwrap_or(0.0)),
-            Prop::Speed => set(&mut self.speed, num.unwrap_or(1.0)),
-            Prop::Chapter => set(&mut self.chapter, int.and_then(index)),
+            Prop::SubVisibility => set(&mut self.sub_visibility, flag(prop::SUB_VISIBILITY, value)),
+            Prop::SubDelay => set(
+                &mut self.sub_delay,
+                number(prop::SUB_DELAY, value).unwrap_or(0.0),
+            ),
+            Prop::SubSpeed => set(
+                &mut self.sub_speed,
+                number(prop::SUB_SPEED, value).unwrap_or(1.0),
+            ),
+            Prop::SubScale => set(
+                &mut self.sub_scale,
+                number(prop::SUB_SCALE, value).unwrap_or(1.0),
+            ),
+            Prop::Panscan => set(
+                &mut self.panscan,
+                number(prop::PANSCAN, value).unwrap_or(0.0),
+            ),
+            Prop::Speed => set(&mut self.speed, number(prop::SPEED, value).unwrap_or(1.0)),
+            Prop::Chapter => set(
+                &mut self.chapter,
+                prop::CHAPTER.decode(value).and_then(index),
+            ),
             Prop::ChapterCount => {
-                let moved = set(&mut self.chapter_count, int.unwrap_or(0));
+                let count = prop::CHAPTER_COUNT.decode(value).unwrap_or(0);
+                let moved = set(&mut self.chapter_count, count);
+                self.lists_moved(moved)
+            }
+            Prop::TrackCount => {
+                let count = prop::TRACK_COUNT.decode(value).unwrap_or(0);
+                let moved = set(&mut self.track_count, count);
                 self.lists_moved(moved)
             }
             Prop::Sid => {
-                let moved = set(&mut self.sid, track());
+                let moved = set(&mut self.sid, prop::SID.decode(value));
                 self.lists_moved(moved)
             }
             Prop::Aid => {
-                let moved = set(&mut self.aid, track());
+                let moved = set(&mut self.aid, prop::AID.decode(value));
                 self.lists_moved(moved)
             }
-            Prop::Dwidth => set(&mut self.dwidth, num.unwrap_or(0.0)),
-            Prop::Dheight => set(&mut self.dheight, num.unwrap_or(0.0)),
-            Prop::OsdW => set(&mut self.osd.w, num.unwrap_or(0.0)),
-            Prop::OsdH => set(&mut self.osd.h, num.unwrap_or(0.0)),
-            Prop::OsdMl => set(&mut self.osd.ml, num.unwrap_or(0.0)),
-            Prop::OsdMt => set(&mut self.osd.mt, num.unwrap_or(0.0)),
-            Prop::OsdMr => set(&mut self.osd.mr, num.unwrap_or(0.0)),
-            Prop::OsdMb => set(&mut self.osd.mb, num.unwrap_or(0.0)),
-            Prop::TrackCount => {
-                let moved = set(&mut self.track_count, int.unwrap_or(0));
-                self.lists_moved(moved)
-            }
+            Prop::Dwidth => set(&mut self.dwidth, number(prop::DWIDTH, value).unwrap_or(0.0)),
+            Prop::Dheight => set(
+                &mut self.dheight,
+                number(prop::DHEIGHT, value).unwrap_or(0.0),
+            ),
+            Prop::OsdW => set(&mut self.osd.w, number(prop::OSD_W, value).unwrap_or(0.0)),
+            Prop::OsdH => set(&mut self.osd.h, number(prop::OSD_H, value).unwrap_or(0.0)),
+            Prop::OsdMl => set(&mut self.osd.ml, number(prop::OSD_ML, value).unwrap_or(0.0)),
+            Prop::OsdMt => set(&mut self.osd.mt, number(prop::OSD_MT, value).unwrap_or(0.0)),
+            Prop::OsdMr => set(&mut self.osd.mr, number(prop::OSD_MR, value).unwrap_or(0.0)),
+            Prop::OsdMb => set(&mut self.osd.mb, number(prop::OSD_MB, value).unwrap_or(0.0)),
             // The audio watchdog's, not the interface's.
             Prop::AudioDeviceList => false,
         }
@@ -605,6 +570,22 @@ impl PlayerState {
     }
 }
 
+/// A number mpv reported, where it is one: a NaN or infinity would poison
+/// every sum it went into.
+fn number<A>(property: Property<f64, A>, value: Option<&Value>) -> Option<f64> {
+    property.decode(value).filter(|n| n.is_finite())
+}
+
+/// A flag, off where mpv has no value for it.
+fn flag<A>(property: Property<bool, A>, value: Option<&Value>) -> bool {
+    property.decode(value).unwrap_or(false)
+}
+
+/// Text, where there is any.
+fn text<A>(property: Property<String, A>, value: Option<&Value>) -> Option<String> {
+    property.decode(value).filter(|text| !text.is_empty())
+}
+
 /// A position as mpv reports one, where -1 is none.
 fn index(n: i64) -> Option<usize> {
     usize::try_from(n).ok()
@@ -625,7 +606,7 @@ mod tests {
 
     #[test]
     fn every_property_is_observed_under_its_own_index() {
-        for (index, prop) in Prop::ALL.into_iter().enumerate() {
+        for (index, &prop) in Prop::ALL.iter().enumerate() {
             assert_eq!(prop.id(), index as u64, "{prop:?}");
             assert_eq!(Prop::of(prop.id()), Some(prop));
         }

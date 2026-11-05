@@ -1,12 +1,14 @@
 //! mpv's list-shaped properties, and what to make of their entries.
 //!
-//! `track-list`, `chapter-list` and `playlist` are node trees. Asked for as a
-//! string, mpv prints a node as JSON, so each list is one read and a parse,
-//! where reading every field as a property of its own (`track-list/2/lang`)
-//! would wait on mpv's core once per field of every entry.
+//! `track-list`, `chapter-list`, `playlist` and `audio-device-list` are node
+//! trees. Asked for as a string, mpv prints a node as JSON, so each list is
+//! one read and a parse, where reading every field as a property of its own
+//! (`track-list/2/lang`) would wait on mpv's core once per field of every
+//! entry.
 //!
 //! The lists are read on demand rather than observed: the counts are
-//! observed, and a change there is what triggers a re-read.
+//! observed, and a change there is what triggers a re-read. The device list
+//! is the exception, since only observing it keeps it current.
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
@@ -122,6 +124,22 @@ fn from_json<T: DeserializeOwned>(value: Value) -> Option<T> {
         .ok()
 }
 
+/// One entry of `audio-device-list`.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct AudioDevice {
+    /// mpv's name for it, which `audio-device` takes: `pipewire/…`, `wasapi/…`.
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+}
+
+impl FromMpv for Vec<AudioDevice> {
+    const FORMAT: Format = Format::String;
+    fn from_mpv(value: Value) -> Option<Self> {
+        from_json(value)
+    }
+}
+
 /// Tracks of one kind, in list order.
 pub fn of_kind(tracks: &[Track], kind: TrackKind) -> Vec<&Track> {
     tracks.iter().filter(|t| t.kind == kind).collect()
@@ -212,6 +230,21 @@ mod tests {
         assert!(entries[0].current && !entries[1].current);
         assert_eq!(entries[1].title.as_deref(), Some("B"));
         assert_eq!(entries[1].id, 2);
+    }
+
+    #[test]
+    fn devices_read_from_what_mpv_prints() {
+        let printed = r#"[{"name":"auto","description":"Autoselect device"},
+            {"name":"pulse/Kopfh\u00f6rer","description":"name"}]"#;
+        let devices = Vec::<AudioDevice>::from_mpv(Value::Str(printed.into())).unwrap();
+        let names: Vec<&str> = devices.iter().map(|d| d.name.as_str()).collect();
+        assert_eq!(names, ["auto", "pulse/Kopfhörer"]);
+        for not_a_list in ["", "null", r#"[{"name":"#] {
+            assert_eq!(
+                Vec::<AudioDevice>::from_mpv(Value::Str(not_a_list.into())),
+                None
+            );
+        }
     }
 
     #[test]

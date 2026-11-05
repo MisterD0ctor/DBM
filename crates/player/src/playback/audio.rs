@@ -23,8 +23,8 @@ use std::time::Duration;
 
 use dbm_lang::tr;
 use dbm_mpv::prop::{self, TrackChoice};
-use dbm_mpv::tracks::{self, TrackKind};
-use dbm_mpv::{Event, FromMpv, Mpv, Value};
+use dbm_mpv::tracks::{self, AudioDevice, TrackKind};
+use dbm_mpv::{Event, Mpv};
 
 use crate::playback::state::Prop;
 
@@ -74,16 +74,17 @@ impl Watchdog {
         let Event::Property { id, value } = event else {
             return;
         };
-        match (Prop::of(*id), value) {
+        let value = value.as_ref();
+        match Prop::of(*id) {
             // Only real ids are worth keeping, since `no` is either the
             // failure being recovered from or the user's own choice.
-            (Some(Prop::Aid), Some(track)) => {
-                if let Some(id) = TrackChoice::from_mpv(track.clone()).and_then(TrackChoice::id) {
+            Some(Prop::Aid) => {
+                if let Some(id) = prop::AID.decode(value).and_then(TrackChoice::id) {
                     self.last_track.set(Some(id));
                 }
             }
-            (Some(Prop::AudioDeviceList), Some(Value::Str(payload))) => {
-                self.devices_changed(payload);
+            Some(Prop::AudioDeviceList) => {
+                self.devices_changed(&prop::AUDIO_DEVICE_LIST.decode(value).unwrap_or_default());
             }
             _ => {}
         }
@@ -95,13 +96,13 @@ impl Watchdog {
         self.user_disabled.set(track.is_none());
     }
 
-    fn devices_changed(self: &Rc<Self>, payload: &str) {
-        let names = device_names(payload);
+    fn devices_changed(self: &Rc<Self>, devices: &[AudioDevice]) {
+        let names: BTreeSet<String> = devices.iter().map(|d| d.name.clone()).collect();
         if names.is_empty() {
-            // Unparseable, or genuinely empty. Either way it must not become
+            // Unreadable, or genuinely empty. Either way it must not become
             // the baseline, or the next real list would look like every
             // device in the machine had just appeared.
-            unexpected_shape(payload);
+            unexpected_shape();
             return;
         }
         if self.trace {
@@ -194,93 +195,7 @@ pub fn reopen(mpv: &Mpv, remembered: Option<i64>) -> Option<String> {
 
 /// Said once: an unreadable list means recovery will never fire, but saying
 /// so on every hotplug would bury everything else.
-fn unexpected_shape(payload: &str) {
+fn unexpected_shape() {
     static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| {
-        let sample: String = payload.chars().take(120).collect();
-        log::warn!("no device names in audio-device-list; audio recovery is off ({sample})");
-    });
-}
-
-/// The `name` of every device in an `audio-device-list` payload.
-///
-/// mpv renders node-shaped properties as JSON when they are observed as
-/// strings, so this is `[{"name":…,"description":…}, …]`. Anything that is not
-/// that shape yields nothing, which the caller treats as "do not act".
-fn device_names(payload: &str) -> BTreeSet<String> {
-    let Ok(serde_json::Value::Array(devices)) = serde_json::from_str(payload) else {
-        return BTreeSet::new();
-    };
-    devices
-        .iter()
-        .filter_map(|device| device.get("name")?.as_str().map(str::to_owned))
-        .collect()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn names(payload: &str) -> Vec<String> {
-        device_names(payload).into_iter().collect()
-    }
-
-    #[test]
-    fn reads_a_device_list() {
-        let payload = r#"[{"name":"auto","description":"Autoselect device"},
-            {"name":"wasapi/{0.0.0.00000000}.{1c2b}","description":"Speakers (Realtek)"}]"#;
-        assert_eq!(
-            names(payload),
-            vec![
-                "auto".to_string(),
-                "wasapi/{0.0.0.00000000}.{1c2b}".to_string()
-            ]
-        );
-    }
-
-    #[test]
-    fn a_description_that_says_name_is_not_a_device() {
-        // The word appears as a value, not a key, and the device it describes
-        // must still be read.
-        let payload = r#"[{"description":"name","name":"auto"}]"#;
-        assert_eq!(names(payload), vec!["auto".to_string()]);
-    }
-
-    #[test]
-    fn decodes_the_escapes_a_device_name_can_carry() {
-        let payload = r#"[{"name":"wasapi/a\\b\"c"}]"#;
-        assert_eq!(names(payload), vec!["wasapi/a\\b\"c".to_string()]);
-    }
-
-    #[test]
-    fn a_unicode_escape_is_read_as_the_character() {
-        let payload = r#"[{"name":"pulse/Kopfh\u00f6rer"}]"#;
-        assert_eq!(names(payload), vec!["pulse/Kopfhörer".to_string()]);
-    }
-
-    #[test]
-    fn a_quoted_colon_inside_a_name_does_not_make_a_key() {
-        let payload = r#"[{"name":"odd\"name\":","description":"x"}]"#;
-        assert_eq!(names(payload), vec!["odd\"name\":".to_string()]);
-    }
-
-    #[test]
-    fn anything_that_is_not_a_list_yields_nothing() {
-        for payload in ["", "[]", "null", "not json at all", r#"[{"name":"#] {
-            assert!(names(payload).is_empty(), "{payload:?}");
-        }
-    }
-
-    #[test]
-    fn a_device_appearing_is_the_difference_between_two_lists() {
-        let before = device_names(r#"[{"name":"auto"},{"name":"speakers"}]"#);
-        let after = device_names(r#"[{"name":"auto"},{"name":"speakers"},{"name":"buds"}]"#);
-        assert_eq!(
-            after.difference(&before).cloned().collect::<Vec<_>>(),
-            vec!["buds".to_string()]
-        );
-        // Read the other way round it is a device going away, which is not
-        // something to act on: nothing new is there.
-        assert!(before.difference(&after).next().is_none());
-    }
+    ONCE.call_once(|| log::warn!("no devices in audio-device-list; audio recovery is off"));
 }

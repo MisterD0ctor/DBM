@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 use std::path::PathBuf;
 
 use crate::MediaPath;
-use crate::tracks::{Chapter, PlaylistEntry, Track};
+use crate::tracks::{AudioDevice, Chapter, PlaylistEntry, Track};
 use crate::value::{Format, FromMpv, ToMpv, Value};
 
 /// One of mpv's properties: its name, the type of its value, and whether a
@@ -35,6 +35,15 @@ impl<T, A> Property<T, A> {
 
     pub const fn name(self) -> &'static str {
         self.name
+    }
+
+    /// What an [`Event::Property`](crate::Event::Property) for this property
+    /// says, as its type. `None` where there is no value, or not one of these.
+    pub fn decode(self, value: Option<&Value>) -> Option<T>
+    where
+        T: FromMpv,
+    {
+        value.cloned().and_then(T::from_mpv)
     }
 }
 
@@ -278,9 +287,10 @@ pub const CURRENT_AUDIO: Property<Track, ReadOnly> = Property::new("current-trac
 /// The subtitle track selected, unset when none is.
 pub const CURRENT_SUB: Property<Track, ReadOnly> = Property::new("current-tracks/sub");
 pub const AUDIO_DEVICE: Property<String> = Property::new("audio-device");
-/// Every output device, as JSON. Observing it is what starts mpv's hotplug
-/// monitor, so it only stays current while observed.
-pub const AUDIO_DEVICE_LIST: Property<String, ReadOnly> = Property::new("audio-device-list");
+/// Every output device. Observing it is what starts mpv's hotplug monitor,
+/// so it only stays current while observed.
+pub const AUDIO_DEVICE_LIST: Property<Vec<AudioDevice>, ReadOnly> =
+    Property::new("audio-device-list");
 /// Added at the end of the audio chain, in mpv's filter syntax.
 pub const AF: Property<String> = Property::new("af");
 
