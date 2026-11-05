@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use dbm_mpv::Mpv;
+use dbm_mpv::{Command, Mpv, prop};
 use slint::{ComponentHandle, Model};
 
 use super::drive::{arrow, chord, hover, wheel};
@@ -368,7 +368,7 @@ pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
     let report = |ui: &MainWindow, mpv: &Mpv, label: &str| {
         eprintln!(
             "dbm: timing {label:<20} {:?} delay={:+.2} speed={:.4}",
-            short(&mpv.get_property("filename").unwrap_or_default().into()),
+            short(&mpv.get(prop::FILENAME).unwrap_or_default().into()),
             ui.global::<Subtitles>().get_delay(),
             ui.global::<Subtitles>().get_speed(),
         );
@@ -380,10 +380,10 @@ pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         report(&ui, &mpv, "as it opened");
         beat.next().await;
         ui.global::<Subtitles>().invoke_nudge_delay(-5.0);
-        let _ = mpv.set_property("sub-speed", "1.04");
+        let _ = mpv.set(prop::SUB_SPEED, 1.04);
         beat.next().await;
         report(&ui, &mpv, "set on the first");
-        let _ = mpv.command_async(0, &["write-watch-later-config"]);
+        let _ = mpv.run(0, Command::WriteWatchLaterConfig);
         beat.next().await;
         ui.global::<Playlist>().invoke_step(1);
         beat.rest(3).await;
@@ -765,7 +765,7 @@ fn give_chapters(mpv: &Mpv, marks: &[(f64, &str)], duration: f64) -> Result<(), 
     }
     let file = std::env::temp_dir().join("dbm-chapters-test.ffmeta");
     std::fs::write(&file, text).map_err(|e| format!("cannot write chapters: {e}"))?;
-    mpv.set_property("chapters-file", &file.to_string_lossy())
+    mpv.set(prop::CHAPTERS_FILE, file)
         .map_err(|e| format!("mpv refused chapters-file: {e}"))
 }
 
@@ -956,7 +956,7 @@ pub(super) fn progress_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script
         ui.global::<Playback>().invoke_seek_fraction(0.3);
         beat.next().await;
         // What the ten-second checkpoint does, without the wait.
-        if let Err(e) = mpv.command_async(0, &["write-watch-later-config"]) {
+        if let Err(e) = mpv.run(0, Command::WriteWatchLaterConfig) {
             eprintln!("dbm: progress test: {e}");
         }
         beat.next().await;
@@ -986,7 +986,7 @@ fn report_progress(ui: &MainWindow, mpv: &Mpv, label: &str) {
         .collect();
     eprintln!(
         "dbm: progress {label:<12} t={} | {}",
-        mpv.get_property("time-pos").unwrap_or_else(|| "-".into()),
+        super::shown(mpv.get(prop::TIME_POS)),
         rows.join(" "),
     );
 }
@@ -997,11 +997,11 @@ fn report_progress(ui: &MainWindow, mpv: &Mpv, label: &str) {
 /// given, and if our copy of that rule is wrong every row shows an empty bar
 /// and nothing anywhere reports an error.
 fn report_resume_file(mpv: &Mpv) {
-    let Some(path) = mpv.get_property("path") else {
+    let Some(path) = mpv.get(prop::PATH) else {
         eprintln!("dbm: progress: nothing playing");
         return;
     };
-    let name = dbm_library::durations::watch_later_name(&path.into());
+    let name = dbm_library::durations::watch_later_name(&path);
     let file = dbm_library::paths::watch_later_dir().join(&name);
     let start = std::fs::read_to_string(&file)
         .ok()

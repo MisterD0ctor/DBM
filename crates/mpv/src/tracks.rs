@@ -1,17 +1,18 @@
-//! Reading mpv's list-shaped properties.
+//! mpv's list-shaped properties, and what to make of their entries.
 //!
 //! `track-list`, `chapter-list` and `playlist` are node trees. Asked for as a
 //! string, mpv prints a node as JSON, so each list is one read and a parse,
 //! where reading every field as a property of its own (`track-list/2/lang`)
 //! would wait on mpv's core once per field of every entry.
 //!
-//! The lists are pulled on demand rather than observed: the counts are
+//! The lists are read on demand rather than observed: the counts are
 //! observed, and a change there is what triggers a re-read.
 
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
-use crate::{MediaPath, Mpv};
+use crate::MediaPath;
+use crate::value::{Format, FromMpv, Value};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -47,6 +48,9 @@ pub struct Track {
     /// How many channels an audio track carries, where the container says.
     #[serde(rename = "demux-channel-count", default, deserialize_with = "positive")]
     pub channels: Option<i64>,
+    /// Its stream's index in the file it comes from, as ffmpeg counts them.
+    #[serde(rename = "ff-index", default)]
+    pub ff_index: Option<i64>,
 }
 
 /// A chapter mark: where it starts, and what it is called if anything.
@@ -74,34 +78,48 @@ pub struct PlaylistEntry {
     pub current: bool,
 }
 
-/// Read the whole track list. Empty when nothing is loaded.
-pub fn read_tracks(mpv: &Mpv) -> Vec<Track> {
-    read_list(mpv, "track-list")
-}
-
-/// Read the chapter list. Empty for a file without chapters, which is most.
-pub fn read_chapters(mpv: &Mpv) -> Vec<Chapter> {
-    read_list(mpv, "chapter-list")
-}
-
-pub fn read_playlist(mpv: &Mpv) -> Vec<PlaylistEntry> {
-    let mut entries: Vec<PlaylistEntry> = read_list(mpv, "playlist");
-    for (index, entry) in (0..).zip(&mut entries) {
-        entry.index = index;
+/// One entry, as `current-tracks/sub` and its kin report the selected one.
+impl FromMpv for Track {
+    const FORMAT: Format = Format::String;
+    fn from_mpv(value: Value) -> Option<Self> {
+        from_json(value)
     }
-    entries
 }
 
-/// Read the list property `name` as JSON. Empty when mpv has none, and when
-/// it isn't the shape asked for, which is said in the log.
-fn read_list<T: DeserializeOwned>(mpv: &Mpv, name: &str) -> Vec<T> {
-    let Some(json) = mpv.get_property(name) else {
-        return Vec::new();
+impl FromMpv for Vec<Track> {
+    const FORMAT: Format = Format::String;
+    fn from_mpv(value: Value) -> Option<Self> {
+        from_json(value)
+    }
+}
+
+impl FromMpv for Vec<Chapter> {
+    const FORMAT: Format = Format::String;
+    fn from_mpv(value: Value) -> Option<Self> {
+        from_json(value)
+    }
+}
+
+impl FromMpv for Vec<PlaylistEntry> {
+    const FORMAT: Format = Format::String;
+    fn from_mpv(value: Value) -> Option<Self> {
+        let mut entries: Self = from_json(value)?;
+        for (index, entry) in (0..).zip(&mut entries) {
+            entry.index = index;
+        }
+        Some(entries)
+    }
+}
+
+/// A value printed as JSON, or `None` when it isn't the shape asked for,
+/// which is said in the log.
+fn from_json<T: DeserializeOwned>(value: Value) -> Option<T> {
+    let Value::Str(json) = value else {
+        return None;
     };
-    serde_json::from_str(&json).unwrap_or_else(|e| {
-        log::warn!("mpv's {name} didn't read ({e})");
-        Vec::new()
-    })
+    serde_json::from_str(&json)
+        .map_err(|e| log::warn!("mpv's {} didn't read ({e})", std::any::type_name::<T>()))
+        .ok()
 }
 
 /// Tracks of one kind, in list order.
@@ -165,7 +183,8 @@ mod tests {
             {"id":1,"type":"video","src-id":0,"albumart":false,"default":true,
              "external":false,"selected":true,"codec":"hevc","demux-w":1920},
             {"id":1,"type":"audio","title":"English: Stereo","lang":"eng",
-             "external":false,"selected":true,"codec":"ac3","demux-channel-count":2},
+             "external":false,"selected":true,"codec":"ac3","demux-channel-count":2,
+             "ff-index":1},
             {"id":3,"type":"sub","title":"","external":true,"selected":false,
              "codec":"subrip"},
             {"id":4,"type":"attachment"}
@@ -176,6 +195,7 @@ mod tests {
         assert_eq!(tracks[0].channels, None);
         assert_eq!(tracks[1].title.as_deref(), Some("English: Stereo"));
         assert_eq!(tracks[1].channels, Some(2));
+        assert_eq!(tracks[1].ff_index, Some(1));
         assert!(tracks[2].external && !tracks[2].selected);
         assert_eq!(tracks[2].title, None, "an empty title is no title");
         assert_eq!(tracks[2].lang, None);
@@ -192,5 +212,13 @@ mod tests {
         assert!(entries[0].current && !entries[1].current);
         assert_eq!(entries[1].title.as_deref(), Some("B"));
         assert_eq!(entries[1].id, 2);
+    }
+
+    #[test]
+    fn playlist_entries_are_numbered_in_list_order() {
+        let printed = r#"[{"filename":"/a.mkv","id":5},{"filename":"/b.mkv","id":9}]"#;
+        let entries = Vec::<PlaylistEntry>::from_mpv(Value::Str(printed.into())).unwrap();
+        let indices: Vec<i64> = entries.iter().map(|e| e.index).collect();
+        assert_eq!(indices, [0, 1]);
     }
 }

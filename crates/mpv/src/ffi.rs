@@ -62,6 +62,7 @@ pub(super) const GL_RGBA8: c_int = 0x8058;
 // `mpv_format`, the scalar kinds.
 pub(super) const FORMAT_STRING: c_int = 1;
 pub(super) const FORMAT_FLAG: c_int = 3;
+pub(super) const FORMAT_INT64: c_int = 4;
 pub(super) const FORMAT_DOUBLE: c_int = 5;
 
 // `mpv_event_id`, the handful we act on.
@@ -71,6 +72,7 @@ pub(super) const EVENT_END_FILE: c_int = 7;
 pub(super) const EVENT_FILE_LOADED: c_int = 8;
 pub(super) const EVENT_SEEK: c_int = 20;
 pub(super) const EVENT_PLAYBACK_RESTART: c_int = 21;
+pub(super) const EVENT_SET_PROPERTY_REPLY: c_int = 4;
 pub(super) const EVENT_COMMAND_REPLY: c_int = 5;
 pub(super) const EVENT_PROPERTY_CHANGE: c_int = 22;
 
@@ -117,19 +119,18 @@ pub(super) struct Lib {
     pub(super) mpv_create: unsafe extern "C" fn() -> *mut MpvHandle,
     pub(super) mpv_initialize: unsafe extern "C" fn(*mut MpvHandle) -> c_int,
     pub(super) mpv_terminate_destroy: unsafe extern "C" fn(*mut MpvHandle),
-    pub(super) mpv_set_option_string:
-        unsafe extern "C" fn(*mut MpvHandle, *const c_char, *const c_char) -> c_int,
-    pub(super) mpv_set_property_string:
-        unsafe extern "C" fn(*mut MpvHandle, *const c_char, *const c_char) -> c_int,
-    pub(super) mpv_get_property_string:
-        unsafe extern "C" fn(*mut MpvHandle, *const c_char) -> *mut c_char,
+    pub(super) mpv_set_option:
+        unsafe extern "C" fn(*mut MpvHandle, *const c_char, c_int, *mut c_void) -> c_int,
+    pub(super) mpv_set_property_async:
+        unsafe extern "C" fn(*mut MpvHandle, u64, *const c_char, c_int, *mut c_void) -> c_int,
+    pub(super) mpv_get_property:
+        unsafe extern "C" fn(*mut MpvHandle, *const c_char, c_int, *mut c_void) -> c_int,
     pub(super) mpv_free: unsafe extern "C" fn(*mut c_void),
     /// Turns an mpv error code into a sentence, "Unrecognized file format"
     /// rather than "error -13".
     pub(super) mpv_error_string: unsafe extern "C" fn(c_int) -> *const c_char,
     pub(super) mpv_command_async:
         unsafe extern "C" fn(*mut MpvHandle, u64, *mut *const c_char) -> c_int,
-    pub(super) mpv_command: unsafe extern "C" fn(*mut MpvHandle, *mut *const c_char) -> c_int,
     pub(super) mpv_observe_property:
         unsafe extern "C" fn(*mut MpvHandle, u64, *const c_char, c_int) -> c_int,
     pub(super) mpv_wait_event: unsafe extern "C" fn(*mut MpvHandle, f64) -> *mut RawEvent,
@@ -173,13 +174,12 @@ impl Lib {
             mpv_create: sym!(library, "mpv_create"),
             mpv_initialize: sym!(library, "mpv_initialize"),
             mpv_terminate_destroy: sym!(library, "mpv_terminate_destroy"),
-            mpv_set_option_string: sym!(library, "mpv_set_option_string"),
-            mpv_set_property_string: sym!(library, "mpv_set_property_string"),
-            mpv_get_property_string: sym!(library, "mpv_get_property_string"),
+            mpv_set_option: sym!(library, "mpv_set_option"),
+            mpv_set_property_async: sym!(library, "mpv_set_property_async"),
+            mpv_get_property: sym!(library, "mpv_get_property"),
             mpv_free: sym!(library, "mpv_free"),
             mpv_error_string: sym!(library, "mpv_error_string"),
             mpv_command_async: sym!(library, "mpv_command_async"),
-            mpv_command: sym!(library, "mpv_command"),
             mpv_observe_property: sym!(library, "mpv_observe_property"),
             mpv_wait_event: sym!(library, "mpv_wait_event"),
             mpv_set_wakeup_callback: sym!(library, "mpv_set_wakeup_callback"),

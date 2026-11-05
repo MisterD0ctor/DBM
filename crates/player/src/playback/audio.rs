@@ -14,8 +14,7 @@
 //! current output is still technically alive on something else.
 //!
 //! Everything here runs on the UI thread except the rebuild, which reads the
-//! track list and writes properties, so belongs on the worker (see
-//! [`crate::worker`]).
+//! track list, so belongs on the worker (see [`crate::worker`]).
 
 use std::cell::{Cell, RefCell};
 use std::collections::BTreeSet;
@@ -23,8 +22,9 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use dbm_lang::tr;
+use dbm_mpv::prop::{self, TrackChoice};
 use dbm_mpv::tracks::{self, TrackKind};
-use dbm_mpv::{Event, Mpv, Value};
+use dbm_mpv::{Event, FromMpv, Mpv, Value};
 
 use crate::playback::state::Prop;
 
@@ -39,13 +39,13 @@ const SETTLE: Duration = Duration::from_millis(1200);
 pub struct Watchdog {
     /// Runs [`reopen`] where blocking is allowed, with the track to put
     /// back, and says what it returns.
-    reopen_elsewhere: Box<dyn Fn(Option<String>)>,
+    reopen_elsewhere: Box<dyn Fn(Option<i64>)>,
     /// Device names from the last list seen. `None` until the first list
     /// arrives: that one is the baseline, never a reconnection.
     seen: RefCell<Option<BTreeSet<String>>>,
     /// The last audio track mpv reported as genuinely selected, kept because
     /// once mpv gives up on a device it reports `aid` as `no`.
-    last_track: RefCell<Option<String>>,
+    last_track: Cell<Option<i64>>,
     /// Set when the *user* turns audio off, so a device appearing does not
     /// helpfully turn it back on behind their back.
     user_disabled: Cell<bool>,
@@ -56,11 +56,11 @@ pub struct Watchdog {
 }
 
 impl Watchdog {
-    pub fn new(reopen_elsewhere: impl Fn(Option<String>) + 'static) -> Rc<Self> {
+    pub fn new(reopen_elsewhere: impl Fn(Option<i64>) + 'static) -> Rc<Self> {
         Rc::new(Self {
             reopen_elsewhere: Box::new(reopen_elsewhere),
             seen: RefCell::new(None),
-            last_track: RefCell::new(None),
+            last_track: Cell::new(None),
             user_disabled: Cell::new(false),
             settle: slint::Timer::default(),
             trace: (cfg!(feature = "harness") && std::env::var_os("DBM_AUDIO_TEST").is_some())
@@ -77,10 +77,14 @@ impl Watchdog {
         match (Prop::of(*id), value) {
             // Only real ids are worth keeping, since `no` is either the
             // failure being recovered from or the user's own choice.
-            (Some(Prop::Aid), Value::Str(track)) if track.parse::<u32>().is_ok() => {
-                *self.last_track.borrow_mut() = Some(track.clone());
+            (Some(Prop::Aid), Some(track)) => {
+                if let Some(id) = TrackChoice::from_mpv(track.clone()).and_then(TrackChoice::id) {
+                    self.last_track.set(Some(id));
+                }
             }
-            (Some(Prop::AudioDeviceList), Value::Str(payload)) => self.devices_changed(payload),
+            (Some(Prop::AudioDeviceList), Some(Value::Str(payload))) => {
+                self.devices_changed(payload);
+            }
             _ => {}
         }
     }
@@ -134,11 +138,10 @@ impl Watchdog {
         if self.user_disabled.get() {
             return;
         }
-        let remembered = self.last_track.borrow().clone();
-        // Reads the track list and writes properties, both of which block on
-        // mpv's core lock. Returns a notice when it actually repaired
-        // something, so the interface can say so.
-        (self.reopen_elsewhere)(remembered);
+        // Reads the track list, which blocks on mpv's core lock. Returns a
+        // notice when it actually repaired something, so the interface can
+        // say so.
+        (self.reopen_elsewhere)(self.last_track.get());
     }
 }
 
@@ -146,8 +149,8 @@ impl Watchdog {
 ///
 /// **Worker thread only.** Returns what to tell the person watching, or
 /// `None` when there was nothing to repair.
-pub fn reopen(mpv: &Mpv, remembered: Option<&str>) -> Option<String> {
-    let tracks = tracks::read_tracks(mpv);
+pub fn reopen(mpv: &Mpv, remembered: Option<i64>) -> Option<String> {
+    let tracks = mpv.get(prop::TRACK_LIST).unwrap_or_default();
     let audio: Vec<i64> = tracks::of_kind(&tracks, TrackKind::Audio)
         .iter()
         .map(|t| t.id)
@@ -158,41 +161,31 @@ pub fn reopen(mpv: &Mpv, remembered: Option<&str>) -> Option<String> {
         return None;
     }
 
-    let current = mpv.get_property("aid");
+    let current = mpv.get(prop::AID).and_then(TrackChoice::id);
     // Whether the person watching actually lost sound, which is when mpv
     // dropped the track. A device appearing while audio played fine repairs
     // the output unheard, and nobody needs telling.
-    let was_silent = !current
-        .as_deref()
-        .is_some_and(|id| id.parse::<u32>().is_ok());
-    let target = match current.as_deref() {
+    let was_silent = current.is_none();
+    let target = match current {
         // Still selected, so mpv kept the track and it is the output
         // underneath that needs re-opening.
-        Some(id) if id.parse::<u32>().is_ok() => id.to_owned(),
+        Some(id) => id,
         // Dropped by mpv when the device died: put back what was playing,
         // provided this file still has it. With no track remembered and none
         // selected, nothing, since the person may have turned audio off,
         // perhaps in an earlier session that watch-later restores and
         // `user_disabled` can't know about.
-        _ => remembered
-            .filter(|id| id.parse::<i64>().is_ok_and(|n| audio.contains(&n)))?
-            .to_owned(),
+        None => remembered.filter(|id| audio.contains(id))?,
     };
 
     // Deselect first, because writing back the id mpv holds is discarded as
-    // a no-op, and the write is what reopens the output.
-    if let Err(e) = mpv.set_property("aid", "no") {
-        log::warn!("audio recovery: could not drop the audio track: {e}");
-        return None;
-    }
-    if let Err(e) = mpv.set_property("aid", &target) {
-        log::warn!("audio recovery: could not reselect track {target}: {e}");
-        // Leaving audio off would be worse than the state this started in, so
-        // let mpv pick rather than giving up here.
-        if let Err(e) = mpv.set_property("aid", "auto") {
-            log::warn!("audio recovery: falling back to auto failed too: {e}");
+    // a no-op, and the write is what reopens the output. mpv runs the two in
+    // order, and back to back they still reopen it.
+    for track in [TrackChoice::Off, TrackChoice::Id(target)] {
+        if let Err(e) = mpv.set(prop::AID, track) {
+            log::warn!("audio recovery: could not set aid={track}: {e}");
+            return None;
         }
-        return None;
     }
     log::info!("audio recovery: reselected audio track {target}");
     // Names what happened rather than the fix, which is the log's business.

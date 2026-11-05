@@ -58,7 +58,7 @@ pub fn drain(
     while let Some(event) = unsafe { mpv.poll_event() } {
         // Command completions are not state; they belong to whoever issued
         // the command, so they are collected for the driver to route.
-        if let Event::CommandReply { id, failed } = event {
+        if let Event::Reply { id, failed } = event {
             // A move or a list that went nowhere opens nothing.
             if failed && (id == commands::REPLY_MOVE || id == commands::REPLY_LOADLIST) {
                 session::settled();

@@ -21,7 +21,7 @@
 //! |---------------|-----------------------------------------------------------|
 //! | `dbm_library` | files on disk: playlists, lengths, previews, subtitles    |
 //! | `dbm_gpu`     | the passes drawn over the video: border, blur, glass      |
-//! | `dbm_mpv`     | the libmpv binding, its lists read typed, and `MediaPath` |
+//! | `dbm_mpv`     | libmpv: typed properties and commands, and `MediaPath`   |
 //! | `dbm_naming`  | what files, tracks and chapters are called, from names    |
 //! | `dbm_lang`    | the language it speaks, and the words in each             |
 //!
@@ -118,8 +118,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let worker = worker.clone();
             move |remembered| {
                 worker.submit(move |mpv| {
-                    playback::audio::reopen(mpv, remembered.as_deref())
-                        .map(worker::Completion::Notice)
+                    playback::audio::reopen(mpv, remembered).map(worker::Completion::Notice)
                 });
             }
         }),
@@ -162,7 +161,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ui.run()?;
 
     // First, so the place is on disk before anything slow.
-    playback::session::save_before_quitting(&mpv);
+    // SAFETY: the event loop has returned, so nothing drains mpv's events.
+    unsafe { playback::session::save_before_quitting(&mpv) };
     saver.flush();
 
     // The window is gone by now, so a slow answer holds up nothing anyone

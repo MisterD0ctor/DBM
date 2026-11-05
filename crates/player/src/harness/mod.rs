@@ -447,3 +447,8 @@ fn playlist_rows(ui: &MainWindow) -> Vec<crate::PlaylistItem> {
 fn short(label: &slint::SharedString) -> String {
     label.chars().take(24).collect()
 }
+
+/// A value read from mpv, or `-` where it has none.
+fn shown(value: Option<impl std::fmt::Display>) -> String {
+    value.map_or_else(|| "-".into(), |value| value.to_string())
+}

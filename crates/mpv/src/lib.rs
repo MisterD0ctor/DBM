@@ -1,7 +1,7 @@
 //! Direct libmpv bindings for the render-API path.
 //!
-//! Only the handful of entry points this player calls: options and properties
-//! as strings, async commands, the event queue, and the render context that
+//! Only the handful of entry points this player calls: typed options and
+//! properties, async commands, the event queue, and the render context that
 //! draws into Slint's own GL context. Bound here rather than through a
 //! wrapper because the render API, which the architecture rests on, is what
 //! a wrapper is likeliest to leave out.
@@ -12,76 +12,55 @@
 //! on Linux, or whatever `DBM_LIBMPV` names.
 //!
 //! `ffi` is the C side: the types as mpv's headers lay them out, and the
-//! entry points loaded from the library. `render` draws through the render
-//! API, and `tracks` reads the list-shaped properties into types of their
-//! own. A file to play is a [`MediaPath`] from here up. This is the only
-//! crate in the player that calls C.
+//! entry points loaded from the library. [`prop`] names mpv's properties with
+//! the types of their values, and [`Command`] its commands with theirs, so
+//! nothing above this crate spells either. `render` draws through the render
+//! API, and `tracks` holds the entries of the list-shaped properties. A file
+//! to play is a [`MediaPath`] from here up. This is the only crate in the
+//! player that calls C.
 
 #![warn(clippy::undocumented_unsafe_blocks)]
 
+mod command;
 mod ffi;
 mod media_path;
+pub mod prop;
 mod render;
 pub mod tracks;
+mod value;
 
+pub use command::{Command, Direction, SeekTarget};
 pub use media_path::MediaPath;
+pub use prop::{AnyProperty, Property};
 pub use render::RenderContext;
+pub use value::{Format, FromMpv, ToMpv, Value};
 
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::path::Path;
 use std::sync::{Mutex, PoisonError};
+use std::time::{Duration, Instant};
 
 use ffi::{
     END_FILE_REASON_EOF, END_FILE_REASON_ERROR, EVENT_COMMAND_REPLY, EVENT_END_FILE,
-    EVENT_FILE_LOADED, EVENT_PLAYBACK_RESTART, EVENT_PROPERTY_CHANGE, EVENT_SEEK, EVENT_SHUTDOWN,
-    EVENT_START_FILE, FORMAT_DOUBLE, FORMAT_FLAG, FORMAT_STRING, Lib, MpvHandle, RawEventEndFile,
-    RawEventProperty,
+    EVENT_FILE_LOADED, EVENT_PLAYBACK_RESTART, EVENT_PROPERTY_CHANGE, EVENT_SEEK,
+    EVENT_SET_PROPERTY_REPLY, EVENT_SHUTDOWN, EVENT_START_FILE, FORMAT_STRING, Lib, MpvHandle,
+    RawEventEndFile, RawEventProperty,
 };
-
-/// What to receive an observed property as. Only the scalar kinds: anything
-/// list-shaped (tracks, playlist) is read as JSON when its count changes
-/// (see `tracks`), which avoids marshalling a node tree across the FFI
-/// boundary.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Format {
-    String,
-    Flag,
-    Double,
-}
-
-impl Format {
-    const fn code(self) -> c_int {
-        match self {
-            Self::String => FORMAT_STRING,
-            Self::Flag => FORMAT_FLAG,
-            Self::Double => FORMAT_DOUBLE,
-        }
-    }
-}
-
-/// A value mpv reported for an observed property.
-#[derive(Debug, Clone, PartialEq)]
-pub enum Value {
-    Flag(bool),
-    Double(f64),
-    Str(String),
-    /// The property exists but has no value, like `time-pos` before anything
-    /// is loaded. Distinct from "unchanged".
-    Unset,
-}
+use prop::KeepOpen;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Event {
     /// An observed property changed. `id` is whatever it was observed
-    /// under (see [`Mpv::observe`]).
+    /// under (see [`Mpv::observe`]). `None` is a property with no value
+    /// right now, like `time-pos` before anything is loaded.
     Property {
         id: u64,
-        value: Value,
+        value: Option<Value>,
     },
-    /// An async command finished. `id` is whatever was passed to
-    /// [`Mpv::command_async`], which is how a caller recognises its own, and
-    /// `failed` says mpv refused it or couldn't carry it out.
-    CommandReply {
+    /// A queued command or set finished. `id` is whatever was passed to
+    /// [`Mpv::run`], which is how a caller recognises its own, and 0 for a
+    /// set. `failed` says mpv refused it or couldn't carry it out.
+    Reply {
         id: u64,
         failed: bool,
     },
@@ -120,6 +99,9 @@ pub enum Error {
     Api { call: &'static str, code: c_int },
     #[error("string contained an interior NUL")]
     Nul,
+    /// [`Mpv::run_and_wait`] gave up, or mpv shut down first.
+    #[error("mpv did not answer")]
+    NoReply,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -159,14 +141,14 @@ const CLEAR: &str = "0/0/0/0";
 // SAFETY: libmpv's client API is thread-safe for properties and commands, so
 // a handle may be shared. What is not is kept out of the safe methods:
 //
-//   * `poll_event` wraps `mpv_wait_event`, which only one thread may call at
-//     a time, so it is `unsafe` and its caller keeps it to one thread.
+//   * `poll_event` and `run_and_wait` wrap `mpv_wait_event`, which only one
+//     thread may call at a time, so they are `unsafe` and their caller keeps
+//     them to one thread.
 //   * the render context (`RenderContext`) belongs to the GL thread, and is
 //     not reachable from here.
 //   * the wakeup closure is only replaced or freed under its lock.
 //
-// Anything else (`get_property`, `set_property`, `observe`, `command_async`,
-// `command`) is safe to call from the worker thread.
+// Anything else (`set`, `get`, `observe`, `run`) is safe from any thread.
 unsafe impl Send for Mpv {}
 // SAFETY: as for `Send`, above.
 unsafe impl Sync for Mpv {}
@@ -204,27 +186,21 @@ impl Mpv {
         // and which exist varies across mpv versions (the transparent-padding
         // option was renamed), so a rejected one is reported and stepped
         // over.
-        mpv.set_option("vo", "libmpv")?;
-        for (k, v) in [
-            ("hwdec", "auto-safe"),
-            ("keep-open", "always"),
-            ("pause", "no"),
-            ("deband", "yes"),
-            ("deband-iterations", "8"),
-            ("sub-visibility", "yes"),
-        ] {
-            if let Err(e) = mpv.set_option(k, v) {
-                log::warn!("mpv rejected {k}={v} ({e}); continuing");
-            }
-        }
+        mpv.set_option(prop::VO, "libmpv")?;
+        mpv.tune(prop::HWDEC, "auto-safe");
+        mpv.tune(prop::KEEP_OPEN, KeepOpen::Always);
+        mpv.tune(prop::PAUSE, false);
+        mpv.tune(prop::DEBAND, true);
+        mpv.tune(prop::DEBAND_ITERATIONS, 8);
+        mpv.tune(prop::SUB_VISIBILITY, true);
 
         // A clear surround, so a subtitle mpv lays in the letterbox keeps its
         // own alpha and the border pass can put it over the ambient border.
         // The colour was `background` itself before mpv 0.38. Refused both
         // ways, the surround is opaque black and the border pass discards it.
-        mpv.clear_surround = ["background-color", "background"]
-            .iter()
-            .any(|k| mpv.set_option(k, CLEAR).is_ok());
+        mpv.clear_surround = [prop::BACKGROUND_COLOR, prop::BACKGROUND]
+            .into_iter()
+            .any(|colour| mpv.set_option(colour, CLEAR).is_ok());
         if !mpv.clear_surround {
             log::warn!("mpv kept an opaque surround; the border will cover its letterbox");
         }
@@ -244,75 +220,96 @@ impl Mpv {
         self.clear_surround
     }
 
-    pub fn set_option(&self, name: &str, value: &str) -> Result<()> {
-        let (n, v) = (cstr(name)?, cstr(value)?);
-        // SAFETY: `handle` is live, and `n` and `v` outlive the call.
-        check("mpv_set_option_string", unsafe {
-            (self.lib.mpv_set_option_string)(self.handle, n.as_ptr(), v.as_ptr())
-        })
+    /// Set an option before `mpv_initialize`, which some only take then.
+    pub fn set_option<T: ToMpv>(&self, option: Property<T>, value: impl Into<T>) -> Result<()> {
+        let name = cstr(option.name())?;
+        check(
+            "mpv_set_option",
+            // SAFETY: `handle` is live, and `name` and the payload outlive
+            // the call.
+            with_payload(&value.into().to_mpv(), |format, data| unsafe {
+                (self.lib.mpv_set_option)(self.handle, name.as_ptr(), format, data)
+            })?,
+        )
     }
 
-    /// Set a property and wait for mpv to take it.
+    /// An option the player is better for but can do without.
+    fn tune<T: ToMpv>(&self, option: Property<T>, value: impl Into<T>) {
+        if let Err(e) = self.set_option(option, value) {
+            log::warn!("mpv rejected {option:?} ({e}); continuing");
+        }
+    }
+
+    /// Queue a property change and return at once.
     ///
-    /// **Blocking**, like [`Mpv::get_property`]: worker thread only. Anything
-    /// on an interactive path goes through `commands`, which queues a `set`.
-    pub fn set_property(&self, name: &str, value: &str) -> Result<()> {
-        let (n, v) = (cstr(name)?, cstr(value)?);
-        // SAFETY: `handle` is live, and `n` and `v` outlive the call.
-        check("mpv_set_property_string", unsafe {
-            (self.lib.mpv_set_property_string)(self.handle, n.as_ptr(), v.as_ptr())
-        })
+    /// Queued behind every command and set before it, which mpv runs in
+    /// order. Never blocking, so safe on the frame path. A refusal arrives as
+    /// [`Event::Reply`] with id 0.
+    pub fn set<T: ToMpv>(&self, property: Property<T>, value: impl Into<T>) -> Result<()> {
+        let name = cstr(property.name())?;
+        check(
+            "mpv_set_property_async",
+            // SAFETY: `handle` is live, `name` and the payload outlive the
+            // call, and mpv copies the value before it returns.
+            with_payload(&value.into().to_mpv(), |format, data| unsafe {
+                (self.lib.mpv_set_property_async)(self.handle, 0, name.as_ptr(), format, data)
+            })?,
+        )
     }
 
-    /// Read a property as a string.
+    /// Read a property.
     ///
     /// **Blocking.** Waits on mpv's core, which under load costs tens to
     /// hundreds of milliseconds, so call it from the worker thread, never the
-    /// frame path (see `worker`).
+    /// frame path (see `worker`). It also takes the core ahead of anything
+    /// still queued, so it may not see a [`Mpv::set`] made just before it.
     ///
     /// `None` when mpv has no value for it yet, which is the normal state for
     /// anything video-shaped until a file is loaded and the first frame has
     /// been decoded.
-    pub fn get_property(&self, name: &str) -> Option<String> {
-        let n = cstr(name).ok()?;
-        // SAFETY: `handle` is live, and `n` outlives the call.
-        let raw = unsafe { (self.lib.mpv_get_property_string)(self.handle, n.as_ptr()) };
-        if raw.is_null() {
+    pub fn get<T: FromMpv, A>(&self, property: Property<T, A>) -> Option<T> {
+        /// Room for any scalar mpv writes back.
+        #[repr(C)]
+        union Slot {
+            int: i64,
+            string: *mut c_char,
+        }
+        let name = cstr(property.name()).ok()?;
+        let format = T::FORMAT.code();
+        let mut slot = Slot { int: 0 };
+        // SAFETY: `handle` is live, `name` outlives the call, and `slot` has
+        // room for any format asked for.
+        let read = unsafe {
+            (self.lib.mpv_get_property)(self.handle, name.as_ptr(), format, (&raw mut slot).cast())
+        };
+        if read < 0 {
             return None;
         }
-        // SAFETY: non-null, NUL-terminated, and mpv's until the `mpv_free` below.
-        let out = unsafe { CStr::from_ptr(raw) }
-            .to_string_lossy()
-            .into_owned();
-        // SAFETY: mpv allocated it, so it goes back to mpv rather than to
-        // Rust, and nothing reads it after.
-        unsafe { (self.lib.mpv_free)(raw.cast()) };
-        Some(out)
+        // SAFETY: mpv wrote a value of `format` into `slot`.
+        let value = unsafe { Value::read(format, (&raw const slot).cast()) };
+        if format == FORMAT_STRING {
+            // SAFETY: a string read leaves an mpv allocation in `slot`, which
+            // goes back to mpv now that it is copied out. Freeing null is a
+            // no-op.
+            unsafe { (self.lib.mpv_free)(slot.string.cast()) };
+        }
+        T::from_mpv(value?)
     }
 
-    /// Read a flag property. mpv renders these as "yes"/"no" in string form.
-    /// A missing property reads as false, which is the useful default for
-    /// every flag this app asks about.
-    pub fn get_bool(&self, name: &str) -> bool {
-        matches!(
-            self.get_property(name).as_deref(),
-            Some("yes") | Some("true")
-        )
-    }
-
-    /// Convenience for the numeric properties this app reads.
-    pub fn get_f64(&self, name: &str) -> Option<f64> {
-        self.get_property(name)?.parse().ok()
-    }
-
-    /// Ask mpv to report changes to `name`. Values arrive through
+    /// Ask mpv to report changes to `property`. Values arrive through
     /// [`Mpv::poll_event`] as [`Event::Property`], under `id`, which is
     /// cheaper to tell apart than the name, copied out on every change.
-    pub fn observe(&self, id: u64, name: &str, format: Format) -> Result<()> {
-        let n = cstr(name)?;
-        // SAFETY: `handle` is live, and `n` outlives the call.
+    pub fn observe(&self, id: u64, property: impl Into<AnyProperty>) -> Result<()> {
+        let property = property.into();
+        let name = cstr(property.name())?;
+        // SAFETY: `handle` is live, and `name` outlives the call.
         check("mpv_observe_property", unsafe {
-            (self.lib.mpv_observe_property)(self.handle, id, n.as_ptr(), format.code())
+            (self.lib.mpv_observe_property)(
+                self.handle,
+                id,
+                name.as_ptr(),
+                property.format().code(),
+            )
         })
     }
 
@@ -355,7 +352,7 @@ impl Mpv {
         let ev = unsafe { &*raw };
         match ev.event_id {
             EVENT_SHUTDOWN => Some(Event::Shutdown),
-            EVENT_COMMAND_REPLY => Some(Event::CommandReply {
+            EVENT_COMMAND_REPLY | EVENT_SET_PROPERTY_REPLY => Some(Event::Reply {
                 id: ev.reply_userdata,
                 failed: ev.error < 0,
             }),
@@ -386,34 +383,11 @@ impl Mpv {
                 }
                 // SAFETY: a property event's `data` is an `mpv_event_property`.
                 let prop = unsafe { &*ev.data.cast::<RawEventProperty>() };
-                // A null `data` means the property has no value right now,
-                // which is normal and not an error.
-                let value = if prop.data.is_null() {
-                    Value::Unset
-                } else {
-                    match prop.format {
-                        // SAFETY: a flag's `data` points at an `int`.
-                        FORMAT_FLAG => Value::Flag(unsafe { *prop.data.cast::<c_int>() } != 0),
-                        // SAFETY: a double's `data` points at a `double`.
-                        FORMAT_DOUBLE => Value::Double(unsafe { *prop.data.cast::<f64>() }),
-                        FORMAT_STRING => {
-                            // SAFETY: a string's `data` points at a `char *`.
-                            let s = unsafe { *prop.data.cast::<*const c_char>() };
-                            if s.is_null() {
-                                Value::Unset
-                            } else {
-                                // SAFETY: non-null, NUL-terminated, and mpv's
-                                // until the next event.
-                                let text = unsafe { CStr::from_ptr(s) };
-                                Value::Str(text.to_string_lossy().into_owned())
-                            }
-                        }
-                        _ => Value::Unset,
-                    }
-                };
                 Some(Event::Property {
                     id: ev.reply_userdata,
-                    value,
+                    // SAFETY: `data` holds `format`, and stays mpv's until the
+                    // next event.
+                    value: unsafe { Value::read(prop.format, prop.data) },
                 })
             }
             // `MPV_EVENT_NONE` for an empty queue, or an event nothing here acts on.
@@ -435,44 +409,66 @@ impl Mpv {
             .into_owned()
     }
 
-    /// Queue a command and return immediately.
+    /// Queue a command and return at once.
     ///
-    /// What the UI thread uses while its event loop runs, since
-    /// [`Mpv::command`] waits for mpv's core, which for an exact seek locks it
-    /// for about 200ms. Completion arrives as [`Event::CommandReply`] carrying
-    /// `reply_id`.
-    pub fn command_async(&self, reply_id: u64, args: &[&str]) -> Result<()> {
+    /// What every thread uses, since a command run with `mpv_command` waits
+    /// for mpv's core, which an exact seek holds for about 200ms, and then
+    /// runs ahead of whatever is still queued. Completion arrives as
+    /// [`Event::Reply`] carrying `reply`. [`RUN_AND_WAIT`] is taken.
+    pub fn run(&self, reply: u64, command: Command<'_>) -> Result<()> {
         check(
             "mpv_command_async",
             // SAFETY: `handle` is live, and `argv` is null-terminated and
             // outlives the call.
-            with_argv(args, |argv| unsafe {
-                (self.lib.mpv_command_async)(self.handle, reply_id, argv)
+            with_argv(&command.args(), |argv| unsafe {
+                (self.lib.mpv_command_async)(self.handle, reply, argv)
             })?,
         )
     }
 
-    /// Run a command and wait until mpv has carried it out.
+    /// Queue a command and wait until mpv has carried it out, behind
+    /// whatever was queued before it. Events that arrive meanwhile are
+    /// dropped.
     ///
-    /// Only where nothing is waiting on this thread: the worker, or the UI
-    /// thread once its event loop has returned. libmpv's render thread must
-    /// never wait on mpv while it still renders through it.
-    pub fn command(&self, args: &[&str]) -> Result<()> {
-        check(
-            "mpv_command",
-            // SAFETY: `handle` is live, and `argv` is null-terminated and
-            // outlives the call.
-            with_argv(args, |argv| unsafe {
-                (self.lib.mpv_command)(self.handle, argv)
-            })?,
-        )
+    /// For when nothing else reads the event queue any more: the UI thread
+    /// once its event loop has returned. libmpv's render thread must never
+    /// wait on mpv while it still renders through it.
+    ///
+    /// # Safety
+    /// As for [`Mpv::poll_event`]: never while another thread reads events.
+    pub unsafe fn run_and_wait(&self, command: Command<'_>, timeout: Duration) -> Result<()> {
+        self.run(RUN_AND_WAIT, command)?;
+        let deadline = Instant::now() + timeout;
+        loop {
+            let left = deadline.saturating_duration_since(Instant::now());
+            if left.is_zero() {
+                return Err(Error::NoReply);
+            }
+            // SAFETY: `handle` is live, and the caller keeps this to one
+            // thread. mpv never returns null, but an empty event on timeout.
+            let ev = unsafe { &*(self.lib.mpv_wait_event)(self.handle, left.as_secs_f64()) };
+            match ev.event_id {
+                EVENT_COMMAND_REPLY if ev.reply_userdata == RUN_AND_WAIT => {
+                    return check("mpv_command_async", ev.error);
+                }
+                EVENT_SHUTDOWN => return Err(Error::NoReply),
+                _ => {}
+            }
+        }
     }
 }
 
+/// The reply id [`Mpv::run_and_wait`] waits on, which no caller of
+/// [`Mpv::run`] may use.
+pub const RUN_AND_WAIT: u64 = u64::MAX;
+
 /// `args` as the null-terminated array of C strings mpv's commands take,
 /// alive for as long as `f` runs.
-fn with_argv<T>(args: &[&str], f: impl FnOnce(*mut *const c_char) -> T) -> Result<T> {
-    let owned: Vec<CString> = args.iter().map(|a| cstr(a)).collect::<Result<_>>()?;
+fn with_argv<T>(args: &[impl AsRef<str>], f: impl FnOnce(*mut *const c_char) -> T) -> Result<T> {
+    let owned: Vec<CString> = args
+        .iter()
+        .map(|a| cstr(a.as_ref()))
+        .collect::<Result<_>>()?;
     let mut ptrs: Vec<*const c_char> = owned.iter().map(|c| c.as_ptr()).collect();
     ptrs.push(std::ptr::null());
     Ok(f(ptrs.as_mut_ptr()))
@@ -501,6 +497,31 @@ unsafe extern "C" fn wakeup_thunk(ctx: *mut c_void) {
     // can no longer call this.
     let notify = unsafe { &*ctx.cast::<Wake>() };
     notify();
+}
+
+/// `value` laid out as client.h says its format is, with that format, alive
+/// for as long as `f` runs.
+fn with_payload<T>(value: &Value, f: impl FnOnce(c_int, *mut c_void) -> T) -> Result<T> {
+    let format = value.format().code();
+    Ok(match value {
+        Value::Flag(on) => {
+            let mut on = c_int::from(*on);
+            f(format, (&raw mut on).cast())
+        }
+        Value::Int(n) => {
+            let mut n = *n;
+            f(format, (&raw mut n).cast())
+        }
+        Value::Double(n) => {
+            let mut n = *n;
+            f(format, (&raw mut n).cast())
+        }
+        Value::Str(text) => {
+            let text = cstr(text)?;
+            let mut text = text.as_ptr();
+            f(format, (&raw mut text).cast())
+        }
+    })
 }
 
 fn cstr(s: &str) -> Result<CString> {

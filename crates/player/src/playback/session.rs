@@ -18,7 +18,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use dbm_library::paths;
-use dbm_mpv::Mpv;
+use dbm_mpv::prop::{self, Names};
+use dbm_mpv::{Command, Mpv};
 
 use crate::playback::commands;
 
@@ -51,34 +52,39 @@ const CHECKPOINT: Duration = Duration::from_secs(10);
 /// subtitles off. Recording the tracks and the subtitle timing too makes
 /// reopening resume rather than merely seek.
 pub fn configure(mpv: &Mpv) {
-    let dir = paths::watch_later_dir();
-    if let Err(e) = mpv.set_option("watch-later-directory", &dir.to_string_lossy()) {
+    if let Err(e) = mpv.set_option(prop::WATCH_LATER_DIRECTORY, paths::watch_later_dir()) {
         log::info!("watch-later directory: {e}");
     }
-    for (key, value) in [
-        ("save-position-on-quit", "yes"),
-        // `start` is the position; the rest makes it a resume. The subtitles'
-        // speed goes with their delay, since a sync can set both, and one
-        // without the other is worse than neither.
-        (
-            "watch-later-options",
-            "start,vid,aid,sid,volume,sub-delay,sub-speed",
-        ),
-        // The other half of "per file": mpv carries a setting changed during
-        // one file into the next, so a delay that fixed one episode would
-        // land on the next as well. With this each file starts untimed, and
-        // its own timing comes back from the entry above.
-        ("reset-on-next-file", "sub-delay,sub-speed"),
-    ] {
-        if let Err(e) = mpv.set_option(key, value) {
-            log::info!("{key}: {e}");
-        }
+    if let Err(e) = mpv.set_option(prop::SAVE_POSITION_ON_QUIT, true) {
+        log::info!("save-position-on-quit: {e}");
+    }
+    // `start` is the position; the rest makes it a resume. The subtitles'
+    // speed goes with their delay, since a sync can set both, and one without
+    // the other is worse than neither.
+    let recorded = Names::default()
+        .with(prop::START)
+        .with(prop::VID)
+        .with(prop::AID)
+        .with(prop::SID)
+        .with(prop::VOLUME)
+        .with(prop::SUB_DELAY)
+        .with(prop::SUB_SPEED);
+    if let Err(e) = mpv.set_option(prop::WATCH_LATER_OPTIONS, recorded) {
+        log::info!("watch-later-options: {e}");
+    }
+    // The other half of "per file": mpv carries a setting changed during one
+    // file into the next, so a delay that fixed one episode would land on the
+    // next as well. With this each file starts untimed, and its own timing
+    // comes back from the entry above.
+    let per_file = Names::default().with(prop::SUB_DELAY).with(prop::SUB_SPEED);
+    if let Err(e) = mpv.set_option(prop::RESET_ON_NEXT_FILE, per_file) {
+        log::info!("reset-on-next-file: {e}");
     }
     // A run nobody is watching (see `run_mode`) plays silently, through a
     // zero-gain filter at the end of the audio chain rather than by muting or
     // turning it down, which several exercises press and read back.
     if crate::run_mode::unattended() {
-        match mpv.set_option("af", "lavfi=[volume=0]") {
+        match mpv.set_option(prop::AF, "lavfi=[volume=0]") {
             Ok(()) => eprintln!("dbm: unattended - playing silently"),
             Err(e) => eprintln!("dbm: unattended, but could not silence the audio: {e}"),
         }
@@ -106,23 +112,35 @@ pub fn checkpoint(mpv: &Mpv) {
     if OPENING.load(Ordering::Relaxed) {
         return;
     }
-    if let Err(e) = mpv.command_async(0, &["write-watch-later-config"]) {
+    if let Err(e) = mpv.run(commands::REPLY_IGNORED, Command::WriteWatchLaterConfig) {
         log::info!("watch-later checkpoint: {e}");
     }
 }
 
 /// Write the playing file's entry as the player quits, and wait until mpv has.
 ///
-/// Only once the event loop has returned, since it blocks (see
-/// [`Mpv::command`]). Taking mpv down doesn't save anything by itself.
-pub fn save_before_quitting(mpv: &Mpv) {
+/// Queued behind the last things asked for, so a seek made just before
+/// quitting is the place saved. Taking mpv down doesn't save anything by
+/// itself.
+///
+/// # Safety
+/// Only once the event loop has returned, since this reads mpv's events (see
+/// [`Mpv::run_and_wait`]).
+pub unsafe fn save_before_quitting(mpv: &Mpv) {
     if OPENING.load(Ordering::Relaxed) {
         return;
     }
-    if let Err(e) = mpv.command(&["write-watch-later-config"]) {
+    // SAFETY: the caller vouches that the frame path, the one other reader
+    // of mpv's events, has stopped.
+    let saved = unsafe { mpv.run_and_wait(Command::WriteWatchLaterConfig, QUIT_SAVE_WAIT) };
+    if let Err(e) = saved {
         log::info!("watch-later on quit: {e}");
     }
 }
+
+/// How long quitting waits for the save. It takes milliseconds; this is for
+/// an mpv that has stopped answering, which shouldn't hold the quit for ever.
+const QUIT_SAVE_WAIT: Duration = Duration::from_secs(5);
 
 /// Where to find libmpv.
 ///
@@ -151,14 +169,10 @@ pub fn libmpv_path() -> PathBuf {
 /// one has to match the border pass it was built with.
 pub fn mask_subtitles(mpv: &Mpv) {
     let path = dbm_library::paths::subtitle_mask();
-    // A command rather than the option, which would split the path on the
-    // list separator: as an argument of its own, any path is taken as it is.
     let loaded = std::fs::write(&path, include_str!("../../shaders/subtitle_mask.glsl"))
         .map_err(|e| e.to_string())
         .and_then(|()| {
-            let path = path.to_string_lossy();
-            let args = ["change-list", "glsl-shaders", "append", path.as_ref()];
-            mpv.command_async(commands::REPLY_IGNORED, &args)
+            mpv.run(commands::REPLY_IGNORED, Command::AppendShader(&path))
                 .map_err(|e| e.to_string())
         });
     if let Err(e) = loaded {

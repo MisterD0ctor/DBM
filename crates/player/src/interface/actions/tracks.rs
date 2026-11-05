@@ -37,8 +37,8 @@ pub(super) fn wire_tracks(ui: &MainWindow, app: &App) {
             let Some(file) = commands::remove_track(mpv, i64::from(id), subtitle) else {
                 return;
             };
-            if let Some(path) = mpv.get_property("path") {
-                dbm_library::opensubtitles::forget(&path.into(), &file);
+            if let Some(path) = mpv.get(dbm_mpv::prop::PATH) {
+                dbm_library::opensubtitles::forget(&path, &file);
             }
         });
     });

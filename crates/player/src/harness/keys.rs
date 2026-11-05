@@ -193,7 +193,7 @@ pub(super) fn read_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
 
     script::run(ui, move |ui| async move {
         let mut beat = Beat::new(Duration::from_millis(900));
-        let pos = || mpv.get_property("time-pos").unwrap_or_else(|| "-".into());
+        let pos = || super::shown(mpv.get(dbm_mpv::prop::TIME_POS));
         let key = |k: Key| chord(&ui, &[], &slint::SharedString::from(k));
         beat.next().await;
         // Straight there, by the key the page itself documents.

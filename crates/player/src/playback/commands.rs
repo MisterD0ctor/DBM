@@ -9,8 +9,9 @@
 //! shouldn't take the player down.
 
 use dbm_library::bars::Crop;
+use dbm_mpv::prop::{self, Cache, KeepOpen, Rect, TrackChoice};
 use dbm_mpv::tracks::{self, TrackKind};
-use dbm_mpv::{MediaPath, Mpv};
+use dbm_mpv::{Command, Direction, MediaPath, Mpv, Property, SeekTarget, ToMpv};
 
 /// Arrow-key seek, in seconds.
 pub const SEEK_STEP: f64 = 10.0;
@@ -50,7 +51,7 @@ pub fn step_speed(mpv: &Mpv, current: f64, direction: i32) {
         SPEEDS.iter().rev().copied().find(|s| *s < current - 1e-3)
     };
     if let Some(speed) = next {
-        set_prop(mpv, "speed", &fmt(speed));
+        set(mpv, prop::SPEED, speed);
     }
 }
 
@@ -59,33 +60,23 @@ pub fn step_speed(mpv: &Mpv, current: f64, direction: i32) {
 // Only MPRIS asks for this; SMTC has no rate or position to set.
 #[cfg_attr(windows, allow(dead_code))]
 pub fn set_speed(mpv: &Mpv, speed: f64) {
-    set_prop(mpv, "speed", &fmt(speed));
+    set(mpv, prop::SPEED, speed);
 }
 
 pub fn reset_speed(mpv: &Mpv) {
-    set_prop(mpv, "speed", "1");
+    set(mpv, prop::SPEED, 1.0);
 }
 
 /// One frame. Forward pauses on arrival, as mpv's own does; back always
 /// seeks, so it is slower on a long GOP.
 pub fn frame_step(mpv: &Mpv, direction: i32) {
-    run(
-        mpv,
-        &[if direction >= 0 {
-            "frame-step"
-        } else {
-            "frame-back-step"
-        }],
-    );
+    run(mpv, Command::FrameStep(way(direction)));
 }
 
 /// The previous or next chapter. mpv's own semantics: back from a little way
 /// into a chapter returns to its start before it goes to the one before.
 pub fn chapter_step(mpv: &Mpv, direction: i32) {
-    run(
-        mpv,
-        &["add", "chapter", if direction >= 0 { "1" } else { "-1" }],
-    );
+    run(mpv, Command::ChapterStep(way(direction)));
 }
 
 /// The next subtitle or audio track, wrapping through "none".
@@ -93,12 +84,11 @@ pub fn chapter_step(mpv: &Mpv, direction: i32) {
 /// Subtitles are made visible with it, or cycling onto a track hidden by an
 /// earlier switch-off would seem to do nothing.
 pub fn cycle_track(mpv: &Mpv, subtitles: bool, direction: i32) {
-    let way = if direction >= 0 { "up" } else { "down" };
     if subtitles {
-        run(mpv, &["cycle", "sub", way]);
-        set_prop(mpv, "sub-visibility", "yes");
+        run(mpv, Command::CycleTrack(prop::SID, way(direction)));
+        set(mpv, prop::SUB_VISIBILITY, true);
     } else {
-        run(mpv, &["cycle", "audio", way]);
+        run(mpv, Command::CycleTrack(prop::AID, way(direction)));
     }
 }
 
@@ -114,9 +104,26 @@ pub const REPLY_MOVE: u64 = 3;
 ///
 /// Nothing on an interactive path may wait on mpv's core: a synchronous
 /// exact seek holds the UI thread for about 200ms.
-fn run(mpv: &Mpv, args: &[&str]) {
-    if let Err(e) = mpv.command_async(REPLY_IGNORED, args) {
-        log::warn!("mpv command {args:?} failed: {e}");
+fn run(mpv: &Mpv, command: Command<'_>) {
+    if let Err(e) = mpv.run(REPLY_IGNORED, command) {
+        log::warn!("mpv command {command:?} failed: {e}");
+    }
+}
+
+/// Queue a property change. Never blocks, and keeps its place among the
+/// commands queued around it.
+fn set<T: ToMpv>(mpv: &Mpv, property: Property<T>, value: impl Into<T>) {
+    if let Err(e) = mpv.set(property, value) {
+        log::warn!("mpv set {property:?} failed: {e}");
+    }
+}
+
+/// The player's steps are signed; mpv's take a way to go.
+fn way(direction: i32) -> Direction {
+    if direction >= 0 {
+        Direction::Forward
+    } else {
+        Direction::Back
     }
 }
 
@@ -124,11 +131,11 @@ fn run(mpv: &Mpv, args: &[&str]) {
 /// intent really is a toggle; this is for code that has decided which state
 /// it wants, such as the scrubber restoring playback.
 pub fn set_pause(mpv: &Mpv, paused: bool) {
-    set_prop(mpv, "pause", if paused { "yes" } else { "no" });
+    set(mpv, prop::PAUSE, paused);
 }
 
 pub fn toggle_pause(mpv: &Mpv) {
-    run(mpv, &["cycle", "pause"]);
+    run(mpv, Command::Cycle(prop::PAUSE));
 }
 
 /// Toggle pan-and-scan: fill the window by cropping, rather than
@@ -137,7 +144,7 @@ pub fn toggle_pause(mpv: &Mpv) {
 /// `cycle-values` rather than reading the current value and negating it, so
 /// this stays stateless like the rest.
 pub fn toggle_panscan(mpv: &Mpv) {
-    run(mpv, &["cycle-values", "panscan", "1.0", "0.0"]);
+    run(mpv, Command::CycleValues(prop::PANSCAN, &[1.0, 0.0]));
 }
 
 /// Show only `crop` of the playing file's frame, or the whole of it.
@@ -145,12 +152,17 @@ pub fn toggle_panscan(mpv: &Mpv) {
 /// File-local, so mpv puts the whole frame back when the file ends and the
 /// next one never opens with this one's crop.
 pub fn crop(mpv: &Mpv, crop: Option<Crop>) {
-    let spec = crop.map_or_else(String::new, |c| format!("{}x{}+{}+{}", c.w, c.h, c.x, c.y));
-    set_prop(mpv, "file-local-options/video-crop", &spec);
+    let rect = crop.map(|c| Rect {
+        x: c.x,
+        y: c.y,
+        w: c.w,
+        h: c.h,
+    });
+    set(mpv, prop::FILE_LOCAL_VIDEO_CROP, rect);
 }
 
 pub fn toggle_mute(mpv: &Mpv) {
-    run(mpv, &["cycle", "mute"]);
+    run(mpv, Command::Cycle(prop::MUTE));
 }
 
 /// Toggle caption visibility.
@@ -164,7 +176,7 @@ pub fn toggle_mute(mpv: &Mpv) {
 /// Reads the track list, so this **blocks** and must run on the worker,
 /// where the read is fresh in a way a mirrored copy isn't.
 pub fn toggle_subtitles(mpv: &Mpv) {
-    let tracks = tracks::read_tracks(mpv);
+    let tracks = mpv.get(prop::TRACK_LIST).unwrap_or_default();
     let subs = tracks::of_kind(&tracks, TrackKind::Sub);
     if subs.is_empty() {
         return;
@@ -172,28 +184,34 @@ pub fn toggle_subtitles(mpv: &Mpv) {
 
     // Showing, not merely visible, since `sub-visibility` can be on with no
     // track selected, where turning it off would change nothing visible.
-    let showing =
-        mpv.get_bool("sub-visibility") && tracks::selected(&tracks, TrackKind::Sub).is_some();
+    let showing = mpv.get(prop::SUB_VISIBILITY).unwrap_or(false)
+        && tracks::selected(&tracks, TrackKind::Sub).is_some();
     if showing {
-        set_prop(mpv, "sub-visibility", "no");
+        set(mpv, prop::SUB_VISIBILITY, false);
         return;
     }
     // Only trust the current selection if it names a track this file has.
     if tracks::selected(&tracks, TrackKind::Sub).is_none() {
-        set_prop(mpv, "sid", &subs[0].id.to_string());
+        set(mpv, prop::SID, TrackChoice::Id(subs[0].id));
     }
-    set_prop(mpv, "sub-visibility", "yes");
+    set(mpv, prop::SUB_VISIBILITY, true);
 }
 
 /// Load a subtitle file into the film playing, named as fetched from
 /// OpenSubtitles and in `language`. Selected and shown when `show` is set;
 /// otherwise only added to the list, as the film's own tracks are.
 pub fn add_subtitle(mpv: &Mpv, file: &std::path::Path, language: &str, show: bool) {
-    let file = file.to_string_lossy();
-    let flag = if show { "select" } else { "auto" };
-    run(mpv, &["sub-add", &file, flag, "OpenSubtitles", language]);
+    run(
+        mpv,
+        Command::SubAdd {
+            file,
+            select: show,
+            title: Some("OpenSubtitles"),
+            lang: Some(language),
+        },
+    );
     if show {
-        set_prop(mpv, "sub-visibility", "yes");
+        set(mpv, prop::SUB_VISIBILITY, true);
     }
 }
 
@@ -207,17 +225,18 @@ pub fn remove_track(mpv: &Mpv, id: i64, subtitle: bool) -> Option<String> {
     } else {
         TrackKind::Audio
     };
-    let file = tracks::read_tracks(mpv)
+    let file = mpv
+        .get(prop::TRACK_LIST)?
         .into_iter()
         .find(|track| track.id == id && track.kind == kind && track.external)?
         .external_filename
         .unwrap_or_default();
     let command = if subtitle {
-        "sub-remove"
+        Command::SubRemove(id)
     } else {
-        "audio-remove"
+        Command::AudioRemove(id)
     };
-    run(mpv, &[command, &id.to_string()]);
+    run(mpv, command);
     Some(file)
 }
 
@@ -225,18 +244,17 @@ pub fn remove_track(mpv: &Mpv, id: i64, subtitle: bool) -> Option<String> {
 pub fn set_subtitle_track(mpv: &Mpv, id: Option<i64>) {
     match id {
         Some(id) => {
-            set_prop(mpv, "sid", &id.to_string());
-            set_prop(mpv, "sub-visibility", "yes");
+            set(mpv, prop::SID, TrackChoice::Id(id));
+            set(mpv, prop::SUB_VISIBILITY, true);
         }
         // Leaves `sid` intact so the track stays the one a later toggle
         // brings back, matching the subtitles menu's own "Off" entry.
-        None => set_prop(mpv, "sub-visibility", "no"),
+        None => set(mpv, prop::SUB_VISIBILITY, false),
     }
 }
 
 pub fn set_audio_track(mpv: &Mpv, id: Option<i64>) {
-    let value = id.map(|i| i.to_string()).unwrap_or_else(|| "no".into());
-    set_prop(mpv, "aid", &value);
+    set(mpv, prop::AID, id.map_or(TrackChoice::Off, TrackChoice::Id));
 }
 
 /// Load a scanned playlist and begin at one of its entries.
@@ -252,16 +270,19 @@ pub fn set_audio_track(mpv: &Mpv, id: Option<i64>) {
 /// which then answers with that reply.
 pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &MediaPath) -> bool {
     save_before_leaving(mpv);
-    set_prop(mpv, "playlist-start", &start.to_string());
+    set(mpv, prop::PLAYLIST_START, i64::try_from(start).unwrap_or(0));
     // The document portal is a FUSE mount, which mpv takes for a network
     // share: it reads 150 MB ahead and keeps 50 MB behind, in memory, of files
     // that are almost always on a local disk. Most of its paths are played from
     // where they really are, but not one whose real place is out of reach (see
     // `platform::documents`), which plays as a local file does.
     let portal = crate::platform::documents::is_portal(first.as_path());
-    set_prop(mpv, "cache", if portal { "no" } else { "auto" });
-    let args = ["loadlist", &*m3u.to_string_lossy(), "replace"];
-    if let Err(e) = mpv.command_async(REPLY_LOADLIST, &args) {
+    set(
+        mpv,
+        prop::CACHE,
+        if portal { Cache::No } else { Cache::Auto },
+    );
+    if let Err(e) = mpv.run(REPLY_LOADLIST, Command::LoadList(m3u)) {
         log::warn!("loadlist failed: {e}");
         crate::playback::session::settled();
         return false;
@@ -270,17 +291,17 @@ pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &MediaPa
 }
 
 pub fn playlist_play(mpv: &Mpv, index: i64) {
-    move_to(mpv, &["playlist-play-index", &index.to_string()]);
+    move_to(mpv, Command::PlaylistPlayIndex(index));
 }
 
 /// Go to another entry in the playlist, saving the place in this one first.
 ///
 /// One past either end goes nowhere, and mpv's refusal (`REPLY_MOVE`) is
 /// then the only sign that nothing is opening after all.
-fn move_to(mpv: &Mpv, args: &[&str]) {
+fn move_to(mpv: &Mpv, command: Command<'_>) {
     save_before_leaving(mpv);
-    if let Err(e) = mpv.command_async(REPLY_MOVE, args) {
-        log::warn!("mpv command {args:?} failed: {e}");
+    if let Err(e) = mpv.run(REPLY_MOVE, command) {
+        log::warn!("mpv command {command:?} failed: {e}");
         crate::playback::session::settled();
     }
 }
@@ -297,15 +318,14 @@ fn save_before_leaving(mpv: &Mpv) {
     crate::playback::session::opening();
 }
 
-/// Set a property without waiting. Expressed as mpv `set` command so it can
-/// go through the same async path; `mpv_set_property_async` would need a
-/// typed payload for no benefit here.
-fn set_prop(mpv: &Mpv, name: &str, value: &str) {
-    run(mpv, &["set", name, value]);
-}
-
 pub fn seek_relative(mpv: &Mpv, seconds: f64) {
-    run(mpv, &["seek", &fmt(seconds), "relative+exact"]);
+    run(
+        mpv,
+        Command::Seek {
+            to: SeekTarget::By(seconds),
+            exact: true,
+        },
+    );
 }
 
 /// Seek to a position given as 0..1 of the file, landing exactly there.
@@ -317,7 +337,10 @@ pub fn seek_relative(mpv: &Mpv, seconds: f64) {
 pub fn seek_fraction(mpv: &Mpv, fraction: f32) {
     run(
         mpv,
-        &["seek", &fmt(percent_of(fraction)), "absolute-percent+exact"],
+        Command::Seek {
+            to: percent_of(fraction),
+            exact: true,
+        },
     );
 }
 
@@ -327,21 +350,19 @@ pub fn seek_fraction(mpv: &Mpv, fraction: f32) {
 /// id, so the scrubber can tell its own completions apart. Returns whether
 /// the seek went out, and so whether that reply will come.
 pub fn seek_scrub(mpv: &Mpv, fraction: f32, exact: bool) -> bool {
-    let how = if exact {
-        "absolute-percent+exact"
-    } else {
-        "absolute-percent"
+    let seek = Command::Seek {
+        to: percent_of(fraction),
+        exact,
     };
-    let args = ["seek", &fmt(percent_of(fraction)), how];
-    if let Err(e) = mpv.command_async(REPLY_SCRUB, &args) {
+    if let Err(e) = mpv.run(REPLY_SCRUB, seek) {
         log::warn!("scrub seek failed: {e}");
         return false;
     }
     true
 }
 
-fn percent_of(fraction: f32) -> f64 {
-    f64::from(fraction.clamp(0.0, 1.0)) * 100.0
+fn percent_of(fraction: f32) -> SeekTarget {
+    SeekTarget::Percent(f64::from(fraction.clamp(0.0, 1.0)) * 100.0)
 }
 
 /// Put the volume at a level outright, as the bar does under a hand. Clamped
@@ -354,16 +375,16 @@ fn percent_of(fraction: f32) -> f64 {
 pub fn set_volume(mpv: &Mpv, value: f64) {
     // Written rather than read and tested, like everything here, since
     // setting what mpv already holds costs nothing and a read would block.
-    set_prop(mpv, "mute", "no");
-    set_prop(mpv, "volume", &fmt(value.clamp(0.0, VOLUME_MAX)));
+    set(mpv, prop::MUTE, false);
+    set(mpv, prop::VOLUME, value.clamp(0.0, VOLUME_MAX));
 }
 
 pub fn nudge_volume(mpv: &Mpv, delta: f64) {
-    run(mpv, &["add", "volume", &fmt(delta)]);
+    run(mpv, Command::Add(prop::VOLUME, delta));
 }
 
 pub fn nudge_sub_delay(mpv: &Mpv, delta: f64) {
-    run(mpv, &["add", "sub-delay", &fmt(delta)]);
+    run(mpv, Command::Add(prop::SUB_DELAY, delta));
 }
 
 /// Subtitle size, as a multiple of the default.
@@ -392,7 +413,7 @@ pub const SUB_POS_DEFAULT: f64 = 100.0;
 /// while the bar is up.
 pub fn set_sub_scale(mpv: &Mpv, value: f64) -> f64 {
     let value = value.clamp(SUB_SCALE_MIN, SUB_SCALE_MAX);
-    set_prop(mpv, "sub-scale", &fmt(value));
+    set(mpv, prop::SUB_SCALE, value);
     value
 }
 
@@ -409,12 +430,12 @@ pub struct PictureParams {
 
 impl PictureParams {
     /// Each with the mpv property it sets.
-    pub fn properties(&self) -> [(&'static str, f32); 4] {
+    pub fn properties(&self) -> [(Property<i64>, f32); 4] {
         [
-            ("brightness", self.brightness),
-            ("contrast", self.contrast),
-            ("saturation", self.saturation),
-            ("gamma", self.gamma),
+            (prop::BRIGHTNESS, self.brightness),
+            (prop::CONTRAST, self.contrast),
+            (prop::SATURATION, self.saturation),
+            (prop::GAMMA, self.gamma),
         ]
     }
 }
@@ -422,18 +443,14 @@ impl PictureParams {
 /// How the picture is drawn: its brightness, contrast, saturation and gamma,
 /// each a whole number from -100 to 100, as mpv takes them.
 pub fn set_picture(mpv: &Mpv, picture: &PictureParams) {
-    for (name, value) in picture.properties() {
-        set_prop(
-            mpv,
-            name,
-            &fmt(f64::from(value.round()).clamp(-100.0, 100.0)),
-        );
+    for (property, value) in picture.properties() {
+        set(mpv, property, value.round().clamp(-100.0, 100.0) as i64);
     }
 }
 
 pub fn set_sub_pos(mpv: &Mpv, value: f64) -> f64 {
     let value = value.clamp(SUB_POS_MIN, SUB_POS_MAX);
-    set_prop(mpv, "sub-pos", &fmt(value));
+    set(mpv, prop::SUB_POS, value);
     value
 }
 
@@ -441,27 +458,22 @@ pub fn set_sub_pos(mpv: &Mpv, value: f64) -> f64 {
 /// all, or against the picture alone. Text and ASS subtitles have an option
 /// each; bitmaps follow neither and stay in the picture.
 pub fn set_sub_frame(mpv: &Mpv, window: bool) {
-    let value = if window { "yes" } else { "no" };
-    set_prop(mpv, "sub-use-margins", value);
-    set_prop(mpv, "sub-ass-force-margins", value);
+    set(mpv, prop::SUB_USE_MARGINS, window);
+    set(mpv, prop::SUB_ASS_FORCE_MARGINS, window);
 }
 
 /// Timing is per file rather than a preference, since a delay that fixes one
 /// set of subtitles is wrong for the next, so mpv's watch-later file keeps it
 /// (see `session::configure`).
 pub fn set_sub_delay(mpv: &Mpv, seconds: f64) {
-    set_prop(mpv, "sub-delay", &fmt(seconds));
+    set(mpv, prop::SUB_DELAY, seconds);
 }
 
 /// The speed subtitles run at against the film: 1, unless they were timed
 /// for a transfer at another frame rate (see `subsync`). Per file, like the
 /// delay it goes with.
-///
-/// Six places rather than `fmt`'s four. The fourth place of a speed is
-/// seven hundredths of a second by the end of a two-hour film, which is the
-/// error this exists to remove.
 pub fn set_sub_speed(mpv: &Mpv, speed: f64) {
-    set_prop(mpv, "sub-speed", &format!("{speed:.6}"));
+    set(mpv, prop::SUB_SPEED, speed);
 }
 
 /// Whether reaching the end of a file advances to the next.
@@ -470,7 +482,11 @@ pub fn set_sub_speed(mpv: &Mpv, speed: f64) {
 /// at the end of the playlist, so files flow into one another; `always`
 /// stops at the end of every file. There is no separate autoplay flag.
 pub fn set_autoplay(mpv: &Mpv, on: bool) {
-    set_prop(mpv, "keep-open", if on { "yes" } else { "always" });
+    set(
+        mpv,
+        prop::KEEP_OPEN,
+        if on { KeepOpen::Yes } else { KeepOpen::Always },
+    );
 }
 
 /// Play this file again from the start.
@@ -497,9 +513,9 @@ pub fn playlist_step(mpv: &Mpv, delta: i32) {
     move_to(
         mpv,
         if delta >= 0 {
-            &["playlist-next"]
+            Command::PlaylistNext
         } else {
-            &["playlist-prev"]
+            Command::PlaylistPrev
         },
     );
 }
@@ -507,15 +523,15 @@ pub fn playlist_step(mpv: &Mpv, delta: i32) {
 /// Seek to a point, counted in seconds from the start. Exact, like every
 /// seek that is not a drag in progress.
 pub fn seek_to(mpv: &Mpv, seconds: f64) {
-    run(mpv, &["seek", &fmt(seconds), "absolute+exact"]);
+    run(
+        mpv,
+        Command::Seek {
+            to: SeekTarget::To(seconds),
+            exact: true,
+        },
+    );
 }
 
 pub fn restart(mpv: &Mpv) {
-    run(mpv, &["seek", "0", "absolute+exact"]);
-}
-
-/// mpv parses these as plain numbers, so avoid scientific notation and the
-/// locale-dependent formatting a naive `to_string` could produce.
-fn fmt(v: f64) -> String {
-    format!("{v:.4}")
+    seek_to(mpv, 0.0);
 }

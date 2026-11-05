@@ -1,8 +1,10 @@
 //! The settings pages: sliders, switches, resets, and the subtitle steppers.
 
+use std::path::Path;
 use std::time::Duration;
 
-use dbm_mpv::Mpv;
+use dbm_mpv::prop::{self, TrackChoice};
+use dbm_mpv::{Command, Mpv, Property, SeekTarget};
 use slint::{ComponentHandle, Model};
 
 use super::script::{self, Beat, Script, Verdict, sleep};
@@ -52,13 +54,13 @@ fn report_subs(ui: &MainWindow, mpv: &Mpv, label: &str) {
     eprintln!(
         "dbm: {label:<20} mpv delay={:?} scale={:?} pos={:?} | panel {} {} {} \
          | margins {:?} floor {:.3} lift {:.2}",
-        mpv.get_property("sub-delay"),
-        mpv.get_property("sub-scale"),
-        mpv.get_property("sub-pos"),
+        mpv.get(prop::SUB_DELAY),
+        mpv.get(prop::SUB_SCALE),
+        mpv.get(prop::SUB_POS),
         ui.global::<Subtitles>().get_delay_text(),
         ui.global::<Subtitles>().get_scale_text(),
         ui.global::<Subtitles>().get_pos_text(),
-        mpv.get_property("sub-use-margins"),
+        mpv.get(prop::SUB_USE_MARGINS),
         ui.get_subtitle_floor(),
         ui.get_subtitle_lift(),
     );
@@ -73,12 +75,8 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
     script::run(ui, move |ui| async move {
         let verdict = Verdict::new("subtitle");
         let subtitles = ui.global::<Subtitles>();
-        let read = |name: &str| {
-            mpv.get_property(name)
-                .and_then(|v| v.parse::<f64>().ok())
-                .unwrap_or(f64::NAN)
-        };
-        let near = |name: &str, want: f64| (read(name) - want).abs() < 0.005;
+        let read = |property: Property<f64>| mpv.get(property).unwrap_or(f64::NAN);
+        let near = |property, want: f64| (read(property) - want).abs() < 0.005;
         let mut beat = Beat::new(Duration::from_millis(900));
         beat.next().await;
         report_subs(&ui, &mpv, "start");
@@ -88,14 +86,14 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         }
         beat.next().await;
         report_subs(&ui, &mpv, "delay +4 steps");
-        verdict.check(near("sub-delay", 0.4), "four steps of delay are 0.4 s");
+        verdict.check(near(prop::SUB_DELAY, 0.4), "four steps of delay are 0.4 s");
         beat.next().await;
         for _ in 0..3 {
             subtitles.invoke_nudge_scale(subtitles.get_scale_step());
         }
         beat.next().await;
         report_subs(&ui, &mpv, "size +3 steps");
-        verdict.check(near("sub-scale", 1.15), "three steps of size are 1.15");
+        verdict.check(near(prop::SUB_SCALE, 1.15), "three steps of size are 1.15");
         beat.next().await;
         for _ in 0..5 {
             subtitles.invoke_nudge_pos(-subtitles.get_pos_step());
@@ -111,7 +109,7 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         }
         beat.next().await;
         report_subs(&ui, &mpv, "size held up");
-        verdict.check(near("sub-scale", 3.0), "the size stops at its ceiling");
+        verdict.check(near(prop::SUB_SCALE, 3.0), "the size stops at its ceiling");
         beat.next().await;
         for _ in 0..120 {
             subtitles.invoke_nudge_pos(-subtitles.get_pos_step());
@@ -130,7 +128,9 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         beat.next().await;
         report_subs(&ui, &mpv, "after reset");
         verdict.check(
-            near("sub-delay", 0.0) && near("sub-scale", 1.0) && subtitles.get_pos_text() == "100%",
+            near(prop::SUB_DELAY, 0.0)
+                && near(prop::SUB_SCALE, 1.0)
+                && subtitles.get_pos_text() == "100%",
             "the resets put everything back",
         );
         verdict.finish();
@@ -175,7 +175,7 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         }
         eprintln!(
             "dbm: find {label:<14} line={:?}",
-            mpv.get_property("sub-text").unwrap_or_default()
+            mpv.get(prop::SUB_TEXT).unwrap_or_default()
         );
     };
     script::run(ui, move |ui| async move {
@@ -185,8 +185,14 @@ pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         let enter = slint::SharedString::from(Key::Return);
         let delete = slint::SharedString::from(Key::Delete);
         beat.rest(5).await;
-        let _ = mpv.set_property("pause", "yes");
-        let _ = mpv.command_async(0, &["seek", "5", "absolute+exact"]);
+        let _ = mpv.set(prop::PAUSE, true);
+        let _ = mpv.run(
+            0,
+            Command::Seek {
+                to: SeekTarget::To(5.0),
+                exact: true,
+            },
+        );
         ui.invoke_open_menu(true);
         beat.next().await;
         report(&ui, &mpv, "menu");
@@ -429,7 +435,10 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
     use slint::platform::Key;
 
     let track = std::env::var("DBM_SYNC_TEST").unwrap_or_default();
-    let at = std::env::var("DBM_SYNC_AT").unwrap_or_else(|_| "19".into());
+    let at = std::env::var("DBM_SYNC_AT")
+        .ok()
+        .and_then(|at| at.parse().ok())
+        .unwrap_or(19.0);
     let report = move |ui: &MainWindow, mpv: &Mpv, label: &str| {
         eprintln!(
             "dbm: sync {label:<20} state={:?} delay={:+.2} speed={:.4} said={:?} line={:?}",
@@ -437,7 +446,7 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
             ui.global::<Subtitles>().get_delay(),
             ui.global::<Subtitles>().get_speed(),
             ui.global::<crate::Flash>().get_message(),
-            mpv.get_property("sub-text").unwrap_or_default(),
+            mpv.get(prop::SUB_TEXT).unwrap_or_default(),
         );
     };
     script::run(ui, move |ui| async move {
@@ -448,13 +457,27 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         let enter = SharedString::from(Key::Return);
         // Let the film open first: there is no track to pick before.
         beat.rest(5).await;
-        if track.parse::<i64>().is_ok() {
-            let _ = mpv.set_property("sid", &track);
+        if let Ok(id) = track.parse::<i64>() {
+            let _ = mpv.set(prop::SID, TrackChoice::Id(id));
         } else {
-            let _ = mpv.command_async(0, &["sub-add", &track, "select"]);
+            let _ = mpv.run(
+                0,
+                Command::SubAdd {
+                    file: Path::new(&track),
+                    select: true,
+                    title: None,
+                    lang: None,
+                },
+            );
         }
-        let _ = mpv.set_property("pause", "yes");
-        let _ = mpv.command_async(0, &["seek", &at, "absolute+exact"]);
+        let _ = mpv.set(prop::PAUSE, true);
+        let _ = mpv.run(
+            0,
+            Command::Seek {
+                to: SeekTarget::To(at),
+                exact: true,
+            },
+        );
         beat.rest(2).await;
         report(&ui, &mpv, "before");
         for key in [
@@ -557,7 +580,7 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         // Autoplay has no picture to check, so mpv is the witness.
         eprintln!(
             "dbm: autoplay off -> keep-open={:?}",
-            mpv.get_property("keep-open")
+            mpv.get(prop::KEEP_OPEN)
         );
         beat.next().await;
         ui.global::<Settings>().set_autoplay(true);
@@ -565,7 +588,7 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         beat.next().await;
         eprintln!(
             "dbm: autoplay on  -> keep-open={:?}",
-            mpv.get_property("keep-open")
+            mpv.get(prop::KEEP_OPEN)
         );
         beat.next().await;
         // Animations, the way the switch turns them off: `Motion`

@@ -3,6 +3,7 @@
 use std::time::Duration;
 
 use dbm_mpv::Mpv;
+use dbm_mpv::prop::{self, TrackChoice};
 
 use super::drive::hover;
 use super::script::{self, Beat, Script};
@@ -102,7 +103,7 @@ pub(super) fn audio_test(
         beat.next().await;
         // What mpv does by itself when the device under the output
         // disappears: the track goes, playback does not.
-        if let Err(e) = mpv.set_property("aid", "no") {
+        if let Err(e) = mpv.set(prop::AID, TrackChoice::Off) {
             eprintln!("dbm: audio test: could not drop the track: {e}");
         }
         beat.next().await;
@@ -118,7 +119,7 @@ pub(super) fn audio_test(
         // "Off" row, then another device turning up, which must leave
         // it alone.
         audio.note_user_selection(None);
-        if let Err(e) = mpv.set_property("aid", "no") {
+        if let Err(e) = mpv.set(prop::AID, TrackChoice::Off) {
             eprintln!("dbm: audio test: could not turn audio off: {e}");
         }
         beat.next().await;
@@ -136,16 +137,15 @@ pub(super) fn audio_test(
 fn device_list(payload: &str) -> dbm_mpv::Event {
     dbm_mpv::Event::Property {
         id: crate::playback::state::Prop::AudioDeviceList.id(),
-        value: dbm_mpv::Value::Str(payload.into()),
+        value: Some(dbm_mpv::Value::Str(payload.into())),
     }
 }
 
 fn report_audio(mpv: &Mpv, label: &str) {
-    let read = |name: &str| mpv.get_property(name).unwrap_or_else(|| "-".into());
     eprintln!(
         "dbm: audio {label:<16} aid={} device={} tracks={}",
-        read("aid"),
-        read("audio-device"),
-        read("track-list/count"),
+        super::shown(mpv.get(prop::AID)),
+        super::shown(mpv.get(prop::AUDIO_DEVICE)),
+        super::shown(mpv.get(prop::TRACK_COUNT)),
     );
 }

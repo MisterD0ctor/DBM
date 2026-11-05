@@ -6,14 +6,14 @@
 //!
 //! Everything here is called from the frame path, so the rule that matters
 //! is: **never make a blocking property read on this path.**
-//! `mpv_get_property_string` waits on mpv's core lock, and during a resize
-//! that lock is contended enough to cost hundreds of milliseconds a frame.
+//! `Mpv::get` waits on mpv's core lock, and during a resize that lock is
+//! contended enough to cost hundreds of milliseconds a frame.
 //! Scalars are observed and arrive on the event queue; the list-shaped
 //! properties are read on the worker, and only when a count or selection
 //! actually moves.
 
-use dbm_mpv::MediaPath;
 use dbm_mpv::tracks::{self, TrackKind};
+use dbm_mpv::{MediaPath, prop};
 use slint::ComponentHandle;
 use slint::{ModelRc, SharedString, VecModel};
 
@@ -126,7 +126,7 @@ impl ListSync {
         };
         self.requested = generation;
         self.in_flight = worker.submit(move |mpv| {
-            let playlist = tracks::read_playlist(mpv);
+            let playlist = mpv.get(prop::PLAYLIST).unwrap_or_default();
             let paths: Vec<MediaPath> = playlist.iter().map(|e| e.filename.clone()).collect();
             // mpv's own word on what is playing, from the same read, since
             // the frame's can lag a file behind as one gives way to the next.
@@ -136,8 +136,8 @@ impl ListSync {
                 .map(|e| e.filename.clone());
             let same = read_for.is_some_and(|(list, was)| list == paths && was == playing);
             Some(Completion::Lists(Lists {
-                tracks: tracks::read_tracks(mpv),
-                chapters: tracks::read_chapters(mpv),
+                tracks: mpv.get(prop::TRACK_LIST).unwrap_or_default(),
+                chapters: mpv.get(prop::CHAPTER_LIST).unwrap_or_default(),
                 progress: (!same).then(|| dbm_library::durations::of(&paths)),
                 playing,
                 playlist,
