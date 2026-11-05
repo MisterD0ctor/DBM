@@ -189,10 +189,10 @@ pub struct PlayerState {
     /// pieces, with a scene of the file's own between two, or after the last
     /// where it stops short of the end.
     pub credits_heard: Option<(MediaPath, Vec<(f64, f64)>)>,
-    /// Playlist entries that wouldn't play, by mpv's id, with the notice
-    /// that said so, so their rows can say it again after it has gone. By id
-    /// rather than path, since a file that fails at once has no path reported
-    /// yet.
+    /// Playlist entries that wouldn't play, by mpv's id, with mpv's reason,
+    /// so their rows can say it again after the notice has gone (see
+    /// `unplayable`). By id rather than path, since a file that fails at once
+    /// has no path reported yet.
     pub failed: std::collections::HashMap<i64, String>,
     /// The entry that last played to its end, by mpv's id, for the frame to
     /// take: what autoplay is moving on from (see `arrival`).

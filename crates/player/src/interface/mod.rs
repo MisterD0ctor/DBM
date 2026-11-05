@@ -16,7 +16,8 @@
 //! * `scale` sizes the whole interface at the multiple the settings choose.
 //! * `subline` places the subtitle line, which the person and the bar both get
 //!   a say in.
-//! * `format` writes every figure the interface shows.
+//! * `format` writes every figure the interface shows, and `unplayable` why
+//!   a file wouldn't play.
 
 pub mod actions;
 pub mod chrome;
@@ -31,6 +32,7 @@ pub mod squircle;
 pub mod subline;
 pub mod subsync;
 pub mod sync;
+pub mod unplayable;
 pub mod warm;
 
 use slint::ComponentHandle;

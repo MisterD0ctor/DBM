@@ -5,8 +5,8 @@ use std::time::Duration;
 use slint::ComponentHandle;
 
 use super::playlist_rows;
-use super::script::{self, Beat, Script, sleep};
-use crate::{MainWindow, Playback, Playlist};
+use super::script::{self, Beat, Script, Verdict, sleep};
+use crate::{MainWindow, Playback, Playlist, Settings};
 
 /// Open a path the way the dialog does, and say what came of it.
 ///
@@ -40,6 +40,40 @@ pub(super) fn open_test(ui: &MainWindow, path: String) -> Script {
         report_open(&ui, "after open");
         beat.next().await;
         eprintln!("dbm: --- open test done ---");
+    })
+}
+
+/// Open a list whose first file won't play, then change the language: the
+/// file's row has to say why in the new one, since it says it long after the
+/// notice has gone.
+pub(super) fn unplayable_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        let verdict = Verdict::new("unplayable");
+        let why = || {
+            playlist_rows(&ui)
+                .iter()
+                .map(|row| row.why.to_string())
+                .find(|why| !why.is_empty())
+                .unwrap_or_default()
+        };
+        // The language page's rows: the system's, English, then each built
+        // in. English first, since a run starts in the system's.
+        let choose = |row| ui.global::<Settings>().invoke_choose_language(row);
+        choose(1);
+        verdict
+            .expect(|| why().contains("could not play"), "the row says why")
+            .await;
+        eprintln!("dbm: unplayable said {:?}", why());
+        let swedish = dbm_lang::codes().position(|code| code == "sv");
+        choose(swedish.map_or(-1, |n| i32::try_from(n + 2).unwrap_or(-1)));
+        verdict
+            .expect(
+                || why().contains("kunde inte spela"),
+                "the row says why in the language chosen after",
+            )
+            .await;
+        eprintln!("dbm: unplayable said {:?}", why());
+        verdict.finish();
     })
 }
 

@@ -7,37 +7,12 @@
 
 use std::rc::Rc;
 
-use dbm_lang::{fill, marked, tr};
 use dbm_mpv::{Event, Mpv};
 
-use crate::interface::format;
+use crate::interface::unplayable;
 use crate::playback::audio::Watchdog;
 use crate::playback::state::PlayerState;
 use crate::playback::{commands, session};
-
-/// mpv's own words for why a file stopped, as `mpv_error_string` gives them,
-/// marked so each language can say them too. One mpv adds later is shown as
-/// mpv says it.
-const REASONS: [&str; 9] = [
-    marked("loading failed"),
-    marked("unrecognized file format"),
-    marked("no audio or video data played"),
-    marked("audio output initialization failed"),
-    marked("video output initialization failed"),
-    marked("not supported"),
-    marked("operation not implemented"),
-    marked("something happened"),
-    marked("unknown error"),
-];
-
-/// mpv's description in the language being spoken, where it is one of
-/// [`REASONS`].
-fn said(reason: &str) -> &str {
-    REASONS
-        .iter()
-        .find(|known| **known == reason)
-        .map_or(reason, |known| tr(known))
-}
 
 /// Drain mpv's event queue into the mirrored state.
 ///
@@ -67,13 +42,8 @@ pub fn drain(
             continue;
         }
         // A file that stopped because it couldn't be played, said in mpv's own
-        // words, which beat anything invented here.
-        //
-        // Reason first, because the capsule elides at the bar's width and the
-        // reason is the part worth reading. Then the name the playlist shows,
-        // not the path, whose end, where the file's name is, would be cut.
-        // The entry is remembered so its row keeps saying so after the notice
-        // has gone.
+        // words, which beat anything invented here. The entry is remembered so
+        // its row keeps saying so after the notice has gone.
         if let Event::EndFile {
             failure: Some(reason),
             entry,
@@ -88,16 +58,8 @@ pub fn drain(
                 .iter()
                 .find(|e| e.id == *entry)
                 .map(|e| e.filename.clone());
-            let reason = format::sentence(said(reason));
-            let notice = match &path {
-                Some(path) => fill(
-                    tr("{} — could not play {}"),
-                    &[&reason, &dbm_naming::titled(path.as_str(), None)],
-                ),
-                None => fill(tr("{} — could not play that file"), &[&reason]),
-            };
-            player.failed.insert(*entry, notice.clone());
-            notices.push(notice);
+            notices.push(unplayable::could_not_play(reason, path.as_ref()));
+            player.failed.insert(*entry, reason.clone());
         }
         // Not everything mpv reports is state the interface shows. The
         // watchdog reads the same stream for the device list and the audio

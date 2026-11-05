@@ -14,7 +14,7 @@ use dbm_mpv::MediaPath;
 use slint::ComponentHandle;
 use slint::{Model, ModelRc, VecModel};
 
-use crate::interface::format;
+use crate::interface::{format, unplayable};
 use crate::playback::state::PlayerState;
 use crate::worker::{Completion, Worker};
 use crate::{MainWindow, Playback, Playlist, PlaylistGroup, PlaylistItem};
@@ -59,7 +59,11 @@ impl Panel {
                 index: e.index,
                 current: e.current,
                 progress: player.known_progress(row),
-                why: player.failed.get(&e.id).cloned().unwrap_or_default(),
+                why: player
+                    .failed
+                    .get(&e.id)
+                    .map(|reason| unplayable::could_not_play(reason, Some(&e.filename)))
+                    .unwrap_or_default(),
             })
             .collect();
         let beside: Vec<Beside> = player.beside.clone();

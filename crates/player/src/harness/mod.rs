@@ -35,6 +35,9 @@
 //!   loaded from disk is looked at.
 //! * `DBM_OPEN_TEST=<path>` — opens that path the way the dialog does, and
 //!   reports the playlist it produced.
+//! * `DBM_UNPLAYABLE_TEST=1` — with a list whose first file won't play,
+//!   checks that file's row says why, and says it in Swedish once Swedish is
+//!   chosen.
 //! * `DBM_DIALOG_TEST=1` — puts a real file dialog on screen. Pair it with
 //!   `DBM_TRACE=1` to see that draws carry on while it is open, which is why
 //!   the dialog doesn't run on this thread.
@@ -313,6 +316,9 @@ const EXERCISES: &[(&str, Start)] = &[
         settings::toggle_test(ui, app.mpv.clone())
     }),
     ("DBM_OPEN_TEST", |ui, _, path| opening::open_test(ui, path)),
+    ("DBM_UNPLAYABLE_TEST", |ui, _, _| {
+        opening::unplayable_test(ui)
+    }),
     ("DBM_DIALOG_TEST", |ui, _, _| opening::dialog_test(ui)),
     ("DBM_SHOWCASE", |ui, _, surface| {
         showcase::showcase(ui, surface)
