@@ -14,6 +14,7 @@ use glow::HasContext;
 
 use super::gfx::{Program, ScreenQuad, bind_texture, program, saved_draw_fbo};
 use super::pipeline::GlassPanel;
+use crate::rect::{Pixels, Rect};
 
 const UP: &[u8] = include_bytes!("../../../public/icons/angle-small-up.svg");
 const DOWN: &[u8] = include_bytes!("../../../public/icons/angle-small-down.svg");
@@ -57,12 +58,12 @@ impl Way {
     pub fn pane(&self) -> (GlassPanel, [i32; 4]) {
         let radius = CIRCLE * self.scale / 2.0;
         let pane = GlassPanel {
-            rect: [
+            rect: Rect::<Pixels>::pixels(
                 self.x - radius,
                 self.y - radius,
                 self.x + radius,
                 self.y + radius,
-            ],
+            ),
             radius,
             // Tinted, as every other piece of the interface's glass is.
             tint_alpha: 1.0,

@@ -5,6 +5,7 @@
 //! and this hands that to the pipeline once a frame.
 
 use dbm_gpu::pipeline::{GlassPanel, MAX_PANELS, OPEN_MILK, RING_MILK};
+use dbm_gpu::rect::{Logical, Rect};
 use slint::{ComponentHandle, Model};
 
 use crate::{MainWindow, ScrollFade};
@@ -33,7 +34,7 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<GlassPanel>) {
             warn_overflow();
             return;
         }
-        let mut rect = [g.x, g.y, g.x + g.width, g.y + g.height];
+        let mut rect = Rect::<Logical>::logical(g.x, g.y, g.x + g.width, g.y + g.height);
         let mut opacity = g.opacity;
         if g.ring {
             let surface = (g.host_height > 0.0).then_some((g.host_y, g.host_y + g.host_height));
@@ -43,7 +44,7 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<GlassPanel>) {
             }
         }
         out.push(GlassPanel {
-            rect: rect.map(|v| v * dpi),
+            rect: rect.scaled(dpi),
             radius: g.radius * dpi,
             tint_alpha: g.tint,
             opacity,
@@ -71,17 +72,16 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<GlassPanel>) {
 /// glimpse. A row inside its surface and outside every list, like a page's
 /// way back, is left whole.
 fn within(
-    rect: [f32; 4],
+    rect: Rect<Logical>,
     opacity: f32,
     surface: Option<(f32, f32)>,
     lists: &impl Model<Data = ScrollFade>,
-) -> ([f32; 4], f32) {
-    let centre = f32::midpoint(rect[0], rect[2]);
-    let height = rect[3] - rect[1];
+) -> (Rect<Logical>, f32) {
+    let (centre, height) = (rect.centre().0, rect.height());
     if height <= 0.0 {
         return (rect, opacity);
     }
-    let (mut top, mut bottom) = surface.unwrap_or((rect[1], rect[3]));
+    let (mut top, mut bottom) = surface.unwrap_or((rect.y0, rect.y1));
     let mut best: Option<(f32, f32, f32)> = None;
     for list in lists.iter() {
         if list.width <= 0.0 || list.height <= 0.0 {
@@ -90,7 +90,7 @@ fn within(
         if centre < list.x || centre > list.x + list.width {
             continue;
         }
-        let (top, bottom) = (rect[1].max(list.y), rect[3].min(list.y + list.height));
+        let (top, bottom) = (rect.y0.max(list.y), rect.y1.min(list.y + list.height));
         let inside = (bottom - top) / height;
         if inside > 0.0 && best.is_none_or(|(most, _, _)| inside > most) {
             best = Some((inside, top, bottom));
@@ -99,13 +99,13 @@ fn within(
     if let Some((_, list_top, list_bottom)) = best {
         (top, bottom) = (top.max(list_top), bottom.min(list_bottom));
     }
-    let (top, bottom) = (rect[1].max(top), rect[3].min(bottom));
-    if top <= rect[1] && bottom >= rect[3] {
+    let (top, bottom) = (rect.y0.max(top), rect.y1.min(bottom));
+    if top <= rect.y0 && bottom >= rect.y1 {
         return (rect, opacity);
     }
     let inside = ((bottom - top) / height).max(0.0);
     (
-        [rect[0], top, rect[2], bottom.max(top)],
+        Rect::<Logical>::logical(rect.x0, top, rect.x1, bottom.max(top)),
         opacity * (2.0 * inside - 1.0).clamp(0.0, 1.0),
     )
 }
@@ -122,6 +122,7 @@ fn warn_overflow() {
 mod tests {
     use super::within;
     use crate::ScrollFade;
+    use dbm_gpu::rect::{Logical, Rect};
 
     /// A list from y 100 to 300, as wide as its rows' washes.
     fn list() -> slint::VecModel<ScrollFade> {
@@ -136,27 +137,29 @@ mod tests {
 
     #[test]
     fn a_row_inside_its_list_keeps_its_pane() {
-        let rect = [40.0, 150.0, 340.0, 184.0];
+        let rect = Rect::<Logical>::logical(40.0, 150.0, 340.0, 184.0);
         assert_eq!(within(rect, 1.0, None, &list()), (rect, 1.0));
     }
 
     #[test]
     fn a_row_half_out_of_its_list_has_no_pane_left() {
-        let (cut, opacity) = within([40.0, 83.0, 340.0, 117.0], 1.0, None, &list());
-        assert_eq!(cut, [40.0, 100.0, 340.0, 117.0]);
+        let rect = Rect::<Logical>::logical(40.0, 83.0, 340.0, 117.0);
+        let (cut, opacity) = within(rect, 1.0, None, &list());
+        assert_eq!(cut, Rect::<Logical>::logical(40.0, 100.0, 340.0, 117.0));
         assert_eq!(opacity, 0.0);
     }
 
     #[test]
     fn a_row_leaving_its_list_fades_as_it_goes() {
-        let (cut, opacity) = within([40.0, 275.0, 340.0, 309.0], 0.5, None, &list());
-        assert_eq!(cut[3], 300.0);
+        let rect = Rect::<Logical>::logical(40.0, 275.0, 340.0, 309.0);
+        let (cut, opacity) = within(rect, 0.5, None, &list());
+        assert_eq!(cut.y1, 300.0);
         assert!(opacity > 0.0 && opacity < 0.5, "{opacity}");
     }
 
     #[test]
     fn a_row_outside_every_list_is_left_whole() {
-        let rect = [40.0, 40.0, 340.0, 74.0];
+        let rect = Rect::<Logical>::logical(40.0, 40.0, 340.0, 74.0);
         assert_eq!(within(rect, 1.0, None, &list()), (rect, 1.0));
     }
 
@@ -165,7 +168,7 @@ mod tests {
     #[test]
     fn a_row_below_its_panel_has_no_pane() {
         let (_, opacity) = within(
-            [40.0, 380.0, 340.0, 414.0],
+            Rect::<Logical>::logical(40.0, 380.0, 340.0, 414.0),
             1.0,
             Some((20.0, 360.0)),
             &list(),
@@ -176,18 +179,18 @@ mod tests {
     #[test]
     fn a_row_rising_into_its_panel_fades_in() {
         let (cut, opacity) = within(
-            [40.0, 335.0, 340.0, 369.0],
+            Rect::<Logical>::logical(40.0, 335.0, 340.0, 369.0),
             1.0,
             Some((20.0, 360.0)),
             &list(),
         );
-        assert_eq!(cut, [40.0, 335.0, 340.0, 360.0]);
+        assert_eq!(cut, Rect::<Logical>::logical(40.0, 335.0, 340.0, 360.0));
         assert!(opacity > 0.0 && opacity < 1.0, "{opacity}");
     }
 
     #[test]
     fn a_row_inside_its_panel_and_list_keeps_its_pane() {
-        let rect = [40.0, 150.0, 340.0, 184.0];
+        let rect = Rect::<Logical>::logical(40.0, 150.0, 340.0, 184.0);
         assert_eq!(within(rect, 1.0, Some((20.0, 360.0)), &list()), (rect, 1.0));
     }
 }

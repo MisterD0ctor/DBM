@@ -1,6 +1,8 @@
 //! What the chain is asked to draw: the border's and the glass's settings,
 //! the panes, and the glass's fixed material.
 
+use crate::rect::{Pixels, Rect};
+
 /// How far the glass's corners ease into its straight edges: the corner's
 /// curve runs this many radii along each, where 1 is a quarter of an ellipse
 /// and anything larger squarer and smoother; see `sdg_superbox` in
@@ -50,7 +52,7 @@ impl Default for BorderParams {
 /// its widget.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct GlassPanel {
-    pub rect: [f32; 4],
+    pub rect: Rect<Pixels>,
     pub radius: f32,
     pub tint_alpha: f32,
     /// How far the panel has faded in, 0..1, so the glass fades with it.

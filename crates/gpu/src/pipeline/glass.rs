@@ -9,6 +9,7 @@ use super::{
 };
 use crate::blur;
 use crate::gfx::{Target, bind_texture, saved_draw_fbo};
+use crate::rect::{Pixels, Rect};
 use crate::shadow::HEADROOM;
 
 impl Pipeline {
@@ -70,7 +71,7 @@ impl Pipeline {
         let mut styles = [[0.0f32; 4]; MAX_PANELS];
         let mut lights = [[0.0f32; 4]; MAX_PANELS];
         for (i, panel) in panels.iter().take(count).enumerate() {
-            rects[i] = panel.rect;
+            rects[i] = panel.rect.as_array();
             styles[i] = [
                 panel.radius,
                 panel.tint_alpha,
@@ -166,7 +167,7 @@ impl Pipeline {
         // and a few pixels more.
         let margin =
             (blur::REACH * self.glass.blur_sigma.max(0.0) + pane.radius + 8.0).ceil() as i32;
-        let [x0, y0, x1, y1] = pane.rect;
+        let [x0, y0, x1, y1] = pane.rect.as_array();
         let left = (x0.floor() as i32 - margin).max(0);
         let top = (y0.floor() as i32 - margin).max(0);
         let right = (x1.ceil() as i32 + margin).min(win_w);
@@ -212,12 +213,12 @@ impl Pipeline {
         self.blur_chain
             .run(gl, &self.quad, &self.over_base, &self.over_blur, sigma);
         let placed = GlassPanel {
-            rect: [
+            rect: Rect::<Pixels>::pixels(
                 x0 - left as f32,
                 y0 - top as f32,
                 x1 - left as f32,
                 y1 - top as f32,
-            ],
+            ),
             ..*pane
         };
         // Not held under white again: what it copied already is, and the

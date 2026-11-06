@@ -28,6 +28,7 @@ use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
 use dbm_gpu::pipeline::{GlassPanel, Pipeline};
+use dbm_gpu::rect::{Pixels, Rect};
 use dbm_mpv::tracks::{self, TrackKind};
 
 use crate::playback::labels;
@@ -86,7 +87,7 @@ pub struct Probe {
     last_panel_count: usize,
     /// Rects from the last frame, so a probe can sample a panel that is
     /// actually on screen rather than where one used to be.
-    last_panels: Vec<([f32; 4], f32)>,
+    last_panels: Vec<(Rect<Pixels>, f32)>,
     /// One-shot latch. Firing on an exact frame number is fragile when the
     /// frame rate varies; this fires on the first frame past the mark.
     probed: bool,
@@ -384,10 +385,8 @@ impl Probe {
             eprintln!("dbm: no glass panel on screen to sample");
             return;
         };
-        let pt = [(
-            f32::midpoint(rect[0], rect[2]) as u32,
-            f32::midpoint(rect[1], rect[3]) as u32,
-        )];
+        let (x, y) = rect.centre();
+        let pt = [(x as u32, y as u32)];
         let (vw, vh) = pipeline.video().size();
         eprintln!(
             "dbm: panel centre  composite={:?} output={:?} | video centre={:?}",
@@ -407,11 +406,11 @@ impl Probe {
     /// the centre could show.
     fn sample_rims(&self, pipeline: &Pipeline, gl: &glow::Context, bevel_ratio: f32) {
         for (rect, radius) in &self.last_panels {
-            let half_h = 0.5 * (rect[3] - rect[1]);
-            let half_w = 0.5 * (rect[2] - rect[0]);
+            let half_h = 0.5 * rect.height();
+            let half_w = 0.5 * rect.width();
             // The shader clamps the radius to what the box can hold.
             let radius = radius.min(half_w).min(half_h);
-            let y = f32::midpoint(rect[1], rect[3]) as u32;
+            let y = rect.centre().1 as u32;
             let bevel = bevel_ratio * radius;
 
             // As fractions of this panel's bevel rather than fixed pixels,
@@ -426,7 +425,7 @@ impl Probe {
                 .collect();
             let points: Vec<(u32, u32)> = offsets
                 .iter()
-                .map(|dx| ((rect[0] as u32).saturating_add(*dx), y))
+                .map(|dx| ((rect.x0 as u32).saturating_add(*dx), y))
                 .collect();
             let greens: Vec<String> = pipeline
                 .output()

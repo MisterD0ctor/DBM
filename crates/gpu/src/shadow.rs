@@ -172,7 +172,7 @@ pub fn regions(panels: &[GlassPanel], window: (u32, u32), scale: f32, out: &mut 
     // The shadow reaches three deviations past what casts it.
     let reach = (SIGMA * scale * 3.0).ceil() as i32 + 1;
     for panel in panels.iter().filter(|p| p.opacity > 0.004) {
-        let [x0, y0, x1, y1] = panel.rect;
+        let [x0, y0, x1, y1] = panel.rect.as_array();
         let rect = [
             (x0.floor() as i32 - reach).max(0),
             (y0.floor() as i32 - reach).max(0),
