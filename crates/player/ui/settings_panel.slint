@@ -70,21 +70,21 @@ export component SettingsPanel inherits GlassPanel {
         }
         if (root.page == SettingsPage.glass
             && root.ring-row <= Settings.glass-params.length) {
-            Settings.set-param(Settings.glass-params[root.ring-row - 1].index,
+            Settings.set-param(Settings.glass-params[root.ring-row - 1].key,
                 clamp(Settings.glass-params[root.ring-row - 1].fraction
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
         if (root.page == SettingsPage.border
                 && root.is-slider(root.page, root.ring-row)) {
-            Settings.set-param(Settings.border-params[root.ring-row - 2].index,
+            Settings.set-param(Settings.border-params[root.ring-row - 2].key,
                 clamp(Settings.border-params[root.ring-row - 2].fraction
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
         }
         if (root.page == SettingsPage.video
                 && root.is-slider(root.page, root.ring-row)) {
-            Settings.set-param(Settings.picture-params[root.ring-row - 5].index,
+            Settings.set-param(Settings.picture-params[root.ring-row - 5].key,
                 clamp(Settings.picture-params[root.ring-row - 5].fraction
                     + delta * root.focus-step, 0.0, 1.0));
             return true;
@@ -490,53 +490,53 @@ export component SettingsPanel inherits GlassPanel {
             + root.settings-row-h(root.page, row) / 2;
         root.hint-claim = Flash.hint(text);
     }
-    /// A slider's icon, by its place in `REGISTRY` in settings.rs. Kept in
+    /// A slider's icon, by the name the setting is saved under. Kept in
     /// step by hand, because an image in the rows' model would have to be
     /// loaded at run time.
-    pure function param-icon(index: int) -> image {
-        if (index == 0) {
+    pure function param-icon(key: string) -> image {
+        if (key == "glass.blur") {
             return @image-url("../../../public/icons/blur.svg");
         }
-        if (index == 1) {
+        if (key == "glass.refract_ratio") {
             return @image-url("../../../public/icons/refraction.svg");
         }
-        if (index == 2) {
+        if (key == "glass.aberration") {
             return @image-url("../../../public/icons/dispersion.svg");
         }
-        if (index == 3) {
+        if (key == "glass.rim") {
             return @image-url("../../../public/icons/edge-light.svg");
         }
-        if (index == 4) {
+        if (key == "glass.tint") {
             return @image-url("../../../public/icons/tint.svg");
         }
-        if (index == 5) {
+        if (key == "glass.absorb") {
             return @image-url("../../../public/icons/dimming.svg");
         }
-        if (index == 6) {
+        if (key == "glass.shadow") {
             return @image-url("../../../public/icons/shadow.svg");
         }
-        if (index == 7) {
+        if (key == "border.edge_blur") {
             return @image-url("../../../public/icons/edge-blur.svg");
         }
-        if (index == 8) {
+        if (key == "border.spread") {
             return @image-url("../../../public/icons/angle.svg");
         }
-        if (index == 9) {
+        if (key == "border.falloff") {
             return @image-url("../../../public/icons/curve.svg");
         }
-        if (index == 10) {
+        if (key == "border.softness") {
             return @image-url("../../../public/icons/curve-soft.svg");
         }
         // The picture's, borrowed from the glass and the border, whose marks
         // are the usual ones for these: light, the half-lit disc of contrast,
         // the drop of colour, and gamma's curve.
-        if (index == 11) {
+        if (key == "picture.brightness") {
             return @image-url("../../../public/icons/brightness.svg");
         }
-        if (index == 12) {
+        if (key == "picture.contrast") {
             return @image-url("../../../public/icons/dimming.svg");
         }
-        if (index == 13) {
+        if (key == "picture.saturation") {
             return @image-url("../../../public/icons/tint.svg");
         }
         return @image-url("../../../public/icons/gamma.svg");
@@ -805,14 +805,14 @@ export component SettingsPanel inherits GlassPanel {
                     for item[idx] in Settings.glass-params: ParamSlider {
                         label: item.label;
                         name-w: root.param-name-w;
-                        icon: root.param-icon(item.index);
+                        icon: root.param-icon(item.key);
                         hint: item.hint;
                         origin: item.origin;
                         fraction: item.fraction;
                         readout: item.readout;
                         focused: root.ring-row == idx + 1;
                         moved(f) => {
-                            Settings.set-param(item.index, f);
+                            Settings.set-param(item.key, f);
                         }
                         explained(on) => {
                             root.explain-row(on, item.hint, idx + 1);
@@ -870,14 +870,14 @@ export component SettingsPanel inherits GlassPanel {
                     for item[idx] in Settings.border-params: ParamSlider {
                         label: item.label;
                         name-w: root.param-name-w;
-                        icon: root.param-icon(item.index);
+                        icon: root.param-icon(item.key);
                         hint: item.hint;
                         origin: item.origin;
                         fraction: item.fraction;
                         readout: item.readout;
                         focused: root.ring-row == idx + 2;
                         moved(f) => {
-                            Settings.set-param(item.index, f);
+                            Settings.set-param(item.key, f);
                         }
                         explained(on) => {
                             root.explain-row(on, item.hint, idx + 2);
@@ -1061,14 +1061,14 @@ export component SettingsPanel inherits GlassPanel {
                     for item[idx] in Settings.picture-params: ParamSlider {
                         label: item.label;
                         name-w: root.param-name-w;
-                        icon: root.param-icon(item.index);
+                        icon: root.param-icon(item.key);
                         hint: item.hint;
                         origin: item.origin;
                         fraction: item.fraction;
                         readout: item.readout;
                         focused: root.ring-row == idx + 5;
                         moved(f) => {
-                            Settings.set-param(item.index, f);
+                            Settings.set-param(item.key, f);
                         }
                         explained(on) => {
                             root.explain-row(on, item.hint, idx + 5);

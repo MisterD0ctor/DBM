@@ -17,21 +17,18 @@ pub(super) fn param_test(ui: &MainWindow) -> Script {
     script::run(ui, move |ui| async move {
         sleep(Duration::from_millis(600)).await;
         ui.invoke_open_settings(true);
-        // The glass tint amount, found by key rather than index, so the
-        // registry can be reordered. Tint runs 0..1, so the value is also
-        // the slider's fraction. A non-numeric value opens the panel
-        // without touching anything, to probe a value loaded from disk.
-        let tint_row = crate::settings::REGISTRY
-            .iter()
-            .position(|p| p.key == crate::settings::Key::Tint)
-            .expect("the registry has a tint row");
+        // The glass tint amount, by its stable key. Tint runs 0..1, so the
+        // value is also the slider's fraction. A non-numeric value opens
+        // the panel without touching anything, to probe a value loaded from
+        // disk.
+        let tint_key = crate::settings::param(crate::settings::Key::Tint).name;
         match std::env::var("DBM_PARAM_TEST")
             .ok()
             .and_then(|v| v.parse::<f32>().ok())
         {
             Some(tint) => {
                 ui.global::<Settings>()
-                    .invoke_set_param(tint_row as i32, tint);
+                    .invoke_set_param(tint_key.into(), tint);
                 eprintln!("dbm: settings opened, tint set to {tint}");
             }
             None => eprintln!("dbm: settings opened, values untouched"),
@@ -615,11 +612,8 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: Reader) -> Script {
         // what to check, since `DBM_PARAM_TEST` covers the pipeline,
         // and a model rebuilt rather than updated in place would lose
         // the drag. Tint is found by key, as in `param_test`.
-        let tint = crate::settings::REGISTRY
-            .iter()
-            .position(|p| p.key == crate::settings::Key::Tint)
-            .expect("the registry has a tint row");
-        ui.global::<Settings>().invoke_set_param(tint as i32, 1.0);
+        let tint = crate::settings::param(crate::settings::Key::Tint).name;
+        ui.global::<Settings>().invoke_set_param(tint.into(), 1.0);
         eprintln!("dbm: tint driven to max");
         beat.next().await;
         report_row(&ui, "after tint max");

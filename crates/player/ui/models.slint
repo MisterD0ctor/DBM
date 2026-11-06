@@ -81,10 +81,10 @@ export struct FoundItem {
 }
 
 export struct ParamItem {
-    /// Index into the registry on the Rust side. Carried on the row because
-    /// the sliders are split across pages, so a row's place in its page
-    /// doesn't identify the parameter.
-    index: int,
+    /// The name the setting is saved under (see `settings::registry`), so a
+    /// row identifies the parameter itself rather than its place in the
+    /// registry.
+    key: string,
     label: string,
     /// What it does, shown beside the panel when the row is rested on;
     /// empty where the name says it.

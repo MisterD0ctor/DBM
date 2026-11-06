@@ -34,8 +34,8 @@ export global Settings {
     /// it is offered only while autoplay is on.
     in-out property <bool> skip-intros: false;
     in-out property <bool> skip-credits: false;
-    /// Registry index and its new normalised position.
-    callback set-param(int, float);
+    /// A setting's stable key and its new normalised position.
+    callback set-param(string, float);
     /// Restore one section to its defaults: the glass, the ambient border or
     /// the picture, as in `settings::Section`.
     callback reset-section(Reset);

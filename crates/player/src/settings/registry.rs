@@ -39,6 +39,17 @@ pub enum Section {
     Picture,
 }
 
+impl Key {
+    /// The key saved under `name`, where this build has one. A name from an
+    /// older or newer file is simply not a key here.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|&key| param(key).name == name)
+    }
+}
+
 pub struct Param {
     pub key: Key,
     pub section: Section,
@@ -152,6 +163,14 @@ mod tests {
             assert_eq!(*key, param.key);
             assert_eq!(REGISTRY.iter().filter(|p| p.key == *key).count(), 1);
         }
+    }
+
+    #[test]
+    fn every_key_is_addressed_by_its_saved_name() {
+        for &key in Key::ALL {
+            assert_eq!(Key::from_name(param(key).name), Some(key));
+        }
+        assert_eq!(Key::from_name("no.such.setting"), None);
     }
 
     #[test]

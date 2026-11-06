@@ -27,8 +27,9 @@ mod registry;
 
 pub use file::Persister;
 pub use preferences::{SCALE_MAX, SCALE_MIN, SCALE_STEP, Toggle, offered_scale};
+use registry::Params;
+pub(crate) use registry::param;
 pub use registry::{Key, REGISTRY, Section};
-use registry::{Params, param};
 
 /// What a settings page held just before it was reset.
 ///

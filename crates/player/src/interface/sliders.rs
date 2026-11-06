@@ -7,14 +7,14 @@ use slint::ComponentHandle;
 use slint::{Model, ModelRc, SharedString, VecModel};
 
 use crate::interface::format;
-use crate::settings::{self, Section, Store};
+use crate::settings::{self, Key, Section, Store};
 use crate::{MainWindow, ParamItem, Settings};
 
 /// The slider rows, split by the page they appear on.
 ///
 /// Two models rather than one filtered in the UI: each page binds to its own
-/// list, and a row carries its registry index so the callback needs no
-/// arithmetic to map back.
+/// list, and a row carries its stable key so the callback names the setting
+/// rather than a place in the registry.
 pub struct ParamModels {
     glass: Rc<VecModel<ParamItem>>,
     border: Rc<VecModel<ParamItem>>,
@@ -46,13 +46,11 @@ impl ParamModels {
     ///
     /// Not a rebuild, because replacing a model recreates every row,
     /// destroying the `TouchArea` the pointer is holding mid-drag.
-    pub fn update(&self, store: &Store, index: usize) {
-        let Some(param) = settings::REGISTRY.get(index) else {
-            return;
-        };
-        let model = self.model_for(param.section);
-        if let Some(row) = rows_of(param.section).position(|i| i == index) {
-            model.set_row_data(row, param_row(store, index));
+    pub fn update(&self, store: &Store, key: Key) {
+        let section = settings::param(key).section;
+        let model = self.model_for(section);
+        if let Some(row) = rows_of(section).position(|known| known == key) {
+            model.set_row_data(row, param_row(store, key));
         }
     }
 
@@ -64,8 +62,8 @@ impl ParamModels {
             (Section::Border, &self.border),
             (Section::Picture, &self.picture),
         ] {
-            for (row, index) in rows_of(section).enumerate() {
-                model.set_row_data(row, param_row(store, index));
+            for (row, key) in rows_of(section).enumerate() {
+                model.set_row_data(row, param_row(store, key));
             }
         }
     }
@@ -87,24 +85,27 @@ fn names() -> SharedString {
     names.join("\n").into()
 }
 
-fn rows_of(section: Section) -> impl Iterator<Item = usize> {
-    (0..settings::REGISTRY.len()).filter(move |i| settings::REGISTRY[*i].section == section)
+fn rows_of(section: Section) -> impl Iterator<Item = Key> {
+    settings::REGISTRY
+        .iter()
+        .filter(move |param| param.section == section)
+        .map(|param| param.key)
 }
 
 fn section_model(store: &Store, section: Section) -> Rc<VecModel<ParamItem>> {
     Rc::new(VecModel::from(
         rows_of(section)
-            .map(|i| param_row(store, i))
+            .map(|key| param_row(store, key))
             .collect::<Vec<_>>(),
     ))
 }
 
-fn param_row(store: &Store, index: usize) -> ParamItem {
-    let param = &settings::REGISTRY[index];
-    let value = store.value(param.key);
+fn param_row(store: &Store, key: Key) -> ParamItem {
+    let param = settings::param(key);
+    let value = store.value(key);
     let span = (param.max - param.min).max(f32::EPSILON);
     ParamItem {
-        index: index as i32,
+        key: param.name.into(),
         label: tr(param.label).into(),
         hint: if param.hint.is_empty() {
             Default::default()

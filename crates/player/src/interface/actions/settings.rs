@@ -7,7 +7,7 @@ use super::Undo;
 use crate::app::App;
 use crate::interface::sliders;
 use crate::playback::commands;
-use crate::settings::{REGISTRY, Section, Toggle};
+use crate::settings::{Key, Section, Toggle, param};
 use crate::{MainWindow, Motion, Reset, Settings, Tip};
 
 /// The glass and ambient border pages: sliders, resets and their undo, and
@@ -19,22 +19,21 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
     let models = Rc::new(sliders::ParamModels::build(ui, &app.settings));
     {
         let (app, models) = (app.clone(), models.clone());
-        ui.global::<Settings>()
-            .on_set_param(move |index, fraction| {
-                app.activity.bump();
-                let index = index as usize;
-                let Some(param) = REGISTRY.get(index) else {
-                    return;
-                };
-                app.settings.set(
-                    param.key,
-                    param.min + fraction.clamp(0.0, 1.0) * (param.max - param.min),
-                );
-                if param.section == Section::Picture {
-                    commands::set_picture(&app.mpv, &app.settings.picture());
-                }
-                models.update(&app.settings, index);
-            });
+        ui.global::<Settings>().on_set_param(move |name, fraction| {
+            app.activity.bump();
+            let Some(key) = Key::from_name(name.as_str()) else {
+                return;
+            };
+            let param = param(key);
+            app.settings.set(
+                key,
+                param.min + fraction.clamp(0.0, 1.0) * (param.max - param.min),
+            );
+            if param.section == Section::Picture {
+                commands::set_picture(&app.mpv, &app.settings.picture());
+            }
+            models.update(&app.settings, key);
+        });
     }
     {
         let (app, models, undo) = (app.clone(), models.clone(), undo.clone());
