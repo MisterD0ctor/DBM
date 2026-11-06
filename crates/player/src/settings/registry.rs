@@ -7,47 +7,12 @@ use dbm_lang::marked;
 
 use crate::playback::commands::PictureParams;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Key {
-    // Glass. Bevel, IOR and Reflect are constants in `pipeline` instead,
-    // because they are what the material is rather than how much of it you
-    // want.
-    Blur,
-    Refract,
-    Aberration,
-    Rim,
-    Tint,
-    Absorb,
-    Shadow,
-    // Ambient border
-    EdgeBlur,
-    Spread,
-    Falloff,
-    Softness,
-    // Picture, which mpv draws rather than the pipeline.
-    Brightness,
-    Contrast,
-    Saturation,
-    Gamma,
-}
-
 /// Which panel page a parameter appears on, and so what a reset applies to.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Section {
     Glass,
     Border,
     Picture,
-}
-
-impl Key {
-    /// The key saved under `name`, where this build has one. A name from an
-    /// older or newer file is simply not a key here.
-    pub fn from_name(name: &str) -> Option<Self> {
-        Self::ALL
-            .iter()
-            .copied()
-            .find(|&key| param(key).name == name)
-    }
 }
 
 pub struct Param {
@@ -66,13 +31,24 @@ pub struct Param {
     pub max: f32,
 }
 
-/// The order is also the order of `param-icon` in settings_panel.slint, which
-/// picks each row's icon by its index here.
+/// The parameters the sliders set, as one list. Adding a knob is adding its
+/// name here, its `Param` below and the slider rows' icon, and the key, its
+/// `ALL` and the registry all come from the same declaration.
 ///
-/// One list builds both the keys and the registry, so the two can't disagree
-/// about which keys exist or what order they are in.
+/// The order is the registry's order. The icon table in
+/// `settings_panel.slint` is keyed by each parameter's saved name, not by
+/// this order.
 macro_rules! registry {
     ($($key:ident),* $(,)?) => {
+        /// One knob the settings pages can move.
+        ///
+        /// Bevel, IOR and Reflect are constants in `pipeline` instead, because
+        /// they are what the material is rather than how much of it you want.
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        pub enum Key {
+            $($key,)*
+        }
+
         impl Key {
             /// Every key, in the order the registry has them.
             pub const ALL: &[Self] = &[$(Self::$key),*];
@@ -86,6 +62,17 @@ registry!(
     Blur, Refract, Aberration, Rim, Tint, Absorb, Shadow, EdgeBlur, Spread, Falloff, Softness,
     Brightness, Contrast, Saturation, Gamma
 );
+
+impl Key {
+    /// The key saved under `name`, where this build has one. A name from an
+    /// older or newer file is simply not a key here.
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::ALL
+            .iter()
+            .copied()
+            .find(|&key| param(key).name == name)
+    }
+}
 
 /// The one entry for `key`: its panel, its name in the saved file, its
 /// labels and its range.

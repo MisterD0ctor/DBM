@@ -7,8 +7,33 @@ use super::Store;
 
 /// A preference that is a switch. Each rides in the saved file as 0 or 1, so
 /// the file stays one flat list of numbers.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Toggle {
+///
+/// One list builds the enum and `ALL`, so a switch cannot be added to the
+/// type and left out of the array `Store` indexes by its place.
+macro_rules! count_toggles {
+    () => { 0usize };
+    ($head:ident $(, $tail:ident)*) => { 1usize + count_toggles!($($tail),*) };
+}
+
+macro_rules! toggles {
+    ($($(#[$doc:meta])* $toggle:ident),* $(,)?) => {
+        /// A preference that is a switch.
+        #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+        pub enum Toggle {
+            $($(#[$doc])* $toggle,)*
+        }
+
+        impl Toggle {
+            /// Every switch, in the order the file lists them and in
+            /// declaration order, which indexes `Store::toggles`.
+            pub(super) const ALL: [Self; count_toggles!($($toggle),*)] = [
+                $(Self::$toggle,)*
+            ];
+        }
+    };
+}
+
+toggles! {
     /// Whether the ambient border runs at all, kept apart from its parameters
     /// so turning it off doesn't lose their tuning.
     Ambience,
@@ -44,22 +69,6 @@ pub enum Toggle {
 }
 
 impl Toggle {
-    /// Every switch, in the order the file lists them and in declaration
-    /// order, which indexes `Store::toggles`.
-    pub(super) const ALL: [Self; 11] = [
-        Self::Ambience,
-        Self::Glass,
-        Self::Autoplay,
-        Self::SkipIntros,
-        Self::SkipCredits,
-        Self::Animations,
-        Self::LegibleGlass,
-        Self::Tips,
-        Self::TipKeys,
-        Self::Remaining,
-        Self::Chapters,
-    ];
-
     /// The name it is saved under, which outlives any label it is shown with.
     pub(super) const fn key(self) -> &'static str {
         match self {
