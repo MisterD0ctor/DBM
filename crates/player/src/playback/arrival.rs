@@ -80,12 +80,25 @@ struct State {
     paused: bool,
     loads: u64,
     path: Option<MediaPath>,
+    /// What, if anything, is waiting on a file asked for or on a choice.
+    phase: Phase,
+}
+
+/// What the one file in hand is waiting for.
+///
+/// One phase at a time: a request in flight, the answer it turns into when
+/// the file loads, or the offer autoplay leaves behind. Each replaces the
+/// last, so a choice about an earlier file cannot linger beside a newer one.
+#[derive(Default)]
+enum Phase {
+    #[default]
+    Idle,
     /// A file asked for and not loaded yet, and what then.
-    pending: Option<Pending>,
+    Pending(Pending),
     /// The file held on its saved place, waiting for an answer.
-    asking: Option<Asking>,
+    Asking(Asking),
     /// The place autoplay passed over, offered for a while.
-    offer: Option<Offer>,
+    Offering(Offer),
 }
 
 #[derive(Debug, Clone)]
@@ -144,7 +157,7 @@ impl Arrival {
         if state.path.as_ref() != path {
             state.path = path.cloned();
         }
-        let Some(pending) = &state.pending else {
+        let Phase::Pending(pending) = &state.phase else {
             return;
         };
         if loads <= pending.loads {
@@ -154,16 +167,17 @@ impl Arrival {
             // Still the file being left, and the news is on its way; or a
             // file nobody here asked for, and the request is over.
             if path.is_some() && path != pending.left.as_ref() {
-                state.pending = None;
+                state.phase = Phase::Idle;
             }
             return;
         }
-        let Some(Pending { wanted, then, .. }) = state.pending.take() else {
-            return;
+        let Phase::Pending(pending) = std::mem::replace(&mut state.phase, Phase::Idle) else {
+            unreachable!("the phase was just read as pending");
         };
+        let Pending { wanted, then, .. } = pending;
         match then {
             Then::Ask { from } => {
-                state.asking = Some(Asking {
+                state.phase = Phase::Asking(Asking {
                     path: wanted,
                     from,
                     settled: false,
@@ -172,7 +186,9 @@ impl Arrival {
             Then::Over { play, offer } => {
                 commands::restart(mpv);
                 commands::set_pause(mpv, !play);
-                state.offer = offer.map(|from| Offer { path: wanted, from });
+                state.phase = offer
+                    .map(|from| Phase::Offering(Offer { path: wanted, from }))
+                    .unwrap_or(Phase::Idle);
             }
         }
     }
@@ -186,6 +202,8 @@ impl Arrival {
             return;
         }
         let mut state = self.state.borrow_mut();
+        // The file that ended can have nothing left to answer or offer.
+        state.phase = Phase::Idle;
         let Some(then) = state
             .rows
             .iter()
@@ -219,14 +237,16 @@ impl Arrival {
     /// has been asked for.
     pub fn offered(&self, path: Option<&MediaPath>, time_pos: f64) -> Option<f64> {
         let mut state = self.state.borrow_mut();
-        let offer = state.offer.as_ref()?;
+        let Phase::Offering(offer) = &state.phase else {
+            return None;
+        };
         // The position passes through the place on the way (mpv resumes it
         // there as it opens, then the restart lands), so only being past the
         // first ten seconds anywhere but the place ends the offer. Following
         // the position in and out would flicker.
         let at_place = (time_pos - offer.from).abs() <= WANDER;
         if path != Some(&offer.path) || time_pos >= OFFER_FOR && !at_place {
-            state.offer = None;
+            state.phase = Phase::Idle;
             return None;
         }
         Some(offer.from)
@@ -234,14 +254,18 @@ impl Arrival {
 
     /// Take the offer: on from the place autoplay passed over.
     pub fn take_offer(&self, mpv: &Mpv) {
-        if let Some(offer) = self.state.borrow_mut().offer.take() {
-            commands::seek_to(mpv, offer.from);
-        }
+        let mut state = self.state.borrow_mut();
+        let Phase::Offering(offer) = &state.phase else {
+            return;
+        };
+        let from = offer.from;
+        state.phase = Phase::Idle;
+        commands::seek_to(mpv, from);
     }
 
     /// Note a request for `wanted`, to be carried out once it has loaded.
     fn expect(state: &mut State, wanted: MediaPath, then: Then) {
-        state.pending = Some(Pending {
+        state.phase = Phase::Pending(Pending {
             wanted,
             then,
             loads: state.loads,
@@ -282,11 +306,9 @@ impl Arrival {
     ) {
         // Whatever was being asked about or offered gives way to another
         // file.
-        state.asking = None;
-        state.offer = None;
+        state.phase = Phase::Idle;
         match then {
             None => {
-                state.pending = None;
                 commands::playlist_play(mpv, index);
                 if start == Start::Playing {
                     commands::set_pause(mpv, false);
@@ -326,11 +348,11 @@ impl Arrival {
     }
 
     /// A playlist about to be loaded whose first file is `path`, with
-    /// `saved` for it. Whether the load should leave it paused, which it
-    /// should while there is something to do once it is in.
-    pub fn open_list(&self, mpv: &Mpv, path: MediaPath, saved: Saved) -> bool {
+    /// `saved` for it.
+    pub fn open_list(&self, mpv: &Mpv, path: MediaPath, saved: Saved) {
         let mut state = self.state.borrow_mut();
-        state.asking = None;
+        // The file that was in hand, or its answer, is not this list's.
+        state.phase = Phase::Idle;
         let then = match saved {
             _ if crate::run_mode::armed() => None,
             Saved::Nothing => None,
@@ -341,18 +363,16 @@ impl Arrival {
             Saved::Place(from) => Some(Then::Ask { from }),
         };
         let Some(then) = then else {
-            state.pending = None;
-            return false;
+            return;
         };
         commands::set_pause(mpv, true);
         Self::expect(&mut state, path, then);
-        true
     }
 
     /// Whether a file is still on its way in to be held or started over,
     /// when nothing else should set it playing.
     pub fn holding(&self) -> bool {
-        self.state.borrow().pending.is_some()
+        matches!(self.state.borrow().phase, Phase::Pending(_))
     }
 
     /// Where the file being held was left, or `None` once the choice has been
@@ -360,13 +380,19 @@ impl Arrival {
     /// place, another file.
     pub fn asking(&self, path: Option<&MediaPath>, time_pos: f64, paused: bool) -> Option<f64> {
         let mut state = self.state.borrow_mut();
-        let asking = state.asking.as_mut()?;
-        let near = (time_pos - asking.from).abs() <= WANDER;
-        asking.settled |= near;
-        let held = path == Some(&asking.path) && paused && (near || !asking.settled);
-        let from = asking.from;
+        let (held, from) = {
+            let Phase::Asking(asking) = &mut state.phase else {
+                return None;
+            };
+            let near = (time_pos - asking.from).abs() <= WANDER;
+            asking.settled |= near;
+            (
+                path == Some(&asking.path) && paused && (near || !asking.settled),
+                asking.from,
+            )
+        };
         if !held {
-            state.asking = None;
+            state.phase = Phase::Idle;
             return None;
         }
         Some(from)
@@ -374,7 +400,12 @@ impl Arrival {
 
     /// The answer: on from the saved place, or from the beginning.
     pub fn answer(&self, mpv: &Mpv, from_the_start: bool) {
-        self.state.borrow_mut().asking = None;
+        {
+            let mut state = self.state.borrow_mut();
+            if matches!(state.phase, Phase::Asking(_)) {
+                state.phase = Phase::Idle;
+            }
+        }
         if from_the_start {
             commands::restart(mpv);
         }
@@ -392,6 +423,19 @@ mod tests {
             start,
             finished,
         })
+    }
+
+    #[test]
+    fn a_new_request_replaces_what_the_last_file_was_offering() {
+        let mut state = State {
+            phase: Phase::Offering(Offer {
+                path: "old.mkv".into(),
+                from: 12.0,
+            }),
+            ..State::default()
+        };
+        Arrival::expect(&mut state, "new.mkv".into(), Then::Ask { from: 34.0 });
+        assert!(matches!(state.phase, Phase::Pending(_)));
     }
 
     #[test]
