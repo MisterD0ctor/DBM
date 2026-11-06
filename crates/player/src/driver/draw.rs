@@ -85,6 +85,18 @@ impl Driver {
         };
         self.diag.mark_render(t);
         if !rendered {
+            // A failed grow may have replaced the output target, and a
+            // failed film render may have left the replacement cleared.
+            // Either way, what Slint holds must not be a texture name that
+            // has already been deleted.
+            if gpu.pipeline.output().texture_id().is_some() {
+                publish(gpu.pipeline.output(), &mut gpu.published, |img, w, h| {
+                    show(ui, img, w, h);
+                });
+            } else {
+                gpu.published = None;
+                clear_image(ui);
+            }
             return;
         }
 
@@ -98,12 +110,25 @@ impl Driver {
         );
 
         publish(gpu.pipeline.output(), &mut gpu.published, |img, w, h| {
-            ui.set_video_frame(img);
-            ui.set_video_clip_w(w);
-            ui.set_video_clip_h(h);
+            show(ui, img, w, h);
         });
     }
 }
+
+/// Put one image on the interface, clipped to the active part of its target.
+fn show(ui: &MainWindow, image: slint::Image, w: i32, h: i32) {
+    ui.set_video_frame(image);
+    ui.set_video_clip_w(w);
+    ui.set_video_clip_h(h);
+}
+
+/// Stop showing any image, so no deleted texture name outlives its target.
+pub(super) fn clear_image(ui: &MainWindow) {
+    ui.set_video_frame(slint::Image::default());
+    ui.set_video_clip_w(0);
+    ui.set_video_clip_h(0);
+}
+
 /// Point a Slint image property at a target, but only when something actually
 /// changed — `Property::set` skips equal values, so a no-op costs nothing but
 /// also invalidates nothing.

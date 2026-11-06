@@ -105,7 +105,8 @@ unsafe extern "system" fn subclass_proc(
     use windows::Win32::Graphics::Gdi::{RDW_INTERNALPAINT, RedrawWindow};
     use windows::Win32::UI::Shell::DefSubclassProc;
     use windows::Win32::UI::WindowsAndMessaging::{
-        KillTimer, SetTimer, WM_ENTERSIZEMOVE, WM_EXITSIZEMOVE, WM_TIMER,
+        IsIconic, IsWindowVisible, KillTimer, SetTimer, WM_ENTERSIZEMOVE, WM_EXITSIZEMOVE,
+        WM_NCDESTROY, WM_TIMER,
     };
 
     match msg {
@@ -121,7 +122,18 @@ unsafe extern "system" fn subclass_proc(
                 TICKS.load(Ordering::Relaxed)
             );
         },
+        WM_NCDESTROY => unsafe {
+            // The window may be closed while an edge is held, before
+            // WM_EXITSIZEMOVE ever arrives.
+            let _ = KillTimer(Some(hwnd), TIMER_ID);
+        },
         WM_TIMER if wparam.0 == TIMER_ID => {
+            // A minimized or hidden window has nothing to present. Swapping
+            // its surface during that state is what the Windows GL drivers
+            // are least reliable at, so leave it to the next real frame.
+            if unsafe { IsIconic(hwnd) }.as_bool() || !unsafe { IsWindowVisible(hwnd) }.as_bool() {
+                return LRESULT(0);
+            }
             TICKS.fetch_add(1, Ordering::Relaxed);
             // `RDW_INTERNALPAINT` posts a WM_PAINT without an invalid region,
             // since nothing is dirty in Windows' eyes; it only hands winit a

@@ -93,7 +93,9 @@ pub struct Split {
 struct Sizes {
     /// Every target the pass needs exists.
     ok: bool,
-    /// A target was reallocated, so its contents must be drawn again.
+    /// Any target's active size differs, so its contents must be drawn
+    /// again. Not just the composite: a failed grow may have moved some
+    /// targets and not others.
     resized: bool,
 }
 
@@ -189,6 +191,9 @@ pub struct Pipeline {
     /// The backdrop has just gone, so mpv's frame is drawn again whether or
     /// not it has a new one.
     film_wanted: bool,
+    /// A frame failed after its targets had been touched, so the next one
+    /// must run the whole chain even if every size now looks current.
+    needs_redraw: bool,
     /// Whether the backdrop fades up or is simply there: the Animations
     /// setting, for the one movement the pipeline draws itself.
     pub animate: bool,
@@ -228,6 +233,7 @@ impl Pipeline {
             show_backdrop: false,
             backdrop_over_film: false,
             film_wanted: false,
+            needs_redraw: false,
             animate: true,
         })
     }
@@ -256,6 +262,28 @@ impl Pipeline {
             res?;
         }
         Ok(true)
+    }
+
+    /// Draw the film, remembering a failure that leaves the targets needing
+    /// the whole chain again.
+    fn film_frame(
+        &mut self,
+        gl: &glow::Context,
+        film: &impl Fn(u32, i32, i32) -> Result<(), Error>,
+        w: u32,
+        h: u32,
+    ) -> Result<bool, Error> {
+        match self.render_film(gl, film, w, h) {
+            Ok(true) => Ok(true),
+            Ok(false) => {
+                self.needs_redraw = true;
+                Ok(false)
+            }
+            Err(e) => {
+                self.needs_redraw = true;
+                Err(e)
+            }
+        }
     }
 
     /// The image Slint draws: video, ambient border and glass panels, all
@@ -304,20 +332,34 @@ impl Pipeline {
     /// Allocate every target for a window of `w` x `h` physical pixels.
     ///
     /// A resize discards every target's contents, so the caller has to
-    /// re-run the chain even without a new frame from mpv.
+    /// re-run the chain even without a new frame from mpv. "Resized" means
+    /// any target's active size differs, not one target's: a failed grow
+    /// may have moved some of them and not others.
     fn ensure_sizes(&mut self, gl: &glow::Context, w: u32, h: u32) -> Sizes {
-        let resized = self.composite.size() != (w, h);
+        let resized = [
+            &self.video,
+            &self.extended,
+            &self.composite,
+            &self.glassed,
+            &self.blur_out,
+        ]
+        .into_iter()
+        .any(|target| target.size() != (w, h));
         // Every target here is the window's own size; the blur's levels size
-        // themselves.
-        let ok = [
+        // themselves. All are tried, so a failure in one doesn't leave the
+        // rest on an old size for the next frame to trip over.
+        let mut ok = true;
+        for target in [
             &mut self.video,
             &mut self.extended,
             &mut self.composite,
             &mut self.glassed,
             &mut self.blur_out,
-        ]
-        .into_iter()
-        .all(|target| target.ensure_size(gl, w, h));
+        ] {
+            if !target.ensure_size(gl, w, h) {
+                ok = false;
+            }
+        }
         Sizes { ok, resized }
     }
 
@@ -327,7 +369,8 @@ impl Pipeline {
     /// width and height given: mpv's render context, in the player.
     ///
     /// Returns false if nothing could be rendered (a zero-sized window, or a
-    /// failed allocation), in which case the previous textures still stand.
+    /// failed allocation). `output()` then holds either the previous target
+    /// or a cleared replacement, never a deleted one.
     pub fn render(
         &mut self,
         gl: &glow::Context,
@@ -345,9 +388,10 @@ impl Pipeline {
         } = *frame;
         let sizes = self.ensure_sizes(gl, w, h);
         if !sizes.ok {
+            self.needs_redraw = true;
             return Ok(false);
         }
-        let resized = sizes.resized;
+        let resized = sizes.resized || std::mem::take(&mut self.needs_redraw);
         let saved_fbo = saved_draw_fbo(gl);
 
         // `DBM_GPU_TIME=1` inserts a glFinish between passes so the numbers
@@ -376,14 +420,14 @@ impl Pipeline {
         let mut drew_film_again = false;
         if self.show_backdrop && self.backdrop.is_some() {
             if resized || self.backdrop_arriving() {
-                if self.backdrop_over_film && !self.render_film(gl, &film, w, h)? {
+                if self.backdrop_over_film && !self.film_frame(gl, &film, w, h)? {
                     return Ok(false);
                 }
                 self.draw_backdrop(gl, w, h);
                 drew_backdrop = true;
             }
         } else if new_frame || resized || self.film_wanted {
-            if !self.render_film(gl, &film, w, h)? {
+            if !self.film_frame(gl, &film, w, h)? {
                 return Ok(false);
             }
             drew_film_again = std::mem::take(&mut self.film_wanted);

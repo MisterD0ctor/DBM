@@ -204,6 +204,11 @@ impl Driver {
                 self.keep_the_interface_moving();
             }
             RenderingState::RenderingTeardown => {
+                // The image property is left alone here: this callback runs
+                // while Slint holds the window's adapter borrow, and setting
+                // a property that asks for a redraw would panic inside it.
+                // The next BeforeRendering publishes or clears it before
+                // Slint draws anything.
                 if let Some(gpu) = self.gpu.take() {
                     gpu.pipeline.release(&gpu.gl);
                     gpu.overlays.release(&gpu.gl);
@@ -228,6 +233,9 @@ impl Driver {
         log::error!("{} — {}", NO_VIDEO, fill(failure.detail, &[&failure.cause]));
         self.failure = Some(failure);
         if let Some(ui) = self.ui.upgrade() {
+            // Nothing will render through this context, so what the last one
+            // left must not stay in the image property.
+            draw::clear_image(&ui);
             self.say_failure(&ui);
         }
     }
@@ -348,6 +356,12 @@ impl Driver {
             }
             return;
         };
+        // A fresh context starts with no published target. Drop whatever
+        // image the old one left, before Slint can draw it against names
+        // that mean something else here.
+        if gpu.published.is_none() {
+            draw::clear_image(&ui);
+        }
         let player = self.player.clone();
         let mut player = player.borrow_mut();
 

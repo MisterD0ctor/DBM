@@ -94,24 +94,48 @@ impl Target {
     /// texture is too small in some dimension. A zero dimension (minimised
     /// window) is treated as "no target" rather than as a GL error.
     ///
-    /// Returns whether a usable target exists afterwards.
+    /// A failed grow leaves the previous target untouched, so its texture
+    /// still stands for anything already pointing at it. Allocating before
+    /// releasing also means a driver that refuses the new size cannot leave
+    /// a deleted texture name in the hands of the compositor.
+    ///
+    /// Returns whether the requested size is usable afterwards. On `false`
+    /// an older target may still be, at its older size.
     pub fn ensure_size(&mut self, gl: &glow::Context, w: u32, h: u32) -> bool {
         if w == 0 || h == 0 {
             return false;
         }
-        self.used = (w, h);
-        if self.tex.is_some() && self.alloc.0 >= w && self.alloc.1 >= h {
+        if self.tex.is_some() && self.fbo.is_some() && self.alloc.0 >= w && self.alloc.1 >= h {
+            self.used = (w, h);
             return true;
         }
 
         // Never shrink: a drag oscillates, and giving the memory back just to
         // ask for it again next frame is the whole problem.
-        let aw = round_up(w.max(self.alloc.0));
-        let ah = round_up(h.max(self.alloc.1));
-        self.release(gl);
-        self.used = (w, h);
+        let (Some(aw), Some(ah)) = (round_up(w.max(self.alloc.0)), round_up(h.max(self.alloc.1)))
+        else {
+            return false;
+        };
+        if aw > i32::MAX as u32 || ah > i32::MAX as u32 {
+            return false;
+        }
 
-        unsafe {
+        // Everything this call touches is put back, because it runs in the
+        // middle of a frame Slint is already drawing.
+        clear_errors(gl);
+        let saved_draw = framebuffer_binding(gl, glow::DRAW_FRAMEBUFFER_BINDING);
+        let saved_read = framebuffer_binding(gl, glow::READ_FRAMEBUFFER_BINDING);
+        let saved_texture = texture_binding(gl);
+        let mut viewport = [0i32; 4];
+        let mut clear_color = [0f32; 4];
+        let scissor = unsafe {
+            gl.get_parameter_i32_slice(glow::VIEWPORT, &mut viewport);
+            gl.get_parameter_f32_slice(glow::COLOR_CLEAR_VALUE, &mut clear_color);
+            gl.is_enabled(glow::SCISSOR_TEST)
+        };
+
+        let old = (self.fbo, self.tex);
+        let tex = unsafe {
             let Ok(tex) = gl.create_texture() else {
                 return false;
             };
@@ -127,10 +151,29 @@ impl Target {
                 glow::UNSIGNED_BYTE,
                 glow::PixelUnpackData::Slice(None),
             );
+            tex
+        };
+        if let Some(error) = take_error(gl) {
+            restore_state(
+                gl,
+                saved_draw,
+                saved_read,
+                viewport,
+                scissor,
+                clear_color,
+                saved_texture,
+            );
+            unsafe { gl.delete_texture(tex) };
+            log::warn!("could not allocate a {aw}x{ah} render target ({error:#x})");
+            return false;
+        }
+
+        unsafe {
             // Linear because every consumer samples between texels. Clamping
             // is only a backstop here: the shaders clamp to the *active*
             // region themselves, since the texture edge is generally further
             // out and holds nothing meaningful.
+            gl.bind_texture(glow::TEXTURE_2D, Some(tex));
             for (k, v) in [
                 (glow::TEXTURE_MIN_FILTER, glow::LINEAR),
                 (glow::TEXTURE_MAG_FILTER, glow::LINEAR),
@@ -139,12 +182,22 @@ impl Target {
             ] {
                 gl.tex_parameter_i32(glow::TEXTURE_2D, k, v as i32);
             }
+        }
 
+        let fbo = unsafe {
             let Ok(fbo) = gl.create_framebuffer() else {
+                restore_state(
+                    gl,
+                    saved_draw,
+                    saved_read,
+                    viewport,
+                    scissor,
+                    clear_color,
+                    saved_texture,
+                );
                 gl.delete_texture(tex);
                 return false;
             };
-            let saved = saved_draw_fbo(gl);
             gl.bind_framebuffer(glow::FRAMEBUFFER, Some(fbo));
             gl.framebuffer_texture_2d(
                 glow::FRAMEBUFFER,
@@ -153,27 +206,65 @@ impl Target {
                 Some(tex),
                 0,
             );
-            let complete =
-                gl.check_framebuffer_status(glow::FRAMEBUFFER) == glow::FRAMEBUFFER_COMPLETE;
-            // Clear once so the slack around the active image starts black
-            // rather than as whatever the driver handed us.
-            if complete {
+            fbo
+        };
+
+        let mut complete =
+            unsafe { gl.check_framebuffer_status(glow::FRAMEBUFFER) == glow::FRAMEBUFFER_COMPLETE };
+        let mut error = take_error(gl);
+        // Clear once so the slack around the active image starts black rather
+        // than as whatever the driver handed us.
+        if complete && error.is_none() {
+            unsafe {
                 gl.viewport(0, 0, aw as i32, ah as i32);
                 gl.disable(glow::SCISSOR_TEST);
                 gl.clear_color(0.0, 0.0, 0.0, 1.0);
                 gl.clear(glow::COLOR_BUFFER_BIT);
             }
-            gl.bind_framebuffer(glow::FRAMEBUFFER, saved);
-            gl.bind_texture(glow::TEXTURE_2D, None);
+            error = take_error(gl);
+            complete = error.is_none();
+        }
 
-            if !complete {
+        restore_state(
+            gl,
+            saved_draw,
+            saved_read,
+            viewport,
+            scissor,
+            clear_color,
+            saved_texture,
+        );
+
+        if !complete {
+            unsafe {
                 gl.delete_framebuffer(fbo);
                 gl.delete_texture(tex);
-                return false;
             }
-            self.fbo = Some(fbo);
-            self.tex = Some(tex);
-            self.alloc = (aw, ah);
+            match error {
+                Some(error) => {
+                    log::warn!("could not allocate a {aw}x{ah} render target ({error:#x})");
+                }
+                None => {
+                    log::warn!("the driver would not complete a {aw}x{ah} render target");
+                }
+            }
+            return false;
+        }
+
+        self.fbo = Some(fbo);
+        self.tex = Some(tex);
+        self.alloc = (aw, ah);
+        self.used = (w, h);
+
+        // The state is handed back before the old target goes, so neither a
+        // binding nor a texture the caller had can be left dangling.
+        unsafe {
+            if let Some(fbo) = old.0 {
+                gl.delete_framebuffer(fbo);
+            }
+            if let Some(tex) = old.1 {
+                gl.delete_texture(tex);
+            }
         }
         true
     }
@@ -220,13 +311,65 @@ impl Target {
     }
 }
 
-fn round_up(x: u32) -> u32 {
-    x.div_ceil(ALLOC_QUANTUM) * ALLOC_QUANTUM
+fn round_up(x: u32) -> Option<u32> {
+    x.checked_next_multiple_of(ALLOC_QUANTUM)
+}
+
+fn clear_errors(gl: &glow::Context) {
+    // A failed call from earlier in the frame must not fail this one. The
+    // cap is only so a lost context cannot spin here for ever.
+    for _ in 0..64 {
+        if unsafe { gl.get_error() } == glow::NO_ERROR {
+            return;
+        }
+    }
+}
+
+fn take_error(gl: &glow::Context) -> Option<u32> {
+    let error = unsafe { gl.get_error() };
+    (error != glow::NO_ERROR).then_some(error)
+}
+
+fn framebuffer_binding(gl: &glow::Context, target: u32) -> Option<glow::Framebuffer> {
+    let id = unsafe { gl.get_parameter_i32(target) };
+    NonZeroU32::new(id as u32).map(glow::NativeFramebuffer)
+}
+
+fn texture_binding(gl: &glow::Context) -> Option<glow::Texture> {
+    let id = unsafe { gl.get_parameter_i32(glow::TEXTURE_BINDING_2D) };
+    NonZeroU32::new(id as u32).map(glow::NativeTexture)
+}
+
+fn restore_state(
+    gl: &glow::Context,
+    draw: Option<glow::Framebuffer>,
+    read: Option<glow::Framebuffer>,
+    viewport: [i32; 4],
+    scissor: bool,
+    clear_color: [f32; 4],
+    texture: Option<glow::Texture>,
+) {
+    unsafe {
+        gl.bind_framebuffer(glow::DRAW_FRAMEBUFFER, draw);
+        gl.bind_framebuffer(glow::READ_FRAMEBUFFER, read);
+        gl.viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+        if scissor {
+            gl.enable(glow::SCISSOR_TEST);
+        } else {
+            gl.disable(glow::SCISSOR_TEST);
+        }
+        gl.clear_color(
+            clear_color[0],
+            clear_color[1],
+            clear_color[2],
+            clear_color[3],
+        );
+        gl.bind_texture(glow::TEXTURE_2D, texture);
+    }
 }
 
 pub fn saved_draw_fbo(gl: &glow::Context) -> Option<glow::Framebuffer> {
-    let id = unsafe { gl.get_parameter_i32(glow::DRAW_FRAMEBUFFER_BINDING) };
-    NonZeroU32::new(id as u32).map(glow::NativeFramebuffer)
+    framebuffer_binding(gl, glow::DRAW_FRAMEBUFFER_BINDING)
 }
 
 // ---------------------------------------------------------------------------
@@ -589,4 +732,18 @@ pub fn bind_texture(
         gl.bind_texture(glow::TEXTURE_2D, tex);
     }
     program.set(gl, name, unit as i32);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::round_up;
+
+    #[test]
+    fn allocation_rounds_up_without_wrapping_past_the_end() {
+        assert_eq!(round_up(0), Some(0));
+        assert_eq!(round_up(1), Some(64));
+        assert_eq!(round_up(64), Some(64));
+        assert_eq!(round_up(65), Some(128));
+        assert_eq!(round_up(u32::MAX), None);
+    }
 }
