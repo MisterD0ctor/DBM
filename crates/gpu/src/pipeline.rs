@@ -22,6 +22,7 @@ use glow::HasContext;
 
 use crate::blur::Blur;
 use crate::gfx::{Program, ScreenQuad, Target, program, saved_draw_fbo};
+use crate::rect::{Normalised, Rect};
 
 mod backdrop;
 mod border;
@@ -47,7 +48,7 @@ pub struct Frame<'a> {
     pub params_dirty: bool,
     /// The video's rect within the window, normalised. From observed state
     /// rather than read from mpv here (see `state::OBSERVED`).
-    pub rect: [f32; 4],
+    pub rect: Rect<Normalised>,
     /// The surfaces that want glass under them.
     pub panels: &'a [GlassPanel],
     /// Where the shadow pass will look, from `shadow::regions`, which the
@@ -105,7 +106,7 @@ pub struct Pipeline {
     gpu_time: bool,
     pub params: BorderParams,
     /// Video rect within the window, normalised (x0, y0, x1, y1).
-    rect: [f32; 4],
+    rect: Rect<Normalised>,
     /// `border` off means skip both border passes and show the video alone.
     pub border_enabled: bool,
     /// Whether mpv draws over a clear surround (see `Mpv::clear_surround`),
@@ -162,7 +163,7 @@ impl Pipeline {
             split: Default::default(),
             gpu_time: std::env::var_os("DBM_GPU_TIME").is_some(),
             params: BorderParams::default(),
-            rect: [0.0, 0.0, 1.0, 1.0],
+            rect: Rect::FULL,
             border_enabled: true,
             clear_surround: false,
             glass_enabled: true,
@@ -211,7 +212,7 @@ impl Pipeline {
 
     /// The video rect the border was last drawn from. For diagnostics that
     /// need to compare it against what mpv currently reports.
-    pub fn border_rect(&self) -> [f32; 4] {
+    pub fn border_rect(&self) -> Rect<Normalised> {
         self.rect
     }
 

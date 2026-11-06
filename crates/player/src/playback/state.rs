@@ -11,6 +11,7 @@
 
 use std::collections::HashMap;
 
+use dbm_gpu::rect::{Normalised, Rect};
 use dbm_lang::{fill, tr};
 use dbm_library::durations::Progress;
 use dbm_mpv::prop::{self, TrackChoice};
@@ -445,7 +446,7 @@ impl PlayerState {
     /// own config.
     ///
     /// Before anything is laid out, a full-window rect reads as no border.
-    pub fn video_rect(&self, width: u32, height: u32) -> [f32; 4] {
+    pub fn video_rect(&self, width: u32, height: u32) -> Rect<Normalised> {
         let OsdDims {
             w: ow,
             h: oh,
@@ -455,12 +456,12 @@ impl PlayerState {
             mb,
         } = self.osd;
         if ow > 0.0 && oh > 0.0 && ow as u32 == width && oh as u32 == height {
-            return [
+            return Rect::normalised(
                 (ml / ow) as f32,
                 (mt / oh) as f32,
                 ((ow - mr) / ow) as f32,
                 ((oh - mb) / oh) as f32,
-            ];
+            );
         }
         self.fitted_rect(width, height)
     }
@@ -470,11 +471,11 @@ impl PlayerState {
     /// `panscan` slides between fitting the video inside the window and
     /// filling the window with it, which is mpv's own definition; at 1 the
     /// video covers the window and there is no border to draw.
-    pub fn fitted_rect(&self, width: u32, height: u32) -> [f32; 4] {
+    pub fn fitted_rect(&self, width: u32, height: u32) -> Rect<Normalised> {
         let (vw, vh) = (self.dwidth, self.dheight);
         let (ww, wh) = (f64::from(width), f64::from(height));
         if vw <= 0.0 || vh <= 0.0 || ww <= 0.0 || wh <= 0.0 {
-            return [0.0, 0.0, 1.0, 1.0];
+            return Rect::FULL;
         }
         let inside = (ww / vw).min(wh / vh);
         let outside = (ww / vw).max(wh / vh);
@@ -483,7 +484,7 @@ impl PlayerState {
         // from here, so both margins on an axis are the same.
         let x0 = (((ww - vw * scale) * 0.5) / ww).clamp(0.0, 1.0);
         let y0 = (((wh - vh * scale) * 0.5) / wh).clamp(0.0, 1.0);
-        [x0 as f32, y0 as f32, 1.0 - x0 as f32, 1.0 - y0 as f32]
+        Rect::normalised(x0 as f32, y0 as f32, 1.0 - x0 as f32, 1.0 - y0 as f32)
     }
 
     /// What the bar shows.

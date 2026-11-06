@@ -320,8 +320,8 @@ impl Probe {
     /// blacking it out, so no pixel threshold catches it, but the gap does.
     /// Measured rather than sampled, since a readback would stall every frame.
     fn watch_rect(&mut self, player: &PlayerState, w: u32, h: u32) {
-        let truth = player.fitted_rect(w, h)[1];
-        let used = player.video_rect(w, h)[1];
+        let truth = player.fitted_rect(w, h).y0;
+        let used = player.video_rect(w, h).y0;
         let gap = ((used - truth) * h as f32).abs();
         if gap > self.worst_gap + 0.5 {
             self.worst_gap = gap;
@@ -356,7 +356,8 @@ impl Probe {
     /// the spread edge of the frame.
     fn sample_letterbox(&self, pipeline: &Pipeline, gl: &glow::Context, player: &PlayerState) {
         let (w, h) = pipeline.composite().size();
-        let [x0, y0, _, y1] = player.video_rect(w, h);
+        let rect = player.video_rect(w, h);
+        let (x0, y0, y1) = (rect.x0, rect.y0, rect.y1);
         // Whichever margin exists; a clip that fills the window has neither,
         // and then there is nothing to say.
         let pt = if y0 > 0.02 {

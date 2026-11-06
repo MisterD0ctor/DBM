@@ -16,6 +16,7 @@ pub mod corners;
 pub mod fade;
 pub mod gfx;
 pub mod pipeline;
+pub mod rect;
 pub mod shadow;
 pub mod way;
 

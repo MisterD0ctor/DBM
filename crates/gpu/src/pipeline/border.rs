@@ -23,7 +23,7 @@ impl Pipeline {
             self.prog_extend.bind(gl);
             self.prog_extend.set(gl, "u_size", [size.0, size.1]);
             self.prog_extend.set(gl, "u_texel", [texel.0, texel.1]);
-            self.prog_extend.set(gl, "u_rect", self.rect);
+            self.prog_extend.set(gl, "u_rect", self.rect.as_array());
             self.prog_extend.set(gl, "edge_blur", p.edge_blur);
             self.prog_extend.set(gl, "max_taps", p.max_taps);
             let vs = self.video.scale();
@@ -36,7 +36,7 @@ impl Pipeline {
         self.prog_spread.bind(gl);
         self.prog_spread.set(gl, "u_size", [size.0, size.1]);
         self.prog_spread.set(gl, "u_texel", [texel.0, texel.1]);
-        self.prog_spread.set(gl, "u_rect", self.rect);
+        self.prog_spread.set(gl, "u_rect", self.rect.as_array());
         self.prog_spread.set(gl, "edge_blur", p.edge_blur);
         self.prog_spread.set(gl, "spread", p.spread);
         self.prog_spread.set(gl, "grain", p.grain);
