@@ -130,7 +130,10 @@ impl ListSync {
             Some(Completion::Lists(Lists {
                 tracks: mpv.get(prop::TRACK_LIST).unwrap_or_default(),
                 chapters: mpv.get(prop::CHAPTER_LIST).unwrap_or_default(),
-                progress: (!same).then(|| dbm_library::durations::of(&paths)),
+                progress: (!same).then(|| {
+                    let progress = dbm_library::durations::of(&paths);
+                    paths.iter().cloned().zip(progress).collect()
+                }),
                 playing,
                 playlist,
                 generation,

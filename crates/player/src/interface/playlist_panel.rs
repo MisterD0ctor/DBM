@@ -308,7 +308,7 @@ fn names(group: &Group) -> (String, String) {
 /// Whether a file's row draws its resume measure: it was started or
 /// finished, and didn't fail to play.
 fn draws_measure(entry: &Entry) -> bool {
-    (entry.progress.fraction > 0.001 || entry.progress.finished) && entry.why.is_empty()
+    (entry.progress.fraction() > 0.001 || entry.progress.finished) && entry.why.is_empty()
 }
 
 /// Names one to a line, which a measure reads as its widest.
@@ -329,7 +329,7 @@ fn entry_item(entry: &Entry) -> PlaylistItem {
         } else {
             Default::default()
         },
-        progress: entry.progress.fraction,
+        progress: entry.progress.fraction(),
         finished: entry.progress.finished,
         why: entry.why.as_str().into(),
         measured: draws_measure(entry),

@@ -9,7 +9,10 @@
 //! Plain fields rather than signals, since Slint's properties provide the
 //! reactivity, and duplicating it here would make two sources of truth.
 
+use std::collections::HashMap;
+
 use dbm_lang::{fill, tr};
+use dbm_library::durations::Progress;
 use dbm_mpv::prop::{self, TrackChoice};
 use dbm_mpv::tracks::{AudioDevice, EntryId, PlaylistEntry, Track};
 use dbm_mpv::{AnyProperty, ErrorCode, Event, MediaPath, Mpv, Value};
@@ -150,12 +153,12 @@ pub struct OsdDims {
 pub struct Lists {
     pub tracks: Vec<Track>,
     pub playlist: Vec<PlaylistEntry>,
-    /// One per playlist entry, in the same order: how long it is and how far
-    /// in the resume point sits. Read here rather than in a job of its own,
-    /// because the lookup needs the playlist's paths, which are read here.
-    /// `None` where it was not read again, the list and the file playing
-    /// being the same as when it last was (see `ListSync`).
-    pub progress: Option<Vec<dbm_library::durations::Progress>>,
+    /// Each playlist entry's length and resume point, by path. Read here
+    /// rather than in a job of its own, because the lookup needs the
+    /// playlist's paths, which are read here. `None` where it was not read
+    /// again, the list and the file playing being the same as when it last
+    /// was (see `ListSync`).
+    pub progress: Option<HashMap<MediaPath, Progress>>,
     /// mpv's current entry as this was read, which the progress, where read,
     /// is true as of.
     pub playing: Option<MediaPath>,
@@ -253,10 +256,9 @@ impl Rate {
 /// playlist, beside what mpv reports.
 #[derive(Debug, Clone, Default)]
 pub struct Found {
-    /// How far into each playlist entry its saved place is. Parallel to
-    /// `playlist`, and only as long as it: read in the same job, applied in
-    /// the same step.
-    pub progress: Vec<dbm_library::durations::Progress>,
+    /// How far into each playlist entry its saved place is, by path, so a
+    /// list that has moved since can't give a row another file's.
+    pub progress: HashMap<MediaPath, Progress>,
     /// What `probe` found, by path.
     ///
     /// Only added to, and read over `playlist` and `progress` rather than
@@ -527,8 +529,12 @@ impl PlayerState {
     /// Defaults rather than an `Option`, since a file never played here is
     /// the ordinary case, and its answer (no length, no progress) is the
     /// default.
-    pub fn progress_of(&self, row: usize) -> dbm_library::durations::Progress {
-        self.found.progress.get(row).copied().unwrap_or_default()
+    pub fn progress_of(&self, row: usize) -> Progress {
+        self.playlist
+            .get(row)
+            .and_then(|entry| self.found.progress.get(&entry.filename))
+            .copied()
+            .unwrap_or_default()
     }
 
     /// Take delivery of described files. Returns whether any row changes.
@@ -546,19 +552,12 @@ impl PlayerState {
 
     /// [`progress_of`](Self::progress_of), with a probed length filling in
     /// for one mpv has never reported.
-    pub fn known_progress(&self, row: usize) -> dbm_library::durations::Progress {
+    pub fn known_progress(&self, row: usize) -> Progress {
         let mut progress = self.progress_of(row);
-        if progress.seconds > 0.0 {
-            return progress;
-        }
-        let Some(found) = self.probed_for(row) else {
-            return progress;
-        };
-        if found.seconds > 0.0 {
+        if progress.seconds <= 0.0
+            && let Some(found) = self.probed_for(row)
+        {
             progress.seconds = found.seconds;
-            if progress.start > 0.0 {
-                progress.fraction = (progress.start / found.seconds).clamp(0.0, 1.0) as f32;
-            }
         }
         progress
     }

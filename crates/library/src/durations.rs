@@ -48,14 +48,7 @@ pub fn record_many(lengths: impl IntoIterator<Item = (MediaPath, f64)>) {
 pub struct Progress {
     /// Length in seconds, or zero when this file has never been played here.
     pub seconds: f64,
-    /// How far the resume point is through it, 0..1. Zero when there is no
-    /// saved position, or no duration to measure it against.
-    pub fraction: f32,
-    /// The resume point itself, in seconds, zero when there is none.
-    ///
-    /// Kept because `fraction` needs a length, which can arrive after this
-    /// was read, from a probe of a file never played long enough here for
-    /// mpv to report its length.
+    /// The resume point, in seconds, zero when there is none.
     pub start: f64,
     /// Watched to its end, or into its closing credits, and not started
     /// again since.
@@ -64,6 +57,18 @@ pub struct Progress {
     /// file is watched through, and a scan gives every file a length, so a
     /// finished episode and one never started look alike on disk.
     pub finished: bool,
+}
+
+impl Progress {
+    /// How far the resume point is through it, 0..1. Zero when there is no
+    /// saved position, or no length to measure it against.
+    pub fn fraction(&self) -> f32 {
+        if self.seconds > 0.0 && self.start > 0.0 {
+            (self.start / self.seconds).clamp(0.0, 1.0) as f32
+        } else {
+            0.0
+        }
+    }
 }
 
 /// Look up every entry in a playlist at once.
@@ -82,11 +87,6 @@ pub fn of(paths: &[MediaPath]) -> Vec<Progress> {
             Progress {
                 seconds,
                 start,
-                fraction: if seconds > 0.0 && start > 0.0 {
-                    (start / seconds).clamp(0.0, 1.0) as f32
-                } else {
-                    0.0
-                },
                 finished: is_finished(&finished, path, start),
             }
         })
@@ -201,10 +201,10 @@ mod tests {
             "C:/films/never.mkv".into(),
         ]);
         assert_eq!(found[0].seconds, 1200.0);
-        assert!((found[0].fraction - 0.25).abs() < 1e-6);
+        assert!((found[0].fraction() - 0.25).abs() < 1e-6);
         // Known length, no saved position: a full-length row with no fill.
         assert_eq!(found[1].seconds, 600.0);
-        assert_eq!(found[1].fraction, 0.0);
+        assert_eq!(found[1].fraction(), 0.0);
         // Never played here, so nothing is known and nothing is shown.
         assert_eq!(found[2], Progress::default());
 

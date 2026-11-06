@@ -389,11 +389,6 @@ mod tests {
     fn saved(start: f64, seconds: f64, finished: bool) -> Saved {
         Saved::of(&Progress {
             seconds,
-            fraction: if seconds > 0.0 {
-                (start / seconds) as f32
-            } else {
-                0.0
-            },
             start,
             finished,
         })

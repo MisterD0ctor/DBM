@@ -423,7 +423,8 @@ mod tests {
             why: String::new(),
         };
         let half = Progress {
-            fraction: 0.5,
+            seconds: 100.0,
+            start: 50.0,
             ..Progress::default()
         };
         let mut group = Group {
