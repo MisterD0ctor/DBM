@@ -20,7 +20,6 @@
 
 use std::path::{Path, PathBuf};
 
-use dbm_lang::tr;
 use dbm_mpv::MediaPath;
 use dbm_naming::Language;
 
@@ -89,23 +88,6 @@ pub enum Failure {
 }
 
 impl Failure {
-    pub fn sentence(&self) -> String {
-        match self {
-            Self::Unreachable => tr("Could not reach OpenSubtitles").to_string(),
-            Self::Refused => tr("OpenSubtitles refused the player's key").to_string(),
-            Self::Spent { signed_in: false } => {
-                tr("The downloads without an account are used up for today").to_string()
-            }
-            Self::Spent { signed_in: true } => {
-                tr("Today's subtitle downloads are used up").to_string()
-            }
-            Self::Busy => tr("OpenSubtitles is busy. Try again in a moment").to_string(),
-            Self::WrongPassword => tr("The username or password is wrong").to_string(),
-            Self::Lapsed => tr("The sign-in to OpenSubtitles has run out").to_string(),
-            Self::Said(text) => text.clone(),
-        }
-    }
-
     /// Whether signing in is the way past it.
     pub fn wants_account(&self) -> bool {
         matches!(self, Self::Spent { signed_in: false } | Self::Lapsed)

@@ -21,7 +21,6 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use dbm_lang::fill;
 use dbm_mpv::MediaPath;
 
 use crate::resume::Saved;
@@ -33,14 +32,6 @@ pub const VIDEO_EXTENSIONS: &[&str] = &[
     "mp4", "mkv", "avi", "mov", "wmv", "flv", "webm", "m4v", "mpg", "mpeg", "ts", "m2ts",
 ];
 
-/// A folder's own name, for a message that has to fit on one line. The full
-/// path goes to the log.
-fn folder_name(dir: &Path) -> String {
-    dir.file_name()
-        .map(|n| n.to_string_lossy().into_owned())
-        .unwrap_or_else(|| dir.display().to_string())
-}
-
 pub fn is_video_file(path: &Path) -> bool {
     path.extension()
         .and_then(|e| e.to_str())
@@ -51,7 +42,7 @@ pub fn is_video_file(path: &Path) -> bool {
 ///
 /// The failure is a value rather than a sentence, so whoever shows it can say
 /// it in the language spoken then, and whoever reads the log can see which
-/// kind it was (see [`Error::sentence`]).
+/// kind it was.
 #[derive(Debug)]
 pub enum Error {
     /// Nothing is at the path: it does not exist, or it is neither a file
@@ -65,27 +56,6 @@ pub enum Error {
     Unreadable { dir: PathBuf, source: io::Error },
     /// The playlist file mpv is to read could not be written.
     PlaylistWrite { path: PathBuf, source: io::Error },
-}
-
-impl Error {
-    /// What to tell the person, in the language spoken now.
-    ///
-    /// **UI thread only.** The sentence is made where it is shown, not where
-    /// the scan failed, so a language chosen while the scan runs is the one
-    /// it is said in.
-    pub fn sentence(&self) -> String {
-        match self {
-            Self::NothingAt(path) => fill!("There is nothing at {}", folder_name(path)),
-            Self::NoVideosIn(dir) => fill!("No video files in {}", folder_name(dir)),
-            Self::NoVideosUnder(dir) => fill!("No video files under {}", folder_name(dir)),
-            Self::Unreadable { dir, source } => {
-                fill!("Could not read {} — {}", folder_name(dir), source)
-            }
-            Self::PlaylistWrite { source, .. } => {
-                fill!("Could not make a playlist — {}", source)
-            }
-        }
-    }
 }
 
 /// Scan a path into a playlist and write it out for mpv's `loadlist`.

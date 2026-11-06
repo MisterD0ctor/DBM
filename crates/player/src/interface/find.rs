@@ -66,7 +66,7 @@ impl Search {
                 self.0.borrow_mut().found = hits;
             }
             Err(why) => {
-                find.set_said(why.sentence().into());
+                find.set_said(sentence(&why).into());
                 find.set_state(FindState::Failed);
             }
         }
@@ -101,11 +101,11 @@ impl Search {
                 if why.wants_account() {
                     let row = self.row_of(&fetched.hit);
                     self.0.borrow_mut().waiting = Some((path, fetched.hit));
-                    if ui.invoke_offer_sign_in(row, why.sentence().into()) {
+                    if ui.invoke_offer_sign_in(row, sentence(&why).into()) {
                         return;
                     }
                 }
-                super::warn(ui, why.sentence());
+                super::warn(ui, sentence(&why));
             }
         }
     }
@@ -140,7 +140,7 @@ impl Search {
                 find.set_fetching(self.row_of(&hit));
                 opensubtitles::fetch(path, hit, worker.reporter(Completion::Fetched));
             }
-            Err(why) => find.set_sign_in_said(why.sentence().into()),
+            Err(why) => find.set_sign_in_said(sentence(&why).into()),
         }
     }
 
@@ -153,6 +153,24 @@ impl Search {
             .iter()
             .position(|h| h == hit)
             .map_or(-1, |row| row as i32)
+    }
+}
+
+/// Why OpenSubtitles said no, in the language spoken now.
+fn sentence(why: &Failure) -> String {
+    match why {
+        Failure::Unreachable => tr("Could not reach OpenSubtitles").to_string(),
+        Failure::Refused => tr("OpenSubtitles refused the player's key").to_string(),
+        Failure::Spent { signed_in: false } => {
+            tr("The downloads without an account are used up for today").to_string()
+        }
+        Failure::Spent { signed_in: true } => {
+            tr("Today's subtitle downloads are used up").to_string()
+        }
+        Failure::Busy => tr("OpenSubtitles is busy. Try again in a moment").to_string(),
+        Failure::WrongPassword => tr("The username or password is wrong").to_string(),
+        Failure::Lapsed => tr("The sign-in to OpenSubtitles has run out").to_string(),
+        Failure::Said(text) => text.clone(),
     }
 }
 

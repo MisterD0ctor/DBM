@@ -7,8 +7,9 @@
 //! files from a thread of their own.
 
 use std::collections::VecDeque;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
+use dbm_lang::fill;
 use dbm_library::playlist::{Error, Prepared};
 use slint::ComponentHandle;
 
@@ -56,7 +57,7 @@ impl Player {
         log::warn!("cannot open: {e:?}");
         ui.global::<Playlist>().set_opening(false);
         self.opening.stumbled = true;
-        warn(ui, e.sentence());
+        warn(ui, Self::sentence(&e));
     }
 
     /// A file wouldn't play. Which is the backstop for an open that never
@@ -109,6 +110,26 @@ impl Player {
         if self.opening.stumbled && self.state.idle && self.state.path.is_none() {
             self.opening.stumbled = false;
             completions::look_for_resume(&self.app.worker);
+        }
+    }
+
+    /// Why a path would not open, in the language spoken now.
+    fn sentence(error: &Error) -> String {
+        let folder_name = |dir: &Path| {
+            dir.file_name()
+                .map(|name| name.to_string_lossy().into_owned())
+                .unwrap_or_else(|| dir.display().to_string())
+        };
+        match error {
+            Error::NothingAt(path) => fill!("There is nothing at {}", folder_name(path)),
+            Error::NoVideosIn(dir) => fill!("No video files in {}", folder_name(dir)),
+            Error::NoVideosUnder(dir) => fill!("No video files under {}", folder_name(dir)),
+            Error::Unreadable { dir, source } => {
+                fill!("Could not read {} — {}", folder_name(dir), source)
+            }
+            Error::PlaylistWrite { source, .. } => {
+                fill!("Could not make a playlist — {}", source)
+            }
         }
     }
 
