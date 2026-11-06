@@ -27,8 +27,8 @@ mod registry;
 
 pub use file::Persister;
 pub use preferences::{SCALE_MAX, SCALE_MIN, SCALE_STEP, Toggle, offered_scale};
-use registry::Params;
 pub use registry::{Key, REGISTRY, Section};
+use registry::{Params, param};
 
 /// What a settings page held just before it was reset.
 ///
@@ -80,18 +80,14 @@ impl Default for Store {
 }
 
 impl Store {
-    pub fn value(&self, index: usize) -> f32 {
-        REGISTRY
-            .get(index)
-            .map_or(0.0, |param| *self.params.get().slot(param.key))
+    pub fn value(&self, key: Key) -> f32 {
+        *self.params.get().slot(key)
     }
 
-    pub fn set(&self, index: usize, v: f32) {
-        let Some(param) = REGISTRY.get(index) else {
-            return;
-        };
+    pub fn set(&self, key: Key, v: f32) {
+        let param = param(key);
         let mut params = self.params.get();
-        *params.slot(param.key) = v.clamp(param.min, param.max);
+        *params.slot(key) = v.clamp(param.min, param.max);
         self.params.set(params);
         self.touch();
     }

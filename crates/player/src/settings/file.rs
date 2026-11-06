@@ -6,7 +6,8 @@ use std::io;
 
 use dbm_naming::Language;
 
-use super::{Key, REGISTRY, Store, Toggle};
+use super::registry::param;
+use super::{Key, Store, Toggle};
 
 const SCALE: &str = "accessibility.scale";
 
@@ -44,10 +45,9 @@ impl Store {
 
     /// Current values, keyed for the saved file.
     pub fn to_saved(&self) -> Vec<(String, f32)> {
-        let mut out: Vec<(String, f32)> = REGISTRY
+        let mut out: Vec<(String, f32)> = Key::ALL
             .iter()
-            .enumerate()
-            .map(|(i, p)| (p.name.to_string(), self.value(i)))
+            .map(|&key| (param(key).name.to_string(), self.value(key)))
             .collect();
         for toggle in Toggle::ALL {
             let on = f32::from(u8::from(self.is_on(toggle)));
@@ -70,9 +70,13 @@ impl Store {
         let (mut legacy_bevel, mut legacy_refract) = (None, None);
         let mut saw_refract = false;
         for (name, value) in saved {
-            if let Some(index) = REGISTRY.iter().position(|p| p.name == name) {
-                self.set(index, *value);
-                if REGISTRY[index].key == Key::Refract {
+            if let Some(key) = Key::ALL
+                .iter()
+                .copied()
+                .find(|&key| param(key).name == name)
+            {
+                self.set(key, *value);
+                if key == Key::Refract {
                     saw_refract = true;
                 }
                 continue;
@@ -99,15 +103,14 @@ impl Store {
 
         // Only where the file has no value in the current terms, which never
         // loses to a converted one.
-        let index_of = |key: Key| REGISTRY.iter().position(|p| p.key == key);
         if !saw_refract {
             // Against the bevel it was tuned beside, which is what the new
             // value is a fraction of.
             let was = legacy_bevel
                 .unwrap_or(LEGACY_RADIUS * 0.6)
                 .max(f32::EPSILON);
-            if let (Some(px), Some(i)) = (legacy_refract, index_of(Key::Refract)) {
-                self.set(i, px / was);
+            if let Some(px) = legacy_refract {
+                self.set(Key::Refract, px / was);
                 log::info!("converted saved refract {px}px to a ratio of the bevel");
             }
         }

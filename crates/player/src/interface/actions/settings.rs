@@ -28,7 +28,7 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
                     return;
                 };
                 app.settings.set(
-                    index,
+                    param.key,
                     param.min + fraction.clamp(0.0, 1.0) * (param.max - param.min),
                 );
                 if param.section == Section::Picture {

@@ -7,7 +7,7 @@ use dbm_lang::marked;
 
 use crate::playback::commands::PictureParams;
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Key {
     // Glass. Bevel, IOR and Reflect are constants in `pipeline` instead,
     // because they are what the material is rather than how much of it you
@@ -55,26 +55,49 @@ pub struct Param {
     pub max: f32,
 }
 
-/// The order is also the order of `param-icon` in settings_panel.slint, which picks each
-/// row's icon by its index here.
+/// The order is also the order of `param-icon` in settings_panel.slint, which
+/// picks each row's icon by its index here.
+///
+/// One list builds both the keys and the registry, so the two can't disagree
+/// about which keys exist or what order they are in.
+macro_rules! registry {
+    ($($key:ident),* $(,)?) => {
+        impl Key {
+            /// Every key, in the order the registry has them.
+            pub const ALL: &[Self] = &[$(Self::$key),*];
+        }
+
+        pub const REGISTRY: &[Param] = &[$(param(Key::$key)),*];
+    };
+}
+
+registry!(
+    Blur, Refract, Aberration, Rim, Tint, Absorb, Shadow, EdgeBlur, Spread, Falloff, Softness,
+    Brightness, Contrast, Saturation, Gamma
+);
+
+/// The one entry for `key`: its panel, its name in the saved file, its
+/// labels and its range.
 #[rustfmt::skip]
-pub const REGISTRY: &[Param] = &[
-    Param { key: Key::Blur, name: "glass.blur", section: Section::Glass, label: marked("Blur"), hint: marked("How much the glass blurs the picture behind it"), min: 0.0, max: 100.0 },
-    Param { key: Key::Refract, name: "glass.refract_ratio", section: Section::Glass, label: marked("Refraction"), hint: marked("How far each pane's rim bends the picture behind it"), min: 0.0, max: 1.0 },
-    Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: marked("Dispersion"), hint: marked("How widely the rim splits light into its colours, as a prism does"), min: 0.0, max: 1.0 },
-    Param { key: Key::Rim, name: "glass.rim", section: Section::Glass, label: marked("Edge light"), hint: marked("How brightly each pane's rim catches the light"), min: 0.0, max: 1.0 },
-    Param { key: Key::Tint, name: "glass.tint", section: Section::Glass, label: marked("Smoke"), hint: marked("How far the glass darkens toward black, as smoked glass does"), min: 0.0, max: 1.0 },
-    Param { key: Key::Absorb, name: "glass.absorb", section: Section::Glass, label: marked("Dimming"), hint: marked("How much of a bright scene the glass holds back, more the brighter it is"), min: 0.0, max: 1.0 },
-    Param { key: Key::Shadow, name: "glass.shadow", section: Section::Glass, label: marked("Shadow"), hint: marked("How dark the shadow each pane casts on the picture"), min: 0.0, max: 1.0 },
-    Param { key: Key::EdgeBlur, name: "border.edge_blur", section: Section::Border, label: marked("Edge blur"), hint: marked("How much the picture's edge is softened before it spreads"), min: 0.0, max: 0.1 },
-    Param { key: Key::Spread, name: "border.spread", section: Section::Border, label: marked("Spread"), hint: marked("How far the picture's light reaches into the black bars"), min: 0.0, max: 5.0 },
-    Param { key: Key::Falloff, name: "border.falloff", section: Section::Border, label: marked("Falloff"), hint: marked("How quickly that light fades away from the picture"), min: 0.0, max: 12.0 },
-    Param { key: Key::Softness, name: "border.softness", section: Section::Border, label: marked("Softness"), hint: marked("How gently the light begins to fade"), min: 0.0, max: 1.0 },
-    Param { key: Key::Brightness, name: "picture.brightness", section: Section::Picture, label: marked("Brightness"), hint: "", min: -100.0, max: 100.0 },
-    Param { key: Key::Contrast, name: "picture.contrast", section: Section::Picture, label: marked("Contrast"), hint: "", min: -100.0, max: 100.0 },
-    Param { key: Key::Saturation, name: "picture.saturation", section: Section::Picture, label: marked("Saturation"), hint: "", min: -100.0, max: 100.0 },
-    Param { key: Key::Gamma, name: "picture.gamma", section: Section::Picture, label: marked("Gamma"), hint: marked("How light the picture's middle tones are, leaving black and white"), min: -100.0, max: 100.0 },
-];
+pub const fn param(key: Key) -> Param {
+    match key {
+        Key::Blur => Param { key: Key::Blur, name: "glass.blur", section: Section::Glass, label: marked("Blur"), hint: marked("How much the glass blurs the picture behind it"), min: 0.0, max: 100.0 },
+        Key::Refract => Param { key: Key::Refract, name: "glass.refract_ratio", section: Section::Glass, label: marked("Refraction"), hint: marked("How far each pane's rim bends the picture behind it"), min: 0.0, max: 1.0 },
+        Key::Aberration => Param { key: Key::Aberration, name: "glass.aberration", section: Section::Glass, label: marked("Dispersion"), hint: marked("How widely the rim splits light into its colours, as a prism does"), min: 0.0, max: 1.0 },
+        Key::Rim => Param { key: Key::Rim, name: "glass.rim", section: Section::Glass, label: marked("Edge light"), hint: marked("How brightly each pane's rim catches the light"), min: 0.0, max: 1.0 },
+        Key::Tint => Param { key: Key::Tint, name: "glass.tint", section: Section::Glass, label: marked("Smoke"), hint: marked("How far the glass darkens toward black, as smoked glass does"), min: 0.0, max: 1.0 },
+        Key::Absorb => Param { key: Key::Absorb, name: "glass.absorb", section: Section::Glass, label: marked("Dimming"), hint: marked("How much of a bright scene the glass holds back, more the brighter it is"), min: 0.0, max: 1.0 },
+        Key::Shadow => Param { key: Key::Shadow, name: "glass.shadow", section: Section::Glass, label: marked("Shadow"), hint: marked("How dark the shadow each pane casts on the picture"), min: 0.0, max: 1.0 },
+        Key::EdgeBlur => Param { key: Key::EdgeBlur, name: "border.edge_blur", section: Section::Border, label: marked("Edge blur"), hint: marked("How much the picture's edge is softened before it spreads"), min: 0.0, max: 0.1 },
+        Key::Spread => Param { key: Key::Spread, name: "border.spread", section: Section::Border, label: marked("Spread"), hint: marked("How far the picture's light reaches into the black bars"), min: 0.0, max: 5.0 },
+        Key::Falloff => Param { key: Key::Falloff, name: "border.falloff", section: Section::Border, label: marked("Falloff"), hint: marked("How quickly that light fades away from the picture"), min: 0.0, max: 12.0 },
+        Key::Softness => Param { key: Key::Softness, name: "border.softness", section: Section::Border, label: marked("Softness"), hint: marked("How gently the light begins to fade"), min: 0.0, max: 1.0 },
+        Key::Brightness => Param { key: Key::Brightness, name: "picture.brightness", section: Section::Picture, label: marked("Brightness"), hint: "", min: -100.0, max: 100.0 },
+        Key::Contrast => Param { key: Key::Contrast, name: "picture.contrast", section: Section::Picture, label: marked("Contrast"), hint: "", min: -100.0, max: 100.0 },
+        Key::Saturation => Param { key: Key::Saturation, name: "picture.saturation", section: Section::Picture, label: marked("Saturation"), hint: "", min: -100.0, max: 100.0 },
+        Key::Gamma => Param { key: Key::Gamma, name: "picture.gamma", section: Section::Picture, label: marked("Gamma"), hint: marked("How light the picture's middle tones are, leaving black and white"), min: -100.0, max: 100.0 },
+    }
+}
 
 /// The three sets of values the sliders tune.
 #[derive(Clone, Copy, Default)]
@@ -114,6 +137,31 @@ impl Params {
             Section::Glass => self.glass = from.glass,
             Section::Border => self.border = from.border,
             Section::Picture => self.picture = from.picture,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_key_is_in_the_registry_once_and_in_its_order() {
+        assert_eq!(REGISTRY.len(), Key::ALL.len());
+        for (key, param) in Key::ALL.iter().zip(REGISTRY) {
+            assert_eq!(*key, param.key);
+            assert_eq!(REGISTRY.iter().filter(|p| p.key == *key).count(), 1);
+        }
+    }
+
+    #[test]
+    fn every_saved_name_is_unique() {
+        for (i, param) in REGISTRY.iter().enumerate() {
+            assert!(
+                !REGISTRY[..i].iter().any(|other| other.name == param.name),
+                "{} is used twice",
+                param.name
+            );
         }
     }
 }

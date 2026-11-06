@@ -101,7 +101,7 @@ fn section_model(store: &Store, section: Section) -> Rc<VecModel<ParamItem>> {
 
 fn param_row(store: &Store, index: usize) -> ParamItem {
     let param = &settings::REGISTRY[index];
-    let value = store.value(index);
+    let value = store.value(param.key);
     let span = (param.max - param.min).max(f32::EPSILON);
     ParamItem {
         index: index as i32,
