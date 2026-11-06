@@ -193,7 +193,7 @@ impl Ways {
         self.px = 0;
     }
 
-    pub fn release(&mut self, gl: &glow::Context) {
+    pub fn release(mut self, gl: &glow::Context) {
         self.release_icons(gl);
         self.program.release(gl);
         self.quad.release(gl);

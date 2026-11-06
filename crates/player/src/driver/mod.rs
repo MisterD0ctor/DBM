@@ -198,7 +198,7 @@ impl Driver {
                 self.keep_the_interface_moving();
             }
             RenderingState::RenderingTeardown => {
-                if let Some(mut gpu) = self.gpu.take() {
+                if let Some(gpu) = self.gpu.take() {
                     gpu.pipeline.release(&gpu.gl);
                     gpu.overlays.release(&gpu.gl);
                 }

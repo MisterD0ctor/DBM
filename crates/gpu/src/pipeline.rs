@@ -401,7 +401,7 @@ impl Pipeline {
             .run(gl, &self.quad, &self.composite, &self.blur_out, sigma);
     }
 
-    pub fn release(&mut self, gl: &glow::Context) {
+    pub fn release(mut self, gl: &glow::Context) {
         for target in [
             &mut self.video,
             &mut self.extended,
@@ -420,10 +420,10 @@ impl Pipeline {
             unsafe { gl.delete_texture(b.tex) };
         }
         for p in [
-            &self.prog_extend,
-            &self.prog_spread,
-            &self.prog_glass,
-            &self.prog_backdrop,
+            self.prog_extend,
+            self.prog_spread,
+            self.prog_glass,
+            self.prog_backdrop,
         ] {
             p.release(gl);
         }

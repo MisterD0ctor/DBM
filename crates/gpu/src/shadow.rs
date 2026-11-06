@@ -152,7 +152,7 @@ impl Shadow {
             .draw_at(gl, screen, (left, win_h - bottom, width, height));
     }
 
-    pub fn release(&mut self, gl: &glow::Context) {
+    pub fn release(mut self, gl: &glow::Context) {
         self.copied.release(gl);
         self.across.release(gl);
         self.program.release(gl);

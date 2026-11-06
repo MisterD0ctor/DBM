@@ -42,17 +42,17 @@ impl Overlays {
         }
     }
 
-    pub fn release(&mut self, gl: &glow::Context) {
-        if let Some(fader) = &mut self.fader {
+    pub fn release(self, gl: &glow::Context) {
+        if let Some(fader) = self.fader {
             fader.release(gl);
         }
-        if let Some(way) = &mut self.way {
+        if let Some(way) = self.way {
             way.release(gl);
         }
-        if let Some(shadow) = &mut self.shadow {
+        if let Some(shadow) = self.shadow {
             shadow.release(gl);
         }
-        if let Some(corners) = &self.corners {
+        if let Some(corners) = self.corners {
             corners.release(gl);
         }
     }

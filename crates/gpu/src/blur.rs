@@ -152,7 +152,7 @@ impl Blur {
         draw_up(gl, quad, &self.up, filtered, dst);
     }
 
-    pub fn release(&mut self, gl: &glow::Context) {
+    pub fn release(mut self, gl: &glow::Context) {
         for target in self
             .levels
             .iter_mut()
@@ -160,8 +160,7 @@ impl Blur {
         {
             target.release(gl);
         }
-        self.levels.clear();
-        for p in [&self.down, &self.gauss, &self.up] {
+        for p in [self.down, self.gauss, self.up] {
             p.release(gl);
         }
     }

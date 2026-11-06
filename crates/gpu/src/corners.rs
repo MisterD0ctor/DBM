@@ -67,7 +67,7 @@ impl Corners {
         }
     }
 
-    pub fn release(&self, gl: &glow::Context) {
+    pub fn release(self, gl: &glow::Context) {
         self.program.release(gl);
         self.quad.release(gl);
     }

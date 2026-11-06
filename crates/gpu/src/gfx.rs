@@ -339,7 +339,7 @@ impl Program {
         }
     }
 
-    pub fn release(&self, gl: &glow::Context) {
+    pub fn release(self, gl: &glow::Context) {
         unsafe { gl.delete_program(self.program) };
     }
 }
@@ -531,7 +531,7 @@ impl ScreenQuad {
         }
     }
 
-    pub fn release(&self, gl: &glow::Context) {
+    pub fn release(self, gl: &glow::Context) {
         unsafe { gl.delete_vertex_array(self.vao) };
     }
 }
