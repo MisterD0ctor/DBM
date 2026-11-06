@@ -23,6 +23,7 @@ use std::process::Stdio;
 
 use dbm_mpv::MediaPath;
 use dbm_naming::Media;
+use serde::{Deserialize, Serialize};
 
 use crate::cache::{PathMap, Stamped};
 use crate::ffmpeg;
@@ -119,7 +120,27 @@ impl End {
 }
 
 /// Where a sequence starts and ends, in seconds.
-pub type Span = (f64, f64);
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct Span {
+    pub start: f64,
+    pub end: f64,
+}
+
+impl Span {
+    pub const fn new(start: f64, end: f64) -> Self {
+        Self { start, end }
+    }
+
+    pub fn length(self) -> f64 {
+        self.end - self.start
+    }
+}
+
+impl From<(f64, f64)> for Span {
+    fn from((start, end): (f64, f64)) -> Self {
+        Self::new(start, end)
+    }
+}
 
 /// What listening found at one end of a file: the pieces, or none.
 type Heard = Option<Vec<Span>>;
@@ -137,7 +158,8 @@ type Heard = Option<Vec<Span>>;
 ///    one, to the end of the file.
 /// 5. Kept with the file's modification time and size, and no answer once
 ///    either changes.
-const HEARD: u32 = 5;
+/// 6. A span is a record rather than a pair.
+const HEARD: u32 = 6;
 
 /// A run's answer: the file it listened to, which end of it, and what it
 /// found there, in pieces.
@@ -245,7 +267,7 @@ pub fn spawn(
                 Some(pieces) => {
                     let at: Vec<String> = pieces
                         .iter()
-                        .map(|(start, to)| format!("from {start:.1} s to {to:.1} s"))
+                        .map(|span| format!("from {:.1} s to {:.1} s", span.start, span.end))
                         .collect();
                     log::info!("{what} {}", at.join(", then "));
                 }
@@ -310,8 +332,8 @@ fn find(
         let known = matches!(held, Some(Some(_)));
         let (theirs_from, long) = match (held, length_there) {
             (Some(Some(pieces)), _) => {
-                let start = pieces.first().map_or(0.0, |piece| piece.0);
-                let to = pieces.last().map_or(0.0, |piece| piece.1);
+                let start = pieces.first().map_or(0.0, |piece| piece.start);
+                let to = pieces.last().map_or(0.0, |piece| piece.end);
                 let at = (start - AROUND).max(0.0);
                 (at, to + AROUND - at)
             }
@@ -328,8 +350,8 @@ fn find(
         let Some(shared) = fingerprint::shared(&ours, &theirs, end.shortest()) else {
             continue;
         };
-        let here = tidy(shared.first, from(duration));
-        let there = tidy(shared.second, theirs_from);
+        let here = tidy(shared.first.into(), from(duration));
+        let there = tidy(shared.second.into(), theirs_from);
         if end == End::Closing && !credits(here, duration, there, length_there, known) {
             continue;
         }
@@ -344,7 +366,7 @@ fn find(
             }
             None => (vec![here], vec![there]),
         };
-        let lasts = |(start, to): Span| to - start;
+        let lasts = |span: Span| span.length();
         if lasts(here) < SHORTEST {
             if short
                 .as_ref()
@@ -408,13 +430,13 @@ fn keep(
 /// necessarily this one's end, since where one episode's credits are a short
 /// cut of another's, the shared stretch ends the longer one's early.
 fn credits(here: Span, duration: f64, there: Span, length_there: Option<f64>, known: bool) -> bool {
-    if here.1 < duration - NEAR_THE_END {
+    if here.end < duration - NEAR_THE_END {
         return false;
     }
-    if known || here.1 - here.0 >= SHORTEST {
+    if known || here.length() >= SHORTEST {
         return true;
     }
-    let last = |(_, to): Span, length: f64| to >= length - AT_THE_END;
+    let last = |span: Span, length: f64| span.end >= length - AT_THE_END;
     last(here, duration) || length_there.is_some_and(|length| last(there, length))
 }
 
@@ -433,26 +455,29 @@ fn pieces(
 ) -> (Vec<Span>, Vec<Span>) {
     let mut both = vec![(here, there)];
     let before = fingerprint::shared(
-        &ours.part(0.0, here.0 - ours_from),
-        &theirs.part(0.0, there.0 - theirs_from),
+        &ours.part(0.0, here.start - ours_from),
+        &theirs.part(0.0, there.start - theirs_from),
         SHORTEST_CREDITS,
     );
     if let Some(before) = before {
         both.insert(
             0,
             (
-                tidy(before.first, ours_from),
-                tidy(before.second, theirs_from),
+                tidy(before.first.into(), ours_from),
+                tidy(before.second.into(), theirs_from),
             ),
         );
     }
     let after = fingerprint::shared(
-        &ours.part(here.1 - ours_from, f64::INFINITY),
-        &theirs.part(there.1 - theirs_from, f64::INFINITY),
+        &ours.part(here.end - ours_from, f64::INFINITY),
+        &theirs.part(there.end - theirs_from, f64::INFINITY),
         SHORTEST_CREDITS,
     );
     if let Some(after) = after {
-        both.push((tidy(after.first, here.1), tidy(after.second, there.1)));
+        both.push((
+            tidy(after.first.into(), here.end),
+            tidy(after.second.into(), there.end),
+        ));
     }
     both.into_iter().unzip()
 }
@@ -475,27 +500,33 @@ fn credits_pieces(ours: &[Span], length: f64, theirs: &[Span], length_there: f64
     let mut kept: Vec<Span> = Vec::new();
     for (at, piece) in ours.iter().enumerate() {
         match kept.last_mut() {
-            Some(last) if !stops(piece.0 - ours[at - 1].1, theirs[at].0 - theirs[at - 1].1) => {
-                last.1 = piece.1;
+            Some(last)
+                if !stops(
+                    piece.start - ours[at - 1].end,
+                    theirs[at].start - theirs[at - 1].end,
+                ) =>
+            {
+                last.end = piece.end;
             }
             _ => kept.push(*piece),
         }
     }
-    let after = |pieces: &[Span], length: f64| length - pieces.last().map_or(length, |p| p.1);
+    let after = |pieces: &[Span], length: f64| length - pieces.last().map_or(length, |p| p.end);
     if !stops(after(ours, length), after(theirs, length_there))
         && let Some(last) = kept.last_mut()
     {
-        last.1 = length;
+        last.end = length;
     }
     kept
 }
 
 /// A stretch found in a recording that began `from` seconds into its file,
 /// as times in the file, to a tenth of a second.
-fn tidy((start, end): Span, from: f64) -> Span {
+fn tidy(span: Span, from: f64) -> Span {
     let round = |seconds: f64| (seconds * 10.0).round() / 10.0;
-    let (start, end) = (start + from, end + from);
-    (
+    let start = span.start + from;
+    let end = span.end + from;
+    Span::new(
         if start < FROM_THE_TOP {
             0.0
         } else {
@@ -646,8 +677,8 @@ mod tests {
         let mut known = HashMap::new();
         known.insert("Show.S07E06.mkv".into(), None);
         known.insert("Show.S07E04.mkv".into(), None);
-        known.insert("Show.S07E03.mkv".into(), Some(vec![(0.0, 25.0)]));
-        known.insert("Show.S07E09.mkv".into(), Some(vec![(0.0, 25.0)]));
+        known.insert("Show.S07E03.mkv".into(), Some(vec![Span::new(0.0, 25.0)]));
+        known.insert("Show.S07E09.mkv".into(), Some(vec![Span::new(0.0, 25.0)]));
         // The one that holds them ahead of the one as near not yet heard,
         // then the next nearest, the later of two as near. The further one
         // that holds them is not reached, and nor are the two either side,
@@ -675,7 +706,7 @@ mod tests {
             .map(|e| {
                 (
                     format!("Show.S01E{e:02}.mkv").into(),
-                    Some(vec![(50.0, 140.0)]),
+                    Some(vec![Span::new(50.0, 140.0)]),
                 )
             })
             .collect();
@@ -696,64 +727,92 @@ mod tests {
     fn short_credits_have_to_end_one_of_the_two() {
         // Ten seconds of music that stops a second before this file does.
         assert!(credits(
-            (675.4, 684.8),
+            Span::new(675.4, 684.8),
             686.0,
-            (658.0, 667.4),
+            Span::new(658.0, 667.4),
             Some(690.0),
             false
         ));
         // Or before the other does: here it is the start of longer credits.
         assert!(credits(
-            (649.9, 659.3),
+            Span::new(649.9, 659.3),
             669.2,
-            (673.3, 682.8),
+            Span::new(673.3, 682.8),
             Some(683.3),
             false
         ));
         // The same ten seconds a minute short of both is a cue.
         assert!(!credits(
-            (615.4, 624.8),
+            Span::new(615.4, 624.8),
             686.0,
-            (598.0, 607.4),
+            Span::new(598.0, 607.4),
             Some(669.2),
             false
         ));
         // Unless what it matched is known to be the other's credits.
-        assert!(credits((649.9, 659.3), 669.2, (673.3, 682.8), None, true));
+        assert!(credits(
+            Span::new(649.9, 659.3),
+            669.2,
+            Span::new(673.3, 682.8),
+            None,
+            true
+        ));
         // Never far from the end, known or not.
-        assert!(!credits((100.0, 110.0), 686.0, (673.3, 682.8), None, true));
+        assert!(!credits(
+            Span::new(100.0, 110.0),
+            686.0,
+            Span::new(673.3, 682.8),
+            None,
+            true
+        ));
     }
 
     #[test]
     fn credits_as_long_as_titles_may_be_followed_by_more() {
-        let far = (0.0, 0.0);
-        assert!(credits((2547.9, 2582.3), 2700.0, far, None, false));
-        assert!(!credits((1000.0, 1040.0), 2700.0, far, None, false));
+        let far = Span::new(0.0, 0.0);
+        assert!(credits(Span::new(2547.9, 2582.3), 2700.0, far, None, false));
+        assert!(!credits(
+            Span::new(1000.0, 1040.0),
+            2700.0,
+            far,
+            None,
+            false
+        ));
     }
 
     #[test]
     fn credits_run_to_the_end_unless_a_scene_follows() {
         // Psycho-Pass 13 against 12: the same song, which ends 12, and then
         // ten seconds more of 13.
-        let (thirteen, twelve) = ([(1273.7, 1361.2)], [(1282.3, 1369.8)]);
+        let (thirteen, twelve) = ([Span::new(1273.7, 1361.2)], [Span::new(1282.3, 1369.8)]);
         assert_eq!(
             credits_pieces(&thirteen, 1371.6, &twelve, 1372.4),
-            [(1273.7, 1361.2)]
+            [Span::new(1273.7, 1361.2)]
         );
         assert_eq!(
             credits_pieces(&twelve, 1372.4, &thirteen, 1371.6),
-            [(1282.3, 1372.4)]
+            [Span::new(1282.3, 1372.4)]
         );
         // 8 against 7: where the two cuts part, 7 goes on too, so the rest
         // of 8 is more of its credits.
         assert_eq!(
-            credits_pieces(&[(1280.0, 1340.5)], 1371.9, &[(1297.5, 1358.0)], 1372.1),
-            [(1280.0, 1371.9)]
+            credits_pieces(
+                &[Span::new(1280.0, 1340.5)],
+                1371.9,
+                &[Span::new(1297.5, 1358.0)],
+                1372.1
+            ),
+            [Span::new(1280.0, 1371.9)]
         );
         // A card's length more than the other is no scene.
         assert_eq!(
-            credits_pieces(&[(1282.0, 1366.0)], 1370.0, &[(1282.0, 1368.0)], 1370.0),
-            [(1282.0, 1370.0)]
+            credits_pieces(
+                &[Span::new(1282.0, 1366.0)],
+                1370.0,
+                &[Span::new(1282.0, 1368.0)],
+                1370.0
+            ),
+            [Span::new(1282.0, 1370.0)]
         );
     }
 
@@ -761,22 +820,22 @@ mod tests {
     fn credits_that_stop_for_a_scene_are_two_pieces() {
         // Psycho-Pass 18 against 21: fifty seconds of the song, a scene of a
         // minute and a half, and the rest, which in 21 goes straight on.
-        let eighteen = [(1191.8, 1241.9), (1333.8, 1368.6)];
-        let twenty_one = [(1282.4, 1332.6), (1335.1, 1369.9)];
+        let eighteen = [Span::new(1191.8, 1241.9), Span::new(1333.8, 1368.6)];
+        let twenty_one = [Span::new(1282.4, 1332.6), Span::new(1335.1, 1369.9)];
         assert_eq!(
             credits_pieces(&eighteen, 1372.2, &twenty_one, 1372.2),
-            [(1191.8, 1241.9), (1333.8, 1372.2)]
+            [Span::new(1191.8, 1241.9), Span::new(1333.8, 1372.2)]
         );
         assert_eq!(
             credits_pieces(&twenty_one, 1372.2, &eighteen, 1372.2),
-            [(1282.4, 1372.2)]
+            [Span::new(1282.4, 1372.2)]
         );
         // Where both stop, neither says the song goes on, so the pieces are
         // one, as two cuts of it would be.
-        let other = [(1200.0, 1250.0), (1320.0, 1369.0)];
+        let other = [Span::new(1200.0, 1250.0), Span::new(1320.0, 1369.0)];
         assert_eq!(
             credits_pieces(&eighteen, 1372.2, &other, 1372.0),
-            [(1191.8, 1372.2)]
+            [Span::new(1191.8, 1372.2)]
         );
     }
 
@@ -812,13 +871,19 @@ mod tests {
 
     #[test]
     fn a_sequence_at_the_very_start_starts_at_nothing() {
-        assert_eq!(tidy((0.656, 24.856), 0.0), (0.0, 24.9));
-        assert_eq!(tidy((274.106, 308.856), 0.0), (274.1, 308.9));
+        assert_eq!(tidy(Span::new(0.656, 24.856), 0.0), Span::new(0.0, 24.9));
+        assert_eq!(
+            tidy(Span::new(274.106, 308.856), 0.0),
+            Span::new(274.1, 308.9)
+        );
     }
 
     #[test]
     fn credits_are_placed_in_the_file_and_not_in_what_was_listened_to() {
         // The last ten minutes of 2584 seconds, and 34 seconds at their end.
-        assert_eq!(tidy((563.756, 598.156), 1984.145), (2547.9, 2582.3));
+        assert_eq!(
+            tidy(Span::new(563.756, 598.156), 1984.145),
+            Span::new(2547.9, 2582.3)
+        );
     }
 }

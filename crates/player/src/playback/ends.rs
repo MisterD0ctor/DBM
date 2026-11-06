@@ -2,6 +2,8 @@
 //! names first, and otherwise where they were heard (see `titles`). What the
 //! skips offer and where they land.
 
+use dbm_library::titles::Span;
+
 use super::state::PlayerState;
 
 /// The longest last chapter that is taken for credits when no chapter is
@@ -75,13 +77,13 @@ impl PlayerState {
         }
         let pieces = self.credits_heard_pieces()?;
         let last = pieces.len() - 1;
-        pieces.iter().enumerate().find_map(|(at, &(start, end))| {
+        pieces.iter().enumerate().find_map(|(at, piece)| {
             let followed = at < last
                 || self
                     .duration
-                    .is_some_and(|length| end + LENGTH_SLACK < length);
-            let scene = followed.then_some(end - SCENE_LEAD);
-            (self.time_pos >= start && scene.is_none_or(|scene| self.time_pos < scene))
+                    .is_some_and(|length| piece.end + LENGTH_SLACK < length);
+            let scene = followed.then_some(piece.end - SCENE_LEAD);
+            (self.time_pos >= piece.start && scene.is_none_or(|scene| self.time_pos < scene))
                 .then_some(scene)
         })
     }
@@ -104,12 +106,13 @@ impl PlayerState {
 
     /// Where this file's credits were heard to be, in pieces. In its second
     /// half, like everything else that is taken for an ending.
-    fn credits_heard_pieces(&self) -> Option<&[(f64, f64)]> {
+    fn credits_heard_pieces(&self) -> Option<&[Span]> {
         let length = self.duration?;
         let path = self.path.as_ref()?;
-        let (of, pieces) = self.found.credits_heard.as_ref()?;
-        let starts = pieces.first()?.0;
-        (of == path && starts >= length / 2.0).then_some(pieces.as_slice())
+        let heard = self.found.credits_heard.as_ref()?;
+        let pieces = heard.value();
+        let starts = pieces.first()?.start;
+        (heard.path() == path && starts >= length / 2.0).then_some(pieces.as_slice())
     }
 
     /// The chapter the closing credits start at, where the chapters say.
@@ -145,14 +148,14 @@ impl PlayerState {
     ///
     /// An episode's only, since a film's opening titles are part of the film,
     /// as its credits are (see [`credits_rolling`](Self::credits_rolling)).
-    pub fn intro(&self) -> Option<(f64, f64)> {
+    pub fn intro(&self) -> Option<Span> {
         let path = self.path.as_ref()?;
         let span = self.intro_named().or_else(|| {
             self.found
                 .intro_heard
                 .as_ref()
-                .filter(|(of, _)| of == path)
-                .map(|(_, span)| *span)
+                .filter(|heard| heard.path() == path)
+                .map(|heard| *heard.value())
         })?;
         // Last, being the one that parses a name.
         matches!(
@@ -169,25 +172,27 @@ impl PlayerState {
     /// out, and no longer than `INTRO_LONGEST`, since an `Intro` that runs
     /// ten minutes is an introduction, not a title sequence. The last chapter
     /// has no next mark to end at, so isn't one either.
-    pub fn intro_named(&self) -> Option<(f64, f64)> {
+    pub fn intro_named(&self) -> Option<Span> {
         let length = self.duration?;
         let at = self.chapters.iter().position(|c| {
             c.time < length / 2.0 && c.title.as_deref().is_some_and(dbm_naming::is_intro)
         })?;
         let (start, end) = (self.chapters[at].time, self.chapters.get(at + 1)?.time);
-        (end > start && end - start <= INTRO_LONGEST).then_some((start, end))
+        (end > start && end - start <= INTRO_LONGEST).then_some(Span::new(start, end))
     }
 
     /// Whether the title sequence is playing, with enough of it left to be
     /// worth skipping.
     pub fn intro_rolling(&self) -> bool {
-        self.intro()
-            .is_some_and(|(start, end)| self.time_pos >= start && self.time_pos < end - INTRO_TAIL)
+        self.intro().is_some_and(|span| {
+            self.time_pos >= span.start && self.time_pos < span.end - INTRO_TAIL
+        })
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use dbm_library::threads::ForFile;
     use dbm_mpv::tracks::Chapter;
 
     use super::*;
@@ -225,6 +230,17 @@ mod tests {
         (3500.0, "Post-Credits Scene"),
         (3550.0, "Preview"),
     ];
+
+    fn heard(path: &str, span: Span) -> ForFile<Span> {
+        ForFile::new(path.into(), span)
+    }
+
+    fn heard_pieces(path: &str, pieces: &[(f64, f64)]) -> ForFile<Vec<Span>> {
+        ForFile::new(
+            path.into(),
+            pieces.iter().copied().map(Span::from).collect(),
+        )
+    }
 
     fn playing(path: &str, chapter: i64, marks: &[(f64, &str)]) -> PlayerState {
         // -1 for none, as mpv says it.
@@ -308,7 +324,7 @@ mod tests {
     #[test]
     fn a_chapter_named_for_the_titles_is_the_title_sequence() {
         let state = playing(EPISODE, 1, OPENED);
-        assert_eq!(state.intro(), Some((95.0, 185.0)));
+        assert_eq!(state.intro(), Some(Span::new(95.0, 185.0)));
         assert!(!at(playing(EPISODE, 0, OPENED), 94.0).intro_rolling());
         assert!(at(playing(EPISODE, 1, OPENED), 95.0).intro_rolling());
         assert!(at(playing(EPISODE, 1, OPENED), 181.0).intro_rolling());
@@ -335,40 +351,43 @@ mod tests {
     fn a_sequence_that_was_heard_stands_in_where_no_chapter_names_one() {
         let mut state = at(playing(EPISODE, 1, ACTS), 280.0);
         assert!(!state.intro_rolling());
-        state.found.intro_heard = Some((EPISODE.into(), (274.1, 308.9)));
+        state.found.intro_heard = Some(heard(EPISODE, Span::new(274.1, 308.9)));
         assert!(state.intro_rolling());
         // Heard in another file, it says nothing about this one.
-        state.found.intro_heard = Some(("Show.Name.S01E03.1080p.mkv".into(), (274.1, 308.9)));
+        state.found.intro_heard =
+            Some(heard("Show.Name.S01E03.1080p.mkv", Span::new(274.1, 308.9)));
         assert!(!state.intro_rolling());
     }
 
     #[test]
     fn chapters_are_believed_over_what_was_heard() {
         let mut state = playing(EPISODE, 1, OPENED);
-        state.found.intro_heard = Some((EPISODE.into(), (10.0, 40.0)));
-        assert_eq!(state.intro(), Some((95.0, 185.0)));
+        state.found.intro_heard = Some(heard(EPISODE, Span::new(10.0, 40.0)));
+        assert_eq!(state.intro(), Some(Span::new(95.0, 185.0)));
     }
 
     #[test]
     fn credits_that_were_heard_roll_where_no_chapter_marks_them() {
         let mut state = at(playing(EPISODE, -1, &[]), 3500.0);
         assert!(!state.credits_rolling());
-        state.found.credits_heard = Some((EPISODE.into(), vec![(3480.0, 3600.0)]));
+        state.found.credits_heard = Some(heard_pieces(EPISODE, &[(3480.0, 3600.0)]));
         assert!(state.credits_rolling());
         assert!(!at(state.clone(), 3470.0).credits_rolling());
         // Heard in another file, or in a film, they say nothing here.
-        state.found.credits_heard =
-            Some(("Show.Name.S01E03.1080p.mkv".into(), vec![(3480.0, 3600.0)]));
+        state.found.credits_heard = Some(heard_pieces(
+            "Show.Name.S01E03.1080p.mkv",
+            &[(3480.0, 3600.0)],
+        ));
         assert!(!state.credits_rolling());
         let mut film = at(playing("Some Film (2019).mkv", -1, &[]), 3500.0);
-        film.found.credits_heard = Some(("Some Film (2019).mkv".into(), vec![(3480.0, 3600.0)]));
+        film.found.credits_heard = Some(heard_pieces("Some Film (2019).mkv", &[(3480.0, 3600.0)]));
         assert!(!film.credits_rolling());
     }
 
     #[test]
     fn a_scene_heard_after_the_credits_is_skipped_to() {
         let mut state = at(playing(EPISODE, -1, &[]), 3500.0);
-        state.found.credits_heard = Some((EPISODE.into(), vec![(3480.0, 3560.0)]));
+        state.found.credits_heard = Some(heard_pieces(EPISODE, &[(3480.0, 3560.0)]));
         // A moment before the music stops, which the scene may start under.
         assert_eq!(state.after_credits(), Some(3557.0));
         assert!(state.credits_rolling());
@@ -376,7 +395,7 @@ mod tests {
         assert!(!at(state.clone(), 3557.0).credits_rolling());
         // Credits that run to the end have nothing after them, though the
         // length they were heard against is a little off mpv's.
-        state.found.credits_heard = Some((EPISODE.into(), vec![(3480.0, 3599.6)]));
+        state.found.credits_heard = Some(heard_pieces(EPISODE, &[(3480.0, 3599.6)]));
         assert_eq!(state.after_credits(), None);
         assert!(at(state, 3590.0).credits_rolling());
     }
@@ -385,7 +404,7 @@ mod tests {
     fn credits_heard_to_stop_for_a_scene_skip_to_it_and_go_on_after() {
         let mut state = at(playing(EPISODE, -1, &[]), 3320.0);
         state.found.credits_heard =
-            Some((EPISODE.into(), vec![(3300.0, 3350.0), (3440.0, 3600.0)]));
+            Some(heard_pieces(EPISODE, &[(3300.0, 3350.0), (3440.0, 3600.0)]));
         assert_eq!(state.after_credits(), Some(3347.0));
         assert!(state.credits_rolling());
         // The scene is the episode's.
@@ -419,7 +438,7 @@ mod tests {
     #[test]
     fn chapters_are_believed_over_credits_that_were_heard() {
         let mut state = at(playing(EPISODE, 0, MARKS), 3300.0);
-        state.found.credits_heard = Some((EPISODE.into(), vec![(3200.0, 3600.0)]));
+        state.found.credits_heard = Some(heard_pieces(EPISODE, &[(3200.0, 3600.0)]));
         assert!(state.credits_marked());
         assert!(!state.credits_rolling());
     }

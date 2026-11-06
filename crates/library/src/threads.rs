@@ -84,6 +84,12 @@ impl<T> ForFile<T> {
         &self.path
     }
 
+    /// The answer itself, for whoever knows it is still about the file in
+    /// hand.
+    pub fn value(&self) -> &T {
+        &self.answer
+    }
+
     /// The answer, if `playing` is still the file it is about.
     pub fn if_playing(self, playing: Option<&MediaPath>) -> Option<T> {
         (playing == Some(&self.path)).then_some(self.answer)

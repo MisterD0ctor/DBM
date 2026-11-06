@@ -14,6 +14,8 @@ use std::collections::HashMap;
 use dbm_gpu::rect::{Normalised, Rect};
 use dbm_lang::fill;
 use dbm_library::durations::Progress;
+use dbm_library::threads::ForFile;
+use dbm_library::titles::Span;
 use dbm_mpv::prop::{self, TrackChoice};
 use dbm_mpv::tracks::{AudioDevice, EntryId, PlaylistEntry, Track};
 use dbm_mpv::{AnyProperty, ErrorCode, Event, MediaPath, Mpv, Value};
@@ -305,14 +307,14 @@ pub struct Found {
     /// `unplayable`). By id rather than path, since a file that fails at once
     /// has no path reported yet.
     pub failed: std::collections::HashMap<EntryId, ErrorCode>,
-    /// Where an episode's title sequence was heard to be, in seconds, and the
-    /// file that is true of (see `titles`). Kept with its path, so a new file
-    /// needs nothing cleared.
-    pub intro_heard: Option<(MediaPath, (f64, f64))>,
+    /// Where an episode's title sequence was heard to be, and the file that
+    /// is true of (see `titles`). Kept with its path, so a new file needs
+    /// nothing cleared.
+    pub intro_heard: Option<ForFile<Span>>,
     /// Where its closing credits were heard to be, kept the same way: in
     /// pieces, with a scene of the file's own between two, or after the last
     /// where it stops short of the end.
-    pub credits_heard: Option<(MediaPath, Vec<(f64, f64)>)>,
+    pub credits_heard: Option<ForFile<Vec<Span>>>,
 }
 
 impl PlayerState {

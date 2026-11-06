@@ -100,10 +100,10 @@ impl Skips {
         if self.intro_done == Some(player.loads) || !player.intro_rolling() {
             return None;
         }
-        let (start, end) = player.intro()?;
+        let span = player.intro()?;
         // Landing at its start is how a file starts over, which is no sign of
         // wanting to see the sequence.
-        if seeked && player.time_pos > start + JUMP {
+        if seeked && player.time_pos > span.start + JUMP {
             self.intro_done = Some(player.loads);
             return None;
         }
@@ -113,7 +113,7 @@ impl Skips {
         self.intro_done = Some(player.loads);
         Some(Skip::Intro {
             from: player.time_pos,
-            to: end,
+            to: span.end,
         })
     }
 

@@ -190,7 +190,7 @@ fn push_what_the_lists_decide(ui: &MainWindow, player: &PlayerState) {
     playback.set_chapter_label(player.chapter_label().into());
     playback.set_credits_rolling(player.credits_rolling());
     playback.set_intro_rolling(player.intro_rolling());
-    playback.set_intro_end(player.intro().map_or(0.0, |(_, end)| end as f32));
+    playback.set_intro_end(player.intro().map_or(0.0, |span| span.end as f32));
     playback.set_after_credits(player.after_credits().map_or(0.0, |at| at as f32));
 }
 

@@ -10,6 +10,7 @@ use dbm_library::onward::Onward;
 use dbm_library::preview::{Sprite, Still};
 use dbm_library::resume::Resume;
 use dbm_library::shelf::{Beside, Shelf};
+use dbm_library::threads::ForFile;
 use dbm_library::titles::{self, End};
 use dbm_mpv::MediaPath;
 use dbm_naming::Language;
@@ -146,9 +147,10 @@ impl Player {
         match heard.end {
             // A title sequence is heard as the one piece.
             End::Opening => {
-                self.state.found.intro_heard = pieces.first().map(|&span| (heard.path, span));
+                self.state.found.intro_heard =
+                    pieces.first().map(|&span| ForFile::new(heard.path, span));
             }
-            End::Closing => self.state.found.credits_heard = Some((heard.path, pieces)),
+            End::Closing => self.state.found.credits_heard = Some(ForFile::new(heard.path, pieces)),
         }
         // Pushed here, since a paused film reports nothing else that would.
         crate::interface::sync::push_scalars(ui, &self.state);
