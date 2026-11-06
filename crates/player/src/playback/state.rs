@@ -11,13 +11,15 @@
 
 use dbm_lang::{fill, tr};
 use dbm_mpv::prop::{self, TrackChoice};
-use dbm_mpv::tracks::{EntryId, PlaylistEntry, Track};
-use dbm_mpv::{AnyProperty, ErrorCode, Event, MediaPath, Mpv, Property, Value};
+use dbm_mpv::tracks::{AudioDevice, EntryId, PlaylistEntry, Track};
+use dbm_mpv::{AnyProperty, ErrorCode, Event, MediaPath, Mpv, Value};
 
-/// Declares [`Prop`] from one list, so each property's id, its place in
-/// [`Prop::ALL`] and the mpv property it mirrors can't drift apart.
+/// Declares [`Prop`] and [`Observed`] from one list, so each property's id,
+/// its place in [`Prop::ALL`], the mpv property it mirrors and the type it
+/// arrives as can't drift apart: a type that isn't the property's own
+/// doesn't compile.
 macro_rules! observed {
-    ($($(#[$doc:meta])* $variant:ident = $property:path,)*) => {
+    ($($(#[$doc:meta])* $variant:ident: $value:ty = $property:path,)*) => {
         /// Every property the player observes. Its position in [`Prop::ALL`]
         /// is the id mpv reports it under.
         ///
@@ -28,6 +30,14 @@ macro_rules! observed {
         #[derive(Clone, Copy, Debug, PartialEq, Eq)]
         pub enum Prop {
             $($(#[$doc])* $variant,)*
+        }
+
+        /// A change mpv reported to one of them, as its property's type.
+        /// `None` is no value right now, like `time-pos` before anything is
+        /// loaded.
+        #[derive(Clone, Debug, PartialEq)]
+        pub enum Observed {
+            $($variant(Option<$value>),)*
         }
 
         impl Prop {
@@ -41,53 +51,63 @@ macro_rules! observed {
                 }
             }
         }
+
+        impl Observed {
+            /// What an [`Event::Property`] says, read as the type of the
+            /// property its id names, or `None` for an id that names none.
+            pub fn of(id: u64, value: Option<&Value>) -> Option<Self> {
+                Some(match Prop::of(id)? {
+                    $(Prop::$variant => Self::$variant($property.decode(value)),)*
+                })
+            }
+        }
     };
 }
 
 observed! {
-    Filename = prop::FILENAME,
-    MediaTitle = prop::MEDIA_TITLE,
-    Path = prop::PATH,
-    Duration = prop::DURATION,
-    TimePos = prop::TIME_POS,
-    PercentPos = prop::PERCENT_POS,
-    Pause = prop::PAUSE,
-    Mute = prop::MUTE,
-    Volume = prop::VOLUME,
-    EofReached = prop::EOF_REACHED,
-    IdleActive = prop::IDLE_ACTIVE,
-    PlaylistPos = prop::PLAYLIST_POS,
-    PlaylistCount = prop::PLAYLIST_COUNT,
-    SubVisibility = prop::SUB_VISIBILITY,
-    SubDelay = prop::SUB_DELAY,
-    SubSpeed = prop::SUB_SPEED,
-    SubScale = prop::SUB_SCALE,
-    Panscan = prop::PANSCAN,
-    Speed = prop::SPEED,
-    Chapter = prop::CHAPTER,
-    ChapterCount = prop::CHAPTER_COUNT,
-    TrackCount = prop::TRACK_COUNT,
+    Filename: String = prop::FILENAME,
+    MediaTitle: String = prop::MEDIA_TITLE,
+    Path: MediaPath = prop::PATH,
+    Duration: f64 = prop::DURATION,
+    TimePos: f64 = prop::TIME_POS,
+    PercentPos: f64 = prop::PERCENT_POS,
+    Pause: bool = prop::PAUSE,
+    Mute: bool = prop::MUTE,
+    Volume: f64 = prop::VOLUME,
+    EofReached: bool = prop::EOF_REACHED,
+    IdleActive: bool = prop::IDLE_ACTIVE,
+    PlaylistPos: i64 = prop::PLAYLIST_POS,
+    PlaylistCount: i64 = prop::PLAYLIST_COUNT,
+    SubVisibility: bool = prop::SUB_VISIBILITY,
+    SubDelay: f64 = prop::SUB_DELAY,
+    SubSpeed: f64 = prop::SUB_SPEED,
+    SubScale: f64 = prop::SUB_SCALE,
+    Panscan: f64 = prop::PANSCAN,
+    Speed: f64 = prop::SPEED,
+    Chapter: i64 = prop::CHAPTER,
+    ChapterCount: i64 = prop::CHAPTER_COUNT,
+    TrackCount: i64 = prop::TRACK_COUNT,
     /// Selecting a different track does not change the list's length, so
     /// this and `Aid` are what keep the `selected` flags from going stale.
-    Sid = prop::SID,
-    Aid = prop::AID,
+    Sid: TrackChoice = prop::SID,
+    Aid: TrackChoice = prop::AID,
     /// The video's own size after aspect correction. Enough, with `panscan`,
     /// to work out where a frame will land without waiting to be told.
-    Dwidth = prop::DWIDTH,
-    Dheight = prop::DHEIGHT,
+    Dwidth: f64 = prop::DWIDTH,
+    Dheight: f64 = prop::DHEIGHT,
     /// Where mpv actually laid the video out. Observed rather than polled,
     /// since a blocking read on the render path cost 220ms a frame during a
     /// resize, when mpv's core lock is contended.
-    OsdW = prop::OSD_W,
-    OsdH = prop::OSD_H,
-    OsdMl = prop::OSD_ML,
-    OsdMt = prop::OSD_MT,
-    OsdMr = prop::OSD_MR,
-    OsdMb = prop::OSD_MB,
+    OsdW: f64 = prop::OSD_W,
+    OsdH: f64 = prop::OSD_H,
+    OsdMl: f64 = prop::OSD_ML,
+    OsdMt: f64 = prop::OSD_MT,
+    OsdMr: f64 = prop::OSD_MR,
+    OsdMb: f64 = prop::OSD_MB,
     /// Never shown: observed because observing it is what starts mpv's
     /// hotplug monitor, which the audio watchdog needs to put sound back
     /// when a device returns (see `audio`).
-    AudioDeviceList = prop::AUDIO_DEVICE_LIST,
+    AudioDeviceList: Vec<AudioDevice> = prop::AUDIO_DEVICE_LIST,
 }
 
 impl Prop {
@@ -243,7 +263,7 @@ impl PlayerState {
     pub fn apply(&mut self, event: &Event) -> bool {
         match event {
             Event::Property { id, value } => {
-                Prop::of(*id).is_some_and(|prop| self.apply_property(prop, value.as_ref()))
+                Observed::of(*id, value.as_ref()).is_some_and(|change| self.observe(change))
             }
             // A new file invalidates everything list-shaped.
             Event::FileLoaded => {
@@ -265,92 +285,62 @@ impl PlayerState {
         }
     }
 
+    /// Fold in one property's change. Returns whether anything the UI shows
+    /// changed.
+    ///
     /// No value is normal (`time-pos` has none until something plays), so it
     /// clears the field rather than being an error.
-    fn apply_property(&mut self, which: Prop, value: Option<&Value>) -> bool {
-        match which {
-            Prop::Filename => set(&mut self.filename, text(prop::FILENAME, value)),
-            Prop::MediaTitle => set(&mut self.media_title, text(prop::MEDIA_TITLE, value)),
-            Prop::Path => set(&mut self.path, prop::PATH.decode(value)),
-            Prop::Duration => set(
-                &mut self.duration,
-                number(prop::DURATION, value).unwrap_or(0.0),
-            ),
-            Prop::TimePos => set(
-                &mut self.time_pos,
-                number(prop::TIME_POS, value).unwrap_or(0.0),
-            ),
-            Prop::PercentPos => set(
-                &mut self.percent_pos,
-                number(prop::PERCENT_POS, value).unwrap_or(0.0),
-            ),
-            Prop::Pause => set(&mut self.paused, flag(prop::PAUSE, value)),
-            Prop::Mute => set(&mut self.muted, flag(prop::MUTE, value)),
-            Prop::Volume => set(&mut self.volume, number(prop::VOLUME, value).unwrap_or(0.0)),
-            Prop::EofReached => set(&mut self.eof_reached, flag(prop::EOF_REACHED, value)),
-            Prop::IdleActive => set(&mut self.idle, flag(prop::IDLE_ACTIVE, value)),
-            Prop::PlaylistPos => set(
-                &mut self.playlist_pos,
-                prop::PLAYLIST_POS.decode(value).and_then(index),
-            ),
-            Prop::PlaylistCount => {
-                let count = prop::PLAYLIST_COUNT.decode(value).and_then(index);
-                let moved = set(&mut self.playlist_count, count.unwrap_or(0));
+    pub fn observe(&mut self, change: Observed) -> bool {
+        match change {
+            Observed::Filename(name) => set(&mut self.filename, text(name)),
+            Observed::MediaTitle(title) => set(&mut self.media_title, text(title)),
+            Observed::Path(path) => set(&mut self.path, path),
+            Observed::Duration(n) => set(&mut self.duration, number(n).unwrap_or(0.0)),
+            Observed::TimePos(n) => set(&mut self.time_pos, number(n).unwrap_or(0.0)),
+            Observed::PercentPos(n) => set(&mut self.percent_pos, number(n).unwrap_or(0.0)),
+            Observed::Pause(on) => set(&mut self.paused, on.unwrap_or(false)),
+            Observed::Mute(on) => set(&mut self.muted, on.unwrap_or(false)),
+            Observed::Volume(n) => set(&mut self.volume, number(n).unwrap_or(0.0)),
+            Observed::EofReached(on) => set(&mut self.eof_reached, on.unwrap_or(false)),
+            Observed::IdleActive(on) => set(&mut self.idle, on.unwrap_or(false)),
+            Observed::PlaylistPos(pos) => set(&mut self.playlist_pos, pos.and_then(index)),
+            Observed::PlaylistCount(count) => {
+                let moved = set(&mut self.playlist_count, count.and_then(index).unwrap_or(0));
                 self.lists_moved(moved)
             }
-            Prop::SubVisibility => set(&mut self.sub_visibility, flag(prop::SUB_VISIBILITY, value)),
-            Prop::SubDelay => set(
-                &mut self.sub_delay,
-                number(prop::SUB_DELAY, value).unwrap_or(0.0),
-            ),
-            Prop::SubSpeed => set(
-                &mut self.sub_speed,
-                number(prop::SUB_SPEED, value).unwrap_or(1.0),
-            ),
-            Prop::SubScale => set(
-                &mut self.sub_scale,
-                number(prop::SUB_SCALE, value).unwrap_or(1.0),
-            ),
-            Prop::Panscan => set(
-                &mut self.panscan,
-                number(prop::PANSCAN, value).unwrap_or(0.0),
-            ),
-            Prop::Speed => set(&mut self.speed, number(prop::SPEED, value).unwrap_or(1.0)),
-            Prop::Chapter => set(
-                &mut self.chapter,
-                prop::CHAPTER.decode(value).and_then(index),
-            ),
-            Prop::ChapterCount => {
-                let count = prop::CHAPTER_COUNT.decode(value).unwrap_or(0);
-                let moved = set(&mut self.chapter_count, count);
+            Observed::SubVisibility(on) => set(&mut self.sub_visibility, on.unwrap_or(false)),
+            Observed::SubDelay(n) => set(&mut self.sub_delay, number(n).unwrap_or(0.0)),
+            Observed::SubSpeed(n) => set(&mut self.sub_speed, number(n).unwrap_or(1.0)),
+            Observed::SubScale(n) => set(&mut self.sub_scale, number(n).unwrap_or(1.0)),
+            Observed::Panscan(n) => set(&mut self.panscan, number(n).unwrap_or(0.0)),
+            Observed::Speed(n) => set(&mut self.speed, number(n).unwrap_or(1.0)),
+            Observed::Chapter(chapter) => set(&mut self.chapter, chapter.and_then(index)),
+            Observed::ChapterCount(count) => {
+                let moved = set(&mut self.chapter_count, count.unwrap_or(0));
                 self.lists_moved(moved)
             }
-            Prop::TrackCount => {
-                let count = prop::TRACK_COUNT.decode(value).unwrap_or(0);
-                let moved = set(&mut self.track_count, count);
+            Observed::TrackCount(count) => {
+                let moved = set(&mut self.track_count, count.unwrap_or(0));
                 self.lists_moved(moved)
             }
-            Prop::Sid => {
-                let moved = set(&mut self.sid, prop::SID.decode(value));
+            Observed::Sid(choice) => {
+                let moved = set(&mut self.sid, choice);
                 self.lists_moved(moved)
             }
-            Prop::Aid => {
-                let moved = set(&mut self.aid, prop::AID.decode(value));
+            Observed::Aid(choice) => {
+                let moved = set(&mut self.aid, choice);
                 self.lists_moved(moved)
             }
-            Prop::Dwidth => set(&mut self.dwidth, number(prop::DWIDTH, value).unwrap_or(0.0)),
-            Prop::Dheight => set(
-                &mut self.dheight,
-                number(prop::DHEIGHT, value).unwrap_or(0.0),
-            ),
-            Prop::OsdW => set(&mut self.osd.w, number(prop::OSD_W, value).unwrap_or(0.0)),
-            Prop::OsdH => set(&mut self.osd.h, number(prop::OSD_H, value).unwrap_or(0.0)),
-            Prop::OsdMl => set(&mut self.osd.ml, number(prop::OSD_ML, value).unwrap_or(0.0)),
-            Prop::OsdMt => set(&mut self.osd.mt, number(prop::OSD_MT, value).unwrap_or(0.0)),
-            Prop::OsdMr => set(&mut self.osd.mr, number(prop::OSD_MR, value).unwrap_or(0.0)),
-            Prop::OsdMb => set(&mut self.osd.mb, number(prop::OSD_MB, value).unwrap_or(0.0)),
+            Observed::Dwidth(n) => set(&mut self.dwidth, number(n).unwrap_or(0.0)),
+            Observed::Dheight(n) => set(&mut self.dheight, number(n).unwrap_or(0.0)),
+            Observed::OsdW(n) => set(&mut self.osd.w, number(n).unwrap_or(0.0)),
+            Observed::OsdH(n) => set(&mut self.osd.h, number(n).unwrap_or(0.0)),
+            Observed::OsdMl(n) => set(&mut self.osd.ml, number(n).unwrap_or(0.0)),
+            Observed::OsdMt(n) => set(&mut self.osd.mt, number(n).unwrap_or(0.0)),
+            Observed::OsdMr(n) => set(&mut self.osd.mr, number(n).unwrap_or(0.0)),
+            Observed::OsdMb(n) => set(&mut self.osd.mb, number(n).unwrap_or(0.0)),
             // The audio watchdog's, not the interface's.
-            Prop::AudioDeviceList => false,
+            Observed::AudioDeviceList(_) => false,
         }
     }
 
@@ -574,18 +564,13 @@ impl PlayerState {
 
 /// A number mpv reported, where it is one: a NaN or infinity would poison
 /// every sum it went into.
-fn number<A>(property: Property<f64, A>, value: Option<&Value>) -> Option<f64> {
-    property.decode(value).filter(|n| n.is_finite())
-}
-
-/// A flag, off where mpv has no value for it.
-fn flag<A>(property: Property<bool, A>, value: Option<&Value>) -> bool {
-    property.decode(value).unwrap_or(false)
+fn number(n: Option<f64>) -> Option<f64> {
+    n.filter(|n| n.is_finite())
 }
 
 /// Text, where there is any.
-fn text<A>(property: Property<String, A>, value: Option<&Value>) -> Option<String> {
-    property.decode(value).filter(|text| !text.is_empty())
+fn text(text: Option<String>) -> Option<String> {
+    text.filter(|text| !text.is_empty())
 }
 
 /// A position as mpv reports one, where -1 is none.
@@ -612,6 +597,25 @@ mod tests {
             assert_eq!(prop.id(), index as u64, "{prop:?}");
             assert_eq!(Prop::of(prop.id()), Some(prop));
         }
+    }
+
+    #[test]
+    fn a_change_is_read_as_its_own_property_type() {
+        let read = |prop: Prop, value| Observed::of(prop.id(), Some(&value));
+        assert_eq!(
+            read(Prop::Pause, Value::Flag(true)),
+            Some(Observed::Pause(Some(true)))
+        );
+        assert_eq!(
+            read(Prop::Sid, Value::Str("no".into())),
+            Some(Observed::Sid(Some(TrackChoice::Off)))
+        );
+        // Another shape is no value, rather than a misreading.
+        assert_eq!(
+            read(Prop::Pause, Value::Double(1.0)),
+            Some(Observed::Pause(None))
+        );
+        assert_eq!(Observed::of(Prop::ALL.len() as u64, None), None);
     }
 
     #[test]

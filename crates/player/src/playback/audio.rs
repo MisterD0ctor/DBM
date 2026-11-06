@@ -22,11 +22,11 @@ use std::rc::Rc;
 use std::time::Duration;
 
 use dbm_lang::tr;
+use dbm_mpv::Reader;
 use dbm_mpv::prop::{self, TrackChoice};
 use dbm_mpv::tracks::{self, AudioDevice, TrackId, TrackKind};
-use dbm_mpv::{Event, Reader};
 
-use crate::playback::state::Prop;
+use crate::playback::state::Observed;
 
 /// How long the device list must stay still before the audio chain is touched.
 ///
@@ -68,23 +68,19 @@ impl Watchdog {
         })
     }
 
-    /// Route one mpv event. Called for every event, from the same drain that
-    /// feeds the mirrored state.
-    pub fn on_event(self: &Rc<Self>, event: &Event) {
-        let Event::Property { id, value } = event else {
-            return;
-        };
-        let value = value.as_ref();
-        match Prop::of(*id) {
+    /// Follow one observed property's change, from the same drain that feeds
+    /// the mirrored state.
+    pub fn observe(self: &Rc<Self>, change: &Observed) {
+        match change {
             // Only real ids are worth keeping, since `no` is either the
             // failure being recovered from or the user's own choice.
-            Some(Prop::Aid) => {
-                if let Some(id) = prop::AID.decode(value).and_then(TrackChoice::id) {
+            Observed::Aid(choice) => {
+                if let Some(id) = choice.and_then(TrackChoice::id) {
                     self.last_track.set(Some(id));
                 }
             }
-            Some(Prop::AudioDeviceList) => {
-                self.devices_changed(&prop::AUDIO_DEVICE_LIST.decode(value).unwrap_or_default());
+            Observed::AudioDeviceList(devices) => {
+                self.devices_changed(devices.as_deref().unwrap_or_default());
             }
             _ => {}
         }

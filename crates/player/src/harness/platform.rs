@@ -8,6 +8,7 @@ use dbm_mpv::prop::{self, TrackChoice};
 use super::drive::hover;
 use super::script::{self, Beat, Script};
 use crate::MainWindow;
+use crate::playback::state::{Observed, Prop};
 
 /// Watch the pointer disappear and come back.
 ///
@@ -99,7 +100,7 @@ pub(super) fn audio_test(
         report_audio(&mpv, "start");
         beat.next().await;
         // Take the baseline, so the next list reads as an arrival.
-        audio.on_event(&device_list(BASELINE));
+        audio.observe(&device_list(BASELINE));
         beat.next().await;
         // What mpv does by itself when the device under the output
         // disappears: the track goes, playback does not.
@@ -109,7 +110,7 @@ pub(super) fn audio_test(
         beat.next().await;
         report_audio(&mpv, "device lost");
         beat.next().await;
-        audio.on_event(&device_list(PLUS_ONE));
+        audio.observe(&device_list(PLUS_ONE));
         // The settle is 1200ms and the rebuild is a worker round
         // trip, so the result lands somewhere in these two steps.
         beat.rest(3).await;
@@ -125,7 +126,7 @@ pub(super) fn audio_test(
         beat.next().await;
         report_audio(&mpv, "user chose off");
         beat.next().await;
-        audio.on_event(&device_list(PLUS_TWO));
+        audio.observe(&device_list(PLUS_TWO));
         beat.rest(3).await;
         report_audio(&mpv, "still off");
         beat.next().await;
@@ -133,12 +134,11 @@ pub(super) fn audio_test(
     })
 }
 
-/// An `audio-device-list` change as mpv would report it.
-fn device_list(payload: &str) -> dbm_mpv::Event {
-    dbm_mpv::Event::Property {
-        id: crate::playback::state::Prop::AudioDeviceList.id(),
-        value: Some(dbm_mpv::Value::Str(payload.into())),
-    }
+/// An `audio-device-list` change as mpv would report it, read as the drain
+/// reads one.
+fn device_list(payload: &str) -> Observed {
+    let value = dbm_mpv::Value::Str(payload.into());
+    Observed::of(Prop::AudioDeviceList.id(), Some(&value)).expect("the device list is observed")
 }
 
 fn report_audio(mpv: &Reader, label: &str) {

@@ -9,6 +9,7 @@ use super::Player;
 use crate::interface::{format, sync, unplayable, warn};
 use crate::playback::commands::Reply;
 use crate::playback::session;
+use crate::playback::state::Observed;
 use crate::{MainWindow, Playback};
 
 impl Player {
@@ -59,10 +60,18 @@ impl Player {
                 Event::FileLoaded => session::settled(),
                 _ => {}
             }
-            // The watchdog reads the same stream for the device list and the
-            // audio track, neither of which belongs in `PlayerState`.
-            self.app.audio.on_event(&event);
-            moved |= self.state.apply(&event);
+            moved |= match &event {
+                // Read as its type once, for the mirror and for the audio
+                // watchdog, which follows the device list and the audio
+                // track, neither of which belongs in `PlayerState`.
+                Event::Property { id, value } => {
+                    Observed::of(*id, value.as_ref()).is_some_and(|change| {
+                        self.app.audio.observe(&change);
+                        self.state.observe(change)
+                    })
+                }
+                event => self.state.apply(event),
+            };
         }
 
         let failed = !notices.is_empty();
