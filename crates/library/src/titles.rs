@@ -126,6 +126,12 @@ pub struct Span {
     pub end: f64,
 }
 
+impl From<crate::fingerprint::Stretch> for Span {
+    fn from(stretch: crate::fingerprint::Stretch) -> Self {
+        Self::new(stretch.start, stretch.end)
+    }
+}
+
 impl Span {
     pub const fn new(start: f64, end: f64) -> Self {
         Self { start, end }

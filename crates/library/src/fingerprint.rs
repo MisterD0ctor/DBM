@@ -112,11 +112,18 @@ impl Print {
     }
 }
 
+/// A stretch of a recording, in seconds.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Stretch {
+    pub start: f64,
+    pub end: f64,
+}
+
 /// Where the stretch two recordings share lies in each, in seconds.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Shared {
-    pub first: (f64, f64),
-    pub second: (f64, f64),
+    pub first: Stretch,
+    pub second: Stretch,
 }
 
 /// The longest stretch of the same sound in both, if there is one solid
@@ -180,8 +187,14 @@ pub fn shared(first: &Print, second: &Print, shortest: f64) -> Option<Shared> {
     let at = |look: usize| look as f64 / PER_SECOND + HALF;
     let there = |look: usize| (look as isize + ahead) as usize;
     Some(Shared {
-        first: (at(start), at(peak)),
-        second: (at(there(start)), at(there(peak))),
+        first: Stretch {
+            start: at(start),
+            end: at(peak),
+        },
+        second: Stretch {
+            start: at(there(start)),
+            end: at(there(peak)),
+        },
     })
 }
 
@@ -324,10 +337,10 @@ mod tests {
         let b = episode(4, 55.0, &theme, 5);
         let found = shared(&Print::of(&a), &Print::of(&b)).expect("a shared stretch");
         for (was, want) in [
-            (found.first.0, 20.0),
-            (found.first.1, 50.0),
-            (found.second.0, 55.0),
-            (found.second.1, 85.0),
+            (found.first.start, 20.0),
+            (found.first.end, 50.0),
+            (found.second.start, 55.0),
+            (found.second.end, 85.0),
         ] {
             assert!((was - want).abs() < 1.0, "{found:?}");
         }
@@ -345,8 +358,8 @@ mod tests {
         b.extend(theme.iter().zip(&hiss).map(|(x, n)| 0.5 * x + 0.01 * n));
         b.extend(music(5, 40.0));
         let found = shared(&Print::of(&a), &Print::of(&b)).expect("a shared stretch");
-        assert!((found.first.0 - 20.0).abs() < 1.0, "{found:?}");
-        assert!((found.second.1 - 63.0).abs() < 1.0, "{found:?}");
+        assert!((found.first.start - 20.0).abs() < 1.0, "{found:?}");
+        assert!((found.second.end - 63.0).abs() < 1.0, "{found:?}");
     }
 
     #[test]
@@ -357,10 +370,10 @@ mod tests {
         let found =
             shared(&a.part(10.0, f64::INFINITY), &b.part(40.0, 90.0)).expect("a shared stretch");
         for (was, want) in [
-            (found.first.0, 10.0),
-            (found.first.1, 40.0),
-            (found.second.0, 15.0),
-            (found.second.1, 45.0),
+            (found.first.start, 10.0),
+            (found.first.end, 40.0),
+            (found.second.start, 15.0),
+            (found.second.end, 45.0),
         ] {
             assert!((was - want).abs() < 1.0, "{found:?}");
         }
