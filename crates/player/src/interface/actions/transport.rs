@@ -1,6 +1,10 @@
 use slint::ComponentHandle;
 
+use dbm_mpv::Direction;
+
+use super::way;
 use crate::app::App;
+use crate::playback::arrival::Start;
 use crate::playback::commands;
 use crate::{MainWindow, Playback, Playlist};
 
@@ -24,7 +28,8 @@ pub(super) fn wire_transport(ui: &MainWindow, app: &App) {
     // Not activity, here or for the pills' two answers below: each is the way
     // back to the film, and the file arriving shows its own title.
     on_app!(playback, app, on_play_next, |app| {
-        app.arrival.step(&app.mpv, 1, Some(true));
+        app.arrival
+            .step(&app.mpv, Direction::Forward, Start::Playing);
     });
     on!(playback, app, on_nudge_volume, |m, d| {
         commands::nudge_volume(m, f64::from(d));
@@ -35,12 +40,12 @@ pub(super) fn wire_transport(ui: &MainWindow, app: &App) {
     ));
     // Not activity, for `on!`'s reason: Ctrl+arrows answer with a flash.
     on_app!(playlist, app, on_step, |app, delta| {
-        app.arrival.step(&app.mpv, delta, None);
+        app.arrival.step(&app.mpv, way(delta), Start::AsBefore);
     });
     on_app!(playlist, app, on_play_index, |app, index| {
         app.activity.bump();
         if let Ok(index) = usize::try_from(index) {
-            app.arrival.play_index(&app.mpv, index, None);
+            app.arrival.play_index(&app.mpv, index, Start::AsBefore);
         }
     });
     // The corner pill's offers: for a file autoplay started over, and back
@@ -59,14 +64,14 @@ pub(super) fn wire_transport(ui: &MainWindow, app: &App) {
     // Speed steps from the value the interface is showing, so the ladder is
     // decided here and mpv is only told where to land.
     on!(playback, app, on_step_speed, |m, current, direction| {
-        commands::step_speed(m, f64::from(current), direction);
+        commands::step_speed(m, f64::from(current), way(direction));
     });
     on!(playback, app, on_reset_speed, |m| commands::reset_speed(m));
     on!(playback, app, on_frame_step, |m, direction| {
-        commands::frame_step(m, direction);
+        commands::frame_step(m, way(direction));
     });
     on!(playback, app, on_chapter_step, |m, direction| {
-        commands::chapter_step(m, direction);
+        commands::chapter_step(m, way(direction));
     });
 
     ui.on_quit(|| {

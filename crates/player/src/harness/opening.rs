@@ -90,7 +90,7 @@ pub(super) fn idle_test(ui: &MainWindow, mpv: Reader) -> Script {
             .await;
         ui.window().set_minimized(true);
         sleep(Duration::from_millis(500)).await;
-        crate::playback::commands::advance(&mpv, 1);
+        crate::playback::commands::advance(&mpv, dbm_mpv::Direction::Forward);
         // In whatever language the run speaks, which is the system's.
         let why = || playlist_rows(&ui).iter().any(|row| !row.why.is_empty());
         verdict

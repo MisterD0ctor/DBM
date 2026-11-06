@@ -44,11 +44,10 @@ pub fn speed_limits() -> (f64, f64) {
 
 /// One rung up or down from `current`. At either end there is no rung, and
 /// nothing is sent.
-pub fn step_speed(mpv: &Mpv, current: f64, direction: i32) {
-    let next = if direction > 0 {
-        SPEEDS.iter().copied().find(|s| *s > current + 1e-3)
-    } else {
-        SPEEDS.iter().rev().copied().find(|s| *s < current - 1e-3)
+pub fn step_speed(mpv: &Mpv, current: f64, step: Direction) {
+    let next = match step {
+        Direction::Forward => SPEEDS.iter().copied().find(|s| *s > current + 1e-3),
+        Direction::Back => SPEEDS.iter().rev().copied().find(|s| *s < current - 1e-3),
     };
     if let Some(speed) = next {
         set(mpv, prop::SPEED, speed);
@@ -69,26 +68,43 @@ pub fn reset_speed(mpv: &Mpv) {
 
 /// One frame. Forward pauses on arrival, as mpv's own does; back always
 /// seeks, so it is slower on a long GOP.
-pub fn frame_step(mpv: &Mpv, direction: i32) {
-    run(mpv, Command::FrameStep(way(direction)));
+pub fn frame_step(mpv: &Mpv, step: Direction) {
+    run(mpv, Command::FrameStep(step));
 }
 
 /// The previous or next chapter. mpv's own semantics: back from a little way
 /// into a chapter returns to its start before it goes to the one before.
-pub fn chapter_step(mpv: &Mpv, direction: i32) {
-    run(mpv, Command::ChapterStep(way(direction)));
+pub fn chapter_step(mpv: &Mpv, step: Direction) {
+    run(mpv, Command::ChapterStep(step));
+}
+
+/// Which of the two kinds of track the person picks between.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pick {
+    Subtitles,
+    Audio,
+}
+
+impl Pick {
+    fn kind(self) -> TrackKind {
+        match self {
+            Self::Subtitles => TrackKind::Sub,
+            Self::Audio => TrackKind::Audio,
+        }
+    }
 }
 
 /// The next subtitle or audio track, wrapping through "none".
 ///
 /// Subtitles are made visible with it, or cycling onto a track hidden by an
 /// earlier switch-off would seem to do nothing.
-pub fn cycle_track(mpv: &Mpv, subtitles: bool, direction: i32) {
-    if subtitles {
-        run(mpv, Command::CycleTrack(prop::SID, way(direction)));
-        set(mpv, prop::SUB_VISIBILITY, true);
-    } else {
-        run(mpv, Command::CycleTrack(prop::AID, way(direction)));
+pub fn cycle_track(mpv: &Mpv, pick: Pick, step: Direction) {
+    match pick {
+        Pick::Subtitles => {
+            run(mpv, Command::CycleTrack(prop::SID, step));
+            set(mpv, prop::SUB_VISIBILITY, true);
+        }
+        Pick::Audio => run(mpv, Command::CycleTrack(prop::AID, step)),
     }
 }
 
@@ -131,15 +147,6 @@ fn run(mpv: &Mpv, command: Command<'_>) {
 fn set<T: ToMpv>(mpv: &Mpv, property: Property<T>, value: impl Into<T>) {
     if let Err(e) = mpv.set(property, value) {
         log::warn!("mpv set {property:?} failed: {e}");
-    }
-}
-
-/// The player's steps are signed; mpv's take a way to go.
-fn way(direction: i32) -> Direction {
-    if direction >= 0 {
-        Direction::Forward
-    } else {
-        Direction::Back
     }
 }
 
@@ -236,21 +243,15 @@ pub fn add_subtitle(mpv: &Mpv, file: &std::path::Path, language: &str, show: boo
 /// for a track carried in the film, which stays.
 ///
 /// **Blocking**: reads the track list.
-pub fn remove_track(mpv: &Reader, id: TrackId, subtitle: bool) -> Option<String> {
-    let kind = if subtitle {
-        TrackKind::Sub
-    } else {
-        TrackKind::Audio
-    };
+pub fn remove_track(mpv: &Reader, id: TrackId, pick: Pick) -> Option<String> {
     let file = mpv
         .get(prop::TRACK_LIST)?
         .into_iter()
-        .find(|track| track.id == id && track.kind == kind)?
+        .find(|track| track.id == id && track.kind == pick.kind())?
         .file?;
-    let command = if subtitle {
-        Command::SubRemove(id)
-    } else {
-        Command::AudioRemove(id)
+    let command = match pick {
+        Pick::Subtitles => Command::SubRemove(id),
+        Pick::Audio => Command::AudioRemove(id),
     };
     run(mpv, command);
     Some(file)
@@ -520,18 +521,17 @@ pub fn replay(mpv: &Mpv) {
 ///
 /// The unpause is queued behind the step rather than timed after it, since
 /// mpv runs queued commands in order.
-pub fn advance(mpv: &Mpv, delta: i32) {
-    playlist_step(mpv, delta);
+pub fn advance(mpv: &Mpv, step: Direction) {
+    playlist_step(mpv, step);
     set_pause(mpv, false);
 }
 
-pub fn playlist_step(mpv: &Mpv, delta: i32) {
+pub fn playlist_step(mpv: &Mpv, step: Direction) {
     move_to(
         mpv,
-        if delta >= 0 {
-            Command::PlaylistNext
-        } else {
-            Command::PlaylistPrev
+        match step {
+            Direction::Forward => Command::PlaylistNext,
+            Direction::Back => Command::PlaylistPrev,
         },
     );
 }

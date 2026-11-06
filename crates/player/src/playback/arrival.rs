@@ -26,7 +26,7 @@ use std::cell::RefCell;
 
 use dbm_library::durations::Progress;
 use dbm_library::resume::Saved;
-use dbm_mpv::{MediaPath, Mpv};
+use dbm_mpv::{Direction, MediaPath, Mpv};
 
 use crate::playback::commands;
 
@@ -45,6 +45,16 @@ enum Then {
     /// Back to the top, then playing or not as asked, and, for a file
     /// autoplay brought in, the place passed over, to offer.
     Over { play: bool, offer: Option<f64> },
+}
+
+/// Whether a file asked for plays once it is there.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Start {
+    /// It plays, as "next" means.
+    Playing,
+    /// It plays or stays paused as the file before it did, as choosing a row
+    /// or stepping with the bar does.
+    AsBefore,
 }
 
 /// What becomes of a file autoplay brings in: nothing, where nothing is
@@ -201,7 +211,7 @@ impl Arrival {
             .get(index)
             .filter(|_| !crate::run_mode::armed())
             .and_then(|(path, progress)| Some((path.clone(), autoplayed(progress)?)));
-        Self::ask_for(&mut state, mpv, index, then, Some(true));
+        Self::ask_for(&mut state, mpv, index, then, Start::Playing);
     }
 
     /// The place autoplay passed over in the file playing, while it is still
@@ -239,12 +249,14 @@ impl Arrival {
         });
     }
 
-    /// Play entry `index` of the playlist, asked for on purpose. `play` is
-    /// whether it should play once there; `None` keeps the pause as it is,
-    /// as choosing a row or stepping with the bar does.
-    pub fn play_index(&self, mpv: &Mpv, index: usize, play: Option<bool>) {
+    /// Play entry `index` of the playlist, asked for on purpose, playing or
+    /// not once there as `start` says.
+    pub fn play_index(&self, mpv: &Mpv, index: usize, start: Start) {
         let mut state = self.state.borrow_mut();
-        let playing = play.unwrap_or(!state.paused);
+        let playing = match start {
+            Start::Playing => true,
+            Start::AsBefore => !state.paused,
+        };
         let row = state.rows.get(index).filter(|_| !crate::run_mode::armed());
         let then = row.and_then(|(path, progress)| {
             let then = match Saved::of(progress) {
@@ -257,7 +269,7 @@ impl Arrival {
             };
             Some((path.clone(), then))
         });
-        Self::ask_for(&mut state, mpv, index, then, play);
+        Self::ask_for(&mut state, mpv, index, then, start);
     }
 
     /// Ask mpv for entry `index`, and note what to do once it has loaded.
@@ -266,7 +278,7 @@ impl Arrival {
         mpv: &Mpv,
         index: usize,
         then: Option<(MediaPath, Then)>,
-        play: Option<bool>,
+        start: Start,
     ) {
         // Whatever was being asked about or offered gives way to another
         // file.
@@ -276,7 +288,7 @@ impl Arrival {
             None => {
                 state.pending = None;
                 commands::playlist_play(mpv, index);
-                if play == Some(true) {
+                if start == Start::Playing {
                     commands::set_pause(mpv, false);
                 }
             }
@@ -290,22 +302,25 @@ impl Arrival {
         }
     }
 
-    /// The entry `delta` along from the one playing. Before the lists have
-    /// been read there is nothing to go by, and it steps plainly.
-    pub fn step(&self, mpv: &Mpv, delta: i32, play: Option<bool>) {
+    /// The entry next to the one playing, `step` along. Before the lists
+    /// have been read there is nothing to go by, and it steps plainly.
+    pub fn step(&self, mpv: &Mpv, step: Direction, start: Start) {
         let (target, known) = {
             let state = self.state.borrow();
             // Nothing playing is just before the first.
             let from = state.pos.map_or(-1, |pos| pos as i64);
-            (from + i64::from(delta), state.rows.len())
+            let by = match step {
+                Direction::Forward => 1,
+                Direction::Back => -1,
+            };
+            (from + by, state.rows.len())
         };
         if let Some(target) = usize::try_from(target).ok().filter(|&row| row < known) {
-            self.play_index(mpv, target, play);
+            self.play_index(mpv, target, start);
         } else if known == 0 {
-            if play == Some(true) {
-                commands::advance(mpv, delta);
-            } else {
-                commands::playlist_step(mpv, delta);
+            match start {
+                Start::Playing => commands::advance(mpv, step),
+                Start::AsBefore => commands::playlist_step(mpv, step),
             }
         }
     }

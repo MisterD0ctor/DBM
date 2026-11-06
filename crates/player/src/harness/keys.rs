@@ -3,10 +3,12 @@
 use std::time::Duration;
 
 use dbm_mpv::Reader;
+use dbm_mpv::prop::{self, TrackChoice};
+use dbm_mpv::tracks::TrackId;
 use slint::{ComponentHandle, Model};
 
 use super::drive::chord;
-use super::script::{self, Beat, Script};
+use super::script::{self, Beat, Script, Verdict};
 use crate::{MainWindow, Motion, Playback, Settings, Subtitles};
 
 /// Walk the keyboard into a panel and down it, with real key events.
@@ -231,6 +233,82 @@ pub(super) fn read_test(ui: &MainWindow, mpv: Reader) -> Script {
             pos()
         );
         eprintln!("dbm: --- read test done ---");
+    })
+}
+
+/// Press each key that steps one way or the other, as real key events, and
+/// check mpv went that way. The interface says a way as -1 or +1, and the
+/// keys are where a wrong sign or a swapped pair would show.
+pub(super) fn step_test(ui: &MainWindow, mpv: Reader) -> Script {
+    use slint::platform::Key;
+
+    script::run(ui, move |ui| async move {
+        let verdict = Verdict::new("step");
+        let mut beat = Beat::new(Duration::from_millis(700));
+        let speed = || mpv.get(prop::SPEED).unwrap_or(f64::NAN);
+        // What the next press steps from, which follows mpv a run behind.
+        let shown = || f64::from(ui.global::<Playback>().get_speed());
+        let at_speed = |want: f64| (speed() - want).abs() < 1e-9 && (shown() - want).abs() < 1e-6;
+        let at = || mpv.get(prop::TIME_POS).unwrap_or(f64::NAN);
+        let press = |text: &str| chord(&ui, &[], text);
+        let shifted = |text: &str| chord(&ui, &[Key::Shift], text);
+        beat.rest(3).await;
+
+        press(">");
+        verdict
+            .expect(|| at_speed(1.25), "> takes the speed a rung up")
+            .await;
+        press("<");
+        verdict
+            .expect(|| at_speed(1.0), "< takes it a rung down")
+            .await;
+
+        press(".");
+        verdict
+            .expect(
+                || mpv.get(prop::PAUSE) == Some(true),
+                ". steps a frame on and pauses",
+            )
+            .await;
+        beat.next().await;
+        let before = at();
+        press(",");
+        verdict
+            .expect(|| at() < before, ", steps a frame back")
+            .await;
+
+        press("#");
+        verdict
+            .expect(
+                || mpv.get(prop::AID) == Some(TrackChoice::Id(TrackId(2))),
+                "# goes on to the second audio track",
+            )
+            .await;
+        let before = mpv.get(prop::SID);
+        shifted("C");
+        verdict
+            .expect(
+                || mpv.get(prop::SID) != before,
+                "Shift+C goes on to another subtitle track",
+            )
+            .await;
+
+        shifted("N");
+        verdict
+            .expect(
+                || mpv.get(prop::PLAYLIST_POS) == Some(1),
+                "Shift+N goes on to the next file",
+            )
+            .await;
+        beat.rest(2).await;
+        shifted("P");
+        verdict
+            .expect(
+                || mpv.get(prop::PLAYLIST_POS) == Some(0),
+                "Shift+P goes back to the one before",
+            )
+            .await;
+        verdict.finish();
     })
 }
 

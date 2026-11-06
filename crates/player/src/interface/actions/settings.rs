@@ -1,5 +1,6 @@
 use std::rc::Rc;
 
+use dbm_mpv::Direction;
 use slint::ComponentHandle;
 
 use super::Undo;
@@ -125,8 +126,11 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
             let Some(ui) = weak.upgrade() else { return };
             // From the size shown, which is under the one saved on a display
             // without room for that, so a step down is always one.
-            let wanted = ui.global::<Settings>().get_scale()
-                + direction as f32 * crate::settings::SCALE_STEP;
+            let step = match super::way(direction) {
+                Direction::Forward => crate::settings::SCALE_STEP,
+                Direction::Back => -crate::settings::SCALE_STEP,
+            };
+            let wanted = ui.global::<Settings>().get_scale() + step;
             let drawn = app.scale.apply(&ui, crate::settings::offered_scale(wanted));
             app.settings.set_scale(drawn);
         });

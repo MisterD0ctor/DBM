@@ -18,7 +18,7 @@
 use std::cell::RefCell;
 use std::sync::Arc;
 
-use dbm_mpv::Mpv;
+use dbm_mpv::{Direction, Mpv};
 
 use crate::playback::state::PlayerState;
 
@@ -226,8 +226,8 @@ fn pressed(mpv: &Mpv, button: SystemMediaTransportControlsButton) {
         SystemMediaTransportControlsButton::Pause => commands::set_pause(mpv, true),
         // Stepping and playing, the same thing the button at the end of
         // a file does.
-        SystemMediaTransportControlsButton::Next => commands::advance(mpv, 1),
-        SystemMediaTransportControlsButton::Previous => commands::advance(mpv, -1),
+        SystemMediaTransportControlsButton::Next => commands::advance(mpv, Direction::Forward),
+        SystemMediaTransportControlsButton::Previous => commands::advance(mpv, Direction::Back),
         _ => {}
     }
 }

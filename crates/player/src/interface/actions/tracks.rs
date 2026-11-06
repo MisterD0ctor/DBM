@@ -1,6 +1,7 @@
 use dbm_mpv::tracks::TrackId;
 use slint::ComponentHandle;
 
+use super::{pick, way};
 use crate::app::App;
 use crate::playback::commands;
 use crate::worker::Completion;
@@ -27,14 +28,15 @@ pub(super) fn wire_tracks(ui: &MainWindow, app: &App) {
         commands::set_audio_track(&app.mpv, id);
     });
     on!(tracks, app, on_cycle, |m, subtitles, direction| {
-        commands::cycle_track(m, subtitles, direction);
+        commands::cycle_track(m, pick(subtitles), way(direction));
     });
     // A track out, and a fetched one forgotten with it so it doesn't come
     // back next time the film opens. Reads the track list, so on the worker.
     on_app!(tracks, app, on_remove, |app, id, subtitle| {
         app.activity.bump();
         app.worker.run(move |mpv| {
-            let Some(file) = commands::remove_track(mpv, TrackId(i64::from(id)), subtitle) else {
+            let Some(file) = commands::remove_track(mpv, TrackId(i64::from(id)), pick(subtitle))
+            else {
                 return;
             };
             if let Some(path) = mpv.get(dbm_mpv::prop::PATH) {

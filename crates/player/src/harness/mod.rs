@@ -169,6 +169,11 @@
 //!   read it, with a film playing. They should scroll the page, not reach the
 //!   film, so `time-pos` either side is the check; the scroll itself is inside
 //!   a conditional and has nothing to read.
+//! * `DBM_STEP_TEST=1` — presses each key that steps one way or the other,
+//!   as real key events, and checks mpv went that way: the speed a rung up
+//!   and down, a frame on and back, the next audio and subtitle track, and
+//!   on through the playlist and back. Needs a file with two audio tracks, a
+//!   subtitle track and a file after it, as `smoke-media.sh` makes.
 //! * `DBM_SCAN_TEST=1` — prints every playlist row's name and length as the
 //!   background scan fills them in. Point `APPDATA` at an empty directory to
 //!   watch it do a first scan, and run it again to see a second one come from
@@ -350,6 +355,9 @@ const EXERCISES: &[(&str, Start)] = &[
     ("DBM_WAKE_TEST", |ui, _, _, _| keys::wake_test(ui)),
     ("DBM_READ_TEST", |ui, _, mpv, _| {
         keys::read_test(ui, mpv.clone())
+    }),
+    ("DBM_STEP_TEST", |ui, _, mpv, _| {
+        keys::step_test(ui, mpv.clone())
     }),
     ("DBM_REACH_TEST", |ui, _, _, _| keys::reach_test(ui)),
     ("DBM_CURSOR_TEST", |ui, _, _, _| platform::cursor_test(ui)),

@@ -34,7 +34,7 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
-use dbm_mpv::{MediaPath, Mpv};
+use dbm_mpv::{Direction, MediaPath, Mpv};
 use zbus::blocking::Connection;
 use zbus::names::InterfaceName;
 use zbus::object_server::SignalEmitter;
@@ -476,13 +476,13 @@ impl Player {
     /// specification says a method whose `Can…` is false must do nothing.
     fn next(&self) {
         if self.shown.playlist {
-            commands::advance(&self.mpv, 1);
+            commands::advance(&self.mpv, Direction::Forward);
         }
     }
 
     fn previous(&self) {
         if self.shown.playlist {
-            commands::advance(&self.mpv, -1);
+            commands::advance(&self.mpv, Direction::Back);
         }
     }
 
