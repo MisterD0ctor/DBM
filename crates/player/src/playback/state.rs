@@ -353,7 +353,11 @@ impl PlayerState {
         match change {
             Observed::Filename(name) => set(&mut self.filename, text(name)),
             Observed::MediaTitle(title) => set(&mut self.media_title, text(title)),
-            Observed::Path(path) => set(&mut self.path, path),
+            Observed::Path(path) => {
+                let moved = set(&mut self.path, path.clone());
+                let forgot = path.as_ref().is_some_and(|path| self.forget_failure(path));
+                moved || forgot
+            }
             Observed::Duration(n) => set(&mut self.duration, number(n).filter(|n| *n > 0.0)),
             Observed::TimePos(n) => set(&mut self.time_pos, number(n).unwrap_or(0.0)),
             Observed::PercentPos(n) => set(&mut self.percent_pos, number(n).unwrap_or(0.0)),
@@ -440,13 +444,43 @@ impl PlayerState {
         if lists.generation != self.tracks_generation {
             return false;
         }
+        // The entry playing now, with the path mpv reported for it. A file
+        // that failed and is then retried keeps its reason until it loads
+        // again; this is the read that load asks for, so it is where the
+        // reason goes.
+        let playing = lists
+            .playlist
+            .iter()
+            .find(|entry| entry.current)
+            .map(|entry| entry.filename.clone());
+        let listed: std::collections::HashSet<EntryId> =
+            lists.playlist.iter().map(|entry| entry.id).collect();
         let mut changed = set(&mut self.tracks, lists.tracks);
         changed |= set(&mut self.playlist, lists.playlist);
+        if let Some(path) = playing
+            && self.path.as_ref() == Some(&path)
+        {
+            changed |= self.forget_failure(&path);
+        }
+        // A failure belongs to an entry of the list that reported it. Once
+        // that entry is gone, so is anything its row would have said.
+        let before = self.found.failed.len();
+        self.found.failed.retain(|id, _| listed.contains(id));
+        changed |= self.found.failed.len() != before;
         if let Some(progress) = lists.progress {
             changed |= set(&mut self.found.progress, progress);
         }
         changed |= set(&mut self.chapters, lists.chapters);
         changed
+    }
+
+    /// Forget a failure recorded for the file at `path`, now that it has
+    /// loaded. Returns whether there was one to forget.
+    fn forget_failure(&mut self, path: &MediaPath) -> bool {
+        let Some(entry) = self.playlist.iter().find(|entry| entry.filename == *path) else {
+            return false;
+        };
+        self.found.failed.remove(&entry.id).is_some()
     }
 
     /// Whether nothing follows the entry playing: it is the last, or there
@@ -711,6 +745,53 @@ mod tests {
             Some(Observed::Pause(None))
         );
         assert_eq!(Observed::of(Prop::ALL.len() as u64, None), None);
+    }
+
+    fn entry(id: i64, path: &str, current: bool) -> PlaylistEntry {
+        PlaylistEntry {
+            index: 0,
+            id: EntryId(id),
+            filename: path.into(),
+            title: None,
+            current,
+        }
+    }
+
+    #[test]
+    fn a_file_that_loads_again_stops_saying_it_failed() {
+        let mut state = PlayerState {
+            path: Some("a.mkv".into()),
+            playlist: vec![entry(7, "a.mkv", true)],
+            found: Found {
+                failed: HashMap::from([(EntryId(7), ErrorCode::LoadingFailed)]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        assert!(state.observe(Observed::Path(Some("a.mkv".into()))));
+        assert!(state.found.failed.is_empty());
+    }
+
+    #[test]
+    fn a_failure_for_a_file_no_longer_in_the_list_is_dropped() {
+        let mut state = PlayerState {
+            path: Some("a.mkv".into()),
+            found: Found {
+                failed: HashMap::from([(EntryId(9), ErrorCode::LoadingFailed)]),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let lists = Lists {
+            tracks: Vec::new(),
+            playlist: vec![entry(7, "a.mkv", true)],
+            progress: None,
+            playing: Some("a.mkv".into()),
+            chapters: Vec::new(),
+            generation: 0,
+        };
+        assert!(state.apply_lists(lists));
+        assert!(state.found.failed.is_empty());
     }
 
     #[test]
