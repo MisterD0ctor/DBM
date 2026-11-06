@@ -60,11 +60,11 @@ pub fn last_watched() -> Option<Resume> {
         }
         let fraction = (start / seconds).clamp(0.0, 1.0) as f32;
         crate::playlist::notice_folder_of(path.as_path());
-        let (show, title) = dbm_naming::described(path.as_str(), None);
+        let described = dbm_naming::described(path.as_str(), None);
         Some(Resume {
             seconds_left: (seconds - start).max(0.0),
-            show,
-            title,
+            show: described.show,
+            title: described.rest,
             still: crate::preview::still(&path, fraction),
             path,
             fraction,

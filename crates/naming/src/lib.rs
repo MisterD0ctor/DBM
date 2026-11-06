@@ -31,6 +31,6 @@ mod tracks;
 pub use chapters::{is_credits, is_intro, is_preview, is_unnamed_chapter};
 pub use clean::strip_path;
 pub use language::Language;
-pub use media::{Media, described, listing, parse, past_named, titled, without_season};
+pub use media::{Described, Media, described, listing, parse, past_named, titled, without_season};
 pub use runs::notice;
 pub use tracks::{TrackInfo, track_labels};

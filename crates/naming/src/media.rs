@@ -64,17 +64,25 @@ pub(super) fn named_episode(stem: &str) -> Option<Media> {
 /// a rip tags every episode on a disc `The Pacific Disc 1`, and the name's
 /// `Part One` says which it is.
 pub fn titled(path: &str, embedded: Option<&str>) -> String {
-    match described(path, embedded) {
-        (Some(show), rest) => format!("{show} · {rest}"),
-        (None, rest) => rest,
+    let described = described(path, embedded);
+    match described.show {
+        Some(show) => format!("{show} · {}", described.rest),
+        None => described.rest,
     }
+}
+
+/// An entry split into the show it belongs to and everything else.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Described {
+    pub show: Option<String>,
+    pub rest: String,
 }
 
 /// One entry, split into the show it belongs to and everything else.
 ///
 /// Split rather than formatted, so whoever builds a list decides whether the
 /// show is worth repeating on every row (see [`listing`]).
-pub fn described(path: &str, embedded: Option<&str>) -> (Option<String>, String) {
+pub fn described(path: &str, embedded: Option<&str>) -> Described {
     let embedded = embedded
         .map(str::trim)
         .filter(|t| !t.is_empty())
@@ -96,14 +104,17 @@ pub fn described(path: &str, embedded: Option<&str>) -> (Option<String>, String)
                 (Some(tag), Some(name)) if !same_words(&tag, &name) => Some(name),
                 (tag, name) => tag.or(name),
             };
-            (
-                Some(show),
-                episode_line(season, episode, episode_end, title.as_deref()),
-            )
+            Described {
+                show: Some(show),
+                rest: episode_line(season, episode, episode_end, title.as_deref()),
+            }
         }
         // A film's embedded title is the film's name, so it replaces the
         // name's, but the year, which containers rarely carry, is kept.
-        (Media::Movie { year, .. }, Some(title)) => (None, movie_line(title, year)),
+        (Media::Movie { year, .. }, Some(title)) => Described {
+            show: None,
+            rest: movie_line(title, year),
+        },
         (media, None) => line(media),
     }
 }
@@ -125,37 +136,39 @@ pub struct Listing {
 /// their room on the same name. Otherwise (a film among the episodes, two
 /// shows, unparseable names) each row says what it is on its own.
 pub fn listing<'a>(entries: impl Iterator<Item = (&'a str, Option<&'a str>)>) -> Listing {
-    let described: Vec<(Option<String>, String)> = entries
+    let described: Vec<Described> = entries
         .map(|(path, embedded)| described(path, embedded))
         .collect();
 
     let heading = common_show(&described);
     let rows = described
         .into_iter()
-        .map(|(show, rest)| match (&heading, show) {
+        .map(|described| match (&heading, described.show) {
             // Where the heading names the show, the rows need not.
-            (None, Some(show)) => format!("{show} · {rest}"),
-            _ => rest,
+            (None, Some(show)) => format!("{show} · {}", described.rest),
+            _ => described.rest,
         })
         .collect();
     Listing { heading, rows }
 }
 
 /// The one show every entry belongs to, if there is one.
-fn common_show(described: &[(Option<String>, String)]) -> Option<String> {
+fn common_show(described: &[Described]) -> Option<String> {
     let mut entries = described.iter();
-    let first = entries.next()?.0.clone()?;
+    let first = entries.next()?.show.clone()?;
     // Case-insensitively, since `Frieren` and `frieren` are one show; the
     // first spelling is as good as any.
     entries
-        .all(|(show, _)| {
-            show.as_ref()
+        .all(|described| {
+            described
+                .show
+                .as_ref()
                 .is_some_and(|s| s.eq_ignore_ascii_case(&first))
         })
         .then_some(first)
 }
 
-fn line(media: Media) -> (Option<String>, String) {
+fn line(media: Media) -> Described {
     match media {
         Media::Episode {
             show,
@@ -163,11 +176,14 @@ fn line(media: Media) -> (Option<String>, String) {
             episode,
             episode_end,
             title,
-        } => (
-            Some(show),
-            episode_line(season, episode, episode_end, title.as_deref()),
-        ),
-        Media::Movie { title, year } => (None, movie_line(&title, year)),
+        } => Described {
+            show: Some(show),
+            rest: episode_line(season, episode, episode_end, title.as_deref()),
+        },
+        Media::Movie { title, year } => Described {
+            show: None,
+            rest: movie_line(&title, year),
+        },
     }
 }
 

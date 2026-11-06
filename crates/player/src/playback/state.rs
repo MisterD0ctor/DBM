@@ -573,9 +573,10 @@ impl PlayerState {
     /// the part that tells one episode from the next. Empty for anything
     /// that has no show.
     pub fn display_episode(&self) -> String {
-        match dbm_naming::described(self.title_path(), self.embedded_title()) {
-            (Some(_), episode) => episode,
-            (None, _) => String::new(),
+        let described = dbm_naming::described(self.title_path(), self.embedded_title());
+        match described.show {
+            Some(_) => described.rest,
+            None => String::new(),
         }
     }
 
