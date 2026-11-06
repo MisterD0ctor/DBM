@@ -35,6 +35,37 @@ pub use params::{
     MAX_PANELS, OPEN_MILK, RING_MILK, RING_RIM, fringe_scale, legible_ceiling,
 };
 
+/// Why the frame could not be drawn.
+#[derive(Debug)]
+pub enum Error {
+    /// The caller's film callback failed, with its own error. The pipeline
+    /// does not know what draws the film, so it keeps the cause rather than
+    /// flattening it to a sentence.
+    Film(Box<dyn std::error::Error + Send + Sync>),
+}
+
+impl Error {
+    pub fn film(source: impl std::error::Error + Send + Sync + 'static) -> Self {
+        Self::Film(Box::new(source))
+    }
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Film(source) => write!(f, "could not draw the film: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Film(source) => Some(&**source),
+        }
+    }
+}
+
 /// How long the last frame's three stretches took.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Timings {
@@ -198,10 +229,10 @@ impl Pipeline {
     fn render_film(
         &self,
         gl: &glow::Context,
-        film: &impl Fn(u32, i32, i32) -> Result<(), String>,
+        film: &impl Fn(u32, i32, i32) -> Result<(), Error>,
         w: u32,
         h: u32,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, Error> {
         let Some(fbo) = self.video.fbo() else {
             return Ok(false);
         };
@@ -292,9 +323,9 @@ impl Pipeline {
     pub fn render(
         &mut self,
         gl: &glow::Context,
-        film: impl Fn(u32, i32, i32) -> Result<(), String>,
+        film: impl Fn(u32, i32, i32) -> Result<(), Error>,
         frame: &Frame,
-    ) -> Result<bool, String> {
+    ) -> Result<bool, Error> {
         let Frame {
             width: w,
             height: h,
@@ -442,5 +473,28 @@ impl Pipeline {
         ] {
             p.release(gl);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug)]
+    struct Refused;
+
+    impl std::fmt::Display for Refused {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.write_str("refused")
+        }
+    }
+
+    impl std::error::Error for Refused {}
+
+    #[test]
+    fn a_film_error_keeps_the_cause_it_was_handed() {
+        let error = Error::film(Refused);
+        assert!(std::error::Error::source(&error).is_some());
+        assert!(error.to_string().contains("refused"));
     }
 }

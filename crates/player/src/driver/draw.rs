@@ -73,8 +73,9 @@ impl Driver {
         };
         // Called only from inside `render`, so still in the notifier, with
         // the context current.
-        let film =
-            |fbo, w, h| unsafe { gpu.ctx.render_to_fbo(fbo, w, h) }.map_err(|e| e.to_string());
+        let film = |fbo, w, h| {
+            unsafe { gpu.ctx.render_to_fbo(fbo, w, h) }.map_err(dbm_gpu::pipeline::Error::film)
+        };
         let rendered = match gpu.pipeline.render(&gpu.gl, film, &frame) {
             Ok(v) => v,
             Err(e) => {
