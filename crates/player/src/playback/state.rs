@@ -205,8 +205,8 @@ pub struct PlayerState {
     pub speed: Rate,
     /// The chapter playing, from 0, where the file has one and it has begun.
     pub chapter: Option<usize>,
-    pub chapter_count: i64,
-    /// Read on the worker with the tracks (see `worker`).
+    /// Read on the worker with the tracks (see `worker`). Its length is the
+    /// chapter count, so there is no separate field to drift from it.
     pub chapters: Vec<dbm_mpv::tracks::Chapter>,
     pub track_count: i64,
     pub sid: Option<TrackChoice>,
@@ -342,10 +342,9 @@ impl PlayerState {
             Observed::Panscan(n) => set(&mut self.panscan, number(n).unwrap_or(0.0)),
             Observed::Speed(n) => set(&mut self.speed, Rate::of(n)),
             Observed::Chapter(chapter) => set(&mut self.chapter, chapter.and_then(index)),
-            Observed::ChapterCount(count) => {
-                let moved = set(&mut self.chapter_count, count.unwrap_or(0));
-                self.lists_moved(moved)
-            }
+            // The count alone is not kept: `chapters.len()` is the count, and
+            // a change here is the cue to read the marks themselves.
+            Observed::ChapterCount(_) => self.lists_moved(true),
             Observed::TrackCount(count) => {
                 let moved = set(&mut self.track_count, count.unwrap_or(0));
                 self.lists_moved(moved)
