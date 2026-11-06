@@ -4,32 +4,17 @@
 //! shown, so a playlist row that says it again after the language changes
 //! says it in the new one.
 
-use dbm_lang::{fill, marked, tr};
-use dbm_mpv::MediaPath;
+use dbm_lang::{fill, tr};
+use dbm_mpv::{ErrorCode, MediaPath};
 
 use crate::interface::format;
-
-/// mpv's own words for why a file stopped, as `mpv_error_string` gives them,
-/// marked so each language can say them too. One mpv adds later is shown as
-/// mpv says it.
-const REASONS: [&str; 9] = [
-    marked("loading failed"),
-    marked("unrecognized file format"),
-    marked("no audio or video data played"),
-    marked("audio output initialization failed"),
-    marked("video output initialization failed"),
-    marked("not supported"),
-    marked("operation not implemented"),
-    marked("something happened"),
-    marked("unknown error"),
-];
 
 /// The reason first, because the capsule elides at the bar's width and the
 /// reason is the part worth reading. Then the name the playlist shows, not
 /// the path, whose end, where the file's name is, would be cut. `path` is
 /// `None` for a file that failed before mpv said which it was.
-pub fn could_not_play(reason: &str, path: Option<&MediaPath>) -> String {
-    let reason = format::sentence(said(reason));
+pub fn could_not_play(failure: ErrorCode, path: Option<&MediaPath>) -> String {
+    let reason = format::sentence(&said(failure));
     match path {
         Some(path) => fill(
             tr("{} — could not play {}"),
@@ -39,11 +24,20 @@ pub fn could_not_play(reason: &str, path: Option<&MediaPath>) -> String {
     }
 }
 
-/// mpv's description in the language being spoken, where it is one of
-/// [`REASONS`].
-fn said(reason: &str) -> &str {
-    REASONS
-        .iter()
-        .find(|known| **known == reason)
-        .map_or(reason, |known| tr(known))
+/// mpv's reason in the language being spoken. One a file can't stop for has
+/// no translation, and is shown in mpv's English.
+fn said(failure: ErrorCode) -> String {
+    match failure {
+        ErrorCode::LoadingFailed => tr("loading failed"),
+        ErrorCode::UnknownFormat => tr("unrecognized file format"),
+        ErrorCode::NothingToPlay => tr("no audio or video data played"),
+        ErrorCode::AoInitFailed => tr("audio output initialization failed"),
+        ErrorCode::VoInitFailed => tr("video output initialization failed"),
+        ErrorCode::Unsupported => tr("not supported"),
+        ErrorCode::NotImplemented => tr("operation not implemented"),
+        ErrorCode::Generic => tr("something happened"),
+        ErrorCode::Other(_) => tr("unknown error"),
+        other => return other.to_string(),
+    }
+    .to_owned()
 }

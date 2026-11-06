@@ -290,6 +290,7 @@ pub mod script;
 mod settings;
 mod showcase;
 
+use dbm_mpv::Reader;
 use slint::{Model, ModelRc};
 
 use crate::Playlist;
@@ -304,102 +305,108 @@ pub struct Harnesses {
     _scripts: Vec<Script>,
 }
 
-/// How an exercise starts: the window, what the player shares, and the value
-/// of the variable that asked for it.
-type Start = fn(&MainWindow, &App, String) -> Script;
+/// How an exercise starts: the window, what the player shares, mpv to read
+/// back from, and the value of the variable that asked for it.
+type Start = fn(&MainWindow, &App, &Reader, String) -> Script;
 
 /// Each exercise, by the variable that asks for it, in the order they start
 /// when several are asked for together.
 const EXERCISES: &[(&str, Start)] = &[
-    ("DBM_INPUT_TEST", |ui, _, _| playback::input_test(ui)),
-    ("DBM_RESIZE_TEST", |ui, _, _| layout::resize_test(ui)),
-    ("DBM_MODAL_TEST", |ui, _, _| layout::modal_test(ui)),
-    ("DBM_PARAM_TEST", |ui, _, _| settings::param_test(ui)),
-    ("DBM_TOGGLE_TEST", |ui, app, _| {
-        settings::toggle_test(ui, app.mpv.clone())
+    ("DBM_INPUT_TEST", |ui, _, _, _| playback::input_test(ui)),
+    ("DBM_RESIZE_TEST", |ui, _, _, _| layout::resize_test(ui)),
+    ("DBM_MODAL_TEST", |ui, _, _, _| layout::modal_test(ui)),
+    ("DBM_PARAM_TEST", |ui, _, _, _| settings::param_test(ui)),
+    ("DBM_TOGGLE_TEST", |ui, _, mpv, _| {
+        settings::toggle_test(ui, mpv.clone())
     }),
-    ("DBM_OPEN_TEST", |ui, _, path| opening::open_test(ui, path)),
-    ("DBM_UNPLAYABLE_TEST", |ui, _, _| {
+    ("DBM_OPEN_TEST", |ui, _, _, path| {
+        opening::open_test(ui, path)
+    }),
+    ("DBM_UNPLAYABLE_TEST", |ui, _, _, _| {
         opening::unplayable_test(ui)
     }),
-    ("DBM_IDLE_TEST", |ui, app, _| {
-        opening::idle_test(ui, app.mpv.clone())
+    ("DBM_IDLE_TEST", |ui, _, mpv, _| {
+        opening::idle_test(ui, mpv.clone())
     }),
-    ("DBM_DIALOG_TEST", |ui, _, _| opening::dialog_test(ui)),
-    ("DBM_SHOWCASE", |ui, _, surface| {
+    ("DBM_DIALOG_TEST", |ui, _, _, _| opening::dialog_test(ui)),
+    ("DBM_SHOWCASE", |ui, _, _, surface| {
         showcase::showcase(ui, surface)
     }),
-    ("DBM_FADE_TEST", |ui, _, _| playback::fade_test(ui)),
-    ("DBM_PAUSED_RESIZE_TEST", |ui, _, _| {
+    ("DBM_FADE_TEST", |ui, _, _, _| playback::fade_test(ui)),
+    ("DBM_PAUSED_RESIZE_TEST", |ui, _, _, _| {
         layout::paused_resize_test(ui)
     }),
-    ("DBM_PREVIEW_TEST", |ui, _, _| playback::preview_test(ui)),
-    ("DBM_TIP_TEST", |ui, _, _| layout::tip_test(ui)),
-    ("DBM_FIRST_OPEN", |ui, _, panel| {
+    ("DBM_PREVIEW_TEST", |ui, _, _, _| playback::preview_test(ui)),
+    ("DBM_TIP_TEST", |ui, _, _, _| layout::tip_test(ui)),
+    ("DBM_FIRST_OPEN", |ui, _, _, panel| {
         layout::first_open_test(ui, panel)
     }),
-    ("DBM_SCROLL_TEST", |ui, _, _| layout::scroll_test(ui)),
-    ("DBM_WHEEL_TEST", |ui, _, _| playback::wheel_test(ui)),
-    ("DBM_TIMING_TEST", |ui, app, _| {
-        playback::timing_test(ui, app.mpv.clone())
+    ("DBM_SCROLL_TEST", |ui, _, _, _| layout::scroll_test(ui)),
+    ("DBM_WHEEL_TEST", |ui, _, _, _| playback::wheel_test(ui)),
+    ("DBM_TIMING_TEST", |ui, _, mpv, _| {
+        playback::timing_test(ui, mpv.clone())
     }),
-    ("DBM_KEY_TEST", |ui, _, _| keys::key_test(ui)),
-    ("DBM_WAKE_TEST", |ui, _, _| keys::wake_test(ui)),
-    ("DBM_READ_TEST", |ui, app, _| {
-        keys::read_test(ui, app.mpv.clone())
+    ("DBM_KEY_TEST", |ui, _, _, _| keys::key_test(ui)),
+    ("DBM_WAKE_TEST", |ui, _, _, _| keys::wake_test(ui)),
+    ("DBM_READ_TEST", |ui, _, mpv, _| {
+        keys::read_test(ui, mpv.clone())
     }),
-    ("DBM_REACH_TEST", |ui, _, _| keys::reach_test(ui)),
-    ("DBM_CURSOR_TEST", |ui, _, _| platform::cursor_test(ui)),
-    ("DBM_PANEL_TEST", |ui, _, _| layout::panel_test(ui)),
-    ("DBM_SUBS_TEST", |ui, app, _| {
-        settings::subs_test(ui, app.mpv.clone())
+    ("DBM_REACH_TEST", |ui, _, _, _| keys::reach_test(ui)),
+    ("DBM_CURSOR_TEST", |ui, _, _, _| platform::cursor_test(ui)),
+    ("DBM_PANEL_TEST", |ui, _, _, _| layout::panel_test(ui)),
+    ("DBM_SUBS_TEST", |ui, _, mpv, _| {
+        settings::subs_test(ui, mpv.clone())
     }),
-    ("DBM_ADDED_TEST", |ui, app, _| {
-        settings::added_test(ui, app.mpv.clone())
+    ("DBM_ADDED_TEST", |ui, _, mpv, _| {
+        settings::added_test(ui, mpv.clone())
     }),
-    ("DBM_SYNC_TEST", |ui, app, _| {
-        settings::sync_test(ui, app.mpv.clone())
+    ("DBM_SYNC_TEST", |ui, _, mpv, _| {
+        settings::sync_test(ui, mpv.clone())
     }),
-    ("DBM_SIGN_IN_TEST", |ui, _, _| settings::sign_in_test(ui)),
-    ("DBM_FIND_TEST", |ui, app, _| {
-        settings::find_test(ui, app.mpv.clone())
+    ("DBM_SIGN_IN_TEST", |ui, _, _, _| settings::sign_in_test(ui)),
+    ("DBM_FIND_TEST", |ui, _, mpv, _| {
+        settings::find_test(ui, mpv.clone())
     }),
-    ("DBM_AUDIO_TEST", |ui, app, _| {
-        platform::audio_test(ui, app.mpv.clone(), app.audio.clone())
+    ("DBM_AUDIO_TEST", |ui, app, mpv, _| {
+        platform::audio_test(ui, mpv.clone(), app.audio.clone())
     }),
-    ("DBM_FLASH_TEST", |ui, _, _| playback::flash_test(ui)),
-    ("DBM_PROGRESS_TEST", |ui, app, _| {
-        playback::progress_test(ui, app.mpv.clone())
+    ("DBM_FLASH_TEST", |ui, _, _, _| playback::flash_test(ui)),
+    ("DBM_PROGRESS_TEST", |ui, _, mpv, _| {
+        playback::progress_test(ui, mpv.clone())
     }),
-    ("DBM_SCAN_TEST", |ui, _, _| opening::scan_test(ui)),
-    ("DBM_END_TEST", |ui, _, _| playback::end_test(ui)),
-    ("DBM_SCRUB_TEST", |ui, _, how| match how.as_str() {
+    ("DBM_SCAN_TEST", |ui, _, _, _| opening::scan_test(ui)),
+    ("DBM_END_TEST", |ui, _, _, _| playback::end_test(ui)),
+    ("DBM_SCRUB_TEST", |ui, _, _, how| match how.as_str() {
         "slow" => playback::slow_scrub_test(ui),
         _ => playback::scrub_test(ui),
     }),
-    ("DBM_INTRO_TEST", |ui, _, _| playback::intro_test(ui)),
-    ("DBM_SKIP_TEST", |ui, app, _| {
-        playback::skip_test(ui, app.mpv.clone())
+    ("DBM_INTRO_TEST", |ui, _, _, _| playback::intro_test(ui)),
+    ("DBM_SKIP_TEST", |ui, _, mpv, _| {
+        playback::skip_test(ui, mpv.clone())
     }),
-    ("DBM_CREDITS_TEST", |ui, app, _| {
-        playback::credits_test(ui, app.mpv.clone())
+    ("DBM_CREDITS_TEST", |ui, _, mpv, _| {
+        playback::credits_test(ui, mpv.clone())
     }),
 ];
 
 /// The exercises of one platform's own parts.
 #[cfg(windows)]
 const PLATFORM: &[(&str, Start)] = &[
-    ("DBM_SMTC_TEST", |ui, app, _| {
-        media_keys::smtc_test(ui, app.mpv.clone())
+    ("DBM_SMTC_TEST", |ui, _, mpv, _| {
+        media_keys::smtc_test(ui, mpv.clone())
     }),
-    ("DBM_DROP_TEST", |ui, _, path| opening::drop_test(ui, path)),
+    ("DBM_DROP_TEST", |ui, _, _, path| {
+        opening::drop_test(ui, path)
+    }),
 ];
 #[cfg(not(windows))]
-const PLATFORM: &[(&str, Start)] = &[("DBM_MPRIS_TEST", |ui, app, _| {
-    media_keys::mpris_test(ui, app.mpv.clone())
+const PLATFORM: &[(&str, Start)] = &[("DBM_MPRIS_TEST", |ui, _, mpv, _| {
+    media_keys::mpris_test(ui, mpv.clone())
 })];
 
-pub fn install(ui: &MainWindow, app: &App) -> Harnesses {
+/// `mpv` is for reading mpv back, which the exercises do on the UI thread, as
+/// nothing else there may.
+pub fn install(ui: &MainWindow, app: &App, mpv: Reader) -> Harnesses {
     let mut scripts = Vec::new();
     // First, so what follows starts at the size asked about. It waits for a
     // frame, because asked for before the window exists, the height took and
@@ -424,7 +431,7 @@ pub fn install(ui: &MainWindow, app: &App) -> Harnesses {
     }
     for (variable, start) in EXERCISES.iter().chain(PLATFORM) {
         if let Some(value) = std::env::var_os(variable) {
-            scripts.push(start(ui, app, value.to_string_lossy().into_owned()));
+            scripts.push(start(ui, app, &mpv, value.to_string_lossy().into_owned()));
         }
     }
     Harnesses { _scripts: scripts }

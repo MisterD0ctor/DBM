@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use dbm_mpv::Mpv;
+use dbm_mpv::Reader;
 use slint::ComponentHandle;
 
 use super::script::{self, Beat, Script};
@@ -17,7 +17,7 @@ use crate::{MainWindow, Playback};
 /// route a headset button takes. Every report also names the session Windows
 /// has in front, which a real key press would reach instead.
 #[cfg(windows)]
-pub(super) fn smtc_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+pub(super) fn smtc_test(ui: &MainWindow, mpv: Reader) -> Script {
     script::run(ui, move |ui| async move {
         let mut beat = Beat::new(Duration::from_millis(1200));
         beat.next().await;
@@ -90,7 +90,7 @@ fn our_session() -> Option<windows::Media::Control::GlobalSystemMediaTransportCo
 
 /// What the player thinks, and what Windows thinks, side by side.
 #[cfg(windows)]
-fn report_smtc(ui: &MainWindow, mpv: &Mpv, label: &str) {
+fn report_smtc(ui: &MainWindow, mpv: &Reader, label: &str) {
     let (app, title, status) =
         current_session().unwrap_or_else(|| ("nothing".into(), "-".into(), "no session".into()));
     eprintln!(
@@ -152,7 +152,7 @@ fn current_session() -> Option<(String, String, String)> {
 /// play, a seek further than playing could carry the film between reports,
 /// the next file, and a stop, which pauses (see `mpris::Player::stop`).
 #[cfg(not(windows))]
-pub(super) fn mpris_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+pub(super) fn mpris_test(ui: &MainWindow, mpv: Reader) -> Script {
     let bus = match zbus::blocking::Connection::session() {
         Ok(bus) => bus,
         Err(e) => {
@@ -317,7 +317,7 @@ fn ours(bus: &zbus::blocking::Connection) -> Option<zbus::blocking::Proxy<'stati
 #[cfg(not(windows))]
 fn report_mpris(
     ui: &MainWindow,
-    mpv: &Mpv,
+    mpv: &Reader,
     bus: &zbus::blocking::Connection,
     heard: &Heard,
     label: &str,

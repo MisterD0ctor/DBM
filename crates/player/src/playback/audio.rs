@@ -23,8 +23,8 @@ use std::time::Duration;
 
 use dbm_lang::tr;
 use dbm_mpv::prop::{self, TrackChoice};
-use dbm_mpv::tracks::{self, AudioDevice, TrackKind};
-use dbm_mpv::{Event, Mpv};
+use dbm_mpv::tracks::{self, AudioDevice, TrackId, TrackKind};
+use dbm_mpv::{Event, Reader};
 
 use crate::playback::state::Prop;
 
@@ -39,13 +39,13 @@ const SETTLE: Duration = Duration::from_millis(1200);
 pub struct Watchdog {
     /// Runs [`reopen`] where blocking is allowed, with the track to put
     /// back, and says what it returns.
-    reopen_elsewhere: Box<dyn Fn(Option<i64>)>,
+    reopen_elsewhere: Box<dyn Fn(Option<TrackId>)>,
     /// Device names from the last list seen. `None` until the first list
     /// arrives: that one is the baseline, never a reconnection.
     seen: RefCell<Option<BTreeSet<String>>>,
     /// The last audio track mpv reported as genuinely selected, kept because
     /// once mpv gives up on a device it reports `aid` as `no`.
-    last_track: Cell<Option<i64>>,
+    last_track: Cell<Option<TrackId>>,
     /// Set when the *user* turns audio off, so a device appearing does not
     /// helpfully turn it back on behind their back.
     user_disabled: Cell<bool>,
@@ -56,7 +56,7 @@ pub struct Watchdog {
 }
 
 impl Watchdog {
-    pub fn new(reopen_elsewhere: impl Fn(Option<i64>) + 'static) -> Rc<Self> {
+    pub fn new(reopen_elsewhere: impl Fn(Option<TrackId>) + 'static) -> Rc<Self> {
         Rc::new(Self {
             reopen_elsewhere: Box::new(reopen_elsewhere),
             seen: RefCell::new(None),
@@ -92,7 +92,7 @@ impl Watchdog {
 
     /// Record an explicit choice from the interface. Selecting nothing here is
     /// the one case where silence is what was asked for.
-    pub fn note_user_selection(&self, track: Option<i64>) {
+    pub fn note_user_selection(&self, track: Option<TrackId>) {
         self.user_disabled.set(track.is_none());
     }
 
@@ -148,11 +148,11 @@ impl Watchdog {
 
 /// Rebuild mpv's audio chain, output included.
 ///
-/// **Worker thread only.** Returns what to tell the person watching, or
-/// `None` when there was nothing to repair.
-pub fn reopen(mpv: &Mpv, remembered: Option<i64>) -> Option<String> {
+/// **Blocking**: reads the track list. Returns what to tell the person
+/// watching, or `None` when there was nothing to repair.
+pub fn reopen(mpv: &Reader, remembered: Option<TrackId>) -> Option<String> {
     let tracks = mpv.get(prop::TRACK_LIST).unwrap_or_default();
-    let audio: Vec<i64> = tracks::of_kind(&tracks, TrackKind::Audio)
+    let audio: Vec<TrackId> = tracks::of_kind(&tracks, TrackKind::Audio)
         .iter()
         .map(|t| t.id)
         .collect();

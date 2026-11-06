@@ -10,8 +10,8 @@
 
 use dbm_library::bars::Crop;
 use dbm_mpv::prop::{self, Cache, KeepOpen, Rect, TrackChoice};
-use dbm_mpv::tracks::{self, TrackKind};
-use dbm_mpv::{Command, Direction, MediaPath, Mpv, Property, SeekTarget, ToMpv};
+use dbm_mpv::tracks::{self, TrackId, TrackKind};
+use dbm_mpv::{Command, Direction, MediaPath, Mpv, Property, Reader, SeekTarget, ToMpv};
 
 /// Arrow-key seek, in seconds.
 pub const SEEK_STEP: f64 = 10.0;
@@ -107,11 +107,11 @@ impl Reply {
     const ALL: [Self; 4] = [Self::Ignored, Self::Scrub, Self::LoadList, Self::Move];
 
     /// The id mpv hands back with the answer.
-    pub const fn id(self) -> u64 {
-        self as u64
+    pub const fn id(self) -> u32 {
+        self as u32
     }
 
-    pub fn of(id: u64) -> Option<Self> {
+    pub fn of(id: u32) -> Option<Self> {
         Self::ALL.into_iter().find(|reply| reply.id() == id)
     }
 }
@@ -189,9 +189,9 @@ pub fn toggle_mute(mpv: &Mpv) {
 /// watch-later restored `sid=no`. Turning them off leaves `sid` alone, so the
 /// next press brings that track back.
 ///
-/// Reads the track list, so this **blocks** and must run on the worker,
-/// where the read is fresh in a way a mirrored copy isn't.
-pub fn toggle_subtitles(mpv: &Mpv) {
+/// Reads the track list, so this **blocks**, and is the worker's: the read is
+/// fresh in a way a mirrored copy isn't.
+pub fn toggle_subtitles(mpv: &Reader) {
     let tracks = mpv.get(prop::TRACK_LIST).unwrap_or_default();
     let subs = tracks::of_kind(&tracks, TrackKind::Sub);
     if subs.is_empty() {
@@ -232,10 +232,11 @@ pub fn add_subtitle(mpv: &Mpv, file: &std::path::Path, language: &str, show: boo
 }
 
 /// Take a track that came from a file of its own back out of the film.
-/// Returns the file it came from, so a caller can forget it too.
+/// Returns the file it came from, so a caller can forget it too, and `None`
+/// for a track carried in the film, which stays.
 ///
-/// **Blocking**: reads the track list. Worker thread only.
-pub fn remove_track(mpv: &Mpv, id: i64, subtitle: bool) -> Option<String> {
+/// **Blocking**: reads the track list.
+pub fn remove_track(mpv: &Reader, id: TrackId, subtitle: bool) -> Option<String> {
     let kind = if subtitle {
         TrackKind::Sub
     } else {
@@ -244,9 +245,8 @@ pub fn remove_track(mpv: &Mpv, id: i64, subtitle: bool) -> Option<String> {
     let file = mpv
         .get(prop::TRACK_LIST)?
         .into_iter()
-        .find(|track| track.id == id && track.kind == kind && track.external)?
-        .external_filename
-        .unwrap_or_default();
+        .find(|track| track.id == id && track.kind == kind)?
+        .file?;
     let command = if subtitle {
         Command::SubRemove(id)
     } else {
@@ -257,7 +257,7 @@ pub fn remove_track(mpv: &Mpv, id: i64, subtitle: bool) -> Option<String> {
 }
 
 /// Select a subtitle track, or `None` to turn them off.
-pub fn set_subtitle_track(mpv: &Mpv, id: Option<i64>) {
+pub fn set_subtitle_track(mpv: &Mpv, id: Option<TrackId>) {
     match id {
         Some(id) => {
             set(mpv, prop::SID, TrackChoice::Id(id));
@@ -269,7 +269,7 @@ pub fn set_subtitle_track(mpv: &Mpv, id: Option<i64>) {
     }
 }
 
-pub fn set_audio_track(mpv: &Mpv, id: Option<i64>) {
+pub fn set_audio_track(mpv: &Mpv, id: Option<TrackId>) {
     set(mpv, prop::AID, id.map_or(TrackChoice::Off, TrackChoice::Id));
 }
 
@@ -306,7 +306,7 @@ pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &MediaPa
     true
 }
 
-pub fn playlist_play(mpv: &Mpv, index: i64) {
+pub fn playlist_play(mpv: &Mpv, index: usize) {
     move_to(mpv, Command::PlaylistPlayIndex(index));
 }
 

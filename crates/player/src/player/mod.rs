@@ -30,8 +30,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Instant;
 
 use dbm_library::preview::Still;
-use dbm_mpv::MediaPath;
 use dbm_mpv::tracks::{self, TrackKind};
+use dbm_mpv::{Events, MediaPath};
 use slint::ComponentHandle;
 
 use crate::app::App;
@@ -158,6 +158,8 @@ struct PerFile {
 pub struct Player {
     ui: slint::Weak<MainWindow>,
     app: App,
+    /// mpv's event queue, which nothing else reads.
+    events: Events,
     state: PlayerState,
     /// Has the playlist laid out on the worker, and shows what comes back.
     panel: playlist_panel::Panel,
@@ -187,12 +189,14 @@ impl Player {
     pub fn new(
         ui: slint::Weak<MainWindow>,
         app: App,
+        events: Events,
         media_keys: crate::platform::media_keys::Controls,
     ) -> Rc<RefCell<Self>> {
         app.mpv.set_wakeup(Box::new(wake));
         let player = Rc::new(RefCell::new(Self {
             ui,
             app,
+            events,
             state: PlayerState::default(),
             panel: playlist_panel::Panel::default(),
             language_seen: 0,
@@ -260,6 +264,12 @@ impl Player {
         crate::interface::actions::follow_fullscreen(ui);
         let moved = self.take_events(ui);
         self.follow(ui, moved);
+    }
+
+    /// Write the playing file's place and wait for mpv to have, as the
+    /// player quits (see `session`).
+    pub fn save_before_quitting(&mut self) {
+        crate::playback::session::save_before_quitting(&mut self.events);
     }
 
     /// What the frame draws from.

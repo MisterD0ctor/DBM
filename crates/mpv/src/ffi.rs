@@ -96,13 +96,10 @@ pub(super) struct RawEventEndFile {
     pub(super) playlist_entry_id: i64,
 }
 
-/// `MPV_END_FILE_REASON_ERROR`. The other reasons (EOF, stop, quit,
-/// redirect) are ordinary endings.
-pub(super) const END_FILE_REASON_ERROR: c_int = 4;
-/// `MPV_END_FILE_REASON_EOF`: the file played to its end. With the window
-/// held open only at the end of the list, that is autoplay moving on.
-/// Asked-for changes end a file with a stop.
+// `mpv_end_file_reason`, the two told apart from the rest (stop, quit,
+// redirect), which are ordinary endings.
 pub(super) const END_FILE_REASON_EOF: c_int = 0;
+pub(super) const END_FILE_REASON_ERROR: c_int = 4;
 
 #[repr(C)]
 pub(super) struct RawEventProperty {
@@ -127,9 +124,6 @@ pub(super) struct Lib {
     pub(super) mpv_get_property:
         unsafe extern "C" fn(*mut MpvHandle, *const c_char, c_int, *mut c_void) -> c_int,
     pub(super) mpv_free: unsafe extern "C" fn(*mut c_void),
-    /// Turns an mpv error code into a sentence, "Unrecognized file format"
-    /// rather than "error -13".
-    pub(super) mpv_error_string: unsafe extern "C" fn(c_int) -> *const c_char,
     pub(super) mpv_command_async:
         unsafe extern "C" fn(*mut MpvHandle, u64, *mut *const c_char) -> c_int,
     pub(super) mpv_observe_property:
@@ -179,7 +173,6 @@ impl Lib {
             mpv_set_property_async: sym!(library, "mpv_set_property_async"),
             mpv_get_property: sym!(library, "mpv_get_property"),
             mpv_free: sym!(library, "mpv_free"),
-            mpv_error_string: sym!(library, "mpv_error_string"),
             mpv_command_async: sym!(library, "mpv_command_async"),
             mpv_observe_property: sym!(library, "mpv_observe_property"),
             mpv_wait_event: sym!(library, "mpv_wait_event"),

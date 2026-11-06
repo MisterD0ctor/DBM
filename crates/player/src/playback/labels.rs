@@ -17,7 +17,7 @@ pub fn tracks(tracks: &[Track], kind: TrackKind) -> Vec<(&Track, String)> {
         .map(|t| dbm_naming::TrackInfo {
             title: t.title.as_deref(),
             language: t.lang.as_deref(),
-            external: t.external,
+            external: t.external(),
             codec: t.codec.as_deref(),
             channels: t.channels,
         })

@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use dbm_mpv::Mpv;
+use dbm_mpv::Reader;
 use slint::{ComponentHandle, Model};
 
 use super::drive::chord;
@@ -188,7 +188,7 @@ pub(super) fn key_test(ui: &MainWindow) -> Script {
 /// film. `time-pos` is the evidence rather than the list, which is built
 /// inside the drill's conditional and can't be read from here: the film must
 /// not move and the page must not close.
-pub(super) fn read_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+pub(super) fn read_test(ui: &MainWindow, mpv: Reader) -> Script {
     use slint::platform::Key;
 
     script::run(ui, move |ui| async move {

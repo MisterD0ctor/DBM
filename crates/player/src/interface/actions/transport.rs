@@ -39,7 +39,9 @@ pub(super) fn wire_transport(ui: &MainWindow, app: &App) {
     });
     on_app!(playlist, app, on_play_index, |app, index| {
         app.activity.bump();
-        app.arrival.play_index(&app.mpv, i64::from(index), None);
+        if let Ok(index) = usize::try_from(index) {
+            app.arrival.play_index(&app.mpv, index, None);
+        }
     });
     // The corner pill's offers: for a file autoplay started over, and back
     // from a click on the timeline.

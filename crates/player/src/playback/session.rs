@@ -19,7 +19,7 @@ use std::time::Duration;
 
 use dbm_library::paths;
 use dbm_mpv::prop::{self, Names};
-use dbm_mpv::{Command, Mpv};
+use dbm_mpv::{Command, Events, Mpv, Options};
 
 use crate::playback::commands;
 
@@ -51,11 +51,11 @@ const CHECKPOINT: Duration = Duration::from_secs(10);
 /// position, so a file would come back with the wrong audio track and the
 /// subtitles off. Recording the tracks and the subtitle timing too makes
 /// reopening resume rather than merely seek.
-pub fn configure(mpv: &Mpv) {
-    if let Err(e) = mpv.set_option(prop::WATCH_LATER_DIRECTORY, paths::watch_later_dir()) {
+pub fn configure(options: &Options<'_>) {
+    if let Err(e) = options.set(prop::WATCH_LATER_DIRECTORY, paths::watch_later_dir()) {
         log::info!("watch-later directory: {e}");
     }
-    if let Err(e) = mpv.set_option(prop::SAVE_POSITION_ON_QUIT, true) {
+    if let Err(e) = options.set(prop::SAVE_POSITION_ON_QUIT, true) {
         log::info!("save-position-on-quit: {e}");
     }
     // `start` is the position; the rest makes it a resume. The subtitles'
@@ -69,7 +69,7 @@ pub fn configure(mpv: &Mpv) {
         .with(prop::VOLUME)
         .with(prop::SUB_DELAY)
         .with(prop::SUB_SPEED);
-    if let Err(e) = mpv.set_option(prop::WATCH_LATER_OPTIONS, recorded) {
+    if let Err(e) = options.set(prop::WATCH_LATER_OPTIONS, recorded) {
         log::info!("watch-later-options: {e}");
     }
     // The other half of "per file": mpv carries a setting changed during one
@@ -77,14 +77,14 @@ pub fn configure(mpv: &Mpv) {
     // next as well. With this each file starts untimed, and its own timing
     // comes back from the entry above.
     let per_file = Names::default().with(prop::SUB_DELAY).with(prop::SUB_SPEED);
-    if let Err(e) = mpv.set_option(prop::RESET_ON_NEXT_FILE, per_file) {
+    if let Err(e) = options.set(prop::RESET_ON_NEXT_FILE, per_file) {
         log::info!("reset-on-next-file: {e}");
     }
     // A run nobody is watching (see `run_mode`) plays silently, through a
     // zero-gain filter at the end of the audio chain rather than by muting or
     // turning it down, which several exercises press and read back.
     if crate::run_mode::unattended() {
-        match mpv.set_option(prop::AF, "lavfi=[volume=0]") {
+        match options.set(prop::AF, "lavfi=[volume=0]") {
             Ok(()) => eprintln!("dbm: unattended - playing silently"),
             Err(e) => eprintln!("dbm: unattended, but could not silence the audio: {e}"),
         }
@@ -124,18 +124,13 @@ pub fn checkpoint(mpv: &Mpv) {
 ///
 /// Queued behind the last things asked for, so a seek made just before
 /// quitting is the place saved. Taking mpv down doesn't save anything by
-/// itself.
-///
-/// # Safety
-/// Only once the event loop has returned, since this reads mpv's events (see
-/// [`Mpv::run_and_wait`]).
-pub unsafe fn save_before_quitting(mpv: &Mpv) {
+/// itself. Every event that arrives while it waits is dropped, so this is for
+/// once the event loop has returned.
+pub fn save_before_quitting(events: &mut Events) {
     if OPENING.load(Ordering::Relaxed) {
         return;
     }
-    // SAFETY: the caller vouches that the frame path, the one other reader
-    // of mpv's events, has stopped.
-    let saved = unsafe { mpv.run_and_wait(Command::WriteWatchLaterConfig, QUIT_SAVE_WAIT) };
+    let saved = events.run_and_wait(Command::WriteWatchLaterConfig, QUIT_SAVE_WAIT);
     if let Err(e) = saved {
         log::info!("watch-later on quit: {e}");
     }

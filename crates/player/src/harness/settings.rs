@@ -4,7 +4,8 @@ use std::path::Path;
 use std::time::Duration;
 
 use dbm_mpv::prop::{self, TrackChoice};
-use dbm_mpv::{Command, Mpv, Property, SeekTarget};
+use dbm_mpv::tracks::TrackId;
+use dbm_mpv::{Command, Property, Reader, SeekTarget};
 use slint::{ComponentHandle, Model};
 
 use super::script::{self, Beat, Script, Verdict, sleep};
@@ -43,7 +44,7 @@ pub(super) fn param_test(ui: &MainWindow) -> Script {
 /// Both, because either alone would miss half of what can go wrong: mpv
 /// alone would not catch a readout that never updates, and the readout alone
 /// would not catch a value that never left the process.
-fn report_subs(ui: &MainWindow, mpv: &Mpv, label: &str) {
+fn report_subs(ui: &MainWindow, mpv: &Reader, label: &str) {
     // Blocking reads, acceptable only off the frame path.
     //
     // The two positions agree only while nothing lifts the line and the
@@ -71,7 +72,7 @@ fn report_subs(ui: &MainWindow, mpv: &Mpv, label: &str) {
 /// The clamp is the part worth driving: it is in `commands` so the value
 /// saved is the one mpv was given, and a drift between the two would only
 /// show as a setting that comes back wrong next run.
-pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+pub(super) fn subs_test(ui: &MainWindow, mpv: Reader) -> Script {
     script::run(ui, move |ui| async move {
         let verdict = Verdict::new("subtitle");
         let subtitles = ui.global::<Subtitles>();
@@ -142,12 +143,12 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
 /// presses, and report what the menu holds at each step. With `DBM_FIND_FAKE` set the search answers from a fixed list
 /// and the download is a subtitle written on the spot, so no key or
 /// connection is needed.
-pub(super) fn find_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+pub(super) fn find_test(ui: &MainWindow, mpv: Reader) -> Script {
     use super::drive::chord;
     use slint::Model;
     use slint::platform::Key;
 
-    let report = move |ui: &MainWindow, mpv: &Mpv, label: &str| {
+    let report = move |ui: &MainWindow, mpv: &Reader, label: &str| {
         let subs: Vec<String> = ui
             .global::<Tracks>()
             .get_subtitles()
@@ -393,7 +394,7 @@ pub(super) fn sign_in_test(ui: &MainWindow) -> Script {
 /// with the subtitles menu open, and then touches nothing, reporting what the
 /// menu knows of it. A paused film draws no frames of its own, so the menu
 /// has only the wake-ups to learn from.
-pub(super) fn added_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+pub(super) fn added_test(ui: &MainWindow, mpv: Reader) -> Script {
     let file = std::env::var("DBM_ADDED_TEST").unwrap_or_default();
     script::run(ui, move |ui| async move {
         let mut beat = Beat::new(Duration::from_millis(250));
@@ -429,7 +430,7 @@ pub(super) fn added_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
 /// last track, down once to Timing under the tracks, Enter into its page and
 /// down once to the sync), the path the menu's Enter answers and a click
 /// never touches. Then Enter again takes the sync back.
-pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+pub(super) fn sync_test(ui: &MainWindow, mpv: Reader) -> Script {
     use super::drive::chord;
     use slint::SharedString;
     use slint::platform::Key;
@@ -439,7 +440,7 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         .ok()
         .and_then(|at| at.parse().ok())
         .unwrap_or(19.0);
-    let report = move |ui: &MainWindow, mpv: &Mpv, label: &str| {
+    let report = move |ui: &MainWindow, mpv: &Reader, label: &str| {
         eprintln!(
             "dbm: sync {label:<20} state={:?} delay={:+.2} speed={:.4} said={:?} line={:?}",
             ui.global::<Subtitles>().get_sync_state(),
@@ -458,7 +459,7 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
         // Let the film open first: there is no track to pick before.
         beat.rest(5).await;
         if let Ok(id) = track.parse::<i64>() {
-            let _ = mpv.set(prop::SID, TrackChoice::Id(id));
+            let _ = mpv.set(prop::SID, TrackChoice::Id(TrackId(id)));
         } else {
             let _ = mpv.run(
                 0,
@@ -555,7 +556,7 @@ fn report_motion(ui: &MainWindow, label: &str) {
 /// What matters is not the property afterwards, which only says the click
 /// landed, but what the probe reads from the framebuffer between steps, and
 /// what mpv says `keep-open` became.
-pub(super) fn toggle_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+pub(super) fn toggle_test(ui: &MainWindow, mpv: Reader) -> Script {
     script::run(ui, move |ui| async move {
         let mut beat = Beat::new(Duration::from_millis(1200));
         // A panel has to be on screen for there to be glass to sample.

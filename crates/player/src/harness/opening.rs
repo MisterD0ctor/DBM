@@ -1,9 +1,8 @@
 //! Opening things: a path, the file dialog, a drop, and the playlist scan.
 
-use std::sync::Arc;
 use std::time::Duration;
 
-use dbm_mpv::Mpv;
+use dbm_mpv::Reader;
 use slint::ComponentHandle;
 
 use super::playlist_rows;
@@ -82,7 +81,7 @@ pub(super) fn unplayable_test(ui: &MainWindow) -> Script {
 /// Move on to a file that won't play, minimised and touching nothing. A
 /// minimised window is asked for no frames, and with nothing loaded mpv draws
 /// none either, so this shows whether the player still hears mpv then.
-pub(super) fn idle_test(ui: &MainWindow, mpv: Arc<Mpv>) -> Script {
+pub(super) fn idle_test(ui: &MainWindow, mpv: Reader) -> Script {
     script::run(ui, move |ui| async move {
         let verdict = Verdict::new("idle");
         let playback = ui.global::<Playback>();

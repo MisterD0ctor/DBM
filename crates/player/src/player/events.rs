@@ -1,9 +1,8 @@
-//! Step 2 of a run: draining mpv's event queue.
-//!
-//! Only ever on the UI thread, which keeps `mpv_wait_event`, which isn't
-//! safe to call concurrently, on one thread.
+//! Step 2 of a run: draining mpv's event queue, through the player's own
+//! `Events`.
 
-use dbm_mpv::Event;
+use dbm_mpv::tracks::EntryId;
+use dbm_mpv::{EndReason, Event};
 use slint::ComponentHandle;
 
 use super::Player;
@@ -20,8 +19,7 @@ impl Player {
         let mut replies = Vec::new();
         let mut notices = Vec::new();
         let mut played_out = None;
-        // SAFETY: the one place the queue is read, and only on the UI thread.
-        while let Some(event) = unsafe { self.app.mpv.poll_event() } {
+        while let Some(event) = self.events.poll() {
             match &event {
                 // Not state: each belongs to whoever sent the command, so they
                 // are routed once the state is up to date.
@@ -40,22 +38,21 @@ impl Player {
                 // file it was is asked of the list, by the entry's id: the
                 // player's own `path` is the file before it, or nothing.
                 Event::EndFile {
-                    failure: Some(reason),
                     entry,
-                    ..
+                    reason: EndReason::Failed(failure),
                 } => {
-                    let path = self
-                        .state
-                        .playlist
-                        .iter()
-                        .find(|e| e.id == *entry)
+                    let path = entry
+                        .and_then(|entry| self.state.playlist.iter().find(|e| e.id == entry))
                         .map(|e| e.filename.clone());
-                    notices.push(unplayable::could_not_play(reason, path.as_ref()));
+                    notices.push(unplayable::could_not_play(*failure, path.as_ref()));
                     // So its row keeps saying so after the notice has gone.
-                    self.state.found.failed.insert(*entry, reason.clone());
+                    if let Some(entry) = entry {
+                        self.state.found.failed.insert(*entry, *failure);
+                    }
                 }
                 Event::EndFile {
-                    eof: true, entry, ..
+                    entry: Some(entry),
+                    reason: EndReason::Eof,
                 } => played_out = Some(*entry),
                 // Saving the resume position waits out a file opening.
                 Event::StartFile => session::opening(),
@@ -99,7 +96,7 @@ impl Player {
 
     /// Autoplay moving on from a file that played to its end: the next one
     /// starts over, with its saved place offered for a while.
-    fn played_out(&self, entry: i64) {
+    fn played_out(&self, entry: EntryId) {
         let playlist = &self.state.playlist;
         let next = playlist
             .iter()

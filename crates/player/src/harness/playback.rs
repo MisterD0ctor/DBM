@@ -3,7 +3,7 @@
 
 use std::time::Duration;
 
-use dbm_mpv::{Command, Mpv, prop};
+use dbm_mpv::{Command, Reader, prop};
 use slint::{ComponentHandle, Model};
 
 use super::drive::{arrow, chord, hover, wheel};
@@ -364,8 +364,8 @@ pub(super) fn preview_test(ui: &MainWindow) -> Script {
 /// and the first should get its own back. Both halves, since either can fail
 /// alone. The watch-later file is written by hand before leaving rather than
 /// waiting for the ten-second checkpoint.
-pub(super) fn timing_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
-    let report = |ui: &MainWindow, mpv: &Mpv, label: &str| {
+pub(super) fn timing_test(ui: &MainWindow, mpv: Reader) -> Script {
+    let report = |ui: &MainWindow, mpv: &Reader, label: &str| {
         eprintln!(
             "dbm: timing {label:<20} {:?} delay={:+.2} speed={:.4}",
             short(&mpv.get(prop::FILENAME).unwrap_or_default().into()),
@@ -566,7 +566,7 @@ fn report_end(ui: &MainWindow, label: &str) {
 /// are supplied: an ffmetadata file, which mpv takes through `chapters-file`,
 /// naming the last two minutes `End Credits`. mpv reads it when a file opens,
 /// so the file is opened again, the way the dialog would.
-pub(super) fn credits_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+pub(super) fn credits_test(ui: &MainWindow, mpv: Reader) -> Script {
     let own = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "own");
     let heard = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "heard");
     let scene = std::env::var("DBM_CREDITS_TEST").is_ok_and(|v| v == "scene");
@@ -753,7 +753,7 @@ pub(super) fn intro_test(ui: &MainWindow) -> Script {
 /// Give the files opened from now on `marks` for chapters, each running to
 /// the next and the last to `duration`: an ffmetadata file, which mpv reads
 /// through `chapters-file` as a file opens.
-fn give_chapters(mpv: &Mpv, marks: &[(f64, &str)], duration: f64) -> Result<(), String> {
+fn give_chapters(mpv: &Reader, marks: &[(f64, &str)], duration: f64) -> Result<(), String> {
     let mut text = String::from(";FFMETADATA1\n");
     for (at, &(start, title)) in marks.iter().enumerate() {
         let end = marks.get(at + 1).map_or(duration, |next| next.0);
@@ -786,7 +786,7 @@ fn turn_skips(ui: &MainWindow, on: bool) {
 /// 0:20 and credits over the last fifteen seconds, which fits the minute-long
 /// episodes `smoke-media.sh` makes. Needs an episode with a later one beside
 /// it.
-pub(super) fn skip_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+pub(super) fn skip_test(ui: &MainWindow, mpv: Reader) -> Script {
     script::run(ui, move |ui| async move {
         let verdict = Verdict::new("skip");
         let playback = ui.global::<Playback>();
@@ -947,7 +947,7 @@ fn report_credits(ui: &MainWindow, label: &str) {
 /// where mpv keeps a file's resume position agrees with mpv's. So this plays a
 /// while, asks mpv to write that file, and then looks for it by the name we
 /// would look for it under — and reports what the rows say before and after.
-pub(super) fn progress_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script {
+pub(super) fn progress_test(ui: &MainWindow, mpv: Reader) -> Script {
     script::run(ui, move |ui| async move {
         let mut beat = Beat::new(Duration::from_millis(1200));
         beat.next().await;
@@ -971,7 +971,7 @@ pub(super) fn progress_test(ui: &MainWindow, mpv: std::sync::Arc<Mpv>) -> Script
     })
 }
 
-fn report_progress(ui: &MainWindow, mpv: &Mpv, label: &str) {
+fn report_progress(ui: &MainWindow, mpv: &Reader, label: &str) {
     let rows: Vec<String> = playlist_rows(ui)
         .iter()
         .map(|e| {
@@ -996,7 +996,7 @@ fn report_progress(ui: &MainWindow, mpv: &Mpv, label: &str) {
 /// This is the whole question: mpv names it by the MD5 of the path it was
 /// given, and if our copy of that rule is wrong every row shows an empty bar
 /// and nothing anywhere reports an error.
-fn report_resume_file(mpv: &Mpv) {
+fn report_resume_file(mpv: &Reader) {
     let Some(path) = mpv.get(prop::PATH) else {
         eprintln!("dbm: progress: nothing playing");
         return;

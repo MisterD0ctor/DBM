@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use dbm_mpv::Mpv;
+use dbm_mpv::Reader;
 use dbm_mpv::prop::{self, TrackChoice};
 
 use super::drive::hover;
@@ -83,7 +83,7 @@ fn report_cursor(ui: &MainWindow, when: &str) {
 /// fine only in a harness.
 pub(super) fn audio_test(
     ui: &MainWindow,
-    mpv: std::sync::Arc<Mpv>,
+    mpv: Reader,
     audio: std::rc::Rc<crate::playback::audio::Watchdog>,
 ) -> Script {
     const BASELINE: &str = r#"[{"name":"auto","description":"Autoselect device"}]"#;
@@ -141,7 +141,7 @@ fn device_list(payload: &str) -> dbm_mpv::Event {
     }
 }
 
-fn report_audio(mpv: &Mpv, label: &str) {
+fn report_audio(mpv: &Reader, label: &str) {
     eprintln!(
         "dbm: audio {label:<16} aid={} device={} tracks={}",
         super::shown(mpv.get(prop::AID)),

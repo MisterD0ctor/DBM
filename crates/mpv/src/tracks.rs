@@ -10,11 +10,32 @@
 //! observed, and a change there is what triggers a re-read. The device list
 //! is the exception, since only observing it keeps it current.
 
+use std::fmt;
+
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Deserializer};
 
 use crate::MediaPath;
 use crate::value::{Format, FromMpv, Value};
+
+/// mpv's id for a track, which `vid`, `aid` and `sid` select it by. Tracks of
+/// different kinds can share one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(transparent)]
+pub struct TrackId(pub i64);
+
+/// As mpv's commands take it.
+impl fmt::Display for TrackId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+/// mpv's id for a playlist entry, which stays with it however the list is
+/// reordered, and is what an ended file is named by.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize)]
+#[serde(transparent)]
+pub struct EntryId(pub i64);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -30,7 +51,7 @@ pub enum TrackKind {
 /// leaves out reads as `None` or `false`.
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct Track {
-    pub id: i64,
+    pub id: TrackId,
     #[serde(rename = "type")]
     pub kind: TrackKind,
     #[serde(default, deserialize_with = "non_empty")]
@@ -39,11 +60,10 @@ pub struct Track {
     pub lang: Option<String>,
     #[serde(default)]
     pub selected: bool,
-    #[serde(default)]
-    pub external: bool,
-    /// The file an external track was loaded from.
-    #[serde(rename = "external-filename", default)]
-    pub external_filename: Option<String>,
+    /// The file it was loaded from, where that is one of its own rather than
+    /// the film's.
+    #[serde(rename = "external-filename", default, deserialize_with = "non_empty")]
+    pub file: Option<String>,
     /// What it is encoded as, in mpv's words: `aac`, `ass`, `subrip`.
     #[serde(default, deserialize_with = "non_empty")]
     pub codec: Option<String>,
@@ -67,17 +87,21 @@ pub struct Chapter {
 pub struct PlaylistEntry {
     /// Where it is in the list, which mpv says by the order alone.
     #[serde(skip)]
-    pub index: i64,
-    /// mpv's own id for the entry, which stays with it however the list is
-    /// reordered, and is what an ended file is named by.
-    #[serde(default)]
-    pub id: i64,
+    pub index: usize,
+    pub id: EntryId,
     pub filename: MediaPath,
     #[serde(default, deserialize_with = "non_empty")]
     pub title: Option<String>,
     /// Left out by mpv but for the one entry that is.
     #[serde(default)]
     pub current: bool,
+}
+
+impl Track {
+    /// Loaded from a file of its own, rather than carried in the film.
+    pub fn external(&self) -> bool {
+        self.file.is_some()
+    }
 }
 
 /// One entry, as `current-tracks/sub` and its kin report the selected one.
@@ -106,7 +130,7 @@ impl FromMpv for Vec<PlaylistEntry> {
     const FORMAT: Format = Format::String;
     fn from_mpv(value: Value) -> Option<Self> {
         let mut entries: Self = from_json(value)?;
-        for (index, entry) in (0..).zip(&mut entries) {
+        for (index, entry) in entries.iter_mut().enumerate() {
             entry.index = index;
         }
         Some(entries)
@@ -204,7 +228,7 @@ mod tests {
              "external":false,"selected":true,"codec":"ac3","demux-channel-count":2,
              "ff-index":1},
             {"id":3,"type":"sub","title":"","external":true,"selected":false,
-             "codec":"subrip"},
+             "codec":"subrip","external-filename":"/a.srt"},
             {"id":4,"type":"attachment"}
         ]"#;
         let tracks: Vec<Track> = serde_json::from_str(printed).unwrap();
@@ -214,7 +238,9 @@ mod tests {
         assert_eq!(tracks[1].title.as_deref(), Some("English: Stereo"));
         assert_eq!(tracks[1].channels, Some(2));
         assert_eq!(tracks[1].ff_index, Some(1));
-        assert!(tracks[2].external && !tracks[2].selected);
+        assert!(!tracks[1].external(), "carried in the film");
+        assert_eq!(tracks[2].file.as_deref(), Some("/a.srt"));
+        assert!(tracks[2].external() && !tracks[2].selected);
         assert_eq!(tracks[2].title, None, "an empty title is no title");
         assert_eq!(tracks[2].lang, None);
         assert_eq!(tracks[3].kind, TrackKind::Other);
@@ -229,7 +255,7 @@ mod tests {
         let entries: Vec<PlaylistEntry> = serde_json::from_str(printed).unwrap();
         assert!(entries[0].current && !entries[1].current);
         assert_eq!(entries[1].title.as_deref(), Some("B"));
-        assert_eq!(entries[1].id, 2);
+        assert_eq!(entries[1].id, EntryId(2));
     }
 
     #[test]
@@ -251,7 +277,7 @@ mod tests {
     fn playlist_entries_are_numbered_in_list_order() {
         let printed = r#"[{"filename":"/a.mkv","id":5},{"filename":"/b.mkv","id":9}]"#;
         let entries = Vec::<PlaylistEntry>::from_mpv(Value::Str(printed.into())).unwrap();
-        let indices: Vec<i64> = entries.iter().map(|e| e.index).collect();
+        let indices: Vec<usize> = entries.iter().map(|e| e.index).collect();
         assert_eq!(indices, [0, 1]);
     }
 }

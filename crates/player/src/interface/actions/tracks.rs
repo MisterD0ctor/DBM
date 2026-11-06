@@ -1,3 +1,4 @@
+use dbm_mpv::tracks::TrackId;
 use slint::ComponentHandle;
 
 use crate::app::App;
@@ -14,15 +15,14 @@ pub(super) fn wire_tracks(ui: &MainWindow, app: &App) {
     on_app!(ui.global::<Subtitles>(), app, on_toggle, |app| {
         app.worker.run(commands::toggle_subtitles);
     });
-    // -1 is the menu's "Off" row rather than a real track id.
     on!(tracks, app, on_select_subtitle, |m, id| {
-        commands::set_subtitle_track(m, (id >= 0).then_some(i64::from(id)));
+        commands::set_subtitle_track(m, chosen(id));
     });
     // The one selection the watchdog has to hear about: choosing "Off" is
     // the only silence it must not undo when a device reappears.
     on_app!(tracks, app, on_select_audio, |app, id| {
         app.activity.bump();
-        let id = (id >= 0).then_some(i64::from(id));
+        let id = chosen(id);
         app.audio.note_user_selection(id);
         commands::set_audio_track(&app.mpv, id);
     });
@@ -34,7 +34,7 @@ pub(super) fn wire_tracks(ui: &MainWindow, app: &App) {
     on_app!(tracks, app, on_remove, |app, id, subtitle| {
         app.activity.bump();
         app.worker.run(move |mpv| {
-            let Some(file) = commands::remove_track(mpv, i64::from(id), subtitle) else {
+            let Some(file) = commands::remove_track(mpv, TrackId(i64::from(id)), subtitle) else {
                 return;
             };
             if let Some(path) = mpv.get(dbm_mpv::prop::PATH) {
@@ -43,6 +43,11 @@ pub(super) fn wire_tracks(ui: &MainWindow, app: &App) {
         });
     });
     wire_finding(ui, app);
+}
+
+/// The track a menu row names by its id, or `None` for -1, the "Off" row.
+fn chosen(id: i32) -> Option<TrackId> {
+    (id >= 0).then_some(TrackId(i64::from(id)))
 }
 
 /// Subtitles from OpenSubtitles: the search the menu's last subtitle row

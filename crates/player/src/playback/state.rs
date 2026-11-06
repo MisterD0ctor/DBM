@@ -11,8 +11,8 @@
 
 use dbm_lang::{fill, tr};
 use dbm_mpv::prop::{self, TrackChoice};
-use dbm_mpv::tracks::{PlaylistEntry, Track};
-use dbm_mpv::{AnyProperty, Event, MediaPath, Mpv, Property, Value};
+use dbm_mpv::tracks::{EntryId, PlaylistEntry, Track};
+use dbm_mpv::{AnyProperty, ErrorCode, Event, MediaPath, Mpv, Property, Value};
 
 /// Declares [`Prop`] from one list, so each property's id, its place in
 /// [`Prop::ALL`] and the mpv property it mirrors can't drift apart.
@@ -227,7 +227,7 @@ pub struct Found {
     /// so their rows can say it again after the notice has gone (see
     /// `unplayable`). By id rather than path, since a file that fails at once
     /// has no path reported yet.
-    pub failed: std::collections::HashMap<i64, String>,
+    pub failed: std::collections::HashMap<EntryId, ErrorCode>,
     /// Where an episode's title sequence was heard to be, in seconds, and the
     /// file that is true of (see `titles`). Kept with its path, so a new file
     /// needs nothing cleared.

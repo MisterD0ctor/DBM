@@ -4,6 +4,7 @@ use std::borrow::Cow;
 use std::path::Path;
 
 use crate::prop::{Property, TrackChoice};
+use crate::tracks::TrackId;
 
 #[derive(Clone, Copy, Debug)]
 pub enum Command<'a> {
@@ -26,7 +27,7 @@ pub enum Command<'a> {
     /// Replace the playlist with an m3u's entries.
     LoadList(&'a Path),
     /// Play an entry of the playlist, by its index from 0.
-    PlaylistPlayIndex(i64),
+    PlaylistPlayIndex(usize),
     PlaylistNext,
     PlaylistPrev,
     /// Load a subtitle file. Selected when `select` is set; otherwise added
@@ -38,8 +39,8 @@ pub enum Command<'a> {
         lang: Option<&'a str>,
     },
     /// Take out a track loaded from a file of its own, by its id.
-    SubRemove(i64),
-    AudioRemove(i64),
+    SubRemove(TrackId),
+    AudioRemove(TrackId),
     /// Save where the playing file is, for mpv to resume it from.
     WriteWatchLaterConfig,
     /// Run a GLSL shader on the picture, after those already running.

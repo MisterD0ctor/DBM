@@ -22,7 +22,7 @@ pub struct Item<'a> {
     pub path: MediaPath,
     /// The container's own title, where one is known.
     pub title: Option<&'a str>,
-    pub index: i64,
+    pub index: usize,
     pub current: bool,
     pub progress: Progress,
     /// Why it failed to play during this run, or empty.
@@ -43,7 +43,7 @@ pub struct Entry {
     pub label: String,
     pub path: MediaPath,
     /// Its place in mpv's playlist, or `None` for a file in a season beside it.
-    pub index: Option<i64>,
+    pub index: Option<usize>,
     pub current: bool,
     pub progress: Progress,
     /// Why it failed to play during this run, or empty.
@@ -308,7 +308,7 @@ pub fn look_beside(paths: &[MediaPath]) -> Vec<Beside> {
 mod tests {
     use super::*;
 
-    fn item(path: &str, index: i64) -> Item<'static> {
+    fn item(path: &str, index: usize) -> Item<'static> {
         Item {
             path: path.into(),
             title: None,

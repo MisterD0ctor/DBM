@@ -4,11 +4,10 @@
 //! outward. Anything travelling the other way is an action, and lives in
 //! `actions`/`commands`.
 //!
-//! Everything here is called from the frame path, so the rule that matters
-//! is: **never make a blocking property read on this path.**
-//! `Mpv::get` waits on mpv's core lock, and during a resize that lock is
-//! contended enough to cost hundreds of milliseconds a frame.
-//! Scalars are observed and arrive on the event queue; the list-shaped
+//! Everything here is called from the frame path, which is why nothing here
+//! holds a `Reader`: a property read waits on mpv's core lock, and during a
+//! resize that lock is contended enough to cost hundreds of milliseconds a
+//! frame. Scalars are observed and arrive on the event queue; the list-shaped
 //! properties are read on the worker, and only when a count or selection
 //! actually moves.
 
@@ -222,7 +221,7 @@ fn selected_row(player: &PlayerState, kind: TrackKind) -> i32 {
 fn track_names(player: &PlayerState, kind: TrackKind, external: bool) -> SharedString {
     labels::tracks(&player.tracks, kind)
         .into_iter()
-        .filter(|(t, _)| t.external == external)
+        .filter(|(t, _)| t.external() == external)
         .map(|(_, label)| label)
         .collect::<Vec<_>>()
         .join("\n")
@@ -234,10 +233,10 @@ fn track_model(player: &PlayerState, kind: TrackKind) -> ModelRc<TrackItem> {
         labels::tracks(&player.tracks, kind)
             .into_iter()
             .map(|(t, label)| TrackItem {
-                id: t.id as i32,
+                id: t.id.0 as i32,
                 label: label.into(),
                 selected: t.selected,
-                external: t.external,
+                external: t.external(),
             })
             .collect::<Vec<_>>(),
     ))

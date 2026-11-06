@@ -44,11 +44,14 @@ pub(super) fn wire_subtitles(ui: &MainWindow, app: &App, undo: &Undo) {
             app.subline.set(&app.mpv, commands::SUB_POS_DEFAULT);
         });
     }
-    // Listening takes seconds and runs on a thread of its own; the answer
-    // comes back as a completion, which is where the timing is applied.
+    // Listening takes seconds and runs on a thread of its own, started by the
+    // worker, whose reads of mpv it begins with; the answer comes back as a
+    // completion, which is where the timing is applied.
     on_app!(subtitles, app, on_sync, |app| {
         app.activity.bump();
-        dbm_library::subsync::spawn(app.mpv.clone(), app.worker.reporter(Completion::Synced));
+        let reporter = app.worker.reporter(Completion::Synced);
+        app.worker
+            .run(move |mpv| dbm_library::subsync::spawn(mpv.clone(), reporter));
     });
     on_app!(subtitles, app, on_set_timing, |app, delay, speed| {
         app.activity.bump();

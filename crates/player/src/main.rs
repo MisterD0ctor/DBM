@@ -65,7 +65,6 @@ mod settings;
 mod worker;
 
 use std::rc::Rc;
-use std::sync::Arc;
 
 use slint::ComponentHandle;
 
@@ -95,17 +94,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // SAFETY: each place `libmpv_path` looks holds a libmpv, or the one the
     // person named in `DBM_LIBMPV`.
-    let mpv = unsafe {
+    let (mpv, events, reader) = unsafe {
         dbm_mpv::Mpv::new(
             &playback::session::libmpv_path(),
             playback::session::configure,
         )
-    };
-    let mpv = Arc::new(mpv?);
+    }?;
     playback::session::mask_subtitles(&mpv);
     playback::state::observe(&mpv);
 
-    let worker = Rc::new(worker::Worker::spawn(mpv.clone()));
+    // Only the worker and the harness may wait on mpv; everything else is
+    // handed `mpv` alone.
+    #[cfg(feature = "harness")]
+    let harness_reader = reader.clone();
+    let worker = Rc::new(worker::Worker::spawn(reader));
     dbm_library::real_paths::move_once();
     let settings = Rc::new(settings::Store::default());
     let app = App::new(Shared {
@@ -142,13 +144,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let player = player::Player::new(
         ui.as_weak(),
         app.clone(),
+        events,
         // On Windows this registers itself from the player's runs: the window
         // handle it needs does not exist yet and will not until the loop has
         // turned. On Linux there is no handle in it, so the bus name is
         // claimed here and now — see `mpris`.
         platform::media_keys::Controls::new(mpv.clone()),
     );
-    let mut driver = driver::Driver::new(ui.as_weak(), app.clone(), file, player);
+    let mut driver = driver::Driver::new(ui.as_weak(), app.clone(), file, player.clone());
     ui.window()
         .set_rendering_notifier(move |state, api| driver.on(state, api))?;
 
@@ -158,14 +161,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     ui.show()?;
     #[cfg(feature = "harness")]
-    let harnesses = harness::install(&ui, &app);
+    let harnesses = harness::install(&ui, &app, harness_reader);
 
     ui.run()?;
 
     // First, so the place is on disk before anything slow.
-    // SAFETY: the event loop has returned, and with it every run of the
-    // player, the one other reader of mpv's events.
-    unsafe { playback::session::save_before_quitting(&mpv) };
+    player.borrow_mut().save_before_quitting();
     saver.flush();
 
     // The window is gone by now, so a slow answer holds up nothing anyone

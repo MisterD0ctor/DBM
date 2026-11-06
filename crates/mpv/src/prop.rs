@@ -9,7 +9,7 @@ use std::marker::PhantomData;
 use std::path::PathBuf;
 
 use crate::MediaPath;
-use crate::tracks::{AudioDevice, Chapter, PlaylistEntry, Track};
+use crate::tracks::{AudioDevice, Chapter, PlaylistEntry, Track, TrackId};
 use crate::value::{Format, FromMpv, ToMpv, Value};
 
 /// One of mpv's properties: its name, the type of its value, and whether a
@@ -100,11 +100,11 @@ pub enum TrackChoice {
     Off,
     /// Whichever mpv picks by language and default flags.
     Auto,
-    Id(i64),
+    Id(TrackId),
 }
 
 impl TrackChoice {
-    pub fn id(self) -> Option<i64> {
+    pub fn id(self) -> Option<TrackId> {
         match self {
             Self::Id(id) => Some(id),
             Self::Off | Self::Auto => None,
@@ -118,7 +118,7 @@ impl FromMpv for TrackChoice {
         match String::from_mpv(value)?.as_str() {
             "no" => Some(Self::Off),
             "auto" => Some(Self::Auto),
-            id => id.parse().ok().map(Self::Id),
+            id => id.parse().ok().map(|id| Self::Id(TrackId(id))),
         }
     }
 }
@@ -377,7 +377,7 @@ mod tests {
         for (said, choice) in [
             ("no", TrackChoice::Off),
             ("auto", TrackChoice::Auto),
-            ("3", TrackChoice::Id(3)),
+            ("3", TrackChoice::Id(TrackId(3))),
         ] {
             assert_eq!(TrackChoice::from_mpv(Value::Str(said.into())), Some(choice));
             assert_eq!(choice.to_mpv(), Value::Str(said.into()));

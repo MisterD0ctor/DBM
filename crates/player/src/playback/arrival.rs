@@ -201,7 +201,7 @@ impl Arrival {
             .get(index)
             .filter(|_| !crate::run_mode::armed())
             .and_then(|(path, progress)| Some((path.clone(), autoplayed(progress)?)));
-        Self::ask_for(&mut state, mpv, index as i64, then, Some(true));
+        Self::ask_for(&mut state, mpv, index, then, Some(true));
     }
 
     /// The place autoplay passed over in the file playing, while it is still
@@ -242,13 +242,10 @@ impl Arrival {
     /// Play entry `index` of the playlist, asked for on purpose. `play` is
     /// whether it should play once there; `None` keeps the pause as it is,
     /// as choosing a row or stepping with the bar does.
-    pub fn play_index(&self, mpv: &Mpv, index: i64, play: Option<bool>) {
+    pub fn play_index(&self, mpv: &Mpv, index: usize, play: Option<bool>) {
         let mut state = self.state.borrow_mut();
         let playing = play.unwrap_or(!state.paused);
-        let row = usize::try_from(index)
-            .ok()
-            .and_then(|i| state.rows.get(i))
-            .filter(|_| !crate::run_mode::armed());
+        let row = state.rows.get(index).filter(|_| !crate::run_mode::armed());
         let then = row.and_then(|(path, progress)| {
             let then = match Saved::of(progress) {
                 Saved::Nothing => return None,
@@ -267,7 +264,7 @@ impl Arrival {
     fn ask_for(
         state: &mut State,
         mpv: &Mpv,
-        index: i64,
+        index: usize,
         then: Option<(MediaPath, Then)>,
         play: Option<bool>,
     ) {
@@ -300,9 +297,9 @@ impl Arrival {
             let state = self.state.borrow();
             // Nothing playing is just before the first.
             let from = state.pos.map_or(-1, |pos| pos as i64);
-            (from + i64::from(delta), state.rows.len() as i64)
+            (from + i64::from(delta), state.rows.len())
         };
-        if (0..known).contains(&target) {
+        if let Some(target) = usize::try_from(target).ok().filter(|&row| row < known) {
             self.play_index(mpv, target, play);
         } else if known == 0 {
             if play == Some(true) {

@@ -24,7 +24,7 @@ use crate::{MainWindow, Playback, Playlist, PlaylistGroup, PlaylistItem};
 struct Row {
     path: MediaPath,
     title: Option<String>,
-    index: i64,
+    index: usize,
     current: bool,
     progress: Progress,
     why: String,
@@ -63,7 +63,7 @@ impl Panel {
                     .found
                     .failed
                     .get(&e.id)
-                    .map(|reason| unplayable::could_not_play(reason, Some(&e.filename)))
+                    .map(|&failure| unplayable::could_not_play(failure, Some(&e.filename)))
                     .unwrap_or_default(),
             })
             .collect();
@@ -340,7 +340,7 @@ fn entry_item(entry: &Entry) -> PlaylistItem {
 mod tests {
     use super::*;
 
-    fn item(path: &str, index: i64, current: bool) -> shelf::Item<'static> {
+    fn item(path: &str, index: usize, current: bool) -> shelf::Item<'static> {
         shelf::Item {
             path: path.into(),
             title: None,

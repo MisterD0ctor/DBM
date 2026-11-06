@@ -5,7 +5,8 @@
 //! as much per drag update, and scanning a folder far more.
 //!
 //! So: one background thread, a queue of jobs in, a queue of completions out.
-//! Jobs get a `&Mpv` and may block as long as they like. Each completion
+//! Jobs get a `&Reader`, the handle to mpv whose reads wait on its core,
+//! which the UI thread is never given, and may block as long as they like. Each completion
 //! wakes the player, which takes it in on the UI thread whether or not a
 //! frame is coming (see `player::wake`).
 //!
@@ -13,12 +14,11 @@
 //! background work is visible in one place, and adding one is a compile
 //! error until it is handled.
 
-use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, Sender, TryIter};
 use std::thread::JoinHandle;
 
 use dbm_library::threads::Reporter;
-use dbm_mpv::{MediaPath, Mpv};
+use dbm_mpv::{MediaPath, Reader};
 
 /// Work that finished. Add a variant per kind of background job.
 pub enum Completion {
@@ -100,7 +100,7 @@ pub enum Completion {
     },
 }
 
-type Job = Box<dyn FnOnce(&Mpv) -> Option<Completion> + Send + 'static>;
+type Job = Box<dyn FnOnce(&Reader) -> Option<Completion> + Send + 'static>;
 
 pub struct Worker {
     jobs: Option<Sender<Job>>,
@@ -112,7 +112,7 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn spawn(mpv: Arc<Mpv>) -> Self {
+    pub fn spawn(mpv: Reader) -> Self {
         let (jobs_tx, jobs_rx) = mpsc::channel::<Job>();
         let (results_tx, results_rx) = mpsc::channel::<Completion>();
         let reply = results_tx.clone();
@@ -144,7 +144,7 @@ impl Worker {
 
     /// Queue work with no result to report, such as a blocking read followed
     /// by commands.
-    pub fn run(&self, job: impl FnOnce(&Mpv) + Send + 'static) -> bool {
+    pub fn run(&self, job: impl FnOnce(&Reader) + Send + 'static) -> bool {
         self.submit(move |mpv| {
             job(mpv);
             None
@@ -153,7 +153,7 @@ impl Worker {
 
     /// Queue work. Returns whether it was accepted; `false` means the worker
     /// is shutting down.
-    pub fn submit(&self, job: impl FnOnce(&Mpv) -> Option<Completion> + Send + 'static) -> bool {
+    pub fn submit(&self, job: impl FnOnce(&Reader) -> Option<Completion> + Send + 'static) -> bool {
         self.jobs
             .as_ref()
             .is_some_and(|tx| tx.send(Box::new(job)).is_ok())

@@ -24,11 +24,10 @@
 //! for again.
 
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use dbm_mpv::prop::{self, TrackChoice};
-use dbm_mpv::tracks;
-use dbm_mpv::{MediaPath, Mpv};
+use dbm_mpv::tracks::{self, Track};
+use dbm_mpv::{MediaPath, Reader};
 
 use crate::ffmpeg;
 use crate::threads::Reporter;
@@ -92,7 +91,7 @@ pub fn supersede() {
 /// Returns immediately. A run that is superseded reports nothing; every
 /// other one reports, because the interface is showing that it is listening
 /// and has to be told when to stop.
-pub fn spawn(mpv: Arc<Mpv>, reporter: Reporter<Outcome>) {
+pub fn spawn(mpv: Reader, reporter: Reporter<Outcome>) {
     let ticket = RUNS.next();
     crate::threads::spawn("dbm-subsync", move || {
         // Read here rather than handed over, since these block on mpv's core
@@ -138,7 +137,7 @@ struct Asked {
     subtitles: Source,
 }
 
-fn ask(mpv: &Mpv, path: &MediaPath) -> Result<Asked, Failure> {
+fn ask(mpv: &Reader, path: &MediaPath) -> Result<Asked, Failure> {
     let sub = mpv.get(prop::CURRENT_SUB).ok_or(Failure::NoSubtitles)?;
     if sub.codec.as_deref().is_some_and(tracks::is_pictures) {
         return Err(Failure::Pictures);
@@ -146,19 +145,15 @@ fn ask(mpv: &Mpv, path: &MediaPath) -> Result<Asked, Failure> {
     // A track from outside the film has to say which file it is: its index
     // is an index into that file, and would name some other stream of the
     // film's.
-    let subtitles = if sub.external {
-        sub.external_filename
-            .filter(|file| !file.is_empty())
-            .map(|file| Source::File(PathBuf::from(file)))
-            .ok_or(Failure::Unread)?
-    } else {
-        Source::Stream(sub.ff_index.ok_or(Failure::Unread)?)
+    let subtitles = match sub.file {
+        Some(file) => Source::File(PathBuf::from(file)),
+        None => Source::Stream(sub.ff_index.ok_or(Failure::Unread)?),
     };
     // An audio track from a file of its own is not in the film's, so its
     // index means nothing there; the film's first is the next best thing,
     // and is the same performance in another mix or language.
     let audio = mpv.get(prop::CURRENT_AUDIO);
-    let own_audio = !audio.as_ref().is_some_and(|track| track.external);
+    let own_audio = !audio.as_ref().is_some_and(Track::external);
     let channels = audio.as_ref().and_then(|track| track.channels).unwrap_or(0);
     Ok(Asked {
         video: path.as_path().to_path_buf(),
