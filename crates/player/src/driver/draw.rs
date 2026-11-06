@@ -121,7 +121,11 @@ fn publish(
     };
     let (uw, uh) = target.size();
     let (aw, ah) = target.alloc();
-    let key = (id, uw, uh, aw, ah);
+    let key = Published {
+        id,
+        used: (uw, uh),
+        alloc: (aw, ah),
+    };
     if *slot == Some(key) {
         return;
     }

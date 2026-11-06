@@ -88,6 +88,15 @@ pub struct Split {
     pub blur: std::time::Duration,
 }
 
+/// What allocating the frame's targets came to.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Sizes {
+    /// Every target the pass needs exists.
+    ok: bool,
+    /// A target was reallocated, so its contents must be drawn again.
+    resized: bool,
+}
+
 /// What one frame is drawn from.
 #[derive(Clone, Copy)]
 pub struct Frame<'a> {
@@ -294,10 +303,9 @@ impl Pipeline {
 
     /// Allocate every target for a window of `w` x `h` physical pixels.
     ///
-    /// Returns `(allocated_ok, resized)`. A resize discards every target's
-    /// contents, so the caller has to re-run the chain even without a new
-    /// frame from mpv.
-    fn ensure_sizes(&mut self, gl: &glow::Context, w: u32, h: u32) -> (bool, bool) {
+    /// A resize discards every target's contents, so the caller has to
+    /// re-run the chain even without a new frame from mpv.
+    fn ensure_sizes(&mut self, gl: &glow::Context, w: u32, h: u32) -> Sizes {
         let resized = self.composite.size() != (w, h);
         // Every target here is the window's own size; the blur's levels size
         // themselves.
@@ -310,7 +318,7 @@ impl Pipeline {
         ]
         .into_iter()
         .all(|target| target.ensure_size(gl, w, h));
-        (ok, resized)
+        Sizes { ok, resized }
     }
 
     /// Pull the film's current frame and run the whole chain.
@@ -335,10 +343,11 @@ impl Pipeline {
             panels,
             shaded,
         } = *frame;
-        let (ok, resized) = self.ensure_sizes(gl, w, h);
-        if !ok {
+        let sizes = self.ensure_sizes(gl, w, h);
+        if !sizes.ok {
             return Ok(false);
         }
+        let resized = sizes.resized;
         let saved_fbo = saved_draw_fbo(gl);
 
         // `DBM_GPU_TIME=1` inserts a glFinish between passes so the numbers

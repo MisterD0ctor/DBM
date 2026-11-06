@@ -36,9 +36,14 @@ use dbm_gpu::pipeline::{GlassPanel, Pipeline};
 use dbm_gpu::rect::Region;
 use dbm_lang::{fill, marked, tr};
 
-/// Identity of what a Slint image property points at: texture id, active
-/// image size, allocated texture size.
-type Published = (NonZeroU32, u32, u32, u32, u32);
+/// Identity of what a Slint image property points at.
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct Published {
+    id: NonZeroU32,
+    /// The active image, and the texture allotted for it.
+    used: (u32, u32),
+    alloc: (u32, u32),
+}
 
 /// Everything that only exists once the GL context does.
 struct Gpu {
