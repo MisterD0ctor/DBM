@@ -408,10 +408,10 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
             // the next file's watch-later entry first. Prints what happens.
             if surface.starts_with("arrival") {
                 if tick == 6 && surface != "arrival" && surface != "arrival-enter" {
-                    ui.global::<Playlist>().invoke_step(1);
+                    ui.global::<Playlist>().invoke_step(crate::Way::Forward);
                 }
                 if tick == 12 && surface == "arrival-answer" {
-                    playback.invoke_arrival_answer(true);
+                    playback.invoke_arrival_answer(crate::ArrivalAnswer::Beginning);
                 }
                 // Enter, as a hand would press it, on the ring the question
                 // took as the file opened.

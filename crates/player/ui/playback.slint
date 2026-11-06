@@ -4,6 +4,8 @@
 // navigation stay with the window, which mirrors the few of these it acts on
 // when they change.
 
+import { ArrivalAnswer, Way } from "models.slint";
+
 export global Playback {
     in property <string> title;
     /// The title without its show, or nothing for what has none; see
@@ -97,11 +99,11 @@ export global Playback {
     callback preview-at(float);
     callback nudge-volume(float);
     callback set-volume(float);
-    /// One rung of the speed ladder from the speed shown, -1 or +1.
-    callback step-speed(float, int);
+    /// One rung of the speed ladder from the speed shown, up or down.
+    callback step-speed(float, Way);
     callback reset-speed();
-    callback frame-step(int);
-    callback chapter-step(int);
+    callback frame-step(Way);
+    callback chapter-step(Way);
     in property <float> seek-step: 10;
     in property <float> volume-step: 2;
     in property <float> scroll-seek-step: 1;
@@ -139,8 +141,8 @@ export global Playback {
     in property <bool> arriving;
     /// Where it was left, as the timeline writes a time.
     in property <string> arrival-from;
-    /// The answer: true for from the beginning.
-    callback arrival-answer(bool);
+    /// The answer: on from the saved place, or from the beginning.
+    callback arrival-answer(ArrivalAnswer);
     /// Where a file that autoplay started from the beginning had been left,
     /// for its first ten seconds, as the timeline writes a time; empty
     /// otherwise. The corner pill offers to go on from there.

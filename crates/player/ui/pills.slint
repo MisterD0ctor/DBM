@@ -4,7 +4,7 @@
 
 import { Playback } from "playback.slint";
 import { Playlist } from "playlist.slint";
-import { GlassRect } from "models.slint";
+import { ArrivalAnswer, GlassRect } from "models.slint";
 import { EndChoice } from "controls.slint";
 import { Measure } from "measure.slint";
 import { Bounds, Surfaces } from "surface.slint";
@@ -211,7 +211,7 @@ export component EndPill inherits Rectangle {
             return;
         }
         if (Playback.arriving) {
-            Playback.arrival-answer(choice == 1);
+            Playback.arrival-answer(choice == 1 ? ArrivalAnswer.beginning : ArrivalAnswer.saved);
         } else if (!Playback.at-last) {
             Playback.play-next();
         } else if (choice == 0) {

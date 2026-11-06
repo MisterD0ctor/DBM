@@ -6,7 +6,7 @@ use super::way;
 use crate::app::App;
 use crate::playback::arrival::Start;
 use crate::playback::commands;
-use crate::{MainWindow, Playback, Playlist};
+use crate::{ArrivalAnswer, MainWindow, Playback, Playlist};
 
 /// The bar's own controls and what lies just beyond them: pause, mute,
 /// panscan, the end of a file, the playlist, speed, frames and chapters.
@@ -57,8 +57,9 @@ pub(super) fn wire_transport(ui: &MainWindow, app: &App) {
         app.retrace.take(&app.mpv);
     });
     // The centre pill's answer, for a file held on its saved place.
-    on_app!(playback, app, on_arrival_answer, |app, from_the_start| {
-        app.arrival.answer(&app.mpv, from_the_start);
+    on_app!(playback, app, on_arrival_answer, |app, answer| {
+        app.arrival
+            .answer(&app.mpv, answer == ArrivalAnswer::Beginning);
     });
 
     // Speed steps from the value the interface is showing, so the ladder is

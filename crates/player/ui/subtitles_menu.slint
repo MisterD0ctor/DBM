@@ -10,7 +10,7 @@ import { Find, FindState } from "find.slint";
 import { Removal, Tracks } from "tracks.slint";
 import { Subtitles, SyncState } from "subtitles.slint";
 import { Reset, Resets, Settings } from "settings.slint";
-import { ScrollFade } from "models.slint";
+import { Pick, ScrollFade } from "models.slint";
 import { AccountPage } from "account.slint";
 import {
     BackRow, DrillRow, EmptyRow, FoundRow, MenuHeading, MenuRow, NoteRow, StepperRow,
@@ -221,7 +221,7 @@ export component SubtitlesMenu inherits GlassPanel {
         if (root.ring-row >= 1 && root.ring-row <= Tracks.subtitles.length
                 && root.has-subs) {
             if (Tracks.subtitles[root.ring-row - 1].external) {
-                Removal.press(Tracks.subtitles[root.ring-row - 1].id, true);
+                Removal.press(Tracks.subtitles[root.ring-row - 1].id, Pick.subtitles);
                 return true;
             }
         }
@@ -611,7 +611,7 @@ export component SubtitlesMenu inherits GlassPanel {
                     active: track.selected && Subtitles.visible;
                     focused: root.on-tracks && root.ring-row == idx + 1;
                     removable: track.external;
-                    armed: Removal.is-armed(track.id, true);
+                    armed: Removal.is-armed(track.id, Pick.subtitles);
                     armed-for: Motion.armed-for;
                     held(on) => {
                         Removal.held = on;
@@ -620,7 +620,7 @@ export component SubtitlesMenu inherits GlassPanel {
                         Tracks.select-subtitle(track.id);
                     }
                     removed => {
-                        Removal.press(track.id, true);
+                        Removal.press(track.id, Pick.subtitles);
                     }
                 }
             }

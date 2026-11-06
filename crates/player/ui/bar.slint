@@ -2,7 +2,7 @@
 // buttons in three groups of what belongs together.
 
 import { Chrome, Tip } from "globals.slint";
-import { GlassRect, ScrollFade } from "models.slint";
+import { GlassRect, ScrollFade, Way } from "models.slint";
 import { Playback } from "playback.slint";
 import { Playlist } from "playlist.slint";
 import { Settings } from "settings.slint";
@@ -774,7 +774,7 @@ export component ControlBar inherits Rectangle {
                 enabled: !Playback.at-first;
                 focused: root.reach && root.ring-at == 3;
                 clicked => {
-                    Playlist.step(-1);
+                    Playlist.step(Way.back);
                 }
             }
             play-button := IconButton {
@@ -805,7 +805,7 @@ export component ControlBar inherits Rectangle {
                 enabled: !Playback.at-last;
                 focused: root.reach && root.ring-at == 5;
                 clicked => {
-                    Playlist.step(1);
+                    Playlist.step(Way.forward);
                 }
             }
             forward-button := IconButton {

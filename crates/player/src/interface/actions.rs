@@ -15,7 +15,7 @@ use slint::ComponentHandle;
 
 use crate::app::App;
 use crate::interface::squircle;
-use crate::playback::commands::{self, Pick};
+use crate::playback::commands;
 use crate::settings::Before;
 use crate::{MainWindow, Motion, Playback, Shapes, Subtitles};
 
@@ -88,21 +88,18 @@ fn watch_motion(ui: &MainWindow) {
 }
 
 /// A step the interface asks for, which it says as -1 or +1.
-fn way(step: i32) -> Direction {
-    if step < 0 {
-        Direction::Back
-    } else {
-        Direction::Forward
+fn way(step: crate::Way) -> Direction {
+    match step {
+        crate::Way::Forward => Direction::Forward,
+        crate::Way::Back => Direction::Back,
     }
 }
 
-/// Which kind of track a menu or a key means, which the interface says as
-/// whether it is subtitles.
-fn pick(subtitles: bool) -> Pick {
-    if subtitles {
-        Pick::Subtitles
-    } else {
-        Pick::Audio
+/// Which kind of track a menu or a key means.
+fn pick(kind: crate::Pick) -> commands::Pick {
+    match kind {
+        crate::Pick::Subtitles => commands::Pick::Subtitles,
+        crate::Pick::Audio => commands::Pick::Audio,
     }
 }
 

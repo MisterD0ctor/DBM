@@ -157,3 +157,22 @@ export struct PlaylistGroup {
     names: string,
     measured-names: string,
 }
+
+/// Which way a step goes: forward, as most keys mean, or back.
+export enum Way {
+    forward,
+    back,
+}
+
+/// Which kind of track a menu or a key means.
+export enum Pick {
+    subtitles,
+    audio,
+}
+
+/// What the arrival pill was answered: stay on the saved place, or start the
+/// file over.
+export enum ArrivalAnswer {
+    saved,
+    beginning,
+}

@@ -2,7 +2,7 @@
 // and what opening and playing from it ask for. The panel's pages and rows
 // stay with the window.
 
-import { PlaylistGroup } from "models.slint";
+import { PlaylistGroup, Way } from "models.slint";
 import { Playback } from "playback.slint";
 
 export global Playlist {
@@ -28,8 +28,8 @@ export global Playlist {
     in property <string> names;
     in property <string> measured-names;
     in property <string> details;
-    /// -1 previous, +1 next.
-    callback step(int);
+    /// The previous or next file.
+    callback step(Way);
     callback play-index(int);
     /// Ask for a video, or for a folder to play through.
     callback open-file();

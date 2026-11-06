@@ -385,11 +385,11 @@ pub(super) fn timing_test(ui: &MainWindow, mpv: Reader) -> Script {
         report(&ui, &mpv, "set on the first");
         let _ = mpv.run(0, Command::WriteWatchLaterConfig);
         beat.next().await;
-        ui.global::<Playlist>().invoke_step(1);
+        ui.global::<Playlist>().invoke_step(crate::Way::Forward);
         beat.rest(3).await;
         report(&ui, &mpv, "on the next file");
         beat.next().await;
-        ui.global::<Playlist>().invoke_step(-1);
+        ui.global::<Playlist>().invoke_step(crate::Way::Back);
         beat.rest(3).await;
         report(&ui, &mpv, "back on the first");
         beat.next().await;

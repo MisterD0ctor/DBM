@@ -28,16 +28,15 @@ pub(super) fn wire_tracks(ui: &MainWindow, app: &App) {
         app.audio.note_user_selection(id);
         commands::set_audio_track(&app.mpv, id);
     });
-    on!(tracks, app, on_cycle, |m, subtitles, direction| {
-        commands::cycle_track(m, pick(subtitles), way(direction));
+    on!(tracks, app, on_cycle, |m, kind, direction| {
+        commands::cycle_track(m, pick(kind), way(direction));
     });
     // A track out, and a fetched one forgotten with it so it doesn't come
     // back next time the film opens. Reads the track list, so on the worker.
-    on_app!(tracks, app, on_remove, |app, id, subtitle| {
+    on_app!(tracks, app, on_remove, |app, id, kind| {
         app.activity.bump();
         app.worker.run(move |mpv| {
-            let Some(file) = commands::remove_track(mpv, TrackId(i64::from(id)), pick(subtitle))
-            else {
+            let Some(file) = commands::remove_track(mpv, TrackId(i64::from(id)), pick(kind)) else {
                 return;
             };
             if let Some(path) = mpv.get(dbm_mpv::prop::PATH) {

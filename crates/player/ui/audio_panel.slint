@@ -8,7 +8,7 @@ import { Measure } from "measure.slint";
 import { GlassPanel } from "panel.slint";
 import { ScrollList } from "scroll_list.slint";
 import { Motion, Rows, Type } from "theme.slint";
-import { ScrollFade } from "models.slint";
+import { Pick, ScrollFade } from "models.slint";
 
 export component AudioPanel inherits GlassPanel {
     /// The row the keyboard's ring is on, which every panel shares.
@@ -44,7 +44,7 @@ export component AudioPanel inherits GlassPanel {
     /// where it can be removed; say whether it could.
     public function remove-ringed() -> bool {
         if (root.ring-row < Tracks.audio.length && Tracks.audio[root.ring-row].external) {
-            Removal.press(Tracks.audio[root.ring-row].id, false);
+            Removal.press(Tracks.audio[root.ring-row].id, Pick.audio);
             return true;
         }
         return false;
@@ -84,7 +84,7 @@ export component AudioPanel inherits GlassPanel {
                 active: track.selected;
                 focused: root.open && root.ring-row == idx;
                 removable: track.external;
-                armed: Removal.is-armed(track.id, false);
+                armed: Removal.is-armed(track.id, Pick.audio);
                 armed-for: Motion.armed-for;
                 held(on) => {
                     Removal.held = on;
@@ -93,7 +93,7 @@ export component AudioPanel inherits GlassPanel {
                     Tracks.select-audio(track.id);
                 }
                 removed => {
-                    Removal.press(track.id, false);
+                    Removal.press(track.id, Pick.audio);
                 }
             }
         }

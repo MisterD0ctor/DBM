@@ -2,7 +2,7 @@
 // `interface::sync`), and what the menus ask of them: one picked, stepped
 // through, or a track loaded from its own file taken out again.
 
-import { TrackItem } from "models.slint";
+import { Pick, TrackItem, Way } from "models.slint";
 
 export global Tracks {
     in property <[TrackItem]> subtitles;
@@ -22,11 +22,10 @@ export global Tracks {
     /// Track id, or -1 to turn subtitles off.
     callback select-subtitle(int);
     callback select-audio(int);
-    /// Remove a track loaded from its own file: a subtitle when the flag is
-    /// set, an audio track otherwise.
-    callback remove(int, bool);
+    /// Remove a track loaded from its own file, of the kind picked.
+    callback remove(int, Pick);
     /// Subtitles or audio, and which way.
-    callback cycle(bool, int);
+    callback cycle(Pick, Way);
 }
 
 /// A track armed for removal by its first press, which the second removes.
@@ -36,25 +35,25 @@ export global Tracks {
 /// allowance. The first press says what the second will do. A track is named
 /// by its id and its kind, since mpv numbers each kind from one.
 export global Removal {
-    /// The armed track's id, or -1, and whether it is a subtitle track.
+    /// The armed track's id, or -1, and which kind it is.
     in-out property <int> armed: -1;
-    in-out property <bool> subtitle;
+    in-out property <Pick> kind: Pick.audio;
     /// The armed row is being read: the pointer or the ring is on it.
     in-out property <bool> held;
 
     /// Whether this track is the one armed.
-    public pure function is-armed(id: int, subtitle: bool) -> bool {
-        return Removal.armed == id && Removal.subtitle == subtitle;
+    public pure function is-armed(id: int, kind: Pick) -> bool {
+        return Removal.armed == id && Removal.kind == kind;
     }
 
-    public function press(id: int, subtitle: bool) {
-        if (Removal.is-armed(id, subtitle)) {
+    public function press(id: int, kind: Pick) {
+        if (Removal.is-armed(id, kind)) {
             Removal.armed = -1;
-            Tracks.remove(id, subtitle);
+            Tracks.remove(id, kind);
             return;
         }
         Removal.armed = id;
-        Removal.subtitle = subtitle;
+        Removal.kind = kind;
     }
 
     public function disarm() {

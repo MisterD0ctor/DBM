@@ -5,7 +5,7 @@
 import { Chrome, Flash, Tip } from "globals.slint";
 import { Playback } from "playback.slint";
 import { Reset, Resets, Settings } from "settings.slint";
-import { ScrollFade } from "models.slint";
+import { ScrollFade, Way } from "models.slint";
 import {
     BackRow, DrillRow, MenuHeading, MenuRow, NoteRow, ParamSlider, ShortcutRow, StepperRow,
     ToggleRow, Tucked,
@@ -91,11 +91,11 @@ export component SettingsPanel inherits GlassPanel {
         }
         // The steppers: the speed, and the interface's size.
         if (root.page == SettingsPage.video && root.ring-row == 1) {
-            Playback.step-speed(Playback.speed, delta);
+            Playback.step-speed(Playback.speed, delta > 0 ? Way.forward : Way.back);
             return true;
         }
         if (root.page == SettingsPage.accessibility && root.ring-row == 1) {
-            Settings.step-scale(delta);
+            Settings.step-scale(delta > 0 ? Way.forward : Way.back);
             return true;
         }
         return false;
@@ -933,7 +933,7 @@ export component SettingsPanel inherits GlassPanel {
                         // anywhere else in the panel, room in every language.
                         value-w: 44px;
                         stepped(dir) => {
-                            Settings.step-scale(dir);
+                            Settings.step-scale(dir > 0 ? Way.forward : Way.back);
                         }
                     }
                     Rectangle {
@@ -1024,7 +1024,7 @@ export component SettingsPanel inherits GlassPanel {
                         focused: root.ring-row == 1;
                         value: Playback.speed-text;
                         stepped(dir) => {
-                            Playback.step-speed(Playback.speed, dir);
+                            Playback.step-speed(Playback.speed, dir > 0 ? Way.forward : Way.back);
                         }
                     }
                     ToggleRow {

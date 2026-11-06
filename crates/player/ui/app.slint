@@ -12,7 +12,8 @@ import { Reset, Resets, Settings } from "settings.slint";
 import { Playback } from "playback.slint";
 import { Chrome, Figure, Flash, Tip } from "globals.slint";
 import {
-    FoundItem, GlassRect, ParamItem, PlaylistGroup, PlaylistItem, ScrollFade, TrackItem
+    ArrivalAnswer, FoundItem, GlassRect, ParamItem, Pick, PlaylistGroup, PlaylistItem,
+    ScrollFade, TrackItem, Way
 } from "models.slint";
 import { Bar, Motion, Paint, Rows, Type } from "theme.slint";
 import { EndChoice, IconButton } from "controls.slint";
@@ -44,7 +45,7 @@ import { SettingsPage, SettingsPanel } from "settings_panel.slint";
 export {
     Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem,
     TrackItem, Find, Tracks, Subtitles, Playlist, Settings, Playback, Figure, FindState, Reset,
-    SyncState, Panel, MenuPage, SettingsPage
+    SyncState, Panel, MenuPage, SettingsPage, Way, Pick, ArrivalAnswer
 }
 
 /// What a key does to the chrome once it has been handled.
@@ -1112,7 +1113,7 @@ export component MainWindow inherits Window {
             Playback.seek-relative(-Playback.seek-step);
         } else if (index == 3) {
             if (!Playback.at-first) {
-                Playlist.step(-1);
+                Playlist.step(Way.back);
             }
         } else if (index == 4) {
             if (root.at-end) {
@@ -1122,7 +1123,7 @@ export component MainWindow inherits Window {
             }
         } else if (index == 5) {
             if (!Playback.at-last) {
-                Playlist.step(1);
+                Playlist.step(Way.forward);
             }
         } else {
             Playback.seek-relative(Playback.seek-step);
@@ -1241,7 +1242,7 @@ export component MainWindow inherits Window {
             // As the play button: at the end of a file there is nothing to
             // unpause, and on a saved place, playing goes on from it.
             if (root.arriving) {
-                Playback.arrival-answer(false);
+                Playback.arrival-answer(ArrivalAnswer.saved);
             } else if (root.at-end) {
                 Playback.replay();
             } else {
@@ -1253,7 +1254,7 @@ export component MainWindow inherits Window {
         // or `on-read`), and a page with no use for it should do nothing
         // rather than restart the film.
         if (text == Key.Home && !root.panel-open && root.arriving) {
-            Playback.arrival-answer(true);
+            Playback.arrival-answer(ArrivalAnswer.beginning);
             root.key-wake = KeyWake.hide;
             return true;
         }
@@ -1275,10 +1276,10 @@ export component MainWindow inherits Window {
         if (shift && (text == "n" || text == "N" || text == "p" || text == "P")) {
             root.key-wake = KeyWake.keep;
             if ((text == "n" || text == "N") && !Playback.at-last) {
-                Playlist.step(1);
+                Playlist.step(Way.forward);
                 Flash.show(Flash.next, 0.5);
             } else if ((text == "p" || text == "P") && !Playback.at-first) {
-                Playlist.step(-1);
+                Playlist.step(Way.back);
                 Flash.show(Flash.previous, 0.5);
             }
             return true;
@@ -1290,7 +1291,7 @@ export component MainWindow inherits Window {
     // buttons beside it would only cover more of the picture.
     function on-seek(text: string, ctrl: bool, shift: bool) -> bool {
         if ((text == Key.LeftArrow || text == Key.RightArrow) && ctrl) {
-            return root.chapter-key(text == Key.RightArrow ? 1 : -1);
+            return root.chapter-key(text == Key.RightArrow ? Way.forward : Way.back);
         }
         if (text == Key.LeftArrow || text == "j" || text == "J") {
             if (shift && text == Key.LeftArrow) {
@@ -1345,7 +1346,7 @@ export component MainWindow inherits Window {
         }
         // mpv's own key for it.
         if (text == "#") {
-            Tracks.cycle(false, 1);
+            Tracks.cycle(Pick.audio, Way.forward);
             root.key-wake = KeyWake.keep;
             Flash.show-figure(Figure.audio-track);
             return true;
@@ -1368,7 +1369,7 @@ export component MainWindow inherits Window {
         // Through the subtitle tracks, including none, saying which one it
         // landed on: C's own subject, one shift away.
         if (shift && (text == "c" || text == "C")) {
-            Tracks.cycle(true, 1);
+            Tracks.cycle(Pick.subtitles, Way.forward);
             root.key-wake = KeyWake.keep;
             Flash.show-figure(Figure.subtitle-track);
             return true;
@@ -1520,7 +1521,7 @@ export component MainWindow inherits Window {
     // itself.
     function on-pace(text: string) -> bool {
         if (text == "<" || text == ">") {
-            Playback.step-speed(Playback.speed, text == ">" ? 1 : -1);
+            Playback.step-speed(Playback.speed, text == ">" ? Way.forward : Way.back);
             root.key-wake = KeyWake.keep;
             Flash.show-figure(Figure.speed);
             return true;
@@ -1532,7 +1533,7 @@ export component MainWindow inherits Window {
             return true;
         }
         if (text == "," || text == ".") {
-            Playback.frame-step(text == "." ? 1 : -1);
+            Playback.frame-step(text == "." ? Way.forward : Way.back);
             root.stepped = true;
             root.step-landing = true;
             root.key-wake = KeyWake.keep;
@@ -1540,13 +1541,13 @@ export component MainWindow inherits Window {
         }
         // Only with no panel open, for the reason Home gives above.
         if ((text == Key.PageUp || text == Key.PageDown) && !root.panel-open) {
-            return root.chapter-key(text == Key.PageDown ? 1 : -1);
+            return root.chapter-key(text == Key.PageDown ? Way.forward : Way.back);
         }
         return false;
     }
 
     /// A chapter on or back, from PgUp and PgDn or from Ctrl and the arrows.
-    function chapter-key(direction: int) -> bool {
+    function chapter-key(direction: Way) -> bool {
         root.key-wake = KeyWake.keep;
         // No flash for a file with no chapters to go to.
         if (Playback.chapter-marks.length > 0) {

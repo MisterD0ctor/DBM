@@ -3,7 +3,7 @@
 // page reset or its reset taken back, a switch turned, the size or the
 // language changed. The pages themselves stay with the window.
 
-import { ParamItem } from "models.slint";
+import { ParamItem, Way } from "models.slint";
 import { Subtitles } from "subtitles.slint";
 import { Tip } from "globals.slint";
 import { Motion } from "theme.slint";
@@ -53,7 +53,7 @@ export global Settings {
     /// from the same page, which Rust keeps to the sizes offered that the
     /// display has room for.
     in property <float> scale: 1;
-    callback step-scale(int);
+    callback step-scale(Way);
     /// Whether the timeline's right end says what is left of the film rather
     /// than its length, and what that is: `−12:34`. A click on it or the
     /// video page's switch changes it here, and Rust saves it.
