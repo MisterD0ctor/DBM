@@ -91,11 +91,9 @@ pub enum Completion {
     Resume(Option<dbm_library::resume::Resume>),
     /// A seek-preview atlas, built or found for the file playing, and already
     /// decoded into Slint's pixels. Reported from the build's own thread (see
-    /// `preview`).
-    Preview {
-        sprite: dbm_library::preview::Sprite,
-        pixels: slint::SharedPixelBuffer<slint::Rgba8Pixel>,
-    },
+    /// `preview`), and kept with the file it belongs to: one already on its
+    /// way when another file opens must not be shown under the new one.
+    Preview(ForFile<Preview>),
     /// The light behind the empty window when no film can give it one (see
     /// `mark`).
     Mark(dbm_library::preview::Still),
@@ -139,6 +137,12 @@ pub enum Completion {
         paths: Vec<MediaPath>,
         seasons: Vec<dbm_library::shelf::Beside>,
     },
+}
+
+/// A decoded seek-preview atlas, ready for the interface.
+pub struct Preview {
+    pub sprite: dbm_library::preview::Sprite,
+    pub pixels: slint::SharedPixelBuffer<slint::Rgba8Pixel>,
 }
 
 type Job = Box<dyn FnOnce(&Reader) -> Option<Completion> + Send + 'static>;
@@ -211,7 +215,10 @@ impl Worker {
     /// folder's scan would hold the track menu empty until it finished), but
     /// its results still belong in the one enum the player drains, which
     /// `wrap` puts them in.
-    pub fn reporter<T: 'static>(&self, wrap: fn(T) -> Completion) -> Reporter<T> {
+    pub fn reporter<T: 'static>(
+        &self,
+        wrap: impl Fn(T) -> Completion + Send + 'static,
+    ) -> Reporter<T> {
         let reply = self.reply.clone();
         Reporter::new(move |value| {
             let delivered = reply.send(wrap(value)).is_ok();

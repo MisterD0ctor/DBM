@@ -5,7 +5,7 @@ use dbm_library::threads::ForFile;
 
 use super::{PerFile, Player};
 use crate::interface::{format, sync};
-use crate::worker::Completion;
+use crate::worker::{Completion, Preview};
 use crate::{Find, FindState, MainWindow, Playback, Subtitles, SyncState};
 
 impl Player {
@@ -181,13 +181,17 @@ impl Player {
 
         // Copied into Slint's buffer as it is reported, so still on the
         // build's own thread rather than this one.
-        let shown = |atlas: dbm_library::preview::Atlas| Completion::Preview {
-            pixels: slint::SharedPixelBuffer::clone_from_slice(
-                &atlas.rgba,
-                atlas.width(),
-                atlas.height(),
-            ),
-            sprite: atlas.sprite,
+        let source = path.clone();
+        let shown = move |atlas: dbm_library::preview::Atlas| {
+            let preview = Preview {
+                pixels: slint::SharedPixelBuffer::clone_from_slice(
+                    &atlas.rgba,
+                    atlas.width(),
+                    atlas.height(),
+                ),
+                sprite: atlas.sprite,
+            };
+            Completion::Preview(ForFile::new(source.clone(), preview))
         };
         dbm_library::preview::spawn(path, self.app.worker.reporter(shown));
     }

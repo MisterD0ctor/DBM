@@ -43,7 +43,11 @@ impl Player {
             // Nothing to continue, which on a fresh install is every time:
             // the window is lit by the player's own mark instead.
             Completion::Resume(None) => light_with_the_mark(&self.app.worker),
-            Completion::Preview { sprite, pixels } => self.show_atlas(ui, sprite, pixels),
+            Completion::Preview(preview) => {
+                if let Some(preview) = preview.if_playing(playing) {
+                    self.show_atlas(ui, preview.sprite, preview.pixels);
+                }
+            }
             Completion::Mark(still) => {
                 self.backdrop = Some(still);
                 ui.set_backdrop(true);
