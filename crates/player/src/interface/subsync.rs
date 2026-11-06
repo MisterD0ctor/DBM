@@ -56,14 +56,12 @@ pub fn answer(ui: &MainWindow, mpv: &Mpv, player: &PlayerState, outcome: Outcome
         if same_speed {
             // Two sentences rather than one with a word swapped in, since
             // the word doesn't sit in the same place in every language.
-            fill(
-                if moved < 0.0 {
-                    tr("Subtitles moved {} s earlier")
-                } else {
-                    tr("Subtitles moved {} s later")
-                },
-                &[&format::decimal(&format!("{:.1}", moved.abs()))],
-            )
+            let shown = format::decimal(&format!("{:.1}", moved.abs()));
+            if moved < 0.0 {
+                fill!("Subtitles moved {} s earlier", shown)
+            } else {
+                fill!("Subtitles moved {} s later", shown)
+            }
         } else {
             // No figure, since at another speed the subtitles have moved
             // by a different amount at every point in the film.

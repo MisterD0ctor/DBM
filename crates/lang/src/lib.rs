@@ -52,8 +52,15 @@ pub const fn marked(text: &'static str) -> &'static str {
 /// A sentence with its blanks filled in: each `{}` takes the next value.
 ///
 /// By hand rather than `format!`, which needs its pattern at compile time and
-/// so could never be handed a translated one.
+/// so could never be handed a translated one. [`fill!`] is the form for a
+/// pattern written in the source, where the number of blanks can be checked
+/// before the program runs.
 pub fn fill(pattern: &str, values: &[&dyn Display]) -> String {
+    debug_assert_eq!(
+        count_blanks(pattern),
+        values.len(),
+        "fill: the pattern's blanks and the values count differently",
+    );
     let mut out = String::with_capacity(pattern.len() + 16);
     let mut values = values.iter();
     let mut rest = pattern;
@@ -66,6 +73,53 @@ pub fn fill(pattern: &str, values: &[&dyn Display]) -> String {
     }
     out.push_str(rest);
     out
+}
+
+/// A sentence from a pattern written in the source, with its values.
+///
+/// The pattern is a literal, so the number of `{}` in it and the number of
+/// values can be compared while compiling. A translation that changes the
+/// count is caught by `scripts/translations.py check`, and by [`fill`]'s
+/// debug assertion when the sentence is made.
+#[macro_export]
+macro_rules! fill {
+    ($pattern:literal $(, $value:expr)* $(,)?) => {{
+        const _: () = assert!(
+            $crate::count_blanks($pattern) == $crate::__fill_count!($($value),*),
+            "fill!: the pattern's blanks and the values count differently",
+        );
+        $crate::fill(
+            $crate::tr($pattern),
+            &[$(&($value) as &dyn ::core::fmt::Display),*],
+        )
+    }};
+}
+
+/// Counts the values given to [`fill!`], for its compile-time check.
+#[doc(hidden)]
+#[macro_export]
+macro_rules! __fill_count {
+    () => { 0usize };
+    ($head:expr $(, $tail:expr)*) => {
+        1usize + $crate::__fill_count!($($tail),*)
+    };
+}
+
+/// How many `{}` a pattern has, for [`fill!`] and [`fill`].
+#[doc(hidden)]
+pub const fn count_blanks(pattern: &str) -> usize {
+    let bytes = pattern.as_bytes();
+    let mut count = 0;
+    let mut i = 0;
+    while i + 1 < bytes.len() {
+        if bytes[i] == b'{' && bytes[i + 1] == b'}' {
+            count += 1;
+            i += 2;
+        } else {
+            i += 1;
+        }
+    }
+    count
 }
 
 /// The languages built in besides English, by code.
@@ -127,7 +181,9 @@ mod tests {
     fn blanks_are_filled_in_order() {
         assert_eq!(fill("{} h {} min left", &[&1, &12]), "1 h 12 min left");
         assert_eq!(fill("Season {}", &[&7]), "Season 7");
-        assert_eq!(fill("no blanks", &[&7]), "no blanks");
+        assert_eq!(fill("no blanks", &[]), "no blanks");
+        assert_eq!(fill!("{} h {} min left", 1, 12), "1 h 12 min left");
+        assert_eq!(fill!("no blanks"), "no blanks");
     }
 
     #[test]

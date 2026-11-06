@@ -21,7 +21,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use dbm_lang::{fill, tr};
+use dbm_lang::fill;
 use dbm_mpv::MediaPath;
 
 use crate::resume::Saved;
@@ -75,14 +75,14 @@ impl Error {
     /// it is said in.
     pub fn sentence(&self) -> String {
         match self {
-            Self::NothingAt(path) => fill(tr("There is nothing at {}"), &[&folder_name(path)]),
-            Self::NoVideosIn(dir) => fill(tr("No video files in {}"), &[&folder_name(dir)]),
-            Self::NoVideosUnder(dir) => fill(tr("No video files under {}"), &[&folder_name(dir)]),
+            Self::NothingAt(path) => fill!("There is nothing at {}", folder_name(path)),
+            Self::NoVideosIn(dir) => fill!("No video files in {}", folder_name(dir)),
+            Self::NoVideosUnder(dir) => fill!("No video files under {}", folder_name(dir)),
             Self::Unreadable { dir, source } => {
-                fill(tr("Could not read {} — {}"), &[&folder_name(dir), source])
+                fill!("Could not read {} — {}", folder_name(dir), source)
             }
             Self::PlaylistWrite { source, .. } => {
-                fill(tr("Could not make a playlist — {}"), &[source])
+                fill!("Could not make a playlist — {}", source)
             }
         }
     }

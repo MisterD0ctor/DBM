@@ -7,7 +7,7 @@
 
 use std::path::PathBuf;
 
-use dbm_lang::{fill, tr};
+use dbm_lang::fill;
 use dbm_mpv::MediaPath;
 
 use crate::{playlist, resume};
@@ -39,7 +39,7 @@ fn next_season(path: &MediaPath) -> Option<Onward> {
     let (folder, season) = playlist::next_season(path.as_path())?;
     Some(Onward {
         path: folder,
-        label: fill(tr("Season {}"), &[&season]),
+        label: fill!("Season {}", season),
         season: true,
     })
 }

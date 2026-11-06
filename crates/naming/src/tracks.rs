@@ -169,7 +169,7 @@ pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
             (None, None) => {
                 unnamed += 1;
                 let mut label = if untitled > 1 {
-                    fill(tr("Untitled {}"), &[&unnamed])
+                    fill!("Untitled {}", unnamed)
                 } else {
                     tr("Untitled").to_string()
                 };

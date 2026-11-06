@@ -30,9 +30,9 @@ pub fn left(seconds: f64) -> String {
     }
     let minutes = (seconds / 60.0).ceil() as u64;
     match (minutes / 60, minutes % 60) {
-        (0, m) => fill(tr("{} min left"), &[&m]),
-        (h, 0) => fill(tr("{} h left"), &[&h]),
-        (h, m) => fill(tr("{} h {} min left"), &[&h, &m]),
+        (0, m) => fill!("{} min left", m),
+        (h, 0) => fill!("{} h left", h),
+        (h, m) => fill!("{} h {} min left", h, m),
     }
 }
 
@@ -52,12 +52,12 @@ pub fn delay(seconds: f64) -> String {
     if seconds.abs() < 0.005 {
         format!("{} s", decimal("0.00"))
     } else {
-        let pattern = if seconds > 0.0 {
-            tr("{} s later")
+        let shown = decimal(&format!("{:.2}", seconds.abs()));
+        if seconds > 0.0 {
+            fill!("{} s later", shown)
         } else {
-            tr("{} s earlier")
-        };
-        fill(pattern, &[&decimal(&format!("{:.2}", seconds.abs()))])
+            fill!("{} s earlier", shown)
+        }
     }
 }
 

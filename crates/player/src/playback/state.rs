@@ -12,7 +12,7 @@
 use std::collections::HashMap;
 
 use dbm_gpu::rect::{Normalised, Rect};
-use dbm_lang::{fill, tr};
+use dbm_lang::fill;
 use dbm_library::durations::Progress;
 use dbm_mpv::prop::{self, TrackChoice};
 use dbm_mpv::tracks::{AudioDevice, EntryId, PlaylistEntry, Track};
@@ -424,12 +424,10 @@ impl PlayerState {
         let Some(chapter) = self.chapters.get(index) else {
             return String::new();
         };
-        chapter.title.clone().unwrap_or_else(|| {
-            fill(
-                tr("Chapter {} of {}"),
-                &[&(index + 1), &self.chapters.len()],
-            )
-        })
+        chapter
+            .title
+            .clone()
+            .unwrap_or_else(|| fill!("Chapter {} of {}", index + 1, self.chapters.len()))
     }
 
     /// Where the video sits inside a window of this size, normalised

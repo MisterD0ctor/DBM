@@ -16,11 +16,12 @@ use crate::interface::format;
 pub fn could_not_play(failure: ErrorCode, path: Option<&MediaPath>) -> String {
     let reason = format::sentence(&said(failure));
     match path {
-        Some(path) => fill(
-            tr("{} — could not play {}"),
-            &[&reason, &dbm_naming::titled(path.as_str(), None)],
+        Some(path) => fill!(
+            "{} — could not play {}",
+            reason,
+            dbm_naming::titled(path.as_str(), None)
         ),
-        None => fill(tr("{} — could not play that file"), &[&reason]),
+        None => fill!("{} — could not play that file", reason),
     }
 }
 

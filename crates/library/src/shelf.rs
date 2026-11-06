@@ -243,7 +243,7 @@ fn in_season(rows: Vec<String>, season: Option<u32>) -> Vec<String> {
 fn part_label(season: Option<u32>, show: Option<&str>, one_show: bool) -> (String, bool) {
     let part = match season {
         Some(0) => tr("Specials").to_string(),
-        Some(n) => fill(tr("Season {}"), &[&n]),
+        Some(n) => fill!("Season {}", n),
         None => tr("Episodes").to_string(),
     };
     match show.filter(|_| !one_show) {

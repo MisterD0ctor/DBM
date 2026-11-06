@@ -16,11 +16,12 @@ dbm-player.po, and it holds both halves of the interface:
     marked("...") where they are written.
 
 `check` exits non-zero when a language is missing an entry or has one left
-empty, so it can stand in a release checklist, and when a Rust `label:` is a
+empty, so it can stand in a release checklist, when a Rust `label:` is a
 bare string, which is a name the interface shows that nothing marked, as is
-the `reason:`, `detail:` or `note:` of a failure the way in shows. An entry
-the source no longer has is reported and left alone: deleting a translation
-is a person's call.
+the `reason:`, `detail:` or `note:` of a failure the way in shows, and when a
+translation's number of `{}` differs from its English, which would drop a
+value or leave a blank. An entry the source no longer has is reported and
+left alone: deleting a translation is a person's call.
 """
 
 import re
@@ -36,7 +37,9 @@ STRING = r'"((?:[^"\\]|\\[\s\S])*)"'
 SLINT_TR = re.compile(r"@tr\(\s*" + STRING)
 SLINT_OWNER = re.compile(r"^(?:export\s+)?(?:component|global)\s+([A-Za-z_][\w-]*)")
 RUST_TR = re.compile(r"(?<![\w@])(?:tr|marked)\(\s*" + STRING)
+RUST_FILL = re.compile(r"(?<![\w])fill!\(\s*" + STRING)
 RUST_BARE_LABEL = re.compile(r"\b(?:label|reason|detail|note):\s*\"")
+BLANKS = re.compile(r"\{\}")
 # Rust's line continuation: a backslash at the end of a line drops the break
 # and the next line's indentation, so the words are what the program holds.
 RUST_CONTINUED = re.compile(r"\\\n\s*")
@@ -56,7 +59,10 @@ def wanted():
             for said in SLINT_TR.finditer(line):
                 found.append((owner, said.group(1)))
     for file in rust():
-        for said in RUST_TR.finditer(file.read_text(encoding="utf-8")):
+        text = file.read_text(encoding="utf-8")
+        for said in RUST_TR.finditer(text):
+            found.append((RUST_CONTEXT, RUST_CONTINUED.sub("", said.group(1))))
+        for said in RUST_FILL.finditer(text):
             found.append((RUST_CONTEXT, RUST_CONTINUED.sub("", said.group(1))))
     seen, out = set(), []
     for entry in found:
@@ -154,6 +160,10 @@ def check():
             print(f"  missing  [{context}] {words}")
         for context, words in stale:
             print(f"  unused   [{context}] {words}")
+        for (context, words), said in have.items():
+            if said and len(BLANKS.findall(words)) != len(BLANKS.findall(said)):
+                print(f"  blanks   [{context}] {words} -> {said}")
+                short = True
         short = short or bool(missing)
     return 1 if short else 0
 

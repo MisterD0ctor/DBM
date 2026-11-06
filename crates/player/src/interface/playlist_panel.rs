@@ -281,7 +281,7 @@ fn detail(group: &Group) -> String {
     if count == 1 {
         tr("1 episode").to_owned()
     } else {
-        fill(tr("{} episodes"), &[&count])
+        fill!("{} episodes", count)
     }
 }
 

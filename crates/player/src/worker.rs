@@ -66,7 +66,7 @@ impl Warning {
     pub fn sentence(&self) -> String {
         match self {
             Self::SettingsNotSaved(source) => {
-                fill(tr("Settings could not be saved — {}"), &[source])
+                fill!("Settings could not be saved — {}", source)
             }
         }
     }

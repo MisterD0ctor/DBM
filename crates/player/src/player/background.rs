@@ -1,4 +1,4 @@
-use dbm_lang::{fill, tr};
+use dbm_lang::fill;
 use slint::ComponentHandle;
 
 use dbm_library::threads::ForFile;
@@ -213,7 +213,7 @@ impl Player {
             ..
         } = dbm_naming::parse(path.as_str())
         {
-            playback.set_season_done(fill(tr("Season {} finished"), &[&season]).into());
+            playback.set_season_done(fill!("Season {} finished", season).into());
         }
         self.app.worker.submit(move |_mpv| {
             let to = dbm_library::onward::after(&path);
