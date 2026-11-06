@@ -403,7 +403,13 @@ pub(super) fn added_test(ui: &MainWindow, mpv: Reader) -> Script {
         beat.rest(4).await;
         ui.invoke_open_menu(true);
         beat.rest(4).await;
-        crate::playback::commands::add_subtitle(&mpv, std::path::Path::new(&file), "en", true);
+        let language = dbm_naming::Language::parse("en");
+        crate::playback::commands::add_subtitle(
+            &mpv,
+            std::path::Path::new(&file),
+            language.as_ref(),
+            true,
+        );
         // What the menu holds every half second for five seconds after.
         for half in 0..=10 {
             eprintln!(

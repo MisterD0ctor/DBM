@@ -1,6 +1,7 @@
 use std::rc::Rc;
 
 use dbm_mpv::Direction;
+use dbm_naming::Language;
 use slint::ComponentHandle;
 
 use super::Undo;
@@ -157,9 +158,9 @@ pub(super) fn wire_settings(ui: &MainWindow, app: &App, undo: &Undo) {
         let (app, models, weak) = (app.clone(), models.clone(), ui.as_weak());
         settings.on_choose_language(move |row| {
             app.activity.bump();
-            let code = language_of(row);
-            app.settings.set_language(&code);
-            speak(&code);
+            let language = language_of(row);
+            speak(language.as_ref());
+            app.settings.set_language(language);
             if let Some(ui) = weak.upgrade() {
                 models.say_again(&ui, &app.settings);
             }
@@ -177,27 +178,26 @@ fn section_of(what: Reset) -> Option<Section> {
     }
 }
 
-/// The language a row of the language page stands for, by code: nothing for
-/// the system's, which is the first row, and English for the second.
-pub(super) fn language_of(row: i32) -> String {
+/// The language a row of the language page stands for: nothing for the
+/// system's, which is the first row, and English for the second.
+pub(super) fn language_of(row: i32) -> Option<Language> {
     match row {
-        0 => String::new(),
-        1 => "en".into(),
+        0 => None,
+        1 => Language::parse("en"),
         n => dbm_lang::codes()
             .nth((n - 2).max(0) as usize)
-            .unwrap_or_default()
-            .to_string(),
+            .and_then(Language::parse),
     }
 }
 
 /// The row that stands for a saved choice. A language this build no longer
 /// has is the system's row, which is also how it is spoken.
-pub(super) fn row_of(code: &str) -> i32 {
-    match code {
-        "" => 0,
-        "en" => 1,
-        code => dbm_lang::codes()
-            .position(|known| known == code)
+pub(super) fn row_of(language: Option<&Language>) -> i32 {
+    match language {
+        None => 0,
+        Some(language) if language.tag() == "en" => 1,
+        Some(language) => dbm_lang::codes()
+            .position(|known| known == language.tag())
             .map_or(0, |place| place as i32 + 2),
     }
 }
@@ -241,21 +241,22 @@ pub(super) fn restore_language(ui: &MainWindow, app: &App) {
     ui.global::<Settings>()
         .set_language_names(slint::ModelRc::new(slint::VecModel::from(
             dbm_lang::codes()
-                .map(|code| dbm_naming::language_name(code).into())
+                .filter_map(Language::parse)
+                .map(|language| language.name().into())
                 .collect::<Vec<slint::SharedString>>(),
         )));
     let language = app.settings.language();
     ui.global::<Settings>()
-        .set_language_choice(row_of(&language));
-    speak(&language);
+        .set_language_choice(row_of(language.as_ref()));
+    speak(language.as_ref());
 }
 
 /// Speak a language (see `dbm_lang::speak`), the interface's own words too.
 ///
 /// **UI thread, after the window exists** — Slint's half of the switch needs
 /// a component to have been created.
-fn speak(choice: &str) {
-    let spoken = dbm_lang::speak(choice);
+fn speak(choice: Option<&Language>) {
+    let spoken = dbm_lang::speak(choice.map(Language::tag));
     if let Err(e) = slint::select_bundled_translation(spoken.unwrap_or_default()) {
         log::warn!("could not switch the interface to {spoken:?}: {e}");
     }

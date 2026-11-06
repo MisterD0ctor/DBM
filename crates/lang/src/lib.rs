@@ -92,11 +92,10 @@ pub fn changes() -> usize {
 ///
 /// Returns the code now spoken, or `None` for English, which is what Slint's
 /// half of the switch is to be handed.
-pub fn speak(choice: &str) -> Option<&'static str> {
-    let code = if choice.is_empty() {
-        system()
-    } else {
-        choice.to_string()
+pub fn speak(choice: Option<&str>) -> Option<&'static str> {
+    let code = match choice {
+        Some(code) => code.to_string(),
+        None => system(),
     };
     let spoken = CATALOGUES
         .iter()

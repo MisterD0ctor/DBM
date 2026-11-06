@@ -22,6 +22,7 @@ use dbm_lang::{fill, tr};
 use dbm_library::playlist::{Error, Prepared};
 use dbm_library::threads::{ForFile, Reporter};
 use dbm_mpv::{MediaPath, Reader};
+use dbm_naming::Language;
 
 /// A path scanned into a playlist, and whether arriving at its first file
 /// with a place saved should ask where to start. The flag belongs to the
@@ -130,7 +131,7 @@ pub enum Completion {
     ),
     /// Subtitles fetched for a file on an earlier day, to put back as it
     /// opens.
-    Kept(ForFile<Vec<(std::path::PathBuf, String)>>),
+    Kept(ForFile<Vec<(std::path::PathBuf, Option<Language>)>>),
     /// Seasons of the playing show found in folders beside its own, for the
     /// playlist panel. `paths` is the list they were looked for beside, so an
     /// answer for a list since replaced is dropped.

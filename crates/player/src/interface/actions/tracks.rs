@@ -1,4 +1,5 @@
 use dbm_mpv::tracks::TrackId;
+use dbm_naming::Language;
 use slint::ComponentHandle;
 
 use super::{pick, way};
@@ -132,13 +133,16 @@ pub(super) fn wire_finding(ui: &MainWindow, app: &App) {
 /// The languages a search asks for: the one the player speaks, and English
 /// beside it, which more films have than any other. In OpenSubtitles' own
 /// codes, which split Portuguese in two where the player has one.
-fn search_languages() -> Vec<String> {
-    let mut codes: Vec<String> = match dbm_lang::spoken() {
-        "pt" => vec!["pt-br".into(), "pt-pt".into()],
-        code => vec![code.to_string()],
+fn search_languages() -> Vec<Language> {
+    let mut codes: Vec<Language> = match dbm_lang::spoken() {
+        "pt" => ["pt-br", "pt-pt"]
+            .into_iter()
+            .filter_map(Language::parse)
+            .collect(),
+        code => Language::parse(code).into_iter().collect(),
     };
-    codes.push("en".into());
-    codes.sort();
-    codes.dedup();
+    codes.extend(Language::parse("en"));
+    codes.sort_by(|a, b| a.tag().cmp(b.tag()));
+    codes.dedup_by(|a, b| a.tag() == b.tag());
     codes
 }

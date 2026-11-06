@@ -1,6 +1,8 @@
 //! The preferences that aren't sliders: switches, the interface's size,
 //! the language, and the subtitles' size and place.
 
+use dbm_naming::Language;
+
 use super::Store;
 
 /// A preference that is a switch. Each rides in the saved file as 0 or 1, so
@@ -119,13 +121,13 @@ impl Store {
         scale
     }
 
-    /// The language chosen, by code. Empty for the system's.
-    pub fn language(&self) -> String {
+    /// The language chosen, or `None` to follow the system's.
+    pub fn language(&self) -> Option<Language> {
         self.language.borrow().clone()
     }
 
-    pub fn set_language(&self, code: &str) {
-        *self.language.borrow_mut() = code.to_string();
+    pub fn set_language(&self, language: Option<Language>) {
+        *self.language.borrow_mut() = language;
         self.touch();
     }
 

@@ -4,6 +4,7 @@
 use std::path::{Path, PathBuf};
 
 use dbm_mpv::MediaPath;
+use dbm_naming::Language;
 use serde_json::Value;
 use ureq::http::Method;
 use url::Url;
@@ -12,7 +13,7 @@ use super::account::{self, Signed};
 use super::http::{Ask, failure, fetch_file, said, send_again_once};
 use super::{Failure, Hit, KEPT, fake};
 
-pub(super) fn download(path: &MediaPath, hit: &Hit) -> Result<(PathBuf, String), Failure> {
+pub(super) fn download(path: &MediaPath, hit: &Hit) -> Result<(PathBuf, Language), Failure> {
     let file = keep_as(path, hit);
     // Fetched before: no need to spend one of the day's downloads on it.
     if file.is_file() {
@@ -46,7 +47,7 @@ fn keep_as(path: &MediaPath, hit: &Hit) -> PathBuf {
         .unwrap_or_else(|| "subtitles".into());
     // The language is the service's word, so it is filtered too, and loses
     // its dots, since `kept` reads the code back from between two.
-    let language = safe(&hit.language).replace('.', "_");
+    let language = safe(hit.language.tag()).replace('.', "_");
     crate::paths::app_data_dir().join("subtitles").join(format!(
         "{}.{language}.{}.srt",
         safe(&stem),
@@ -121,7 +122,7 @@ mod tests {
     fn a_kept_file_says_its_language_in_its_name() {
         let hit = Hit {
             file_id: 42,
-            language: "pt-br".into(),
+            language: Language::parse("pt-br").expect("a language"),
             release: String::new(),
             downloads: 0,
             exact: false,
@@ -139,7 +140,7 @@ mod tests {
 
         // A code that would leave the folder, or move the dots, can't.
         let odd = Hit {
-            language: "../x.y".into(),
+            language: Language::parse("../x.y").expect("a language"),
             ..hit
         };
         let file = keep_as(&"/films/Some Film (2019).mkv".into(), &odd);

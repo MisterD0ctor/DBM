@@ -22,6 +22,7 @@ use std::path::{Path, PathBuf};
 
 use dbm_lang::tr;
 use dbm_mpv::MediaPath;
+use dbm_naming::Language;
 
 use crate::cache::PathMap;
 use crate::threads::{ForFile, Reporter, Supersede};
@@ -57,7 +58,7 @@ pub struct Hit {
     /// What to ask the download call for.
     pub file_id: i64,
     /// Their language code: `en`, `sv`, `pt-br`.
-    pub language: String,
+    pub language: Language,
     /// The release it was timed against, or its file name where it has none.
     pub release: String,
     pub downloads: i64,
@@ -123,12 +124,12 @@ pub struct Found {
 /// have left.
 pub struct Fetched {
     pub hit: Hit,
-    pub result: ForFile<Result<(PathBuf, String), Failure>>,
+    pub result: ForFile<Result<(PathBuf, Language), Failure>>,
     pub account: Option<Account>,
 }
 
 /// Look for subtitles for `path` in `languages`, on a thread of its own.
-pub fn search(path: MediaPath, languages: Vec<String>, reporter: Reporter<Found>) {
+pub fn search(path: MediaPath, languages: Vec<Language>, reporter: Reporter<Found>) {
     let ticket = SEARCHES.next();
     crate::threads::spawn("dbm-search", move || {
         let hits = search::look(&path, &languages);
@@ -156,11 +157,11 @@ pub fn fetch(path: MediaPath, hit: Hit, reporter: Reporter<Fetched>) {
     });
 }
 
-/// Subtitles fetched for `path` before that are still there, each with its
-/// language, which is in its name (see `download::keep_as`).
+/// Subtitles fetched for `path` before that are still there, each with the
+/// language its name carries, where it carries one (see `download::keep_as`).
 ///
 /// **Blocking.** Worker thread only.
-pub fn kept(path: &MediaPath) -> Vec<(PathBuf, String)> {
+pub fn kept(path: &MediaPath) -> Vec<(PathBuf, Option<Language>)> {
     KEPT.load()
         .remove(path)
         .unwrap_or_default()
@@ -172,8 +173,7 @@ pub fn kept(path: &MediaPath) -> Vec<(PathBuf, String)> {
                 .file_stem()
                 .and_then(|stem| Path::new(stem).file_stem())
                 .and_then(|stem| Path::new(stem).extension())
-                .map(|code| code.to_string_lossy().into_owned())
-                .unwrap_or_default();
+                .and_then(|code| Language::parse(&code.to_string_lossy()));
             (file, language)
         })
         .collect()

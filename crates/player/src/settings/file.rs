@@ -4,6 +4,8 @@
 use std::cell::Cell;
 use std::io;
 
+use dbm_naming::Language;
+
 use super::{Key, REGISTRY, Store, Toggle};
 
 const SCALE: &str = "accessibility.scale";
@@ -54,9 +56,8 @@ impl Store {
         out.push((SCALE.into(), self.scale.get()));
         out.push((SUB_SCALE.into(), self.sub_scale.get()));
         out.push((SUB_POS.into(), self.sub_pos.get()));
-        let language = self.language.borrow();
-        if !language.is_empty() {
-            out.push((format!("{LANGUAGE}{language}"), 1.0));
+        if let Some(language) = self.language.borrow().as_ref() {
+            out.push((format!("{LANGUAGE}{}", language.tag()), 1.0));
         }
         out
     }
@@ -90,7 +91,7 @@ impl Store {
                 }
                 other => {
                     if let Some(code) = other.strip_prefix(LANGUAGE) {
-                        *self.language.borrow_mut() = code.to_string();
+                        *self.language.borrow_mut() = Language::parse(code);
                     }
                 }
             }
@@ -319,6 +320,22 @@ mod tests {
         assert!(load(&file).is_empty());
         assert!(aside.is_file() && !file.exists());
         std::fs::remove_file(&aside).ok();
+    }
+
+    #[test]
+    fn a_language_survives_a_save_and_a_load() {
+        let store = Store::default();
+        assert_eq!(store.language(), None);
+        store.set_language(Language::parse("sv"));
+        let saved = store.to_saved();
+        assert!(
+            saved.contains(&("language.sv".to_string(), 1.0)),
+            "{saved:?}"
+        );
+
+        let loaded = Store::default();
+        loaded.apply_saved(&saved);
+        assert_eq!(loaded.language(), Language::parse("sv"));
     }
 
     #[test]

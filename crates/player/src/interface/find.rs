@@ -89,7 +89,7 @@ impl Search {
         };
         match result {
             Ok((file, language)) => {
-                commands::add_subtitle(mpv, &file, &language, true);
+                commands::add_subtitle(mpv, &file, Some(&language), true);
                 // Back to the tracks, where it now stands lit: the answer
                 // is the row it arrived as.
                 ui.set_find_open(false);
@@ -169,7 +169,7 @@ fn show_account(find: &Find, account: Option<&Account>) {
 /// One result of a search, as its row says it: the release it was timed
 /// against, and beside it the language and whatever sets it apart.
 fn found_row(hit: &Hit, playing: &Media) -> FoundItem {
-    let mut detail = vec![dbm_naming::language_name(&hit.language)];
+    let mut detail = vec![hit.language.name()];
     if hit.exact {
         detail.push(tr("Exact").to_string());
     }

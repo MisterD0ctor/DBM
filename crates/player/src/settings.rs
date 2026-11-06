@@ -17,6 +17,7 @@
 use std::cell::{Cell, RefCell};
 
 use dbm_gpu::pipeline::{BorderParams, GlassParams};
+use dbm_naming::Language;
 
 use crate::playback::commands::{self, PictureParams};
 
@@ -57,8 +58,8 @@ pub struct Store {
     /// Set alongside `dirty`, but drained by the saver once things settle,
     /// where the pipeline drains `dirty` every frame.
     unsaved: Cell<bool>,
-    /// The language chosen, by code, or empty to follow the system's.
-    language: RefCell<String>,
+    /// The language chosen, or `None` to follow the system's.
+    language: RefCell<Option<Language>>,
 }
 
 impl Default for Store {
@@ -73,7 +74,7 @@ impl Default for Store {
             // trusting the pipeline to have been built with the same ones.
             dirty: Cell::new(true),
             unsaved: Cell::new(false),
-            language: RefCell::new(String::new()),
+            language: RefCell::new(None),
         }
     }
 }

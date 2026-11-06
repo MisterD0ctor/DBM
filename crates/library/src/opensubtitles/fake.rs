@@ -10,6 +10,7 @@
 
 use std::sync::atomic::{AtomicI64, Ordering};
 
+use dbm_naming::Language;
 use zeroize::Zeroizing;
 
 use super::account::Signed;
@@ -29,7 +30,7 @@ fn spent() -> bool {
 pub fn hits() -> Vec<Hit> {
     let hit = |file_id, language: &str, release: &str, downloads, exact| Hit {
         file_id,
-        language: language.into(),
+        language: Language::parse(language).expect("a fake hit has a language"),
         release: release.into(),
         downloads,
         exact,

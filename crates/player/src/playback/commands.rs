@@ -12,6 +12,7 @@ use dbm_library::bars::Crop;
 use dbm_mpv::prop::{self, Cache, KeepOpen, Rect, TrackChoice};
 use dbm_mpv::tracks::{self, TrackId, TrackKind};
 use dbm_mpv::{Command, Direction, MediaPath, Mpv, Property, Reader, SeekTarget, ToMpv};
+use dbm_naming::Language;
 
 /// Arrow-key seek, in seconds.
 pub const SEEK_STEP: f64 = 10.0;
@@ -221,16 +222,17 @@ pub fn toggle_subtitles(mpv: &Reader) {
 }
 
 /// Load a subtitle file into the film playing, named as fetched from
-/// OpenSubtitles and in `language`. Selected and shown when `show` is set;
-/// otherwise only added to the list, as the film's own tracks are.
-pub fn add_subtitle(mpv: &Mpv, file: &std::path::Path, language: &str, show: bool) {
+/// OpenSubtitles and in `language` where one is known. Selected and shown when
+/// `show` is set; otherwise only added to the list, as the film's own tracks
+/// are.
+pub fn add_subtitle(mpv: &Mpv, file: &std::path::Path, language: Option<&Language>, show: bool) {
     run(
         mpv,
         Command::SubAdd {
             file,
             select: show,
             title: Some("OpenSubtitles"),
-            lang: Some(language),
+            lang: language.map(Language::tag),
         },
     );
     if show {

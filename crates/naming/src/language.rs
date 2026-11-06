@@ -149,15 +149,6 @@ pub fn base_code(tag: &str) -> Option<&'static str> {
         .map(|(_, two)| *two)
 }
 
-/// How to write a language tag for a reader. Unknown codes come back
-/// upper-cased, which at least reads as a code rather than as a word.
-pub fn language_name(tag: &str) -> String {
-    Language::parse(tag).map_or_else(
-        || tag.trim().to_ascii_uppercase(),
-        |language| language.name(),
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

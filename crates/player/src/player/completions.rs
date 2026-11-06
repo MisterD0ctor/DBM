@@ -12,6 +12,7 @@ use dbm_library::resume::Resume;
 use dbm_library::shelf::{Beside, Shelf};
 use dbm_library::titles::{self, End};
 use dbm_mpv::MediaPath;
+use dbm_naming::Language;
 use slint::ComponentHandle;
 
 use super::{EndLight, Player};
@@ -156,9 +157,9 @@ impl Player {
     /// Subtitles fetched for this film before, back in the list as the
     /// film's own tracks are, without taking the place of whichever one it
     /// opened on.
-    fn put_back(&self, files: Vec<(std::path::PathBuf, String)>) {
+    fn put_back(&self, files: Vec<(std::path::PathBuf, Option<Language>)>) {
         for (file, language) in files {
-            commands::add_subtitle(&self.app.mpv, &file, &language, false);
+            commands::add_subtitle(&self.app.mpv, &file, language.as_ref(), false);
         }
     }
 

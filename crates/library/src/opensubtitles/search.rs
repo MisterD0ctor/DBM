@@ -2,7 +2,7 @@
 //! its name.
 
 use dbm_mpv::MediaPath;
-use dbm_naming::Media;
+use dbm_naming::{Language, Media};
 use serde_json::Value;
 use ureq::http::Method;
 
@@ -14,7 +14,7 @@ use super::{Failure, Hit, fake};
 /// The most results shown. Past a screenful the list is releases nobody has.
 const MOST: usize = 40;
 
-pub(super) fn look(path: &MediaPath, languages: &[String]) -> Result<Vec<Hit>, Failure> {
+pub(super) fn look(path: &MediaPath, languages: &[Language]) -> Result<Vec<Hit>, Failure> {
     if fake::on() {
         return Ok(fake::hits());
     }
@@ -37,11 +37,15 @@ pub(super) fn look(path: &MediaPath, languages: &[String]) -> Result<Vec<Hit>, F
 /// The search, as `signed` or as nobody.
 fn look_as(
     path: &MediaPath,
-    languages: &[String],
+    languages: &[Language],
     signed: Option<&Signed>,
 ) -> Result<Vec<Hit>, Failure> {
     let ask = |query: &[(&str, String)]| ask(query, signed);
-    let languages = languages.join(",");
+    let languages = languages
+        .iter()
+        .map(Language::tag)
+        .collect::<Vec<_>>()
+        .join(",");
     let mut hits: Vec<Hit> = Vec::new();
     // By hash first: those are the ones timed for this very file, and they
     // stay at the top of the list whatever their download counts.
@@ -122,6 +126,7 @@ fn hits(body: &Value) -> Vec<Hit> {
             let file_id = file.get("file_id")?.as_i64()?;
             let text = |name: &str| a.get(name).and_then(Value::as_str).unwrap_or_default();
             let flag = |name: &str| a.get(name).and_then(Value::as_bool).unwrap_or(false);
+            let language = Language::parse(text("language"))?;
             let release = match text("release").trim() {
                 "" => file
                     .get("file_name")
@@ -132,7 +137,7 @@ fn hits(body: &Value) -> Vec<Hit> {
             };
             Some(Hit {
                 file_id,
-                language: text("language").to_string(),
+                language,
                 release,
                 downloads: a.get("download_count").and_then(Value::as_i64).unwrap_or(0),
                 exact: flag("moviehash_match"),
