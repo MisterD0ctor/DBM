@@ -193,7 +193,7 @@ pub fn toggle_mute(mpv: &Mpv) {
 /// Reads the track list, so this **blocks**, and is the worker's: the read is
 /// fresh in a way a mirrored copy isn't.
 pub fn toggle_subtitles(mpv: &Reader) {
-    let tracks = mpv.get(prop::TRACK_LIST).unwrap_or_default();
+    let tracks = mpv.get_or_none(prop::TRACK_LIST).unwrap_or_default();
     let subs = tracks::of_kind(&tracks, TrackKind::Sub);
     if subs.is_empty() {
         return;
@@ -201,7 +201,7 @@ pub fn toggle_subtitles(mpv: &Reader) {
 
     // Showing, not merely visible, since `sub-visibility` can be on with no
     // track selected, where turning it off would change nothing visible.
-    let showing = mpv.get(prop::SUB_VISIBILITY).unwrap_or(false)
+    let showing = mpv.get_or_none(prop::SUB_VISIBILITY).unwrap_or(false)
         && tracks::selected(&tracks, TrackKind::Sub).is_some();
     if showing {
         set(mpv, prop::SUB_VISIBILITY, false);
@@ -240,7 +240,7 @@ pub fn add_subtitle(mpv: &Mpv, file: &std::path::Path, language: Option<&Languag
 /// **Blocking**: reads the track list.
 pub fn remove_track(mpv: &Reader, id: TrackId, pick: Pick) -> Option<String> {
     let file = mpv
-        .get(prop::TRACK_LIST)?
+        .get_or_none(prop::TRACK_LIST)?
         .into_iter()
         .find(|track| track.id == id && track.kind == pick.kind())?
         .file?;

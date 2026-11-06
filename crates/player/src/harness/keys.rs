@@ -195,7 +195,7 @@ pub(super) fn read_test(ui: &MainWindow, mpv: Reader) -> Script {
 
     script::run(ui, move |ui| async move {
         let mut beat = Beat::new(Duration::from_millis(900));
-        let pos = || super::shown(mpv.get(dbm_mpv::prop::TIME_POS));
+        let pos = || super::shown(mpv.get_or_none(dbm_mpv::prop::TIME_POS));
         let key = |k: Key| chord(&ui, &[], &slint::SharedString::from(k));
         beat.next().await;
         // Straight there, by the key the page itself documents.
@@ -245,11 +245,11 @@ pub(super) fn step_test(ui: &MainWindow, mpv: Reader) -> Script {
     script::run(ui, move |ui| async move {
         let verdict = Verdict::new("step");
         let mut beat = Beat::new(Duration::from_millis(700));
-        let speed = || mpv.get(prop::SPEED).unwrap_or(f64::NAN);
+        let speed = || mpv.get_or_none(prop::SPEED).unwrap_or(f64::NAN);
         // What the next press steps from, which follows mpv a run behind.
         let shown = || f64::from(ui.global::<Playback>().get_speed());
         let at_speed = |want: f64| (speed() - want).abs() < 1e-9 && (shown() - want).abs() < 1e-6;
-        let at = || mpv.get(prop::TIME_POS).unwrap_or(f64::NAN);
+        let at = || mpv.get_or_none(prop::TIME_POS).unwrap_or(f64::NAN);
         let press = |text: &str| chord(&ui, &[], text);
         let shifted = |text: &str| chord(&ui, &[Key::Shift], text);
         beat.rest(3).await;
@@ -266,7 +266,7 @@ pub(super) fn step_test(ui: &MainWindow, mpv: Reader) -> Script {
         press(".");
         verdict
             .expect(
-                || mpv.get(prop::PAUSE) == Some(true),
+                || mpv.get_or_none(prop::PAUSE) == Some(true),
                 ". steps a frame on and pauses",
             )
             .await;
@@ -280,15 +280,15 @@ pub(super) fn step_test(ui: &MainWindow, mpv: Reader) -> Script {
         press("#");
         verdict
             .expect(
-                || mpv.get(prop::AID) == Some(TrackChoice::Id(TrackId(2))),
+                || mpv.get_or_none(prop::AID) == Some(TrackChoice::Id(TrackId(2))),
                 "# goes on to the second audio track",
             )
             .await;
-        let before = mpv.get(prop::SID);
+        let before = mpv.get_or_none(prop::SID);
         shifted("C");
         verdict
             .expect(
-                || mpv.get(prop::SID) != before,
+                || mpv.get_or_none(prop::SID) != before,
                 "Shift+C goes on to another subtitle track",
             )
             .await;
@@ -296,7 +296,7 @@ pub(super) fn step_test(ui: &MainWindow, mpv: Reader) -> Script {
         shifted("N");
         verdict
             .expect(
-                || mpv.get(prop::PLAYLIST_POS) == Some(1),
+                || mpv.get_or_none(prop::PLAYLIST_POS) == Some(1),
                 "Shift+N goes on to the next file",
             )
             .await;
@@ -304,7 +304,7 @@ pub(super) fn step_test(ui: &MainWindow, mpv: Reader) -> Script {
         shifted("P");
         verdict
             .expect(
-                || mpv.get(prop::PLAYLIST_POS) == Some(0),
+                || mpv.get_or_none(prop::PLAYLIST_POS) == Some(0),
                 "Shift+P goes back to the one before",
             )
             .await;

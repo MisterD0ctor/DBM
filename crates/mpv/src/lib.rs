@@ -306,10 +306,11 @@ impl Reader {
     /// hundreds of milliseconds. It also takes the core ahead of anything
     /// still queued, so it may not see a [`Mpv::set`] made just before it.
     ///
-    /// `None` when mpv has no value for it yet, which is the normal state for
-    /// anything video-shaped until a file is loaded and the first frame has
-    /// been decoded.
-    pub fn get<T: FromMpv, A>(&self, property: Property<T, A>) -> Option<T> {
+    /// `Ok(None)` when mpv has no value for it yet, which is the normal state
+    /// for anything video-shaped until a file is loaded and the first frame
+    /// has been decoded. A read mpv refuses is an error, with its reason,
+    /// rather than the same nothing.
+    pub fn get<T: FromMpv, A>(&self, property: Property<T, A>) -> Result<Option<T>> {
         /// Room for any scalar mpv writes back.
         #[repr(C)]
         union Slot {
@@ -317,7 +318,7 @@ impl Reader {
             string: *mut c_char,
         }
         let mpv = &*self.0;
-        let name = cstr(property.name()).ok()?;
+        let name = cstr(property.name())?;
         let format = T::FORMAT.code();
         let mut slot = Slot { int: 0 };
         // SAFETY: `handle` is live, `name` outlives the call, and `slot` has
@@ -325,8 +326,17 @@ impl Reader {
         let read = unsafe {
             (mpv.lib.mpv_get_property)(mpv.handle, name.as_ptr(), format, (&raw mut slot).cast())
         };
-        if read < 0 {
-            return None;
+        match ErrorCode::of(read) {
+            // No value is the ordinary state before a file has opened, not a
+            // failure to hear about.
+            Some(ErrorCode::PropertyUnavailable) => return Ok(None),
+            Some(code) => {
+                return Err(Error::Api {
+                    call: "mpv_get_property",
+                    code,
+                });
+            }
+            None => {}
         }
         // SAFETY: mpv wrote a value of `format` into `slot`.
         let value = unsafe { Value::read(format, (&raw const slot).cast()) };
@@ -336,7 +346,22 @@ impl Reader {
             // no-op.
             unsafe { (mpv.lib.mpv_free)(slot.string.cast()) };
         }
-        T::from_mpv(value?)
+        Ok(value.and_then(T::from_mpv))
+    }
+
+    /// Like [`get`](Self::get), for a read whose absence is ordinary and
+    /// whose refusal is only worth the log: answers `None` and says why.
+    ///
+    /// A caller that can do something with the failure calls `get` instead.
+    pub fn get_or_none<T: FromMpv, A>(&self, property: Property<T, A>) -> Option<T> {
+        let name = property.name();
+        match self.get(property) {
+            Ok(value) => value,
+            Err(e) => {
+                log::warn!("could not read {name}: {e}");
+                None
+            }
+        }
     }
 }
 

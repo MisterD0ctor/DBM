@@ -96,7 +96,7 @@ fn report_smtc(ui: &MainWindow, mpv: &Reader, label: &str) {
     eprintln!(
         "dbm: smtc {label:<14} ours[paused={} entry={} {}] windows[{app} {status} {title:?}]",
         ui.global::<Playback>().get_paused(),
-        super::shown(mpv.get(dbm_mpv::prop::PLAYLIST_POS)),
+        super::shown(mpv.get_or_none(dbm_mpv::prop::PLAYLIST_POS)),
         ui.global::<Playback>().get_title(),
     );
 }
@@ -331,7 +331,7 @@ fn report_mpris(
          bus[{status} {title:?} at {position:.1}s next={next}] \
          heard[changed={} seeked={}]",
         ui.global::<Playback>().get_paused(),
-        super::shown(mpv.get(dbm_mpv::prop::PLAYLIST_POS)),
+        super::shown(mpv.get_or_none(dbm_mpv::prop::PLAYLIST_POS)),
         ui.global::<Playback>().get_title(),
         heard.changed.load(Ordering::Relaxed),
         heard.seeked.load(Ordering::Relaxed),

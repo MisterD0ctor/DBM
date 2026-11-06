@@ -118,7 +118,7 @@ impl ListSync {
         };
         self.requested = generation;
         self.in_flight = worker.submit(move |mpv| {
-            let playlist = mpv.get(prop::PLAYLIST).unwrap_or_default();
+            let playlist = mpv.get_or_none(prop::PLAYLIST).unwrap_or_default();
             let paths: Vec<MediaPath> = playlist.iter().map(|e| e.filename.clone()).collect();
             // mpv's own word on what is playing, from the same read, since
             // the frame's can lag a file behind as one gives way to the next.
@@ -128,8 +128,8 @@ impl ListSync {
                 .map(|e| e.filename.clone());
             let same = read_for.is_some_and(|(list, was)| list == paths && was == playing);
             Some(Completion::Lists(Lists {
-                tracks: mpv.get(prop::TRACK_LIST).unwrap_or_default(),
-                chapters: mpv.get(prop::CHAPTER_LIST).unwrap_or_default(),
+                tracks: mpv.get_or_none(prop::TRACK_LIST).unwrap_or_default(),
+                chapters: mpv.get_or_none(prop::CHAPTER_LIST).unwrap_or_default(),
                 progress: (!same).then(|| {
                     let progress = dbm_library::durations::of(&paths);
                     paths.iter().cloned().zip(progress).collect()

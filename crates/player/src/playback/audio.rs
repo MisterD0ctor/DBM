@@ -147,7 +147,7 @@ impl Watchdog {
 /// **Blocking**: reads the track list. Returns what to tell the person
 /// watching, or `None` when there was nothing to repair.
 pub fn reopen(mpv: &Reader, remembered: Option<TrackId>) -> Option<Notice> {
-    let tracks = mpv.get(prop::TRACK_LIST).unwrap_or_default();
+    let tracks = mpv.get_or_none(prop::TRACK_LIST).unwrap_or_default();
     let audio: Vec<TrackId> = tracks::of_kind(&tracks, TrackKind::Audio)
         .iter()
         .map(|t| t.id)
@@ -158,7 +158,7 @@ pub fn reopen(mpv: &Reader, remembered: Option<TrackId>) -> Option<Notice> {
         return None;
     }
 
-    let current = mpv.get(prop::AID).and_then(TrackChoice::id);
+    let current = mpv.get_or_none(prop::AID).and_then(TrackChoice::id);
     // Whether the person watching actually lost sound, which is when mpv
     // dropped the track. A device appearing while audio played fine repairs
     // the output unheard, and nobody needs telling.

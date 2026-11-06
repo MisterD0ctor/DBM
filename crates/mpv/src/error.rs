@@ -127,6 +127,12 @@ mod tests {
     fn only_a_negative_status_is_an_error() {
         assert_eq!(ErrorCode::of(0), None);
         assert_eq!(ErrorCode::of(7), None);
+        assert_eq!(
+            ErrorCode::of(-10),
+            Some(ErrorCode::PropertyUnavailable),
+            "a read with no value is not a refusal"
+        );
+        assert_eq!(ErrorCode::of(-8), Some(ErrorCode::PropertyNotFound));
         assert_eq!(ErrorCode::of(-17), Some(ErrorCode::UnknownFormat));
         assert_eq!(ErrorCode::of(-99), Some(ErrorCode::Other(-99)));
     }

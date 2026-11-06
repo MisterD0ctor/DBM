@@ -96,8 +96,8 @@ pub fn spawn(mpv: Reader, reporter: Reporter<Outcome>) {
     crate::threads::spawn("dbm-subsync", move || {
         // Read here rather than handed over, since these block on mpv's core
         // lock, which the UI thread must not.
-        let path = mpv.get(prop::PATH);
-        let sid = mpv.get(prop::SID);
+        let path = mpv.get_or_none(prop::PATH);
+        let sid = mpv.get_or_none(prop::SID);
         let result = match &path {
             Some(path) => ask(&mpv, path).and_then(|asked| run(&asked, ticket)),
             None => Err(Failure::NoSubtitles),
@@ -138,7 +138,9 @@ struct Asked {
 }
 
 fn ask(mpv: &Reader, path: &MediaPath) -> Result<Asked, Failure> {
-    let sub = mpv.get(prop::CURRENT_SUB).ok_or(Failure::NoSubtitles)?;
+    let sub = mpv
+        .get_or_none(prop::CURRENT_SUB)
+        .ok_or(Failure::NoSubtitles)?;
     if sub.codec.as_deref().is_some_and(tracks::is_pictures) {
         return Err(Failure::Pictures);
     }
@@ -152,7 +154,7 @@ fn ask(mpv: &Reader, path: &MediaPath) -> Result<Asked, Failure> {
     // An audio track from a file of its own is not in the film's, so its
     // index means nothing there; the film's first is the next best thing,
     // and is the same performance in another mix or language.
-    let audio = mpv.get(prop::CURRENT_AUDIO);
+    let audio = mpv.get_or_none(prop::CURRENT_AUDIO);
     let own_audio = !audio.as_ref().is_some_and(Track::external);
     let channels = audio.as_ref().and_then(|track| track.channels).unwrap_or(0);
     Ok(Asked {

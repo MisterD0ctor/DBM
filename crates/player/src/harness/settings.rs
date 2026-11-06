@@ -52,13 +52,13 @@ fn report_subs(ui: &MainWindow, mpv: &Reader, label: &str) {
     eprintln!(
         "dbm: {label:<20} mpv delay={:?} scale={:?} pos={:?} | panel {} {} {} \
          | margins {:?} floor {:.3} lift {:.2}",
-        mpv.get(prop::SUB_DELAY),
-        mpv.get(prop::SUB_SCALE),
-        mpv.get(prop::SUB_POS),
+        mpv.get_or_none(prop::SUB_DELAY),
+        mpv.get_or_none(prop::SUB_SCALE),
+        mpv.get_or_none(prop::SUB_POS),
         ui.global::<Subtitles>().get_delay_text(),
         ui.global::<Subtitles>().get_scale_text(),
         ui.global::<Subtitles>().get_pos_text(),
-        mpv.get(prop::SUB_USE_MARGINS),
+        mpv.get_or_none(prop::SUB_USE_MARGINS),
         ui.get_subtitle_floor(),
         ui.get_subtitle_lift(),
     );
@@ -73,7 +73,7 @@ pub(super) fn subs_test(ui: &MainWindow, mpv: Reader) -> Script {
     script::run(ui, move |ui| async move {
         let verdict = Verdict::new("subtitle");
         let subtitles = ui.global::<Subtitles>();
-        let read = |property: Property<f64>| mpv.get(property).unwrap_or(f64::NAN);
+        let read = |property: Property<f64>| mpv.get_or_none(property).unwrap_or(f64::NAN);
         let near = |property, want: f64| (read(property) - want).abs() < 0.005;
         let mut beat = Beat::new(Duration::from_millis(900));
         beat.next().await;
@@ -173,7 +173,7 @@ pub(super) fn find_test(ui: &MainWindow, mpv: Reader) -> Script {
         }
         eprintln!(
             "dbm: find {label:<14} line={:?}",
-            mpv.get(prop::SUB_TEXT).unwrap_or_default()
+            mpv.get_or_none(prop::SUB_TEXT).unwrap_or_default()
         );
     };
     script::run(ui, move |ui| async move {
@@ -450,7 +450,7 @@ pub(super) fn sync_test(ui: &MainWindow, mpv: Reader) -> Script {
             ui.global::<Subtitles>().get_delay(),
             ui.global::<Subtitles>().get_speed(),
             ui.global::<crate::Flash>().get_message(),
-            mpv.get(prop::SUB_TEXT).unwrap_or_default(),
+            mpv.get_or_none(prop::SUB_TEXT).unwrap_or_default(),
         );
     };
     script::run(ui, move |ui| async move {
@@ -584,7 +584,7 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: Reader) -> Script {
         // Autoplay has no picture to check, so mpv is the witness.
         eprintln!(
             "dbm: autoplay off -> keep-open={:?}",
-            mpv.get(prop::KEEP_OPEN)
+            mpv.get_or_none(prop::KEEP_OPEN)
         );
         beat.next().await;
         ui.global::<Settings>().set_autoplay(true);
@@ -592,7 +592,7 @@ pub(super) fn toggle_test(ui: &MainWindow, mpv: Reader) -> Script {
         beat.next().await;
         eprintln!(
             "dbm: autoplay on  -> keep-open={:?}",
-            mpv.get(prop::KEEP_OPEN)
+            mpv.get_or_none(prop::KEEP_OPEN)
         );
         beat.next().await;
         // Animations, the way the switch turns them off: `Motion`

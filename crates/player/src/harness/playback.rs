@@ -368,7 +368,7 @@ pub(super) fn timing_test(ui: &MainWindow, mpv: Reader) -> Script {
     let report = |ui: &MainWindow, mpv: &Reader, label: &str| {
         eprintln!(
             "dbm: timing {label:<20} {:?} delay={:+.2} speed={:.4}",
-            short(&mpv.get(prop::FILENAME).unwrap_or_default().into()),
+            short(&mpv.get_or_none(prop::FILENAME).unwrap_or_default().into()),
             ui.global::<Subtitles>().get_delay(),
             ui.global::<Subtitles>().get_speed(),
         );
@@ -986,7 +986,7 @@ fn report_progress(ui: &MainWindow, mpv: &Reader, label: &str) {
         .collect();
     eprintln!(
         "dbm: progress {label:<12} t={} | {}",
-        super::shown(mpv.get(prop::TIME_POS)),
+        super::shown(mpv.get_or_none(prop::TIME_POS)),
         rows.join(" "),
     );
 }
@@ -997,7 +997,7 @@ fn report_progress(ui: &MainWindow, mpv: &Reader, label: &str) {
 /// given, and if our copy of that rule is wrong every row shows an empty bar
 /// and nothing anywhere reports an error.
 fn report_resume_file(mpv: &Reader) {
-    let Some(path) = mpv.get(prop::PATH) else {
+    let Some(path) = mpv.get_or_none(prop::PATH) else {
         eprintln!("dbm: progress: nothing playing");
         return;
     };

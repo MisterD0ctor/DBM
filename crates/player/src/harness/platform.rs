@@ -144,8 +144,8 @@ fn device_list(payload: &str) -> Observed {
 fn report_audio(mpv: &Reader, label: &str) {
     eprintln!(
         "dbm: audio {label:<16} aid={} device={} tracks={}",
-        super::shown(mpv.get(prop::AID)),
-        super::shown(mpv.get(prop::AUDIO_DEVICE)),
-        super::shown(mpv.get(prop::TRACK_COUNT)),
+        super::shown(mpv.get_or_none(prop::AID)),
+        super::shown(mpv.get_or_none(prop::AUDIO_DEVICE)),
+        super::shown(mpv.get_or_none(prop::TRACK_COUNT)),
     );
 }
