@@ -4,12 +4,12 @@
 use glow::HasContext;
 
 use super::{
-    BEVEL, CORNER_SOFTNESS, GlassPanel, IOR, LEGIBLE, MAX_PANELS, Pipeline, RING_RIM, fringe_scale,
-    legible_ceiling,
+    BEVEL, CORNER_SOFTNESS, GlassOver, GlassPanel, IOR, LEGIBLE, MAX_PANELS, Pipeline, RING_RIM,
+    fringe_scale, legible_ceiling,
 };
 use crate::blur;
 use crate::gfx::{Target, bind_texture, saved_draw_fbo};
-use crate::rect::{Pixels, Rect};
+use crate::rect::{Pixels, Rect, Region};
 use crate::shadow::HEADROOM;
 
 impl Pipeline {
@@ -45,7 +45,7 @@ impl Pipeline {
         base: &Target,
         blur: &Target,
         panels: &[GlassPanel],
-        shaded: &[[i32; 4]],
+        shaded: &[Region],
         out: &Target,
     ) {
         let g = self.glass;
@@ -93,7 +93,7 @@ impl Pipeline {
         let held = shaded.len().min(MAX_PANELS);
         let mut regions = [[0.0f32; 4]; MAX_PANELS];
         for (i, region) in shaded.iter().take(held).enumerate() {
-            regions[i] = region.map(|v| v as f32);
+            regions[i] = region.as_array().map(|v| v as f32);
         }
         self.prog_glass.set(gl, "u_shaded_count", held as i32);
         self.prog_glass.set(gl, "u_shaded[0]", &regions);
@@ -126,20 +126,15 @@ impl Pipeline {
     /// back cut to `clip`, the panel it is in. A region is the pane plus room
     /// for the blur, rim and shadow, so it costs a few small draws. Physical
     /// pixels from the window's top-left, as `GlassPanel` takes them.
-    pub fn glass_over(
-        &mut self,
-        gl: &glow::Context,
-        window: (u32, u32),
-        panes: &[(GlassPanel, [i32; 4])],
-    ) {
+    pub fn glass_over(&mut self, gl: &glow::Context, window: (u32, u32), panes: &[GlassOver]) {
         if !self.glass_enabled || panes.is_empty() || window.0 == 0 || window.1 == 0 {
             return;
         }
         let screen = saved_draw_fbo(gl);
         let mut viewport = [0i32; 4];
         unsafe { gl.get_parameter_i32_slice(glow::VIEWPORT, &mut viewport) };
-        for (pane, clip) in panes {
-            self.glass_one_over(gl, window, screen, pane, *clip);
+        for over in panes {
+            self.glass_one_over(gl, window, screen, &over.pane, over.clip);
         }
         // Slint starts the next frame from what it left.
         unsafe {
@@ -160,7 +155,7 @@ impl Pipeline {
         window: (u32, u32),
         screen: Option<glow::Framebuffer>,
         pane: &GlassPanel,
-        clip: [i32; 4],
+        clip: Region,
     ) {
         let (win_w, win_h) = (window.0 as i32, window.1 as i32);
         // The blur's reach, and the shadow, which fades over the pane's radius
@@ -174,8 +169,8 @@ impl Pipeline {
         let bottom = (y1.ceil() as i32 + margin).min(win_h);
         let (width, height) = (right - left, bottom - top);
         // What is written back: the region, inside the pane's panel.
-        let (w_left, w_top) = (left.max(clip[0]), top.max(clip[1]));
-        let (w_right, w_bottom) = (right.min(clip[2]), bottom.min(clip[3]));
+        let (w_left, w_top) = (left.max(clip.left), top.max(clip.top));
+        let (w_right, w_bottom) = (right.min(clip.right), bottom.min(clip.bottom));
         if width <= 0 || height <= 0 || w_right <= w_left || w_bottom <= w_top {
             return;
         }

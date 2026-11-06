@@ -8,6 +8,7 @@
 //! the list is in.
 
 use dbm_gpu::fade::{Edge, Strip};
+use dbm_gpu::rect::Region;
 use dbm_gpu::way::Way;
 use slint::{ComponentHandle, Model};
 
@@ -65,12 +66,12 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<Strip>, ways: &mut Vec<Way>) {
                 up: list.way_up,
                 on: list.way,
                 lit: list.way_lit,
-                clip: [
+                clip: Region::new(
                     before(list.clip_x),
                     before(list.clip_y),
                     after(list.clip_x + list.clip_width),
                     after(list.clip_y + list.clip_height),
-                ],
+                ),
                 scale: dpi,
                 wash,
                 rest,

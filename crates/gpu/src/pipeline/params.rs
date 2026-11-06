@@ -1,7 +1,7 @@
 //! What the chain is asked to draw: the border's and the glass's settings,
 //! the panes, and the glass's fixed material.
 
-use crate::rect::{Pixels, Rect};
+use crate::rect::{Pixels, Rect, Region};
 
 /// How far the glass's corners ease into its straight edges: the corner's
 /// curve runs this many radii along each, where 1 is a quarter of an ellipse
@@ -66,6 +66,13 @@ pub struct GlassPanel {
     /// under the keyboard's ring, [`OPEN_MILK`] under a bar button whose panel
     /// is open, and 0 for every other pane, which is clear glass.
     pub milk: f32,
+}
+
+/// A pane laid over the finished frame, and the panel it is cut to.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct GlassOver {
+    pub pane: GlassPanel,
+    pub clip: Region,
 }
 
 /// Look of the glass: what the settings panel's glass page adjusts, plus the

@@ -13,8 +13,8 @@
 use glow::HasContext;
 
 use super::gfx::{Program, ScreenQuad, bind_texture, program, saved_draw_fbo};
-use super::pipeline::GlassPanel;
-use crate::rect::{Pixels, Rect};
+use super::pipeline::{GlassOver, GlassPanel};
+use crate::rect::{Pixels, Rect, Region};
 
 const UP: &[u8] = include_bytes!("../../../public/icons/angle-small-up.svg");
 const DOWN: &[u8] = include_bytes!("../../../public/icons/angle-small-down.svg");
@@ -41,9 +41,9 @@ pub struct Way {
     pub on: f32,
     /// How far its circle is in, 0..1.
     pub lit: f32,
-    /// The panel it is in: left, top, right, bottom. A list sliding out of
-    /// its panel takes its angle with it, and only what is inside shows.
-    pub clip: [i32; 4],
+    /// The panel it is in. A list sliding out of its panel takes its angle
+    /// with it, and only what is inside shows.
+    pub clip: Region,
     /// Logical pixels to physical.
     pub scale: f32,
     /// The paint it is drawn in, as alphas of white: the circle's, and the
@@ -55,7 +55,7 @@ pub struct Way {
 
 impl Way {
     /// Its disc of glass, and the panel that cuts it; see [`GLASS`].
-    pub fn pane(&self) -> (GlassPanel, [i32; 4]) {
+    pub fn pane(&self) -> GlassOver {
         let radius = CIRCLE * self.scale / 2.0;
         let pane = GlassPanel {
             rect: Rect::<Pixels>::pixels(
@@ -73,7 +73,10 @@ impl Way {
             ring: false,
             milk: 0.0,
         };
-        (pane, self.clip)
+        GlassOver {
+            pane,
+            clip: self.clip,
+        }
     }
 }
 
@@ -142,7 +145,8 @@ impl Ways {
         let left = (way.x - px as f32 / 2.0).round() as i32 - spare;
         let top = (way.y - px as f32 / 2.0).round() as i32 - spare;
 
-        let [c_left, c_top, c_right, c_bottom] = way.clip;
+        let (c_left, c_top, c_right, c_bottom) =
+            (way.clip.left, way.clip.top, way.clip.right, way.clip.bottom);
         if c_right <= c_left || c_bottom <= c_top {
             return;
         }

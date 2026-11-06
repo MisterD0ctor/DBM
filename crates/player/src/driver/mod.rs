@@ -33,6 +33,7 @@ use crate::player::Player;
 use crate::{MainWindow, diagnostics};
 use dbm_gpu::Overlays;
 use dbm_gpu::pipeline::{GlassPanel, Pipeline};
+use dbm_gpu::rect::Region;
 use dbm_lang::{fill, marked, tr};
 
 /// Identity of what a Slint image property points at: texture id, active
@@ -55,7 +56,7 @@ struct Scratch {
     panels: Vec<GlassPanel>,
     /// Where the shadow under the interface is cast this frame, which the
     /// glass pass holds under white for it (see `shadow::regions`).
-    shaded: Vec<[i32; 4]>,
+    shaded: Vec<Region>,
     /// The ends of scrolling lists to soften this frame. Reused, like the
     /// panels, to keep the frame path from allocating.
     fades: Vec<dbm_gpu::fade::Strip>,

@@ -21,6 +21,7 @@ use glow::HasContext;
 
 use super::gfx::{Program, ScreenQuad, Target, bind_texture, program, saved_draw_fbo};
 use super::pipeline::GlassPanel;
+use crate::rect::Region;
 
 /// The shadow's spread, as a standard deviation in logical pixels.
 const SIGMA: f32 = 1.50;
@@ -60,7 +61,7 @@ impl Shadow {
         gl: &glow::Context,
         ground: &Target,
         window: (u32, u32),
-        regions: &[[i32; 4]],
+        regions: &[Region],
         scale: f32,
     ) {
         if window.0 == 0 || window.1 == 0 || regions.is_empty() {
@@ -88,11 +89,11 @@ impl Shadow {
         ground: &Target,
         window: (u32, u32),
         screen: Option<glow::Framebuffer>,
-        region: [i32; 4],
+        region: Region,
         sigma: f32,
     ) {
-        let [left, top, right, bottom] = region;
-        let (width, height) = (right - left, bottom - top);
+        let (left, right, bottom) = (region.left, region.right, region.bottom);
+        let (width, height) = (region.width(), region.height());
         let win_h = window.1 as i32;
         if !self.copied.ensure_size(gl, width as u32, height as u32)
             || !self.across.ensure_size(gl, width as u32, height as u32)
@@ -167,19 +168,19 @@ impl Shadow {
 /// Worked out once a frame, before the glass pass, which holds these under
 /// white, and handed to [`Shadow::run`], which gives it back: the two have to
 /// agree to the pixel.
-pub fn regions(panels: &[GlassPanel], window: (u32, u32), scale: f32, out: &mut Vec<[i32; 4]>) {
+pub fn regions(panels: &[GlassPanel], window: (u32, u32), scale: f32, out: &mut Vec<Region>) {
     out.clear();
     // The shadow reaches three deviations past what casts it.
     let reach = (SIGMA * scale * 3.0).ceil() as i32 + 1;
     for panel in panels.iter().filter(|p| p.opacity > 0.004) {
         let [x0, y0, x1, y1] = panel.rect.as_array();
-        let rect = [
+        let rect = Region::new(
             (x0.floor() as i32 - reach).max(0),
             (y0.floor() as i32 - reach).max(0),
             (x1.ceil() as i32 + reach).min(window.0 as i32),
             (y1.ceil() as i32 + reach).min(window.1 as i32),
-        ];
-        if rect[2] > rect[0] && rect[3] > rect[1] {
+        );
+        if !rect.is_empty() {
             out.push(rect);
         }
     }
@@ -190,19 +191,19 @@ pub fn regions(panels: &[GlassPanel], window: (u32, u32), scale: f32, out: &mut 
 ///
 /// A pixel shaded twice would be darkened twice: the second pass reads the
 /// first one's shadow as ground the interface did not cover.
-fn merge(regions: &mut Vec<[i32; 4]>) {
+fn merge(regions: &mut Vec<Region>) {
     let mut i = 0;
     while i < regions.len() {
         let mut merged = false;
         for j in (i + 1)..regions.len() {
             let (a, b) = (regions[i], regions[j]);
-            if a[0] < b[2] && b[0] < a[2] && a[1] < b[3] && b[1] < a[3] {
-                regions[i] = [
-                    a[0].min(b[0]),
-                    a[1].min(b[1]),
-                    a[2].max(b[2]),
-                    a[3].max(b[3]),
-                ];
+            if a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom {
+                regions[i] = Region::new(
+                    a.left.min(b.left),
+                    a.top.min(b.top),
+                    a.right.max(b.right),
+                    a.bottom.max(b.bottom),
+                );
                 regions.swap_remove(j);
                 merged = true;
                 break;
@@ -217,19 +218,31 @@ fn merge(regions: &mut Vec<[i32; 4]>) {
 #[cfg(test)]
 mod tests {
     use super::merge;
+    use crate::rect::Region;
 
     #[test]
     fn overlapping_regions_become_one() {
-        let mut regions = vec![[0, 0, 10, 10], [5, 5, 20, 20], [30, 30, 40, 40]];
+        let mut regions = vec![
+            Region::new(0, 0, 10, 10),
+            Region::new(5, 5, 20, 20),
+            Region::new(30, 30, 40, 40),
+        ];
         merge(&mut regions);
         regions.sort();
-        assert_eq!(regions, vec![[0, 0, 20, 20], [30, 30, 40, 40]]);
+        assert_eq!(
+            regions,
+            vec![Region::new(0, 0, 20, 20), Region::new(30, 30, 40, 40)]
+        );
     }
 
     #[test]
     fn a_merge_that_reaches_a_third_takes_it_in_too() {
-        let mut regions = vec![[0, 0, 10, 10], [25, 0, 35, 10], [8, 0, 27, 10]];
+        let mut regions = vec![
+            Region::new(0, 0, 10, 10),
+            Region::new(25, 0, 35, 10),
+            Region::new(8, 0, 27, 10),
+        ];
         merge(&mut regions);
-        assert_eq!(regions, vec![[0, 0, 35, 10]]);
+        assert_eq!(regions, vec![Region::new(0, 0, 35, 10)]);
     }
 }

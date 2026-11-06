@@ -22,7 +22,7 @@ use glow::HasContext;
 
 use crate::blur::Blur;
 use crate::gfx::{Program, ScreenQuad, Target, program, saved_draw_fbo};
-use crate::rect::{Normalised, Rect};
+use crate::rect::{Normalised, Rect, Region};
 
 mod backdrop;
 mod border;
@@ -31,8 +31,8 @@ mod params;
 
 use backdrop::Backdrop;
 pub use params::{
-    BEVEL, BorderParams, CORNER_SOFTNESS, GlassPanel, GlassParams, IOR, LEGIBLE, MAX_PANELS,
-    OPEN_MILK, RING_MILK, RING_RIM, fringe_scale, legible_ceiling,
+    BEVEL, BorderParams, CORNER_SOFTNESS, GlassOver, GlassPanel, GlassParams, IOR, LEGIBLE,
+    MAX_PANELS, OPEN_MILK, RING_MILK, RING_RIM, fringe_scale, legible_ceiling,
 };
 
 /// How long the last frame's three stretches took.
@@ -75,7 +75,7 @@ pub struct Frame<'a> {
     pub panels: &'a [GlassPanel],
     /// Where the shadow pass will look, from `shadow::regions`, which the
     /// glass pass holds under white for it.
-    pub shaded: &'a [[i32; 4]],
+    pub shaded: &'a [Region],
 }
 
 pub struct Pipeline {
@@ -109,7 +109,7 @@ pub struct Pipeline {
     over_out: Target,
     panels: Vec<GlassPanel>,
     /// The frame's `shaded`, as last drawn.
-    shaded: Vec<[i32; 4]>,
+    shaded: Vec<Region>,
     pub glass: GlassParams,
 
     /// The last frame's three stretches, when `DBM_GPU_TIME` is on. Zero
