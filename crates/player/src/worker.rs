@@ -14,9 +14,11 @@
 //! background work is visible in one place, and adding one is a compile
 //! error until it is handled.
 
+use std::io;
 use std::sync::mpsc::{self, Receiver, Sender, TryIter};
 use std::thread::JoinHandle;
 
+use dbm_lang::{fill, tr};
 use dbm_library::playlist::{Error, Prepared};
 use dbm_library::threads::{ForFile, Reporter};
 use dbm_mpv::{MediaPath, Reader};
@@ -29,6 +31,46 @@ pub struct Opened {
     pub ask: bool,
 }
 
+/// Something a background job did that the person should hear about.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Notice {
+    /// The audio chain was rebuilt after a device returned.
+    SoundBack,
+}
+
+impl Notice {
+    /// What to say, in the language spoken now.
+    ///
+    /// **UI thread only.** The sentence is made where it is shown, not where
+    /// the device came back, so a language chosen meanwhile is the one it is
+    /// said in.
+    pub fn sentence(self) -> &'static str {
+        match self {
+            Self::SoundBack => tr("Sound is back"),
+        }
+    }
+}
+
+/// Something a background job failed to do, which the person should know.
+#[derive(Debug)]
+pub enum Warning {
+    /// The settings could not be written, and the reason the disk gave.
+    SettingsNotSaved(io::Error),
+}
+
+impl Warning {
+    /// The warning as a sentence, in the language spoken now.
+    ///
+    /// **UI thread only**, for [`Notice::sentence`]'s reason.
+    pub fn sentence(&self) -> String {
+        match self {
+            Self::SettingsNotSaved(source) => {
+                fill(tr("Settings could not be saved — {}"), &[source])
+            }
+        }
+    }
+}
+
 /// Work that finished. Add a variant per kind of background job.
 pub enum Completion {
     Lists(crate::playback::state::Lists),
@@ -36,10 +78,10 @@ pub enum Completion {
     Opened(Result<Opened, Error>),
     /// Something the person watching should be told, raised from a background
     /// job, such as the audio watchdog saying sound is back.
-    Notice(String),
+    Notice(Notice),
     /// Something that did not happen, raised from a background job: said the
     /// same way, with the warning mark before it.
-    Warning(String),
+    Warning(Warning),
     /// Playlist entries described by `probe` without being played: their
     /// lengths and titles. Several at once when they came from the cache.
     Probed(Vec<dbm_library::probe::Found>),
@@ -187,5 +229,21 @@ impl Drop for Worker {
         if let Some(t) = self.thread.take() {
             let _ = t.join();
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_notice_is_said_where_it_is_shown() {
+        assert_eq!(Notice::SoundBack.sentence(), "Sound is back");
+    }
+
+    #[test]
+    fn a_settings_warning_keeps_the_reason_for_its_sentence() {
+        let warning = Warning::SettingsNotSaved(io::Error::other("disk is full"));
+        assert!(warning.sentence().contains("disk is full"));
     }
 }

@@ -35,8 +35,8 @@ impl Player {
             Completion::Shelved(shelf) => self.take_shelf(ui, shelf),
             Completion::Opened(Ok(opened)) => self.load(opened.list, opened.ask),
             Completion::Opened(Err(e)) => self.not_opened(ui, e),
-            Completion::Notice(text) => say(ui, text),
-            Completion::Warning(text) => warn(ui, text),
+            Completion::Notice(notice) => say(ui, notice.sentence().into()),
+            Completion::Warning(warning) => warn(ui, warning.sentence()),
             Completion::Resume(Some(resume)) => self.offer_resume(ui, resume),
             // Nothing to continue, which on a fresh install is every time:
             // the window is lit by the player's own mark instead.

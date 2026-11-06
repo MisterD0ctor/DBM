@@ -2,6 +2,7 @@
 //! written once a change settles.
 
 use std::cell::Cell;
+use std::io;
 
 use super::{Key, REGISTRY, Store, Toggle};
 
@@ -258,9 +259,9 @@ impl Persister {
         // `submit` rather than `run`, so a failure reaches the person tuning,
         // whose adjustments are in it.
         self.worker.submit(move |_mpv| {
-            save(&path, &values, taken)
-                .err()
-                .map(crate::worker::Completion::Warning)
+            save(&path, &values, taken).err().map(|source| {
+                crate::worker::Completion::Warning(crate::worker::Warning::SettingsNotSaved(source))
+            })
         });
     }
 }
@@ -269,10 +270,10 @@ impl Persister {
 /// run after a newer one written by [`Saving::flush`], and must not undo it.
 static WRITTEN: std::sync::Mutex<u64> = std::sync::Mutex::new(0);
 
-/// Write settings out, unless newer ones have been already. Returns what to
-/// say on failure rather than panicking: losing a saved slider must not take
-/// the player down, nor pass in silence.
-fn save(path: &std::path::Path, values: &[(String, f32)], taken: u64) -> Result<(), String> {
+/// Write settings out, unless newer ones have been already. Returns the
+/// reason on failure rather than panicking: losing a saved slider must not
+/// take the player down, nor pass in silence.
+fn save(path: &std::path::Path, values: &[(String, f32)], taken: u64) -> Result<(), io::Error> {
     use std::fmt::Write as _;
     let mut written = WRITTEN
         .lock()
@@ -287,9 +288,8 @@ fn save(path: &std::path::Path, values: &[(String, f32)], taken: u64) -> Result<
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
-    dbm_library::paths::write_atomic(path, out).map_err(|e| {
+    dbm_library::paths::write_atomic(path, out).inspect_err(|e| {
         log::warn!("could not save settings: {e}");
-        dbm_lang::fill(dbm_lang::tr("Settings could not be saved — {}"), &[&e])
     })?;
     *written = taken;
     Ok(())

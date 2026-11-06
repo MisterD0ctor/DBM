@@ -21,12 +21,12 @@ use std::collections::BTreeSet;
 use std::rc::Rc;
 use std::time::Duration;
 
-use dbm_lang::tr;
 use dbm_mpv::Reader;
 use dbm_mpv::prop::{self, TrackChoice};
 use dbm_mpv::tracks::{self, AudioDevice, TrackId, TrackKind};
 
 use crate::playback::state::Observed;
+use crate::worker::Notice;
 
 /// How long the device list must stay still before the audio chain is touched.
 ///
@@ -146,7 +146,7 @@ impl Watchdog {
 ///
 /// **Blocking**: reads the track list. Returns what to tell the person
 /// watching, or `None` when there was nothing to repair.
-pub fn reopen(mpv: &Reader, remembered: Option<TrackId>) -> Option<String> {
+pub fn reopen(mpv: &Reader, remembered: Option<TrackId>) -> Option<Notice> {
     let tracks = mpv.get(prop::TRACK_LIST).unwrap_or_default();
     let audio: Vec<TrackId> = tracks::of_kind(&tracks, TrackKind::Audio)
         .iter()
@@ -186,7 +186,7 @@ pub fn reopen(mpv: &Reader, remembered: Option<TrackId>) -> Option<String> {
     }
     log::info!("audio recovery: reselected audio track {target}");
     // Names what happened rather than the fix, which is the log's business.
-    was_silent.then(|| tr("Sound is back").to_string())
+    was_silent.then_some(Notice::SoundBack)
 }
 
 /// Said once: an unreadable list means recovery will never fire, but saying
