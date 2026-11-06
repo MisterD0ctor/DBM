@@ -324,11 +324,10 @@ fn entry_item(entry: &Entry) -> PlaylistItem {
         current: entry.current,
         // A file never played here has no length or progress, so the row
         // leaves both out rather than printing "0:00".
-        length: if entry.progress.seconds > 0.0 {
-            format::time(entry.progress.seconds).into()
-        } else {
-            Default::default()
-        },
+        length: entry
+            .progress
+            .seconds
+            .map_or_else(Default::default, |seconds| format::time(seconds).into()),
         progress: entry.progress.fraction(),
         finished: entry.progress.finished,
         why: entry.why.as_str().into(),

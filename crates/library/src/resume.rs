@@ -53,7 +53,7 @@ pub fn last_watched() -> Option<Resume> {
     candidates.into_iter().find_map(|(_, path, seconds)| {
         let start = crate::durations::resume_point(&dir, &path)?;
         if start <= 0.0
-            || crate::durations::is_finished(&finished, &path, start)
+            || crate::durations::is_finished(&finished, &path, Some(start))
             || !path.as_path().is_file()
         {
             return None;
@@ -96,17 +96,16 @@ pub enum Saved {
 
 impl Saved {
     pub fn of(progress: &Progress) -> Self {
-        if progress.start <= 0.0 {
-            Self::Nothing
-        } else if progress.finished
-            || progress.seconds > 0.0
-                && progress.seconds - progress.start
-                    <= (progress.seconds * ENDING_SHARE).max(ENDING_LEAST)
-            || progress.start < WORTH_ASKING
-        {
+        let Some(start) = progress.start else {
+            return Self::Nothing;
+        };
+        let almost_over = progress
+            .seconds
+            .is_some_and(|seconds| seconds - start <= (seconds * ENDING_SHARE).max(ENDING_LEAST));
+        if progress.finished || almost_over || start < WORTH_ASKING {
             Self::Over
         } else {
-            Self::Place(progress.start)
+            Self::Place(start)
         }
     }
 }

@@ -419,8 +419,8 @@ mod tests {
 
     fn saved(start: f64, seconds: f64, finished: bool) -> Saved {
         Saved::of(&Progress {
-            seconds,
-            start,
+            seconds: Some(seconds).filter(|seconds| *seconds > 0.0),
+            start: Some(start).filter(|start| *start > 0.0),
             finished,
         })
     }

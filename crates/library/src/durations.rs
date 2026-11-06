@@ -46,10 +46,10 @@ pub fn record_many(lengths: impl IntoIterator<Item = (MediaPath, f64)>) {
 /// What is known about one playlist entry.
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct Progress {
-    /// Length in seconds, or zero when this file has never been played here.
-    pub seconds: f64,
-    /// The resume point, in seconds, zero when there is none.
-    pub start: f64,
+    /// Length in seconds, where this file has ever been played here.
+    pub seconds: Option<f64>,
+    /// The resume point, in seconds, where there is one.
+    pub start: Option<f64>,
     /// Watched to its end, or into its closing credits, and not started
     /// again since.
     ///
@@ -63,8 +63,11 @@ impl Progress {
     /// How far the resume point is through it, 0..1. Zero when there is no
     /// saved position, or no length to measure it against.
     pub fn fraction(&self) -> f32 {
-        if self.seconds > 0.0 && self.start > 0.0 {
-            (self.start / self.seconds).clamp(0.0, 1.0) as f32
+        let (Some(seconds), Some(start)) = (self.seconds, self.start) else {
+            return 0.0;
+        };
+        if seconds > 0.0 && start > 0.0 {
+            (start / seconds).clamp(0.0, 1.0) as f32
         } else {
             0.0
         }
@@ -82,8 +85,8 @@ pub fn of(paths: &[MediaPath]) -> Vec<Progress> {
     paths
         .iter()
         .map(|path| {
-            let seconds = cache.get(path).copied().unwrap_or(0.0);
-            let start = resume_point(&watch_later, path).unwrap_or(0.0);
+            let seconds = cache.get(path).copied().filter(|seconds| *seconds > 0.0);
+            let start = resume_point(&watch_later, path).filter(|start| *start > 0.0);
             Progress {
                 seconds,
                 start,
@@ -149,10 +152,10 @@ pub fn record_finished(path: &MediaPath, at: f64) {
 ///
 /// A resume point short of the ending is a viewing started again since, and
 /// the row should say how far into that one you are.
-pub fn is_finished(finished: &Finished, path: &MediaPath, start: f64) -> bool {
+pub fn is_finished(finished: &Finished, path: &MediaPath, start: Option<f64>) -> bool {
     finished
         .get(path)
-        .is_some_and(|&at| start <= 0.0 || start >= at - CHECKPOINT_SLACK)
+        .is_some_and(|&at| start.is_none_or(|start| start >= at - CHECKPOINT_SLACK))
 }
 
 #[cfg(test)]
@@ -200,10 +203,10 @@ mod tests {
             "C:/films/fresh.mkv".into(),
             "C:/films/never.mkv".into(),
         ]);
-        assert_eq!(found[0].seconds, 1200.0);
+        assert_eq!(found[0].seconds, Some(1200.0));
         assert!((found[0].fraction() - 0.25).abs() < 1e-6);
         // Known length, no saved position: a full-length row with no fill.
-        assert_eq!(found[1].seconds, 600.0);
+        assert_eq!(found[1].seconds, Some(600.0));
         assert_eq!(found[1].fraction(), 0.0);
         // Never played here, so nothing is known and nothing is shown.
         assert_eq!(found[2], Progress::default());
@@ -216,12 +219,12 @@ mod tests {
         let seen = MediaPath::from("C:/films/seen.mkv");
         let finished = Finished::from([(seen.clone(), 1200.0)]);
         // mpv deleted the position at the end.
-        assert!(is_finished(&finished, &seen, 0.0));
+        assert!(is_finished(&finished, &seen, None));
         // Left in the credits, checkpointed a few seconds before they were
         // noticed.
-        assert!(is_finished(&finished, &seen, 1190.0));
+        assert!(is_finished(&finished, &seen, Some(1190.0)));
         // Watching it again, a quarter of the way in.
-        assert!(!is_finished(&finished, &seen, 300.0));
-        assert!(!is_finished(&finished, &"C:/films/fresh.mkv".into(), 0.0));
+        assert!(!is_finished(&finished, &seen, Some(300.0)));
+        assert!(!is_finished(&finished, &"C:/films/fresh.mkv".into(), None));
     }
 }

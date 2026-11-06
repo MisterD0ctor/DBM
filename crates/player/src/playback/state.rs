@@ -636,10 +636,11 @@ impl PlayerState {
     /// for one mpv has never reported.
     pub fn known_progress(&self, row: usize) -> Progress {
         let mut progress = self.progress_of(row);
-        if progress.seconds <= 0.0
+        if progress.seconds.is_none()
             && let Some(found) = self.probed_for(row)
+            && found.seconds > 0.0
         {
-            progress.seconds = found.seconds;
+            progress.seconds = Some(found.seconds);
         }
         progress
     }
