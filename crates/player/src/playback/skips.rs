@@ -84,13 +84,8 @@ impl Skips {
         let playing = player.path.is_some() && !player.paused && !player.eof_reached;
         let seeked = self.last.is_some_and(|(loads, at, then)| {
             let moved = player.time_pos - at;
-            let speed = if player.speed > 0.0 {
-                player.speed
-            } else {
-                1.0
-            };
             let played = if playing {
-                now.saturating_duration_since(then).as_secs_f64() * speed
+                now.saturating_duration_since(then).as_secs_f64() * player.speed.get()
             } else {
                 0.0
             };
@@ -196,7 +191,7 @@ mod tests {
     fn episode() -> PlayerState {
         PlayerState {
             path: Some(EPISODE.into()),
-            duration: 3600.0,
+            duration: Some(3600.0),
             loads: 1,
             playlist_pos: Some(1),
             playlist_count: 3,

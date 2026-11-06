@@ -29,8 +29,9 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     playback.set_title(player.display_title().into());
     playback.set_episode(player.display_episode().into());
     playback.set_elapsed(format::time(player.time_pos).into());
-    playback.set_total(format::time(player.duration).into());
-    playback.set_remaining(format::remaining(player.duration - player.time_pos).into());
+    let length = player.duration.unwrap_or(0.0);
+    playback.set_total(format::time(length).into());
+    playback.set_remaining(format::remaining(length - player.time_pos).into());
     playback.set_progress(player.progress());
     playback.set_paused(player.paused);
     playback.set_muted(player.muted);
@@ -52,18 +53,10 @@ pub fn push_scalars(ui: &MainWindow, player: &PlayerState) {
     // Raw, beside the formatted text, so undoing a reset can put the number
     // back without parsing it out of "+0.30 s".
     subtitles.set_delay(player.sub_delay as f32);
-    subtitles.set_speed(if player.sub_speed > 0.0 {
-        player.sub_speed as f32
-    } else {
-        1.0
-    });
-    playback.set_speed(if player.speed > 0.0 {
-        player.speed as f32
-    } else {
-        1.0
-    });
-    playback.set_speed_text(format::speed(player.speed).into());
-    playback.set_duration(player.duration as f32);
+    subtitles.set_speed(player.sub_speed.get() as f32);
+    playback.set_speed(player.speed.get() as f32);
+    playback.set_speed_text(format::speed(player.speed.get()).into());
+    playback.set_duration(length as f32);
     push_what_the_lists_decide(ui, player);
     // Where the dialogs open: beside this file, or on the shelf above its
     // folder.

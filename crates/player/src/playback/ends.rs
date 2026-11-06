@@ -76,7 +76,10 @@ impl PlayerState {
         let pieces = self.credits_heard_pieces()?;
         let last = pieces.len() - 1;
         pieces.iter().enumerate().find_map(|(at, &(start, end))| {
-            let followed = at < last || end + LENGTH_SLACK < self.duration;
+            let followed = at < last
+                || self
+                    .duration
+                    .is_some_and(|length| end + LENGTH_SLACK < length);
             let scene = followed.then_some(end - SCENE_LEAD);
             (self.time_pos >= start && scene.is_none_or(|scene| self.time_pos < scene))
                 .then_some(scene)
@@ -102,11 +105,11 @@ impl PlayerState {
     /// Where this file's credits were heard to be, in pieces. In its second
     /// half, like everything else that is taken for an ending.
     fn credits_heard_pieces(&self) -> Option<&[(f64, f64)]> {
+        let length = self.duration?;
         let path = self.path.as_ref()?;
         let (of, pieces) = self.found.credits_heard.as_ref()?;
         let starts = pieces.first()?.0;
-        (of == path && self.duration > 0.0 && starts >= self.duration / 2.0)
-            .then_some(pieces.as_slice())
+        (of == path && starts >= length / 2.0).then_some(pieces.as_slice())
     }
 
     /// The chapter the closing credits start at, where the chapters say.
@@ -120,11 +123,9 @@ impl PlayerState {
     /// has a real name, the last is the credits if it is short: a final act
     /// runs minutes, a closing sequence well under `CREDITS_TAIL`.
     fn credits_chapter(&self) -> Option<usize> {
-        if self.duration <= 0.0 {
-            return None;
-        }
+        let length = self.duration?;
         let named = self.chapters.iter().position(|c| {
-            c.time >= self.duration / 2.0 && c.title.as_deref().is_some_and(dbm_naming::is_credits)
+            c.time >= length / 2.0 && c.title.as_deref().is_some_and(dbm_naming::is_credits)
         });
         if named.is_some() {
             return named;
@@ -135,7 +136,7 @@ impl PlayerState {
                 .is_none_or(dbm_naming::is_unnamed_chapter)
         });
         let last = self.chapters.len().checked_sub(1)?;
-        let tail = self.duration - self.chapters[last].time;
+        let tail = length - self.chapters[last].time;
         (unnamed && last > 0 && tail > 0.0 && tail <= CREDITS_TAIL).then_some(last)
     }
 
@@ -169,11 +170,9 @@ impl PlayerState {
     /// ten minutes is an introduction, not a title sequence. The last chapter
     /// has no next mark to end at, so isn't one either.
     pub fn intro_named(&self) -> Option<(f64, f64)> {
-        if self.duration <= 0.0 {
-            return None;
-        }
+        let length = self.duration?;
         let at = self.chapters.iter().position(|c| {
-            c.time < self.duration / 2.0 && c.title.as_deref().is_some_and(dbm_naming::is_intro)
+            c.time < length / 2.0 && c.title.as_deref().is_some_and(dbm_naming::is_intro)
         })?;
         let (start, end) = (self.chapters[at].time, self.chapters.get(at + 1)?.time);
         (end > start && end - start <= INTRO_LONGEST).then_some((start, end))
@@ -231,7 +230,7 @@ mod tests {
         // -1 for none, as mpv says it.
         PlayerState {
             path: Some(path.into()),
-            duration: 3600.0,
+            duration: Some(3600.0),
             chapter: usize::try_from(chapter).ok(),
             chapters: marks
                 .iter()
@@ -428,7 +427,7 @@ mod tests {
     #[test]
     fn nothing_rolls_before_the_length_is_known() {
         let mut state = playing(EPISODE, 1, MARKS);
-        state.duration = 0.0;
+        state.duration = None;
         assert!(!state.credits_rolling());
     }
 }

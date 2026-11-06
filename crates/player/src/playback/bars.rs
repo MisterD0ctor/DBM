@@ -41,7 +41,7 @@ impl Bars {
         let Some(path) = player.path.as_ref() else {
             return;
         };
-        if player.duration <= 0.0 || !tracks_read {
+        if player.duration.is_none() || !tracks_read {
             return;
         }
         let styled = tracks::selected(&player.tracks, TrackKind::Sub)

@@ -114,7 +114,7 @@ impl Player {
             .per_file
             .path
             .clone()
-            .filter(|_| self.state.duration > 0.0)
+            .filter(|_| self.state.duration.is_some())
         else {
             return;
         };
@@ -156,7 +156,7 @@ impl Player {
     fn poll_preview(&self, ui: &MainWindow) {
         let playback = ui.global::<Playback>();
         let preview = &self.app.preview;
-        preview.set_duration(self.state.duration);
+        preview.set_duration(self.state.duration.unwrap_or(0.0));
         preview.set_chapters(&self.state.chapters);
         let Some(path) = self.state.path.clone() else {
             return;
@@ -247,11 +247,10 @@ impl Player {
     /// that could make the whole thing unnecessary arrive in the same read.
     fn listen_for_the_titles(&mut self) {
         use dbm_library::titles::{self, End};
-        let Some(path) = self.per_file.path.as_ref() else {
+        let (Some(path), Some(length)) = (self.per_file.path.as_ref(), self.state.duration) else {
             return;
         };
         if self.per_file.titles_asked
-            || self.state.duration <= 0.0
             || !self.feeds.lists.settled(&self.state)
             || !self.state.playlist.iter().any(|e| e.filename == *path)
         {
@@ -278,7 +277,7 @@ impl Player {
             path.clone(),
             ends,
             beside,
-            self.state.duration,
+            length,
             self.app.worker.reporter(Completion::Titles),
         );
     }

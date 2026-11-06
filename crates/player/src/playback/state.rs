@@ -171,7 +171,9 @@ pub struct PlayerState {
     pub filename: Option<String>,
     pub media_title: Option<String>,
     pub path: Option<MediaPath>,
-    pub duration: f64,
+    /// How long the file is, in seconds, once mpv knows, which is a moment
+    /// after it opens.
+    pub duration: Option<f64>,
     pub time_pos: f64,
     pub percent_pos: f64,
     pub paused: bool,
@@ -186,9 +188,8 @@ pub struct PlayerState {
     pub playlist_count: usize,
     pub sub_visibility: bool,
     pub sub_delay: f64,
-    /// The speed subtitles run at against the film. Zero until mpv first
-    /// reports it, which reads as 1.
-    pub sub_speed: f64,
+    /// The speed subtitles run at against the film.
+    pub sub_speed: Rate,
     /// Size multiplier. Mirrored rather than read from the saved settings, so
     /// the readout shows what mpv settled on, including its own clamping.
     ///
@@ -197,8 +198,7 @@ pub struct PlayerState {
     pub sub_scale: f64,
     /// 0 letterboxes to fit, 1 crops to fill.
     pub panscan: f64,
-    /// Playback speed. Zero until mpv first reports it, which reads as 1.
-    pub speed: f64,
+    pub speed: Rate,
     /// The chapter playing, from 0, where the file has one and it has begun.
     pub chapter: Option<usize>,
     pub chapter_count: i64,
@@ -223,6 +223,30 @@ pub struct PlayerState {
     pub tracks: Vec<Track>,
     pub playlist: Vec<PlaylistEntry>,
     pub found: Found,
+}
+
+/// A speed against the film's own, where 1 is as timed: playback's, or the
+/// subtitles' against the film. 1 until mpv says otherwise.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Rate(f64);
+
+impl Default for Rate {
+    fn default() -> Self {
+        Self(1.0)
+    }
+}
+
+impl Rate {
+    /// What mpv reported, where that is a speed at all.
+    fn of(reported: Option<f64>) -> Self {
+        number(reported)
+            .filter(|n| *n > 0.0)
+            .map_or_else(Self::default, Self)
+    }
+
+    pub fn get(self) -> f64 {
+        self.0
+    }
 }
 
 /// What the player found out for itself about the files playing and the
@@ -295,7 +319,7 @@ impl PlayerState {
             Observed::Filename(name) => set(&mut self.filename, text(name)),
             Observed::MediaTitle(title) => set(&mut self.media_title, text(title)),
             Observed::Path(path) => set(&mut self.path, path),
-            Observed::Duration(n) => set(&mut self.duration, number(n).unwrap_or(0.0)),
+            Observed::Duration(n) => set(&mut self.duration, number(n).filter(|n| *n > 0.0)),
             Observed::TimePos(n) => set(&mut self.time_pos, number(n).unwrap_or(0.0)),
             Observed::PercentPos(n) => set(&mut self.percent_pos, number(n).unwrap_or(0.0)),
             Observed::Pause(on) => set(&mut self.paused, on.unwrap_or(false)),
@@ -310,10 +334,10 @@ impl PlayerState {
             }
             Observed::SubVisibility(on) => set(&mut self.sub_visibility, on.unwrap_or(false)),
             Observed::SubDelay(n) => set(&mut self.sub_delay, number(n).unwrap_or(0.0)),
-            Observed::SubSpeed(n) => set(&mut self.sub_speed, number(n).unwrap_or(1.0)),
+            Observed::SubSpeed(n) => set(&mut self.sub_speed, Rate::of(n)),
             Observed::SubScale(n) => set(&mut self.sub_scale, number(n).unwrap_or(1.0)),
             Observed::Panscan(n) => set(&mut self.panscan, number(n).unwrap_or(0.0)),
-            Observed::Speed(n) => set(&mut self.speed, number(n).unwrap_or(1.0)),
+            Observed::Speed(n) => set(&mut self.speed, Rate::of(n)),
             Observed::Chapter(chapter) => set(&mut self.chapter, chapter.and_then(index)),
             Observed::ChapterCount(count) => {
                 let moved = set(&mut self.chapter_count, count.unwrap_or(0));
@@ -554,11 +578,9 @@ impl PlayerState {
     /// Playback progress in 0..1, preferring the elapsed/duration ratio so it
     /// stays smooth; `percent-pos` updates less often.
     pub fn progress(&self) -> f32 {
-        if self.duration > 0.0 {
-            (self.time_pos / self.duration).clamp(0.0, 1.0) as f32
-        } else {
-            0.0
-        }
+        self.duration.map_or(0.0, |length| {
+            (self.time_pos / length).clamp(0.0, 1.0) as f32
+        })
     }
 }
 

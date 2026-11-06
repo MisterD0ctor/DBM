@@ -18,10 +18,10 @@ pub struct Recorder {
     /// What was last handed to the worker, so the same fact isn't rewritten
     /// every frame.
     last: Option<(MediaPath, f64)>,
-    /// The file playing, its length, and whether it was within a moment of
-    /// its end. Autoplay moves straight past the end of a file and mpv never
+    /// The file playing, and its length while it is within a moment of its
+    /// end. Autoplay moves straight past the end of a file and mpv never
     /// reports reaching it, so this is how that file is still counted.
-    playing: Option<(MediaPath, f64, bool)>,
+    playing: Option<(MediaPath, Option<f64>)>,
     /// The last file written down as finished, so it is written once.
     finished: Option<MediaPath>,
 }
@@ -33,15 +33,11 @@ const NEAR_END: f64 = 2.0;
 impl Recorder {
     pub fn poll(&mut self, worker: &Worker, player: &PlayerState) {
         self.watch_ending(worker, player);
-        let Some(path) = player.path.clone() else {
+        // No length until the file is open and demuxed, which is most of the
+        // first moment of every file.
+        let (Some(path), Some(seconds)) = (player.path.clone(), player.duration) else {
             return;
         };
-        let seconds = player.duration;
-        // Zero until the file is open and demuxed, which is most of the first
-        // moment of every file.
-        if seconds <= 0.0 {
-            return;
-        }
         if self
             .last
             .as_ref()
@@ -57,10 +53,10 @@ impl Recorder {
     /// its last moments before autoplay took the next one.
     fn watch_ending(&mut self, worker: &Worker, player: &PlayerState) {
         if self.playing.as_ref().map(|p| &p.0) != player.path.as_ref() {
-            if let Some((path, duration, true)) = self.playing.take() {
-                self.finish(worker, path, duration);
+            if let Some((path, Some(length))) = self.playing.take() {
+                self.finish(worker, path, length);
             }
-            self.playing = player.path.clone().map(|p| (p, 0.0, false));
+            self.playing = player.path.clone().map(|p| (p, None));
         }
         let Some(path) = player.path.as_ref() else {
             return;
@@ -68,14 +64,18 @@ impl Recorder {
         // The file's own numbers, and past its halfway point, since for a
         // frame after a new file opens the flags and position can still be
         // the last one's.
-        let into_it = player.duration > 0.0 && player.time_pos >= player.duration * 0.5;
+        let into_it = player
+            .duration
+            .filter(|length| player.time_pos >= length * 0.5);
         if let Some(playing) = self.playing.as_mut() {
-            playing.1 = player.duration;
-            playing.2 = into_it && player.time_pos >= player.duration - NEAR_END;
+            playing.1 = into_it.filter(|length| player.time_pos >= length - NEAR_END);
         }
+        let Some(length) = into_it else {
+            return;
+        };
         let ended = player.credits_rolling()
-            || (player.eof_reached && player.time_pos >= player.duration - NEAR_END);
-        if into_it && ended && self.finished.as_ref() != Some(path) {
+            || (player.eof_reached && player.time_pos >= length - NEAR_END);
+        if ended && self.finished.as_ref() != Some(path) {
             self.finish(worker, path.clone(), player.time_pos);
         }
     }

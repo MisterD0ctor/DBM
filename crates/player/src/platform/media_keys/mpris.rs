@@ -241,8 +241,8 @@ struct Shown {
     media_title: String,
     /// The name as the bar shows it (`PlayerState::display_title`).
     title: String,
-    /// Length in microseconds, zero when it is not known yet.
-    length: i64,
+    /// Length in microseconds, once it is known.
+    length: Option<i64>,
     paused: bool,
     /// Whether there is anything to skip to.
     playlist: bool,
@@ -262,7 +262,7 @@ impl Default for Shown {
             path: None,
             media_title: String::new(),
             title: String::new(),
-            length: 0,
+            length: None,
             paused: false,
             playlist: false,
             seekable: false,
@@ -279,12 +279,12 @@ impl Shown {
             path: player.path.clone(),
             media_title: player.media_title.clone().unwrap_or_default(),
             title: player.display_title(),
-            length: micros(player.duration),
+            length: player.duration.map(micros),
             paused: player.paused,
             playlist: playlist(player),
             seekable: seekable(player),
             volume: volume(player),
-            rate: rate(player),
+            rate: player.speed.get(),
         }
     }
 
@@ -296,12 +296,12 @@ impl Shown {
     fn describes(&self, player: &PlayerState) -> bool {
         self.path == player.path
             && self.media_title == player.media_title.as_deref().unwrap_or_default()
-            && self.length == micros(player.duration)
+            && self.length == player.duration.map(micros)
             && self.paused == player.paused
             && self.playlist == playlist(player)
             && self.seekable == seekable(player)
             && self.volume == volume(player)
-            && self.rate == rate(player)
+            && self.rate == player.speed.get()
     }
 
     /// Whether a different file is loaded than the one this describes.
@@ -337,8 +337,8 @@ impl Shown {
             return meta;
         }
         meta.insert("mpris:trackid", Value::from(self.trackid()));
-        if self.length > 0 {
-            meta.insert("mpris:length", Value::from(self.length));
+        if let Some(length) = self.length {
+            meta.insert("mpris:length", Value::from(length));
         }
         meta.insert("xesam:title", Value::from(self.title.clone()));
         // Only an absolute path can become a URI, and mpv reports the path it
@@ -737,21 +737,12 @@ fn playlist(player: &PlayerState) -> bool {
 }
 
 fn seekable(player: &PlayerState) -> bool {
-    player.path.is_some() && player.duration > 0.0
+    player.path.is_some() && player.duration.is_some()
 }
 
 /// MPRIS counts 1.0 as normal, mpv counts 100.
 fn volume(player: &PlayerState) -> f64 {
     player.volume / 100.0
-}
-
-/// Zero until mpv first reports a speed, which reads as normal.
-fn rate(player: &PlayerState) -> f64 {
-    if player.speed > 0.0 {
-        player.speed
-    } else {
-        1.0
-    }
 }
 
 /// Seconds as microseconds, which is the only unit MPRIS has for time.

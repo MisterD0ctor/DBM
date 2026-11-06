@@ -35,14 +35,7 @@ pub fn answer(ui: &MainWindow, mpv: &Mpv, player: &PlayerState, outcome: Outcome
             return;
         }
     };
-    let was = (
-        player.sub_delay,
-        if player.sub_speed > 0.0 {
-            player.sub_speed
-        } else {
-            1.0
-        },
-    );
+    let was = (player.sub_delay, player.sub_speed.get());
     let moved = fit.delay - was.0;
     let same_speed = (fit.speed - was.1).abs() < 1e-4;
     if same_speed && moved.abs() < 0.05 {

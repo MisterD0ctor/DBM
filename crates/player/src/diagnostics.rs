@@ -451,7 +451,7 @@ impl Probe {
             "dbm: state title={:?} t={:.2}/{:.2} ({:.0}%) paused={} vol={} rect={:?}",
             player.display_title(),
             player.time_pos,
-            player.duration,
+            player.duration.unwrap_or(0.0),
             player.progress() * 100.0,
             player.paused,
             player.volume,
