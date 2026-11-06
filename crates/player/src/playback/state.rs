@@ -138,8 +138,8 @@ pub fn observe(mpv: &Mpv) {
 
 /// mpv's own layout, from `osd-dimensions`: the window's size, then the
 /// margins round the picture, left, top, right and bottom, negative where it
-/// is cropped. All zero before mpv has laid anything out.
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+/// is cropped.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct OsdDims {
     pub w: f64,
     pub h: f64,
@@ -147,6 +147,34 @@ pub struct OsdDims {
     pub mt: f64,
     pub mr: f64,
     pub mb: f64,
+}
+
+/// The six parts of that layout as mpv reports them, one at a time.
+#[derive(Debug, Clone, Copy, Default)]
+pub(super) struct OsdParts {
+    w: Option<f64>,
+    h: Option<f64>,
+    ml: Option<f64>,
+    mt: Option<f64>,
+    mr: Option<f64>,
+    mb: Option<f64>,
+}
+
+impl OsdParts {
+    /// The layout these parts describe, once every one of them is known.
+    /// Until then there is no layout to draw from, which is not the same as
+    /// a layout with every number zero.
+    fn build(self) -> Option<OsdDims> {
+        let dims = OsdDims {
+            w: self.w?,
+            h: self.h?,
+            ml: self.ml?,
+            mt: self.mt?,
+            mr: self.mr?,
+            mb: self.mb?,
+        };
+        (dims.w > 0.0 && dims.h > 0.0).then_some(dims)
+    }
 }
 
 /// Track, chapter and playlist contents, read together because they are
@@ -218,7 +246,9 @@ pub struct PlayerState {
     /// How many files mpv has finished opening this run, which tells the
     /// player when an open is over: when one loads, not when one exists.
     pub loads: u64,
-    pub osd: OsdDims,
+    /// mpv's layout, once all six of its parts have been reported.
+    pub osd: Option<OsdDims>,
+    pub(super) osd_parts: OsdParts,
     /// Display size of the video itself, aspect already applied.
     pub dwidth: f64,
     pub dheight: f64,
@@ -359,15 +389,30 @@ impl PlayerState {
             }
             Observed::Dwidth(n) => set(&mut self.dwidth, number(n).unwrap_or(0.0)),
             Observed::Dheight(n) => set(&mut self.dheight, number(n).unwrap_or(0.0)),
-            Observed::OsdW(n) => set(&mut self.osd.w, number(n).unwrap_or(0.0)),
-            Observed::OsdH(n) => set(&mut self.osd.h, number(n).unwrap_or(0.0)),
-            Observed::OsdMl(n) => set(&mut self.osd.ml, number(n).unwrap_or(0.0)),
-            Observed::OsdMt(n) => set(&mut self.osd.mt, number(n).unwrap_or(0.0)),
-            Observed::OsdMr(n) => set(&mut self.osd.mr, number(n).unwrap_or(0.0)),
-            Observed::OsdMb(n) => set(&mut self.osd.mb, number(n).unwrap_or(0.0)),
+            Observed::OsdW(n) => self.set_osd(|parts| &mut parts.w, n),
+            Observed::OsdH(n) => self.set_osd(|parts| &mut parts.h, n),
+            Observed::OsdMl(n) => self.set_osd(|parts| &mut parts.ml, n),
+            Observed::OsdMt(n) => self.set_osd(|parts| &mut parts.mt, n),
+            Observed::OsdMr(n) => self.set_osd(|parts| &mut parts.mr, n),
+            Observed::OsdMb(n) => self.set_osd(|parts| &mut parts.mb, n),
             // The audio watchdog's, not the interface's.
             Observed::AudioDeviceList(_) => false,
         }
+    }
+
+    /// Keep one part of mpv's layout, rebuilding the whole from it when all
+    /// six are known.
+    fn set_osd(
+        &mut self,
+        part: impl FnOnce(&mut OsdParts) -> &mut Option<f64>,
+        value: Option<f64>,
+    ) -> bool {
+        let slot = part(&mut self.osd_parts);
+        let moved = set(slot, number(value));
+        if moved {
+            self.osd = self.osd_parts.build();
+        }
+        moved
     }
 
     /// Have the track list, the playlist and the chapters read again when
@@ -444,14 +489,17 @@ impl PlayerState {
     ///
     /// Before anything is laid out, a full-window rect reads as no border.
     pub fn video_rect(&self, width: u32, height: u32) -> Rect<Normalised> {
-        let OsdDims {
+        let Some(OsdDims {
             w: ow,
             h: oh,
             ml,
             mt,
             mr,
             mb,
-        } = self.osd;
+        }) = self.osd
+        else {
+            return self.fitted_rect(width, height);
+        };
         if ow > 0.0 && oh > 0.0 && ow as u32 == width && oh as u32 == height {
             return Rect::normalised(
                 (ml / ow) as f32,
@@ -609,6 +657,32 @@ fn set<T: PartialEq>(slot: &mut T, value: T) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_layout_needs_all_six_parts_and_a_real_window() {
+        assert_eq!(OsdParts::default().build(), None);
+        let mut parts = OsdParts {
+            w: Some(1280.0),
+            h: Some(720.0),
+            ml: Some(0.0),
+            mt: Some(0.0),
+            mr: Some(0.0),
+            mb: Some(0.0),
+        };
+        assert_eq!(
+            parts.build(),
+            Some(OsdDims {
+                w: 1280.0,
+                h: 720.0,
+                ml: 0.0,
+                mt: 0.0,
+                mr: 0.0,
+                mb: 0.0,
+            })
+        );
+        parts.h = Some(0.0);
+        assert_eq!(parts.build(), None);
+    }
 
     #[test]
     fn every_property_is_observed_under_its_own_index() {

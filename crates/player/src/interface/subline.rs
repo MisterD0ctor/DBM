@@ -50,20 +50,27 @@ pub struct Picture {
 impl Picture {
     /// From mpv's layout. Before mpv has laid anything out, the picture is
     /// taken to fill the window.
-    pub fn from_osd(osd: OsdDims) -> Self {
+    pub fn from_osd(osd: Option<OsdDims>) -> Self {
+        let Some(osd) = osd else {
+            return Self::whole_window();
+        };
         if osd.w <= 0.0 || osd.h <= 0.0 {
-            return Self {
-                top: 0.0,
-                foot: 1.0,
-                cropped: false,
-                narrower: false,
-            };
+            return Self::whole_window();
         }
         Self {
             top: osd.mt / osd.h,
             foot: 1.0 - osd.mb / osd.h,
             cropped: [osd.ml, osd.mt, osd.mr, osd.mb].iter().any(|m| *m < 0.0),
             narrower: osd.ml > 0.0 || osd.mr > 0.0,
+        }
+    }
+
+    fn whole_window() -> Self {
+        Self {
+            top: 0.0,
+            foot: 1.0,
+            cropped: false,
+            narrower: false,
         }
     }
 }
@@ -138,7 +145,7 @@ impl Subline {
         Self {
             params,
             floor: Cell::new((1.0, 0.0)),
-            picture: Cell::new((Picture::from_osd(OsdDims::default()), false)),
+            picture: Cell::new((Picture::from_osd(None), false)),
             sent: Cell::new(None),
             shown: Cell::new(None),
         }
@@ -238,12 +245,25 @@ mod tests {
     };
 
     fn at(own: f64, osd: OsdDims) -> Placement {
-        placement(own, 1.0, 0.0, Picture::from_osd(osd), false)
+        placement(own, 1.0, 0.0, Picture::from_osd(Some(osd)), false)
     }
 
     fn close(placed: Placement, window: bool, pos: f64) {
         assert_eq!(placed.window, window, "{placed:?}");
         assert!((placed.pos - pos).abs() < 1e-9, "{placed:?} against {pos}");
+    }
+
+    #[test]
+    fn before_a_layout_the_picture_fills_the_window() {
+        assert_eq!(
+            Picture::from_osd(None),
+            Picture {
+                top: 0.0,
+                foot: 1.0,
+                cropped: false,
+                narrower: false,
+            }
+        );
     }
 
     #[test]
@@ -269,7 +289,7 @@ mod tests {
 
     #[test]
     fn a_bar_in_the_letterbox_leaves_a_line_on_the_picture_alone() {
-        let picture = Picture::from_osd(LETTERBOXED);
+        let picture = Picture::from_osd(Some(LETTERBOXED));
         close(placement(100.0, 0.9, 1.0, picture, false), false, 100.0);
         // But one resting in the letterbox comes up onto it, laid out where
         // it rests, so the bar's fade doesn't change the frame.
@@ -279,7 +299,7 @@ mod tests {
 
     #[test]
     fn the_bar_lifts_a_line_as_it_arrives() {
-        let picture = Picture::from_osd(PILLARBOXED);
+        let picture = Picture::from_osd(Some(PILLARBOXED));
         close(placement(100.0, 0.8, 1.0, picture, false), false, 80.0);
         close(placement(100.0, 0.8, 0.5, picture, false), false, 90.0);
         // A line already above the bar stays put.
@@ -288,14 +308,14 @@ mod tests {
 
     #[test]
     fn bitmaps_are_placed_within_the_picture() {
-        let letterboxed = Picture::from_osd(LETTERBOXED);
+        let letterboxed = Picture::from_osd(Some(LETTERBOXED));
         close(placement(120.0, 1.0, 0.0, letterboxed, true), false, 100.0);
         let floor = 0.75;
         let lifted = placement(100.0, floor, 1.0, letterboxed, true);
         close(lifted, false, 100.0 * (floor - 0.125) / 0.75);
         // A cropped picture's foot is under the window's, so a bitmap is
         // lifted to the window's foot.
-        let cropped = Picture::from_osd(CROPPED);
+        let cropped = Picture::from_osd(Some(CROPPED));
         let top = -124.0 / 720.0;
         close(
             placement(100.0, 1.0, 0.0, cropped, true),
