@@ -24,7 +24,7 @@ use dbm_lang::tr;
 use dbm_mpv::MediaPath;
 
 use crate::cache::PathMap;
-use crate::threads::{Reporter, Supersede};
+use crate::threads::{ForFile, Reporter, Supersede};
 
 pub mod account;
 mod download;
@@ -112,19 +112,18 @@ impl Failure {
 }
 
 /// A search's answer, for the file it was asked about, and who was signed in
-/// once it was done.
+/// once it was done, which holds whatever is playing by then.
 pub struct Found {
-    pub path: MediaPath,
-    pub hits: Result<Vec<Hit>, Failure>,
+    pub hits: ForFile<Result<Vec<Hit>, Failure>>,
     pub account: Option<Account>,
 }
 
-/// A download's answer: the subtitle on disk, and its language; and who was
-/// signed in once it was done, with what they have left.
+/// A download's answer: the subtitle on disk, and its language, for the file
+/// it was fetched for; and who was signed in once it was done, with what they
+/// have left.
 pub struct Fetched {
-    pub path: MediaPath,
     pub hit: Hit,
-    pub result: Result<(PathBuf, String), Failure>,
+    pub result: ForFile<Result<(PathBuf, String), Failure>>,
     pub account: Option<Account>,
 }
 
@@ -136,8 +135,7 @@ pub fn search(path: MediaPath, languages: Vec<String>, reporter: Reporter<Found>
         if ticket.current() {
             let account = account::current();
             reporter.send(Found {
-                path,
-                hits,
+                hits: ForFile::new(path, hits),
                 account,
             });
         }
@@ -151,9 +149,8 @@ pub fn fetch(path: MediaPath, hit: Hit, reporter: Reporter<Fetched>) {
         let result = download::download(&path, &hit);
         let account = account::current();
         reporter.send(Fetched {
-            path,
             hit,
-            result,
+            result: ForFile::new(path, result),
             account,
         });
     });

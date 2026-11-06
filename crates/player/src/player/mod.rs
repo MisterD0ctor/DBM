@@ -130,29 +130,35 @@ struct Feeds {
     neighbours: feeds::Neighbours,
 }
 
-/// What was done once for the file playing, so it is not done again, and
-/// is done afresh for the next.
+/// What was done once for the file playing, so it is not done again. Made
+/// afresh whenever the file changes, nothing playing included (see
+/// `follow_file`), so none of it can be about another file.
 #[derive(Default)]
 struct PerFile {
-    /// The file the way on was last looked for on behalf of.
-    onward_asked: Option<MediaPath>,
-    /// The file whose end was last given a light, and the file whose end has
-    /// one now (see `light_the_end`).
-    end_light_asked: Option<MediaPath>,
-    end_lit: Option<MediaPath>,
-    /// Whether that light is the mark, for want of a frame of the file's own.
-    end_marked: bool,
-    /// The file whose title sequence and credits were last looked for, so
-    /// each is looked for once.
-    titles_asked: Option<MediaPath>,
-    /// The file subtitles fetched before were last put back for, once it
+    /// The file it is all about, or `None` with nothing playing.
+    path: Option<MediaPath>,
+    /// Whether the way on was looked for, at its end or in its credits.
+    onward_asked: bool,
+    /// Whether its end was asked to be given a light (see `light_the_end`),
+    /// and what lights it once one came.
+    end_light_asked: bool,
+    end_light: Option<EndLight>,
+    /// Whether its title sequence and credits were listened for.
+    titles_asked: bool,
+    /// Whether the subtitles fetched for it before were put back, once it
     /// had opened.
-    kept_asked: Option<MediaPath>,
-    /// What was playing when the search's page was last closed, which it is
-    /// as soon as anything else plays, or nothing does.
-    find_closed: Option<MediaPath>,
-    /// The file whose frame was last looked at for bars.
-    bars_asked: Option<MediaPath>,
+    kept_asked: bool,
+    /// Whether its frame was looked at for bars.
+    bars_asked: bool,
+}
+
+/// What lights the end of a file, behind the glass.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum EndLight {
+    /// The most lit frame of the file itself.
+    Frame,
+    /// The player's mark, for want of a frame of the file's own.
+    Mark,
 }
 
 pub struct Player {
@@ -286,8 +292,8 @@ impl Player {
     /// the backdrop shows in place of the film's black.
     pub fn end_lit(&self) -> bool {
         self.state.eof_reached
-            && self.per_file.end_lit.is_some()
-            && self.per_file.end_lit == self.state.path
+            && self.per_file.path == self.state.path
+            && self.per_file.end_light.is_some()
     }
 
     /// Draw the panels waiting to be drawn unseen. A frame's work, since

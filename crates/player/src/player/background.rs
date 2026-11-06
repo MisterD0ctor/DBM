@@ -1,7 +1,9 @@
 use dbm_lang::{fill, tr};
 use slint::ComponentHandle;
 
-use super::Player;
+use dbm_library::threads::ForFile;
+
+use super::{PerFile, Player};
 use crate::interface::{format, sync};
 use crate::worker::Completion;
 use crate::{Find, FindState, MainWindow, Playback, Subtitles, SyncState};
@@ -10,6 +12,7 @@ impl Player {
     /// Ask for the background work the player's state calls for, and take
     /// delivery of whatever finished.
     pub fn background(&mut self, ui: &MainWindow) {
+        self.follow_file(ui);
         // Opening the playlist is the cue to go and look at the resume
         // positions again: they are written to disk behind our back, and this
         // is the moment somebody cares what they say.
@@ -46,8 +49,35 @@ impl Player {
         // After the drain, so an answer is acted on in the run it arrives in.
         let tracks_read = self.feeds.lists.settled(&self.state);
         self.bars.follow(&self.app.mpv, &self.state, tracks_read);
-        self.put_back_downloads(ui);
+        self.put_back_downloads();
         self.say_it_again(ui);
+    }
+
+    /// Start afresh on what is done once per file when the file playing
+    /// changes, and take down what the last one put up: the way on it
+    /// offered, and a search for its subtitles.
+    fn follow_file(&mut self, ui: &MainWindow) {
+        if self.per_file.path == self.state.path {
+            return;
+        }
+        let left = std::mem::replace(
+            &mut self.per_file,
+            PerFile {
+                path: self.state.path.clone(),
+                ..PerFile::default()
+            },
+        );
+        if left.onward_asked {
+            let playback = ui.global::<Playback>();
+            playback.set_onward_path("".into());
+            playback.set_onward_label("".into());
+            playback.set_onward_season(false);
+            playback.set_season_done("".into());
+        }
+        ui.set_find_open(false);
+        let find = ui.global::<Find>();
+        find.set_state(FindState::Idle);
+        find.set_fetching(-1);
     }
 
     /// Have the playing file's frame looked at for bars, and then the next
@@ -55,14 +85,13 @@ impl Player {
     /// not until the lists have been read for it, which is when the next is
     /// known.
     fn look_for_bars(&mut self) {
-        let Some(path) = self.state.path.as_ref() else {
+        let Some(path) = self.per_file.path.as_ref() else {
             return;
         };
-        if self.per_file.bars_asked.as_ref() == Some(path) || !self.feeds.lists.settled(&self.state)
-        {
+        if self.per_file.bars_asked || !self.feeds.lists.settled(&self.state) {
             return;
         }
-        self.per_file.bars_asked = Some(path.clone());
+        self.per_file.bars_asked = true;
         let playlist = &self.state.playlist;
         let next = playlist
             .iter()
@@ -74,32 +103,25 @@ impl Player {
     }
 
     /// Put back the subtitles fetched for this file on an earlier visit,
-    /// once it has opened, and close a search still open for the last one.
-    fn put_back_downloads(&mut self, ui: &MainWindow) {
-        if self.state.path != self.per_file.find_closed {
-            self.per_file.find_closed.clone_from(&self.state.path);
-            ui.set_find_open(false);
-            let find = ui.global::<Find>();
-            find.set_state(FindState::Idle);
-            find.set_fetching(-1);
-        }
-        if self.state.path == self.per_file.kept_asked {
+    /// once it has opened.
+    fn put_back_downloads(&mut self) {
+        if self.per_file.kept_asked {
             return;
         }
         // Not until it has opened: a track added before then is lost with
         // the load it raced.
         let Some(path) = self
-            .state
+            .per_file
             .path
             .clone()
             .filter(|_| self.state.duration > 0.0)
         else {
             return;
         };
-        self.per_file.kept_asked = Some(path.clone());
+        self.per_file.kept_asked = true;
         self.app.worker.submit(move |_mpv| {
             let files = dbm_library::opensubtitles::kept(&path);
-            (!files.is_empty()).then_some(Completion::Kept { path, files })
+            (!files.is_empty()).then(|| Completion::Kept(ForFile::new(path, files)))
         });
     }
 
@@ -172,27 +194,19 @@ impl Player {
 
     /// Look for the way on at the end of the last file, once per file — or in
     /// its closing credits, where the credits pill makes the same offer before
-    /// the file is over. The offer belongs to the file that asked for it, so
-    /// a new one takes it back down.
+    /// the file is over. The offer belongs to the file that asked for it, and
+    /// `follow_file` takes it down when another plays.
     fn look_onward(&mut self, ui: &MainWindow) {
         let playback = ui.global::<Playback>();
         let ending =
             (self.state.eof_reached || self.state.credits_rolling()) && self.state.at_last();
-        if self.state.path != self.per_file.onward_asked
-            && self.per_file.onward_asked.take().is_some()
-        {
-            playback.set_onward_path("".into());
-            playback.set_onward_label("".into());
-            playback.set_onward_season(false);
-            playback.set_season_done("".into());
-        }
-        if !ending || self.per_file.onward_asked.is_some() {
+        if !ending || self.per_file.onward_asked {
             return;
         }
-        let Some(path) = self.state.path.clone() else {
+        let Some(path) = self.per_file.path.clone() else {
             return;
         };
-        self.per_file.onward_asked = Some(path.clone());
+        self.per_file.onward_asked = true;
         // Season 0 is the specials, which no one finishes as a season.
         if let dbm_naming::Media::Episode {
             season: Some(season @ 1..),
@@ -203,7 +217,7 @@ impl Player {
         }
         self.app.worker.submit(move |_mpv| {
             let to = dbm_library::onward::after(&path);
-            Some(Completion::Onward { from: path, to })
+            Some(Completion::Onward(ForFile::new(path, to)))
         });
     }
 
@@ -212,16 +226,16 @@ impl Player {
     /// the most lit frame of the file itself, before its credits. Never of
     /// what comes next, whose frame would show a scene before it is watched.
     fn light_the_end(&mut self) {
-        let Some(path) = self.state.path.clone() else {
+        let Some(path) = self.per_file.path.clone() else {
             return;
         };
-        if !self.state.eof_reached || self.per_file.end_light_asked.as_ref() == Some(&path) {
+        if !self.state.eof_reached || self.per_file.end_light_asked {
             return;
         }
-        self.per_file.end_light_asked = Some(path.clone());
+        self.per_file.end_light_asked = true;
         self.app.worker.submit(move |_mpv| {
             let still = dbm_library::preview::lit_still(&path, 0.9);
-            Some(Completion::EndLight { from: path, still })
+            Some(Completion::EndLight(ForFile::new(path, still)))
         });
     }
 
@@ -233,17 +247,17 @@ impl Player {
     /// that could make the whole thing unnecessary arrive in the same read.
     fn listen_for_the_titles(&mut self) {
         use dbm_library::titles::{self, End};
-        let Some(path) = self.state.path.as_ref() else {
+        let Some(path) = self.per_file.path.as_ref() else {
             return;
         };
-        if self.per_file.titles_asked.as_ref() == Some(path)
+        if self.per_file.titles_asked
             || self.state.duration <= 0.0
             || !self.feeds.lists.settled(&self.state)
             || !self.state.playlist.iter().any(|e| e.filename == *path)
         {
             return;
         }
-        self.per_file.titles_asked = Some(path.clone());
+        self.per_file.titles_asked = true;
         // The opening first: it is the one that is about to play.
         let mut ends = Vec::new();
         if self.state.intro_named().is_none() {

@@ -50,12 +50,12 @@ impl Search {
     pub fn found(&self, ui: &MainWindow, playing: Option<&MediaPath>, found: Found) {
         let find = ui.global::<Find>();
         show_account(&find, found.account.as_ref());
-        if playing != Some(&found.path) {
+        let media = dbm_naming::parse(found.hits.path().as_str());
+        let Some(hits) = found.hits.if_playing(playing) else {
             return;
-        }
-        match found.hits {
+        };
+        match hits {
             Ok(hits) => {
-                let media = dbm_naming::parse(found.path.as_str());
                 let rows: Vec<FoundItem> = hits.iter().map(|hit| found_row(hit, &media)).collect();
                 find.set_hits(ModelRc::new(VecModel::from(rows)));
                 find.set_state(if hits.is_empty() {
@@ -83,10 +83,11 @@ impl Search {
         let find = ui.global::<Find>();
         find.set_fetching(-1);
         show_account(&find, fetched.account.as_ref());
-        if playing != Some(&fetched.path) {
+        let path = fetched.result.path().clone();
+        let Some(result) = fetched.result.if_playing(playing) else {
             return;
-        }
-        match fetched.result {
+        };
+        match result {
             Ok((file, language)) => {
                 commands::add_subtitle(mpv, &file, &language, true);
                 // Back to the tracks, where it now stands lit: the answer
@@ -99,7 +100,7 @@ impl Search {
                 // done, if it is still on the page that asked.
                 if why.wants_account() {
                     let row = self.row_of(&fetched.hit);
-                    self.0.borrow_mut().waiting = Some((fetched.path, fetched.hit));
+                    self.0.borrow_mut().waiting = Some((path, fetched.hit));
                     if ui.invoke_offer_sign_in(row, why.sentence().into()) {
                         return;
                     }

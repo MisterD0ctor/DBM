@@ -25,8 +25,9 @@ impl Bars {
     /// Keep an answer for the file playing. A run reports the next file's as
     /// well, which is kept on disk for when it opens.
     pub fn take(&mut self, found: Found, playing: Option<&MediaPath>) {
-        if playing == Some(&found.path) {
-            self.found = Some((found.path, found.crop));
+        let path = found.path().clone();
+        if let Some(crop) = found.if_playing(playing) {
+            self.found = Some((path, crop));
         }
     }
 

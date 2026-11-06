@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::cache::{PathMap, Stamped};
 use crate::ffmpeg;
-use crate::threads::{Reporter, Supersede, Ticket};
+use crate::threads::{ForFile, Reporter, Supersede, Ticket};
 
 /// Keyframes looked at across the film, enough that some of them light the
 /// picture to its edges.
@@ -70,11 +70,9 @@ pub struct Crop {
     pub h: u32,
 }
 
-/// One file's answer.
-pub struct Found {
-    pub path: MediaPath,
-    pub crop: Option<Crop>,
-}
+/// One file's answer: the picture inside its frame, or `None` where the
+/// frame is all picture.
+pub type Found = ForFile<Option<Crop>>;
 
 /// Called on every run.
 static RUNS: Supersede = Supersede::new();
@@ -116,7 +114,7 @@ pub fn spawn(paths: Vec<MediaPath>, reporter: Reporter<Found>) {
                     Looked::Not => continue,
                 },
             };
-            if !reporter.send(Found { path, crop }) {
+            if !reporter.send(ForFile::new(path, crop)) {
                 return;
             }
         }

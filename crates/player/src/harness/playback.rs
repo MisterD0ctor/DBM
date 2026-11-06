@@ -517,9 +517,7 @@ pub(super) fn end_test(ui: &MainWindow) -> Script {
             eprintln!("dbm: --- end-of-playback test: holding ---");
         }
         beat.next().await;
-        if enter {
-            report_end(&ui, "after enter");
-        }
+        report_end(&ui, if enter { "after enter" } else { "held" });
         beat.next().await;
         if enter {
             report_end(&ui, "after enter");
@@ -541,9 +539,11 @@ fn report_end(ui: &MainWindow, label: &str) {
         .map(|r| format!("{}x{}@{},{}", r.width, r.height, r.x, r.y))
         .collect();
     eprintln!(
-        "dbm: end {label:<12} at-end={} at-last={} paused={} ring={}@{} t={}/{} {:?} | {} rect(s) {}",
+        "dbm: end {label:<12} at-end={} at-last={} lit={} done={:?} paused={} ring={}@{} t={}/{} {:?} | {} rect(s) {}",
         ui.global::<Playback>().get_at_end(),
         ui.global::<Playback>().get_at_last(),
+        ui.global::<Playback>().get_end_lit(),
+        ui.global::<Playback>().get_season_done().to_string(),
         ui.global::<Playback>().get_paused(),
         ui.global::<crate::Chrome>().get_focus_visible(),
         ui.get_bar_focus(),

@@ -17,7 +17,7 @@
 use std::sync::mpsc::{self, Receiver, Sender, TryIter};
 use std::thread::JoinHandle;
 
-use dbm_library::threads::Reporter;
+use dbm_library::threads::{ForFile, Reporter};
 use dbm_mpv::{MediaPath, Reader};
 
 /// Work that finished. Add a variant per kind of background job.
@@ -47,19 +47,12 @@ pub enum Completion {
     /// The light behind the empty window when no film can give it one (see
     /// `mark`).
     Mark(dbm_library::preview::Still),
-    /// The light the end of `from` stands in, where its atlas has a frame to
-    /// give it (see `preview::lit_still`).
-    EndLight {
-        from: MediaPath,
-        still: Option<dbm_library::preview::Still>,
-    },
-    /// Where the way on goes once a list has run out, already named. `from`
-    /// is the file that asked, so an answer that arrives after something
-    /// else started is dropped, and `None` means there is nowhere to go.
-    Onward {
-        from: MediaPath,
-        to: Option<dbm_library::onward::Onward>,
-    },
+    /// The light a file's end stands in, where its atlas has a frame to give
+    /// it (see `preview::lit_still`).
+    EndLight(ForFile<Option<dbm_library::preview::Still>>),
+    /// Where the way on goes once a list has run out, already named, or
+    /// `None` for nowhere.
+    Onward(ForFile<Option<dbm_library::onward::Onward>>),
     /// The timing that puts the selected subtitles over the film's speech,
     /// or why there is none. Reported from the run's own thread (see
     /// `subsync`).
@@ -85,12 +78,8 @@ pub enum Completion {
         Result<dbm_library::opensubtitles::account::Account, dbm_library::opensubtitles::Failure>,
     ),
     /// Subtitles fetched for a file on an earlier day, to put back as it
-    /// opens. `path` is the file, so an answer for one since replaced is
-    /// dropped.
-    Kept {
-        path: MediaPath,
-        files: Vec<(std::path::PathBuf, String)>,
-    },
+    /// opens.
+    Kept(ForFile<Vec<(std::path::PathBuf, String)>>),
     /// Seasons of the playing show found in folders beside its own, for the
     /// playlist panel. `paths` is the list they were looked for beside, so an
     /// answer for a list since replaced is dropped.

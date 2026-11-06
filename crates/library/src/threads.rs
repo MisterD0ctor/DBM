@@ -5,6 +5,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread::JoinHandle;
 
+use dbm_mpv::MediaPath;
+
 /// `std::thread::spawn`, under a name. Linux keeps only its first 15 bytes.
 ///
 /// Panics where `std::thread::spawn` does: when the system has no thread to
@@ -59,6 +61,32 @@ impl Ticket {
     /// Unique among its `Supersede`'s tickets this run.
     pub fn number(self) -> u64 {
         self.number
+    }
+}
+
+/// A job's answer about one file, which only means anything while that file
+/// plays.
+///
+/// The answer is only handed over against the file playing now, so one that
+/// arrives after the file has changed can't be taken for the next one's.
+#[derive(Debug, Clone, PartialEq)]
+pub struct ForFile<T> {
+    path: MediaPath,
+    answer: T,
+}
+
+impl<T> ForFile<T> {
+    pub fn new(path: MediaPath, answer: T) -> Self {
+        Self { path, answer }
+    }
+
+    pub fn path(&self) -> &MediaPath {
+        &self.path
+    }
+
+    /// The answer, if `playing` is still the file it is about.
+    pub fn if_playing(self, playing: Option<&MediaPath>) -> Option<T> {
+        (playing == Some(&self.path)).then_some(self.answer)
     }
 }
 

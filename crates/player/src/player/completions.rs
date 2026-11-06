@@ -14,7 +14,7 @@ use dbm_library::titles::{self, End};
 use dbm_mpv::MediaPath;
 use slint::ComponentHandle;
 
-use super::Player;
+use super::{EndLight, Player};
 use crate::interface::{format, say, subsync, warn};
 use crate::playback::commands;
 use crate::playback::state::Lists;
@@ -60,9 +60,21 @@ impl Player {
                     .search
                     .signed_in(ui, &self.app.worker, playing, result);
             }
-            Completion::Kept { path, files } => self.put_back(&path, files),
-            Completion::EndLight { from, still } => self.light_the_end_with(from, still),
-            Completion::Onward { from, to } => self.offer_onward(ui, &from, to),
+            Completion::Kept(kept) => {
+                if let Some(files) = kept.if_playing(playing) {
+                    self.put_back(files);
+                }
+            }
+            Completion::EndLight(light) => {
+                if let Some(still) = light.if_playing(playing) {
+                    self.light_the_end_with(still);
+                }
+            }
+            Completion::Onward(onward) => {
+                if let Some(to) = onward.if_playing(playing) {
+                    offer_onward(ui, to);
+                }
+            }
         }
         false
     }
@@ -144,39 +156,24 @@ impl Player {
     /// Subtitles fetched for this film before, back in the list as the
     /// film's own tracks are, without taking the place of whichever one it
     /// opened on.
-    fn put_back(&self, path: &MediaPath, files: Vec<(std::path::PathBuf, String)>) {
-        if self.state.path.as_ref() == Some(path) {
-            for (file, language) in files {
-                commands::add_subtitle(&self.app.mpv, &file, &language, false);
-            }
+    fn put_back(&self, files: Vec<(std::path::PathBuf, String)>) {
+        for (file, language) in files {
+            commands::add_subtitle(&self.app.mpv, &file, &language, false);
         }
     }
 
-    /// Light the end of `from` with its last frame. With no frame of its
-    /// own, the end is lit by the mark, as a fresh install's empty window
-    /// is: it still dims a last frame that may be a white one, and the
+    /// Light the end of the file playing with its last frame. With no frame
+    /// of its own, the end is lit by the mark, as a fresh install's empty
+    /// window is: it still dims a last frame that may be a white one, and the
     /// season's line still has that to read on.
-    fn light_the_end_with(&mut self, from: MediaPath, still: Option<Still>) {
-        if self.state.path.as_ref() != Some(&from) {
-            return;
-        }
-        self.per_file.end_marked = still.is_none();
-        if let Some(still) = still.or_else(dbm_library::mark::still) {
+    fn light_the_end_with(&mut self, still: Option<Still>) {
+        let (still, light) = match still {
+            Some(still) => (Some(still), EndLight::Frame),
+            None => (dbm_library::mark::still(), EndLight::Mark),
+        };
+        if let Some(still) = still {
             self.backdrop = Some(still);
-            self.per_file.end_lit = Some(from);
-        }
-    }
-
-    /// What to go on to after `from`. An answer for a file that has since
-    /// been replaced is dropped.
-    fn offer_onward(&self, ui: &MainWindow, from: &MediaPath, to: Option<Onward>) {
-        let playback = ui.global::<Playback>();
-        if self.state.path.as_ref() == Some(from)
-            && let Some(onward) = to
-        {
-            playback.set_onward_path(onward.path.to_string_lossy().as_ref().into());
-            playback.set_onward_label(onward.label.as_str().into());
-            playback.set_onward_season(onward.season);
+            self.per_file.end_light = Some(light);
         }
     }
 
@@ -207,8 +204,8 @@ impl Player {
         playback.set_preview_clip_y(answer.y);
         // An end reached before its atlas was built had no frame of its
         // own to be lit with, and now may.
-        if self.per_file.end_lit != self.state.path || self.per_file.end_marked {
-            self.per_file.end_light_asked = None;
+        if self.per_file.end_light != Some(EndLight::Frame) {
+            self.per_file.end_light_asked = false;
         }
     }
 
@@ -241,6 +238,16 @@ impl Player {
             }
             None => light_with_the_mark(&self.app.worker),
         }
+    }
+}
+
+/// What to go on to after the file playing, where there is anywhere.
+fn offer_onward(ui: &MainWindow, to: Option<Onward>) {
+    if let Some(onward) = to {
+        let playback = ui.global::<Playback>();
+        playback.set_onward_path(onward.path.to_string_lossy().as_ref().into());
+        playback.set_onward_label(onward.label.as_str().into());
+        playback.set_onward_season(onward.season);
     }
 }
 
