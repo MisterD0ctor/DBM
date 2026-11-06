@@ -74,6 +74,14 @@ impl Progress {
     }
 }
 
+/// One file and what is known about it, for a list that does not keep the
+/// two in parallel.
+#[derive(Debug, Clone, PartialEq)]
+pub struct FileProgress {
+    pub path: MediaPath,
+    pub progress: Progress,
+}
+
 /// Look up every entry in a playlist at once.
 ///
 /// **Blocking.** Worker thread only, since it reads one small file per entry.

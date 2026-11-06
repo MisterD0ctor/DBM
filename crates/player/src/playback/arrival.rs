@@ -24,7 +24,7 @@
 
 use std::cell::RefCell;
 
-use dbm_library::durations::Progress;
+use dbm_library::durations::{FileProgress, Progress};
 use dbm_library::resume::Saved;
 use dbm_mpv::{Direction, MediaPath, Mpv};
 
@@ -73,7 +73,7 @@ fn autoplayed(progress: &Progress) -> Option<Then> {
 struct State {
     /// Every playlist entry's path and what is saved for it, in order: what
     /// the player last read of the lists.
-    rows: Vec<(MediaPath, Progress)>,
+    rows: Vec<FileProgress>,
     /// The entry playing, whether it is paused, how many files mpv has
     /// loaded and which is loaded now, as of the last frame.
     pos: Option<usize>,
@@ -135,7 +135,7 @@ pub struct Arrival {
 
 impl Arrival {
     /// What the playlist knows of each entry, whenever the lists are read.
-    pub fn learn(&self, rows: Vec<(MediaPath, Progress)>) {
+    pub fn learn(&self, rows: Vec<FileProgress>) {
         self.state.borrow_mut().rows = rows;
     }
 
@@ -207,8 +207,8 @@ impl Arrival {
         let Some(then) = state
             .rows
             .iter()
-            .find(|(path, _)| path == next)
-            .and_then(|(_, progress)| autoplayed(progress))
+            .find(|row| row.path == *next)
+            .and_then(|row| autoplayed(&row.progress))
         else {
             return;
         };
@@ -228,7 +228,7 @@ impl Arrival {
             .rows
             .get(index)
             .filter(|_| !crate::run_mode::armed())
-            .and_then(|(path, progress)| Some((path.clone(), autoplayed(progress)?)));
+            .and_then(|row| Some((row.path.clone(), autoplayed(&row.progress)?)));
         Self::ask_for(&mut state, mpv, index, then, Start::Playing);
     }
 
@@ -282,8 +282,8 @@ impl Arrival {
             Start::AsBefore => !state.paused,
         };
         let row = state.rows.get(index).filter(|_| !crate::run_mode::armed());
-        let then = row.and_then(|(path, progress)| {
-            let then = match Saved::of(progress) {
+        let then = row.and_then(|row| {
+            let then = match Saved::of(&row.progress) {
                 Saved::Nothing => return None,
                 Saved::Over => Then::Over {
                     play: playing,
@@ -291,7 +291,7 @@ impl Arrival {
                 },
                 Saved::Place(from) => Then::Ask { from },
             };
-            Some((path.clone(), then))
+            Some((row.path.clone(), then))
         });
         Self::ask_for(&mut state, mpv, index, then, start);
     }

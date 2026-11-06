@@ -15,7 +15,7 @@ use dbm_lang::{fill, tr};
 use dbm_mpv::MediaPath;
 use dbm_naming::Media;
 
-use crate::durations::Progress;
+use crate::durations::{FileProgress, Progress};
 
 /// A file as the playlist has it.
 pub struct Item<'a> {
@@ -34,7 +34,7 @@ pub struct Item<'a> {
 pub struct Beside {
     pub season: u32,
     /// Its files in watching order, and how far into each you got.
-    pub files: Vec<(MediaPath, Progress)>,
+    pub files: Vec<FileProgress>,
 }
 
 /// One row of a part's page.
@@ -197,7 +197,7 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
     if heading.is_some() && groups.len() == 1 && !beside.is_empty() {
         for b in beside {
             let labels = in_season(
-                dbm_naming::listing(b.files.iter().map(|(p, _)| (p.as_str(), None))).rows,
+                dbm_naming::listing(b.files.iter().map(|file| (file.path.as_str(), None))).rows,
                 Some(b.season),
             );
             let (label, named) = part_label(Some(b.season), None, true);
@@ -210,12 +210,12 @@ pub fn arrange(items: &[Item], beside: &[Beside]) -> Shelf {
                     .files
                     .iter()
                     .zip(labels)
-                    .map(|((path, progress), label)| Entry {
+                    .map(|(file, label)| Entry {
                         label,
-                        path: path.clone(),
+                        path: file.path.clone(),
                         index: None,
                         current: false,
-                        progress: *progress,
+                        progress: file.progress,
                         why: String::new(),
                     })
                     .collect(),
@@ -298,7 +298,11 @@ pub fn look_beside(paths: &[MediaPath]) -> Vec<Beside> {
             let progress = crate::durations::of(&files);
             Some(Beside {
                 season,
-                files: files.into_iter().zip(progress).collect(),
+                files: files
+                    .into_iter()
+                    .zip(progress)
+                    .map(|(path, progress)| FileProgress { path, progress })
+                    .collect(),
             })
         })
         .collect()
@@ -351,11 +355,17 @@ mod tests {
         let beside = vec![
             Beside {
                 season: 8,
-                files: vec![("Show.S08E01.mkv".into(), done())],
+                files: vec![FileProgress {
+                    path: "Show.S08E01.mkv".into(),
+                    progress: done(),
+                }],
             },
             Beside {
                 season: 6,
-                files: vec![("Show.S06E01.mkv".into(), Progress::default())],
+                files: vec![FileProgress {
+                    path: "Show.S06E01.mkv".into(),
+                    progress: Progress::default(),
+                }],
             },
         ];
         let shelf = arrange(&items, &beside);

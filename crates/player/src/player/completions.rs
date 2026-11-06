@@ -6,6 +6,7 @@
 //! what it changes: the search to `interface::find`, a sync to
 //! `interface::subsync`, and what the player holds itself to a method below.
 
+use dbm_library::durations::FileProgress;
 use dbm_library::onward::Onward;
 use dbm_library::preview::{Sprite, Still};
 use dbm_library::resume::Resume;
@@ -100,11 +101,9 @@ impl Player {
         // What is saved for each entry, for choosing one on purpose.
         self.app.arrival.learn(
             (0..self.state.playlist.len())
-                .map(|row| {
-                    (
-                        self.state.playlist[row].filename.clone(),
-                        self.state.known_progress(row),
-                    )
+                .map(|row| FileProgress {
+                    path: self.state.playlist[row].filename.clone(),
+                    progress: self.state.known_progress(row),
                 })
                 .collect(),
         );
