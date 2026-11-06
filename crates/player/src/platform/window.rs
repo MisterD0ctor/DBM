@@ -10,6 +10,8 @@
 //! once asked (see [`Rounding`]), and elsewhere they are cut from the frame
 //! (see [`corner_radius`]).
 
+use super::Error;
+
 /// A setup step retried once a frame until the window exists for it.
 ///
 /// It succeeds once and is never tried again; or, after a couple of seconds'
@@ -27,7 +29,7 @@ pub enum Attempt<T> {
     Waiting,
     /// It failed for the last time, this frame, with the last error. The step
     /// is not tried again.
-    GaveUp(String),
+    GaveUp(Error),
 }
 
 impl UntilWindow {
@@ -50,7 +52,7 @@ impl UntilWindow {
     }
 
     /// Try the step, unless it already took or was given up on.
-    pub fn poll<T>(&mut self, step: impl FnOnce() -> Result<T, String>) -> Attempt<T> {
+    pub fn poll<T>(&mut self, step: impl FnOnce() -> Result<T, Error>) -> Attempt<T> {
         if self.settled {
             return Attempt::Waiting;
         }
@@ -81,15 +83,15 @@ impl Default for UntilWindow {
 ///
 /// Fails until the window manager has made the window (see [`UntilWindow`]).
 #[cfg(windows)]
-pub fn hwnd(window: &slint::Window) -> Result<windows::Win32::Foundation::HWND, String> {
+pub fn hwnd(window: &slint::Window) -> Result<windows::Win32::Foundation::HWND, Error> {
     use raw_window_handle::{HasWindowHandle, RawWindowHandle};
 
     let provider = window.window_handle();
     let handle = provider
         .window_handle()
-        .map_err(|e| format!("no window handle yet: {e}"))?;
+        .map_err(|e| Error::Message(format!("no window handle yet: {e}")))?;
     let RawWindowHandle::Win32(win32) = handle.as_raw() else {
-        return Err("window handle is not Win32".into());
+        return Err(Error::Message("window handle is not Win32".into()));
     };
     Ok(windows::Win32::Foundation::HWND(
         win32.hwnd.get() as *mut core::ffi::c_void
@@ -196,7 +198,7 @@ impl Rounding {
 /// Round corners and the border Windows draws with them, or, for
 /// fullscreen, square ones and none.
 #[cfg(windows)]
-fn round_corners(window: &slint::Window, fullscreen: bool) -> Result<(), String> {
+fn round_corners(window: &slint::Window, fullscreen: bool) -> Result<(), Error> {
     use windows::Win32::Graphics::Dwm::{
         DWMWA_BORDER_COLOR, DWMWA_COLOR_DEFAULT, DWMWA_COLOR_NONE, DWMWA_WINDOW_CORNER_PREFERENCE,
         DWMWCP_DONOTROUND, DWMWCP_ROUND, DwmSetWindowAttribute,

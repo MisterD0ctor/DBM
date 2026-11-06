@@ -18,6 +18,7 @@
 //! `WM_TIMER` like any other: subclass the window, start a timer when the
 //! modal loop begins, and turn each tick into a paint.
 
+use crate::platform::Error;
 use crate::platform::window::{Attempt, UntilWindow};
 
 /// Interval between forced repaints while the modal loop owns the thread.
@@ -75,7 +76,7 @@ impl Default for Hook {
 
 /// Subclass the window, so its modal loop can be turned into paints.
 #[cfg(windows)]
-fn keep_rendering_during_modal_loop(window: &slint::Window) -> Result<(), String> {
+fn keep_rendering_during_modal_loop(window: &slint::Window) -> Result<(), Error> {
     use windows::Win32::UI::Shell::SetWindowSubclass;
 
     let hwnd = crate::platform::window::hwnd(window)?;
@@ -84,10 +85,10 @@ fn keep_rendering_during_modal_loop(window: &slint::Window) -> Result<(), String
         log::debug!("modal-loop hook installed");
         Ok(())
     } else {
-        Err(format!(
+        Err(Error::Message(format!(
             "SetWindowSubclass failed: {:?}",
             windows::core::Error::from_win32()
-        ))
+        )))
     }
 }
 
@@ -158,7 +159,7 @@ pub fn enter_modal_size_loop_for_test(window: &slint::Window) {
 pub fn enter_modal_size_loop_for_test(_window: &slint::Window) {}
 
 #[cfg(not(windows))]
-fn keep_rendering_during_modal_loop(_window: &slint::Window) -> Result<(), String> {
+fn keep_rendering_during_modal_loop(_window: &slint::Window) -> Result<(), Error> {
     // X11/Wayland have no equivalent: resizing is handled through the normal
     // event stream, so the loop is never taken away from us.
     Ok(())

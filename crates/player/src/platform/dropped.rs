@@ -16,6 +16,9 @@
 //! (XDND, or `wl_data_device`), and there is no honest `cfg` arm for it here,
 //! so there is none: on other platforms this does nothing at all.
 
+#[cfg(windows)]
+use super::Error;
+
 /// Whether a drop reaches this program at all on this platform.
 ///
 /// Published to the interface, which mentions dropping in two places and
@@ -65,7 +68,7 @@ impl Accepting {
 }
 
 #[cfg(windows)]
-fn accept(ui: &crate::MainWindow) -> Result<(), String> {
+fn accept(ui: &crate::MainWindow) -> Result<(), Error> {
     use slint::ComponentHandle;
     use windows::Win32::System::Ole::RevokeDragDrop;
     use windows::Win32::UI::Shell::{DragAcceptFiles, SetWindowSubclass};
@@ -78,10 +81,10 @@ fn accept(ui: &crate::MainWindow) -> Result<(), String> {
     unsafe { DragAcceptFiles(hwnd, true) };
 
     if !unsafe { SetWindowSubclass(hwnd, Some(subclass_proc), SUBCLASS_ID, 0) }.as_bool() {
-        return Err(format!(
+        return Err(Error::Message(format!(
             "SetWindowSubclass failed: {:?}",
             windows::core::Error::from_win32()
-        ));
+        )));
     }
     *TARGET.lock().unwrap() = Some(ui.as_weak());
     Ok(())
@@ -191,7 +194,7 @@ impl Accepting {
 /// It can't test whether a real drag reaches us, which depends on the drop
 /// target being ours rather than winit's; only a drag from Explorer does.
 #[cfg(all(windows, feature = "harness"))]
-pub fn post_test_drop(ui: &crate::MainWindow, path: &str) -> Result<(), String> {
+pub fn post_test_drop(ui: &crate::MainWindow, path: &str) -> Result<(), Error> {
     use slint::ComponentHandle;
     use windows::Win32::Foundation::{LPARAM, POINT, WPARAM};
     use windows::Win32::System::Memory::{GMEM_MOVEABLE, GlobalAlloc, GlobalLock, GlobalUnlock};
@@ -214,11 +217,10 @@ pub fn post_test_drop(ui: &crate::MainWindow, path: &str) -> Result<(), String> 
 
     let header = std::mem::size_of::<DropFiles>();
     let bytes = header + wide.len() * 2;
-    let block =
-        unsafe { GlobalAlloc(GMEM_MOVEABLE, bytes) }.map_err(|e| format!("GlobalAlloc: {e}"))?;
+    let block = unsafe { GlobalAlloc(GMEM_MOVEABLE, bytes) }.map_err(Error::Windows)?;
     let base = unsafe { GlobalLock(block) };
     if base.is_null() {
-        return Err("GlobalLock returned null".into());
+        return Err(Error::Message("GlobalLock returned null".into()));
     }
     unsafe {
         std::ptr::write(
@@ -247,5 +249,5 @@ pub fn post_test_drop(ui: &crate::MainWindow, path: &str) -> Result<(), String> 
             LPARAM(0),
         )
     }
-    .map_err(|e| format!("PostMessage: {e}"))
+    .map_err(Error::Windows)
 }

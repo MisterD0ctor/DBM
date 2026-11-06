@@ -55,6 +55,7 @@ use windows::Media::{
 };
 use windows::Win32::System::WinRT::ISystemMediaTransportControlsInterop;
 
+use crate::platform::Error;
 use crate::platform::window::{Attempt, UntilWindow};
 
 pub struct Controls {
@@ -170,7 +171,7 @@ fn update(
 }
 
 /// Claim the controls for this window and wire the buttons up.
-fn register(window: &slint::Window, mpv: Arc<Mpv>) -> Result<SystemMediaTransportControls, String> {
+fn register(window: &slint::Window, mpv: Arc<Mpv>) -> Result<SystemMediaTransportControls, Error> {
     let controls = for_window(window)?;
 
     // `IsEnabled` is what makes Windows show us at all. Play and pause are
@@ -184,7 +185,7 @@ fn register(window: &slint::Window, mpv: Arc<Mpv>) -> Result<SystemMediaTranspor
         controls.SetIsPreviousEnabled(false)?;
         controls.SetPlaybackStatus(MediaPlaybackStatus::Closed)
     })()
-    .map_err(|e| format!("configuring the controls: {e}"))?;
+    .map_err(Error::Windows)?;
 
     controls
         .ButtonPressed(&TypedEventHandler::<
@@ -196,21 +197,21 @@ fn register(window: &slint::Window, mpv: Arc<Mpv>) -> Result<SystemMediaTranspor
             }
             Ok(())
         }))
-        .map_err(|e| format!("registering for button presses: {e}"))?;
+        .map_err(Error::Windows)?;
 
     Ok(controls)
 }
 
-fn for_window(window: &slint::Window) -> Result<SystemMediaTransportControls, String> {
+fn for_window(window: &slint::Window) -> Result<SystemMediaTransportControls, Error> {
     let hwnd = crate::platform::window::hwnd(window)?;
     let interop = windows::core::factory::<
         SystemMediaTransportControls,
         ISystemMediaTransportControlsInterop,
     >()
-    .map_err(|e| e.to_string())?;
+    .map_err(Error::Windows)?;
     // Per-window rather than per-process, which is why this needs the
     // handle at all.
-    unsafe { interop.GetForWindow(hwnd) }.map_err(|e| e.to_string())
+    unsafe { interop.GetForWindow(hwnd) }.map_err(Error::Windows)
 }
 
 /// One button, as an mpv command.

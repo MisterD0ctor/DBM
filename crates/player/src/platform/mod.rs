@@ -18,6 +18,44 @@ pub mod modal_loop;
 pub mod motion;
 pub mod window;
 
+/// Why a platform hook could not be set up.
+#[derive(Debug)]
+pub enum Error {
+    /// A hook or platform call with no typed error of its own.
+    #[cfg_attr(not(windows), allow(dead_code))]
+    Message(String),
+    /// A Windows API call refused.
+    #[cfg(windows)]
+    Windows(windows::core::Error),
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Message(message) => f.write_str(message),
+            #[cfg(windows)]
+            Self::Windows(source) => source.fmt(f),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Message(_) => None,
+            #[cfg(windows)]
+            Self::Windows(source) => Some(source),
+        }
+    }
+}
+
+#[cfg(windows)]
+impl From<windows::core::Error> for Error {
+    fn from(source: windows::core::Error) -> Self {
+        Self::Windows(source)
+    }
+}
+
 use std::path::{Path, PathBuf};
 
 /// Where a path handed to the player really is: a portal's document looked up
