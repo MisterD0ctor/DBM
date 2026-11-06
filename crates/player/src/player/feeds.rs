@@ -17,13 +17,24 @@ use crate::worker::{Completion, Worker};
 pub struct Recorder {
     /// What was last handed to the worker, so the same fact isn't rewritten
     /// every frame.
-    last: Option<(MediaPath, f64)>,
+    last: Option<Written>,
     /// The file playing, and its length while it is within a moment of its
     /// end. Autoplay moves straight past the end of a file and mpv never
     /// reports reaching it, so this is how that file is still counted.
-    playing: Option<(MediaPath, Option<f64>)>,
+    playing: Option<Ending>,
     /// The last file written down as finished, so it is written once.
     finished: Option<MediaPath>,
+}
+
+struct Written {
+    path: MediaPath,
+    seconds: f64,
+}
+
+struct Ending {
+    path: MediaPath,
+    /// Its length, once it is within `NEAR_END` of its end.
+    length: Option<f64>,
 }
 
 /// How near the end a file autoplay moved on from must have been: a frame or
@@ -41,22 +52,32 @@ impl Recorder {
         if self
             .last
             .as_ref()
-            .is_some_and(|(p, s)| *p == path && *s == seconds)
+            .is_some_and(|last| last.path == path && last.seconds == seconds)
         {
             return;
         }
-        self.last = Some((path.clone(), seconds));
+        self.last = Some(Written {
+            path: path.clone(),
+            seconds,
+        });
         worker.run(move |_mpv| durations::record(&path, seconds));
     }
 
     /// Notices a file reaching its ending: its credits, its last frame, or
     /// its last moments before autoplay took the next one.
     fn watch_ending(&mut self, worker: &Worker, player: &PlayerState) {
-        if self.playing.as_ref().map(|p| &p.0) != player.path.as_ref() {
-            if let Some((path, Some(length))) = self.playing.take() {
+        if self.playing.as_ref().map(|ending| &ending.path) != player.path.as_ref() {
+            if let Some(Ending {
+                path,
+                length: Some(length),
+            }) = self.playing.take()
+            {
                 self.finish(worker, path, length);
             }
-            self.playing = player.path.clone().map(|p| (p, None));
+            self.playing = player
+                .path
+                .clone()
+                .map(|path| Ending { path, length: None });
         }
         let Some(path) = player.path.as_ref() else {
             return;
@@ -67,8 +88,8 @@ impl Recorder {
         let into_it = player
             .duration
             .filter(|length| player.time_pos >= length * 0.5);
-        if let Some(playing) = self.playing.as_mut() {
-            playing.1 = into_it.filter(|length| player.time_pos >= length - NEAR_END);
+        if let Some(ending) = self.playing.as_mut() {
+            ending.length = into_it.filter(|length| player.time_pos >= length - NEAR_END);
         }
         let Some(length) = into_it else {
             return;

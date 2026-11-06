@@ -47,11 +47,18 @@ pub enum Skip {
 pub struct Skips {
     /// The load, the position and the time on the last frame, so a seek can
     /// be told from playing.
-    last: Option<(u64, f64, Instant)>,
+    last: Option<LastFrame>,
     /// The load whose title sequence is done with: skipped, or landed in by a
     /// seek, which is wanting to see it.
     intro_done: Option<u64>,
     count: Option<Count>,
+}
+
+#[derive(Clone, Copy)]
+struct LastFrame {
+    loads: u64,
+    time_pos: f64,
+    at: Instant,
 }
 
 struct Count {
@@ -82,16 +89,20 @@ impl Skips {
         now: Instant,
     ) -> Option<Skip> {
         let playing = player.path.is_some() && !player.paused && !player.eof_reached;
-        let seeked = self.last.is_some_and(|(loads, at, then)| {
-            let moved = player.time_pos - at;
+        let seeked = self.last.is_some_and(|last| {
+            let moved = player.time_pos - last.time_pos;
             let played = if playing {
-                now.saturating_duration_since(then).as_secs_f64() * player.speed.get()
+                now.saturating_duration_since(last.at).as_secs_f64() * player.speed.get()
             } else {
                 0.0
             };
-            loads == player.loads && moved.abs() > JUMP && (moved - played).abs() > JUMP
+            last.loads == player.loads && moved.abs() > JUMP && (moved - played).abs() > JUMP
         });
-        self.last = Some((player.loads, player.time_pos, now));
+        self.last = Some(LastFrame {
+            loads: player.loads,
+            time_pos: player.time_pos,
+            at: now,
+        });
         self.intro(player, wanted.intros && playing && corner_free, seeked)
             .or_else(|| self.credits(player, wanted.credits && corner_free, seeked))
     }

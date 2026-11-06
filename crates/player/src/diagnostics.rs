@@ -299,12 +299,12 @@ impl Probe {
             ms(self.phases.lists),
             ms(self.phases.panels),
             ms(self.phases.render),
-            ms(pipeline.timings.0),
-            ms(pipeline.timings.1),
-            ms(pipeline.timings.2),
-            ms(pipeline.split.0),
-            ms(pipeline.split.1),
-            ms(pipeline.split.2),
+            ms(pipeline.timings.mpv),
+            ms(pipeline.timings.border),
+            ms(pipeline.timings.glass),
+            ms(pipeline.split.update_rect),
+            ms(pipeline.split.border),
+            ms(pipeline.split.blur),
         );
         self.phases = Phases::default();
         self.last_report = Instant::now();

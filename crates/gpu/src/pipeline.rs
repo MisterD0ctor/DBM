@@ -35,6 +35,28 @@ pub use params::{
     OPEN_MILK, RING_MILK, RING_RIM, fringe_scale, legible_ceiling,
 };
 
+/// How long the last frame's three stretches took.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Timings {
+    /// mpv rendering the frame.
+    pub mpv: std::time::Duration,
+    /// The border and blur.
+    pub border: std::time::Duration,
+    /// The glass.
+    pub glass: std::time::Duration,
+}
+
+/// How long the last border frame's three parts took.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Split {
+    /// Reading the video rectangle and the frame's other inputs.
+    pub update_rect: std::time::Duration,
+    /// The border pass.
+    pub border: std::time::Duration,
+    /// The blur.
+    pub blur: std::time::Duration,
+}
+
 /// What one frame is drawn from.
 #[derive(Clone, Copy)]
 pub struct Frame<'a> {
@@ -90,19 +112,11 @@ pub struct Pipeline {
     shaded: Vec<[i32; 4]>,
     pub glass: GlassParams,
 
-    /// (mpv, border+blur, glass) from the last frame, when `DBM_GPU_TIME`
-    /// is on. Zero otherwise.
-    pub timings: (
-        std::time::Duration,
-        std::time::Duration,
-        std::time::Duration,
-    ),
-    /// (update_rect, border, blur), for the same frame as `timings`.
-    pub split: (
-        std::time::Duration,
-        std::time::Duration,
-        std::time::Duration,
-    ),
+    /// The last frame's three stretches, when `DBM_GPU_TIME` is on. Zero
+    /// otherwise.
+    pub timings: Timings,
+    /// The last border frame's three parts, for the same frame.
+    pub split: Split,
     gpu_time: bool,
     pub params: BorderParams,
     /// Video rect within the window, normalised (x0, y0, x1, y1).
@@ -364,11 +378,11 @@ impl Pipeline {
             self.run_blur(gl);
             let tc = mark(gl);
             if gpu_time {
-                self.split = (
-                    ta.duration_since(t1),
-                    tb.duration_since(ta),
-                    tc.duration_since(tb),
-                );
+                self.split = Split {
+                    update_rect: ta.duration_since(t1),
+                    border: tb.duration_since(ta),
+                    blur: tc.duration_since(tb),
+                };
             }
         }
         let t2 = mark(gl);
@@ -382,11 +396,11 @@ impl Pipeline {
         self.run_glass(gl, w, h);
         let t3 = mark(gl);
         if gpu_time {
-            self.timings = (
-                t1.duration_since(t0),
-                t2.duration_since(t1),
-                t3.duration_since(t2),
-            );
+            self.timings = Timings {
+                mpv: t1.duration_since(t0),
+                border: t2.duration_since(t1),
+                glass: t3.duration_since(t2),
+            };
         }
 
         // Each pass leaves its own target bound; hand Slint back the
