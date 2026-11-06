@@ -18,6 +18,7 @@ use std::cmp::Ordering;
 use std::collections::HashSet;
 use std::fmt::Write as _;
 use std::fs;
+use std::io;
 use std::path::{Path, PathBuf};
 
 use dbm_lang::{fill, tr};
@@ -46,24 +47,68 @@ pub fn is_video_file(path: &Path) -> bool {
         .is_some_and(|ext| VIDEO_EXTENSIONS.iter().any(|v| ext.eq_ignore_ascii_case(v)))
 }
 
+/// Why a path could not be turned into a playlist.
+///
+/// The failure is a value rather than a sentence, so whoever shows it can say
+/// it in the language spoken then, and whoever reads the log can see which
+/// kind it was (see [`Error::sentence`]).
+#[derive(Debug)]
+pub enum Error {
+    /// Nothing is at the path: it does not exist, or it is neither a file
+    /// nor a folder.
+    NothingAt(PathBuf),
+    /// A folder held no videos directly in it.
+    NoVideosIn(PathBuf),
+    /// A folder and everything beneath it held no videos.
+    NoVideosUnder(PathBuf),
+    /// A folder could not be listed.
+    Unreadable { dir: PathBuf, source: io::Error },
+    /// The playlist file mpv is to read could not be written.
+    PlaylistWrite { path: PathBuf, source: io::Error },
+}
+
+impl Error {
+    /// What to tell the person, in the language spoken now.
+    ///
+    /// **UI thread only.** The sentence is made where it is shown, not where
+    /// the scan failed, so a language chosen while the scan runs is the one
+    /// it is said in.
+    pub fn sentence(&self) -> String {
+        match self {
+            Self::NothingAt(path) => fill(tr("There is nothing at {}"), &[&folder_name(path)]),
+            Self::NoVideosIn(dir) => fill(tr("No video files in {}"), &[&folder_name(dir)]),
+            Self::NoVideosUnder(dir) => fill(tr("No video files under {}"), &[&folder_name(dir)]),
+            Self::Unreadable { dir, source } => {
+                fill(tr("Could not read {} — {}"), &[&folder_name(dir), source])
+            }
+            Self::PlaylistWrite { source, .. } => {
+                fill(tr("Could not make a playlist — {}"), &[source])
+            }
+        }
+    }
+}
+
 /// Scan a path into a playlist and write it out for mpv's `loadlist`.
 ///
 /// Runs on the worker, since it reads a directory that may be huge or on a
 /// network share. `path` is where the file is, with a document portal's path
 /// already looked up; links are followed here.
-pub fn prepare(path: &Path) -> Result<Prepared, String> {
+pub fn prepare(path: &Path) -> Result<Prepared, Error> {
     let selection = resolve(path)?;
     let m3u = crate::paths::playlist_m3u();
-    write_m3u(&selection.videos, &m3u).map_err(|e| {
-        log::warn!("could not write {}: {e}", m3u.display());
-        fill(tr("Could not make a playlist — {}"), &[&e])
+    write_m3u(&selection.videos, &m3u).map_err(|source| {
+        log::warn!("could not write {}: {source}", m3u.display());
+        Error::PlaylistWrite {
+            path: m3u.clone(),
+            source,
+        }
     })?;
     // As the list tells mpv it, which is what it will report and hash.
     let first = selection
         .videos
         .get(selection.start)
         .map(|video| MediaPath::from(video.as_path()))
-        .ok_or_else(|| fill(tr("There is nothing at {}"), &[&folder_name(path)]))?;
+        .ok_or_else(|| Error::NothingAt(path.to_path_buf()))?;
     let saved = crate::durations::of(std::slice::from_ref(&first))
         .first()
         .map_or(Saved::Nothing, Saved::of);
@@ -73,7 +118,6 @@ pub fn prepare(path: &Path) -> Result<Prepared, String> {
         count: selection.videos.len(),
         first,
         saved,
-        ask: true,
     })
 }
 
@@ -88,9 +132,6 @@ pub struct Prepared {
     /// That entry's path, and what is saved for it (see `arrival`).
     pub first: MediaPath,
     pub saved: Saved,
-    /// Whether arriving at it with a place saved asks where to start, which
-    /// it doesn't after the way in's Continue.
-    pub ask: bool,
 }
 
 /// What to play, and where to start.
@@ -103,7 +144,7 @@ pub struct Selection {
 ///
 /// A directory is scanned recursively; a file gets its siblings, which is
 /// what makes "next episode" work without asking for the folder.
-pub fn resolve(path: &Path) -> Result<Selection, String> {
+pub fn resolve(path: &Path) -> Result<Selection, Error> {
     // Absolute, so a relative path's folder is known, but not followed: a
     // linked file's siblings are the ones beside the link.
     let path = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
@@ -112,7 +153,7 @@ pub fn resolve(path: &Path) -> Result<Selection, String> {
         return Ok(Selection { videos, start: 0 });
     }
     if !path.is_file() {
-        return Err(fill(tr("There is nothing at {}"), &[&folder_name(&path)]));
+        return Err(Error::NothingAt(path));
     }
     let real = real(&path).unwrap_or_else(|| path.clone());
     // A file the scan doesn't take for a video, or one whose folder can't be
@@ -145,9 +186,11 @@ pub(crate) fn notice_folder_of(video: &Path) {
 /// Videos directly in `dir`, in watching order, each at its real path. No
 /// recursion: the siblings of an episode are its season, not the whole
 /// library.
-pub fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, String> {
-    let entries = fs::read_dir(dir)
-        .map_err(|e| fill(tr("Could not read {} — {}"), &[&folder_name(dir), &e]))?;
+pub fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, Error> {
+    let entries = fs::read_dir(dir).map_err(|source| Error::Unreadable {
+        dir: dir.to_path_buf(),
+        source,
+    })?;
     let real_dir = real(dir).unwrap_or_else(|| dir.to_path_buf());
     let found = entries
         .filter_map(Result::ok)
@@ -156,7 +199,7 @@ pub fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, String> {
         .collect();
     let videos = in_watching_order(found);
     if videos.is_empty() {
-        return Err(fill(tr("No video files in {}"), &[&folder_name(dir)]));
+        return Err(Error::NoVideosIn(dir.to_path_buf()));
     }
     Ok(videos)
 }
@@ -446,16 +489,25 @@ const MOST_FOLDERS: usize = 10_000;
 /// the walk round it again, and a link to a folder holding the opened one
 /// (Wine's `z: -> /`) isn't followed at all. Unreadable subdirectories are
 /// skipped, so one permission-denied folder doesn't stop a library loading.
-fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, String> {
+fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, Error> {
     let real_dir = real(dir).unwrap_or_else(|| dir.to_path_buf());
     let mut listed = HashSet::from([real_dir.clone()]);
     let mut stack = vec![(dir.to_path_buf(), real_dir.clone())];
     let mut videos = Vec::new();
+    // Only the folder asked for is an error; a subfolder that cannot be read
+    // is skipped, so one permission-denied corner doesn't stop a library.
+    let mut unreadable_root = None;
 
     while let Some((seen, real)) = stack.pop() {
-        let Ok(entries) = fs::read_dir(&real) else {
-            log::warn!("skipping unreadable {}", seen.display());
-            continue;
+        let entries = match fs::read_dir(&real) {
+            Ok(entries) => entries,
+            Err(source) => {
+                if seen.as_path() == dir {
+                    unreadable_root = Some(source);
+                }
+                log::warn!("skipping unreadable {}", seen.display());
+                continue;
+            }
         };
         for found in entries
             .filter_map(Result::ok)
@@ -481,9 +533,15 @@ fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, String> {
         }
     }
 
+    if let Some(source) = unreadable_root {
+        return Err(Error::Unreadable {
+            dir: dir.to_path_buf(),
+            source,
+        });
+    }
     let videos = in_watching_order(videos);
     if videos.is_empty() {
-        return Err(fill(tr("No video files under {}"), &[&folder_name(dir)]));
+        return Err(Error::NoVideosUnder(dir.to_path_buf()));
     }
     Ok(videos)
 }
@@ -579,11 +637,36 @@ mod tests {
         assert_eq!(plain_text("/films/a.mkv"), "/films/a.mkv");
     }
 
+    #[test]
+    fn a_path_with_nothing_at_it_is_a_typed_failure() {
+        let missing =
+            std::env::temp_dir().join(format!("dbm-playlist-missing-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&missing);
+        let Err(error) = resolve(&missing) else {
+            panic!("a missing path resolves to a playlist");
+        };
+        assert!(matches!(error, Error::NothingAt(_)), "{error:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn an_empty_folder_says_whether_it_was_the_folder_or_the_tree() {
+        let root = folder("empty", &[]);
+        let error = scan_flat(&root).unwrap_err();
+        assert!(matches!(error, Error::NoVideosIn(_)), "{error:?}");
+        let Err(error) = resolve(&root) else {
+            panic!("an empty folder resolves to a playlist");
+        };
+        assert!(matches!(error, Error::NoVideosUnder(_)), "{error:?}");
+        fs::remove_dir_all(&root).unwrap();
+    }
+
     /// A scratch folder holding `files`, empty, at the paths given.
     #[cfg(unix)]
     fn folder(name: &str, files: &[&str]) -> PathBuf {
         let root = std::env::temp_dir().join(format!("dbm-playlist-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
         for file in files {
             let file = root.join(file);
             fs::create_dir_all(file.parent().unwrap()).unwrap();

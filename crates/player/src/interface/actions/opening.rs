@@ -54,7 +54,7 @@ pub(super) fn wire_opening(ui: &MainWindow, app: &App) {
             app.worker.submit(move |_mpv| {
                 Some(crate::worker::Completion::Opened(
                     dbm_library::playlist::prepare(&crate::platform::real_place(&path))
-                        .map(|prepared| dbm_library::playlist::Prepared { ask, ..prepared }),
+                        .map(|list| crate::worker::Opened { list, ask }),
                 ))
             });
         });

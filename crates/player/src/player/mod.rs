@@ -43,7 +43,7 @@ use crate::playback::commands;
 use crate::playback::skips::{Skip, Skips, Wanted};
 use crate::playback::state::PlayerState;
 use crate::settings::Toggle;
-use crate::worker::Completion;
+use crate::worker::{Completion, Opened};
 use crate::{MainWindow, Playback, Subtitles};
 
 use opening::Opening;
@@ -244,7 +244,10 @@ impl Player {
             Some(path) => {
                 self.app.worker.submit(move |_mpv| {
                     let path = crate::platform::real_place(&path);
-                    Some(Completion::Opened(dbm_library::playlist::prepare(&path)))
+                    Some(Completion::Opened(
+                        dbm_library::playlist::prepare(&path)
+                            .map(|list| Opened { list, ask: true }),
+                    ))
                 });
             }
             None => completions::look_for_resume(&self.app.worker),

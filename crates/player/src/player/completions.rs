@@ -33,7 +33,7 @@ impl Player {
             Completion::Beside { paths, seasons } => return self.take_beside(&paths, seasons),
 
             Completion::Shelved(shelf) => self.take_shelf(ui, shelf),
-            Completion::Opened(Ok(list)) => self.load(list),
+            Completion::Opened(Ok(opened)) => self.load(opened.list, opened.ask),
             Completion::Opened(Err(e)) => self.not_opened(ui, e),
             Completion::Notice(text) => say(ui, text),
             Completion::Warning(text) => warn(ui, text),

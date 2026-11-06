@@ -9,7 +9,7 @@
 use std::collections::VecDeque;
 use std::path::PathBuf;
 
-use dbm_library::playlist::Prepared;
+use dbm_library::playlist::{Error, Prepared};
 use slint::ComponentHandle;
 
 use super::{Player, completions};
@@ -34,11 +34,12 @@ pub(super) struct Opening {
 }
 
 impl Player {
-    /// Load what an open found.
-    pub(super) fn load(&mut self, list: Prepared) {
+    /// Load what an open found, asking about a saved place where `ask` says
+    /// to (it doesn't after the way in's Continue).
+    pub(super) fn load(&mut self, list: Prepared, ask: bool) {
         log::info!("opened {} file(s), starting at {}", list.count, list.start);
         self.opening.starting = true;
-        if list.ask {
+        if ask {
             self.app
                 .arrival
                 .open_list(&self.app.mpv, list.first.clone(), list.saved);
@@ -51,11 +52,11 @@ impl Player {
     }
 
     /// The scan found nothing to load, so no file is coming.
-    pub(super) fn not_opened(&mut self, ui: &MainWindow, e: String) {
-        log::warn!("cannot open: {e}");
+    pub(super) fn not_opened(&mut self, ui: &MainWindow, e: Error) {
+        log::warn!("cannot open: {e:?}");
         ui.global::<Playlist>().set_opening(false);
         self.opening.stumbled = true;
-        warn(ui, e);
+        warn(ui, e.sentence());
     }
 
     /// A file wouldn't play. Which is the backstop for an open that never

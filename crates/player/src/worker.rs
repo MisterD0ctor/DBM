@@ -17,14 +17,23 @@
 use std::sync::mpsc::{self, Receiver, Sender, TryIter};
 use std::thread::JoinHandle;
 
+use dbm_library::playlist::{Error, Prepared};
 use dbm_library::threads::{ForFile, Reporter};
 use dbm_mpv::{MediaPath, Reader};
+
+/// A path scanned into a playlist, and whether arriving at its first file
+/// with a place saved should ask where to start. The flag belongs to the
+/// open, not to the scan, so it travels beside the list rather than in it.
+pub struct Opened {
+    pub list: Prepared,
+    pub ask: bool,
+}
 
 /// Work that finished. Add a variant per kind of background job.
 pub enum Completion {
     Lists(crate::playback::state::Lists),
     /// A path opened and scanned into a playlist, or why it could not be.
-    Opened(Result<dbm_library::playlist::Prepared, String>),
+    Opened(Result<Opened, Error>),
     /// Something the person watching should be told, raised from a background
     /// job, such as the audio watchdog saying sound is back.
     Notice(String),
