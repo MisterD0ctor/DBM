@@ -55,7 +55,7 @@ const REST: f64 = 0.1;
 /// the replies that let the next seek go out; one borrow a call, since
 /// nothing it calls comes back into it.
 #[derive(Default)]
-pub struct Scrubber(RefCell<Drag>);
+pub struct Scrubber(RefCell<Option<Drag>>);
 
 impl Scrubber {
     pub fn new() -> Self {
@@ -72,7 +72,24 @@ impl Scrubber {
     /// being looked for, and mpv has less to do if it isn't also decoding
     /// forward.
     pub fn drag_to(&self, mpv: &Mpv, fraction: f32, paused: bool, duration: f64) {
-        self.0.borrow_mut().drag_to(mpv, fraction, paused, duration);
+        let now = Instant::now();
+        let mut slot = self.0.borrow_mut();
+        let drag = match slot.take() {
+            Some(mut drag) => {
+                drag.take_speed(fraction, duration, now);
+                drag
+            }
+            None => {
+                if !paused {
+                    commands::set_pause(mpv, true);
+                }
+                Drag::starting(fraction, !paused, now)
+            }
+        };
+        let drag = slot.insert(drag);
+        drag.moved = now;
+        drag.requested += 1;
+        drag.ask(mpv, fraction);
     }
 
     /// The button is still down, and this is where the pointer is. Called a
@@ -84,125 +101,120 @@ impl Scrubber {
     /// a moment this lands on the frame instead, once, since asking again for
     /// the frame already there sends nothing.
     pub fn held_at(&self, mpv: &Mpv, fraction: f32) {
-        self.0.borrow_mut().held_at(mpv, fraction);
+        if let Some(drag) = self.0.borrow_mut().as_mut() {
+            drag.held_at(mpv, fraction);
+        }
     }
 
     /// One of our seeks completed. Send the latest position if the pointer
     /// moved on while we were waiting.
     pub fn on_reply(&self, mpv: &Mpv) {
-        self.0.borrow_mut().on_reply(mpv);
+        if let Some(drag) = self.0.borrow_mut().as_mut() {
+            drag.on_reply(mpv);
+        }
     }
 
-    /// The drag ended: land exactly on the final position.
+    /// The button came up: land exactly on the final position.
     ///
-    /// Any coalesced update is dropped, or it would seek away from where the
-    /// user let go.
+    /// Whatever the drag was waiting to send is dropped with it, or it would
+    /// seek away from where the user let go.
     pub fn release(&self, mpv: &Mpv, fraction: f32) {
-        self.0.borrow_mut().release(mpv, fraction);
+        let drag = self.0.borrow_mut().take();
+        if let Some(drag) = &drag {
+            log::debug!(
+                "drag ended - {} updates coalesced into {} seeks, {} of them exact",
+                drag.requested,
+                drag.issued,
+                drag.exact
+            );
+        }
+        commands::seek_fraction(mpv, fraction);
+        // Only a real drag paused anything; a plain click on the timeline
+        // leaves the playback state alone.
+        if drag.is_some_and(|drag| drag.resume) {
+            commands::set_pause(mpv, false);
+        }
     }
 }
 
-/// Where a drag stands, between one pointer move and the next.
-#[derive(Default)]
+/// A drag under way, from its first move until the button comes up.
 struct Drag {
-    /// Where the pointer last was, if that has not been sent yet.
-    pending: Option<f32>,
-    /// Whether a seek we issued is still outstanding.
-    in_flight: bool,
-    /// Whether a drag is in progress, as opposed to a bare click.
-    dragging: bool,
-    /// Whether playback should resume when the drag ends.
+    /// Whether playback resumes when the drag ends.
     resume: bool,
-    /// Whether the hand is moving slowly enough to be shown exact frames.
-    slow: bool,
+    /// How fast the hand is moving, which says how exact its seeks are.
+    pace: Pace,
     /// Where the pointer was when its speed was last taken, and when.
-    mark: Option<(Instant, f32)>,
+    mark: (Instant, f32),
     /// When the pointer last moved.
-    moved: Option<Instant>,
+    moved: Instant,
     /// The last seek sent: where to, and whether it was exact.
     sent: Option<(f32, bool)>,
-    /// Counters for the drag just finished, reported under DBM_TRACE. The
-    /// ratio between the first two is the whole point of this type.
+    line: Line,
+    /// Counters reported under DBM_TRACE. The ratio between the first two is
+    /// the whole point of this type.
     requested: u32,
     issued: u32,
     exact: u32,
 }
 
+/// Whether one of the drag's seeks is on its way to mpv.
+enum Line {
+    Clear,
+    /// One is, and `next` is where the pointer has gone since, sent once it
+    /// is answered.
+    Busy {
+        next: Option<f32>,
+    },
+}
+
+/// How fast a hand is moving along the timeline.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Pace {
+    /// Slowly enough to be shown exact frames.
+    Slow,
+    /// Too fast for an exact frame to keep up, so shown keyframes.
+    Fast,
+}
+
 impl Drag {
-    fn drag_to(&mut self, mpv: &Mpv, fraction: f32, paused: bool, duration: f64) {
-        let now = Instant::now();
-        if !std::mem::replace(&mut self.dragging, true) {
-            self.resume = !paused;
-            if !paused {
-                commands::set_pause(mpv, true);
-            }
+    fn starting(fraction: f32, resume: bool, now: Instant) -> Self {
+        Self {
+            resume,
             // A press that has only just moved is the slowest scrub there is,
-            // and starting fast would open every careful drag with a jump to a
-            // keyframe and back.
-            self.slow = true;
-            self.mark = Some((now, fraction));
-            self.sent = None;
-        } else {
-            self.pace(fraction, duration, now);
+            // and starting fast would open every careful drag with a jump to
+            // a keyframe and back.
+            pace: Pace::Slow,
+            mark: (now, fraction),
+            moved: now,
+            sent: None,
+            line: Line::Clear,
+            requested: 0,
+            issued: 0,
+            exact: 0,
         }
-        self.moved = Some(now);
-        self.requested += 1;
-        self.ask(mpv, fraction);
     }
 
     fn held_at(&mut self, mpv: &Mpv, fraction: f32) {
-        let still = self
-            .moved
-            .is_some_and(|at| at.elapsed().as_secs_f64() >= REST);
-        if !self.dragging || !still {
+        if self.moved.elapsed().as_secs_f64() < REST {
             return;
         }
-        self.slow = true;
-        self.mark = Some((Instant::now(), fraction));
+        self.pace = Pace::Slow;
+        self.mark = (Instant::now(), fraction);
         self.ask(mpv, fraction);
     }
 
     fn on_reply(&mut self, mpv: &Mpv) {
-        let sent = self
-            .pending
-            .take()
-            .is_some_and(|fraction| self.send(mpv, fraction));
-        self.in_flight = sent;
-    }
-
-    fn release(&mut self, mpv: &Mpv, fraction: f32) {
-        if self.requested > 0 {
-            log::debug!(
-                "drag ended - {} updates coalesced into {} seeks, {} of them exact",
-                self.requested,
-                self.issued,
-                self.exact
-            );
-        }
-        self.requested = 0;
-        self.issued = 0;
-        self.exact = 0;
-        self.pending = None;
-        self.in_flight = false;
-        self.mark = None;
-        self.moved = None;
-        self.sent = None;
-        commands::seek_fraction(mpv, fraction);
-        // Only a real drag paused anything; a plain click on the timeline
-        // leaves the playback state alone.
-        if std::mem::replace(&mut self.dragging, false)
-            && std::mem::replace(&mut self.resume, false)
-        {
-            commands::set_pause(mpv, false);
-        }
+        self.line = match std::mem::replace(&mut self.line, Line::Clear) {
+            Line::Busy {
+                next: Some(fraction),
+            } => self.send(mpv, fraction),
+            Line::Busy { next: None } | Line::Clear => Line::Clear,
+        };
     }
 
     /// Take the hand's speed, once enough time has passed to take it over.
-    fn pace(&mut self, fraction: f32, duration: f64, now: Instant) {
-        let Some((then, from)) = self.mark else {
-            self.mark = Some((now, fraction));
-            return;
-        };
+    fn take_speed(&mut self, fraction: f32, duration: f64, now: Instant) {
+        let (then, from) = self.mark;
         let elapsed = now.duration_since(then).as_secs_f64();
         let covered = f64::from((fraction - from).abs()) * duration;
         // Too soon to take a speed, unless the pointer has already gone
@@ -211,49 +223,47 @@ impl Drag {
         if elapsed < WINDOW && covered <= FAST * WINDOW {
             return;
         }
-        if let Some(slow) = pace(covered / elapsed.max(f64::EPSILON)) {
-            self.slow = slow;
+        if let Some(pace) = pace(covered / elapsed.max(f64::EPSILON)) {
+            self.pace = pace;
         }
-        self.mark = Some((now, fraction));
+        self.mark = (now, fraction);
     }
 
     /// Seek to `fraction` now, or leave it for when the line is clear.
     fn ask(&mut self, mpv: &Mpv, fraction: f32) {
-        if self.in_flight {
-            self.pending = Some(fraction);
+        if let Line::Busy { next } = &mut self.line {
+            *next = Some(fraction);
         } else {
-            self.in_flight = self.send(mpv, fraction);
+            self.line = self.send(mpv, fraction);
         }
     }
 
-    /// Send a seek, as exact as the drag currently is. Returns whether one
-    /// went out: none does when the picture asked for is the one already
-    /// there, nor when mpv refused it, and then there is no reply to wait
-    /// for.
-    fn send(&mut self, mpv: &Mpv, fraction: f32) -> bool {
-        let exact = self.slow;
-        if !worth_sending(self.sent, fraction, exact) {
-            return false;
-        }
-        if !commands::seek_scrub(mpv, fraction, exact) {
-            return false;
+    /// Send a seek, as exact as the drag currently is. The line is busy
+    /// after if one went out: none does when the picture asked for is the
+    /// one already there, nor when mpv refused it, and then there is no
+    /// reply to wait for.
+    fn send(&mut self, mpv: &Mpv, fraction: f32) -> Line {
+        let exact = self.pace == Pace::Slow;
+        if !worth_sending(self.sent, fraction, exact) || !commands::seek_scrub(mpv, fraction, exact)
+        {
+            return Line::Clear;
         }
         self.sent = Some((fraction, exact));
         self.issued += 1;
         if exact {
             self.exact += 1;
         }
-        true
+        Line::Busy { next: None }
     }
 }
 
 /// What a speed, in seconds of film a second, says about a drag: slow, fast,
 /// or, between the two, whatever it already was.
-fn pace(speed: f64) -> Option<bool> {
+fn pace(speed: f64) -> Option<Pace> {
     if speed < SLOW {
-        Some(true)
+        Some(Pace::Slow)
     } else if speed > FAST {
-        Some(false)
+        Some(Pace::Fast)
     } else {
         None
     }
@@ -274,10 +284,10 @@ mod tests {
 
     #[test]
     fn a_drag_is_slow_or_fast_or_left_as_it_was() {
-        assert_eq!(pace(0.0), Some(true));
-        assert_eq!(pace(SLOW - 1.0), Some(true));
+        assert_eq!(pace(0.0), Some(Pace::Slow));
+        assert_eq!(pace(SLOW - 1.0), Some(Pace::Slow));
         assert_eq!(pace(f64::midpoint(SLOW, FAST)), None);
-        assert_eq!(pace(FAST + 1.0), Some(false));
+        assert_eq!(pace(FAST + 1.0), Some(Pace::Fast));
     }
 
     #[test]
