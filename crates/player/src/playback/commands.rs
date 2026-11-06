@@ -8,7 +8,6 @@
 //! Failures are logged rather than propagated, since a rejected seek
 //! shouldn't take the player down.
 
-use dbm_library::bars::Crop;
 use dbm_mpv::prop::{self, Cache, KeepOpen, Rect, TrackChoice};
 use dbm_mpv::tracks::{self, TrackId, TrackKind};
 use dbm_mpv::{Command, Direction, MediaPath, Mpv, Property, Reader, SeekTarget, ToMpv};
@@ -175,14 +174,8 @@ pub fn toggle_panscan(mpv: &Mpv) {
 ///
 /// File-local, so mpv puts the whole frame back when the file ends and the
 /// next one never opens with this one's crop.
-pub fn crop(mpv: &Mpv, crop: Option<Crop>) {
-    let rect = crop.map(|c| Rect {
-        x: c.x,
-        y: c.y,
-        w: c.w,
-        h: c.h,
-    });
-    set(mpv, prop::FILE_LOCAL_VIDEO_CROP, rect);
+pub fn crop(mpv: &Mpv, crop: Option<Rect>) {
+    set(mpv, prop::FILE_LOCAL_VIDEO_CROP, crop);
 }
 
 pub fn toggle_mute(mpv: &Mpv) {

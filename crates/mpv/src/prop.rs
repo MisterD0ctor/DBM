@@ -8,6 +8,8 @@ use std::fmt;
 use std::marker::PhantomData;
 use std::path::PathBuf;
 
+use serde::{Deserialize, Serialize};
+
 use crate::MediaPath;
 use crate::tracks::{AudioDevice, Chapter, PlaylistEntry, Track, TrackId};
 use crate::value::{Format, FromMpv, ToMpv, Value};
@@ -199,7 +201,7 @@ impl ToMpv for Cache {
 }
 
 /// A part of the video frame, in its own pixels.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Rect {
     pub x: u32,
     pub y: u32,

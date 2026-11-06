@@ -16,7 +16,7 @@ use std::path::Path;
 use std::process::Command;
 
 use dbm_mpv::MediaPath;
-use serde::{Deserialize, Serialize};
+use dbm_mpv::prop::Rect;
 
 use crate::cache::{PathMap, Stamped};
 use crate::ffmpeg;
@@ -62,13 +62,7 @@ const INSET: u32 = 2;
 static FOUND: PathMap<Stamped<Option<Crop>>> = PathMap::cache("bars.json", 2);
 
 /// The picture inside a frame, in the frame's own pixels.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Crop {
-    pub x: u32,
-    pub y: u32,
-    pub w: u32,
-    pub h: u32,
-}
+pub type Crop = Rect;
 
 /// One file's answer: the picture inside its frame, or `None` where the
 /// frame is all picture.
