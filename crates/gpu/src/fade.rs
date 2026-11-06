@@ -53,7 +53,7 @@ pub struct Fader {
 }
 
 impl Fader {
-    pub fn new(gl: &glow::Context) -> Result<Self, String> {
+    pub fn new(gl: &glow::Context) -> Result<Self, crate::gfx::Error> {
         Ok(Self {
             quad: ScreenQuad::new(gl)?,
             program: program!(gl, "scroll_fade")?,

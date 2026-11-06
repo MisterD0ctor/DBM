@@ -243,10 +243,49 @@ macro_rules! program {
             include_str!("../shaders/fullscreen.vert"),
             include_str!(concat!("../shaders/", $name, ".frag")),
         )
-        .map_err(|e| format!("{}: {e}", $name))
+        .map_err(|e| $crate::gfx::Error::Named {
+            name: $name,
+            source: Box::new(e),
+        })
     };
 }
 pub(crate) use program;
+
+/// Why a shader program could not be built.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Error {
+    /// The GL context itself refused a call.
+    Gl(String),
+    /// A shader would not compile, and what its compiler said.
+    Shader { stage: &'static str, log: String },
+    /// The shaders compiled but would not link.
+    Link(String),
+    /// A named program's failure, from the `program!` macro.
+    Named {
+        name: &'static str,
+        source: Box<Self>,
+    },
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Gl(e) => f.write_str(e),
+            Self::Shader { stage, log } => write!(f, "{stage} shader: {log}"),
+            Self::Link(log) => write!(f, "link: {log}"),
+            Self::Named { name, source } => write!(f, "{name}: {source}"),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Named { source, .. } => Some(source),
+            _ => None,
+        }
+    }
+}
 
 pub struct Program {
     program: glow::Program,
@@ -259,10 +298,11 @@ pub struct Program {
 fn compile(
     gl: &glow::Context,
     kind: u32,
+    stage: &'static str,
     source: &str,
-) -> Result<<glow::Context as HasContext>::Shader, String> {
+) -> Result<<glow::Context as HasContext>::Shader, Error> {
     unsafe {
-        let shader = gl.create_shader(kind)?;
+        let shader = gl.create_shader(kind).map_err(Error::Gl)?;
         gl.shader_source(shader, source);
         gl.compile_shader(shader);
         if gl.get_shader_compile_status(shader) {
@@ -270,14 +310,14 @@ fn compile(
         }
         let log = gl.get_shader_info_log(shader);
         gl.delete_shader(shader);
-        Err(log)
+        Err(Error::Shader { stage, log })
     }
 }
 
 impl Program {
-    pub fn new(gl: &glow::Context, vert: &str, frag: &str) -> Result<Self, String> {
+    pub fn new(gl: &glow::Context, vert: &str, frag: &str) -> Result<Self, Error> {
         unsafe {
-            let program = gl.create_program()?;
+            let program = gl.create_program().map_err(Error::Gl)?;
             let prologue = shader_prologue(gl);
             let mut shaders = Vec::new();
             let mut built = Ok(());
@@ -285,13 +325,13 @@ impl Program {
                 ("vertex", glow::VERTEX_SHADER, vert),
                 ("fragment", glow::FRAGMENT_SHADER, frag),
             ] {
-                match compile(gl, kind, &format!("{prologue}{src}")) {
+                match compile(gl, kind, stage, &format!("{prologue}{src}")) {
                     Ok(shader) => {
                         gl.attach_shader(program, shader);
                         shaders.push(shader);
                     }
-                    Err(log) => {
-                        built = Err(format!("{stage} shader: {log}"));
+                    Err(e) => {
+                        built = Err(e);
                         break;
                     }
                 }
@@ -299,7 +339,7 @@ impl Program {
             if built.is_ok() {
                 gl.link_program(program);
                 if !gl.get_program_link_status(program) {
-                    built = Err(format!("link: {}", gl.get_program_info_log(program)));
+                    built = Err(Error::Link(gl.get_program_info_log(program)));
                 }
             }
             // Whichever way it went, so a failure part-way leaves nothing.
@@ -408,8 +448,8 @@ pub struct ScreenQuad {
 }
 
 impl ScreenQuad {
-    pub fn new(gl: &glow::Context) -> Result<Self, String> {
-        let vao = unsafe { gl.create_vertex_array()? };
+    pub fn new(gl: &glow::Context) -> Result<Self, Error> {
+        let vao = unsafe { gl.create_vertex_array().map_err(Error::Gl)? };
         Ok(Self { vao })
     }
 

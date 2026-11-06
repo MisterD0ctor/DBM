@@ -50,7 +50,7 @@ struct Level<'a> {
 }
 
 impl Blur {
-    pub fn new(gl: &glow::Context) -> Result<Self, String> {
+    pub fn new(gl: &glow::Context) -> Result<Self, crate::gfx::Error> {
         Ok(Self {
             down: program!(gl, "blur_down")?,
             gauss: program!(gl, "blur_gauss")?,

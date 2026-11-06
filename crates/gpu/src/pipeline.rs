@@ -155,7 +155,7 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    pub fn new(gl: &glow::Context) -> Result<Self, String> {
+    pub fn new(gl: &glow::Context) -> Result<Self, crate::gfx::Error> {
         Ok(Self {
             quad: ScreenQuad::new(gl)?,
             prog_extend: program!(gl, "border_extend")?,

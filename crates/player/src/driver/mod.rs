@@ -259,7 +259,7 @@ impl Driver {
             Err(e) => {
                 self.fatal(Failure {
                     detail: marked("The graphics driver would not build the player's shaders. {}"),
-                    cause: e,
+                    cause: e.to_string(),
                     note: marked("If the driver is current, this is a bug in the player."),
                 });
                 return;

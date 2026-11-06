@@ -60,6 +60,6 @@ impl Overlays {
 }
 
 /// A pass that built, or a line saying what the frame goes without.
-fn optional<T>(built: Result<T, String>, without: &str) -> Option<T> {
+fn optional<T>(built: Result<T, crate::gfx::Error>, without: &str) -> Option<T> {
     built.inspect_err(|e| log::warn!("{without}: {e}")).ok()
 }
