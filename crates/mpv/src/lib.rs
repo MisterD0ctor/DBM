@@ -47,6 +47,7 @@ pub use value::{Format, FromMpv, ToMpv, Value};
 use std::ffi::{CString, c_char, c_int, c_void};
 use std::ops::Deref;
 use std::path::Path;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
 use error::check;
@@ -72,6 +73,10 @@ pub struct Mpv {
     /// Whether mpv leaves what is outside the picture transparent rather
     /// than black; see [`Mpv::clear_surround`].
     clear_surround: bool,
+    /// Whether the player has asked for a file and not yet heard it load.
+    /// Read by the resume saving, which must not write a place for a file
+    /// mpv has not opened yet.
+    opening: AtomicBool,
 }
 
 /// No colour at all, in mpv's `r/g/b/a` form.
@@ -121,6 +126,7 @@ impl Mpv {
             handle,
             wakeup: Mutex::new(std::ptr::null_mut()),
             clear_surround: false,
+            opening: AtomicBool::new(false),
         };
 
         // `vo=libmpv` is the one option that must land. The rest are tuning,
@@ -160,6 +166,21 @@ impl Mpv {
     /// over a transparent surround, so it can be laid over something else.
     pub fn clear_surround(&self) -> bool {
         self.clear_surround
+    }
+
+    /// A file has been asked for and has not loaded yet.
+    pub fn begin_opening(&self) {
+        self.opening.store(true, Ordering::Relaxed);
+    }
+
+    /// The file asked for has loaded, or the move to it went nowhere.
+    pub fn end_opening(&self) {
+        self.opening.store(false, Ordering::Relaxed);
+    }
+
+    /// Whether a file is still on its way in.
+    pub fn is_opening(&self) -> bool {
+        self.opening.load(Ordering::Relaxed)
     }
 
     /// Set an option before `mpv_initialize`, which some only take then.

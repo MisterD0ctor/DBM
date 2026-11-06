@@ -29,7 +29,7 @@ impl Player {
                     // A move or a list that went nowhere opens nothing, which
                     // is settled here, in its place among the events.
                     if *failed && matches!(reply, Some(Reply::Move | Reply::LoadList)) {
-                        session::settled();
+                        session::settled(&self.app.mpv);
                     }
                     replies.push(reply);
                     continue;
@@ -56,8 +56,8 @@ impl Player {
                     reason: EndReason::Eof,
                 } => played_out = Some(*entry),
                 // Saving the resume position waits out a file opening.
-                Event::StartFile => session::opening(),
-                Event::FileLoaded => session::settled(),
+                Event::StartFile => session::opening(&self.app.mpv),
+                Event::FileLoaded => session::settled(&self.app.mpv),
                 _ => {}
             }
             moved |= match &event {

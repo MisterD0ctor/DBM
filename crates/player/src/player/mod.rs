@@ -278,7 +278,7 @@ impl Player {
     /// Write the playing file's place and wait for mpv to have, as the
     /// player quits (see `session`).
     pub fn save_before_quitting(&mut self) {
-        crate::playback::session::save_before_quitting(&mut self.events);
+        crate::playback::session::save_before_quitting(&mut self.events, &self.app.mpv);
     }
 
     /// What the frame draws from.

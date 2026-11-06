@@ -296,7 +296,7 @@ pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &MediaPa
     );
     if let Err(e) = mpv.run(Reply::LoadList.id(), Command::LoadList(m3u)) {
         log::warn!("loadlist failed: {e}");
-        crate::playback::session::settled();
+        crate::playback::session::settled(mpv);
         return false;
     }
     true
@@ -314,7 +314,7 @@ fn move_to(mpv: &Mpv, command: Command<'_>) {
     save_before_leaving(mpv);
     if let Err(e) = mpv.run(Reply::Move.id(), command) {
         log::warn!("mpv command {command:?} failed: {e}");
-        crate::playback::session::settled();
+        crate::playback::session::settled(mpv);
     }
 }
 
@@ -327,7 +327,7 @@ fn move_to(mpv: &Mpv, command: Command<'_>) {
 /// saves nothing, since that file has no place to save yet.
 fn save_before_leaving(mpv: &Mpv) {
     crate::playback::session::checkpoint(mpv);
-    crate::playback::session::opening();
+    crate::playback::session::opening(mpv);
 }
 
 pub fn seek_relative(mpv: &Mpv, seconds: f64) {

@@ -14,7 +14,6 @@
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use dbm_library::paths;
@@ -23,21 +22,19 @@ use dbm_mpv::{Command, Events, Mpv, Options};
 
 use crate::playback::commands;
 
-/// Whether a file is on its way in and hasn't loaded. mpv doesn't know its
-/// position until it has, and an entry written meanwhile would have none and
-/// replace the one it is resuming from, so nothing here writes until then.
-static OPENING: AtomicBool = AtomicBool::new(false);
-
 /// A file is about to open: one asked for (see `commands`), or one mpv has
-/// started by itself.
-pub fn opening() {
-    OPENING.store(true, Ordering::Relaxed);
+/// started by itself. mpv doesn't know its position until it has, and an
+/// entry written meanwhile would have none and replace the one it is resuming
+/// from, so the flag lives on mpv's handle and nothing here writes until it
+/// clears.
+pub fn opening(mpv: &Mpv) {
+    mpv.begin_opening();
 }
 
 /// Nothing is on its way in any more: the file loaded, or the move to it went
 /// nowhere.
-pub fn settled() {
-    OPENING.store(false, Ordering::Relaxed);
+pub fn settled(mpv: &Mpv) {
+    mpv.end_opening();
 }
 
 /// How often to checkpoint the position of the playing file.
@@ -109,7 +106,7 @@ pub fn checkpoint_periodically(mpv: Arc<Mpv>) -> slint::Timer {
 /// Async, so this costs the UI thread a queue push. mpv skips the write when
 /// nothing is playing.
 pub fn checkpoint(mpv: &Mpv) {
-    if OPENING.load(Ordering::Relaxed) {
+    if mpv.is_opening() {
         return;
     }
     if let Err(e) = mpv.run(
@@ -126,8 +123,8 @@ pub fn checkpoint(mpv: &Mpv) {
 /// quitting is the place saved. Taking mpv down doesn't save anything by
 /// itself. Every event that arrives while it waits is dropped, so this is for
 /// once the event loop has returned.
-pub fn save_before_quitting(events: &mut Events) {
-    if OPENING.load(Ordering::Relaxed) {
+pub fn save_before_quitting(events: &mut Events, mpv: &Mpv) {
+    if mpv.is_opening() {
         return;
     }
     let saved = events.run_and_wait(Command::WriteWatchLaterConfig, QUIT_SAVE_WAIT);
