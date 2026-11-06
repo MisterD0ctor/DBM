@@ -111,24 +111,32 @@ pub fn cycle_track(mpv: &Mpv, pick: Pick, step: Direction) {
 /// What a queued command's answer is for. The scrubber and the list's load
 /// wait on their own, and a move to another file is told apart for when it
 /// fails (see `move_to`); everything else fires and forgets.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Reply {
-    Ignored,
-    Scrub,
-    LoadList,
-    Move,
+///
+/// One list builds the enum and the roster, so a new answer cannot be left
+/// out of the ids `Reply::of` knows.
+macro_rules! replies {
+    ($($reply:ident),* $(,)?) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+        pub enum Reply {
+            $($reply,)*
+        }
+
+        impl Reply {
+            const ALL: &[Self] = &[$(Self::$reply),*];
+        }
+    };
 }
 
-impl Reply {
-    const ALL: [Self; 4] = [Self::Ignored, Self::Scrub, Self::LoadList, Self::Move];
+replies!(Ignored, Scrub, LoadList, Move);
 
+impl Reply {
     /// The id mpv hands back with the answer.
     pub const fn id(self) -> u32 {
         self as u32
     }
 
     pub fn of(id: u32) -> Option<Self> {
-        Self::ALL.into_iter().find(|reply| reply.id() == id)
+        Self::ALL.iter().copied().find(|reply| reply.id() == id)
     }
 }
 
@@ -545,4 +553,16 @@ pub fn seek_to(mpv: &Mpv, seconds: f64) {
 
 pub fn restart(mpv: &Mpv) {
     seek_to(mpv, 0.0);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_reply_is_recognised_by_its_id() {
+        for &reply in Reply::ALL {
+            assert_eq!(Reply::of(reply.id()), Some(reply));
+        }
+    }
 }
