@@ -1,5 +1,7 @@
 //! Language tags, and the names a reader looks for them by.
 
+use std::hash::{Hash, Hasher};
+
 /// Endonyms: a language written the way it writes itself, which is what
 /// someone looking for their own language is scanning the list for.
 ///
@@ -67,6 +69,70 @@ const ALPHA3: &[(&str, &str)] = &[
     ("vie", "vi"), ("chi", "zh"), ("zho", "zh"),
 ];
 
+/// A language tag, and what makes two tags the same language.
+///
+/// The tag is kept as given (trimmed and lower-cased), because a request or a
+/// file name may need the exact form: `pt-br` and `pt-pt` are different
+/// OpenSubtitles codes even though both are Portuguese. Equality uses the
+/// folded key instead, which is the two-letter code where one is known and the
+/// tag itself otherwise. So `eng`, `en-US` and `en` are one language, while a
+/// tag `base_code` cannot place stays distinct from every other.
+#[derive(Clone, Debug)]
+pub struct Language {
+    tag: String,
+    base: Option<&'static str>,
+}
+
+impl Language {
+    /// Read a tag, or `None` where there is none. Any non-empty tag is
+    /// accepted: an unknown language is still something a file or a subtitle
+    /// can name.
+    pub fn parse(tag: &str) -> Option<Self> {
+        let tag = tag.trim().to_ascii_lowercase();
+        if tag.is_empty() {
+            return None;
+        }
+        let base = base_code(&tag);
+        Some(Self { tag, base })
+    }
+
+    /// The tag as it would be written in a request or a file name.
+    pub fn tag(&self) -> &str {
+        &self.tag
+    }
+
+    /// The code that decides whether two tags are the same language.
+    pub fn key(&self) -> &str {
+        self.base.unwrap_or(&self.tag)
+    }
+
+    /// The language's own name for itself, or its tag upper-cased where
+    /// there is no name for it.
+    pub fn name(&self) -> String {
+        match self
+            .base
+            .and_then(|code| LANGUAGES.iter().find(|(known, _)| *known == code))
+        {
+            Some((_, name)) => (*name).to_string(),
+            None => self.tag.to_ascii_uppercase(),
+        }
+    }
+}
+
+impl PartialEq for Language {
+    fn eq(&self, other: &Self) -> bool {
+        self.key() == other.key()
+    }
+}
+
+impl Eq for Language {}
+
+impl Hash for Language {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.key().hash(state);
+    }
+}
+
 /// The two-letter code a tag reduces to: `en-US` and `eng` both give `en`.
 ///
 /// Whoever muxed the file picked from `en`, `eng` and `en-US` more or less at
@@ -83,41 +149,45 @@ pub fn base_code(tag: &str) -> Option<&'static str> {
         .map(|(_, two)| *two)
 }
 
-/// How to write a language code for a reader. Unknown codes come back
+/// How to write a language tag for a reader. Unknown codes come back
 /// upper-cased, which at least reads as a code rather than as a word.
 pub fn language_name(tag: &str) -> String {
-    match base_code(tag).and_then(|c| LANGUAGES.iter().find(|(code, _)| *code == c)) {
-        Some((_, name)) => (*name).to_string(),
-        None => tag.trim().to_ascii_uppercase(),
-    }
-}
-
-/// Do two tags name the same language?
-pub fn same_language(a: &str, b: &str) -> bool {
-    let (a, b) = (a.trim(), b.trim());
-    if a.is_empty() || b.is_empty() {
-        return false;
-    }
-    if a.eq_ignore_ascii_case(b) {
-        return true;
-    }
-    match (base_code(a), base_code(b)) {
-        (Some(x), Some(y)) => x == y,
-        _ => false,
-    }
+    Language::parse(tag).map_or_else(
+        || tag.trim().to_ascii_uppercase(),
+        |language| language.name(),
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn language(tag: &str) -> Language {
+        Language::parse(tag).expect("a language tag")
+    }
+
     #[test]
     fn language_codes_fold_together() {
-        assert!(same_language("eng", "en-US"));
-        assert!(same_language("SWE", "sv"));
-        assert!(!same_language("en", "sv"));
-        assert_eq!(language_name("swe"), "Svenska");
-        assert_eq!(language_name("ja"), "日本語");
-        assert_eq!(language_name("qqq"), "QQQ");
+        assert_eq!(language("eng"), language("en-US"));
+        assert_eq!(language("SWE"), language("sv"));
+        assert_ne!(language("en"), language("sv"));
+        assert_eq!(language("swe").name(), "Svenska");
+        assert_eq!(language("ja").name(), "日本語");
+        assert_eq!(language("qqq").name(), "QQQ");
+    }
+
+    #[test]
+    fn a_tag_keeps_its_region_for_a_request() {
+        let brazil = language("pt-br");
+        let portugal = language("pt-pt");
+        assert_eq!(brazil, portugal, "both are Portuguese");
+        assert_eq!(brazil.tag(), "pt-br");
+        assert_eq!(portugal.tag(), "pt-pt");
+        assert_eq!(language("  EN_us  ").tag(), "en_us");
+    }
+
+    #[test]
+    fn nothing_is_not_a_language() {
+        assert_eq!(Language::parse("   "), None);
     }
 }

@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use dbm_lang::{fill, tr};
 
 use super::clean::{clean_separators, strip_extension, strip_metadata, strip_path};
-use super::language::{base_code, language_name, same_language};
+use super::language::{Language, base_code};
 
 /// A flag a subtitle track carries about itself, rather than a name.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,6 +52,7 @@ pub struct TrackName {
 /// commentary`. The flags are worth keeping, since whether a subtitle is
 /// forced decides whether you want it, and no language code says so.
 pub fn parse_track_name(title: &str, language: Option<&str>) -> TrackName {
+    let language = language.and_then(Language::parse);
     let stem = strip_extension(strip_path(title));
     let cleaned = clean_separators(stem);
 
@@ -82,7 +83,7 @@ pub fn parse_track_name(title: &str, language: Option<&str>) -> TrackName {
         }
         // The language is already shown beside the name, so it isn't
         // repeated in it.
-        if language.is_some_and(|l| same_language(&bare, l)) || base_code(&bare).is_some() {
+        if base_code(&bare).is_some() || Language::parse(&bare) == language {
             continue;
         }
         kept.push(word);
@@ -120,9 +121,9 @@ pub struct TrackInfo<'a> {
 /// unique across lists. Region qualifiers are left out, because telling
 /// `es-419` from `es-ES` needs a real locale database.
 pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
-    let key = |t: &TrackInfo| t.language.map(|l| base_code(l).unwrap_or(l).to_string());
+    let key = |t: &TrackInfo| t.language.and_then(Language::parse);
 
-    let mut per_language: HashMap<String, usize> = HashMap::new();
+    let mut per_language: HashMap<Language, usize> = HashMap::new();
     for t in tracks {
         if let Some(k) = key(t) {
             *per_language.entry(k).or_insert(0) += 1;
@@ -143,14 +144,14 @@ pub fn track_labels(tracks: &[TrackInfo]) -> Vec<String> {
         .filter(|(t, p)| key(t).is_none() && p.text.is_none())
         .count();
 
-    let mut seen: HashMap<String, usize> = HashMap::new();
+    let mut seen: HashMap<Language, usize> = HashMap::new();
     let mut unnamed = 0;
     let mut out = Vec::with_capacity(tracks.len());
     for (t, parsed) in tracks.iter().zip(&parsed) {
         let mut label = match (key(t), &parsed.text) {
-            (Some(l), Some(text)) => format!("{} — {text}", language_name(&l)),
+            (Some(l), Some(text)) => format!("{} — {text}", l.name()),
             (Some(l), None) => {
-                let name = language_name(&l);
+                let name = l.name();
                 // Only number them when the language alone cannot tell them
                 // apart; a lone Swedish track is "Svenska", not "Svenska 1".
                 if per_language.get(&l).copied().unwrap_or(0) > 1 {

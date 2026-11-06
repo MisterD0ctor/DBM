@@ -30,7 +30,7 @@ mod tracks;
 
 pub use chapters::{is_credits, is_intro, is_preview, is_unnamed_chapter};
 pub use clean::strip_path;
-pub use language::language_name;
+pub use language::{Language, language_name};
 pub use media::{Media, described, listing, parse, past_named, titled, without_season};
 pub use runs::notice;
 pub use tracks::{TrackInfo, track_labels};
