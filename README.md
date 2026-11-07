@@ -195,8 +195,9 @@ Tauri leaves in `%LOCALAPPDATA%` if that's what you have. The whole installer
 is in `packaging/death-by-mpv.nsi`.
 
 CI does the same on every push to `main`. Pushing a `v*` tag also creates a
-draft release with the installer, the portable zip and the Flatpak attached.
-The tag has to match the version in the top-level `Cargo.toml` and the newest
+draft release with the installer, the portable zip and the Flatpak attached,
+once the tests, the builds and the headless exercises have all passed. The
+tag has to match the version in the top-level `Cargo.toml` and the newest
 release in the Flatpak's metainfo.
 
 ### Flatpak

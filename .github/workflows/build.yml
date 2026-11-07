@@ -236,11 +236,12 @@ jobs:
                   state-dir: target/flatpak/state
 
     # A tag's release, with what both platforms built, and only once
-    # everything has passed: the Flatpak ships what the Linux job tests.
+    # everything has passed: the Flatpak ships what the Linux job tests, and
+    # the exercises are what say it still plays.
     release:
         name: Release
         if: startsWith(github.ref, 'refs/tags/v')
-        needs: [linux, build, flatpak]
+        needs: [smoke, linux, build, flatpak]
         runs-on: ubuntu-latest
 
         steps:
