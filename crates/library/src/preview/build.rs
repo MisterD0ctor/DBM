@@ -103,7 +103,7 @@ fn parse_aspect(text: &str) -> Option<f64> {
     if let Some(rest) = text.split("DAR ").nth(1) {
         let spec = rest.split(']').next()?.trim();
         if let Some((w, h)) = spec.split_once(':') {
-            let (w, h): (f64, f64) = (w.trim().parse().ok()?, h.trim().parse().ok()?);
+            let (w, h) = (crate::number::finite(w)?, crate::number::finite(h)?);
             if h > 0.0 {
                 return Some(w / h);
             }

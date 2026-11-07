@@ -248,7 +248,7 @@ fn turned(report: &str) -> bool {
     report.split("rotation of ").skip(1).any(|rest| {
         rest.split_whitespace()
             .next()
-            .and_then(|angle| angle.parse::<f64>().ok())
+            .and_then(crate::number::finite)
             .is_some_and(|angle| angle.rem_euclid(360.0) != 0.0)
     })
 }

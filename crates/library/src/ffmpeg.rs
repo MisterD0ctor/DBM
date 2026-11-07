@@ -160,9 +160,9 @@ pub fn parse_duration(text: &str) -> Option<f64> {
     let rest = text.split("Duration:").nth(1)?.trim_start();
     let clock = rest.split(',').next()?.trim();
     let mut parts = clock.split(':');
-    let h: f64 = parts.next()?.trim().parse().ok()?;
-    let m: f64 = parts.next()?.trim().parse().ok()?;
-    let s: f64 = parts.next()?.trim().parse().ok()?;
+    let h = crate::number::finite(parts.next()?)?;
+    let m = crate::number::finite(parts.next()?)?;
+    let s = crate::number::finite(parts.next()?)?;
     Some(h * 3600.0 + m * 60.0 + s)
 }
 

@@ -23,6 +23,7 @@ pub mod durations;
 pub mod ffmpeg;
 pub mod fingerprint;
 pub mod mark;
+pub mod number;
 pub mod onward;
 pub mod opensubtitles;
 pub mod paths;

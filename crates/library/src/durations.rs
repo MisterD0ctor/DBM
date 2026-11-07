@@ -114,7 +114,7 @@ pub fn resume_point(dir: &std::path::Path, path: &MediaPath) -> Option<f64> {
     contents
         .lines()
         .find_map(|line| line.strip_prefix("start="))
-        .and_then(|value| value.trim().parse().ok())
+        .and_then(crate::number::finite)
 }
 
 /// The name mpv gives this path's watch-later file.

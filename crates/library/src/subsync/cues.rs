@@ -94,7 +94,7 @@ fn clock(text: &str) -> Option<f64> {
     let mut seconds = 0.0;
     let mut parts = 0;
     for part in text.trim().split(':') {
-        let value: f64 = part.trim().replace(',', ".").parse().ok()?;
+        let value = crate::number::finite(&part.replace(',', "."))?;
         if value < 0.0 {
             return None;
         }
@@ -124,6 +124,14 @@ mod tests {
         let text = "WEBVTT\n\n00:01.000 --> 00:02.500 align:start position:10%\nHello\n\n\
                     00:01:10.000 --> 00:01:12.000\nAgain\n";
         assert_eq!(cues(text), [cue(1.0, 2.5), cue(70.0, 72.0)]);
+    }
+
+    #[test]
+    fn a_timing_that_is_not_a_number_is_no_cue() {
+        let text = "1\nnan:00:01,000 --> 00:00:02,000\nOne\n\n\
+                    2\n00:00:03,000 --> inf:00:04,000\nTwo\n\n\
+                    3\n00:00:05,000 --> 00:00:06,000\nThree\n";
+        assert_eq!(cues(text), [cue(5.0, 6.0)]);
     }
 
     #[test]
