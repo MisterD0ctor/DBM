@@ -109,7 +109,15 @@ struct Sending {
     shown: Shown,
     /// When the position was last looked at, what it was, and whether the
     /// film was paused then, which together make a jump recognisable.
-    sampled: Option<(Instant, f64, bool)>,
+    sampled: Option<Sample>,
+}
+
+/// The position as last looked at.
+#[derive(Clone, Copy)]
+struct Sample {
+    at: Instant,
+    position: f64,
+    paused: bool,
 }
 
 /// Everything the frame path has to tell the bus thread.
@@ -195,8 +203,15 @@ impl Sending {
     /// `JUMP`).
     fn jumped(&mut self, player: &PlayerState) -> Option<i64> {
         let now = Instant::now();
-        let sample = (now, player.time_pos, player.paused);
-        let (then, before, was_paused) = self.sampled.replace(sample)?;
+        let Sample {
+            at: then,
+            position: before,
+            paused: was_paused,
+        } = self.sampled.replace(Sample {
+            at: now,
+            position: player.time_pos,
+            paused: player.paused,
+        })?;
         // A file that has just opened is at the beginning because it is new.
         if self.shown.switched(player) {
             return None;
@@ -581,20 +596,20 @@ impl Player {
             commands::set_pause(&self.mpv, true);
             return;
         }
-        let (slowest, fastest) = commands::speed_limits();
-        commands::set_speed(&self.mpv, rate.clamp(slowest, fastest));
+        let speeds = commands::speed_limits();
+        commands::set_speed(&self.mpv, rate.clamp(*speeds.start(), *speeds.end()));
     }
 
     /// The ends of the ladder `[` and `]` step through, so that a client
     /// offering a rate slider offers the same range the keyboard does.
     #[zbus(property)]
     fn minimum_rate(&self) -> f64 {
-        commands::speed_limits().0
+        *commands::speed_limits().start()
     }
 
     #[zbus(property)]
     fn maximum_rate(&self) -> f64 {
-        commands::speed_limits().1
+        *commands::speed_limits().end()
     }
 
     #[zbus(property)]

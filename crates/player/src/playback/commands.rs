@@ -38,8 +38,8 @@ const SPEEDS: &[f64] = &[0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0, 4
 /// rather than step through one (see `mpris`).
 // Only MPRIS asks for this; SMTC has no rate or position to set.
 #[cfg_attr(windows, allow(dead_code))]
-pub fn speed_limits() -> (f64, f64) {
-    (SPEEDS[0], SPEEDS[SPEEDS.len() - 1])
+pub fn speed_limits() -> std::ops::RangeInclusive<f64> {
+    SPEEDS[0]..=SPEEDS[SPEEDS.len() - 1]
 }
 
 /// One rung up or down from `current`. At either end there is no rung, and

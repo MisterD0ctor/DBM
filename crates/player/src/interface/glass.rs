@@ -37,7 +37,10 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<GlassPanel>) {
         let mut rect = Rect::<Logical>::logical(g.x, g.y, g.x + g.width, g.y + g.height);
         let mut opacity = g.opacity;
         if g.ring {
-            let surface = (g.host_height > 0.0).then_some((g.host_y, g.host_y + g.host_height));
+            let surface = (g.host_height > 0.0).then_some(Band {
+                top: g.host_y,
+                bottom: g.host_y + g.host_height,
+            });
             (rect, opacity) = within(rect, opacity, surface, &ui.get_scroll_fades());
             if opacity <= 0.004 {
                 continue;
@@ -61,6 +64,27 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<GlassPanel>) {
     }
 }
 
+/// A stretch of the window from `top` down to `bottom`, in logical pixels.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Band {
+    top: f32,
+    bottom: f32,
+}
+
+impl Band {
+    /// What of this is also in `other`; upside down where nothing is.
+    fn within(self, other: Self) -> Self {
+        Self {
+            top: self.top.max(other.top),
+            bottom: self.bottom.min(other.bottom),
+        }
+    }
+
+    fn height(self) -> f32 {
+        self.bottom - self.top
+    }
+}
+
 /// The pane under the ring, cut to the surface its row is in, given as its
 /// top and bottom, and to the scrolling list it is in there.
 ///
@@ -74,38 +98,47 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<GlassPanel>) {
 fn within(
     rect: Rect<Logical>,
     opacity: f32,
-    surface: Option<(f32, f32)>,
+    surface: Option<Band>,
     lists: &impl Model<Data = ScrollFade>,
 ) -> (Rect<Logical>, f32) {
     let (centre, height) = (rect.centre().0, rect.height());
     if height <= 0.0 {
         return (rect, opacity);
     }
-    let (mut top, mut bottom) = surface.unwrap_or((rect.y0, rect.y1));
-    let mut best: Option<(f32, f32, f32)> = None;
-    for list in lists.iter() {
-        if list.width <= 0.0 || list.height <= 0.0 {
-            continue;
-        }
-        if centre < list.x || centre > list.x + list.width {
-            continue;
-        }
-        let (top, bottom) = (rect.y0.max(list.y), rect.y1.min(list.y + list.height));
-        let inside = (bottom - top) / height;
-        if inside > 0.0 && best.is_none_or(|(most, _, _)| inside > most) {
-            best = Some((inside, top, bottom));
-        }
+    let pane = Band {
+        top: rect.y0,
+        bottom: rect.y1,
+    };
+    // The list the row is most inside, the first of any that tie.
+    let list = lists
+        .iter()
+        .filter(|list| list.width > 0.0 && list.height > 0.0)
+        .filter(|list| centre >= list.x && centre <= list.x + list.width)
+        .map(|list| {
+            pane.within(Band {
+                top: list.y,
+                bottom: list.y + list.height,
+            })
+        })
+        .filter(|inside| inside.height() > 0.0)
+        .reduce(|most, next| {
+            if next.height() > most.height() {
+                next
+            } else {
+                most
+            }
+        });
+    let mut cut = surface.unwrap_or(pane);
+    if let Some(list) = list {
+        cut = cut.within(list);
     }
-    if let Some((_, list_top, list_bottom)) = best {
-        (top, bottom) = (top.max(list_top), bottom.min(list_bottom));
-    }
-    let (top, bottom) = (rect.y0.max(top), rect.y1.min(bottom));
-    if top <= rect.y0 && bottom >= rect.y1 {
+    let cut = pane.within(cut);
+    if cut.top <= pane.top && cut.bottom >= pane.bottom {
         return (rect, opacity);
     }
-    let inside = ((bottom - top) / height).max(0.0);
+    let inside = (cut.height() / height).max(0.0);
     (
-        Rect::<Logical>::logical(rect.x0, top, rect.x1, bottom.max(top)),
+        Rect::<Logical>::logical(rect.x0, cut.top, rect.x1, cut.bottom.max(cut.top)),
         opacity * (2.0 * inside - 1.0).clamp(0.0, 1.0),
     )
 }
@@ -120,7 +153,7 @@ fn warn_overflow() {
 
 #[cfg(test)]
 mod tests {
-    use super::within;
+    use super::{Band, within};
     use crate::ScrollFade;
     use dbm_gpu::rect::{Logical, Rect};
 
@@ -163,14 +196,20 @@ mod tests {
         assert_eq!(within(rect, 1.0, None, &list()), (rect, 1.0));
     }
 
-    /// A panel from y 20 to 360, the list inside it, and a row under the
-    /// list, as the subtitles menu's way to a page is.
+    /// A panel from y 20 to 360.
+    const PANEL: Band = Band {
+        top: 20.0,
+        bottom: 360.0,
+    };
+
+    /// That panel, the list inside it, and a row under the list, as the
+    /// subtitles menu's way to a page is.
     #[test]
     fn a_row_below_its_panel_has_no_pane() {
         let (_, opacity) = within(
             Rect::<Logical>::logical(40.0, 380.0, 340.0, 414.0),
             1.0,
-            Some((20.0, 360.0)),
+            Some(PANEL),
             &list(),
         );
         assert_eq!(opacity, 0.0);
@@ -181,7 +220,7 @@ mod tests {
         let (cut, opacity) = within(
             Rect::<Logical>::logical(40.0, 335.0, 340.0, 369.0),
             1.0,
-            Some((20.0, 360.0)),
+            Some(PANEL),
             &list(),
         );
         assert_eq!(cut, Rect::<Logical>::logical(40.0, 335.0, 340.0, 360.0));
@@ -191,6 +230,6 @@ mod tests {
     #[test]
     fn a_row_inside_its_panel_and_list_keeps_its_pane() {
         let rect = Rect::<Logical>::logical(40.0, 150.0, 340.0, 184.0);
-        assert_eq!(within(rect, 1.0, Some((20.0, 360.0)), &list()), (rect, 1.0));
+        assert_eq!(within(rect, 1.0, Some(PANEL), &list()), (rect, 1.0));
     }
 }

@@ -125,15 +125,31 @@ fn placement(own: f64, floor: f64, lift: f64, picture: Picture, bitmaps: bool) -
     Placement { window, pos }
 }
 
+/// The bar as it stands this frame: its top, as a fraction of the window's
+/// height, and how much of it applies, from 0 gone to 1 arrived.
+#[derive(Clone, Copy)]
+struct Bar {
+    floor: f64,
+    lift: f64,
+}
+
+/// Where the picture is, and whether the track showing is pictures rather
+/// than text, which mpv keeps inside it.
+#[derive(Clone, Copy)]
+struct Laid {
+    picture: Picture,
+    bitmaps: bool,
+}
+
 pub struct Subline {
     params: Rc<Store>,
     /// The highest the line may rest while the bar is up, as a fraction of
     /// the window's height, and how far the bar has faded in, both as of the
     /// last frame.
-    floor: Cell<(f64, f64)>,
+    bar: Cell<Bar>,
     /// Where the picture is, and whether the track showing is bitmaps, as of
     /// the last frame.
-    picture: Cell<(Picture, bool)>,
+    picture: Cell<Laid>,
     /// What mpv was last told, so a still bar costs nothing.
     sent: Cell<Option<Placement>>,
     /// The Position the readout last showed.
@@ -144,8 +160,14 @@ impl Subline {
     pub fn new(params: Rc<Store>) -> Self {
         Self {
             params,
-            floor: Cell::new((1.0, 0.0)),
-            picture: Cell::new((Picture::from_osd(None), false)),
+            bar: Cell::new(Bar {
+                floor: 1.0,
+                lift: 0.0,
+            }),
+            picture: Cell::new(Laid {
+                picture: Picture::from_osd(None),
+                bitmaps: false,
+            }),
             sent: Cell::new(None),
             shown: Cell::new(None),
         }
@@ -171,8 +193,11 @@ impl Subline {
     /// of the window's height; `lift` is how much of it applies, from 0 with
     /// the bar gone to 1 with it arrived.
     pub fn follow(&self, mpv: &Mpv, picture: Picture, bitmaps: bool, floor: f64, lift: f64) {
-        self.picture.set((picture, bitmaps));
-        self.floor.set((floor, lift.clamp(0.0, 1.0)));
+        self.picture.set(Laid { picture, bitmaps });
+        self.bar.set(Bar {
+            floor,
+            lift: lift.clamp(0.0, 1.0),
+        });
         self.place(mpv);
     }
 
@@ -187,8 +212,8 @@ impl Subline {
     }
 
     fn place(&self, mpv: &Mpv) {
-        let (floor, lift) = self.floor.get();
-        let (picture, bitmaps) = self.picture.get();
+        let Bar { floor, lift } = self.bar.get();
+        let Laid { picture, bitmaps } = self.picture.get();
         let to = placement(
             f64::from(self.params.sub_pos()),
             floor,

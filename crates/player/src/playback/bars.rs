@@ -17,9 +17,15 @@ use super::state::PlayerState;
 pub struct Bars {
     /// The answer for the file playing, kept with its path.
     found: Option<ForFile<Option<Crop>>>,
-    /// The crop mpv was handed, and which of `PlayerState::loads` it was for:
-    /// mpv drops it when that file ends, even when the same file opens again.
-    sent: Option<(u64, Crop)>,
+    sent: Option<Sent>,
+}
+
+/// The crop mpv was handed, and which of `PlayerState::loads` it was for:
+/// mpv drops it when that file ends, even when the same file opens again.
+#[derive(Clone, Copy)]
+struct Sent {
+    load: u64,
+    crop: Crop,
 }
 
 impl Bars {
@@ -56,12 +62,15 @@ impl Bars {
             .filter(|_| !styled);
         let given = self
             .sent
-            .filter(|(load, _)| *load == player.loads)
-            .map(|(_, crop)| crop);
+            .filter(|sent| sent.load == player.loads)
+            .map(|sent| sent.crop);
         if wanted == given {
             return;
         }
         commands::crop(mpv, wanted);
-        self.sent = wanted.map(|crop| (player.loads, crop));
+        self.sent = wanted.map(|crop| Sent {
+            load: player.loads,
+            crop,
+        });
     }
 }

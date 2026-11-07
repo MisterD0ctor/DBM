@@ -109,8 +109,8 @@ fn parse_aspect(text: &str) -> Option<f64> {
             }
         }
     }
-    let (w, h) = ffmpeg::parse_size(text)?;
-    Some(f64::from(w) / f64::from(h))
+    let frame = ffmpeg::parse_size(text)?;
+    Some(f64::from(frame.width) / f64::from(frame.height))
 }
 
 /// One frame per tile, each by its own seek, `PARALLEL` at a time.

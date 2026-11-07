@@ -258,7 +258,8 @@ fn turned(report: &str) -> bool {
 ///
 /// Each axis is settled on its own, so a bar that can't be trusted on one
 /// leaves only that one whole.
-fn settle((width, height): (u32, u32), seen: &[Crop]) -> Option<Crop> {
+fn settle(frame: ffmpeg::FrameSize, seen: &[Crop]) -> Option<Crop> {
+    let ffmpeg::FrameSize { width, height } = frame;
     let across = axis(
         width,
         seen.iter()
@@ -271,22 +272,22 @@ fn settle((width, height): (u32, u32), seen: &[Crop]) -> Option<Crop> {
             .map(|c| (c.y, height.saturating_sub(c.y + c.h)))
             .unzip(),
     );
-    if across == (0, width) && down == (0, height) {
+    if across == (0..width) && down == (0..height) {
         return None;
     }
     Some(Crop {
-        x: across.0,
-        y: down.0,
-        w: across.1 - across.0,
-        h: down.1 - down.0,
+        x: across.start,
+        y: down.start,
+        w: across.end - across.start,
+        h: down.end - down.start,
     })
 }
 
 /// Where the picture starts and ends along an axis `size` long, from each
 /// sample's bar at its near and far ends: the whole axis unless both bars
 /// are believed, wide enough and alike.
-fn axis(size: u32, (near, far): (Vec<u32>, Vec<u32>)) -> (u32, u32) {
-    let whole = (0, size);
+fn axis(size: u32, (near, far): (Vec<u32>, Vec<u32>)) -> std::ops::Range<u32> {
+    let whole = 0..size;
     let (Some(near), Some(far)) = (edge(size, &near), edge(size, &far)) else {
         return whole;
     };
@@ -300,7 +301,7 @@ fn axis(size: u32, (near, far): (Vec<u32>, Vec<u32>)) -> (u32, u32) {
     if start >= end {
         return whole;
     }
-    (start, end)
+    start..end
 }
 
 /// The bar at one end of an axis: the narrowest any sample shows, if at
@@ -320,7 +321,10 @@ fn share(size: u32, fraction: f64) -> u32 {
 mod tests {
     use super::*;
 
-    const HD: (u32, u32) = (1920, 1080);
+    const HD: ffmpeg::FrameSize = ffmpeg::FrameSize {
+        width: 1920,
+        height: 1080,
+    };
 
     fn crop(w: u32, h: u32, x: u32, y: u32) -> Crop {
         Crop { x, y, w, h }
@@ -353,7 +357,11 @@ mod tests {
     #[test]
     fn a_dark_row_or_two_at_the_edge_is_not_a_bar() {
         let seen = vec![crop(1480, 1076, 0, 2); 8];
-        assert_eq!(settle((1480, 1080), &seen), None);
+        let narrow = ffmpeg::FrameSize {
+            width: 1480,
+            height: 1080,
+        };
+        assert_eq!(settle(narrow, &seen), None);
     }
 
     #[test]
