@@ -30,7 +30,7 @@ use dbm_mpv::tracks::{self, Track};
 use dbm_mpv::{MediaPath, Reader};
 
 use crate::ffmpeg;
-use crate::threads::Reporter;
+use crate::threads::{ForFile, Reporter};
 use crate::threads::{Supersede, Ticket};
 
 mod cues;
@@ -67,12 +67,15 @@ pub enum Failure {
     Unsure,
 }
 
-/// A finished run, and what it was for, so an answer that arrives after the
-/// film or the track has changed can be dropped.
+/// A finished run: what it found, for the film it listened to, or `None`
+/// when mpv had no film to listen to. Reported either way, since the
+/// interface is showing that it is listening.
+pub type Outcome = Option<ForFile<Synced>>;
+
+/// What a run found, and for which subtitle track, since a timing for one
+/// track is wrong for any other.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Outcome {
-    /// `None` when mpv had no file to name.
-    pub path: Option<MediaPath>,
+pub struct Synced {
     pub sid: Option<TrackChoice>,
     pub result: Result<Fit, Failure>,
 }
@@ -96,24 +99,24 @@ pub fn spawn(mpv: Reader, reporter: Reporter<Outcome>) {
     crate::threads::spawn("dbm-subsync", move || {
         // Read here rather than handed over, since these block on mpv's core
         // lock, which the UI thread must not.
-        let path = mpv.get_or_none(prop::PATH);
         let sid = mpv.get_or_none(prop::SID);
-        let result = match &path {
-            Some(path) => ask(&mpv, path).and_then(|asked| run(&asked, ticket)),
-            None => Err(Failure::NoSubtitles),
-        };
+        let outcome = mpv.get_or_none(prop::PATH).map(|path| {
+            let result = ask(&mpv, &path).and_then(|asked| run(&asked, ticket));
+            ForFile::new(path, Synced { sid, result })
+        });
         if !ticket.current() {
             return;
         }
-        match &result {
-            Ok(fit) => log::info!(
+        match outcome.as_ref().map(|synced| &synced.value().result) {
+            Some(Ok(fit)) => log::info!(
                 "subtitles fit at {:+.1} s, speed {:.4}",
                 fit.delay,
                 fit.speed
             ),
-            Err(why) => log::warn!("subtitles not synced: {why:?}"),
+            Some(Err(why)) => log::warn!("subtitles not synced: {why:?}"),
+            None => log::warn!("subtitles not synced: nothing is playing"),
         }
-        reporter.send(Outcome { path, sid, result });
+        reporter.send(outcome);
     });
 }
 

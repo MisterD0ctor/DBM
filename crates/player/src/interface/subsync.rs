@@ -25,10 +25,13 @@ pub fn answer(ui: &MainWindow, mpv: &Mpv, player: &PlayerState, outcome: Outcome
     ui.global::<Subtitles>().set_sync_state(SyncState::Idle);
     // For the film and the track it listened to, or for nothing: the
     // timing belongs to that pair and would be wrong for any other.
-    if outcome.path.is_none() || player.path != outcome.path || player.sid != outcome.sid {
+    let Some(synced) = outcome.and_then(|synced| synced.if_playing(player.path.as_ref())) else {
+        return;
+    };
+    if synced.sid != player.sid {
         return;
     }
-    let fit = match outcome.result {
+    let fit = match synced.result {
         Ok(fit) => fit,
         Err(why) => {
             warn(ui, unsynced(why).into());
