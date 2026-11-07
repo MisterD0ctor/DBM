@@ -84,9 +84,15 @@ impl Way {
 pub struct Ways {
     quad: ScreenQuad,
     program: Program,
-    /// The two angles at the size they were last drawn at, and that size.
-    up: Option<glow::Texture>,
-    down: Option<glow::Texture>,
+    /// The two angles at the size they were last drawn at.
+    icons: Option<Icons>,
+}
+
+/// Both angles, drawn at one size, `px` pixels square.
+#[derive(Clone, Copy)]
+struct Icons {
+    up: glow::Texture,
+    down: glow::Texture,
     px: u32,
 }
 
@@ -95,9 +101,7 @@ impl Ways {
         Ok(Self {
             quad: ScreenQuad::new(gl)?,
             program: program!(gl, "way")?,
-            up: None,
-            down: None,
-            px: 0,
+            icons: None,
         })
     }
 
@@ -133,9 +137,9 @@ impl Ways {
     ) {
         let win_h = window.height as i32;
         let px = (ICON * way.scale).round().max(1.0) as u32;
-        if !self.ensure(gl, px) {
+        let Some(icons) = self.ensure(gl, px) else {
             return;
-        }
+        };
         let px = px as i32;
         // A square around the circle, with a pixel to spare for its rim, and
         // as much wider than the angle on each side as the other, so the
@@ -164,8 +168,8 @@ impl Ways {
         program.set(gl, "u_wash", way.wash);
         program.set(gl, "u_rest", way.rest);
         program.set(gl, "u_bright", way.bright);
-        let icon = if way.up { self.up } else { self.down };
-        bind_texture(gl, program, "u_icon", 0, icon);
+        let icon = if way.up { icons.up } else { icons.down };
+        bind_texture(gl, program, "u_icon", 0, Some(icon));
         self.quad.blend_at(
             gl,
             screen,
@@ -176,27 +180,28 @@ impl Ways {
 
     /// Both angles at `px` pixels square, drawn again only when the size
     /// changes, as when a window moves to a screen of another scale.
-    fn ensure(&mut self, gl: &glow::Context, px: u32) -> bool {
-        if self.px == px && self.up.is_some() && self.down.is_some() {
-            return true;
+    fn ensure(&mut self, gl: &glow::Context, px: u32) -> Option<Icons> {
+        if let Some(icons) = self.icons.filter(|icons| icons.px == px) {
+            return Some(icons);
         }
         self.release_icons(gl);
-        let (Some(up), Some(down)) = (raster(UP, px), raster(DOWN, px)) else {
-            return false;
+        let (up, down) = (raster(UP, px)?, raster(DOWN, px)?);
+        let up = upload(gl, &up, px)?;
+        let Some(down) = upload(gl, &down, px) else {
+            unsafe { gl.delete_texture(up) };
+            return None;
         };
-        self.up = upload(gl, &up, px);
-        self.down = upload(gl, &down, px);
-        self.px = px;
-        self.up.is_some() && self.down.is_some()
+        self.icons = Some(Icons { up, down, px });
+        self.icons
     }
 
     fn release_icons(&mut self, gl: &glow::Context) {
-        unsafe {
-            for tex in [self.up.take(), self.down.take()].into_iter().flatten() {
-                gl.delete_texture(tex);
+        if let Some(icons) = self.icons.take() {
+            unsafe {
+                gl.delete_texture(icons.up);
+                gl.delete_texture(icons.down);
             }
         }
-        self.px = 0;
     }
 
     pub fn release(mut self, gl: &glow::Context) {
