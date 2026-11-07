@@ -49,9 +49,15 @@ pub fn shader_prologue(gl: &glow::Context) -> &'static str {
 /// Starts with nothing allocated; the first `ensure_size` makes the texture.
 #[derive(Default)]
 pub struct Target {
-    fbo: Option<glow::Framebuffer>,
-    tex: Option<glow::Texture>,
-    /// Size of the underlying texture.
+    made: Option<Made>,
+}
+
+/// A framebuffer and the texture it draws into, made and let go of
+/// together.
+struct Made {
+    fbo: glow::Framebuffer,
+    tex: glow::Texture,
+    /// Size of the texture.
     alloc: Size,
     /// Size of the active image within it, anchored at the origin.
     used: Size,
@@ -59,37 +65,42 @@ pub struct Target {
 
 impl Target {
     /// Size of the active image — what every caller means by "the size".
+    /// Nothing, with nothing allocated.
     pub fn size(&self) -> Size {
-        self.used
+        self.made
+            .as_ref()
+            .map_or_else(Size::default, |made| made.used)
     }
 
     pub fn alloc(&self) -> Size {
-        self.alloc
+        self.made
+            .as_ref()
+            .map_or_else(Size::default, |made| made.alloc)
     }
 
     /// Fraction of the texture the active image covers. Multiply a
     /// `0..1`-over-the-image coordinate by this to get a texture coordinate.
     pub fn scale(&self) -> (f32, f32) {
-        if self.alloc.is_empty() {
-            return (1.0, 1.0);
+        match &self.made {
+            Some(made) if !made.alloc.is_empty() => (
+                made.used.width as f32 / made.alloc.width as f32,
+                made.used.height as f32 / made.alloc.height as f32,
+            ),
+            _ => (1.0, 1.0),
         }
-        (
-            self.used.width as f32 / self.alloc.width as f32,
-            self.used.height as f32 / self.alloc.height as f32,
-        )
     }
 
     pub fn texture(&self) -> Option<glow::Texture> {
-        self.tex
+        self.made.as_ref().map(|made| made.tex)
     }
 
     /// Texture id in the form Slint wants for a borrowed-texture `Image`.
     pub fn texture_id(&self) -> Option<NonZeroU32> {
-        self.tex.map(|t| t.0)
+        self.texture().map(|t| t.0)
     }
 
     pub fn fbo(&self) -> Option<glow::Framebuffer> {
-        self.fbo
+        self.made.as_ref().map(|made| made.fbo)
     }
 
     /// Make room for a `w` x `h` image. Reallocates only when the current
@@ -107,20 +118,20 @@ impl Target {
         if size.is_empty() {
             return false;
         }
-        if self.tex.is_some()
-            && self.fbo.is_some()
-            && self.alloc.width >= size.width
-            && self.alloc.height >= size.height
+        if let Some(made) = &mut self.made
+            && made.alloc.width >= size.width
+            && made.alloc.height >= size.height
         {
-            self.used = size;
+            made.used = size;
             return true;
         }
 
         // Never shrink: a drag oscillates, and giving the memory back just to
         // ask for it again next frame is the whole problem.
+        let alloc = self.alloc();
         let (Some(aw), Some(ah)) = (
-            round_up(size.width.max(self.alloc.width)),
-            round_up(size.height.max(self.alloc.height)),
+            round_up(size.width.max(alloc.width)),
+            round_up(size.height.max(alloc.height)),
         ) else {
             return false;
         };
@@ -142,7 +153,6 @@ impl Target {
             gl.is_enabled(glow::SCISSOR_TEST)
         };
 
-        let old = (self.fbo, self.tex);
         let tex = unsafe {
             let Ok(tex) = gl.create_texture() else {
                 return false;
@@ -259,20 +269,17 @@ impl Target {
             return false;
         }
 
-        self.fbo = Some(fbo);
-        self.tex = Some(tex);
-        self.alloc = Size::new(aw, ah);
-        self.used = size;
+        let old = self.made.replace(Made {
+            fbo,
+            tex,
+            alloc: Size::new(aw, ah),
+            used: size,
+        });
 
         // The state is handed back before the old target goes, so neither a
         // binding nor a texture the caller had can be left dangling.
-        unsafe {
-            if let Some(fbo) = old.0 {
-                gl.delete_framebuffer(fbo);
-            }
-            if let Some(tex) = old.1 {
-                gl.delete_texture(tex);
-            }
+        if let Some(old) = old {
+            old.delete(gl);
         }
         true
     }
@@ -280,7 +287,7 @@ impl Target {
     /// Read back single texels as RGBA, in the active region's coordinates.
     /// A full pipeline stall - diagnostics only, never on the frame path.
     pub fn sample_grid(&self, gl: &glow::Context, points: &[(u32, u32)]) -> Vec<[u8; 4]> {
-        let Some(fbo) = self.fbo else {
+        let Some(fbo) = self.fbo() else {
             return Vec::new();
         };
         let mut out = Vec::with_capacity(points.len());
@@ -306,16 +313,18 @@ impl Target {
     }
 
     pub fn release(&mut self, gl: &glow::Context) {
-        unsafe {
-            if let Some(fbo) = self.fbo.take() {
-                gl.delete_framebuffer(fbo);
-            }
-            if let Some(tex) = self.tex.take() {
-                gl.delete_texture(tex);
-            }
+        if let Some(made) = self.made.take() {
+            made.delete(gl);
         }
-        self.alloc = Size::default();
-        self.used = Size::default();
+    }
+}
+
+impl Made {
+    fn delete(self, gl: &glow::Context) {
+        unsafe {
+            gl.delete_framebuffer(self.fbo);
+            gl.delete_texture(self.tex);
+        }
     }
 }
 
