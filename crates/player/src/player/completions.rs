@@ -45,8 +45,9 @@ impl Player {
             // the window is lit by the player's own mark instead.
             Completion::Resume(None) => light_with_the_mark(&self.app.worker),
             Completion::Preview(preview) => {
+                let path = preview.path().clone();
                 if let Some(preview) = preview.if_playing(playing) {
-                    self.show_atlas(ui, preview.sprite, preview.pixels);
+                    self.show_atlas(ui, ForFile::new(path, preview.sprite), preview.pixels);
                 }
             }
             Completion::Mark(still) => {
@@ -193,11 +194,12 @@ impl Player {
     fn show_atlas(
         &mut self,
         ui: &MainWindow,
-        sprite: Sprite,
+        atlas: ForFile<Sprite>,
         pixels: slint::SharedPixelBuffer<slint::Rgba8Pixel>,
     ) {
         let playback = ui.global::<Playback>();
         let image = slint::Image::from_rgba8(pixels);
+        let sprite = atlas.value();
         log::info!(
             "preview atlas {g}x{g} tiles of {}x{}",
             sprite.tile_w,
@@ -207,7 +209,7 @@ impl Player {
         playback.set_preview_sprite(image);
         playback.set_preview_tile_w(sprite.tile_w as i32);
         playback.set_preview_tile_h(sprite.tile_h as i32);
-        self.app.preview.set_sprite(Some(sprite));
+        self.app.preview.show(atlas);
         // The pointer may already be on the timeline, in which case it is
         // showing a timestamp and an empty frame.
         let answer = self.app.preview.again();

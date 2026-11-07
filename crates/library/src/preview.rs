@@ -27,8 +27,8 @@ use std::path::PathBuf;
 use dbm_mpv::MediaPath;
 use dbm_mpv::tracks::Chapter;
 
-use crate::threads::Reporter;
 use crate::threads::Supersede;
+use crate::threads::{ForFile, Reporter};
 
 mod build;
 mod cache;
@@ -121,16 +121,20 @@ pub struct Preview(RefCell<Known>);
 #[derive(Default)]
 struct Known {
     duration: f64,
-    sprite: Option<Sprite>,
-    /// The file the current atlas belongs to, so a request is made once per
-    /// file rather than once per frame.
-    source: Option<MediaPath>,
+    /// The file an atlas was asked for, so a request is made once per file
+    /// rather than once per frame, and its atlas once built.
+    wanted: Option<Wanted>,
     /// Where the pointer last asked about, so an atlas that arrives while the
     /// timeline is already hovered can fill in the tile straight away instead
     /// of waiting for the pointer to move.
     last: f32,
     /// The file's chapters, to name the one under the pointer.
     chapters: Vec<Chapter>,
+}
+
+struct Wanted {
+    path: MediaPath,
+    sprite: Option<Sprite>,
 }
 
 /// What the preview says for a place on the timeline.
@@ -157,18 +161,32 @@ impl Preview {
         }
     }
 
-    pub fn set_sprite(&self, sprite: Option<Sprite>) {
-        self.0.borrow_mut().sprite = sprite;
+    /// Show the atlas built for a file, while it is still the one claimed.
+    pub fn show(&self, atlas: ForFile<Sprite>) {
+        let mut known = self.0.borrow_mut();
+        if let Some(wanted) = known.wanted.as_mut()
+            && let Some(sprite) = atlas.if_playing(Some(&wanted.path))
+        {
+            wanted.sprite = Some(sprite);
+        }
     }
 
-    /// Whether this path is new, claiming it if so. The caller starts a build
-    /// on `true` and does nothing on `false`.
+    /// Whether this path is new, claiming it if so, which puts away the last
+    /// file's atlas. The caller starts a build on `true` and does nothing on
+    /// `false`.
     pub fn claim(&self, path: &MediaPath) -> bool {
         let mut known = self.0.borrow_mut();
-        if known.source.as_ref() == Some(path) {
+        if known
+            .wanted
+            .as_ref()
+            .is_some_and(|wanted| wanted.path == *path)
+        {
             return false;
         }
-        known.source = Some(path.clone());
+        known.wanted = Some(Wanted {
+            path: path.clone(),
+            sprite: None,
+        });
         true
     }
 
@@ -185,7 +203,7 @@ impl Preview {
         let mut known = self.0.borrow_mut();
         known.last = fraction;
         let seconds = known.duration * f64::from(fraction.clamp(0.0, 1.0));
-        let (x, y) = match &known.sprite {
+        let (x, y) = match known.wanted.as_ref().and_then(|w| w.sprite.as_ref()) {
             Some(sprite) => sprite.tile_at(fraction),
             None => (0, 0),
         };
@@ -233,6 +251,24 @@ mod tests {
         assert_eq!(s.tile_at(1.0 / 64.0), (192, 0));
         // First tile of the second row.
         assert_eq!(s.tile_at(8.0 / 64.0), (0, 108));
+    }
+
+    #[test]
+    fn an_atlas_is_shown_only_for_the_file_claimed() {
+        let (a, b) = (MediaPath::for_test("a.mkv"), MediaPath::for_test("b.mkv"));
+        let preview = Preview::default();
+        let tile = |preview: &Preview| {
+            let answer = preview.answer(1.0 / 64.0);
+            (answer.x, answer.y)
+        };
+        assert!(preview.claim(&a));
+        assert!(!preview.claim(&a));
+        preview.show(ForFile::new(b.clone(), sprite()));
+        assert_eq!(tile(&preview), (0, 0));
+        preview.show(ForFile::new(a, sprite()));
+        assert_eq!(tile(&preview), (192, 0));
+        assert!(preview.claim(&b));
+        assert_eq!(tile(&preview), (0, 0));
     }
 
     #[test]

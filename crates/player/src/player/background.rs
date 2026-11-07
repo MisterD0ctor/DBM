@@ -157,10 +157,9 @@ impl Player {
         if !preview.claim(&path) {
             return;
         }
-        // The old atlas belongs to the old file. Cleared now rather than left
-        // under the pointer showing the previous film for however long the new
-        // one takes to build.
-        preview.set_sprite(None);
+        // The old atlas belongs to the old file, which claiming put away.
+        // Cleared on screen too, rather than left under the pointer showing
+        // the previous film for however long the new one takes to build.
         playback.set_preview_tile_w(0);
         playback.set_preview_tile_h(0);
         // A sync still listening is listening to the old film, and one that
