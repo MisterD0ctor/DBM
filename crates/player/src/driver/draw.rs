@@ -1,5 +1,6 @@
 use dbm_gpu::gfx::Target;
 use dbm_gpu::pipeline::Frame;
+use dbm_gpu::size::Size;
 use slint::{BorrowedOpenGLTextureBuilder, BorrowedOpenGLTextureOrigin, ComponentHandle};
 
 use super::{Driver, Gpu, Published};
@@ -57,14 +58,13 @@ impl Driver {
         if gpu.overlays.shadow.is_some() {
             dbm_gpu::shadow::regions(
                 &self.scratch.panels,
-                (size.width, size.height),
+                Size::new(size.width, size.height),
                 ui.window().scale_factor(),
                 &mut self.scratch.shaded,
             );
         }
         let frame = Frame {
-            width: size.width,
-            height: size.height,
+            size: Size::new(size.width, size.height),
             new_frame,
             params_dirty,
             rect,
@@ -144,8 +144,8 @@ fn publish(
     let Some(id) = target.texture_id() else {
         return;
     };
-    let (uw, uh) = target.size();
-    let (aw, ah) = target.alloc();
+    let (uw, uh) = (target.size().width, target.size().height);
+    let (aw, ah) = (target.alloc().width, target.alloc().height);
     let key = Published {
         id,
         used: (uw, uh),

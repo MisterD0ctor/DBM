@@ -10,6 +10,8 @@ use std::num::NonZeroU32;
 
 use glow::HasContext;
 
+use crate::size::Size;
+
 /// Allocation granularity. Rounding up means a drag that sweeps a few hundred
 /// pixels costs a handful of reallocations instead of one per frame.
 const ALLOC_QUANTUM: u32 = 64;
@@ -50,30 +52,30 @@ pub struct Target {
     fbo: Option<glow::Framebuffer>,
     tex: Option<glow::Texture>,
     /// Size of the underlying texture.
-    alloc: (u32, u32),
+    alloc: Size,
     /// Size of the active image within it, anchored at the origin.
-    used: (u32, u32),
+    used: Size,
 }
 
 impl Target {
     /// Size of the active image — what every caller means by "the size".
-    pub fn size(&self) -> (u32, u32) {
+    pub fn size(&self) -> Size {
         self.used
     }
 
-    pub fn alloc(&self) -> (u32, u32) {
+    pub fn alloc(&self) -> Size {
         self.alloc
     }
 
     /// Fraction of the texture the active image covers. Multiply a
     /// `0..1`-over-the-image coordinate by this to get a texture coordinate.
     pub fn scale(&self) -> (f32, f32) {
-        if self.alloc.0 == 0 || self.alloc.1 == 0 {
+        if self.alloc.is_empty() {
             return (1.0, 1.0);
         }
         (
-            self.used.0 as f32 / self.alloc.0 as f32,
-            self.used.1 as f32 / self.alloc.1 as f32,
+            self.used.width as f32 / self.alloc.width as f32,
+            self.used.height as f32 / self.alloc.height as f32,
         )
     }
 
@@ -101,19 +103,25 @@ impl Target {
     ///
     /// Returns whether the requested size is usable afterwards. On `false`
     /// an older target may still be, at its older size.
-    pub fn ensure_size(&mut self, gl: &glow::Context, w: u32, h: u32) -> bool {
-        if w == 0 || h == 0 {
+    pub fn ensure_size(&mut self, gl: &glow::Context, size: Size) -> bool {
+        if size.is_empty() {
             return false;
         }
-        if self.tex.is_some() && self.fbo.is_some() && self.alloc.0 >= w && self.alloc.1 >= h {
-            self.used = (w, h);
+        if self.tex.is_some()
+            && self.fbo.is_some()
+            && self.alloc.width >= size.width
+            && self.alloc.height >= size.height
+        {
+            self.used = size;
             return true;
         }
 
         // Never shrink: a drag oscillates, and giving the memory back just to
         // ask for it again next frame is the whole problem.
-        let (Some(aw), Some(ah)) = (round_up(w.max(self.alloc.0)), round_up(h.max(self.alloc.1)))
-        else {
+        let (Some(aw), Some(ah)) = (
+            round_up(size.width.max(self.alloc.width)),
+            round_up(size.height.max(self.alloc.height)),
+        ) else {
             return false;
         };
         if aw > i32::MAX as u32 || ah > i32::MAX as u32 {
@@ -253,8 +261,8 @@ impl Target {
 
         self.fbo = Some(fbo);
         self.tex = Some(tex);
-        self.alloc = (aw, ah);
-        self.used = (w, h);
+        self.alloc = Size::new(aw, ah);
+        self.used = size;
 
         // The state is handed back before the old target goes, so neither a
         // binding nor a texture the caller had can be left dangling.
@@ -306,8 +314,8 @@ impl Target {
                 gl.delete_texture(tex);
             }
         }
-        self.alloc = (0, 0);
-        self.used = (0, 0);
+        self.alloc = Size::default();
+        self.used = Size::default();
     }
 }
 
@@ -599,12 +607,15 @@ impl ScreenQuad {
     /// Draw into `target`'s active region. The viewport is the active image,
     /// not the whole texture, so `v_uv` still spans 0..1 across the image.
     pub fn draw_to(&self, gl: &glow::Context, target: &Target) {
-        let (Some(fbo), (w, h)) = (target.fbo(), target.size()) else {
+        let (Some(fbo), size) = (target.fbo(), target.size()) else {
             return;
         };
+        if size.is_empty() {
+            return;
+        }
         unsafe {
             gl.bind_framebuffer(glow::FRAMEBUFFER, Some(fbo));
-            gl.viewport(0, 0, w as i32, h as i32);
+            gl.viewport(0, 0, size.width as i32, size.height as i32);
             gl.bind_vertex_array(Some(self.vao));
             // Every pass writes every pixel of its region and reads none of
             // the target, so blending and depth would only cost time.
@@ -619,12 +630,15 @@ impl ScreenQuad {
     /// Draw over what `target` already holds, by the alpha the pass writes:
     /// the one pass that lays a picture on another rather than replacing it.
     pub fn blend_to(&self, gl: &glow::Context, target: &Target) {
-        let (Some(fbo), (w, h)) = (target.fbo(), target.size()) else {
+        let (Some(fbo), size) = (target.fbo(), target.size()) else {
             return;
         };
+        if size.is_empty() {
+            return;
+        }
         unsafe {
             gl.bind_framebuffer(glow::FRAMEBUFFER, Some(fbo));
-            gl.viewport(0, 0, w as i32, h as i32);
+            gl.viewport(0, 0, size.width as i32, size.height as i32);
             gl.bind_vertex_array(Some(self.vao));
             gl.enable(glow::BLEND);
             gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);

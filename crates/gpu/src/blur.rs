@@ -14,6 +14,7 @@
 //! it back past twice the size.
 
 use crate::gfx::{Program, ScreenQuad, Target, bind_texture, program};
+use crate::size::Size;
 
 /// The widest Gaussian run at any one level. Past it, the blur moves down a
 /// level, so a blur up to this stays at full size, exactly as sharp.
@@ -45,7 +46,9 @@ pub struct Blur {
 #[derive(Clone, Copy)]
 struct Level<'a> {
     target: &'a Target,
-    size: (u32, u32),
+    size: Size,
+    /// One pixel of border on each side that is there, so a level that has
+    /// been averaged down keeps the picture's own edge.
     pad: (u32, u32),
 }
 
@@ -78,11 +81,14 @@ impl Blur {
         sigma: f32,
     ) {
         let size = src.size();
-        if size.0 == 0 || size.1 == 0 {
+        if size.is_empty() {
             return;
         }
         let sigma = sigma.max(0.0);
-        let target = (working_level(sigma, size.0), working_level(sigma, size.1));
+        let target = (
+            working_level(sigma, size.width),
+            working_level(sigma, size.height),
+        );
 
         // Down both axes until one reaches its level, then the other alone.
         let steps = target.0.max(target.1) as usize;
@@ -92,17 +98,27 @@ impl Blur {
         let mut at = (0, 0);
         for step in 0..steps {
             let next = ((at.0 + 1).min(target.0), (at.1 + 1).min(target.1));
-            let out_size = (downsampled(size.0, next.0), downsampled(size.1, next.1));
+            let out_size = Size::new(
+                downsampled(size.width, next.0),
+                downsampled(size.height, next.1),
+            );
             let out_pad = (u32::from(next.0 > 0), u32::from(next.1 > 0));
             let (done, rest) = self.levels.split_at_mut(step);
             let out = &mut rest[0];
-            if !out.ensure_size(gl, out_size.0 + 2 * out_pad.0, out_size.1 + 2 * out_pad.1) {
+            let bordered = Size::new(
+                out_size.width + 2 * out_pad.0,
+                out_size.height + 2 * out_pad.1,
+            );
+            if !out.ensure_size(gl, bordered) {
                 return;
             }
             let input = match done.last() {
                 Some(previous) => Level {
                     target: previous,
-                    size: (downsampled(size.0, at.0), downsampled(size.1, at.1)),
+                    size: Size::new(
+                        downsampled(size.width, at.0),
+                        downsampled(size.height, at.1),
+                    ),
                     pad: (u32::from(at.0 > 0), u32::from(at.1 > 0)),
                 },
                 None => Level {
@@ -111,13 +127,16 @@ impl Blur {
                     pad: (0, 0),
                 },
             };
-            draw_down(gl, quad, &self.down, input, out, (out_size, out_pad));
+            draw_down(gl, quad, &self.down, input, out, out_size, out_pad);
             at = next;
         }
         let working = match self.levels[..steps].last() {
             Some(level) => Level {
                 target: level,
-                size: (downsampled(size.0, at.0), downsampled(size.1, at.1)),
+                size: Size::new(
+                    downsampled(size.width, at.0),
+                    downsampled(size.height, at.1),
+                ),
                 pad: (u32::from(at.0 > 0), u32::from(at.1 > 0)),
             },
             None => Level {
@@ -127,12 +146,12 @@ impl Blur {
             },
         };
 
-        let (w, h) = working.target.size();
-        if !self.across.ensure_size(gl, w, h) {
+        let working_size = working.target.size();
+        if !self.across.ensure_size(gl, working_size) {
             return;
         }
-        let kernel_x = Kernel::new(working_sigma(sigma, working.size.0, size.0));
-        let kernel_y = Kernel::new(working_sigma(sigma, working.size.1, size.1));
+        let kernel_x = Kernel::new(working_sigma(sigma, working.size.width, size.width));
+        let kernel_y = Kernel::new(working_sigma(sigma, working.size.height, size.height));
         let gauss = |src: &Target, dst: &Target, dir, kernel: &Kernel| {
             draw_gauss(gl, quad, &self.gauss, src, dst, dir, kernel);
         };
@@ -141,7 +160,7 @@ impl Blur {
             gauss(&self.across, dst, (0.0, 1.0), &kernel_y);
             return;
         }
-        if !self.filtered.ensure_size(gl, w, h) {
+        if !self.filtered.ensure_size(gl, working_size) {
             return;
         }
         gauss(&self.across, &self.filtered, (0.0, 1.0), &kernel_y);
@@ -174,13 +193,14 @@ fn draw_down(
     p: &Program,
     input: Level,
     out: &Target,
-    (out_size, out_pad): ((u32, u32), (u32, u32)),
+    out_size: Size,
+    out_pad: (u32, u32),
 ) {
     p.bind(gl);
     set_alloc(gl, p, input.target);
-    p.set(gl, "u_src_size", [input.size.0 as f32, input.size.1 as f32]);
+    p.set(gl, "u_src_size", input.size.as_f32());
     p.set(gl, "u_src_pad", [input.pad.0 as f32, input.pad.1 as f32]);
-    p.set(gl, "u_dst_size", [out_size.0 as f32, out_size.1 as f32]);
+    p.set(gl, "u_dst_size", out_size.as_f32());
     p.set(gl, "u_dst_pad", [out_pad.0 as f32, out_pad.1 as f32]);
     bind_texture(gl, p, "u_src", 0, input.target.texture());
     quad.draw_to(gl, out);
@@ -191,7 +211,7 @@ fn set_alloc(gl: &glow::Context, p: &Program, target: &Target) {
     p.set(
         gl,
         "u_alloc",
-        [alloc.0.max(1) as f32, alloc.1.max(1) as f32],
+        [alloc.width.max(1) as f32, alloc.height.max(1) as f32],
     );
 }
 
@@ -204,10 +224,9 @@ fn draw_gauss(
     dir: (f32, f32),
     kernel: &Kernel,
 ) {
-    let (w, h) = src.size();
     p.bind(gl);
     set_alloc(gl, p, src);
-    p.set(gl, "u_size", [w as f32, h as f32]);
+    p.set(gl, "u_size", src.size().as_f32());
     p.set(gl, "u_dir", [dir.0, dir.1]);
     p.set(gl, "u_center", kernel.center);
     p.set(gl, "u_taps", kernel.taps as i32);
@@ -218,12 +237,11 @@ fn draw_gauss(
 }
 
 fn draw_up(gl: &glow::Context, quad: &ScreenQuad, p: &Program, src: Level, dst: &Target) {
-    let (w, h) = dst.size();
     p.bind(gl);
     set_alloc(gl, p, src.target);
-    p.set(gl, "u_src_size", [src.size.0 as f32, src.size.1 as f32]);
+    p.set(gl, "u_src_size", src.size.as_f32());
     p.set(gl, "u_src_pad", [src.pad.0 as f32, src.pad.1 as f32]);
-    p.set(gl, "u_dst_size", [w as f32, h as f32]);
+    p.set(gl, "u_dst_size", dst.size().as_f32());
     bind_texture(gl, p, "u_src", 0, src.target.texture());
     quad.draw_to(gl, dst);
 }

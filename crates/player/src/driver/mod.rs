@@ -34,6 +34,7 @@ use crate::{MainWindow, diagnostics};
 use dbm_gpu::Overlays;
 use dbm_gpu::pipeline::{GlassPanel, Pipeline};
 use dbm_gpu::rect::Region;
+use dbm_gpu::size::Size;
 use dbm_lang::{fill, marked, tr};
 
 /// Identity of what a Slint image property points at.
@@ -166,18 +167,14 @@ impl Driver {
             // already drawn over the video and the picture is the whole
             // thing. Does nothing unless asked.
             if let Some(ui) = self.ui.upgrade() {
-                let size = ui.window().size();
+                let window = ui.window().size();
+                let size = Size::new(window.width, window.height);
                 // Before the picture is taken, so all of it is in it. First
                 // the soft ends of any list with rows past them, on the
                 // frame Slint has just drawn...
                 fades::collect(&ui, &mut self.scratch.fades, &mut self.scratch.ways);
                 if let Some(fader) = gpu.overlays.fader.as_mut() {
-                    fader.run(
-                        &gpu.gl,
-                        gpu.pipeline.output(),
-                        (size.width, size.height),
-                        &self.scratch.fades,
-                    );
+                    fader.run(&gpu.gl, gpu.pipeline.output(), size, &self.scratch.fades);
                 }
                 // ...then the angle back to a list's current row, whole over
                 // the edge it sits in, on its glass disc if it has one.
@@ -191,11 +188,10 @@ impl Driver {
                         .filter(|w| w.on > 0.004)
                         .map(dbm_gpu::way::Way::pane)
                         .collect();
-                    gpu.pipeline
-                        .glass_over(&gpu.gl, (size.width, size.height), &panes);
+                    gpu.pipeline.glass_over(&gpu.gl, size, &panes);
                 }
                 if let Some(way) = gpu.overlays.way.as_mut() {
-                    way.run(&gpu.gl, (size.width, size.height), &self.scratch.ways);
+                    way.run(&gpu.gl, size, &self.scratch.ways);
                     if self.scratch.ways.iter().any(|w| w.lit > 0.0 && w.lit < 1.0) {
                         ui.window().request_redraw();
                     }
@@ -206,7 +202,7 @@ impl Driver {
                     shadow.run(
                         &gpu.gl,
                         gpu.pipeline.output(),
-                        (size.width, size.height),
+                        size,
                         &self.scratch.shaded,
                         ui.window().scale_factor(),
                     );
@@ -216,11 +212,7 @@ impl Driver {
                     // At the system's size, not the interface's, since they
                     // are the desktop's corners.
                     let radius = crate::platform::window::corner_radius(ui.window());
-                    corners.run(
-                        &gpu.gl,
-                        (size.width, size.height),
-                        radius * self.app.scale.system(&ui),
-                    );
+                    corners.run(&gpu.gl, size, radius * self.app.scale.system(&ui));
                 }
                 self.capture.maybe(&gpu.gl, size.width, size.height);
                 // Its fade is drawn here rather than by Slint, so nothing
@@ -421,8 +413,11 @@ impl Driver {
                 let t = self.diag.mark_events(t);
                 player.background(&ui);
                 if let Some(still) = player.take_backdrop() {
-                    gpu.pipeline
-                        .set_backdrop(&gpu.gl, &still.rgba, still.width, still.height);
+                    gpu.pipeline.set_backdrop(
+                        &gpu.gl,
+                        &still.rgba,
+                        Size::new(still.width, still.height),
+                    );
                 }
                 let t = self.diag.mark_lists(t);
 

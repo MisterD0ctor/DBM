@@ -15,6 +15,7 @@
 use glow::HasContext;
 
 use super::gfx::{Program, ScreenQuad, Target, bind_texture, program, saved_draw_fbo};
+use crate::size::Size;
 
 /// The side of its list, or its line, that a strip is at: where what is in
 /// it thins away to nothing.
@@ -66,14 +67,8 @@ impl Fader {
     /// `AfterRendering` is the window's, with the interface already on it.
     ///
     /// `ground` is the pipeline's output: the frame under the interface.
-    pub fn run(
-        &mut self,
-        gl: &glow::Context,
-        ground: &Target,
-        window: (u32, u32),
-        strips: &[Strip],
-    ) {
-        if strips.is_empty() || window.0 == 0 || window.1 == 0 {
+    pub fn run(&mut self, gl: &glow::Context, ground: &Target, window: Size, strips: &[Strip]) {
+        if strips.is_empty() || window.is_empty() {
             return;
         }
         let screen = saved_draw_fbo(gl);
@@ -97,11 +92,11 @@ impl Fader {
         &mut self,
         gl: &glow::Context,
         ground: &Target,
-        window: (u32, u32),
+        window: Size,
         screen: Option<glow::Framebuffer>,
         strip: &Strip,
     ) {
-        let (win_w, win_h) = (window.0 as i32, window.1 as i32);
+        let (win_w, win_h) = (window.width as i32, window.height as i32);
         let (left, right) = (strip.left.max(0), strip.right.min(win_w));
         let (top, bottom) = (strip.top.max(0), strip.bottom.min(win_h));
         let (width, height) = (right - left, bottom - top);
@@ -119,9 +114,8 @@ impl Fader {
             Edge::Right => ((left - margin).max(0), right, top, bottom, width),
         };
         let (r_width, r_height) = (r_right - r_left, r_bottom - r_top);
-        if !self.copied.ensure_size(gl, r_width as u32, r_height as u32)
-            || !self.across.ensure_size(gl, r_width as u32, r_height as u32)
-        {
+        let region = Size::new(r_width as u32, r_height as u32);
+        if !self.copied.ensure_size(gl, region) || !self.across.ensure_size(gl, region) {
             return;
         }
         let (Some(copy_fbo), Some(ground_tex)) = (self.copied.fbo(), ground.texture()) else {
@@ -187,7 +181,7 @@ impl Fader {
         program.set(gl, "u_span", [width as f32, height as f32]);
         program.set(gl, "u_ground_scale", [ground_scale.0, ground_scale.1]);
         program.set(gl, "u_origin", [r_left as f32, r_bottom as f32]);
-        program.set(gl, "u_window", [win_w as f32, win_h as f32]);
+        program.set(gl, "u_window", window.as_f32());
         bind_texture(gl, program, "u_src", 0, self.across.texture());
         bind_texture(gl, program, "u_ground", 1, Some(ground_tex));
         self.quad

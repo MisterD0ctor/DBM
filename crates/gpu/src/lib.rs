@@ -18,6 +18,7 @@ pub mod gfx;
 pub mod pipeline;
 pub mod rect;
 pub mod shadow;
+pub mod size;
 pub mod way;
 
 /// The four passes drawn over Slint's finished frame, each absent where its

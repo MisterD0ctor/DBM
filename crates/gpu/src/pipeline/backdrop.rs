@@ -5,6 +5,7 @@ use glow::HasContext;
 
 use super::Pipeline;
 use crate::gfx::bind_texture;
+use crate::size::Size;
 
 /// The mip level the end of a file reads its backdrop from: a quarter of the
 /// tile's size each way, past the point where a face in it reads as one with
@@ -18,8 +19,8 @@ const BACKDROP_ARRIVAL: std::time::Duration = std::time::Duration::from_millis(4
 
 pub(super) struct Backdrop {
     pub(super) tex: glow::Texture,
-    width: u32,
-    height: u32,
+    /// The picture's own size, not the window's: it is drawn to fit.
+    size: Size,
     arrived: std::time::Instant,
     /// Whether the last draw was the finished one, so an unchanging picture
     /// is not redrawn every frame for nothing.
@@ -31,7 +32,7 @@ impl Pipeline {
     ///
     /// Uploaded once and kept: it is a few hundred kilobytes, and the window
     /// only needs it until a film arrives.
-    pub fn set_backdrop(&mut self, gl: &glow::Context, rgba: &[u8], width: u32, height: u32) {
+    pub fn set_backdrop(&mut self, gl: &glow::Context, rgba: &[u8], size: Size) {
         let tex = unsafe {
             let Ok(tex) = gl.create_texture() else {
                 return;
@@ -41,8 +42,8 @@ impl Pipeline {
                 glow::TEXTURE_2D,
                 0,
                 glow::RGBA8 as i32,
-                width as i32,
-                height as i32,
+                size.width as i32,
+                size.height as i32,
                 0,
                 glow::RGBA,
                 glow::UNSIGNED_BYTE,
@@ -66,8 +67,7 @@ impl Pipeline {
         };
         self.backdrop = Some(Backdrop {
             tex,
-            width,
-            height,
+            size,
             arrived: std::time::Instant::now(),
             settled: false,
         });
@@ -94,7 +94,7 @@ impl Pipeline {
         self.show_backdrop && self.backdrop.as_ref().is_some_and(|b| !b.settled)
     }
 
-    pub(super) fn draw_backdrop(&mut self, gl: &glow::Context, w: u32, h: u32) {
+    pub(super) fn draw_backdrop(&mut self, gl: &glow::Context, size: Size) {
         let Some(b) = self.backdrop.as_mut() else {
             return;
         };
@@ -106,12 +106,12 @@ impl Pipeline {
         // Ease out, like every other arrival here.
         let level = 1.0 - (1.0 - t).powi(3);
         b.settled = t >= 1.0;
-        let (tex, iw, ih) = (b.tex, b.width, b.height);
+        let (tex, image_size) = (b.tex, b.size);
 
         self.prog_backdrop.bind(gl);
-        self.prog_backdrop.set(gl, "u_size", [w as f32, h as f32]);
+        self.prog_backdrop.set(gl, "u_size", size.as_f32());
         self.prog_backdrop
-            .set(gl, "u_image_size", [iw as f32, ih as f32]);
+            .set(gl, "u_image_size", image_size.as_f32());
         self.prog_backdrop.set(gl, "u_level", level);
         let (over, lod) = if self.backdrop_over_film {
             (1.0, END_SOFTENING)

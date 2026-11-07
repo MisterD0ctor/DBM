@@ -15,6 +15,7 @@ use glow::HasContext;
 use super::gfx::{Program, ScreenQuad, bind_texture, program, saved_draw_fbo};
 use super::pipeline::{GlassOver, GlassPanel};
 use crate::rect::{Pixels, Rect, Region};
+use crate::size::Size;
 
 const UP: &[u8] = include_bytes!("../../../public/icons/angle-small-up.svg");
 const DOWN: &[u8] = include_bytes!("../../../public/icons/angle-small-down.svg");
@@ -102,8 +103,8 @@ impl Ways {
 
     /// Draw every angle that is on, over whatever framebuffer is bound (the
     /// window's, in `AfterRendering`).
-    pub fn run(&mut self, gl: &glow::Context, window: (u32, u32), ways: &[Way]) {
-        if window.0 == 0 || window.1 == 0 || !ways.iter().any(|w| w.on > 0.004) {
+    pub fn run(&mut self, gl: &glow::Context, window: Size, ways: &[Way]) {
+        if window.is_empty() || !ways.iter().any(|w| w.on > 0.004) {
             return;
         }
         let screen = saved_draw_fbo(gl);
@@ -126,11 +127,11 @@ impl Ways {
     fn draw(
         &mut self,
         gl: &glow::Context,
-        window: (u32, u32),
+        window: Size,
         screen: Option<glow::Framebuffer>,
         way: &Way,
     ) {
-        let win_h = window.1 as i32;
+        let win_h = window.height as i32;
         let px = (ICON * way.scale).round().max(1.0) as u32;
         if !self.ensure(gl, px) {
             return;

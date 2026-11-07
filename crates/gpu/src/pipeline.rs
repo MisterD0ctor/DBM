@@ -23,6 +23,7 @@ use glow::HasContext;
 use crate::blur::Blur;
 use crate::gfx::{Program, ScreenQuad, Target, program, saved_draw_fbo};
 use crate::rect::{Normalised, Rect, Region};
+use crate::size::Size;
 
 mod backdrop;
 mod border;
@@ -109,8 +110,7 @@ enum Sizes {
 #[derive(Clone, Copy)]
 pub struct Frame<'a> {
     /// The window, in physical pixels.
-    pub width: u32,
-    pub height: u32,
+    pub size: Size,
     /// mpv has a new picture to render.
     pub new_frame: bool,
     /// A material parameter changed, so the passes must run again even with
@@ -251,8 +251,7 @@ impl Pipeline {
         &self,
         gl: &glow::Context,
         film: &impl Fn(u32, i32, i32) -> Result<(), Error>,
-        w: u32,
-        h: u32,
+        size: Size,
     ) -> Result<bool, Error> {
         let Some(fbo) = self.video.fbo() else {
             return Ok(false);
@@ -262,7 +261,7 @@ impl Pipeline {
             gl.bind_framebuffer(glow::FRAMEBUFFER, Some(fbo));
             let mut viewport = [0i32; 4];
             gl.get_parameter_i32_slice(glow::VIEWPORT, &mut viewport);
-            let res = film(fbo.0.get(), w as i32, h as i32);
+            let res = film(fbo.0.get(), size.width as i32, size.height as i32);
             gl.bind_framebuffer(glow::FRAMEBUFFER, saved);
             gl.viewport(viewport[0], viewport[1], viewport[2], viewport[3]);
             res?;
@@ -276,10 +275,9 @@ impl Pipeline {
         &mut self,
         gl: &glow::Context,
         film: &impl Fn(u32, i32, i32) -> Result<(), Error>,
-        w: u32,
-        h: u32,
+        size: Size,
     ) -> Result<bool, Error> {
-        match self.render_film(gl, film, w, h) {
+        match self.render_film(gl, film, size) {
             Ok(true) => Ok(true),
             Ok(false) => {
                 self.needs_redraw = true;
@@ -318,9 +316,14 @@ impl Pipeline {
     /// frame enters. Diagnostics only; stalls the GL pipeline.
     pub fn blur_chain_debug(&self, gl: &glow::Context) -> String {
         let probe = |t: &Target| {
-            let (w, h) = t.size();
-            let px = t.sample_grid(gl, &[(w / 2, h / 2)]);
-            format!("{w}x{h}{:?}", px.first().copied().unwrap_or([0; 4]))
+            let size = t.size();
+            let px = t.sample_grid(gl, &[(size.width / 2, size.height / 2)]);
+            format!(
+                "{}x{}{:?}",
+                size.width,
+                size.height,
+                px.first().copied().unwrap_or([0; 4])
+            )
         };
         format!(
             "composite {} | horizontal {} | blur_out {}",
@@ -341,7 +344,7 @@ impl Pipeline {
     /// re-run the chain even without a new frame from mpv. "Resized" means
     /// any target's active size differs, not one target's: a failed grow
     /// may have moved some of them and not others.
-    fn ensure_sizes(&mut self, gl: &glow::Context, w: u32, h: u32) -> Sizes {
+    fn ensure_sizes(&mut self, gl: &glow::Context, size: Size) -> Sizes {
         let resized = [
             &self.video,
             &self.extended,
@@ -350,7 +353,7 @@ impl Pipeline {
             &self.blur_out,
         ]
         .into_iter()
-        .any(|target| target.size() != (w, h));
+        .any(|target| target.size() != size);
         // Every target here is the window's own size; the blur's levels size
         // themselves. All are tried, so a failure in one doesn't leave the
         // rest on an old size for the next frame to trip over.
@@ -362,7 +365,7 @@ impl Pipeline {
             &mut self.glassed,
             &mut self.blur_out,
         ] {
-            if !target.ensure_size(gl, w, h) {
+            if !target.ensure_size(gl, size) {
                 ok = false;
             }
         }
@@ -388,15 +391,14 @@ impl Pipeline {
         frame: &Frame,
     ) -> Result<bool, Error> {
         let Frame {
-            width: w,
-            height: h,
+            size,
             new_frame,
             params_dirty,
             rect,
             panels,
             shaded,
         } = *frame;
-        let resized = match self.ensure_sizes(gl, w, h) {
+        let resized = match self.ensure_sizes(gl, size) {
             Sizes::Allocated { resized } => resized,
             Sizes::Refused => {
                 self.needs_redraw = true;
@@ -432,14 +434,14 @@ impl Pipeline {
         let mut drew_film_again = false;
         if self.show_backdrop && self.backdrop.is_some() {
             if resized || self.backdrop_arriving() {
-                if self.backdrop_over_film && !self.film_frame(gl, &film, w, h)? {
+                if self.backdrop_over_film && !self.film_frame(gl, &film, size)? {
                     return Ok(false);
                 }
-                self.draw_backdrop(gl, w, h);
+                self.draw_backdrop(gl, size);
                 drew_backdrop = true;
             }
         } else if new_frame || resized || self.film_wanted {
-            if !self.film_frame(gl, &film, w, h)? {
+            if !self.film_frame(gl, &film, size)? {
                 return Ok(false);
             }
             drew_film_again = std::mem::take(&mut self.film_wanted);
@@ -469,7 +471,7 @@ impl Pipeline {
         if full {
             self.rect = rect;
             let ta = mark(gl);
-            self.run_border(gl, w, h);
+            self.run_border(gl, size);
             let tb = mark(gl);
             self.run_blur(gl);
             let tc = mark(gl);
@@ -489,7 +491,7 @@ impl Pipeline {
         self.panels.extend_from_slice(panels);
         self.shaded.clear();
         self.shaded.extend_from_slice(shaded);
-        self.run_glass(gl, w, h);
+        self.run_glass(gl, size);
         let t3 = mark(gl);
         if gpu_time {
             self.timings = Timings {

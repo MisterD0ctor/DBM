@@ -9,6 +9,7 @@
 use glow::HasContext;
 
 use super::gfx::{Program, ScreenQuad, program, saved_draw_fbo};
+use crate::size::Size;
 
 pub struct Corners {
     quad: ScreenQuad,
@@ -29,8 +30,8 @@ impl Corners {
 
     /// Cut the corners of the framebuffer bound (the window's, in
     /// `AfterRendering`) `radius` physical pixels round. Nothing at zero.
-    pub fn run(&mut self, gl: &glow::Context, window: (u32, u32), radius: f32) {
-        let (width, height) = (window.0 as i32, window.1 as i32);
+    pub fn run(&mut self, gl: &glow::Context, window: Size, radius: f32) {
+        let (width, height) = (window.width as i32, window.height as i32);
         let side = (radius.ceil() as i32).min(width / 2).min(height / 2);
         if side <= 0 {
             return;

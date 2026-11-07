@@ -11,10 +11,11 @@ use crate::blur;
 use crate::gfx::{Target, bind_texture, saved_draw_fbo};
 use crate::rect::{Pixels, Rect, Region};
 use crate::shadow::HEADROOM;
+use crate::size::Size;
 
 impl Pipeline {
     /// Composite the glass panels over the finished frame.
-    pub(super) fn run_glass(&self, gl: &glow::Context, w: u32, h: u32) {
+    pub(super) fn run_glass(&self, gl: &glow::Context, size: Size) {
         let panels: &[GlassPanel] = if self.glass_enabled {
             &self.panels
         } else {
@@ -22,7 +23,7 @@ impl Pipeline {
         };
         self.draw_glass(
             gl,
-            (w, h),
+            size,
             &self.composite,
             self.blur(),
             panels,
@@ -41,7 +42,7 @@ impl Pipeline {
     fn draw_glass(
         &self,
         gl: &glow::Context,
-        size: (u32, u32),
+        size: Size,
         base: &Target,
         blur: &Target,
         panels: &[GlassPanel],
@@ -50,8 +51,7 @@ impl Pipeline {
     ) {
         let g = self.glass;
         self.prog_glass.bind(gl);
-        self.prog_glass
-            .set(gl, "u_size", [size.0 as f32, size.1 as f32]);
+        self.prog_glass.set(gl, "u_size", size.as_f32());
 
         let (base_scale, blur_scale) = (base.scale(), blur.scale());
         self.prog_glass
@@ -126,8 +126,8 @@ impl Pipeline {
     /// back cut to `clip`, the panel it is in. A region is the pane plus room
     /// for the blur, rim and shadow, so it costs a few small draws. Physical
     /// pixels from the window's top-left, as `GlassPanel` takes them.
-    pub fn glass_over(&mut self, gl: &glow::Context, window: (u32, u32), panes: &[GlassOver]) {
-        if !self.glass_enabled || panes.is_empty() || window.0 == 0 || window.1 == 0 {
+    pub fn glass_over(&mut self, gl: &glow::Context, window: Size, panes: &[GlassOver]) {
+        if !self.glass_enabled || panes.is_empty() || window.is_empty() {
             return;
         }
         let screen = saved_draw_fbo(gl);
@@ -152,12 +152,12 @@ impl Pipeline {
     fn glass_one_over(
         &mut self,
         gl: &glow::Context,
-        window: (u32, u32),
+        window: Size,
         screen: Option<glow::Framebuffer>,
         pane: &GlassPanel,
         clip: Region,
     ) {
-        let (win_w, win_h) = (window.0 as i32, window.1 as i32);
+        let (win_w, win_h) = (window.width as i32, window.height as i32);
         // The blur's reach, and the shadow, which fades over the pane's radius
         // and a few pixels more.
         let margin =
@@ -174,9 +174,9 @@ impl Pipeline {
         if width <= 0 || height <= 0 || w_right <= w_left || w_bottom <= w_top {
             return;
         }
-        let size = (width as u32, height as u32);
+        let size = Size::new(width as u32, height as u32);
         for target in [&mut self.over_base, &mut self.over_blur, &mut self.over_out] {
-            if !target.ensure_size(gl, size.0, size.1) {
+            if !target.ensure_size(gl, size) {
                 return;
             }
         }

@@ -22,6 +22,7 @@ use glow::HasContext;
 use super::gfx::{Program, ScreenQuad, Target, bind_texture, program, saved_draw_fbo};
 use super::pipeline::GlassPanel;
 use crate::rect::Region;
+use crate::size::Size;
 
 /// The shadow's spread, as a standard deviation in logical pixels.
 const SIGMA: f32 = 1.50;
@@ -60,11 +61,11 @@ impl Shadow {
         &mut self,
         gl: &glow::Context,
         ground: &Target,
-        window: (u32, u32),
+        window: Size,
         regions: &[Region],
         scale: f32,
     ) {
-        if window.0 == 0 || window.1 == 0 || regions.is_empty() {
+        if window.is_empty() || regions.is_empty() {
             return;
         }
         let sigma = SIGMA * scale;
@@ -87,17 +88,16 @@ impl Shadow {
         &mut self,
         gl: &glow::Context,
         ground: &Target,
-        window: (u32, u32),
+        window: Size,
         screen: Option<glow::Framebuffer>,
         region: Region,
         sigma: f32,
     ) {
         let (left, right, bottom) = (region.left, region.right, region.bottom);
         let (width, height) = (region.width(), region.height());
-        let win_h = window.1 as i32;
-        if !self.copied.ensure_size(gl, width as u32, height as u32)
-            || !self.across.ensure_size(gl, width as u32, height as u32)
-        {
+        let win_h = window.height as i32;
+        let size = Size::new(width as u32, height as u32);
+        if !self.copied.ensure_size(gl, size) || !self.across.ensure_size(gl, size) {
             return;
         }
         let (Some(copy_fbo), Some(ground_tex)) = (self.copied.fbo(), ground.texture()) else {
@@ -133,7 +133,7 @@ impl Shadow {
         program.set(gl, "u_headroom", HEADROOM);
         program.set(gl, "u_ground_scale", [ground_scale.0, ground_scale.1]);
         program.set(gl, "u_origin", [left as f32, bottom as f32]);
-        program.set(gl, "u_window", [window.0 as f32, window.1 as f32]);
+        program.set(gl, "u_window", window.as_f32());
         bind_texture(gl, program, "u_ground", 1, Some(ground_tex));
 
         // Across: what casts a shadow, blurred, into scratch.
@@ -168,7 +168,7 @@ impl Shadow {
 /// Worked out once a frame, before the glass pass, which holds these under
 /// white, and handed to [`Shadow::run`], which gives it back: the two have to
 /// agree to the pixel.
-pub fn regions(panels: &[GlassPanel], window: (u32, u32), scale: f32, out: &mut Vec<Region>) {
+pub fn regions(panels: &[GlassPanel], window: Size, scale: f32, out: &mut Vec<Region>) {
     out.clear();
     // The shadow reaches three deviations past what casts it.
     let reach = (SIGMA * scale * 3.0).ceil() as i32 + 1;
@@ -177,8 +177,8 @@ pub fn regions(panels: &[GlassPanel], window: (u32, u32), scale: f32, out: &mut 
         let rect = Region::new(
             (x0.floor() as i32 - reach).max(0),
             (y0.floor() as i32 - reach).max(0),
-            (x1.ceil() as i32 + reach).min(window.0 as i32),
-            (y1.ceil() as i32 + reach).min(window.1 as i32),
+            (x1.ceil() as i32 + reach).min(window.width as i32),
+            (y1.ceil() as i32 + reach).min(window.height as i32),
         );
         if !rect.is_empty() {
             out.push(rect);

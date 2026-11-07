@@ -242,9 +242,12 @@ impl Probe {
         }
 
         if self.frames == 1 {
-            let (cw, ch) = pipeline.composite().size();
-            let (bw, bh) = pipeline.blur().size();
-            eprintln!("dbm: first frame — composite {cw}x{ch}, blur {bw}x{bh}");
+            let composite = pipeline.composite().size();
+            let blur = pipeline.blur().size();
+            eprintln!(
+                "dbm: first frame — composite {}x{}, blur {}x{}",
+                composite.width, composite.height, blur.width, blur.height
+            );
         }
 
         // Frames or seconds, whichever comes first. A paused player draws
@@ -287,7 +290,8 @@ impl Probe {
 
     fn report(&mut self, pipeline: &Pipeline, w: u32, h: u32) {
         let dt = self.last_report.elapsed().as_secs_f64();
-        let (cw, ch) = pipeline.composite().size();
+        let composite = pipeline.composite().size();
+        let (cw, ch) = (composite.width, composite.height);
         let ms = |d: Duration| d.as_secs_f64() * 1000.0;
         eprintln!(
             "dbm: {:.0} draws/s, {:.0} video frames/s, window {w}x{h} targets {cw}x{ch} \
@@ -356,11 +360,12 @@ impl Probe {
     /// With the pass off it is the background colour; with it on it carries
     /// the spread edge of the frame.
     fn sample_letterbox(&self, pipeline: &Pipeline, gl: &glow::Context, player: &PlayerState) {
-        let (w, h) = pipeline.composite().size();
-        let rect = player.video_rect(w, h);
+        let composite = pipeline.composite().size();
+        let rect = player.video_rect(composite.width, composite.height);
         let (x0, y0, y1) = (rect.x0, rect.y0, rect.y1);
         // Whichever margin exists; a clip that fills the window has neither,
         // and then there is nothing to say.
+        let (w, h) = (composite.width, composite.height);
         let pt = if y0 > 0.02 {
             (w / 2, (y0 * h as f32 * 0.5) as u32)
         } else if x0 > 0.02 {
@@ -387,7 +392,8 @@ impl Probe {
         };
         let (x, y) = rect.centre();
         let pt = [(x as u32, y as u32)];
-        let (vw, vh) = pipeline.video().size();
+        let video = pipeline.video().size();
+        let (vw, vh) = (video.width, video.height);
         eprintln!(
             "dbm: panel centre  composite={:?} output={:?} | video centre={:?}",
             pipeline.composite().sample_grid(gl, &pt),
@@ -455,7 +461,10 @@ impl Probe {
             player.progress() * 100.0,
             player.paused,
             player.volume,
-            player.video_rect(pipeline.composite().size().0, pipeline.composite().size().1,),
+            player.video_rect(
+                pipeline.composite().size().width,
+                pipeline.composite().size().height,
+            ),
         );
         eprintln!("dbm: tracks ({} total)", player.tracks.len());
         // Per kind, so the dump shows what each menu section shows rather

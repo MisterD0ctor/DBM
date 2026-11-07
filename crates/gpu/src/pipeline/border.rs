@@ -3,11 +3,12 @@
 
 use super::Pipeline;
 use crate::gfx::bind_texture;
+use crate::size::Size;
 
 impl Pipeline {
-    pub(super) fn run_border(&self, gl: &glow::Context, w: u32, h: u32) {
-        let size = (w as f32, h as f32);
-        let texel = (1.0 / size.0, 1.0 / size.1);
+    pub(super) fn run_border(&self, gl: &glow::Context, size: Size) {
+        let size = size.as_f32();
+        let texel = (1.0 / size[0], 1.0 / size[1]);
         let p = self.params;
         // The backdrop is drawn across the whole target, surround and all,
         // and would come up over the border with it.
@@ -21,7 +22,7 @@ impl Pipeline {
         // spread pass then takes its short path and never reads `extended`.
         if self.border_enabled {
             self.prog_extend.bind(gl);
-            self.prog_extend.set(gl, "u_size", [size.0, size.1]);
+            self.prog_extend.set(gl, "u_size", size);
             self.prog_extend.set(gl, "u_texel", [texel.0, texel.1]);
             self.prog_extend.set(gl, "u_rect", self.rect.as_array());
             self.prog_extend.set(gl, "edge_blur", p.edge_blur);
@@ -34,7 +35,7 @@ impl Pipeline {
 
         // Pass 2 — light spread, then the video composited on top.
         self.prog_spread.bind(gl);
-        self.prog_spread.set(gl, "u_size", [size.0, size.1]);
+        self.prog_spread.set(gl, "u_size", size);
         self.prog_spread.set(gl, "u_texel", [texel.0, texel.1]);
         self.prog_spread.set(gl, "u_rect", self.rect.as_array());
         self.prog_spread.set(gl, "edge_blur", p.edge_blur);
