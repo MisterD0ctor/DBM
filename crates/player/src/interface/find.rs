@@ -11,6 +11,7 @@ use std::cell::RefCell;
 use dbm_lang::tr;
 use dbm_library::opensubtitles::account::Account;
 use dbm_library::opensubtitles::{self, Failure, Fetched, Found, Hit};
+use dbm_library::threads::ForFile;
 use dbm_mpv::{MediaPath, Mpv};
 use dbm_naming::Media;
 use slint::{ComponentHandle, ModelRc, VecModel};
@@ -26,10 +27,10 @@ pub struct Search(RefCell<State>);
 struct State {
     /// What the last search found, in the order its rows are drawn.
     found: Vec<Hit>,
-    /// The result whose download was refused for want of an account, and the
-    /// film it was for: fetched again once the person signs in, which is what
-    /// they signed in for.
-    waiting: Option<(MediaPath, Hit)>,
+    /// The result whose download was refused for want of an account, kept
+    /// with the film it was for: fetched again once the person signs in,
+    /// which is what they signed in for.
+    waiting: Option<ForFile<Hit>>,
 }
 
 impl Search {
@@ -100,7 +101,7 @@ impl Search {
                 // done, if it is still on the page that asked.
                 if why.wants_account() {
                     let row = self.row_of(&fetched.hit);
-                    self.0.borrow_mut().waiting = Some((path, fetched.hit));
+                    self.0.borrow_mut().waiting = Some(ForFile::new(path, fetched.hit));
                     if ui.invoke_offer_sign_in(row, sentence(&why).into()) {
                         return;
                     }
@@ -130,15 +131,18 @@ impl Search {
                 if ui.get_menu_open() && ui.get_account_open() {
                     ui.invoke_close_account();
                 }
-                let waiting = self.0.borrow_mut().waiting.take();
-                let Some((path, hit)) = waiting else {
+                let Some(waiting) = self.0.borrow_mut().waiting.take() else {
                     return;
                 };
-                if playing != Some(&path) {
+                if playing != Some(waiting.path()) {
                     return;
                 }
-                find.set_fetching(self.row_of(&hit));
-                opensubtitles::fetch(path, hit, worker.reporter(Completion::Fetched));
+                find.set_fetching(self.row_of(waiting.value()));
+                opensubtitles::fetch(
+                    waiting.path().clone(),
+                    waiting.value().clone(),
+                    worker.reporter(Completion::Fetched),
+                );
             }
             Err(why) => find.set_sign_in_said(sentence(&why).into()),
         }
