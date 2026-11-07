@@ -43,7 +43,7 @@ fn cut_into(
 ) -> Option<()> {
     let ((x, y), (width, height)) = (at, size);
     let mut cmd = ffmpeg::command(ffmpeg);
-    let mut child = cmd
+    let child = cmd
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
         .arg("-nostdin")
@@ -62,7 +62,8 @@ fn cut_into(
         .arg("-")
         .spawn()
         .ok()?;
-    let mut stdout = child.stdout.take()?;
+    let mut child = ffmpeg::Running::new(child);
+    let mut stdout = child.stdout()?;
     let filled = stdout.read_exact(rgba).is_ok();
     // A byte more would be a picture of another size than the one asked for.
     let over = stdout.read(&mut [0]).map_or(true, |n| n > 0);

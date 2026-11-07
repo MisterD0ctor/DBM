@@ -103,6 +103,32 @@ pub fn spawn_behind(cmd: &mut Command) -> std::io::Result<Child> {
     Ok(child)
 }
 
+/// One run, killed and waited for when it is dropped, however the code
+/// holding it ends: a run already waited for is only reaped again.
+pub struct Running(Child);
+
+impl Running {
+    pub fn new(child: Child) -> Self {
+        Self(child)
+    }
+
+    /// What the run writes, for reading as it goes.
+    pub fn stdout(&mut self) -> Option<std::process::ChildStdout> {
+        self.0.stdout.take()
+    }
+
+    pub fn wait(&mut self) -> std::io::Result<std::process::ExitStatus> {
+        self.0.wait()
+    }
+}
+
+impl Drop for Running {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
 /// Runs started and not yet waited for, killed and waited for if they are
 /// dropped that way.
 ///
@@ -193,6 +219,15 @@ mod tests {
         let text = "  Duration: 01:23:45.67, start: 0.000000, bitrate: 1234 kb/s";
         let seconds = parse_duration(text).unwrap();
         assert!((seconds - 5025.67).abs() < 0.01, "{seconds}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_run_dropped_unwaited_for_is_stopped_and_reaped() {
+        let child = Command::new("sleep").arg("30").spawn().unwrap();
+        let started = std::time::Instant::now();
+        drop(Running::new(child));
+        assert!(started.elapsed() < std::time::Duration::from_secs(5));
     }
 
     #[test]

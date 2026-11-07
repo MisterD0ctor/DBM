@@ -163,16 +163,16 @@ pub fn libmpv_path() -> PathBuf {
 /// Written out each run, since mpv loads shaders only from files, and this
 /// one has to match the border pass it was built with.
 pub fn mask_subtitles(mpv: &Mpv) {
+    const WITHOUT: &str = "a subtitle on the picture's edge will light the border";
     let path = dbm_library::paths::subtitle_mask();
-    let loaded = std::fs::write(&path, include_str!("../../shaders/subtitle_mask.glsl"))
-        .map_err(|e| e.to_string())
-        .and_then(|()| {
-            mpv.run(commands::Reply::Ignored.id(), Command::AppendShader(&path))
-                .map_err(|e| e.to_string())
-        });
-    if let Err(e) = loaded {
-        log::warn!(
-            "no subtitle mask ({e}); a subtitle on the picture's edge will light the border"
-        );
+    // Whole or not at all, since another copy of the player may be loading
+    // the one already there.
+    let shader = include_str!("../../shaders/subtitle_mask.glsl");
+    if let Err(e) = dbm_library::paths::write_atomic(&path, shader) {
+        log::warn!("could not write the subtitle mask ({e}); {WITHOUT}");
+        return;
+    }
+    if let Err(e) = mpv.run(commands::Reply::Ignored.id(), Command::AppendShader(&path)) {
+        log::warn!("mpv would not load the subtitle mask ({e}); {WITHOUT}");
     }
 }

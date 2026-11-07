@@ -326,7 +326,7 @@ const VERSION_FILE: &str = "version";
 fn settle(dir: &Path, version: u32) {
     let say = || {
         if std::fs::create_dir_all(dir).is_ok() {
-            let _ = std::fs::write(dir.join(VERSION_FILE), version.to_string());
+            let _ = crate::paths::write_atomic(&dir.join(VERSION_FILE), version.to_string());
         }
     };
     if !dir.is_dir() {
