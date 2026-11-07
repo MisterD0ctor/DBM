@@ -130,13 +130,14 @@ struct Feeds {
     neighbours: feeds::Neighbours,
 }
 
-/// What was done once for the file playing, so it is not done again. Made
-/// afresh whenever the file changes, nothing playing included (see
-/// `follow_file`), so none of it can be about another file.
-#[derive(Default)]
+/// What was done once for the file playing, so it is not done again.
+///
+/// Made for a file and dropped with it (see `follow_file`), so there is no
+/// value here at all while nothing plays: a flag cannot outlive the file it
+/// is about, or describe one that is no longer the one on screen.
 struct PerFile {
-    /// The file it is all about, or `None` with nothing playing.
-    path: Option<MediaPath>,
+    /// The file it is all about.
+    path: MediaPath,
     /// Whether the way on was looked for, at its end or in its credits.
     onward_asked: bool,
     /// Whether its end was asked to be given a light (see `light_the_end`),
@@ -150,6 +151,21 @@ struct PerFile {
     kept_asked: bool,
     /// Whether its frame was looked at for bars.
     bars_asked: bool,
+}
+
+impl PerFile {
+    /// Nothing done yet for `path`.
+    fn new(path: MediaPath) -> Self {
+        Self {
+            path,
+            onward_asked: false,
+            end_light_asked: false,
+            end_light: None,
+            titles_asked: false,
+            kept_asked: false,
+            bars_asked: false,
+        }
+    }
 }
 
 /// What lights the end of a file, behind the glass.
@@ -182,7 +198,8 @@ pub struct Player {
     opening: Opening,
     hooks: Hooks,
     feeds: Feeds,
-    per_file: PerFile,
+    /// What has been done for the file playing, or nothing while none does.
+    per_file: Option<PerFile>,
     skips: Skips,
     bars: Bars,
     /// A picture for behind the glass, waiting for the driver to hand it to
@@ -218,7 +235,7 @@ impl Player {
                 awake: crate::platform::awake::Awake::default(),
             },
             feeds: Feeds::default(),
-            per_file: PerFile::default(),
+            per_file: None,
             skips: Skips::default(),
             bars: Bars::default(),
             backdrop: None,
@@ -295,8 +312,9 @@ impl Player {
     /// the backdrop shows in place of the film's black.
     pub fn end_lit(&self) -> bool {
         self.state.eof_reached
-            && self.per_file.path == self.state.path
-            && self.per_file.end_light.is_some()
+            && self.per_file.as_ref().is_some_and(|file| {
+                file.end_light.is_some() && self.state.path.as_ref() == Some(&file.path)
+            })
     }
 
     /// Draw the panels waiting to be drawn unseen. A frame's work, since

@@ -179,7 +179,9 @@ impl Player {
         };
         if let Some(still) = still {
             self.backdrop = Some(still);
-            self.per_file.end_light = Some(light);
+            if let Some(file) = self.per_file.as_mut() {
+                file.end_light = Some(light);
+            }
         }
     }
 
@@ -210,8 +212,10 @@ impl Player {
         playback.set_preview_clip_y(answer.y);
         // An end reached before its atlas was built had no frame of its
         // own to be lit with, and now may.
-        if self.per_file.end_light != Some(EndLight::Frame) {
-            self.per_file.end_light_asked = false;
+        if self.per_file.as_ref().and_then(|file| file.end_light) != Some(EndLight::Frame)
+            && let Some(file) = self.per_file.as_mut()
+        {
+            file.end_light_asked = false;
         }
     }
 

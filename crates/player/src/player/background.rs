@@ -57,17 +57,12 @@ impl Player {
     /// changes, and take down what the last one put up: the way on it
     /// offered, and a search for its subtitles.
     fn follow_file(&mut self, ui: &MainWindow) {
-        if self.per_file.path == self.state.path {
+        let path = self.state.path.clone();
+        if self.per_file.as_ref().map(|file| &file.path) == path.as_ref() {
             return;
         }
-        let left = std::mem::replace(
-            &mut self.per_file,
-            PerFile {
-                path: self.state.path.clone(),
-                ..PerFile::default()
-            },
-        );
-        if left.onward_asked {
+        let left = std::mem::replace(&mut self.per_file, path.map(PerFile::new));
+        if left.is_some_and(|file| file.onward_asked) {
             let playback = ui.global::<Playback>();
             playback.set_onward_path("".into());
             playback.set_onward_label("".into());
@@ -85,40 +80,37 @@ impl Player {
     /// not until the lists have been read for it, which is when the next is
     /// known.
     fn look_for_bars(&mut self) {
-        let Some(path) = self.per_file.path.as_ref() else {
+        let Some(file) = self.per_file.as_mut() else {
             return;
         };
-        if self.per_file.bars_asked || !self.feeds.lists.settled(&self.state) {
+        if file.bars_asked || !self.feeds.lists.settled(&self.state) {
             return;
         }
-        self.per_file.bars_asked = true;
+        file.bars_asked = true;
+        let path = file.path.clone();
         let playlist = &self.state.playlist;
         let next = playlist
             .iter()
-            .position(|entry| entry.filename == *path)
+            .position(|entry| entry.filename == path)
             .and_then(|row| playlist.get(row + 1))
             .map(|entry| entry.filename.clone());
-        let paths = std::iter::once(path.clone()).chain(next).collect();
+        let paths = std::iter::once(path).chain(next).collect();
         dbm_library::bars::spawn(paths, self.app.worker.reporter(Completion::Bars));
     }
 
     /// Put back the subtitles fetched for this file on an earlier visit,
     /// once it has opened.
     fn put_back_downloads(&mut self) {
-        if self.per_file.kept_asked {
-            return;
-        }
-        // Not until it has opened: a track added before then is lost with
-        // the load it raced.
-        let Some(path) = self
-            .per_file
-            .path
-            .clone()
-            .filter(|_| self.state.duration.is_some())
-        else {
+        let Some(file) = self.per_file.as_mut() else {
             return;
         };
-        self.per_file.kept_asked = true;
+        // Not until it has opened: a track added before then is lost with
+        // the load it raced.
+        if file.kept_asked || self.state.duration.is_none() {
+            return;
+        }
+        file.kept_asked = true;
+        let path = file.path.clone();
         self.app.worker.submit(move |_mpv| {
             let files = dbm_library::opensubtitles::kept(&path);
             (!files.is_empty()).then(|| Completion::Kept(ForFile::new(path, files)))
@@ -204,13 +196,17 @@ impl Player {
         let playback = ui.global::<Playback>();
         let ending =
             (self.state.eof_reached || self.state.credits_rolling()) && self.state.at_last();
-        if !ending || self.per_file.onward_asked {
+        if !ending {
             return;
         }
-        let Some(path) = self.per_file.path.clone() else {
+        let Some(file) = self.per_file.as_mut() else {
             return;
         };
-        self.per_file.onward_asked = true;
+        if file.onward_asked {
+            return;
+        }
+        file.onward_asked = true;
+        let path = file.path.clone();
         // Season 0 is the specials, which no one finishes as a season.
         if let dbm_naming::Media::Episode {
             season: Some(season @ 1..),
@@ -230,13 +226,14 @@ impl Player {
     /// the most lit frame of the file itself, before its credits. Never of
     /// what comes next, whose frame would show a scene before it is watched.
     fn light_the_end(&mut self) {
-        let Some(path) = self.per_file.path.clone() else {
+        let Some(file) = self.per_file.as_mut() else {
             return;
         };
-        if !self.state.eof_reached || self.per_file.end_light_asked {
+        if !self.state.eof_reached || file.end_light_asked {
             return;
         }
-        self.per_file.end_light_asked = true;
+        file.end_light_asked = true;
+        let path = file.path.clone();
         self.app.worker.submit(move |_mpv| {
             let still = dbm_library::preview::lit_still(&path, 0.9);
             Some(Completion::EndLight(ForFile::new(path, still)))
@@ -251,16 +248,17 @@ impl Player {
     /// that could make the whole thing unnecessary arrive in the same read.
     fn listen_for_the_titles(&mut self) {
         use dbm_library::titles::{self, End};
-        let (Some(path), Some(length)) = (self.per_file.path.as_ref(), self.state.duration) else {
+        let (Some(file), Some(length)) = (self.per_file.as_mut(), self.state.duration) else {
             return;
         };
-        if self.per_file.titles_asked
+        if file.titles_asked
             || !self.feeds.lists.settled(&self.state)
-            || !self.state.playlist.iter().any(|e| e.filename == *path)
+            || !self.state.playlist.iter().any(|e| e.filename == file.path)
         {
             return;
         }
-        self.per_file.titles_asked = true;
+        file.titles_asked = true;
+        let path = file.path.clone();
         // The opening first: it is the one that is about to play.
         let mut ends = Vec::new();
         if self.state.intro_named().is_none() {
@@ -273,12 +271,12 @@ impl Player {
             return;
         }
         let paths = self.state.playlist_paths();
-        let beside = titles::beside(path, &paths);
+        let beside = titles::beside(&path, &paths);
         if beside.is_empty() {
             return;
         }
         titles::spawn(
-            path.clone(),
+            path,
             ends,
             beside,
             length,
