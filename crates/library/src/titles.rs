@@ -319,7 +319,7 @@ fn find(
     // tried, in case one shares more: credits that are a short cut of
     // another episode's share only the cut, and an episode heard to hold
     // only part of its credits offers only that part.
-    let mut short: Option<(Span, &MediaPath, Vec<Span>, Vec<Span>)> = None;
+    let mut short: Option<Short> = None;
     for (other, held) in worth_trying(beside, &known) {
         // How long the other file is, for the credits: where they end is
         // judged against it, and where they are in a file not heard before
@@ -376,18 +376,43 @@ fn find(
         if lasts(here) < SHORTEST {
             if short
                 .as_ref()
-                .is_none_or(|(heard, ..)| lasts(here) > lasts(*heard))
+                .is_none_or(|short| lasts(here) > lasts(short.span))
             {
-                short = Some((here, other, kept_here, kept_there));
+                short = Some(Short {
+                    span: here,
+                    other,
+                    here: kept_here,
+                    there: kept_there,
+                });
             }
             continue;
         }
-        keep(heard, path, &kept_here, other, kept_there);
+        keep(
+            heard,
+            Share {
+                file: path,
+                pieces: &kept_here,
+            },
+            Share {
+                file: other,
+                pieces: &kept_there,
+            },
+        );
         return Some(Some(kept_here));
     }
-    if let Some((_, other, here, there)) = short {
-        keep(heard, path, &here, other, there);
-        return Some(Some(here));
+    if let Some(short) = short {
+        keep(
+            heard,
+            Share {
+                file: path,
+                pieces: &short.here,
+            },
+            Share {
+                file: short.other,
+                pieces: &short.there,
+            },
+        );
+        return Some(Some(short.here));
     }
     if !compared {
         return None;
@@ -402,23 +427,40 @@ fn find(
 /// The other file's half doesn't replace what it was heard to hold when it
 /// was the one playing, only a finding of none, which that run must have
 /// missed.
-fn keep(
-    heard: &PathMap<Stamped<Heard>>,
-    path: &MediaPath,
-    here: &[Span],
-    other: &MediaPath,
+/// One file's share of a match: the film it is in, and the stretches of that
+/// film it marks.
+///
+/// Named rather than two positional arguments, because a match has two of
+/// these and both carry a path and a list of spans.
+struct Share<'a> {
+    file: &'a MediaPath,
+    pieces: &'a [Span],
+}
+
+/// A match too short to be the title sequence itself, held while the other
+/// episodes are tried in case one shares more of it.
+struct Short<'a> {
+    /// The stretch heard here, which a later match has to be longer than.
+    span: Span,
+    /// The episode it was heard in.
+    other: &'a MediaPath,
+    /// This film's share, in pieces of its own film.
+    here: Vec<Span>,
+    /// That episode's share, in pieces of its own film.
     there: Vec<Span>,
-) {
+}
+
+fn keep(heard: &PathMap<Stamped<Heard>>, here: Share<'_>, there: Share<'_>) {
     heard.edit(|kept| {
         let mut changed = false;
-        if let Some(here) = Stamped::new(path, Some(here.to_vec())) {
-            changed |= kept.insert(path.clone(), here.clone()) != Some(here);
+        if let Some(now) = Stamped::new(here.file, Some(here.pieces.to_vec())) {
+            changed |= kept.insert(here.file.clone(), now.clone()) != Some(now);
         }
-        let held = kept.get(other).and_then(|kept| kept.still(other));
+        let held = kept.get(there.file).and_then(|kept| kept.still(there.file));
         if !matches!(held, Some(Some(_)))
-            && let Some(there) = Stamped::new(other, Some(there))
+            && let Some(now) = Stamped::new(there.file, Some(there.pieces.to_vec()))
         {
-            kept.insert(other.clone(), there);
+            kept.insert(there.file.clone(), now);
             changed = true;
         }
         changed
