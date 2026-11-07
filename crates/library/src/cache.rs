@@ -157,19 +157,29 @@ impl<V: Serialize + DeserializeOwned + PartialEq> PathMap<Stamped<V>> {
 /// is no answer for it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Stamped<V> {
+    /// Flattened, so a record written before this was one value still reads.
+    #[serde(flatten)]
+    stamp: Stamp,
+    value: V,
+}
+
+/// When a file was last changed, in whole seconds, and how big it was then.
+///
+/// One value rather than a pair of numbers: both are `u64`, so a comparison
+/// against the wrong one of them compiles and quietly stops a cache ever
+/// noticing a replaced file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+struct Stamp {
     modified: u64,
     size: u64,
-    value: V,
 }
 
 impl<V> Stamped<V> {
     /// `value`, as worked out from `path` as it is now. `None` where the file
     /// can't be looked at. **Blocking.**
     pub fn new(path: &MediaPath, value: V) -> Option<Self> {
-        let (modified, size) = stamp(path)?;
         Some(Self {
-            modified,
-            size,
+            stamp: stamp(path)?,
             value,
         })
     }
@@ -177,7 +187,7 @@ impl<V> Stamped<V> {
     /// The answer, if `path` is still the file it was worked out from.
     /// **Blocking.**
     pub fn still(&self, path: &MediaPath) -> Option<&V> {
-        (stamp(path) == Some((self.modified, self.size))).then_some(&self.value)
+        (stamp(path) == Some(self.stamp)).then_some(&self.value)
     }
 }
 
@@ -195,15 +205,18 @@ impl<V: Clone> Stamped<V> {
     }
 }
 
-/// When the file was last changed, in whole seconds, and its size.
-fn stamp(path: &MediaPath) -> Option<(u64, u64)> {
+/// The stamp of `path` as it is now, where the file can be looked at.
+fn stamp(path: &MediaPath) -> Option<Stamp> {
     let meta = std::fs::metadata(path.as_path()).ok()?;
     let modified = meta
         .modified()
         .ok()?
         .duration_since(std::time::UNIX_EPOCH)
         .ok()?;
-    Some((modified.as_secs(), meta.len()))
+    Some(Stamp {
+        modified: modified.as_secs(),
+        size: meta.len(),
+    })
 }
 
 /// A map as it is written, under the version it was written at.
@@ -437,6 +450,15 @@ mod tests {
         assert_eq!(kept.still(&path), None);
         std::fs::remove_file(&film).ok();
         assert_eq!(kept.still(&path), None);
+    }
+
+    #[test]
+    fn a_stamp_round_trips_in_the_shape_it_was_written() {
+        // What a released build wrote, which a newer one must still read:
+        // the stamp is one value here, but not on disk.
+        let record = r#"{"modified":1700000000,"size":42,"value":7.0}"#;
+        let stamped: Stamped<f64> = serde_json::from_str(record).unwrap();
+        assert_eq!(serde_json::to_string(&stamped).unwrap(), record);
     }
 
     #[test]
