@@ -24,8 +24,8 @@ fn stamp_the_executable() {
     println!("cargo:rerun-if-changed=icons/icon.ico");
     let mut resource = winresource::WindowsResource::new();
     resource.set_icon("icons/icon.ico");
-    resource.set("ProductName", "Death by MPV");
-    resource.set("FileDescription", "Death by MPV");
+    resource.set("ProductName", "DBM");
+    resource.set("FileDescription", "DBM");
     if let Err(e) = resource.compile() {
         println!("cargo:warning=could not embed the icon or version block: {e}");
     }

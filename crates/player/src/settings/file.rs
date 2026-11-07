@@ -285,7 +285,7 @@ fn save(path: &std::path::Path, values: &[(String, f32)], taken: u64) -> Result<
     if taken < *written {
         return Ok(());
     }
-    let mut out = String::from("# Death by MPV settings\n");
+    let mut out = String::from("# DBM settings\n");
     for (name, value) in values {
         let _ = writeln!(out, "{name} = {value}");
     }

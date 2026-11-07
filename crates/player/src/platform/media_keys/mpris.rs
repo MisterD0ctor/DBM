@@ -434,7 +434,7 @@ impl Root {
 
     #[zbus(property)]
     fn identity(&self) -> &'static str {
-        "Death by MPV"
+        "DBM"
     }
 
     #[zbus(property)]

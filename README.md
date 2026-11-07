@@ -1,55 +1,44 @@
-<img src="public/death-by-mpv.svg" alt="Death by MPV" width="128" height="128">
+<img src="public/death-by-mpv.svg" alt="DBM" width="128" height="128">
 
-# Death by MPV
+# DBM
 
-A video player for Windows and Linux, made for watching films and shows you
-have on disk. It plays anything mpv can play, and there's nothing to set up.
+A video player for Windows and Linux, for the films and shows you keep on
+disk. It plays whatever [mpv](https://mpv.io) plays, and there's nothing to
+set up.
 
-What makes it different is the way it looks. The controls sit on panels of
-liquid glass that bend the picture behind them. When a film doesn't fill the
-window, the black bars pick up the colours from the edges of the picture.
+Most players put their controls in a separate window on top of the video and
+never see the picture underneath. Here the picture and the interface are in
+the same place, so the controls can sit on glass that bends the video behind
+them, and when a film doesn't fill the window, the black bars take their
+colour from the edges of the picture. It's written in Rust, with
+[Slint](https://slint.dev) for the interface and libmpv for playback.
 
-## What it does
+Open a file and the rest of its folder becomes the playlist. Open a folder and
+it finds everything inside it. Each file keeps its position, the audio and
+subtitle tracks you picked, and any subtitle timing you changed. Hovering over
+the timeline shows a thumbnail of that moment.
 
-- **Opens files and folders.** Open one episode and the rest of the folder
-  becomes the playlist. Open a folder and it finds everything inside it.
-- **Remembers where you were.** Every file keeps its position, the audio and
-  subtitle tracks you picked, and any subtitle timing you changed.
-- **Skips intros.** It finds a show's opening titles and closing credits, from
-  the chapters if the file has them or by comparing two episodes. You get a
-  button to skip the intro, and one to go to the next episode when the credits
-  start. If the credits stop for a scene, or one comes after them, that
-  button skips to the scene instead, so you don't miss it.
-- **Shows previews on the timeline.** Hover over the timeline to see a
-  thumbnail of that moment.
-- **Fixes out-of-sync subtitles.** *Sync to speech* listens to the audio and
-  lines the subtitles up with it. You can also move them earlier or later by
-  hand.
-- **Finds subtitles online.** Search OpenSubtitles for what you're watching
-  and choose one from the list. The first few downloads each day need no
-  account; after that, the player asks you to sign in with your own
-  OpenSubtitles account. It keeps the sign-in only until you quit, and never
-  writes down your password. Searching, downloading and signing in are the
-  only times the player goes online, and only when you ask. Subtitles
-  provided by [OpenSubtitles.com](https://www.opensubtitles.com).
-- **Works from the keyboard.** Everything has a shortcut, and the menu lists
-  them all. Media keys and your desktop's media controls work too.
-- **Speaks your language.** English, Swedish, German, Spanish, French,
-  Italian, Dutch and Portuguese. It follows your system language, or you can
-  pick one in Settings.
-- **Lets you tune the look.** The glass and the border have their own sliders
-  in Settings, and you can turn the border off.
+Intros and credits are found from the chapters when a file has them, or by
+comparing two episodes of the same show. One button skips the intro, another
+goes to the next episode when the credits start. If the credits pause for a
+scene, or a scene comes after them, that button goes to the scene instead, so
+you don't miss it.
 
-## How it works
+Subtitles can be moved earlier or later by hand, or lined up with the voices
+by *Sync to speech*, which listens to the audio and follows it. They can also
+be searched for and downloaded from OpenSubtitles. The first few downloads
+each day need no account; after that you sign in with your own, which lasts
+until you quit and never writes down your password. Searching, downloading and
+signing in are the only times the player goes online, and only when you ask.
+Subtitles provided by [OpenSubtitles.com](https://www.opensubtitles.com).
 
-Most players that put controls over a video draw them in front of a separate
-video window, and can't see the picture underneath. This one has mpv draw each
-frame into the player's own OpenGL texture instead. Because the interface has
-the frame, the glass can refract the real picture and the border can grow out
-of the picture's real edges.
+Everything has a shortcut, and the menu lists them all; media keys and your
+desktop's media controls work too. The interface is in English, Swedish,
+German, Spanish, French, Italian, Dutch and Portuguese, and follows your
+system language unless you pick one in Settings. The glass and the border each
+have a slider there, and the border can be turned off.
 
-It's written in Rust, with [Slint](https://slint.dev) for the interface and
-libmpv for playback.
+<img src="public/death-by-mpv.png" alt="DBM" width="1999">
 
 ## Installing
 

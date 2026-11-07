@@ -1,4 +1,4 @@
-name: Death by MPV
+name: DBM
 description: A video player whose interface is panes of real glass laid over the film.
 colors:
   lit: "{{ Paint.lit }}"

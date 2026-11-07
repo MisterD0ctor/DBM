@@ -1,4 +1,4 @@
-; Windows installer for Death by MPV.
+; Windows installer for DBM.
 ;
 ; Per-user by design. It installs into %LOCALAPPDATA%\Programs, writes only
 ; under HKCU, and never asks for administrator rights — the same shape as
@@ -21,8 +21,12 @@ Unicode true
 !include "LogicLib.nsh"
 !include "FileFunc.nsh"
 
-!define NAME "Death by MPV"
+!define NAME "DBM"
 !define SLUG "DeathByMPV"
+; Where the player keeps its settings and watch history. Still the folder it
+; has always used, and deliberately: moving it would lose everyone's saved
+; positions and settings on upgrade.
+!define DATA_DIR "Death by MPV"
 !define EXE "dbm-player.exe"
 !define PUBLISHER "MisterD0ctor"
 !define HOMEPAGE "https://github.com/MisterD0ctor/DBM"
@@ -145,6 +149,9 @@ Section "${NAME}" SecMain
     WriteUninstaller "$INSTDIR\uninstall.exe"
 
     CreateShortcut "$SMPROGRAMS\${NAME}.lnk" "$INSTDIR\${EXE}"
+    ; An install from before the name changed left its shortcut behind.
+    Delete "$SMPROGRAMS\Death by MPV.lnk"
+    Delete "$DESKTOP\Death by MPV.lnk"
 
     ; Add or remove programs.
     WriteRegStr HKCU "${UNINST_KEY}" "DisplayName" "${NAME}"
@@ -184,6 +191,8 @@ Section "Open video files with it" SecAssoc
         "A video player built on mpv"
     WriteRegStr HKCU "Software\RegisteredApplications" "${NAME}" \
         "Software\${SLUG}\Capabilities"
+    ; The old registration, or Settings > Default apps would list it twice.
+    DeleteRegValue HKCU "Software\RegisteredApplications" "Death by MPV"
 
     !insertmacro EveryExtension RegisterExtension
 SectionEnd
@@ -242,7 +251,7 @@ Section "Uninstall"
         MessageBox MB_YESNO|MB_ICONQUESTION \
             "Also remove your settings, watch history and thumbnail cache?" \
             /SD IDNO IDNO keep_data
-        RMDir /r "$APPDATA\${NAME}"
+        RMDir /r "$APPDATA\${DATA_DIR}"
         keep_data:
     ${EndIf}
 SectionEnd

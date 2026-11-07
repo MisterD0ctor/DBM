@@ -1,6 +1,6 @@
 [package]
 name = "dbm-lang"
-description = "The languages Death by MPV speaks, and the words in each"
+description = "The languages DBM speaks, and the words in each"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

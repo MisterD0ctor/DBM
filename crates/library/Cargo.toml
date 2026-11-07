@@ -1,6 +1,6 @@
 [package]
 name = "dbm-library"
-description = "Files on disk for Death by MPV: playlists, lengths, previews, subtitles"
+description = "Files on disk for DBM: playlists, lengths, previews, subtitles"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

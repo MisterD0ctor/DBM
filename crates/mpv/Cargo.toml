@@ -1,6 +1,6 @@
 [package]
 name = "dbm-mpv"
-description = "The libmpv binding Death by MPV plays through"
+description = "The libmpv binding DBM plays through"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

@@ -1,5 +1,5 @@
 ---
-name: Death by MPV
+name: DBM
 description: A video player whose interface is panes of real glass laid over the film.
 colors:
   lit: "#ffffff"  # Paint.lit
@@ -196,7 +196,7 @@ components:
     typography: "{typography.timecode}"
 ---
 
-# Design System: Death by MPV
+# Design System: DBM
 
 ## Overview
 

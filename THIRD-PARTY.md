@@ -1,7 +1,7 @@
 # Third-party components
 
-Death by MPV is licensed under the GNU General Public License, version 3 or
-later — see [LICENSE](LICENSE). This file records what else is in the box,
+DBM is licensed under the GNU General Public License, version 3 or later —
+see [LICENSE](LICENSE). This file records what else is in the box,
 under what terms, and where its source is, which is what the GPL requires of
 anyone passing the binaries on.
 

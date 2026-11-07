@@ -204,7 +204,7 @@ fn agent(timeout: Duration) -> Agent {
         .https_only(true)
         .http_status_as_error(false)
         .proxy(None)
-        .user_agent(format!("Death by MPV v{}", env!("CARGO_PKG_VERSION")));
+        .user_agent(format!("DBM v{}", env!("CARGO_PKG_VERSION")));
     // Windows' own TLS and its own certificates (see Cargo.toml).
     #[cfg(windows)]
     let config = config.tls_config(

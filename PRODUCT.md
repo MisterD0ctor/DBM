@@ -165,7 +165,7 @@ is told rides a drawn frame and a player with no film draws none.
 
 ## Brand Commitments
 
-- Name: **Death by MPV** (DBM). Bundle identifier `com.kaspe.deathbympv`.
+- Name: **DBM**. Bundle identifier `io.github.MisterD0ctor.DBM`.
 - Logo: `public/death-by-mpv.svg`, and `public/death-by-mpv-simple.svg` drawn
   for small sizes. Application icons: `crates/player/icons/`, rendered from
   the logo by `scripts/icons.sh`; the symbolic icon GNOME recolours is the

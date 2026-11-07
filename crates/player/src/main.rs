@@ -1,4 +1,4 @@
-//! Death by MPV — mpv's render API drawing into Slint's own GL context.
+//! DBM — mpv's render API drawing into Slint's own GL context.
 //!
 //! Copyright (C) 2026 MisterD0ctor. This program is free software: you can
 //! redistribute it and/or modify it under the terms of the GNU General Public

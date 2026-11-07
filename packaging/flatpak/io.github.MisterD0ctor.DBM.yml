@@ -1,4 +1,4 @@
-# Flatpak manifest for Death by MPV.
+# Flatpak manifest for DBM.
 #
 # FFmpeg is deliberately not built here. The freedesktop runtime's own
 # libavcodec, overlaid at run time by its codecs-extra extension, decodes

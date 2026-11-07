@@ -1,6 +1,6 @@
 [package]
 name = "dbm-gpu"
-description = "The passes Death by MPV draws over the film: border, blur, glass"
+description = "The passes DBM draws over the film: border, blur, glass"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

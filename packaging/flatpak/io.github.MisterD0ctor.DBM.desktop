@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Death by MPV
+Name=DBM
 GenericName=Video Player
 Comment=A video player built on mpv
 Exec=dbm-player %f
