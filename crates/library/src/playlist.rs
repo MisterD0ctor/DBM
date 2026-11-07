@@ -248,7 +248,7 @@ pub fn watching_order(videos: Vec<PathBuf>) -> Vec<PathBuf> {
 /// [`watching_order`] for anything that has a path.
 fn ordered<T>(mut items: Vec<T>, path: impl Fn(&T) -> &Path) -> Vec<T> {
     items.sort_by(|a, b| natural_path(path(a), path(b)));
-    let keys: Vec<Option<(String, u32, u32)>> = items
+    let mut keys: Vec<Option<Key>> = items
         .iter()
         .map(
             |item| match dbm_naming::parse(&path(item).to_string_lossy()) {
@@ -257,25 +257,45 @@ fn ordered<T>(mut items: Vec<T>, path: impl Fn(&T) -> &Path) -> Vec<T> {
                     season,
                     episode,
                     ..
-                } => Some((show.to_lowercase(), season.unwrap_or(0), episode)),
+                } => Some(Key {
+                    show: show.to_lowercase(),
+                    season: season.unwrap_or(0),
+                    episode,
+                    first: 0,
+                }),
                 dbm_naming::Media::Movie { .. } => None,
             },
         )
         .collect();
-    let mut first: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
-    for (i, key) in keys.iter().enumerate() {
-        if let Some((show, ..)) = key {
-            first.entry(show.as_str()).or_insert(i);
+    let mut seen: std::collections::HashMap<String, usize> = std::collections::HashMap::new();
+    for (i, key) in keys.iter_mut().enumerate() {
+        if let Some(key) = key {
+            key.first = *seen.entry(key.show.clone()).or_insert(i);
         }
     }
     // Name order breaks every tie, so equal numbers keep a stable order.
     let mut order: Vec<usize> = (0..items.len()).collect();
     order.sort_by_key(|&i| match &keys[i] {
-        Some((show, season, episode)) => (first[show.as_str()], *season, *episode, i),
+        Some(key) => (key.first, key.season, key.episode, i),
         None => (i, 0, 0, i),
     });
     let mut slots: Vec<Option<T>> = items.into_iter().map(Some).collect();
     order.into_iter().filter_map(|i| slots[i].take()).collect()
+}
+
+/// What one file looks like to [`ordered`].
+///
+/// Named rather than a tuple because the season and the episode are both
+/// numbers: passed the wrong way round, a folder would sort by episode first
+/// and compile.
+struct Key {
+    /// The show's name, in one case so two spellings sort together.
+    show: String,
+    season: u32,
+    episode: u32,
+    /// Where the show first appeared in the folder, so one show's seasons
+    /// stay together even when the folder interleaves two.
+    first: usize,
 }
 
 /// Two paths, component by component, each compared as a person reads it.
