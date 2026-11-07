@@ -293,7 +293,7 @@ pub fn look_beside(paths: &[MediaPath]) -> Vec<Beside> {
             let files: Vec<MediaPath> = crate::playlist::scan_flat(&dir)
                 .ok()?
                 .iter()
-                .map(|p| MediaPath::from(p.as_path()))
+                .map(MediaPath::from)
                 .collect();
             let progress = crate::durations::of(&files);
             Some(Beside {
@@ -314,7 +314,7 @@ mod tests {
 
     fn item(path: &str, index: usize) -> Item<'static> {
         Item {
-            path: path.into(),
+            path: MediaPath::for_test(path),
             title: None,
             index,
             current: false,
@@ -356,14 +356,14 @@ mod tests {
             Beside {
                 season: 8,
                 files: vec![FileProgress {
-                    path: "Show.S08E01.mkv".into(),
+                    path: MediaPath::for_test("Show.S08E01.mkv"),
                     progress: done(),
                 }],
             },
             Beside {
                 season: 6,
                 files: vec![FileProgress {
-                    path: "Show.S06E01.mkv".into(),
+                    path: MediaPath::for_test("Show.S06E01.mkv"),
                     progress: Progress::default(),
                 }],
             },
@@ -426,7 +426,7 @@ mod tests {
     fn a_page_opens_where_watching_carries_on() {
         let entry = |progress: Progress| Entry {
             label: String::new(),
-            path: "Show.S01E01.mkv".into(),
+            path: MediaPath::for_test("Show.S01E01.mkv"),
             index: None,
             current: false,
             progress,

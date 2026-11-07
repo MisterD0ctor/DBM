@@ -745,7 +745,7 @@ mod tests {
         PlaylistEntry {
             index: 0,
             id: EntryId(id),
-            filename: path.into(),
+            filename: dbm_mpv::MediaPath::for_test(path),
             title: None,
             current,
         }
@@ -754,7 +754,7 @@ mod tests {
     #[test]
     fn a_file_that_loads_again_stops_saying_it_failed() {
         let mut state = PlayerState {
-            path: Some("a.mkv".into()),
+            path: Some(MediaPath::for_test("a.mkv")),
             playlist_pos: Some(0),
             playlist: vec![entry(7, "a.mkv", true)],
             found: Found {
@@ -770,7 +770,7 @@ mod tests {
     #[test]
     fn a_failure_for_a_file_no_longer_in_the_list_is_dropped() {
         let mut state = PlayerState {
-            path: Some("a.mkv".into()),
+            path: Some(MediaPath::for_test("a.mkv")),
             found: Found {
                 failed: HashMap::from([(EntryId(9), ErrorCode::LoadingFailed)]),
                 ..Default::default()
@@ -781,7 +781,7 @@ mod tests {
             tracks: Vec::new(),
             playlist: vec![entry(7, "a.mkv", true)],
             progress: None,
-            playing: Some("a.mkv".into()),
+            playing: Some(MediaPath::for_test("a.mkv")),
             chapters: Vec::new(),
             generation: 0,
         };

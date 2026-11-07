@@ -10,7 +10,7 @@
 use std::cell::Cell;
 use std::rc::Rc;
 
-use dbm_mpv::{Direction, MediaPath};
+use dbm_mpv::Direction;
 use slint::ComponentHandle;
 
 use crate::app::App;
@@ -101,13 +101,6 @@ fn pick(kind: crate::Pick) -> commands::Pick {
         crate::Pick::Subtitles => commands::Pick::Subtitles,
         crate::Pick::Audio => commands::Pick::Audio,
     }
-}
-
-/// The file playing, as the interface was last told it, for a handler that
-/// has only the window to ask. `None` with nothing open.
-fn playing(ui: &MainWindow) -> Option<MediaPath> {
-    let path = ui.global::<Playback>().get_path();
-    (!path.is_empty()).then(|| MediaPath::from(path.as_str()))
 }
 
 /// Values `commands` owns, handed to the UI so they are defined once.

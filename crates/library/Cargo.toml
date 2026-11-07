@@ -44,6 +44,9 @@ ureq = { workspace = true, features = ["rustls"] }
 # Starting the seek preview's ffmpeg below the player's priority - see
 # `ffmpeg::spawn_behind`. winit and zbus already build it.
 libc.workspace = true
+# Asking the document portal where a file a Flatpak was handed really is —
+# see `documents`. The player already builds it for MPRIS.
+zbus.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 # The same client, over Windows' own TLS: rustls's cryptography is C that a
@@ -53,3 +56,7 @@ ureq = { workspace = true, features = ["native-tls-no-default"] }
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+# `MediaPath::for_test`, for tests that need a path they never read.
+dbm-mpv = { workspace = true, features = ["testing"] }

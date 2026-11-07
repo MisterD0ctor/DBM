@@ -380,7 +380,7 @@ mod tests {
         )
         .unwrap();
 
-        update(&file, 3, &"C:/films/b.mkv".into(), 600.0);
+        update(&file, 3, &MediaPath::for_test("C:/films/b.mkv"), 600.0);
         let map: HashMap<MediaPath, f64> = read(&file, 3);
         assert_eq!(map.get("C:/films/a.mkv"), Some(&1200.0));
         assert_eq!(map.get("C:/films/b.mkv"), Some(&600.0));
@@ -399,7 +399,8 @@ mod tests {
 
         assert!(read::<bool>(&file, UNVERSIONED).is_empty());
         edit(&file, UNVERSIONED, |kept| {
-            kept.insert("C:/films/b.mkv".into(), true).is_none()
+            kept.insert(MediaPath::for_test("C:/films/b.mkv"), true)
+                .is_none()
         });
         assert_eq!(
             std::fs::read_to_string(&aside).unwrap(),
@@ -428,7 +429,7 @@ mod tests {
     fn an_answer_about_a_replaced_file_is_no_answer() {
         let film = scratch("film.mkv");
         std::fs::write(&film, "first release").unwrap();
-        let path = MediaPath::from(film.as_path());
+        let path = MediaPath::from(&dbm_mpv::RealPath::of(&film).unwrap());
         let kept = Stamped::new(&path, 7).unwrap();
         assert_eq!(kept.still(&path), Some(&7));
 
@@ -449,7 +450,7 @@ mod tests {
         assert!(read::<f64>(&file, 2).is_empty());
 
         // And the next write starts over, at the version that wrote it.
-        update(&file, 2, &"C:/films/b.mkv".into(), 600.0);
+        update(&file, 2, &MediaPath::for_test("C:/films/b.mkv"), 600.0);
         let map: HashMap<MediaPath, f64> = read(&file, 2);
         assert_eq!(map.len(), 1);
         assert_eq!(map.get("C:/films/b.mkv"), Some(&600.0));

@@ -429,12 +429,16 @@ mod tests {
     fn a_new_request_replaces_what_the_last_file_was_offering() {
         let mut state = State {
             phase: Phase::Offering(Offer {
-                path: "old.mkv".into(),
+                path: MediaPath::for_test("old.mkv"),
                 from: 12.0,
             }),
             ..State::default()
         };
-        Arrival::expect(&mut state, "new.mkv".into(), Then::Ask { from: 34.0 });
+        Arrival::expect(
+            &mut state,
+            MediaPath::for_test("new.mkv"),
+            Then::Ask { from: 34.0 },
+        );
         assert!(matches!(state.phase, Phase::Pending(_)));
     }
 

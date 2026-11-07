@@ -61,6 +61,7 @@ impl Player {
         if self.per_file.as_ref().map(|file| &file.path) == path.as_ref() {
             return;
         }
+        self.app.playing.set(path.clone());
         let left = std::mem::replace(&mut self.per_file, path.map(PerFile::new));
         if left.is_some_and(|file| file.onward_asked) {
             let playback = ui.global::<Playback>();

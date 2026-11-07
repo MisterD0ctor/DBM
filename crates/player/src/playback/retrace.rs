@@ -125,7 +125,7 @@ mod tests {
     #[test]
     fn a_long_click_offers_the_place_it_left() {
         let retrace = Retrace::default();
-        let a = MediaPath::from("a.mkv");
+        let a = MediaPath::for_test("a.mkv");
         retrace.landed(&a, 2106.0, 300.0);
         assert_eq!(retrace.offered(Some(&a), 2106.0), Some(2106.0));
         assert_eq!(retrace.offered(Some(&a), 300.0), Some(2106.0));
@@ -136,7 +136,7 @@ mod tests {
     #[test]
     fn a_nudge_offers_nothing() {
         let retrace = Retrace::default();
-        let a = MediaPath::from("a.mkv");
+        let a = MediaPath::for_test("a.mkv");
         retrace.landed(&a, 100.0, 120.0);
         assert_eq!(retrace.offered(Some(&a), 120.0), None);
     }
@@ -144,7 +144,7 @@ mod tests {
     #[test]
     fn the_start_is_not_a_place_to_go_back_to() {
         let retrace = Retrace::default();
-        let a = MediaPath::from("a.mkv");
+        let a = MediaPath::for_test("a.mkv");
         retrace.landed(&a, 20.0, 1200.0);
         assert_eq!(retrace.offered(Some(&a), 1200.0), None);
     }
@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn a_drag_offers_where_it_started() {
         let retrace = Retrace::default();
-        let a = MediaPath::from("a.mkv");
+        let a = MediaPath::for_test("a.mkv");
         retrace.hold(500.0);
         retrace.hold(700.0);
         retrace.landed(&a, 900.0, 1500.0);
@@ -162,7 +162,7 @@ mod tests {
     #[test]
     fn seeking_again_keeps_the_first_place() {
         let retrace = Retrace::default();
-        let a = MediaPath::from("a.mkv");
+        let a = MediaPath::for_test("a.mkv");
         retrace.landed(&a, 2106.0, 300.0);
         assert_eq!(retrace.offered(Some(&a), 300.0), Some(2106.0));
         retrace.landed(&a, 300.0, 1200.0);
@@ -172,18 +172,21 @@ mod tests {
     #[test]
     fn going_elsewhere_ends_it() {
         let retrace = Retrace::default();
-        let a = MediaPath::from("a.mkv");
+        let a = MediaPath::for_test("a.mkv");
         retrace.landed(&a, 2106.0, 300.0);
         assert_eq!(retrace.offered(Some(&a), 300.0), Some(2106.0));
         assert_eq!(retrace.offered(Some(&a), 240.0), None);
         retrace.landed(&a, 240.0, 900.0);
-        assert_eq!(retrace.offered(Some(&"b.mkv".into()), 900.0), None);
+        assert_eq!(
+            retrace.offered(Some(&MediaPath::for_test("b.mkv")), 900.0),
+            None
+        );
     }
 
     #[test]
     fn a_skip_the_player_made_is_offered_back_from_the_start() {
         let retrace = Retrace::default();
-        let a = MediaPath::from("a.mkv");
+        let a = MediaPath::for_test("a.mkv");
         retrace.skipped(&a, 2.0, 40.0);
         assert_eq!(retrace.offered(Some(&a), 40.0), Some(2.0));
         assert_eq!(retrace.offered(Some(&a), 51.0), None);

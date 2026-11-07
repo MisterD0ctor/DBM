@@ -295,8 +295,8 @@ pub fn load_list(mpv: &Mpv, m3u: &std::path::Path, start: usize, first: &MediaPa
     // share: it reads 150 MB ahead and keeps 50 MB behind, in memory, of files
     // that are almost always on a local disk. Most of its paths are played from
     // where they really are, but not one whose real place is out of reach (see
-    // `platform::documents`), which plays as a local file does.
-    let portal = crate::platform::documents::is_portal(first.as_path());
+    // `dbm_library::documents`), which plays as a local file does.
+    let portal = dbm_library::documents::is_portal(first.as_path());
     set(
         mpv,
         prop::CACHE,

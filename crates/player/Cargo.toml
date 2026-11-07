@@ -79,3 +79,7 @@ winresource.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+# `MediaPath::for_test`, for tests that need a path they never read.
+dbm-mpv = { workspace = true, features = ["testing"] }

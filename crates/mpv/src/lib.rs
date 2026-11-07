@@ -16,8 +16,9 @@
 //! the types of their values, and [`Command`] its commands with theirs, so
 //! nothing above this crate spells either. `render` draws through the render
 //! API, and `tracks` holds the entries of the list-shaped properties. A file
-//! to play is a [`MediaPath`] from here up. This is the only crate in the
-//! player that calls C.
+//! to play is a [`MediaPath`] from here up, made from a [`RealPath`] so that
+//! one file has one; the two live here because mpv's reports are the other
+//! source of one. This is the only crate in the player that calls C.
 //!
 //! A player comes as three handles, so that what may only happen on some
 //! threads is a matter of who holds what: [`Mpv`], whose every call returns
@@ -39,7 +40,7 @@ mod value;
 pub use command::{Command, Direction, SeekTarget};
 pub use error::{Error, ErrorCode, Result};
 pub use events::{EndReason, Event, Events};
-pub use media_path::MediaPath;
+pub use media_path::{Entry, MediaPath, RealPath};
 pub use prop::{AnyProperty, Property};
 pub use render::RenderContext;
 pub use value::{Format, FromMpv, ToMpv, Value};

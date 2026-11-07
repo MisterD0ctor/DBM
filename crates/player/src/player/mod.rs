@@ -260,7 +260,6 @@ impl Player {
             // a network share, would otherwise stall startup.
             Some(path) => {
                 self.app.worker.submit(move |_mpv| {
-                    let path = crate::platform::real_place(&path);
                     Some(Completion::Opened(
                         dbm_library::playlist::prepare(&path)
                             .map(|list| Opened { list, ask: true }),

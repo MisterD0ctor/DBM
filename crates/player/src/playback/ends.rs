@@ -232,12 +232,12 @@ mod tests {
     ];
 
     fn heard(path: &str, span: Span) -> ForFile<Span> {
-        ForFile::new(path.into(), span)
+        ForFile::new(dbm_mpv::MediaPath::for_test(path), span)
     }
 
     fn heard_pieces(path: &str, pieces: &[(f64, f64)]) -> ForFile<Vec<Span>> {
         ForFile::new(
-            path.into(),
+            dbm_mpv::MediaPath::for_test(path),
             pieces.iter().copied().map(Span::from).collect(),
         )
     }
@@ -245,7 +245,7 @@ mod tests {
     fn playing(path: &str, chapter: i64, marks: &[(f64, &str)]) -> PlayerState {
         // -1 for none, as mpv says it.
         PlayerState {
-            path: Some(path.into()),
+            path: Some(dbm_mpv::MediaPath::for_test(path)),
             duration: Some(3600.0),
             chapter: usize::try_from(chapter).ok(),
             chapters: marks

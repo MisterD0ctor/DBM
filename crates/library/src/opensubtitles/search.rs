@@ -154,7 +154,10 @@ mod tests {
 
     #[test]
     fn an_episode_is_asked_for_by_show_season_and_episode_in_order() {
-        let query = by_name(&"/tv/The.Walking.Dead.S04E08.1080p.mkv".into(), "en,sv");
+        let query = by_name(
+            &MediaPath::for_test("/tv/The.Walking.Dead.S04E08.1080p.mkv"),
+            "en,sv",
+        );
         let names: Vec<&str> = query.iter().map(|(n, _)| *n).collect();
         assert_eq!(
             names,
@@ -166,7 +169,7 @@ mod tests {
 
     #[test]
     fn a_film_is_asked_for_by_title_and_year() {
-        let query = by_name(&"/films/Alien (1979).mkv".into(), "en");
+        let query = by_name(&MediaPath::for_test("/films/Alien (1979).mkv"), "en");
         assert!(query.contains(&("query", "Alien".into())));
         assert!(query.contains(&("year", "1979".into())));
     }

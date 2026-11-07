@@ -131,6 +131,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         arrival: playback::arrival::Arrival::default(),
         retrace: playback::retrace::Retrace::default(),
         scale: interface::scale::Scale::default(),
+        playing: app::Playing::default(),
     });
 
     // Loads what was saved, then writes changes back once they settle, so the

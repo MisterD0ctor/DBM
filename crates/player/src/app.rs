@@ -8,11 +8,12 @@
 //! UI thread only, like everything that holds one: the `Rc`s are not `Send`.
 //! The worker and the bus threads are given the `Arc<Mpv>` alone.
 
+use std::cell::RefCell;
 use std::rc::Rc;
 use std::sync::Arc;
 
 use dbm_library::preview::Preview;
-use dbm_mpv::Mpv;
+use dbm_mpv::{MediaPath, Mpv};
 
 use crate::interface::chrome::Activity;
 use crate::interface::find::Search;
@@ -79,4 +80,23 @@ pub struct Shared {
     /// The interface's size: the settings choose it, the frame loop keeps it
     /// on top of whatever the system sets.
     pub scale: Scale,
+    /// The file playing: the player sets it as it follows a new one, the
+    /// callbacks read it.
+    pub playing: Playing,
+}
+
+/// The file playing, as mpv reported it, for a callback that has no player
+/// to ask. Kept as the path itself rather than read back from the
+/// interface's text, which would make a path out of any string.
+#[derive(Default)]
+pub struct Playing(RefCell<Option<MediaPath>>);
+
+impl Playing {
+    pub fn get(&self) -> Option<MediaPath> {
+        self.0.borrow().clone()
+    }
+
+    pub fn set(&self, path: Option<MediaPath>) {
+        *self.0.borrow_mut() = path;
+    }
 }

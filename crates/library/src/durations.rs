@@ -177,7 +177,7 @@ mod tests {
         // well-known MD5 of "abc", so a broken digest shows up here rather
         // than as an empty playlist row.
         assert_eq!(
-            watch_later_name(&"abc".into()),
+            watch_later_name(&MediaPath::for_test("abc")),
             "900150983CD24FB0D6963F7D28E17F72"
         );
     }
@@ -201,15 +201,15 @@ mod tests {
         .unwrap();
         std::fs::write(
             app.join("watch_later")
-                .join(watch_later_name(&"C:/films/seen.mkv".into())),
+                .join(watch_later_name(&MediaPath::for_test("C:/films/seen.mkv"))),
             "start=300.0\nvid=1\n",
         )
         .unwrap();
 
         let found = of(&[
-            "C:/films/seen.mkv".into(),
-            "C:/films/fresh.mkv".into(),
-            "C:/films/never.mkv".into(),
+            MediaPath::for_test("C:/films/seen.mkv"),
+            MediaPath::for_test("C:/films/fresh.mkv"),
+            MediaPath::for_test("C:/films/never.mkv"),
         ]);
         assert_eq!(found[0].seconds, Some(1200.0));
         assert!((found[0].fraction() - 0.25).abs() < 1e-6);
@@ -224,7 +224,7 @@ mod tests {
 
     #[test]
     fn a_viewing_started_again_is_not_finished() {
-        let seen = MediaPath::from("C:/films/seen.mkv");
+        let seen = MediaPath::for_test("C:/films/seen.mkv");
         let finished = Finished::from([(seen.clone(), 1200.0)]);
         // mpv deleted the position at the end.
         assert!(is_finished(&finished, &seen, None));
@@ -233,6 +233,10 @@ mod tests {
         assert!(is_finished(&finished, &seen, Some(1190.0)));
         // Watching it again, a quarter of the way in.
         assert!(!is_finished(&finished, &seen, Some(300.0)));
-        assert!(!is_finished(&finished, &"C:/films/fresh.mkv".into(), None));
+        assert!(!is_finished(
+            &finished,
+            &MediaPath::for_test("C:/films/fresh.mkv"),
+            None
+        ));
     }
 }

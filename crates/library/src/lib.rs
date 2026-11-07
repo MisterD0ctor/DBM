@@ -18,6 +18,7 @@
 
 pub mod bars;
 pub mod cache;
+pub mod documents;
 pub mod durations;
 pub mod ffmpeg;
 pub mod fingerprint;

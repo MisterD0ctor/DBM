@@ -341,7 +341,7 @@ mod tests {
 
     fn item(path: &str, index: usize, current: bool) -> shelf::Item<'static> {
         shelf::Item {
-            path: path.into(),
+            path: dbm_mpv::MediaPath::for_test(path),
             title: None,
             index,
             current,

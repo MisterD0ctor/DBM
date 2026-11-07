@@ -19,5 +19,10 @@ serde_json.workspace = true
 # Error types without hand-written `Display` impls. Slint already builds it.
 thiserror.workspace = true
 
+[features]
+# `MediaPath::for_test`, a path made from any text, for the other crates'
+# tests. Never in a build: everywhere else a path is made from a real one.
+testing = []
+
 [lints]
 workspace = true

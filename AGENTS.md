@@ -240,10 +240,14 @@ copy of the player would do:
 A file reached two ways was two files to the player, with two resume points
 and two watched marks, and it took three fixes: links (`58a4db7`), files found
 inside an opened folder (`5ea39f2`) and the Flatpak's document portal
-(`d6fd28a`). Every path a person opens goes through `playlist::prepare`, which
-follows links and asks the portal. `MediaPath` converts from any string and
-cannot check that, so never file anything under a path that has not been
-through `prepare`.
+(`d6fd28a`). The type holds it now. A `MediaPath` is made only from a
+`RealPath`, whose every link has been followed, from mpv reporting one it was
+given, or read back from the player's own records; `for_test` exists only for
+tests, behind `dbm-mpv`'s `testing` feature. A folder is listed through
+`RealPath::entries`, which costs a lookup only for a link. A path a person
+hands over goes through `playlist::prepare`, the one caller of the portal
+lookup. A callback that needs the file playing reads `App::playing`, never the
+interface's text.
 
 No answer may depend on the order `read_dir` or a `HashMap` happens to yield;
 sort first (`094aa6c`).
@@ -350,7 +354,8 @@ than any desktop (`a9f8872`, `c5a3361`).
 | Platform failures | `crates/player/src/platform/mod.rs` |
 | `write_atomic`, `set_aside`, `playlist_m3u` | `crates/library/src/paths.rs` |
 | `PathMap::edit`, `set_many`, cache versions | `crates/library/src/cache.rs` |
-| One path per file (`prepare`) | `crates/library/src/playlist.rs` |
+| `MediaPath`, `RealPath` | `crates/mpv/src/media_path.rs` |
+| Ways in (`prepare`), the portal | `crates/library/src/playlist.rs`, `crates/library/src/documents.rs` |
 | `ffmpeg::Children` | `crates/library/src/ffmpeg.rs` |
 | `Verdict::expect`, `expect_after` | `crates/player/src/harness/script.rs` |
 

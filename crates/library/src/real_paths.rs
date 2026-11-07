@@ -9,7 +9,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use dbm_mpv::MediaPath;
+use dbm_mpv::{MediaPath, RealPath};
 
 use crate::durations::{FINISHED, LENGTHS, watch_later_name};
 use crate::opensubtitles::KEPT;
@@ -50,7 +50,7 @@ fn moves() -> HashMap<MediaPath, MediaPath> {
     known
         .into_iter()
         .filter_map(|path| {
-            let real = MediaPath::from(crate::playlist::real(path.as_path())?.as_path());
+            let real = MediaPath::from(&RealPath::of(path.as_path()).ok()?);
             (real != path).then_some((path, real))
         })
         .collect()

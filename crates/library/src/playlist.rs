@@ -21,7 +21,7 @@ use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 
-use dbm_mpv::MediaPath;
+use dbm_mpv::{MediaPath, RealPath};
 
 use crate::resume::Saved;
 
@@ -58,13 +58,17 @@ pub enum Error {
     PlaylistWrite { path: PathBuf, source: io::Error },
 }
 
-/// Scan a path into a playlist and write it out for mpv's `loadlist`.
+/// Scan a path a person handed the player into a playlist, and write it out
+/// for mpv's `loadlist`.
 ///
-/// Runs on the worker, since it reads a directory that may be huge or on a
-/// network share. `path` is where the file is, with a document portal's path
-/// already looked up; links are followed here.
+/// Every way in comes through here, so this is where a path becomes the one
+/// every record of the file is filed under: a document portal's path is
+/// looked up, then every link is followed.
+///
+/// **Blocking**: worker thread only. It asks the portal over D-Bus and reads
+/// a directory that may be huge or on a network share.
 pub fn prepare(path: &Path) -> Result<Prepared, Error> {
-    let selection = resolve(path)?;
+    let selection = resolve(&crate::documents::real(path))?;
     let m3u = crate::paths::playlist_m3u();
     write_m3u(&selection.videos, &m3u).map_err(|source| {
         log::warn!("could not write {}: {source}", m3u.display());
@@ -77,7 +81,7 @@ pub fn prepare(path: &Path) -> Result<Prepared, Error> {
     let first = selection
         .videos
         .get(selection.start)
-        .map(|video| MediaPath::from(video.as_path()))
+        .map(MediaPath::from)
         .ok_or_else(|| Error::NothingAt(path.to_path_buf()))?;
     let saved = crate::durations::of(std::slice::from_ref(&first))
         .first()
@@ -106,15 +110,16 @@ pub struct Prepared {
 
 /// What to play, and where to start.
 pub struct Selection {
-    pub videos: Vec<PathBuf>,
+    pub videos: Vec<RealPath>,
     pub start: usize,
 }
 
 /// Build a playlist from whatever the user pointed at.
 ///
 /// A directory is scanned recursively; a file gets its siblings, which is
-/// what makes "next episode" work without asking for the folder.
-pub fn resolve(path: &Path) -> Result<Selection, Error> {
+/// what makes "next episode" work without asking for the folder. `path` has
+/// had a portal's document looked up (see [`prepare`]).
+fn resolve(path: &Path) -> Result<Selection, Error> {
     // Absolute, so a relative path's folder is known, but not followed: a
     // linked file's siblings are the ones beside the link.
     let path = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
@@ -125,7 +130,10 @@ pub fn resolve(path: &Path) -> Result<Selection, Error> {
     if !path.is_file() {
         return Err(Error::NothingAt(path));
     }
-    let real = real(&path).unwrap_or_else(|| path.clone());
+    let real = RealPath::of(&path).map_err(|source| Error::Unreadable {
+        dir: path.clone(),
+        source,
+    })?;
     // A file the scan doesn't take for a video, or one whose folder can't be
     // listed, plays alone.
     let videos = path
@@ -156,15 +164,16 @@ pub(crate) fn notice_folder_of(video: &Path) {
 /// Videos directly in `dir`, in watching order, each at its real path. No
 /// recursion: the siblings of an episode are its season, not the whole
 /// library.
-pub fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, Error> {
-    let entries = fs::read_dir(dir).map_err(|source| Error::Unreadable {
+pub fn scan_flat(dir: &Path) -> Result<Vec<RealPath>, Error> {
+    let unreadable = |source| Error::Unreadable {
         dir: dir.to_path_buf(),
         source,
-    })?;
-    let real_dir = real(dir).unwrap_or_else(|| dir.to_path_buf());
-    let found = entries
-        .filter_map(Result::ok)
-        .filter_map(|entry| Found::of(&entry, dir, &real_dir))
+    };
+    let real_dir = RealPath::of(dir).map_err(unreadable)?;
+    let found = real_dir
+        .entries()
+        .map_err(unreadable)?
+        .map(|entry| Found::of(entry, dir))
         .filter(|found| !found.folder && found.video())
         .collect();
     let videos = in_watching_order(found);
@@ -178,39 +187,24 @@ pub fn scan_flat(dir: &Path) -> Result<Vec<PathBuf>, Error> {
 /// and what the list is ordered by, and where it really is.
 struct Found {
     seen: PathBuf,
-    real: PathBuf,
+    real: RealPath,
     folder: bool,
 }
 
 impl Found {
-    /// `entry`, listed in `dir`, which is really `real_dir`.
-    ///
-    /// Only a link costs a lookup of its own, so a folder of thousands on a
-    /// network share, or on Windows, where following a path opens it, costs
-    /// one for the folder. `None` for a dangling link, and for anything that
-    /// is neither a file nor a folder.
-    fn of(entry: &fs::DirEntry, dir: &Path, real_dir: &Path) -> Option<Self> {
-        let name = entry.file_name();
-        let seen = dir.join(&name);
-        let kind = entry.file_type().ok()?;
-        let (real, kind) = if kind.is_symlink() {
-            let real = real(&seen)?;
-            let kind = fs::metadata(&real).ok()?.file_type();
-            (real, kind)
-        } else {
-            (real_dir.join(&name), kind)
-        };
-        (kind.is_dir() || kind.is_file()).then_some(Self {
-            seen,
-            real,
-            folder: kind.is_dir(),
-        })
+    /// `entry`, of the folder a person reached as `dir`.
+    fn of(entry: dbm_mpv::Entry, dir: &Path) -> Self {
+        Self {
+            seen: dir.join(&entry.name),
+            real: entry.real,
+            folder: entry.folder,
+        }
     }
 
     /// Either name will do, since a link and what it points at can be
     /// called differently.
     fn video(&self) -> bool {
-        is_video_file(&self.seen) || is_video_file(&self.real)
+        is_video_file(&self.seen) || is_video_file(self.real.as_path())
     }
 }
 
@@ -220,12 +214,12 @@ impl Found {
 /// Their folders are judged here, since every listing passes through: by the
 /// paths found, which the order reads, and the real ones, which everything
 /// after reads.
-fn in_watching_order(found: Vec<Found>) -> Vec<PathBuf> {
+fn in_watching_order(found: Vec<Found>) -> Vec<RealPath> {
     let mut names = Vec::new();
     for found in &found {
         names.push(found.seen.to_string_lossy());
-        if found.real != found.seen {
-            names.push(found.real.to_string_lossy());
+        if found.real.as_path() != found.seen {
+            names.push(found.real.as_path().to_string_lossy());
         }
     }
     dbm_naming::notice(&names);
@@ -235,29 +229,6 @@ fn in_watching_order(found: Vec<Found>) -> Vec<PathBuf> {
         .map(|found| found.real)
         .filter(|real| kept.insert(real.clone()))
         .collect()
-}
-
-/// `path` with every link in it followed, or `None` where it can't be, such
-/// as where nothing is there.
-pub(crate) fn real(path: &Path) -> Option<PathBuf> {
-    fs::canonicalize(path).ok().map(plain)
-}
-
-/// A path without the verbatim prefix `canonicalize` puts on every path on
-/// Windows (`\\?\C:\…`, `\\?\UNC\server\share\…`), which mpv and the interface
-/// would show as it is. Other verbatim paths, such as a volume's GUID, mean
-/// nothing without it and are left whole.
-fn plain(path: PathBuf) -> PathBuf {
-    let Some(text) = path.to_str() else {
-        return path;
-    };
-    if let Some(share) = text.strip_prefix(r"\\?\UNC\") {
-        return PathBuf::from(format!(r"\\{share}"));
-    }
-    match text.strip_prefix(r"\\?\") {
-        Some(drive) if drive.as_bytes().get(1) == Some(&b':') => PathBuf::from(drive),
-        _ => path,
-    }
 }
 
 /// Put videos in the order a person watches them.
@@ -459,8 +430,11 @@ const MOST_FOLDERS: usize = 10_000;
 /// the walk round it again, and a link to a folder holding the opened one
 /// (Wine's `z: -> /`) isn't followed at all. Unreadable subdirectories are
 /// skipped, so one permission-denied folder doesn't stop a library loading.
-fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, Error> {
-    let real_dir = real(dir).unwrap_or_else(|| dir.to_path_buf());
+fn scan_recursive(dir: &Path) -> Result<Vec<RealPath>, Error> {
+    let real_dir = RealPath::of(dir).map_err(|source| Error::Unreadable {
+        dir: dir.to_path_buf(),
+        source,
+    })?;
     let mut listed = HashSet::from([real_dir.clone()]);
     let mut stack = vec![(dir.to_path_buf(), real_dir.clone())];
     let mut videos = Vec::new();
@@ -469,7 +443,7 @@ fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, Error> {
     let mut unreadable_root = None;
 
     while let Some((seen, real)) = stack.pop() {
-        let entries = match fs::read_dir(&real) {
+        let entries = match real.entries() {
             Ok(entries) => entries,
             Err(source) => {
                 if seen.as_path() == dir {
@@ -479,15 +453,14 @@ fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, Error> {
                 continue;
             }
         };
-        for found in entries
-            .filter_map(Result::ok)
-            .filter_map(|entry| Found::of(&entry, &seen, &real))
-        {
+        for found in entries.map(|entry| Found::of(entry, &seen)) {
             if !found.folder {
                 if found.video() {
                     videos.push(found);
                 }
-            } else if real_dir.starts_with(&found.real) || listed.contains(&found.real) {
+            } else if real_dir.as_path().starts_with(found.real.as_path())
+                || listed.contains(&found.real)
+            {
                 log::info!("not following {} round again", found.seen.display());
             } else if listed.len() < MOST_FOLDERS {
                 listed.insert(found.real.clone());
@@ -520,13 +493,13 @@ fn scan_recursive(dir: &Path) -> Result<Vec<PathBuf>, Error> {
 ///
 /// One command regardless of length, which mpv parses far faster than it
 /// would service a `loadfile` per file.
-fn write_m3u(videos: &[PathBuf], dest: &Path) -> std::io::Result<()> {
+fn write_m3u(videos: &[RealPath], dest: &Path) -> std::io::Result<()> {
     if let Some(parent) = dest.parent() {
         let _ = fs::create_dir_all(parent);
     }
     let mut text = String::from("#EXTM3U\n");
     for video in videos {
-        let _ = writeln!(text, "{}", video.display());
+        let _ = writeln!(text, "{}", video.as_path().display());
     }
     fs::write(dest, text)
 }
@@ -589,22 +562,16 @@ mod tests {
         assert_eq!(claimed, expected);
     }
 
+    #[cfg(unix)]
+    fn plain_paths(videos: Vec<RealPath>) -> Vec<PathBuf> {
+        videos.iter().map(|v| v.as_path().to_path_buf()).collect()
+    }
+
     fn names(paths: &[PathBuf]) -> Vec<String> {
         paths
             .iter()
             .map(|p| p.to_string_lossy().replace('\\', "/"))
             .collect()
-    }
-
-    #[test]
-    fn a_windows_verbatim_path_is_written_as_a_person_would() {
-        let plain_text = |text: &str| plain(PathBuf::from(text)).to_string_lossy().into_owned();
-        assert_eq!(plain_text(r"\\?\C:\Films\a.mkv"), r"C:\Films\a.mkv");
-        assert_eq!(plain_text(r"\\?\UNC\nas\share\a.mkv"), r"\\nas\share\a.mkv");
-        // Meaningless without the prefix.
-        let volume = r"\\?\Volume{0b1c}\a.mkv";
-        assert_eq!(plain_text(volume), volume);
-        assert_eq!(plain_text("/films/a.mkv"), "/films/a.mkv");
     }
 
     #[test]
@@ -661,7 +628,7 @@ mod tests {
 
         let chosen = resolve(&root.join("Here/b.mkv")).unwrap();
         assert_eq!(
-            chosen.videos,
+            plain_paths(chosen.videos),
             [
                 root.join("Here/a.mkv"),
                 root.join("Season 1/b.mkv"),
@@ -679,7 +646,7 @@ mod tests {
         link(root.join("Season 1"), root.join("Shows"));
 
         let chosen = resolve(&root.join("Shows/a.mkv")).unwrap();
-        assert_eq!(chosen.videos, [root.join("Season 1/a.mkv")]);
+        assert_eq!(plain_paths(chosen.videos), [root.join("Season 1/a.mkv")]);
         assert!(resolve(&root.join("Shows/b.mkv")).is_err());
         fs::remove_dir_all(&root).unwrap();
     }
@@ -695,7 +662,7 @@ mod tests {
 
         let chosen = resolve(&root.join("Show")).unwrap();
         assert_eq!(
-            chosen.videos,
+            plain_paths(chosen.videos),
             [root.join("Show/a.mkv"), root.join("Show/b.mkv")]
         );
         fs::remove_dir_all(&root).unwrap();
@@ -710,7 +677,7 @@ mod tests {
         // A dangling link is left out.
         link("gone.mkv", root.join("d.mkv"));
 
-        assert_eq!(scan_flat(&root).unwrap(), [root.join("a.mkv")]);
+        assert_eq!(plain_paths(scan_flat(&root).unwrap()), [root.join("a.mkv")]);
         fs::remove_dir_all(&root).unwrap();
     }
 
@@ -722,7 +689,7 @@ mod tests {
 
         let chosen = resolve(&root.join("Opened")).unwrap();
         assert_eq!(
-            chosen.videos,
+            plain_paths(chosen.videos),
             [root.join("Opened/a.mkv"), root.join("Elsewhere/b.mkv")]
         );
         fs::remove_dir_all(&root).unwrap();
@@ -733,7 +700,7 @@ mod tests {
     fn a_file_not_taken_for_a_video_plays_alone() {
         let root = folder("alone", &["clip.vob", "notes.txt"]);
         let chosen = resolve(&root.join("clip.vob")).unwrap();
-        assert_eq!(chosen.videos, [root.join("clip.vob")]);
+        assert_eq!(plain_paths(chosen.videos), [root.join("clip.vob")]);
         fs::remove_dir_all(&root).unwrap();
     }
 
@@ -773,7 +740,7 @@ mod tests {
                 "[B] Show 04 Four.mkv",
             ],
         );
-        let videos = scan_flat(&root).unwrap();
+        let videos = plain_paths(scan_flat(&root).unwrap());
         assert_eq!(
             videos,
             [
@@ -804,7 +771,10 @@ mod tests {
             &files.iter().map(String::as_str).collect::<Vec<_>>(),
         );
         let first = scan_flat(&root.join("Show/Season 1")).unwrap()[0].clone();
-        assert_eq!(seasons_beside(&first), [(root.join("Show/Season 2"), 2)]);
+        assert_eq!(
+            seasons_beside(first.as_path()),
+            [(root.join("Show/Season 2"), 2)]
+        );
         fs::remove_dir_all(&root).unwrap();
     }
 

@@ -65,7 +65,7 @@ pub(super) fn wire_finding(ui: &MainWindow, app: &App) {
         find.on_search(move || {
             app.activity.bump();
             let Some(ui) = weak.upgrade() else { return };
-            let Some(path) = super::playing(&ui) else {
+            let Some(path) = app.playing.get() else {
                 return;
             };
             app.search.clear();
@@ -85,7 +85,7 @@ pub(super) fn wire_finding(ui: &MainWindow, app: &App) {
         find.on_fetch(move |row| {
             app.activity.bump();
             let Some(ui) = weak.upgrade() else { return };
-            let Some((path, hit)) = super::playing(&ui).zip(app.search.hit(row)) else {
+            let Some((path, hit)) = app.playing.get().zip(app.search.hit(row)) else {
                 return;
             };
             ui.global::<Find>().set_fetching(row);

@@ -201,7 +201,7 @@ mod tests {
     /// credits over its last three minutes; second of three in its list.
     fn episode() -> PlayerState {
         PlayerState {
-            path: Some(EPISODE.into()),
+            path: Some(dbm_mpv::MediaPath::for_test(EPISODE)),
             duration: Some(3600.0),
             loads: 1,
             playlist_pos: Some(1),

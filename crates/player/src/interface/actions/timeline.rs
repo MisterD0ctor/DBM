@@ -19,7 +19,7 @@ pub(super) fn wire_timeline(ui: &MainWindow, app: &App) {
             let Some(ui) = weak.upgrade() else { return };
             let duration = f64::from(ui.global::<Playback>().get_duration());
             let to = f64::from(fraction) * duration;
-            if let Some(path) = super::playing(&ui) {
+            if let Some(path) = app.playing.get() {
                 let at = f64::from(ui.global::<Playback>().get_progress()) * duration;
                 app.retrace.landed(&path, at, to);
             }
@@ -39,7 +39,7 @@ pub(super) fn wire_timeline(ui: &MainWindow, app: &App) {
         playback.on_seek_fraction(move |f| {
             app.activity.bump();
             if let Some(ui) = weak.upgrade()
-                && let Some(path) = super::playing(&ui)
+                && let Some(path) = app.playing.get()
             {
                 let duration = f64::from(ui.global::<Playback>().get_duration());
                 let at = f64::from(ui.global::<Playback>().get_progress()) * duration;

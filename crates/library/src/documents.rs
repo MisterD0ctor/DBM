@@ -37,9 +37,9 @@ pub fn is_portal(path: &Path) -> bool {
 }
 
 /// Where `path` really is, when the portal handed it over and the player can
-/// read it there; otherwise `path` as it is. **Blocking**: asks the portal
-/// over D-Bus.
-pub fn real(path: &Path) -> PathBuf {
+/// read it there; otherwise `path` as it is. Only `playlist::prepare` asks,
+/// so no way in can skip it. **Blocking**: asks the portal over D-Bus.
+pub(crate) fn real(path: &Path) -> PathBuf {
     let Some((id, within)) = document(path) else {
         return path.to_path_buf();
     };

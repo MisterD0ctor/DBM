@@ -129,7 +129,7 @@ mod tests {
             hearing_impaired: false,
             machine: false,
         };
-        let file = keep_as(&"/films/Some Film (2019).mkv".into(), &hit);
+        let file = keep_as(&MediaPath::for_test("/films/Some Film (2019).mkv"), &hit);
         let name = file.file_name().unwrap().to_string_lossy().into_owned();
         assert_eq!(name, "Some Film (2019).pt-br.42.srt");
         let stem = file.file_stem().unwrap();
@@ -143,7 +143,7 @@ mod tests {
             language: Language::parse("../x.y").expect("a language"),
             ..hit
         };
-        let file = keep_as(&"/films/Some Film (2019).mkv".into(), &odd);
+        let file = keep_as(&MediaPath::for_test("/films/Some Film (2019).mkv"), &odd);
         assert_eq!(
             file.file_name().unwrap().to_string_lossy(),
             "Some Film (2019).___x_y.42.srt"

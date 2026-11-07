@@ -629,11 +629,17 @@ mod tests {
     use super::*;
 
     fn list(names: &[&str]) -> Vec<MediaPath> {
-        names.iter().map(|&name| name.into()).collect()
+        names
+            .iter()
+            .map(|&name| MediaPath::for_test(name))
+            .collect()
     }
 
     fn away(names: &[(&str, usize)]) -> Vec<(MediaPath, usize)> {
-        names.iter().map(|&(n, a)| (n.into(), a)).collect()
+        names
+            .iter()
+            .map(|&(n, a)| (MediaPath::for_test(n), a))
+            .collect()
     }
 
     fn tried<'a>(
@@ -655,7 +661,7 @@ mod tests {
             "Show.S02E04.mkv",
         ]);
         assert_eq!(
-            beside(&"Show.S02E02.mkv".into(), &season),
+            beside(&MediaPath::for_test("Show.S02E02.mkv"), &season),
             away(&[
                 ("Show.S02E03.mkv", 1),
                 ("Show.S02E01.mkv", 1),
@@ -664,7 +670,7 @@ mod tests {
         );
         // The last has nothing after it, so those before, nearest first.
         assert_eq!(
-            beside(&"Show.S02E04.mkv".into(), &season),
+            beside(&MediaPath::for_test("Show.S02E04.mkv"), &season),
             away(&[
                 ("Show.S02E03.mkv", 1),
                 ("Show.S02E02.mkv", 2),
@@ -677,14 +683,20 @@ mod tests {
     fn of_two_as_near_one_known_to_hold_the_titles_goes_first() {
         // A show in eleven-minute halves: the titles on every other one.
         let season: Vec<MediaPath> = (1..=9)
-            .map(|e| format!("Show.S07E{e:02}.mkv").into())
+            .map(|e| MediaPath::for_test(&format!("Show.S07E{e:02}.mkv")))
             .collect();
-        let near = beside(&"Show.S07E05.mkv".into(), &season);
+        let near = beside(&MediaPath::for_test("Show.S07E05.mkv"), &season);
         let mut known = HashMap::new();
-        known.insert("Show.S07E06.mkv".into(), None);
-        known.insert("Show.S07E04.mkv".into(), None);
-        known.insert("Show.S07E03.mkv".into(), Some(vec![Span::new(0.0, 25.0)]));
-        known.insert("Show.S07E09.mkv".into(), Some(vec![Span::new(0.0, 25.0)]));
+        known.insert(MediaPath::for_test("Show.S07E06.mkv"), None);
+        known.insert(MediaPath::for_test("Show.S07E04.mkv"), None);
+        known.insert(
+            MediaPath::for_test("Show.S07E03.mkv"),
+            Some(vec![Span::new(0.0, 25.0)]),
+        );
+        known.insert(
+            MediaPath::for_test("Show.S07E09.mkv"),
+            Some(vec![Span::new(0.0, 25.0)]),
+        );
         // The one that holds them ahead of the one as near not yet heard,
         // then the next nearest, the later of two as near. The further one
         // that holds them is not reached, and nor are the two either side,
@@ -705,13 +717,13 @@ mod tests {
         // A season whose second half has titles of its own, and the first
         // half already heard.
         let season: Vec<MediaPath> = (1..=22)
-            .map(|e| format!("Show.S01E{e:02}.mkv").into())
+            .map(|e| MediaPath::for_test(&format!("Show.S01E{e:02}.mkv")))
             .collect();
-        let near = beside(&"Show.S01E12.mkv".into(), &season);
+        let near = beside(&MediaPath::for_test("Show.S01E12.mkv"), &season);
         let known = (1..=11)
             .map(|e| {
                 (
-                    format!("Show.S01E{e:02}.mkv").into(),
+                    MediaPath::for_test(&format!("Show.S01E{e:02}.mkv")),
                     Some(vec![Span::new(50.0, 140.0)]),
                 )
             })
@@ -854,7 +866,7 @@ mod tests {
             "Show.S02E03.mkv",
         ]);
         assert_eq!(
-            beside(&"Show.S02E01.mkv".into(), &mixed),
+            beside(&MediaPath::for_test("Show.S02E01.mkv"), &mixed),
             away(&[("Show.S02E03.mkv", 2)])
         );
     }
@@ -862,9 +874,15 @@ mod tests {
     #[test]
     fn a_film_or_a_lone_episode_has_nothing_beside_it() {
         let films = list(&["Some Film (2019).mkv", "Another Film (2020).mkv"]);
-        assert!(beside(&"Some Film (2019).mkv".into(), &films).is_empty());
-        assert!(beside(&"Show.S02E01.mkv".into(), &list(&["Show.S02E01.mkv"])).is_empty());
-        assert!(beside(&"Show.S02E01.mkv".into(), &[]).is_empty());
+        assert!(beside(&MediaPath::for_test("Some Film (2019).mkv"), &films).is_empty());
+        assert!(
+            beside(
+                &MediaPath::for_test("Show.S02E01.mkv"),
+                &list(&["Show.S02E01.mkv"])
+            )
+            .is_empty()
+        );
+        assert!(beside(&MediaPath::for_test("Show.S02E01.mkv"), &[]).is_empty());
     }
 
     #[test]

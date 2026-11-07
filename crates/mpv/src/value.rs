@@ -165,7 +165,7 @@ impl FromMpv for MediaPath {
     fn from_mpv(value: Value) -> Option<Self> {
         String::from_mpv(value)
             .filter(|path| !path.is_empty())
-            .map(Self::from)
+            .map(Self::reported)
     }
 }
 

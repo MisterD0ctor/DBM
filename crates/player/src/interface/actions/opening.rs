@@ -53,7 +53,7 @@ pub(super) fn wire_opening(ui: &MainWindow, app: &App) {
             // Same job the command line goes through, scan and all.
             app.worker.submit(move |_mpv| {
                 Some(crate::worker::Completion::Opened(
-                    dbm_library::playlist::prepare(&crate::platform::real_place(&path))
+                    dbm_library::playlist::prepare(&path)
                         .map(|list| crate::worker::Opened { list, ask }),
                 ))
             });
