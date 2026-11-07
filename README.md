@@ -99,6 +99,11 @@ cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 ```
 
+[AGENTS.md](AGENTS.md) has the rules this tree keeps to about representing
+state: what carries a file's identity, when a boolean should be an enum, and
+which numbers have types of their own. It is short, and it covers what the
+checks above cannot.
+
 The tests cover everything that doesn't need a window: reading file and track
 names, playlist order, the caches, and formatting. For the rest (the
 interface, playback, and the platform integrations) the player has a built-in
