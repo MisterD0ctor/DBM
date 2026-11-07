@@ -5,7 +5,7 @@ use std::time::Duration;
 use slint::{ComponentHandle, Model};
 
 use super::drive::{click, drag, wheel};
-use super::script::{self, Beat, Script, sleep};
+use super::script::{self, Beat, Script, Verdict, sleep};
 use super::selected_label;
 use crate::platform::modal_loop;
 use crate::{MainWindow, Playback, Settings, SettingsPage, Tracks};
@@ -428,5 +428,54 @@ pub(super) fn modal_test(ui: &MainWindow) -> Script {
         sleep(Duration::from_millis(3000)).await;
         eprintln!("dbm: --- entering modal size loop ---");
         modal_loop::enter_modal_size_loop_for_test(ui.window());
+    })
+}
+
+/// A frame whose allocation the driver refuses, which no window can ask for:
+/// the player has to keep showing the frame it had, and draw again after.
+pub(super) fn alloc_test(ui: &MainWindow) -> Script {
+    script::run(ui, move |ui| async move {
+        let verdict = Verdict::new("allocation");
+        script::loaded(&ui).await;
+        let mut beat = Beat::new(Duration::from_millis(200));
+        beat.rest(3).await;
+        verdict
+            .expect(
+                || ui.get_video_clip_w() > 0,
+                "the film is on screen to begin with",
+            )
+            .await;
+
+        // The refusal a driver out of room gives, on the next frame's targets.
+        let refusals = dbm_gpu::pipeline::refusals();
+        dbm_gpu::pipeline::refuse_next_allocation();
+        ui.window().request_redraw();
+        verdict
+            .expect(
+                || dbm_gpu::pipeline::refusals() > refusals,
+                "a frame's allocation is refused",
+            )
+            .await;
+        beat.rest(2).await;
+        verdict
+            .expect(
+                || ui.get_video_clip_w() > 0,
+                "the frame it had is still the one shown",
+            )
+            .await;
+
+        // And the next frame draws again, at a size the targets did not have.
+        ui.window().set_size(slint::PhysicalSize::new(1024, 640));
+        verdict
+            .expect(
+                || {
+                    let size = ui.window().size();
+                    ui.get_video_clip_w() == size.width as i32
+                        && ui.get_video_clip_h() == size.height as i32
+                },
+                "the frame after it is drawn at the new size",
+            )
+            .await;
+        verdict.finish();
     })
 }

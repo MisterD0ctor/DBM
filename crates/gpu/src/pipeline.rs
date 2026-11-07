@@ -67,6 +67,29 @@ impl std::error::Error for Error {
     }
 }
 
+/// Whether the next frame's allocation is to be refused, and how many have
+/// been. Only when the harness is built in.
+#[cfg(feature = "harness")]
+static REFUSE_NEXT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+#[cfg(feature = "harness")]
+static REFUSED: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+
+/// Ask the next frame's allocation to fail, as a driver with no room left
+/// would, so the harness can watch what the player does about it.
+///
+/// Only the next one; the frame after allocates normally.
+#[cfg(feature = "harness")]
+pub fn refuse_next_allocation() {
+    REFUSE_NEXT.store(true, std::sync::atomic::Ordering::SeqCst);
+}
+
+/// How many allocations have been refused, so an exercise can tell that one
+/// was rather than only that it was asked for.
+#[cfg(feature = "harness")]
+pub fn refusals() -> u32 {
+    REFUSED.load(std::sync::atomic::Ordering::SeqCst)
+}
+
 /// How long the last frame's three stretches took.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Timings {
@@ -345,6 +368,13 @@ impl Pipeline {
     /// any target's active size differs, not one target's: a failed grow
     /// may have moved some of them and not others.
     fn ensure_sizes(&mut self, gl: &glow::Context, size: Size) -> Sizes {
+        // The harness's one way to reach the refusal a driver would give on
+        // a frame it has no room for, which no window can be asked to cause.
+        #[cfg(feature = "harness")]
+        if REFUSE_NEXT.swap(false, std::sync::atomic::Ordering::SeqCst) {
+            REFUSED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            return Sizes::Refused;
+        }
         let resized = [
             &self.video,
             &self.extended,

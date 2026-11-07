@@ -18,3 +18,7 @@ resvg.workspace = true
 
 [lints]
 workspace = true
+
+[features]
+# Hooks only the player's harness calls, so a release build has none of them.
+harness = []

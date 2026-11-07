@@ -22,6 +22,9 @@
 //! * `DBM_RESIZE_TEST=1` — sweeps the window width like a drag. It does *not*
 //!   enter Windows' modal resize loop, so it can pass while a real drag
 //!   freezes; that is `DBM_MODAL_TEST`.
+//! * `DBM_ALLOC_TEST=1` — refuses the next frame's target allocation, as a
+//!   driver with no room left would, and checks that the frame it had stays
+//!   on screen and the one after it is drawn at a new size.
 //! * `DBM_MODAL_TEST=1` — posts `WM_SYSCOMMAND`/`SC_SIZE` to enter that modal
 //!   loop for real.
 //! * `DBM_TOGGLE_TEST=1` — flips each effect switch, autoplay and the
@@ -319,6 +322,7 @@ type Start = fn(&MainWindow, &App, &Reader, String) -> Script;
 const EXERCISES: &[(&str, Start)] = &[
     ("DBM_INPUT_TEST", |ui, _, _, _| playback::input_test(ui)),
     ("DBM_RESIZE_TEST", |ui, _, _, _| layout::resize_test(ui)),
+    ("DBM_ALLOC_TEST", |ui, _, _, _| layout::alloc_test(ui)),
     ("DBM_MODAL_TEST", |ui, _, _, _| layout::modal_test(ui)),
     ("DBM_PARAM_TEST", |ui, _, _, _| settings::param_test(ui)),
     ("DBM_TOGGLE_TEST", |ui, _, mpv, _| {

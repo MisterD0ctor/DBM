@@ -12,7 +12,7 @@ publish.workspace = true
 # The automated exercises and showcases, switched on by the `DBM_*_TEST` and
 # `DBM_SHOWCASE` variables — see `harness`. Off in a release, which then
 # carries none of them; `scripts/headless.sh` runs a build with it on.
-harness = ["dbm-library/harness"]
+harness = ["dbm-library/harness", "dbm-gpu/harness"]
 
 [dependencies]
 # The winit window behind Slint's is reached for what Slint has no say in: the
