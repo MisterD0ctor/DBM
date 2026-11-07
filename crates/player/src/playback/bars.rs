@@ -6,6 +6,7 @@
 //! subtitles rest — finds the picture rather than the frame.
 
 use dbm_library::bars::{Crop, Found};
+use dbm_library::threads::ForFile;
 use dbm_mpv::tracks::{self, TrackKind};
 use dbm_mpv::{MediaPath, Mpv};
 
@@ -15,7 +16,7 @@ use super::state::PlayerState;
 #[derive(Default)]
 pub struct Bars {
     /// The answer for the file playing, kept with its path.
-    found: Option<(MediaPath, Option<Crop>)>,
+    found: Option<ForFile<Option<Crop>>>,
     /// The crop mpv was handed, and which of `PlayerState::loads` it was for:
     /// mpv drops it when that file ends, even when the same file opens again.
     sent: Option<(u64, Crop)>,
@@ -27,7 +28,7 @@ impl Bars {
     pub fn take(&mut self, found: Found, playing: Option<&MediaPath>) {
         let path = found.path().clone();
         if let Some(crop) = found.if_playing(playing) {
-            self.found = Some((path, crop));
+            self.found = Some(ForFile::new(path, crop));
         }
     }
 
@@ -50,8 +51,8 @@ impl Bars {
         let wanted = self
             .found
             .as_ref()
-            .filter(|(found, _)| found == path)
-            .and_then(|(_, crop)| *crop)
+            .filter(|found| found.path() == path)
+            .and_then(|found| *found.value())
             .filter(|_| !styled);
         let given = self
             .sent

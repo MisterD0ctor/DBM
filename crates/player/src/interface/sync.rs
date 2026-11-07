@@ -89,7 +89,18 @@ pub struct ListSync {
     /// menu would wait on it. mpv writes a place when it leaves a file, so
     /// the progress is read again when the file or the list changes, or when
     /// asked for.
-    progress_read: Option<(Vec<MediaPath>, Option<MediaPath>)>,
+    progress_read: Option<ReadFor>,
+}
+
+/// The list and the file playing when the progress on each row was read.
+///
+/// Kept together because a read is only the same read if both are: mpv
+/// writes a place as it leaves a file, so the playing file moving is reason
+/// enough to read the places again.
+#[derive(Clone)]
+struct ReadFor {
+    list: Vec<MediaPath>,
+    playing: Option<MediaPath>,
 }
 
 impl ListSync {
@@ -126,7 +137,7 @@ impl ListSync {
                 .iter()
                 .find(|e| e.current)
                 .map(|e| e.filename.clone());
-            let same = read_for.is_some_and(|(list, was)| list == paths && was == playing);
+            let same = read_for.is_some_and(|read| read.list == paths && read.playing == playing);
             Some(Completion::Lists(Lists {
                 tracks: mpv.get_or_none(prop::TRACK_LIST).unwrap_or_default(),
                 chapters: mpv.get_or_none(prop::CHAPTER_LIST).unwrap_or_default(),
@@ -147,7 +158,10 @@ impl ListSync {
         self.in_flight = false;
         if lists.generation == player.tracks_generation && lists.progress.is_some() {
             let paths = lists.playlist.iter().map(|e| e.filename.clone()).collect();
-            self.progress_read = Some((paths, lists.playing.clone()));
+            self.progress_read = Some(ReadFor {
+                list: paths,
+                playing: lists.playing.clone(),
+            });
         }
         let moved = player.apply_lists(lists);
         if moved {
