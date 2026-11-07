@@ -21,7 +21,7 @@
 use glow::HasContext;
 
 use crate::blur::Blur;
-use crate::gfx::{Program, ScreenQuad, Target, program, saved_draw_fbo};
+use crate::gfx::{Program, ScreenQuad, Target, program, program_with, saved_draw_fbo};
 use crate::rect::{Normalised, Rect, Region};
 use crate::size::Size;
 
@@ -245,13 +245,13 @@ impl Pipeline {
         Ok(Self {
             quad: ScreenQuad::new(gl)?,
             prog_extend: program!(gl, "border_extend")?,
-            prog_spread: program!(gl, "border_spread")?,
+            prog_spread: program_with!(gl, "border_spread", "dither")?,
             video: Target::default(),
             extended: Target::default(),
             composite: Target::default(),
             blur_out: Target::default(),
             glassed: Target::default(),
-            prog_glass: program!(gl, "glass")?,
+            prog_glass: program_with!(gl, "glass", "dither")?,
             blur_chain: Blur::new(gl)?,
             over_base: Target::default(),
             over_blur: Target::default(),

@@ -735,6 +735,9 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
 void main() {
     vec2 px = v_uv * u_size;
     vec3 col = base_at(v_uv);
+    // How much of the pixel the panes cover, which is how much grain the
+    // finish below is entitled to: the picture under them is not this pass's.
+    float covered = 0.0;
     vec2 centre;
     vec2 half_size;
     float radius;
@@ -782,7 +785,7 @@ void main() {
             continue;
         }
 
-        float dither = dither_at(px);
+        float rotation = dither_at(px);
         vec3 glass;
         if (d > -max(RIM_BAND * u_bevel * radius, 1.0)) {
             glass = vec3(0.0);
@@ -794,15 +797,16 @@ void main() {
             for (int s = 0; s < 8; s++) {
                 glass += glass_at(px + RIM_SAMPLES[s], centre, half_size, radius, tinted,
                                   u_panel_light[i], RIM_BANDS,
-                                  fract(dither + float(s) * 0.125));
+                                  fract(rotation + float(s) * 0.125));
             }
             glass *= 0.125;
         } else {
             glass = glass_at(px, centre, half_size, radius, tinted, u_panel_light[i],
-                             MAX_BANDS, dither);
+                             MAX_BANDS, rotation);
         }
 
         col = mix(col, glass, coverage);
+        covered = max(covered, coverage);
     }
 
     for (int i = 0; i < MAX_PANELS; i++) {
@@ -816,5 +820,8 @@ void main() {
         }
     }
 
-    frag = vec4(col, 1.0);
+    // The rim and the bevel are wide, smooth gradients, and eight bits a
+    // channel steps them into contours: the same grain the ambient border
+    // adds dissolves them, where there is glass to dissolve them in.
+    frag = vec4(dither(grain_seed(px, col), DITHER_STEP * covered, col), 1.0);
 }

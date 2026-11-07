@@ -402,6 +402,26 @@ macro_rules! program {
 }
 pub(crate) use program;
 
+/// [`program!`] with a shared chunk compiled in ahead of the body, for the
+/// passes that draw the same grain (see `shaders/dither.frag`).
+macro_rules! program_with {
+    ($gl:expr, $name:literal, $shared:literal) => {
+        $crate::gfx::Program::new(
+            $gl,
+            include_str!("../shaders/fullscreen.vert"),
+            concat!(
+                include_str!(concat!("../shaders/", $shared, ".frag")),
+                include_str!(concat!("../shaders/", $name, ".frag"))
+            ),
+        )
+        .map_err(|e| $crate::gfx::Error::Named {
+            name: $name,
+            source: Box::new(e),
+        })
+    };
+}
+pub(crate) use program_with;
+
 /// Why a shader program could not be built.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {

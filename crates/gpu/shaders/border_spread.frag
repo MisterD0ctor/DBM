@@ -9,7 +9,9 @@
 //
 // The one addition is the final composite: mpv draws into a texture with a
 // transparent surround rather than owning the window, so the video is laid
-// over the ambient background here instead of by mpv's compositor.
+// over the ambient background here instead of by mpv's compositor. The grain
+// is shared with the glass, and with the rest of the frame's gradients: see
+// `dither.frag`.
 
 in vec2 v_uv;
 out vec4 frag;
@@ -108,11 +110,6 @@ float spread_falloff(float x, float d) {
     return d / max(length(vec2(x, d * spread)), 1e-8);
 }
 
-// A common cheap PRNG, from a GLSL tricks forum post.
-float mod289(float x)  { return x - floor(x / 289.0) * 289.0; }
-float permute(float x) { return mod289((34.0 * x + 1.0) * x); }
-float rand(float x)    { return fract(x / 41.0); }
-
 vec4 light_spread(vec2 pos, float edge_dist, vec2 dir, float rnd) {
     float pt = length(u_texel * dir);
     float center = length(pos * dir);
@@ -190,19 +187,13 @@ void main() {
     // picked for them does not matter — only that it stays finite.
     vec2 dir = dist > 0.0 ? abs(normalize(delta.yx)) : vec2(0.0, 1.0);
 
-    // Initialize the PRNG by hashing the position + the pixel color
-    vec3 m = vec3(pos, 1.0) + src(pos).rgb;
-    float h = permute(permute(permute(m.x) + m.y) + m.z);
+    // One seed for this pixel's share of the frame's grain, which the spread
+    // below jitters its taps with and which the grain itself is taken from.
+    float seed = grain_seed(pos, src(pos).rgb);
 
-    vec4 noise;
-    noise.x = rand(h); h = permute(h);
-    noise.y = rand(h); h = permute(h);
-    noise.z = rand(h); h = permute(h);
-    noise.w = 0.5;
-
-    vec4 border = light_spread(pos, dist, dir, h)
-                * soft_distance_falloff(dist * falloff)
-                + (grain / 8192.0) * (noise - vec4(0.5));
+    vec4 border = light_spread(pos, dist, dir, seed)
+                * soft_distance_falloff(dist * falloff);
+    border.rgb = dither(seed, grain / 8192.0, border.rgb);
 
     // Lay the video over the ambient background it just drew.
     //
