@@ -230,10 +230,10 @@ impl Player {
         let Some(file) = self.per_file.as_mut() else {
             return;
         };
-        if !self.state.eof_reached || file.end_light_asked {
+        if !self.state.eof_reached || !file.end_light.wants_asking() {
             return;
         }
-        file.end_light_asked = true;
+        file.end_light = file.end_light.asked();
         let path = file.path.clone();
         self.app.worker.submit(move |_mpv| {
             let still = dbm_library::preview::lit_still(&path, 0.9);

@@ -140,10 +140,8 @@ struct PerFile {
     path: MediaPath,
     /// Whether the way on was looked for, at its end or in its credits.
     onward_asked: bool,
-    /// Whether its end was asked to be given a light (see `light_the_end`),
-    /// and what lights it once one came.
-    end_light_asked: bool,
-    end_light: Option<EndLight>,
+    /// How its end is lit once it has ended (see `light_the_end`).
+    end_light: EndLight,
     /// Whether its title sequence and credits were listened for.
     titles_asked: bool,
     /// Whether the subtitles fetched for it before were put back, once it
@@ -159,8 +157,7 @@ impl PerFile {
         Self {
             path,
             onward_asked: false,
-            end_light_asked: false,
-            end_light: None,
+            end_light: EndLight::Unasked,
             titles_asked: false,
             kept_asked: false,
             bars_asked: false,
@@ -168,13 +165,48 @@ impl PerFile {
     }
 }
 
-/// What lights the end of a file, behind the glass.
+/// What lights the end of a file, behind the glass, and whether to ask
+/// for it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum EndLight {
+    /// Not asked for yet.
+    Unasked,
+    /// Asked for, and not answered yet.
+    Asked,
     /// The most lit frame of the file itself.
     Frame,
     /// The player's mark, for want of a frame of the file's own.
-    Mark,
+    /// `ask_again` once the seek preview's atlas has come, which may have
+    /// one for it.
+    Mark { ask_again: bool },
+}
+
+impl EndLight {
+    fn lit(self) -> bool {
+        matches!(self, Self::Frame | Self::Mark { .. })
+    }
+
+    fn wants_asking(self) -> bool {
+        matches!(self, Self::Unasked | Self::Mark { ask_again: true })
+    }
+
+    /// What it is once asked: still lit by the mark meanwhile, if it was.
+    fn asked(self) -> Self {
+        match self {
+            Self::Mark { .. } => Self::Mark { ask_again: false },
+            _ => Self::Asked,
+        }
+    }
+
+    /// What it is once an atlas has come, which may hold a frame for an end
+    /// that has none of its own yet.
+    fn atlas_came(self) -> Self {
+        match self {
+            Self::Asked => Self::Unasked,
+            Self::Mark { .. } => Self::Mark { ask_again: true },
+            other => other,
+        }
+    }
 }
 
 pub struct Player {
@@ -312,7 +344,7 @@ impl Player {
     pub fn end_lit(&self) -> bool {
         self.state.eof_reached
             && self.per_file.as_ref().is_some_and(|file| {
-                file.end_light.is_some() && self.state.path.as_ref() == Some(&file.path)
+                file.end_light.lit() && self.state.path.as_ref() == Some(&file.path)
             })
     }
 
@@ -368,5 +400,31 @@ impl Player {
                 .set_pos_text(format::position(own).into());
         }
         ui.global::<Playback>().set_end_lit(self.end_lit());
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EndLight;
+
+    #[test]
+    fn an_end_lit_by_the_mark_stays_lit_while_a_frame_is_asked_for_again() {
+        let asked = EndLight::Unasked.asked();
+        assert_eq!(asked, EndLight::Asked);
+        assert!(!asked.lit() && !asked.wants_asking());
+
+        let marked = EndLight::Mark { ask_again: false };
+        assert!(marked.lit() && !marked.wants_asking());
+        let again = marked.atlas_came();
+        assert!(again.lit() && again.wants_asking());
+        let asking = again.asked();
+        assert!(asking.lit() && !asking.wants_asking());
+    }
+
+    #[test]
+    fn an_atlas_asks_again_for_an_unanswered_end_but_not_a_framed_one() {
+        assert_eq!(EndLight::Asked.atlas_came(), EndLight::Unasked);
+        assert_eq!(EndLight::Frame.atlas_came(), EndLight::Frame);
+        assert_eq!(EndLight::Unasked.atlas_came(), EndLight::Unasked);
     }
 }

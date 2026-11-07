@@ -175,12 +175,15 @@ impl Player {
     fn light_the_end_with(&mut self, still: Option<Still>) {
         let (still, light) = match still {
             Some(still) => (Some(still), EndLight::Frame),
-            None => (dbm_library::mark::still(), EndLight::Mark),
+            None => (
+                dbm_library::mark::still(),
+                EndLight::Mark { ask_again: false },
+            ),
         };
         if let Some(still) = still {
             self.backdrop = Some(still);
             if let Some(file) = self.per_file.as_mut() {
-                file.end_light = Some(light);
+                file.end_light = light;
             }
         }
     }
@@ -212,10 +215,8 @@ impl Player {
         playback.set_preview_clip_y(answer.y);
         // An end reached before its atlas was built had no frame of its
         // own to be lit with, and now may.
-        if self.per_file.as_ref().and_then(|file| file.end_light) != Some(EndLight::Frame)
-            && let Some(file) = self.per_file.as_mut()
-        {
-            file.end_light_asked = false;
+        if let Some(file) = self.per_file.as_mut() {
+            file.end_light = file.end_light.atlas_came();
         }
     }
 
