@@ -1,9 +1,9 @@
 name: Nightly
 
-# The harness exercises that check what they see, run against a real libmpv
-# in a compositor with no screen, once a night and whenever asked for. Too
-# slow, and too dependent on the runner's software rendering, to hold up
-# every push; a failure here is a finding to look at, not a broken build.
+# The harness exercises, once a night and whenever asked for, on top of the
+# same run every push makes (see smoke.yml). The nightly one is the backstop
+# for a machine that passed at the time and drifts: a newer libmpv, a runner
+# image that changed under it.
 on:
     schedule:
         - cron: "17 3 * * *"
@@ -16,48 +16,7 @@ env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+    # The exercises themselves live in smoke.yml, which every push and pull
+    # request runs too: one copy of the setup, so the two cannot drift.
     smoke:
-        name: Smoke exercises
-        runs-on: ubuntu-latest
-
-        steps:
-            - uses: actions/checkout@v4
-
-            # The build's libraries as in build.yml, and what a run needs on
-            # top: libmpv to play, ffmpeg to make the films and the previews,
-            # mutter and a session bus for `headless.sh`, Mesa for GL with no
-            # GPU, and PulseAudio for a sound server with no sound card.
-            - name: Install system libraries
-              run: |
-                  sudo apt-get update
-                  sudo apt-get install -y --no-install-recommends \
-                      libfontconfig1-dev libfreetype-dev libxkbcommon-dev \
-                      libwayland-dev libgl-dev \
-                      libmpv2 ffmpeg mutter dbus dbus-user-session \
-                      libgl1-mesa-dri libegl-mesa0 pulseaudio
-
-            - name: Install Rust stable
-              uses: dtolnay/rust-toolchain@stable
-
-            - name: Rust cache
-              uses: Swatinem/rust-cache@v2
-              with:
-                  workspaces: .
-
-            - name: Build with the harness
-              run: cargo build --release -p dbm-player --features harness
-
-            - name: Make the test films
-              run: scripts/smoke-media.sh "$RUNNER_TEMP/media"
-
-            # `headless.sh` keeps its compositor's socket in the runtime
-            # directory, which a runner doesn't set, and PulseAudio its own.
-            # With no device to open, mpv drops a film's audio track, which
-            # the input exercise picks and reads back; PulseAudio with no
-            # sound card plays into a sink that goes nowhere instead.
-            - name: Run the exercises
-              run: |
-                  export XDG_RUNTIME_DIR="$RUNNER_TEMP/runtime"
-                  mkdir -m 700 -p "$XDG_RUNTIME_DIR"
-                  pulseaudio --start --exit-idle-time=-1
-                  scripts/smoke.sh ./target/release/dbm-player "$RUNNER_TEMP/media"
+        uses: ./.github/workflows/smoke.yml

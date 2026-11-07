@@ -124,10 +124,10 @@ scripts/headless.sh env DBM_SHOWCASE=playlist DBM_CAPTURE=playlist.bmp \
     ./target/release/dbm-player path/to/video.mkv
 ```
 
-Three of the exercises (input, scrubbing and subtitles) check what they see
-and fail the run when something is off. `scripts/smoke.sh` runs them against
-two short films that `scripts/smoke-media.sh` makes with ffmpeg, and a nightly
-job does the same on GitHub:
+Some of the exercises check what they see and fail the run when something is
+off. `scripts/smoke.sh` runs them against two short films that
+`scripts/smoke-media.sh` makes with ffmpeg. CI does the same on every push,
+and again once a night:
 
 ```sh
 scripts/smoke-media.sh /tmp/smoke

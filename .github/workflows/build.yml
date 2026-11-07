@@ -20,6 +20,12 @@ env:
     FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+    # The exercises that check what they see, in a compositor with no screen,
+    # against a real libmpv. A job of its own so it runs beside the rest; see
+    # smoke.yml.
+    smoke:
+        uses: ./.github/workflows/smoke.yml
+
     # The Linux side, which is also what the Flatpak builds: formatting, the
     # lints, and the tests. Nothing is packaged here — that is the Flatpak
     # job's.

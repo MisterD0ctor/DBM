@@ -1,0 +1,64 @@
+name: Smoke
+
+# The harness exercises that check what they see, run against a real libmpv
+# in a compositor with no screen. Too slow to be the first thing a push waits
+# on, so it is a job of its own that runs beside the rest; the nightly run
+# calls this same file rather than keeping a copy of it (see nightly.yml).
+#
+# A failure here is a regression in playback, the interface or a platform
+# hook: the exercises read the picture back, not only that a callback ran.
+on:
+    workflow_call:
+
+permissions:
+    contents: read
+
+env:
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+    smoke:
+        name: Smoke exercises
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            # The build's libraries as in build.yml, and what a run needs on
+            # top: libmpv to play, ffmpeg to make the films and the previews,
+            # mutter and a session bus for `headless.sh`, Mesa for GL with no
+            # GPU, and PulseAudio for a sound server with no sound card.
+            - name: Install system libraries
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y --no-install-recommends \
+                      libfontconfig1-dev libfreetype-dev libxkbcommon-dev \
+                      libwayland-dev libgl-dev \
+                      libmpv2 ffmpeg mutter dbus dbus-user-session \
+                      libgl1-mesa-dri libegl-mesa0 pulseaudio
+
+            - name: Install Rust stable
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Rust cache
+              uses: Swatinem/rust-cache@v2
+              with:
+                  workspaces: .
+
+            - name: Build with the harness
+              run: cargo build --release -p dbm-player --features harness
+
+            - name: Make the test films
+              run: scripts/smoke-media.sh "$RUNNER_TEMP/media"
+
+            # `headless.sh` keeps its compositor's socket in the runtime
+            # directory, which a runner doesn't set, and PulseAudio its own.
+            # With no device to open, mpv drops a film's audio track, which
+            # the input exercise picks and reads back; PulseAudio with no
+            # sound card plays into a sink that goes nowhere instead.
+            - name: Run the exercises
+              run: |
+                  export XDG_RUNTIME_DIR="$RUNNER_TEMP/runtime"
+                  mkdir -m 700 -p "$XDG_RUNTIME_DIR"
+                  pulseaudio --start --exit-idle-time=-1
+                  scripts/smoke.sh ./target/release/dbm-player "$RUNNER_TEMP/media"
