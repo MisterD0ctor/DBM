@@ -8,7 +8,7 @@ resolver = "3"
 # The product's version line continues from the Tauri build, which released
 # 0.2.0. This is the same player to anyone installing it, and a version that
 # went backwards would be a lie to the installer and to anyone updating.
-version = "1.1.0"
+version = "1.1.1"
 edition = "2024"
 # The newest thing it uses is `<[T]>::as_chunks`, in the OpenSubtitles hash.
 rust-version = "1.88"
