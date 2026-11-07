@@ -1,5 +1,5 @@
 use dbm_gpu::gfx::Target;
-use dbm_gpu::pipeline::Frame;
+use dbm_gpu::pipeline::{Backdrop, Frame};
 use dbm_gpu::size::Size;
 use slint::{BorrowedOpenGLTextureBuilder, BorrowedOpenGLTextureOrigin, ComponentHandle};
 
@@ -37,10 +37,12 @@ impl Driver {
 
         // The backdrop stands in while nothing is loaded, and at the end of a
         // file once its light has come.
-        gpu.pipeline.show_backdrop(
-            state.path.is_none() || player.end_lit(),
-            state.path.is_some(),
-        );
+        gpu.pipeline
+            .show_backdrop(match (state.path.is_some(), player.end_lit()) {
+                (false, _) => Backdrop::Alone,
+                (true, true) => Backdrop::OverFilm,
+                (true, false) => Backdrop::Off,
+            });
         let paint = ui.global::<crate::Paint>();
         gpu.pipeline.text_floor = f32::from(paint.get_body().alpha()) / 255.0;
 
@@ -144,22 +146,19 @@ fn publish(
     let Some(id) = target.texture_id() else {
         return;
     };
-    let (uw, uh) = (target.size().width, target.size().height);
-    let (aw, ah) = (target.alloc().width, target.alloc().height);
-    let key = Published {
-        id,
-        used: (uw, uh),
-        alloc: (aw, ah),
-    };
+    let used = target.size();
+    let alloc = target.alloc();
+    let key = Published { id, used, alloc };
     if *slot == Some(key) {
         return;
     }
-    let image =
-        unsafe { BorrowedOpenGLTextureBuilder::new_gl_2d_rgba_texture(id, (aw, ah).into()) }
-            // mpv renders unflipped and every pass preserves that, so the
-            // whole chain reads top-left like the rest of the app.
-            .origin(BorrowedOpenGLTextureOrigin::TopLeft)
-            .build();
-    set(image, uw as i32, uh as i32);
+    let image = unsafe {
+        BorrowedOpenGLTextureBuilder::new_gl_2d_rgba_texture(id, (alloc.width, alloc.height).into())
+    }
+    // mpv renders unflipped and every pass preserves that, so the
+    // whole chain reads top-left like the rest of the app.
+    .origin(BorrowedOpenGLTextureOrigin::TopLeft)
+    .build();
+    set(image, used.width as i32, used.height as i32);
     *slot = Some(key);
 }

@@ -42,8 +42,8 @@ use dbm_lang::{fill, marked, tr};
 struct Published {
     id: NonZeroU32,
     /// The active image, and the texture allotted for it.
-    used: (u32, u32),
-    alloc: (u32, u32),
+    used: Size,
+    alloc: Size,
 }
 
 /// Everything that only exists once the GL context does.

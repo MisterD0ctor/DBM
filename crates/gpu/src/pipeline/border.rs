@@ -3,6 +3,7 @@
 
 use super::Pipeline;
 use crate::gfx::bind_texture;
+use crate::pipeline::Backdrop;
 use crate::size::Size;
 
 impl Pipeline {
@@ -12,7 +13,7 @@ impl Pipeline {
         let p = self.params;
         // The backdrop is drawn across the whole target, surround and all,
         // and would come up over the border with it.
-        let surround = if self.clear_surround && !self.show_backdrop {
+        let surround = if self.clear_surround && self.backdrop_shown == Backdrop::Off {
             1.0
         } else {
             0.0

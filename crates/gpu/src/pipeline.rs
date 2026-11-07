@@ -30,7 +30,7 @@ mod border;
 mod glass;
 mod params;
 
-use backdrop::Backdrop;
+use backdrop::Picture;
 pub use params::{
     BEVEL, BorderParams, CORNER_SOFTNESS, GlassOver, GlassPanel, GlassParams, IOR, LEGIBLE,
     MAX_PANELS, OPEN_MILK, RING_MILK, RING_RIM, fringe_scale, legible_ceiling,
@@ -88,6 +88,20 @@ pub fn refuse_next_allocation() {
 #[cfg(feature = "harness")]
 pub fn refusals() -> u32 {
     REFUSED.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+/// How the backdrop stands in for mpv's picture this frame.
+///
+/// Three states rather than a "shown" and an "over the film" beside it,
+/// which left a fourth: over a film that is not being shown.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Backdrop {
+    /// Not at all: mpv's own frame is drawn.
+    Off,
+    /// Alone, with nothing playing.
+    Alone,
+    /// Over the frame mpv still holds, at the end of a file.
+    OverFilm,
 }
 
 /// How long the last frame's three stretches took.
@@ -211,12 +225,10 @@ pub struct Pipeline {
     prog_backdrop: Program,
     /// A frame of the last film left unfinished, or at the end of a file of
     /// what comes next (see [`Pipeline::set_backdrop`]).
-    backdrop: Option<Backdrop>,
-    /// Whether that frame stands in for mpv's picture: while no file is
-    /// loaded, and at the end of one (see [`Pipeline::show_backdrop`]).
-    show_backdrop: bool,
-    /// Whether it arrives over a film's held frame rather than over black.
-    backdrop_over_film: bool,
+    backdrop: Option<Picture>,
+    /// How that frame stands in for mpv's picture, if it does at all (see
+    /// [`Pipeline::show_backdrop`]).
+    backdrop_shown: Backdrop,
     /// The backdrop has just gone, so mpv's frame is drawn again whether or
     /// not it has a new one.
     film_wanted: bool,
@@ -259,8 +271,7 @@ impl Pipeline {
             legible: true,
             prog_backdrop: program!(gl, "backdrop")?,
             backdrop: None,
-            show_backdrop: false,
-            backdrop_over_film: false,
+            backdrop_shown: Backdrop::Off,
             film_wanted: false,
             needs_redraw: false,
             animate: true,
@@ -462,9 +473,9 @@ impl Pipeline {
         // to arrive over.
         let mut drew_backdrop = false;
         let mut drew_film_again = false;
-        if self.show_backdrop && self.backdrop.is_some() {
+        if self.backdrop_shown != Backdrop::Off && self.backdrop.is_some() {
             if resized || self.backdrop_arriving() {
-                if self.backdrop_over_film && !self.film_frame(gl, &film, size)? {
+                if self.backdrop_shown == Backdrop::OverFilm && !self.film_frame(gl, &film, size)? {
                     return Ok(false);
                 }
                 self.draw_backdrop(gl, size);

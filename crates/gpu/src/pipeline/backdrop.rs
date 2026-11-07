@@ -3,7 +3,7 @@
 
 use glow::HasContext;
 
-use super::Pipeline;
+use super::{Backdrop, Pipeline};
 use crate::gfx::bind_texture;
 use crate::size::Size;
 
@@ -17,7 +17,7 @@ const END_SOFTENING: f32 = 2.0;
 /// that fast is a flash.
 const BACKDROP_ARRIVAL: std::time::Duration = std::time::Duration::from_millis(400);
 
-pub(super) struct Backdrop {
+pub(super) struct Picture {
     pub(super) tex: glow::Texture,
     /// The picture's own size, not the window's: it is drawn to fit.
     size: Size,
@@ -65,7 +65,7 @@ impl Pipeline {
             }
             tex
         };
-        self.backdrop = Some(Backdrop {
+        self.backdrop = Some(Picture {
             tex,
             size,
             arrived: std::time::Instant::now(),
@@ -73,25 +73,25 @@ impl Pipeline {
         });
     }
 
-    /// Whether the backdrop stands in for mpv's picture, and whether there is
-    /// a film's frame under it. Each time it is shown it arrives again.
-    pub fn show_backdrop(&mut self, on: bool, over_film: bool) {
-        if on
-            && !self.show_backdrop
+    /// How the backdrop stands in for mpv's picture this frame. Each time it
+    /// is shown it arrives again.
+    pub fn show_backdrop(&mut self, how: Backdrop) {
+        let shown = how != Backdrop::Off;
+        if shown
+            && self.backdrop_shown == Backdrop::Off
             && let Some(b) = self.backdrop.as_mut()
         {
             b.arrived = std::time::Instant::now();
             b.settled = false;
         }
-        self.film_wanted |= self.show_backdrop && !on;
-        self.show_backdrop = on;
-        self.backdrop_over_film = over_film;
+        self.film_wanted |= self.backdrop_shown != Backdrop::Off && !shown;
+        self.backdrop_shown = how;
     }
 
     /// Whether the backdrop still has frames of its arrival to draw, so the
     /// driver keeps asking for them, since with no film nothing else does.
     pub fn backdrop_arriving(&self) -> bool {
-        self.show_backdrop && self.backdrop.as_ref().is_some_and(|b| !b.settled)
+        self.backdrop_shown != Backdrop::Off && self.backdrop.as_ref().is_some_and(|b| !b.settled)
     }
 
     pub(super) fn draw_backdrop(&mut self, gl: &glow::Context, size: Size) {
@@ -113,7 +113,8 @@ impl Pipeline {
         self.prog_backdrop
             .set(gl, "u_image_size", image_size.as_f32());
         self.prog_backdrop.set(gl, "u_level", level);
-        let (over, lod) = if self.backdrop_over_film {
+        let over_film = self.backdrop_shown == Backdrop::OverFilm;
+        let (over, lod) = if over_film {
             (1.0, END_SOFTENING)
         } else {
             (0.0, 0.0)
@@ -121,7 +122,7 @@ impl Pipeline {
         self.prog_backdrop.set(gl, "u_over", over);
         self.prog_backdrop.set(gl, "u_lod", lod);
         bind_texture(gl, &self.prog_backdrop, "u_image", 0, Some(tex));
-        if self.backdrop_over_film {
+        if over_film {
             self.quad.blend_to(gl, &self.video);
         } else {
             self.quad.draw_to(gl, &self.video);
