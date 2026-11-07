@@ -54,6 +54,28 @@ struct Gpu {
     published: Option<Published>,
 }
 
+/// Whether this run can show video at all.
+///
+/// One value rather than a context and a failure beside each other, so that
+/// the two can never both be on hand: a run that has said why it cannot draw
+/// has nothing left to draw with, and the compiler says so.
+///
+/// The file the command line named waits in the first case rather than
+/// beside these, since it is only ever waiting for the context: opening it
+/// earlier starts it against a video output that can never present one.
+enum Video {
+    /// Slint has not asked for a context yet.
+    Waiting { file: Option<std::path::PathBuf> },
+    /// The context, and everything drawn through it.
+    ///
+    /// Boxed because a GL context is several kilobytes and the other two
+    /// states are a pointer and a path: without it every `Video` would be
+    /// that wide, for a value that is made once and read every frame.
+    Live(Box<Gpu>),
+    /// No context this run, and what to say instead of a film.
+    Failed(Failure),
+}
+
 /// The buffers each frame fills, kept between frames so the frame path
 /// does not allocate.
 #[derive(Default)]
@@ -72,9 +94,8 @@ struct Scratch {
 pub struct Driver {
     ui: slint::Weak<MainWindow>,
     app: App,
-    /// Loaded once the render context exists — see `RenderingSetup`.
-    file: Option<std::path::PathBuf>,
-    gpu: Option<Gpu>,
+    /// The context, or why there is none — see [`Video`].
+    video: Video,
     player: Rc<RefCell<Player>>,
     /// `lang::changes` as of the last frame, so a failure is said again in a
     /// language just chosen.
@@ -82,8 +103,6 @@ pub struct Driver {
     diag: diagnostics::Probe,
     /// A picture of a finished frame, when one is asked for.
     capture: diagnostics::Capture,
-    /// Why there is no video this run, if there isn't.
-    failure: Option<Failure>,
     scratch: Scratch,
 }
 
@@ -111,13 +130,11 @@ impl Driver {
         Self {
             ui,
             app,
-            file,
-            gpu: None,
+            video: Video::Waiting { file },
             player,
             language_seen: 0,
             diag: diagnostics::Probe::new(),
             capture: diagnostics::Capture::new(),
-            failure: None,
             scratch: Scratch::default(),
         }
     }
@@ -126,95 +143,112 @@ impl Driver {
         match state {
             RenderingState::RenderingSetup => self.setup(api),
             RenderingState::BeforeRendering => self.frame(),
-            RenderingState::AfterRendering => {
-                self.diag.drawn();
-                if let Some(gpu) = self.gpu.as_mut() {
-                    // Tells mpv the frame reached the screen, which is what
-                    // keeps its frame timing honest. Slint keeps the context
-                    // current through its notifier.
-                    unsafe { gpu.ctx.report_swap() };
-                    // Here rather than in `frame`, because here the interface
-                    // is already drawn over the video and the picture is the
-                    // whole thing. Does nothing unless asked.
-                    if let Some(ui) = self.ui.upgrade() {
-                        let size = ui.window().size();
-                        // Before the picture is taken, so all of it is in it.
-                        // First the soft ends of any list with rows past them,
-                        // on the frame Slint has just drawn...
-                        fades::collect(&ui, &mut self.scratch.fades, &mut self.scratch.ways);
-                        if let Some(fader) = gpu.overlays.fader.as_mut() {
-                            fader.run(
-                                &gpu.gl,
-                                gpu.pipeline.output(),
-                                (size.width, size.height),
-                                &self.scratch.fades,
-                            );
-                        }
-                        // ...then the angle back to a list's current row, whole
-                        // over the edge it sits in, on its glass disc if it has
-                        // one. Nothing Slint draws moves with its circle, so
-                        // this asks for the frames it eases in over.
-                        if dbm_gpu::way::GLASS {
-                            let panes: Vec<_> = self
-                                .scratch
-                                .ways
-                                .iter()
-                                .filter(|w| w.on > 0.004)
-                                .map(dbm_gpu::way::Way::pane)
-                                .collect();
-                            gpu.pipeline
-                                .glass_over(&gpu.gl, (size.width, size.height), &panes);
-                        }
-                        if let Some(way) = gpu.overlays.way.as_mut() {
-                            way.run(&gpu.gl, (size.width, size.height), &self.scratch.ways);
-                            if self.scratch.ways.iter().any(|w| w.lit > 0.0 && w.lit < 1.0) {
-                                ui.window().request_redraw();
-                            }
-                        }
-                        // ...then the shadow, cast by what is left, so a row
-                        // cut off at a list's edge casts nothing past it...
-                        if let Some(shadow) = gpu.overlays.shadow.as_mut() {
-                            shadow.run(
-                                &gpu.gl,
-                                gpu.pipeline.output(),
-                                (size.width, size.height),
-                                &self.scratch.shaded,
-                                ui.window().scale_factor(),
-                            );
-                        }
-                        // ...and last the window's corners, cut from all of it.
-                        if let Some(corners) = gpu.overlays.corners.as_mut() {
-                            // At the system's size, not the interface's, since
-                            // they are the desktop's corners.
-                            let radius = crate::platform::window::corner_radius(ui.window());
-                            corners.run(
-                                &gpu.gl,
-                                (size.width, size.height),
-                                radius * self.app.scale.system(&ui),
-                            );
-                        }
-                        self.capture.maybe(&gpu.gl, size.width, size.height);
-                        // Its fade is drawn here rather than by Slint, so
-                        // nothing else knows to ask for the frames.
-                        if gpu.pipeline.backdrop_arriving() {
-                            ui.window().request_redraw();
-                        }
+            RenderingState::AfterRendering => self.after(),
+            RenderingState::RenderingTeardown => self.teardown(),
+            _ => {}
+        }
+    }
+
+    /// What is drawn over the frame Slint has just drawn, and the swap that
+    /// tells mpv it reached the screen.
+    ///
+    /// The context is taken out for the length of this, as in `frame`, so
+    /// each pass can borrow the rest of the driver while it runs.
+    fn after(&mut self) {
+        self.diag.drawn();
+        let mut video = std::mem::replace(&mut self.video, Video::Waiting { file: None });
+        if let Video::Live(gpu) = &mut video {
+            // Tells mpv the frame reached the screen, which is what keeps
+            // its frame timing honest. Slint keeps the context current
+            // through its notifier.
+            unsafe { gpu.ctx.report_swap() };
+            // Here rather than in `frame`, because here the interface is
+            // already drawn over the video and the picture is the whole
+            // thing. Does nothing unless asked.
+            if let Some(ui) = self.ui.upgrade() {
+                let size = ui.window().size();
+                // Before the picture is taken, so all of it is in it. First
+                // the soft ends of any list with rows past them, on the
+                // frame Slint has just drawn...
+                fades::collect(&ui, &mut self.scratch.fades, &mut self.scratch.ways);
+                if let Some(fader) = gpu.overlays.fader.as_mut() {
+                    fader.run(
+                        &gpu.gl,
+                        gpu.pipeline.output(),
+                        (size.width, size.height),
+                        &self.scratch.fades,
+                    );
+                }
+                // ...then the angle back to a list's current row, whole over
+                // the edge it sits in, on its glass disc if it has one.
+                // Nothing Slint draws moves with its circle, so this asks for
+                // the frames it eases in over.
+                if dbm_gpu::way::GLASS {
+                    let panes: Vec<_> = self
+                        .scratch
+                        .ways
+                        .iter()
+                        .filter(|w| w.on > 0.004)
+                        .map(dbm_gpu::way::Way::pane)
+                        .collect();
+                    gpu.pipeline
+                        .glass_over(&gpu.gl, (size.width, size.height), &panes);
+                }
+                if let Some(way) = gpu.overlays.way.as_mut() {
+                    way.run(&gpu.gl, (size.width, size.height), &self.scratch.ways);
+                    if self.scratch.ways.iter().any(|w| w.lit > 0.0 && w.lit < 1.0) {
+                        ui.window().request_redraw();
                     }
                 }
-                self.keep_the_interface_moving();
-            }
-            RenderingState::RenderingTeardown => {
-                // The image property is left alone here: this callback runs
-                // while Slint holds the window's adapter borrow, and setting
-                // a property that asks for a redraw would panic inside it.
-                // The next BeforeRendering publishes or clears it before
-                // Slint draws anything.
-                if let Some(gpu) = self.gpu.take() {
-                    gpu.pipeline.release(&gpu.gl);
-                    gpu.overlays.release(&gpu.gl);
+                // ...then the shadow, cast by what is left, so a row cut off
+                // at a list's edge casts nothing past it...
+                if let Some(shadow) = gpu.overlays.shadow.as_mut() {
+                    shadow.run(
+                        &gpu.gl,
+                        gpu.pipeline.output(),
+                        (size.width, size.height),
+                        &self.scratch.shaded,
+                        ui.window().scale_factor(),
+                    );
+                }
+                // ...and last the window's corners, cut from all of it.
+                if let Some(corners) = gpu.overlays.corners.as_mut() {
+                    // At the system's size, not the interface's, since they
+                    // are the desktop's corners.
+                    let radius = crate::platform::window::corner_radius(ui.window());
+                    corners.run(
+                        &gpu.gl,
+                        (size.width, size.height),
+                        radius * self.app.scale.system(&ui),
+                    );
+                }
+                self.capture.maybe(&gpu.gl, size.width, size.height);
+                // Its fade is drawn here rather than by Slint, so nothing
+                // else knows to ask for the frames.
+                if gpu.pipeline.backdrop_arriving() {
+                    ui.window().request_redraw();
                 }
             }
-            _ => {}
+        }
+        self.video = video;
+        self.keep_the_interface_moving();
+    }
+
+    /// Give back everything the context made, and go back to waiting for one.
+    fn teardown(&mut self) {
+        // The image property is left alone here: this callback runs while
+        // Slint holds the window's adapter borrow, and setting a property
+        // that asks for a redraw would panic inside it. The next
+        // BeforeRendering publishes or clears it before Slint draws anything.
+        let video = std::mem::replace(&mut self.video, Video::Waiting { file: None });
+        match video {
+            Video::Live(gpu) => {
+                gpu.pipeline.release(&gpu.gl);
+                gpu.overlays.release(&gpu.gl);
+            }
+            // A failure is not the context's to take with it: the window
+            // would go back to being silently black.
+            other => self.video = other,
         }
     }
 
@@ -231,20 +265,19 @@ impl Driver {
     /// shaders may be a fault in the player's own GLSL.
     fn fatal(&mut self, failure: Failure) {
         log::error!("{} — {}", NO_VIDEO, fill(failure.detail, &[&failure.cause]));
-        self.failure = Some(failure);
+        self.video = Video::Failed(failure);
         if let Some(ui) = self.ui.upgrade() {
             // Nothing will render through this context, so what the last one
             // left must not stay in the image property.
             draw::clear_image(&ui);
-            self.say_failure(&ui);
+            if let Video::Failed(failure) = &self.video {
+                self.say_failure(&ui, failure);
+            }
         }
     }
 
     /// Put the failure on the way in, in the language being spoken.
-    fn say_failure(&self, ui: &MainWindow) {
-        let Some(failure) = &self.failure else {
-            return;
-        };
+    fn say_failure(&self, ui: &MainWindow, failure: &Failure) {
         // Nothing renders after a failure, so the ring has only its wash.
         ui.global::<crate::Paint>().set_glass(false);
         ui.set_fatal(tr(NO_VIDEO).into());
@@ -253,6 +286,19 @@ impl Driver {
     }
 
     fn setup(&mut self, api: &GraphicsAPI) {
+        // Taken out here, and opened only at the end: with `vo=libmpv` there
+        // is no video output until this context exists, so a file loaded
+        // before it starts against one that can never present a frame.
+        let file = match std::mem::replace(&mut self.video, Video::Waiting { file: None }) {
+            Video::Waiting { file } => file,
+            // Slint asks once per window. A second ask over a live context
+            // has nothing to do, and one over a failure keeps the failure:
+            // whatever went wrong is still true.
+            other => {
+                self.video = other;
+                return;
+            }
+        };
         let GraphicsAPI::NativeOpenGL { get_proc_address } = api else {
             self.fatal(Failure {
                 detail: marked(
@@ -290,14 +336,14 @@ impl Driver {
         {
             Ok(ctx) => {
                 log::info!("mpv render context created on Slint's GL context");
-                self.player.borrow_mut().start(self.file.take());
-                self.gpu = Some(Gpu {
+                self.player.borrow_mut().start(file);
+                self.video = Video::Live(Box::new(Gpu {
                     overlays: Overlays::new(&gl),
                     ctx,
                     gl,
                     pipeline,
                     published: None,
-                });
+                }));
             }
             Err(e) => self.fatal(Failure {
                 detail: marked("mpv could not attach to the player's graphics context. {}"),
@@ -339,49 +385,56 @@ impl Driver {
 
     /// One frame, in the order the module doc gives.
     ///
-    /// The GPU state is taken out of the driver for the length of it and put
-    /// back at the end, so each step can borrow the rest of the driver freely
-    /// while the pipeline is held.
+    /// The video state is taken out of the driver for the length of it and
+    /// put back at the end, so each step can borrow the rest of the driver
+    /// freely while the context is held.
     fn frame(&mut self) {
         let Some(ui) = self.ui.upgrade() else {
             return;
         };
-        let Some(mut gpu) = self.gpu.take() else {
-            // With no render context, the failure is all there is to say
-            // again in a language just chosen.
-            let changes = dbm_lang::changes();
-            if changes != self.language_seen {
-                self.language_seen = changes;
-                self.say_failure(&ui);
+        let mut video = std::mem::replace(&mut self.video, Video::Waiting { file: None });
+        match &mut video {
+            // Nothing has asked for a context yet, so there is no frame to
+            // draw and nothing gone wrong to explain.
+            Video::Waiting { .. } => {}
+            Video::Failed(failure) => {
+                // The failure is all there is to say again in a language
+                // just chosen.
+                let changes = dbm_lang::changes();
+                if changes != self.language_seen {
+                    self.language_seen = changes;
+                    self.say_failure(&ui, failure);
+                }
             }
-            return;
-        };
-        // A fresh context starts with no published target. Drop whatever
-        // image the old one left, before Slint can draw it against names
-        // that mean something else here.
-        if gpu.published.is_none() {
-            draw::clear_image(&ui);
+            Video::Live(gpu) => {
+                // A fresh context starts with no published target. Drop
+                // whatever image the old one left, before Slint can draw it
+                // against names that mean something else here.
+                if gpu.published.is_none() {
+                    draw::clear_image(&ui);
+                }
+                let player = self.player.clone();
+                let mut player = player.borrow_mut();
+
+                let t = self.diag.begin();
+                player.hear(&ui);
+                let t = self.diag.mark_events(t);
+                player.background(&ui);
+                if let Some(still) = player.take_backdrop() {
+                    gpu.pipeline
+                        .set_backdrop(&gpu.gl, &still.rgba, still.width, still.height);
+                }
+                let t = self.diag.mark_lists(t);
+
+                glass::collect(&ui, &mut self.scratch.panels);
+                let t = self.diag.mark_panels(t);
+                self.diag.panels_changed(&self.scratch.panels);
+                player.warm(&ui);
+                self.app.scale.frame(&ui, self.app.settings.scale());
+
+                self.draw(&ui, gpu, &player, t);
+            }
         }
-        let player = self.player.clone();
-        let mut player = player.borrow_mut();
-
-        let t = self.diag.begin();
-        player.hear(&ui);
-        let t = self.diag.mark_events(t);
-        player.background(&ui);
-        if let Some(still) = player.take_backdrop() {
-            gpu.pipeline
-                .set_backdrop(&gpu.gl, &still.rgba, still.width, still.height);
-        }
-        let t = self.diag.mark_lists(t);
-
-        glass::collect(&ui, &mut self.scratch.panels);
-        let t = self.diag.mark_panels(t);
-        self.diag.panels_changed(&self.scratch.panels);
-        player.warm(&ui);
-        self.app.scale.frame(&ui, self.app.settings.scale());
-
-        self.draw(&ui, &mut gpu, &player, t);
-        self.gpu = Some(gpu);
+        self.video = video;
     }
 }
