@@ -89,14 +89,20 @@ pub struct Split {
 }
 
 /// What allocating the frame's targets came to.
+///
+/// Two states rather than an `ok` and a `resized` beside it: a resize that
+/// could not be given its room has no meaningful answer to "did anything
+/// move", since the next frame has to run the whole chain whatever it says.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-struct Sizes {
-    /// Every target the pass needs exists.
-    ok: bool,
-    /// Any target's active size differs, so its contents must be drawn
-    /// again. Not just the composite: a failed grow may have moved some
-    /// targets and not others.
-    resized: bool,
+enum Sizes {
+    /// Every target the pass needs exists. `resized` says whether any of
+    /// them had to move to get there, so its contents must be drawn again.
+    /// Not just the composite: a failed grow may have moved some targets and
+    /// not others.
+    Allocated { resized: bool },
+    /// One could not be given the room it asked for. The rest were still
+    /// tried, so the next frame starts from one size rather than a mix.
+    Refused,
 }
 
 /// What one frame is drawn from.
@@ -360,7 +366,11 @@ impl Pipeline {
                 ok = false;
             }
         }
-        Sizes { ok, resized }
+        if ok {
+            Sizes::Allocated { resized }
+        } else {
+            Sizes::Refused
+        }
     }
 
     /// Pull the film's current frame and run the whole chain.
@@ -386,12 +396,14 @@ impl Pipeline {
             panels,
             shaded,
         } = *frame;
-        let sizes = self.ensure_sizes(gl, w, h);
-        if !sizes.ok {
-            self.needs_redraw = true;
-            return Ok(false);
-        }
-        let resized = sizes.resized || std::mem::take(&mut self.needs_redraw);
+        let resized = match self.ensure_sizes(gl, w, h) {
+            Sizes::Allocated { resized } => resized,
+            Sizes::Refused => {
+                self.needs_redraw = true;
+                return Ok(false);
+            }
+        };
+        let resized = resized || std::mem::take(&mut self.needs_redraw);
         let saved_fbo = saved_draw_fbo(gl);
 
         // `DBM_GPU_TIME=1` inserts a glFinish between passes so the numbers
