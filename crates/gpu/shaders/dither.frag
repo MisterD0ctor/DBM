@@ -27,7 +27,7 @@ float grain_seed(vec2 pixel, vec3 colour) {
 /// Peak to peak, in colour: two steps of an 8-bit channel, so every pixel is
 /// moved by up to one of them either way. Enough to lose a contour, too
 /// little to be seen as texture.
-const float DITHER_STEP = 2.0 / 255.0;
+const float DITHER_STEP = 3.0 / 255.0;
 
 /// `colour` with `amount` of grain added, up to half of it either way, from
 /// `seed`. Callers that have a knob of their own pass what it says; the rest
