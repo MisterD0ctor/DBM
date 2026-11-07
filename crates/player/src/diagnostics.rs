@@ -61,6 +61,16 @@ fn monotonic() -> String {
     String::new()
 }
 
+/// Which of the two effect passes were running when pixels were last read.
+///
+/// Named rather than a pair: both are `bool`, and a comparison against the
+/// wrong one of them compiles.
+#[derive(Clone, Copy, PartialEq)]
+struct Enables {
+    glass: bool,
+    border: bool,
+}
+
 #[derive(Default)]
 struct Phases {
     events: Duration,
@@ -99,7 +109,7 @@ pub struct Probe {
     /// checked in pixels — a stored `false` proves only that the click
     /// arrived, not that the pass stopped running — so a change here takes
     /// another reading.
-    sampled_enables: Option<(bool, bool)>,
+    sampled_enables: Option<Enables>,
     frame_log: bool,
     /// When this frame and the one before it began, and its own phases.
     began: Instant,
@@ -265,7 +275,10 @@ impl Probe {
         // After the first reading, any switch flipping takes another. Only
         // once settled: the first frame after a toggle can still be showing
         // the previous composite.
-        let enables = (pipeline.glass_enabled, pipeline.border_enabled);
+        let enables = Enables {
+            glass: pipeline.glass_enabled,
+            border: pipeline.border_enabled,
+        };
         if self.probed && self.sampled_enables.is_some_and(|last| last != enables) {
             self.sampled_enables = Some(self.sample_enables(pipeline, gl, player));
         }
@@ -345,7 +358,7 @@ impl Probe {
         pipeline: &Pipeline,
         gl: &glow::Context,
         player: &PlayerState,
-    ) -> (bool, bool) {
+    ) -> Enables {
         eprintln!(
             "dbm: glass={} ambience={}",
             pipeline.glass_enabled, pipeline.border_enabled
@@ -353,7 +366,10 @@ impl Probe {
         self.sample_panel(pipeline, gl);
         self.sample_rims(pipeline, gl, dbm_gpu::pipeline::BEVEL);
         self.sample_letterbox(pipeline, gl, player);
-        (pipeline.glass_enabled, pipeline.border_enabled)
+        Enables {
+            glass: pipeline.glass_enabled,
+            border: pipeline.border_enabled,
+        }
     }
 
     /// Sample the letterbox, which is the only place the ambient border draws.
