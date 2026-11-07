@@ -14,6 +14,10 @@ use slint::ComponentHandle;
 use crate::{MainWindow, Panel};
 
 /// Every panel there is to draw unseen.
+///
+/// Written by hand because Slint's enums cannot be iterated here; a panel
+/// added to the interface is warmed only once it is added below, which costs
+/// that panel's first opening and nothing else.
 pub const ALL: [Panel; 5] = [
     Panel::Subtitles,
     Panel::Audio,
@@ -41,14 +45,7 @@ impl WarmUp {
     /// From the frame path: draw the next panel due in this frame, unless one
     /// is open, or something on screen is moving for the slow frame to show in.
     pub fn frame(&mut self, ui: &MainWindow) {
-        if self.due.is_empty()
-            || ui.get_menu_open()
-            || ui.get_audio_open()
-            || ui.get_playlist_open()
-            || ui.get_settings_open()
-            || ui.get_files_open()
-            || ui.window().has_active_animations()
-        {
+        if self.due.is_empty() || ui.get_panel_open() || ui.window().has_active_animations() {
             return;
         }
         let panel = self.due.remove(0);

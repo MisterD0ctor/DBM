@@ -249,8 +249,9 @@ export component MainWindow inherits Window {
 
     /// Whether any panel is open. Tips open on the line panels do, so a tip
     /// stands down while any panel is up rather than working out whether it
-    /// would land under it.
-    property <bool> panel-open: root.open-panel != Panel.none;
+    /// would land under it; the Rust side reads it the same way, rather than
+    /// testing the five above one by one.
+    out property <bool> panel-open: root.open-panel != Panel.none;
 
     changed panel-open => {
         if (!root.panel-open && root.pill-owed) {
