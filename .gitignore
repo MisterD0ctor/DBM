@@ -2,12 +2,17 @@ target
 *.log
 
 # Editor directories and files
-.vscode/*
+.vscode
 !.vscode/extensions.json
 .idea
 .DS_Store
 *.suo
 *.sw?
 
-# Impeccable critique snapshots — generated reports
-.impeccable/critique/
+# AI
+.claude
+.dsh
+.impeccable
+AGENTS.md
+DESIGN.md
+PRODUCT.md
