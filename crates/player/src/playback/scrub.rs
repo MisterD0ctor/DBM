@@ -147,14 +147,32 @@ struct Drag {
     mark: (Instant, f32),
     /// When the pointer last moved.
     moved: Instant,
-    /// The last seek sent: where to, and whether it was exact.
-    sent: Option<(f32, bool)>,
+    /// The last seek sent, if one was.
+    sent: Option<Sent>,
     line: Line,
     /// Counters reported under DBM_TRACE. The ratio between the first two is
     /// the whole point of this type.
     requested: u32,
     issued: u32,
     exact: u32,
+}
+
+/// A seek the drag sent: where it went, and whether it was the exact frame
+/// there or a keyframe before it.
+///
+/// Named rather than a pair, so a call site cannot pass the two the wrong
+/// way round — both are numbers, and one of them is a pixel of the timeline
+/// and the other a bool.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Sent {
+    fraction: f32,
+    exact: bool,
+}
+
+impl Sent {
+    fn new(fraction: f32, exact: bool) -> Self {
+        Self { fraction, exact }
+    }
 }
 
 /// Whether one of the drag's seeks is on its way to mpv.
@@ -248,7 +266,7 @@ impl Drag {
         {
             return Line::Clear;
         }
-        self.sent = Some((fraction, exact));
+        self.sent = Some(Sent::new(fraction, exact));
         self.issued += 1;
         if exact {
             self.exact += 1;
@@ -271,9 +289,9 @@ fn pace(speed: f64) -> Option<Pace> {
 
 /// Whether a seek would show anything the last one did not. To the same
 /// place it only does when it is exact and the last was not.
-fn worth_sending(sent: Option<(f32, bool)>, fraction: f32, exact: bool) -> bool {
+fn worth_sending(sent: Option<Sent>, fraction: f32, exact: bool) -> bool {
     match sent {
-        Some((at, was_exact)) if at == fraction => exact && !was_exact,
+        Some(sent) if sent.fraction == fraction => exact && !sent.exact,
         _ => true,
     }
 }
@@ -294,12 +312,12 @@ mod tests {
     fn the_same_picture_is_not_asked_for_twice() {
         // Nothing sent yet, or somewhere else: always worth it.
         assert!(worth_sending(None, 0.5, false));
-        assert!(worth_sending(Some((0.4, true)), 0.5, false));
+        assert!(worth_sending(Some(Sent::new(0.4, true)), 0.5, false));
         // The same place again shows nothing new...
-        assert!(!worth_sending(Some((0.5, false)), 0.5, false));
-        assert!(!worth_sending(Some((0.5, true)), 0.5, true));
-        assert!(!worth_sending(Some((0.5, true)), 0.5, false));
+        assert!(!worth_sending(Some(Sent::new(0.5, false)), 0.5, false));
+        assert!(!worth_sending(Some(Sent::new(0.5, true)), 0.5, true));
+        assert!(!worth_sending(Some(Sent::new(0.5, true)), 0.5, false));
         // ...unless it was a keyframe and the frame itself is now wanted.
-        assert!(worth_sending(Some((0.5, false)), 0.5, true));
+        assert!(worth_sending(Some(Sent::new(0.5, false)), 0.5, true));
     }
 }
