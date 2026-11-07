@@ -21,11 +21,11 @@ use crate::{MainWindow, Playlist};
 
 #[derive(Default)]
 pub(super) struct Opening {
-    /// Whether the list on its way is to start playing once it is in.
-    starting: bool,
-    /// The lists handed to `loadlist` and not yet answered, oldest first,
-    /// each deleted when its answer comes, by when mpv has read it.
-    lists: VecDeque<PathBuf>,
+    /// The lists handed to `loadlist` and not yet answered, oldest first.
+    ///
+    /// A start travels with the list it is for rather than beside the queue,
+    /// so there is no flag left standing when a list never makes it to mpv.
+    lists: VecDeque<Asked>,
     /// Whether an open came to nothing since a file last loaded, so that if
     /// nothing plays now, the empty window looks for what to offer as it does
     /// at launch.
@@ -34,19 +34,35 @@ pub(super) struct Opening {
     loads_seen: u64,
 }
 
+/// A list mpv has been handed and has not answered yet.
+struct Asked {
+    /// Deleted when its answer comes, by when mpv has read it.
+    m3u: PathBuf,
+    /// Whether to start playing when that answer comes. Only the list whose
+    /// answer is due next carries this: mpv answers in order, so a list
+    /// handed over while another is waiting cannot be the one that starts.
+    start: bool,
+}
+
 impl Player {
     /// Load what an open found, asking about a saved place where `ask` says
     /// to (it doesn't after the way in's Continue).
     pub(super) fn load(&mut self, list: Prepared, ask: bool) {
         log::info!("opened {} file(s), starting at {}", list.count, list.start);
-        self.opening.starting = true;
         if ask {
             self.app
                 .arrival
                 .open_list(&self.app.mpv, list.first.clone(), list.saved);
         }
+        // Whether this open is the one that starts, settled before mpv is
+        // asked: the answer to its list is the next one only if nothing else
+        // is already waiting.
+        let start = self.opening.lists.is_empty();
         if commands::load_list(&self.app.mpv, &list.m3u, list.start, &list.first) {
-            self.opening.lists.push_back(list.m3u);
+            self.opening.lists.push_back(Asked {
+                m3u: list.m3u,
+                start,
+            });
         } else {
             self.delete_list(list.m3u);
         }
@@ -77,10 +93,11 @@ impl Player {
     /// this only makes sure it plays. Unless it is to be held on its saved
     /// place or started over, which is settled once it is in.
     pub(super) fn list_answered(&mut self) {
-        if let Some(m3u) = self.opening.lists.pop_front() {
-            self.delete_list(m3u);
-        }
-        if std::mem::take(&mut self.opening.starting) && !self.app.arrival.holding() {
+        let Some(asked) = self.opening.lists.pop_front() else {
+            return;
+        };
+        self.delete_list(asked.m3u);
+        if asked.start && !self.app.arrival.holding() {
             commands::set_pause(&self.app.mpv, false);
         }
     }
@@ -90,7 +107,11 @@ impl Player {
     /// waits, paused, under the notice saying why.
     pub(super) fn hold_after_failure(&mut self) {
         if !self.app.settings.is_on(Toggle::Autoplay) {
-            self.opening.starting = false;
+            // The answer that would have started playback, if it is still to
+            // come, is the next one.
+            if let Some(asked) = self.opening.lists.front_mut() {
+                asked.start = false;
+            }
             commands::set_pause(&self.app.mpv, true);
         }
     }
