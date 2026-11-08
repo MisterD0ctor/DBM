@@ -2153,14 +2153,15 @@ what is asking before it says *Open file…*:
 - **The films left unfinished**, first, the one left most recently at the
   top: up to `resume.OFFERED`, and a show once, by the episode left last, which
   is the one watching would carry on from. Each is a row of two lines
-  (`Rows.resume-row`): a play glyph at Body, the film's name at Strong in Body
-  size and at the Title's weight — what the window is most often opened for,
-  which with every word the same white only weight can say — and the resume
-  measure where a row's trailing column ends; under the name, in Hint size,
-  what it belongs to and what is left: *Another Show · 20 min left*, or
-  *15 min left* for a film, which belongs to nothing. The show goes on that
-  line rather than on a heading above, so an episode keeps room for its number,
-  and a film and an episode hold their words in the same place. A film watched
+  (`Rows.resume-row`): first the show at Strong in Body size and at the Title's
+  weight — which show it is says more than which episode, and is what the
+  window is most often opened for, which with every word the same white only
+  weight can say — or a film's own name, since a film belongs to nothing; then
+  in Hint size the episode and what is left: *S02E04 · Episode 4 · 20 min
+  left*, or *15 min left* for a film. So a film and an episode hold their words
+  in the same place. A play glyph at Body and the resume measure stand beside
+  the two lines together, centred on the row, where a row's leading mark and
+  trailing column go. A film watched
   into its credits, or left in its first minute, is not offered: a place that
   would start from the top anyway is no offer to carry on. A group gap follows
   the films, because they are films and the rows below them are dialogs, and

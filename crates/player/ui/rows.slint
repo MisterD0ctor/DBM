@@ -596,8 +596,9 @@ export component GroupRow inherits Rectangle {
 /// unfinished, and how far into it you got.
 ///
 /// A play mark in front says this row starts something where every other row
-/// in the pane opens a dialog. Under the name, what it belongs to and how
-/// much is left, as one line of support, so a film and an episode hold their
+/// in the pane opens a dialog. First the show, which says more about what
+/// the row is than the episode's number does, or a film's own name; under
+/// it the episode and how much is left, so a film and an episode hold their
 /// words in the same place.
 export component ResumeRow inherits Rectangle {
     /// Under the pointer its glyph leans the way it goes (`Rows.lean`).
@@ -638,11 +639,11 @@ export component ResumeRow inherits Rectangle {
         ring: root.ring;
     }
 
-    // On the name's line, as the name's mark.
+    // Beside both lines, as the row's mark rather than either line's.
     Glyph {
         source: @image-url("../../../public/icons/play.svg");
         x: Rows.label-x + root.lean;
-        y: root.top + (root.line - self.height) / 2;
+        y: (root.height - self.height) / 2;
         width: Icons.row;
         height: Icons.row;
         shade: root.ring ? Shade.on-ring : Shade.lit;
@@ -655,7 +656,8 @@ export component ResumeRow inherits Rectangle {
         y: root.top;
         width: measure.x - Rows.group-gap - self.x;
         height: root.line;
-        text: root.film.title;
+        text: root.film.show == ""
+            ? root.film.title : root.film.show;
         color: root.ring ? Paint.on-ring : Paint.strong;
         font-size: Type.body;
         font-weight: Type.weight-title;
@@ -671,7 +673,7 @@ export component ResumeRow inherits Rectangle {
         width: parent.width - Rows.trail-x - self.x;
         height: root.line;
         text: root.film.show == ""
-            ? root.film.left : root.film.show + " · " + root.film.left;
+            ? root.film.left : root.film.title + " · " + root.film.left;
         color: root.ring ? Paint.on-ring : Paint.body;
         font-size: Type.hint;
         vertical-alignment: center;
@@ -682,7 +684,7 @@ export component ResumeRow inherits Rectangle {
     // column ends.
     measure := Rectangle {
         x: parent.width - Rows.trail-x - self.width;
-        y: root.top + (root.line - self.height) / 2;
+        y: (root.height - self.height) / 2;
         width: Rows.measure;
         height: Rails.measure;
         background: root.ring ? Paint.on-ring-rail : Paint.rail;
