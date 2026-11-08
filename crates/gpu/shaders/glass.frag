@@ -34,8 +34,7 @@
 //
 // What it reflects is not traced but placed by hand, from the way the
 // mirrored ray points: the rim light round each pane's outermost edge (see
-// `u_panel_light`), and over a dark frame a key light from above and a fill
-// from below (see the light over a dark frame, below).
+// `u_panel_light`).
 //
 // Wavelength enters on the transmitted ray, and enters properly: the index
 // of refraction is a function of it, so every wavelength lands somewhere
@@ -176,18 +175,6 @@ const float SHADOW_SOFTNESS_MIN = 4.0;
 /// Rec. 709, matching how the eye weights the three channels rather than
 /// averaging them: a saturated green frame is far brighter than its mean.
 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
-
-// --- the light over a dark frame ------------------------------------------------
-//
-// Absorption's opposite. Over black there is nothing for the glass to bend or
-// blur, and a pane all but vanishes: a bar over a fade, the way on at the end
-// of an episode, are words on nothing. So two soft lights fall on the dome,
-// each raised 30 degrees off the screen toward the eye: a key from above,
-// across the pane and brightest at its top, and a fainter fill from below,
-// along its bottom edge. Each is weighted by how squarely the mirrored ray
-// faces it, and together they are a sheen added to the glass, whole over
-// black and gone once the glass under it is a twentieth of white, so over a
-// lit frame, where the refraction already draws the pane, there is none.
 
 // --- legibility ---------------------------------------------------------------
 //
@@ -574,7 +561,6 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
               vec4 light, int budget, float dither) {
     vec2 uv = px / u_size;
     vec2 rel = px - centre;
-    vec2 rel_uv = 0.5 * rel / half_size + vec2(0.5);
     vec3 sdg = sdg_superbox(rel, half_size, radius, u_corner_softness);
     float d = sdg.x;
 
@@ -686,8 +672,6 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
 
     refracted = saturate(refracted, s);
 
-    luma = dot(refracted, LUMA);
-
     // Never brighter than the lowest step of text can stand on; see
     // legibility, above.
     refracted = mix(refracted, legible(refracted, light.x), tinted);
@@ -708,17 +692,6 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     vec2 mirror = vec2(-2.0 * slope, 1.0 - slope2) / (1.0 + slope2);
     vec3 mirror3 = vec3(box_normal * mirror.x, mirror.y);
 
-    // The key and the fill; see the light over a dark frame, above. Each root
-    // and power is floored at zero, since rounding can take what it is given a
-    // hair below, and `sqrt` or `pow` of a negative is NaN.
-    float key = sqrt(max(0.5 + 0.5 * dot(mirror3, vec3(0.0, -0.866, 0.5)), 0.0)) 
-                * pow(max(0.0, 1.0 - rel_uv.y), 1.0);
-
-    float fill = sqrt(max(0.5 + 0.5 * dot(mirror3, vec3(0.0, 0.866, 0.5)), 0.0)) 
-                 * pow(max(0.0, rel_uv.y), 7.0);
-
-    float sheen = (key * 0.1 + fill * 0.08) * (1.0 - min(1.0, 20.0 * luma));
-
     // The rim light, where the mirrored ray has tipped over and points back
     // down. Nothing while the surface is under 45 degrees and the ray still
     // points up, nor at 45, where it lies flat along the screen
@@ -728,8 +701,8 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     float rim = max(0.0, -mirror.y * (1.0 - mirror.x) * (1.0 - mirror.x))
                 * light.y;
 
-    // The sheen and the rim are both light added over the glass.
-    return refracted + vec3(sheen) + vec3(rim);
+    // The rim is light added over the glass.
+    return refracted + vec3(rim);
 }
 
 void main() {

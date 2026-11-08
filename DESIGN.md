@@ -787,17 +787,6 @@ B-spline, whose smooth slope gives the refraction no seams to magnify (see
 `dbm_gpu::blur`). So the top of the Blur slider costs about what its bottom
 does, and is still a Gaussian rather than a kernel cut short.
 
-**The pane stays drawn over black.** Over a dark frame there is nothing for the
-glass to bend or blur, and a pane all but vanishes: a bar over a fade, or the
-way on at the end of an episode, read as words on nothing. So two soft lights
-fall on the dome, absorption's opposite, both raised toward the eye: a key
-from above, across the pane and brightest at its top, and a fainter fill from
-below, along its bottom edge. Each adds light to the glass as far as the
-mirrored ray faces it, whole over black and fading out as the glass behind it
-lightens, so over a lit frame, where the refraction draws the pane by itself,
-they are gone. Like the ceiling they are not on the glass page, since they
-are what keeps a pane there at all.
-
 **The fringe is a spectrum, not three copies.** The index of refraction is a
 function of wavelength (Cauchy's law, anchored so the index above is the one
 at the sodium d line), and the transmitted colour is integrated across the
