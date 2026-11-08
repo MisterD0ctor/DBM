@@ -207,10 +207,10 @@ impl Default for GlassParams {
             blur_sigma: 10.0,
             // The glass is as thick as the rim is wide; see `BEVEL`.
             refract: 1.0,
-            aberration: 0.3,
+            aberration: 0.1,
             rim: 0.2,
-            tint: [0.0, 0.0, 0.0],
-            tint_amount: 0.0,
+            tint: [0.4, 0.4, 0.4],
+            tint_amount: 0.1,
             absorb: 0.35,
             shadow: 0.2,
         }
