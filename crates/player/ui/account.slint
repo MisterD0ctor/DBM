@@ -4,7 +4,7 @@
 // `opensubtitles::account`); this is where it is typed.
 
 import { Chrome } from "globals.slint";
-import { Paint, Rows, Type } from "theme.slint";
+import { Paint, Panels, Rows, Type } from "theme.slint";
 import { BackRow, EmptyRow, MenuRow, NoteRow, RowHighlight } from "rows.slint";
 
 /// A line to type into: what it is for, and a well to type in.
@@ -291,8 +291,8 @@ export component AccountPage inherits Rectangle {
     callback pointed(int);
 
     VerticalLayout {
-        padding-top: Rows.panel-pad;
-        padding-bottom: Rows.panel-pad;
+        padding-top: Panels.pad;
+        padding-bottom: Panels.pad;
         alignment: start;
 
         BackRow {

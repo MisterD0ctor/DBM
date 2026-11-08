@@ -9,7 +9,7 @@ import { BackRow, GroupRow, MenuHeading, PlaylistRow } from "rows.slint";
 import { Measure } from "measure.slint";
 import { GlassPanel } from "panel.slint";
 import { ScrollList } from "scroll_list.slint";
-import { Icons, Motion, Rows, Type } from "theme.slint";
+import { Icons, Motion, Panels, Rows, Type } from "theme.slint";
 
 export component PlaylistPanel inherits GlassPanel {
     /// The row the keyboard's ring is on, which every panel shares.
@@ -229,8 +229,8 @@ export component PlaylistPanel inherits GlassPanel {
     }
 
     VerticalLayout {
-        padding-top: Rows.panel-pad;
-        padding-bottom: Rows.panel-pad;
+        padding-top: Panels.pad;
+        padding-bottom: Panels.pad;
         // Top-aligned, or the rows would spread apart while the height
         // animates.
         alignment: start;

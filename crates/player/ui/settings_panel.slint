@@ -13,7 +13,7 @@ import {
 import { Measure } from "measure.slint";
 import { GlassPanel } from "panel.slint";
 import { ScrollList } from "scroll_list.slint";
-import { Motion, Paint, Rows, Type } from "theme.slint";
+import { Motion, Paint, Panels, Rows, Type } from "theme.slint";
 
 /// The settings panel's pages, in the order its front page lists them.
 export enum SettingsPage {
@@ -485,7 +485,7 @@ export component SettingsPanel inherits GlassPanel {
             Flash.drop(root.hint-claim);
             return;
         }
-        root.asked-row = Rows.panel-pad + root.row-h
+        root.asked-row = Panels.pad + root.row-h
             + root.settings-row-top(root.page, row)
             + root.settings-row-h(root.page, row) / 2;
         root.hint-claim = Flash.hint(text);
@@ -659,8 +659,8 @@ export component SettingsPanel inherits GlassPanel {
         y: root.moving ? parent.height - self.height : 0;
 
         VerticalLayout {
-            padding-top: Rows.panel-pad;
-            padding-bottom: Rows.panel-pad;
+            padding-top: Panels.pad;
+            padding-bottom: Panels.pad;
             // Top-aligned, or the rows would spread apart while the
             // height animates.
             alignment: start;
@@ -776,8 +776,8 @@ export component SettingsPanel inherits GlassPanel {
         y: root.moving ? parent.height - self.height : 0;
 
         VerticalLayout {
-            padding-top: Rows.panel-pad;
-            padding-bottom: Rows.panel-pad;
+            padding-top: Panels.pad;
+            padding-bottom: Panels.pad;
             alignment: start;
 
             if root.leaf-page == SettingsPage.glass: VerticalLayout {

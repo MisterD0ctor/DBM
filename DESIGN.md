@@ -61,7 +61,7 @@ typography:
     fontWeight: 600  # Type.weight-title
 rounded:
   row: "16px"  # Rows.radius
-  panel: "32px"  # Rows.panel-radius
+  panel: "32px"  # Panels.radius
   pill: "24px"  # Bar.pill-radius
   button: "20px"  # Bar.btn / 2
   preview: "18px"  # SeekPreview.radius
@@ -74,7 +74,7 @@ spacing:
   offset: "12px"  # Rows.offset
   gap: "16px"  # Rows.gap
   margin: "24px"  # Surfaces.margin
-  trail-x: "26px"  # Rows.trail-x
+  trail-x: "30px"  # Rows.trail-x
   label-x: "30px"  # Rows.label-x
 components:
   icon-button:
@@ -120,7 +120,7 @@ components:
     typography: "{typography.timecode}"
   menu-row:
     height: "34px"  # Rows.row
-    padding: "0 26px 0 30px"  # Rows.trail-x, Rows.label-x
+    padding: "0 30px 0 30px"  # Rows.trail-x, Rows.label-x
     textColor: "{colors.body}"
     typography: "{typography.body}"
     backgroundColor: "transparent"
@@ -134,17 +134,17 @@ components:
     textColor: "{colors.lit}"
   section-label:
     height: "28px"  # Rows.heading
-    padding: "0 26px 0 30px"  # Rows.trail-x, Rows.label-x
+    padding: "0 30px 0 30px"  # Rows.trail-x, Rows.label-x
     textColor: "{colors.body}"
     typography: "{typography.label}"
   section-label-named:
     height: "28px"  # Rows.heading
-    padding: "0 26px 0 30px"  # Rows.trail-x, Rows.label-x
+    padding: "0 30px 0 30px"  # Rows.trail-x, Rows.label-x
     textColor: "{colors.body}"
     typography: "{typography.named}"
   slider-row:
     height: "30px"  # Rows.slider-row
-    padding: "0 26px 0 30px"  # Rows.trail-x, Rows.label-x
+    padding: "0 30px 0 30px"  # Rows.trail-x, Rows.label-x
     textColor: "{colors.body}"
     typography: "{typography.readout}"
   stepper-button:
@@ -186,7 +186,7 @@ components:
     typography: "{typography.prompt}"
   resume-row:
     height: "34px"  # Rows.row
-    padding: "0 26px 0 30px"  # Rows.trail-x, Rows.label-x
+    padding: "0 30px 0 30px"  # Rows.trail-x, Rows.label-x
     textColor: "{colors.strong}"
     typography: "{typography.body}"
   seek-preview:
@@ -891,7 +891,7 @@ there to do.
 Rounded rectangles throughout, at one governing rule: **radii nest
 concentrically.** Two corners share a centre — and so keep an even gap the whole
 way round — when their radii differ by exactly the gap between them. So
-`Rows.radius` plus `Rows.gap` *is* `Rows.panel-radius`, and the panel's padding
+`Rows.radius` plus `Rows.gap` *is* `Panels.radius`, and the panel's padding
 is that same gap, which makes the first and last rows come out concentric with
 the panel's own corners without being special-cased. The bar runs it the
 other way: half its row of buttons plus `Bar.pad` is the panels'
@@ -919,7 +919,7 @@ of a pill at higher softness. Circles stay circles, and so
 do the thin capsules of tracks and fills, where the two differ by less than a
 pixel. The seek preview's thumbnail keeps a circle's corner too, since Slint
 clips only to that, and so does the clip a panel puts on its pages as they
-slide (`Rows.panel-radius`): at this softness a circle stands under a
+slide (`Panels.radius`): at this softness a circle stands under a
 pixel proud of the glass's corner, inside its soft edge, and a page that
 passes a corner ends where the glass does.
 
@@ -1026,7 +1026,7 @@ by under a pixel at the corner.
 
 ### The bar
 - **Shape:** one pane (`Bar.height`) across the window inside its
-  margins, at the panels' corner (`Rows.panel-radius`), `Bar.pad`
+  margins, at the panels' corner (`Panels.radius`), `Bar.pad`
   of glass round its two rows; after a seek from the keyboard, the timeline
   row alone on a capsule where the buttons' row would be; as a file starts,
   the title group alone on a capsule of its own width
@@ -1676,7 +1676,7 @@ doing in it.
   cost the eye actually notices.
 
 ### Panels
-- **Shape:** `Rows.panel-radius`, `Rows.panel-pad` of padding, no background of
+- **Shape:** `Panels.radius`, `Panels.pad` of padding, no background of
   its own
 - **Entry:** a fade and a rise of `Surfaces.lift` over `Motion.surface`
   ease-out, glass fading with the surface
@@ -2196,7 +2196,7 @@ for a moment (`WayIn.copied-timer.interval`), and *Close the player*.
   layout for an answer costs a full layout pass each time.
 - **Do** take every colour from the `Paint` global. A new role gets an existing
   step; a colour written at its use site is how the ladder drifts.
-- **Do** keep radii concentric: inner = outer − gap, as `Rows.panel-radius` is
+- **Do** keep radii concentric: inner = outer − gap, as `Panels.radius` is
   `Rows.radius` + `Rows.gap`.
 - **Do** express state in two channels where a control carries two meanings —
   glyph brightness for what it controls, held background for what it opened.

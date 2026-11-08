@@ -18,7 +18,7 @@ import {
 import { Measure } from "measure.slint";
 import { GlassPanel } from "panel.slint";
 import { ScrollList } from "scroll_list.slint";
-import { Motion, Paint, Rows, Type } from "theme.slint";
+import { Motion, Paint, Panels, Rows, Type } from "theme.slint";
 
 /// The subtitles menu's pages: the tracks, the two pages a subtitle on
 /// screen offers, and the search.
@@ -505,7 +505,7 @@ export component SubtitlesMenu inherits GlassPanel {
     }
     function sync-row() {
         // The sync is the timing page's first row, under its way back.
-        root.asked-row = Rows.panel-pad + root.row-h + root.row-h / 2;
+        root.asked-row = Panels.pad + root.row-h + root.row-h / 2;
         if (Subtitles.sync-state == SyncState.undoable) {
             Subtitles.set-timing(Subtitles.sync-was-delay, Subtitles.sync-was-speed);
             Subtitles.sync-state = SyncState.idle;
@@ -573,8 +573,8 @@ export component SubtitlesMenu inherits GlassPanel {
         visible: root.drill < 1.0;
 
         VerticalLayout {
-            padding-top: Rows.panel-pad;
-            padding-bottom: Rows.panel-pad;
+            padding-top: Panels.pad;
+            padding-bottom: Panels.pad;
 
             MenuHeading {
                 text: @tr("SUBTITLES");
@@ -691,8 +691,8 @@ export component SubtitlesMenu inherits GlassPanel {
         y: root.moving ? parent.height - self.height : 0;
 
         VerticalLayout {
-            padding-top: Rows.panel-pad;
-            padding-bottom: Rows.panel-pad;
+            padding-top: Panels.pad;
+            padding-bottom: Panels.pad;
             alignment: start;
 
             if root.leaf == MenuPage.timing: VerticalLayout {
@@ -712,7 +712,7 @@ export component SubtitlesMenu inherits GlassPanel {
                     focused: root.subs-ring(MenuPage.timing, 1);
                     explained(on) => {
                         if (on) {
-                            root.asked-row = Rows.panel-pad + root.row-h + root.row-h / 2;
+                            root.asked-row = Panels.pad + root.row-h + root.row-h / 2;
                             root.hint-claim = Flash.hint(self.hint);
                         } else {
                             Flash.drop(root.hint-claim);
@@ -799,8 +799,8 @@ export component SubtitlesMenu inherits GlassPanel {
             && root.leaf == MenuPage.find;
 
         VerticalLayout {
-            padding-top: Rows.panel-pad;
-            padding-bottom: Rows.panel-pad;
+            padding-top: Panels.pad;
+            padding-bottom: Panels.pad;
             alignment: start;
 
             BackRow {

@@ -60,7 +60,7 @@ typography:
     fontWeight: {{ Type.weight-title }}
 rounded:
   row: "{{ Rows.radius }}"
-  panel: "{{ Rows.panel-radius }}"
+  panel: "{{ Panels.radius }}"
   pill: "{{ Bar.pill-radius }}"
   button: "{{ Bar.btn / 2 }}"
   preview: "{{ SeekPreview.radius }}"

@@ -2,7 +2,7 @@
 
 import { Chrome } from "globals.slint";
 import { ScrollFade } from "models.slint";
-import { Motion, Paint, Rails, Rows } from "theme.slint";
+import { Motion, Paint, Rails, Panels, Rows } from "theme.slint";
 
 /// The press target for the angle at one end of a list that points to its
 /// current row: a row-sized square, centred across that end.
@@ -264,7 +264,7 @@ export component ScrollList inherits Rectangle {
     /// The rail, inset from each end of the list by as far as the panel's
     /// corner reaches past it, so it runs only beside the straight part of
     /// the panel's side and never closer to the glass's edge than there.
-    property <length> rail-inset: Rows.panel-radius - Rows.panel-pad;
+    property <length> rail-inset: Panels.radius - Panels.pad;
     property <length> rail-h: root.height - 2 * root.rail-inset;
     /// In proportion to how much of the list is on screen, with a floor so a
     /// very long list still leaves something to see and take hold of.

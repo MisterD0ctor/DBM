@@ -5,7 +5,7 @@ import { Playlist } from "playlist.slint";
 import { ShortcutRow } from "rows.slint";
 import { GlassPanel } from "panel.slint";
 import { Measure } from "measure.slint";
-import { Rows, Type } from "theme.slint";
+import { Panels, Rows, Type } from "theme.slint";
 
 export component FilesPanel inherits GlassPanel {
     /// The row the keyboard's ring is on, which every panel shares.
@@ -33,8 +33,8 @@ export component FilesPanel inherits GlassPanel {
     height: root.panel-pad + 2 * root.row-h;
 
     VerticalLayout {
-        padding-top: Rows.panel-pad;
-        padding-bottom: Rows.panel-pad;
+        padding-top: Panels.pad;
+        padding-bottom: Panels.pad;
 
         ShortcutRow {
             label: root.file-label;

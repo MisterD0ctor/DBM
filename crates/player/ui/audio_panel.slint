@@ -7,7 +7,7 @@ import { EmptyRow, MenuHeading, MenuRow } from "rows.slint";
 import { Measure } from "measure.slint";
 import { GlassPanel } from "panel.slint";
 import { ScrollList } from "scroll_list.slint";
-import { Motion, Rows, Type } from "theme.slint";
+import { Motion, Panels, Rows, Type } from "theme.slint";
 import { Pick, ScrollFade } from "models.slint";
 
 export component AudioPanel inherits GlassPanel {
@@ -63,8 +63,8 @@ export component AudioPanel inherits GlassPanel {
     }
 
     VerticalLayout {
-        padding-top: Rows.panel-pad;
-        padding-bottom: Rows.panel-pad;
+        padding-top: Panels.pad;
+        padding-bottom: Panels.pad;
 
         MenuHeading {
             text: @tr("AUDIO");

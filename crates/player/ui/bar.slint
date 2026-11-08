@@ -9,7 +9,7 @@ import { Settings } from "settings.slint";
 import { IconButton } from "controls.slint";
 import { Measure } from "measure.slint";
 import { Panel, Surfaces } from "surface.slint";
-import { Bar, Motion, Paint, Rails, Rows, Type } from "theme.slint";
+import { Bar, Motion, Paint, Rails, Panels, Rows, Type } from "theme.slint";
 
 /// The part of the bar that can be up on its own: the timeline, or what is
 /// loaded.
@@ -150,7 +150,7 @@ export component ControlBar inherits Rectangle {
         opacity: root.shown,
         // Opt in to tinting; the strength is the global slider.
         tint: 1.0,
-        radius: min(Rows.panel-radius, root.drawn-h / 2),
+        radius: min(Panels.radius, root.drawn-h / 2),
     };
 
     /// The disc under the ring (see `ring-disc`). After the bar, since a

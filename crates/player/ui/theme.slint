@@ -242,6 +242,13 @@ export global Rails {
     out property <length> grow: 2px;
 }
 
+export global Panels {
+    /// The gap, so the end rows sit as far from the panel's top and bottom
+    /// as every row does from its sides.
+    out property <length> pad: Rows.gap;
+    out property <length> radius: Rows.radius + Rows.gap;
+}
+
 /// Metrics for the rows and the washes behind them.
 ///
 /// A row spans its panel's width, but the panel's glass has rounded corners,
@@ -251,18 +258,15 @@ export global Rows {
     // The wash is inset by `gap` on every side, so a panel radius of
     // `radius + gap` keeps the end rows' corners concentric with the panel's,
     // and every row in between matches them. Any other radius and the gap
-    // pinches at 45°. Change `radius` or `gap`, and `panel-radius` follows.
+    // pinches at 45°. Change `radius` or `gap`.
     out property <length> radius: 16px;
     out property <length> gap: 16px;
-    out property <length> panel-radius: Rows.radius + Rows.gap;
-    /// The gap, so the end rows sit as far from the panel's top and bottom
-    /// as every row does from its sides.
-    out property <length> panel-pad: Rows.gap;
+    out property <length> pad: 14px;
 
     /// Where a label starts and a trailing control ends, from the panel edge,
     /// so text sits inside the wash rather than on its rim.
-    out property <length> label-x: Rows.gap + 14px;
-    out property <length> trail-x: Rows.gap + 14px;
+    out property <length> label-x: Rows.gap + Rows.pad;
+    out property <length> trail-x: Rows.gap + Rows.pad;
     /// Between a row's icon and its words: a drill row's, and the rows laid
     /// out like one, a way back and Continue.
     out property <length> drill-gap: 14px;
@@ -360,6 +364,6 @@ export global Bar {
     /// The glass round the bar's rows, on every side: as much as takes the
     /// end buttons' corner out to the panels', so the bar's corner is
     /// concentric with them and the same as the panels'.
-    out property <length> pad: Rows.panel-radius - Bar.pill-radius;
+    out property <length> pad: Panels.radius - Bar.pill-radius;
     out property <length> height: 2 * Bar.pad + Bar.timeline-h + Bar.pill-h;
 }

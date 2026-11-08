@@ -4,7 +4,7 @@
 import { Chrome } from "globals.slint";
 import { GlassRect } from "models.slint";
 import { Bounds, Surfaces } from "surface.slint";
-import { Motion, Rows } from "theme.slint";
+import { Motion, Panels, Rows } from "theme.slint";
 
 /// A panel: centred on the control it belongs to and kept inside the
 /// window's margins, its bottom edge one `Rows.offset` above the bar, growing
@@ -36,7 +36,7 @@ export component GlassPanel inherits Rectangle {
     /// The panel's height this frame, as every rect takes it, not the height
     /// it may be easing towards.
     out property <GlassRect> glass: Surfaces.glass(root.x, root.y, root.width, root.height,
-        Rows.panel-radius, root.shown);
+        Panels.radius, root.shown);
 
     // The panel arithmetic's short names. A panel is capped at what fits
     // above the bar, and sized from row counts rather than measured (see
@@ -45,7 +45,7 @@ export component GlassPanel inherits Rectangle {
     out property <length> heading-h: Rows.heading;
     out property <length> toggle-h: Rows.toggle-row;
     /// The padding above and below the rows, together.
-    out property <length> panel-pad: 2 * Rows.panel-pad;
+    out property <length> panel-pad: 2 * Panels.pad;
     /// Room for a panel between the bar and a top margin the same as its
     /// side margins.
     out property <length> panel-max-h: root.floor - Rows.offset - Surfaces.margin;
@@ -88,7 +88,7 @@ export component GlassPanel inherits Rectangle {
     // The corner a page sliding past is cut at, so it is cut where the glass
     // is. A circle, which stands at most two thirds of a pixel proud of the
     // glass's own corner, inside the glass's soft edge.
-    border-radius: root.drills ? Rows.panel-radius : 0px;
+    border-radius: root.drills ? Panels.radius : 0px;
 
     // Catches what the rows don't, so a click on the padding doesn't reach
     // the play/pause handler underneath.

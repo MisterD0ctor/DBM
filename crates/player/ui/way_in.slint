@@ -8,7 +8,7 @@ import { GlassRect } from "models.slint";
 import { MenuHeading, MenuRow, ResumeRow, ShortcutRow } from "rows.slint";
 import { Bounds, Surfaces } from "surface.slint";
 import { Squircle } from "squircle.slint";
-import { Motion, Paint, Rows, Type } from "theme.slint";
+import { Motion, Paint, Panels, Rows, Type } from "theme.slint";
 
 /// Laid over the whole window, which it centres in.
 export component WayIn inherits Rectangle {
@@ -44,7 +44,7 @@ export component WayIn inherits Rectangle {
         height: root.pane-h,
     };
     out property <GlassRect> glass: Surfaces.glass(root.pane-x, root.pane-y + root.rise,
-        root.pane-w, root.pane-h, Rows.panel-radius, root.shown);
+        root.pane-w, root.pane-h, Panels.radius, root.shown);
 
     /// Press a row, as Enter does the ring's.
     public function activate(row: int) {
@@ -75,7 +75,7 @@ export component WayIn inherits Rectangle {
     property <bool> has-resume: Playback.resume-path != "";
     /// The rows start one further down when the first is Continue.
     property <int> first: root.has-resume ? 1 : 0;
-    property <length> panel-pad: 2 * Rows.panel-pad;
+    property <length> panel-pad: 2 * Panels.pad;
 
     // --- the way in ---------------------------------------------------------
     //
@@ -174,14 +174,14 @@ export component WayIn inherits Rectangle {
         // which leaves no render context for the glass pass, and while
         // nothing is drawn behind the pane yet (see `backdrop` and `mark`).
         property <bool> bare: root.fatal != "" || !root.backdrop;
-        border-radius: self.bare ? Rows.panel-radius : 0px;
+        border-radius: self.bare ? Panels.radius : 0px;
         visible: root.shown > Surfaces.gone;
         opacity: root.shown;
         clip: true;
 
         // In the glass's own outline, which is the shape it stands in for.
         Squircle {
-            radius: Rows.panel-radius;
+            radius: Panels.radius;
             fill: parent.bare ? Paint.wash-soft : transparent;
         }
 
@@ -193,8 +193,8 @@ export component WayIn inherits Rectangle {
         }
 
         VerticalLayout {
-            padding-top: Rows.panel-pad;
-            padding-bottom: Rows.panel-pad;
+            padding-top: Panels.pad;
+            padding-bottom: Panels.pad;
 
             // No rows that open a file: with no render context, a film would
             // play with no picture.
