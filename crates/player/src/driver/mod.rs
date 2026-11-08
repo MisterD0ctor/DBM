@@ -128,6 +128,7 @@ impl Driver {
         file: Option<std::path::PathBuf>,
         player: Rc<RefCell<Player>>,
     ) -> Self {
+        let capture = diagnostics::Capture::new(ui.clone());
         Self {
             ui,
             app,
@@ -135,7 +136,7 @@ impl Driver {
             player,
             language_seen: 0,
             diag: diagnostics::Probe::new(),
-            capture: diagnostics::Capture::new(),
+            capture,
             scratch: Scratch::default(),
         }
     }

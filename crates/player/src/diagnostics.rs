@@ -541,6 +541,10 @@ impl Default for Probe {
 /// `DBM_CAPTURE=<path.bmp>`, and `DBM_CAPTURE_AFTER=<ms>` for how long to let
 /// the interface settle first. BMP because it is a header and the pixels: a
 /// PNG would mean an encoder, and anything that wants one can convert it.
+///
+/// The frame it is taken from is asked for when the time comes, since a
+/// window that has settled draws none: an empty one stops as soon as its
+/// backdrop has arrived.
 pub struct Capture {
     path: Option<std::path::PathBuf>,
     after: std::time::Duration,
@@ -549,8 +553,8 @@ pub struct Capture {
 }
 
 impl Capture {
-    pub fn new() -> Self {
-        Self {
+    pub fn new(ui: slint::Weak<crate::MainWindow>) -> Self {
+        let capture = Self {
             path: std::env::var_os("DBM_CAPTURE").map(std::path::PathBuf::from),
             after: std::time::Duration::from_millis(
                 std::env::var("DBM_CAPTURE_AFTER")
@@ -560,7 +564,15 @@ impl Capture {
             ),
             started: Instant::now(),
             done: false,
+        };
+        if capture.path.is_some() {
+            slint::Timer::single_shot(capture.after, move || {
+                if let Some(ui) = ui.upgrade() {
+                    slint::ComponentHandle::window(&ui).request_redraw();
+                }
+            });
         }
+        capture
     }
 
     pub fn maybe(&mut self, gl: &glow::Context, width: u32, height: u32) {
