@@ -12,7 +12,7 @@ target
 # AI
 .claude
 .dsh
-.impeccable
+.impeccable/critique
 AGENTS.md
 DESIGN.md
 PRODUCT.md

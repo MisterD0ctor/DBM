@@ -1,0 +1,652 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-08T23:31:25Z",
+  "title": "Design System: DBM",
+  "extensions": {
+    "colorMeta": {
+      "lit": {
+        "role": "primary",
+        "displayName": "Lit",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#ffffff80",
+          "#ffffffa0",
+          "#ffffff"
+        ],
+        "rampNote": "Floor first: Dim, Quiet, then white. Every word is white: Lit, Strong and Body are one value, roles named for what each word is for, and told apart on screen by weight, size and place. Quiet and Dim are marks.",
+        "purpose": "Full white, named for the active state and where the hand or the keyboard is: the current row, the flash, the end-of-file prompt. Also every bar glyph that can be pressed, since anything less reads as greyed out over a bright frame."
+      },
+      "strong": {
+        "role": "neutral",
+        "displayName": "Strong",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#ffffff80",
+          "#ffffffa0",
+          "#ffffff"
+        ],
+        "rampNote": "Floor first: Dim, Quiet, then white. Every word is white: Lit, Strong and Body are one value, roles named for what each word is for, and told apart on screen by weight, size and place. Quiet and Dim are marks.",
+        "purpose": "Text that leads: the media title, the timeline's times, a stepper's value, a fatal headline, the title on the way in's Continue row, the resume measure's fill, an off switch's knob."
+      },
+      "body": {
+        "role": "neutral",
+        "displayName": "Body",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "#ffffff80",
+          "#ffffffa0",
+          "#ffffff"
+        ],
+        "rampNote": "Floor first: Dim, Quiet, then white. Every word is white: Lit, Strong and Body are one value, roles named for what each word is for, and told apart on screen by weight, size and place. Quiet and Dim are marks.",
+        "purpose": "Every other word: row labels and menu items, section headings and their icons, back rows, drill rows, switch labels, a slider's value, and what sits beside or under them, such as a shortcut's keys, a playlist row's running time and the prose hints. The white every word is, which the glass's ceiling is worked out from, so nothing is set under it."
+      },
+      "quiet": {
+        "role": "neutral",
+        "displayName": "Quiet",
+        "canonical": "#ffffffa0",
+        "tonalRamp": [
+          "#ffffff80",
+          "#ffffffa0",
+          "#ffffff"
+        ],
+        "rampNote": "Floor first: Dim, Quiet, then white. Every word is white: Lit, Strong and Body are one value, roles named for what each word is for, and told apart on screen by weight, size and place. Quiet and Dim are marks.",
+        "purpose": "A mark on or beside a track: a chapter's dot or the volume's unity dot ahead of the fill, which is cut round it rather than drawn over it; a scroll thumb. Never text."
+      },
+      "dim": {
+        "role": "neutral",
+        "displayName": "Dim",
+        "canonical": "#ffffff80",
+        "tonalRamp": [
+          "#ffffff80",
+          "#ffffffa0",
+          "#ffffff"
+        ],
+        "rampNote": "Floor first: Dim, Quiet, then white. Every word is white: Lit, Strong and Body are one value, roles named for what each word is for, and told apart on screen by weight, size and place. Quiet and Dim are marks.",
+        "purpose": "The glyph of a bar button with nowhere to go. The floor: the ladder is built upward from here and this step does not move."
+      },
+      "played": {
+        "role": "neutral",
+        "displayName": "Played",
+        "canonical": "#fffffff2",
+        "tonalRamp": [
+          "#ffffff2e",
+          "#ffffffcc",
+          "#fffffff2",
+          "#ffffff"
+        ],
+        "rampNote": "The marks, dark to light: rail, fill, played, lit. Every value is a token the build uses; nothing is interpolated.",
+        "purpose": "The played length of the timeline: the one near-solid white, so it reads as a measurement rather than as text."
+      },
+      "fill": {
+        "role": "neutral",
+        "displayName": "Fill",
+        "canonical": "#ffffffcc",
+        "tonalRamp": [
+          "#ffffff2e",
+          "#ffffffcc",
+          "#fffffff2",
+          "#ffffff"
+        ],
+        "rampNote": "The marks, dark to light: rail, fill, played, lit. Every value is a token the build uses; nothing is interpolated.",
+        "purpose": "The filled length of the volume track and every settings slider, and a lit switch track."
+      },
+      "rail": {
+        "role": "neutral",
+        "displayName": "Rail",
+        "canonical": "#ffffff2e",
+        "tonalRamp": [
+          "#ffffff14",
+          "#ffffff24",
+          "#ffffff2e",
+          "#ffffff34",
+          "#ffffff54"
+        ],
+        "rampNote": "The four washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fifth wash would have to be told apart from the two either side of it.",
+        "purpose": "The unfilled length of every track, switch and measure, and the rim round a field's well."
+      },
+      "knob": {
+        "role": "neutral",
+        "displayName": "Knob",
+        "canonical": "#101010e6",
+        "tonalRamp": [
+          "#101010e6"
+        ],
+        "rampNote": "A ramp of one. This is the whole of the value the system owns here, and a synthesised scale would be steps no surface is allowed to draw.",
+        "purpose": "The one dark in the system: on a lit switch track, so the knob reads as a hole punched through it. Never a mark on a fill."
+      },
+      "well": {
+        "role": "neutral",
+        "displayName": "Well",
+        "canonical": "#1010104d",
+        "tonalRamp": [
+          "#1010104d",
+          "#101010e6"
+        ],
+        "rampNote": "The knob's dark, thinner. Not a step of its own: the one dark at a lower alpha, for a slot rather than a hole.",
+        "purpose": "A field's well, the slot words are typed into: a 30% smoke of the knob's dark over the glass, after its hold, so it darkens what is under it by the same share over every frame and the white words stand further off it."
+      },
+      "ground": {
+        "role": "neutral",
+        "displayName": "Ground",
+        "canonical": "#000000",
+        "tonalRamp": [
+          "#000000"
+        ],
+        "rampNote": "A ramp of one. This is the whole of the value the system owns here, and a synthesised scale would be steps no surface is allowed to draw.",
+        "purpose": "The window before a frame exists, and a fresh install's backdrop before the player's own mark lights it."
+      },
+      "wash-strong": {
+        "role": "neutral",
+        "displayName": "Strong wash",
+        "canonical": "#ffffff34",
+        "tonalRamp": [
+          "#ffffff14",
+          "#ffffff24",
+          "#ffffff2e",
+          "#ffffff34",
+          "#ffffff54"
+        ],
+        "rampNote": "The four washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fifth wash would have to be told apart from the two either side of it.",
+        "purpose": "The held background of a button whose panel is open; a hovered stepper disc or remove disc. 0x20 above the Soft wash and under the Ring wash, by the Two-Step Rule, so a panel's button is never taken for the keyboard's place."
+      },
+      "wash-ring": {
+        "role": "neutral",
+        "displayName": "Ring wash",
+        "canonical": "#ffffff54",
+        "tonalRamp": [
+          "#ffffff14",
+          "#ffffff24",
+          "#ffffff2e",
+          "#ffffff34",
+          "#ffffff54"
+        ],
+        "rampNote": "The four washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fifth wash would have to be told apart from the two either side of it.",
+        "purpose": "Where the keyboard is: on a row, a bar button or a pill's choice. On a bar button it stands on a disc of glass of its own, whose rim lights the place. A wash rather than a ring, because nothing in the interface draws an outline but a field's rim."
+      },
+      "wash-button": {
+        "role": "neutral",
+        "displayName": "Button wash",
+        "canonical": "#ffffff24",
+        "tonalRamp": [
+          "#ffffff14",
+          "#ffffff24",
+          "#ffffff2e",
+          "#ffffff34",
+          "#ffffff54"
+        ],
+        "rampNote": "The four washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fifth wash would have to be told apart from the two either side of it.",
+        "purpose": "A hovered icon button, a stepper's disc at rest, and a hovered choice on the end-of-file pill. Never a row's."
+      },
+      "wash-soft": {
+        "role": "neutral",
+        "displayName": "Soft wash",
+        "canonical": "#ffffff14",
+        "tonalRamp": [
+          "#ffffff14",
+          "#ffffff24",
+          "#ffffff2e",
+          "#ffffff34",
+          "#ffffff54"
+        ],
+        "rampNote": "The four washes and the rail, the only low-alpha values the system owns. No step between them and none below: a fifth wash would have to be told apart from the two either side of it.",
+        "purpose": "The inset highlight behind a hovered row of any kind; a scroll bar's rail; and the way in's fill in the two states where there is no glass to paint over."
+      }
+    },
+    "typographyMeta": {
+      "title": {
+        "displayName": "Title",
+        "purpose": "600/14px. The media title in the bar, the flash's caption, a fatal headline."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "500/14px. Row labels, menu items, switch labels: the name of anything you can press. The current row in a list takes Lit at 700 instead."
+      },
+      "named": {
+        "displayName": "Named",
+        "purpose": "500/13px, natural case, no tracking. A playlist heading that is a show's name rather than a section label: the Label role's weight and alpha and none of its other habits."
+      },
+      "readout": {
+        "displayName": "Readout",
+        "purpose": "500/13px. Figures (slider and stepper values, a row's running time, a shortcut's keys) and the labels of the dense rows those sit in."
+      },
+      "timecode": {
+        "displayName": "Timecode",
+        "purpose": "500/13px, IBM Plex Mono. A readout that ticks: the two ends of the timeline and the time over the seek preview. Monospaced so a counting figure keeps its width."
+      },
+      "hint": {
+        "displayName": "Hint",
+        "purpose": "500/13px. Prose added underneath something else: the drop hint, the line under a failure saying what usually fixes it, a driver's own error text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "500/12px, tracked 1px, capitals. Section headings and back rows: the interface's own words only. The floor of the scale, and capitals are the only thing allowed on it."
+      },
+      "glyph": {
+        "displayName": "Glyph",
+        "purpose": "500/16px. A character standing in for an icon: the stepper's minus (U+2212) and plus, sized against the 26px disc rather than against the text."
+      },
+      "prompt": {
+        "displayName": "Prompt",
+        "purpose": "600/16px. The one thing the interface says louder than the rest: the words on the end-of-file pill, sized against the 24px glyph beside them."
+      }
+    },
+    "shadows": [
+      {
+        "name": "pane",
+        "value": 0.2,
+        "purpose": "The shadow each glass pane casts on the picture behind it, at its darkest, at the pane's edge. The same on every side, falling off steeply, and gone within the pane's corner radius plus 4 pixels, so it scales with the pane as the rim does. Laid on the frame before any glass, so it never falls on another pane. The glass page's Shadow slider, 0..1."
+      },
+      {
+        "name": "words",
+        "value": 0.33,
+        "purpose": "The thin dark rim under the interface's words and marks, with no offset: a Gaussian of 1.5 logical pixels that takes this share of the ground away at its darkest. Only what is drawn in white casts it, not the washes."
+      }
+    ],
+    "shadowNote": "Two shadows, both drawn by the pipeline: the one each glass pane casts on the picture, and the thin rim under the interface's words. Depth is carried by the material first: a domed bevel whose width follows each panel's corner radius, magnifying the picture under it as it curves away, and a rim light where the surface turns past 45 degrees.",
+    "motion": [
+      {
+        "name": "highlight",
+        "value": "45ms ease-out",
+        "purpose": "Every hover wash and the active mark. One value for every hover, because they are the same gesture."
+      },
+      {
+        "name": "track-grow",
+        "value": "100ms ease-out",
+        "purpose": "A track thickening under the pointer: 5px to 7px on the timeline and volume, 4px to 6px on a settings slider, 3px to 5px on a scroll bar."
+      },
+      {
+        "name": "surface",
+        "value": "120ms ease-out",
+        "purpose": "Any surface fading in or out, paired with the lift. The glass fades with it: opacity scales the shader's coverage."
+      },
+      {
+        "name": "lift",
+        "value": "6px",
+        "purpose": "How far a surface sits from its place before it arrives: below it, or above it for the window's buttons, which come down into theirs."
+      },
+      {
+        "name": "switch",
+        "value": "120ms ease-out",
+        "purpose": "A switch's knob crossing its track, and the track's colour with it; the volume's fill fading with a mute."
+      },
+      {
+        "name": "drill",
+        "value": "220ms ease-in-out",
+        "purpose": "A page moving sideways in a panel and the panel's height with it, on one number so the box and what is in it arrive together. Also the end-of-file pill sliding aside for a panel. Longer than a surface because it is a journey rather than an arrival, eased at both ends because it starts and stops in place."
+      },
+      {
+        "name": "glide",
+        "value": "300ms ease-in-out",
+        "purpose": "A list carried back to its current row by the angle pointing to it. Longer than a drill because the distance can be a whole season."
+      },
+      {
+        "name": "preview-fade",
+        "value": "60ms ease-out",
+        "purpose": "The seek preview's fade, half a surface's: it follows a pointer rather than announcing itself, and at the full duration it trailed the hand."
+      },
+      {
+        "name": "backdrop-arrival",
+        "value": "400ms",
+        "purpose": "The backdrop coming up behind an empty window: the window's light changing rather than a control answering. Drawn by the pipeline, not Slint."
+      },
+      {
+        "name": "tip-delay",
+        "value": "500ms",
+        "purpose": "How long the pointer rests on a control before its hover label opens. Long enough that crossing the bar raises nothing."
+      },
+      {
+        "name": "tip-grace",
+        "value": "300ms",
+        "purpose": "How long after a tip goes down the next one comes up with no delay, so reading along the bar is not a stutter."
+      },
+      {
+        "name": "flash-dwell",
+        "value": "700ms / 1200ms / 3200ms",
+        "purpose": "How long the action flash stays: a glyph, a figure alone, or a sentence from the player, which then holds until the next key or pointer event."
+      },
+      {
+        "name": "reset-confirm",
+        "value": "2500ms",
+        "purpose": "How long a reset row reads 'Press again to reset' before it goes back to being a reset."
+      },
+      {
+        "name": "idle-hide",
+        "value": "3000ms",
+        "purpose": "How long the bar waits on stillness before it goes, while a film plays, and never while it is paused."
+      }
+    ],
+    "motionNote": "All of it stops with one switch: Animations, on the settings panel's accessibility page. Every duration that moves something lives in the Motion global in theme.slint and is zero with the switch off, so surfaces, pages, washes, tracks and switches arrive in the frame they were asked for; the backdrop, which the pipeline fades rather than Slint, is drawn at full strength the frame it arrives. The tip delays, the flash's dwell, the reset's confirmation and the idle clock stay as they are: they are waits, not motion. Saved as accessibility.animations, on by default.",
+    "breakpoints": [
+      {
+        "name": "opening",
+        "value": "1280x720",
+        "purpose": "The size the window opens at. It never reflows; these are window sizes, not media queries."
+      },
+      {
+        "name": "transport-give-way",
+        "value": "1076px",
+        "purpose": "Below this, centring the transport would bring it within the pill gap of the right group, so it keeps the gap and moves left, and the title gives up the width."
+      },
+      {
+        "name": "min-window",
+        "value": "960x540",
+        "purpose": "The floor: 16:9 at three quarters of the opening size. Enforced as the window's minimum size rather than by reflowing. At this width the room beside any panel still holds the widest end-of-file pill."
+      }
+    ],
+    "material": {
+      "note": "The glass and ambient-border values as the code ships them (`dbm_gpu::pipeline`). Not expressible as Stitch tokens: they are shader uniforms. Most are sliders on the settings panel's glass and ambient-border pages; bevel and ior are constants and deliberately not adjustable (see `fixed` below).",
+      "glass": {
+        "blurSigma": 10,
+        "bevel": 1,
+        "cornerSoftness": 1.25,
+        "refract": 1,
+        "ior": 2,
+        "aberration": 0.1,
+        "rim": 0.2,
+        "tint": 0.1,
+        "absorb": 0.35,
+        "shadow": 0.2,
+        "tintColor": [
+          0.4,
+          0.4,
+          0.4
+        ]
+      },
+      "absorption": {
+        "curve": "absorbed = 1 - (1 - absorb) / ((1 - absorb) + absorb * luma), then a saturation lift of absorbed * luma^4 * (1 - (1 - saturation)^4), which takes the smallest channel toward zero by that share, so a grey stays grey",
+        "appliesTo": "the transmitted light only, never the rim light",
+        "adjustable": true,
+        "control": "the glass page's Dimming slider, 0..1: the share of a white backdrop absorbed; 0 is a clear pane, 1 absorbs everything"
+      },
+      "border": {
+        "edgeBlur": 0.007,
+        "spread": 0.7,
+        "falloff": 4,
+        "softness": 0.5,
+        "grain": 64,
+        "maxTaps": 256
+      },
+      "units": {
+        "bevel": "fraction of each panel's own corner radius",
+        "cornerSoftness": "how many radii a corner's curve runs along each edge; 1 is a quarter ellipse, larger is squarer and smoother",
+        "refract": "fraction of the bevel width",
+        "others": "see crates/player/src/settings/registry.rs for ranges"
+      },
+      "backdrop": {
+        "source": "one seek-preview tile of the last film left unfinished, taken at the point you stopped, or the player's own mark on a fresh install",
+        "treatment": "covered across the window, softened past the point where its pixels read, dimmed to 0.42 of its brightness and falling away toward the corners",
+        "arrival": "400ms",
+        "purpose": "The glass needs something to be glass over. Over a black frame refraction has nothing to bend and the rim nothing to catch."
+      },
+      "fixed": {
+        "values": [
+          "bevel",
+          "ior"
+        ],
+        "why": "What the material is, rather than how much of it you want. Changing either stops the panes reading as one material, so both are constants in pipeline/params.rs and the glass page has no slider for either."
+      }
+    }
+  },
+  "components": [
+    {
+      "name": "Icon Button",
+      "kind": "button",
+      "refersTo": "icon-button",
+      "description": "Every control in the bar: a 40px circle with a 24px glyph in Lit, and the Strong wash held while its panel is open. A state the button controls shows by its glyph swapping, never by a wash. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-icon-row\"><button class=\"ds-icon-btn\" aria-label=\"Settings\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><circle cx=\"12\" cy=\"12\" r=\"3\"/><path d=\"M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.36.44.63.8.76H21a2 2 0 1 1 0 4h-.09c-.36.13-.66.4-.8.76z\"/></svg></button><button class=\"ds-icon-btn ds-icon-btn-open\" aria-label=\"Subtitles\" aria-expanded=\"true\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\"/><path d=\"M7 14h4M13 14h4M7 10h10\"/></svg></button><button class=\"ds-icon-btn\" aria-label=\"No earlier file\" disabled><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"currentColor\"><path d=\"M18 5v14l-10-7z\"/><rect x=\"5\" y=\"5\" width=\"2.5\" height=\"14\" rx=\"1\"/></svg></button></div>",
+      "css": ".ds-icon-row { display: inline-flex; gap: 6px; padding: 4px; } .ds-icon-btn { width: 40px; height: 40px; display: grid; place-items: center; border: none; border-radius: 20px; background: transparent; color: #ffffff; cursor: pointer; transition: background 45ms ease-out; } .ds-icon-btn:hover { background: #ffffff24; } .ds-icon-btn:focus-visible { outline: none; background: #ffffff54; } .ds-icon-btn-open { background: #ffffff34; } .ds-icon-btn:disabled { color: #ffffff80; background: transparent; cursor: default; }"
+    },
+    {
+      "name": "Menu Row",
+      "kind": "list item",
+      "refersTo": "menu-row",
+      "description": "One selectable line in a panel, 34px tall, its text in Body starting 30px from the panel edge. The wash insets 16px at a 16px corner so it never runs past the panel's. Hover is the Soft wash, the keyboard's position the Strong wash. The current row wears Lit at 700 and a 3x14 capsule mark. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-rows\"><div class=\"ds-row ds-row-active\" tabindex=\"0\">English</div><div class=\"ds-row\" tabindex=\"0\">日本語</div><div class=\"ds-row\" tabindex=\"0\">Français</div></div>",
+      "css": ".ds-rows { display: flex; flex-direction: column; padding: 16px 0; width: 380px; } .ds-row { height: 34px; display: flex; align-items: center; padding: 0 30px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 14px; font-weight: 500; color: #ffffff; position: relative; cursor: pointer; outline: none; } .ds-row::before { content: \"\"; position: absolute; inset: 0 16px; border-radius: 16px; background: transparent; transition: background 45ms ease-out; z-index: -1; } .ds-row:hover::before { background: #ffffff14; } .ds-row:focus-visible::before { background: #ffffff54; } .ds-row:focus-visible { color: #ffffff; } .ds-row-active { color: #ffffff; font-weight: 700; } .ds-row-active::after { content: \"\"; position: absolute; left: 20px; top: 10px; width: 3px; height: 14px; border-radius: 1.5px; background: #ffffff; }"
+    },
+    {
+      "name": "Section Heading",
+      "kind": "custom",
+      "refersTo": "section-label",
+      "description": "Names a part of the application in tracked capitals in the Label role, at the rows' own alpha, with a 18px icon 14px before the words where the rows below carry none. Icons are drawn at 24px or 18px and nothing between. A show's name takes the Named role instead: its own case, no tracking, the same weight and alpha. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-headings\"><div class=\"ds-kicker\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"3\"/><path d=\"M7 14h4M13 14h4M7 10h10\"/></svg>SUBTITLES</div><div class=\"ds-kicker ds-kicker-named\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M9 6h12M9 12h12M9 18h12M3 5l3 2-3 2z\"/></svg>Wandering Road</div></div>",
+      "css": ".ds-headings { display: flex; flex-direction: column; width: 380px; font-family: \"IBM Plex Sans\"; } .ds-kicker { height: 28px; display: flex; align-items: center; gap: 14px; padding: 0 30px 0 30px; font-size: 12px; font-weight: 500; letter-spacing: 1px; color: #ffffff; } .ds-kicker-named { font-size: 13px; letter-spacing: 0; }"
+    },
+    {
+      "name": "Back Row",
+      "kind": "nav",
+      "refersTo": "section-label",
+      "description": "A page's heading and the way out of it at once: 34px tall, the Label role in Body, with a 18px chevron laid out as a drill row lays out its icon, 14px before the words. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-back\" tabindex=\"0\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M15 5l-7 7 7 7\"/></svg><span>SEASON 7</span></div>",
+      "css": ".ds-back { height: 34px; width: 380px; box-sizing: border-box; display: flex; align-items: center; gap: 14px; padding: 0 30px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 12px; font-weight: 500; letter-spacing: 1px; color: #ffffff; position: relative; cursor: pointer; outline: none; } .ds-back::before { content: \"\"; position: absolute; inset: 0 16px; border-radius: 16px; background: transparent; transition: background 45ms ease-out; z-index: -1; } .ds-back:hover { color: #ffffff; } .ds-back:hover::before { background: #ffffff14; } .ds-back:focus-visible { color: #ffffff; } .ds-back:focus-visible::before { background: #ffffff54; }"
+    },
+    {
+      "name": "Parameter Slider",
+      "kind": "input",
+      "refersTo": "slider-row",
+      "description": "A material parameter on the glass and ambient-border pages: a 30px row, a label in Body at Readout size in a column as wide as the widest name in the language spoken, and a 46px value right-aligned in Body. The track grows from 4px to 6px under the pointer; there is no hover wash, since the growing track already answers. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-slider\"><span class=\"ds-slider-label\">Refraction</span><span class=\"ds-track\"><span class=\"ds-fill\"></span></span><span class=\"ds-slider-value\">0.50</span></div>",
+      "css": ".ds-slider { height: 30px; width: 340px; box-sizing: border-box; display: flex; align-items: center; gap: 14px; padding: 0 30px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 13px; font-weight: 500; color: #ffffff; } .ds-slider-label { width: 66px; } .ds-track { flex: 1; height: 4px; border-radius: 3px; background: #ffffff2e; transition: height 100ms ease-out; } .ds-slider:hover .ds-track { height: 6px; } .ds-fill { display: block; width: 50%; height: 100%; border-radius: inherit; background: #ffffffcc; } .ds-slider-value { width: 46px; text-align: right; color: #ffffff; }"
+    },
+    {
+      "name": "Stepper Row",
+      "kind": "input",
+      "refersTo": "stepper-button",
+      "description": "For quantities read as numbers rather than positions, like a subtitle delay, where the useful move is one step: a 38px row, the label in Body at Readout size, then two 26px discs (the Button wash at rest, the Strong wash under the pointer) either side of a 62px value in Strong. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-stepper\"><span class=\"ds-stepper-label\">Timing</span><button class=\"ds-step\">−</button><span class=\"ds-stepper-value\">+0.30 s</span><button class=\"ds-step\">+</button></div>",
+      "css": ".ds-stepper { height: 38px; width: 340px; box-sizing: border-box; display: flex; align-items: center; gap: 14px; padding: 0 30px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 13px; font-weight: 500; color: #ffffff; } .ds-stepper-label { flex: 1; } .ds-step { width: 26px; height: 26px; border: none; border-radius: 13px; background: #ffffff24; color: #ffffff; font-family: \"IBM Plex Sans\"; font-size: 16px; font-weight: 500; line-height: 1; cursor: pointer; transition: background 45ms ease-out; } .ds-step:hover { background: #ffffff34; } .ds-step:focus-visible { outline: none; background: #ffffff54; } .ds-stepper-value { width: 62px; text-align: center; color: #ffffff; }"
+    },
+    {
+      "name": "Switch Row",
+      "kind": "input",
+      "refersTo": "toggle-track-on",
+      "description": "A setting that is on or off: a 40px row, the switch first and the label after it in Body, 12px apart. The knob is dark on a lit track and light on a dark one, so it reads as a hole punched through either way. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-switch-row\"><span class=\"ds-switch ds-switch-on\"><span class=\"ds-knob\"></span></span><span class=\"ds-switch-label\">Autoplay next</span></div>",
+      "css": ".ds-switch-row { height: 40px; width: 380px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 30px 0 30px; font-family: \"IBM Plex Sans\"; font-size: 14px; font-weight: 500; color: #ffffff; position: relative; cursor: pointer; } .ds-switch-row::before { content: \"\"; position: absolute; inset: 0 16px; border-radius: 16px; background: transparent; transition: background 45ms ease-out; z-index: -1; } .ds-switch-row:hover::before { background: #ffffff14; } .ds-switch { width: 34px; height: 18px; border-radius: 9px; background: #ffffff2e; position: relative; transition: background 120ms ease-out; } .ds-switch-on { background: #ffffffcc; } .ds-knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 7px; background: #ffffff; transition: left 120ms ease-out; } .ds-switch-on .ds-knob { left: 18px; background: #101010e6; }"
+    },
+    {
+      "name": "Timeline Row",
+      "kind": "custom",
+      "refersTo": "timeline-row",
+      "description": "The bar's top row, 30px tall across its width: elapsed time, track, total, each time centred in a column as wide as the total reads and never narrower than 00:00, with 13px either side, so a time at its full width lines up with the end buttons' drawings and the row doesn't shift when a film passes the hour. The track is 5px in Rail, growing to 7px; the hit area is the whole row. The dark fill here stands in for the top of the bar's pane and its refraction. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-timeline\"><span class=\"ds-time\">0:24:10</span><span class=\"ds-scrub\"><span class=\"ds-played\"></span></span><span class=\"ds-time\">1:23:45</span></div>",
+      "css": ".ds-timeline { display: flex; align-items: center; gap: 10px; width: 640px; height: 30px; padding: 8px 8px 0; border-radius: 32px 32px 0 0; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); } .ds-time { padding: 0 13px; text-align: center; font-family: \"IBM Plex Mono\"; font-size: 13px; font-weight: 500; color: #ffffff; } .ds-scrub { flex: 1; height: 5px; border-radius: 3.5px; background: #ffffff2e; transition: height 100ms ease-out; } .ds-timeline:hover .ds-scrub { height: 7px; } .ds-played { display: block; width: 30%; height: 100%; border-radius: inherit; background: #fffffff2; }"
+    },
+    {
+      "name": "Hover Label",
+      "kind": "custom",
+      "refersTo": "hover-label",
+      "description": "A 28px capsule of glass naming the control under the pointer and the key that does the same thing, 500ms after the pointer settles, then a fade and a 6px rise. The name in Body, the key in Quiet at Readout size, 12px apart inside 12px of padding. It says what pressing will do, not what the glyph already shows. The volume track's is a reading instead (Volume 84%, or Muted), which opens at once when the level moves under the pointer and stays up through a press. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<span class=\"ds-tip\"><span class=\"ds-tip-name\">Unmute</span><span class=\"ds-tip-keys\">M</span></span>",
+      "css": ".ds-tip { display: inline-flex; align-items: center; gap: 12px; height: 28px; padding: 0 12px; border-radius: 14px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); font-family: \"IBM Plex Sans\"; } .ds-tip-name { font-size: 14px; font-weight: 500; color: #ffffff; } .ds-tip-keys { font-size: 13px; font-weight: 500; color: #ffffff; }"
+    },
+    {
+      "name": "End-of-File Pill",
+      "kind": "button",
+      "refersTo": "end-pill",
+      "description": "A 48px capsule, as tall as the bar's row of buttons, in the middle of the picture where the film stopped: a 24px glyph and the way on by name (the next season, else the newest other unfinished film, else Open folder…) in Prompt at Lit, 12px apart, the words 18px from the pill's edge. With two choices each is a capsule of its own, inset 4px. The Button wash on hover, the Strong wash under the keyboard. Not tied to the idle clock, and it moves aside for a panel or a seek preview in its way. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-end\"><button class=\"ds-end-choice\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"currentColor\"><path d=\"M6 5l10 7-10 7z\"/><rect x=\"17\" y=\"5\" width=\"2.5\" height=\"14\" rx=\"1\"/></svg>Season 8</button><button class=\"ds-end-choice\"><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M4 12a8 8 0 1 0 2.3-5.6M4 4v4h4\"/></svg>Restart</button></div>",
+      "css": ".ds-end { display: inline-flex; align-items: center; gap: 6px; height: 48px; padding: 4px; box-sizing: border-box; border-radius: 24px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); } .ds-end-choice { display: inline-flex; align-items: center; gap: 12px; height: 40px; padding: 0 14px; border: none; border-radius: 20px; background: transparent; color: #ffffff; font-family: \"IBM Plex Sans\"; font-size: 16px; font-weight: 600; cursor: pointer; transition: background 45ms ease-out; } .ds-end-choice:hover { background: #ffffff24; } .ds-end-choice:focus-visible { outline: none; background: #ffffff54; }"
+    },
+    {
+      "name": "Seek Preview",
+      "kind": "card",
+      "refersTo": "seek-preview",
+      "description": "The signature component: one tile of a 8x8 ffmpeg sprite atlas inside a glass panel with a 18px corner and 9px of padding, wider than the bevel so the material has room to render, and the tile's corner concentric with it. The timestamp beneath in Strong, in a 22px caption. Its fade is half a surface's, 60ms. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<figure class=\"ds-preview\"><span class=\"ds-preview-tile\"></span><figcaption class=\"ds-preview-time\">0:24:10</figcaption></figure>",
+      "css": ".ds-preview { margin: 0; padding: 9px 9px 0; border-radius: 18px; background: rgba(16,18,24,0.55); backdrop-filter: blur(12px); display: inline-block; transition: opacity 60ms ease-out; } .ds-preview-tile { display: block; width: 192px; height: 108px; border-radius: 9px; background: linear-gradient(135deg, #6d2f3a, #0e3a4a 55%, #0b1020); } .ds-preview-time { height: 22px; padding-bottom: 9px; display: grid; place-items: center; font-family: \"IBM Plex Mono\"; font-size: 13px; font-weight: 500; color: #ffffff; }"
+    },
+    {
+      "name": "The Way In",
+      "kind": "card",
+      "refersTo": "resume-row",
+      "description": "With no film loaded, a panel of glass centred over the backdrop: first the films left unfinished, newest at the top, each a row of two lines (the show, or a film's own name, in Strong at Body size and the Title's weight, and under it, in Hint size, the episode and what is left, with a play glyph in Body and the resume measure centred beside both), then a group gap, then the open rows as shortcut rows with their keys. The backdrop is the frame of the film the pointer or the ring is on. With nothing to continue the player's name heads it instead. The drop line shows only where the platform has a drop target, and takes its gap with it. This is the one surface with a fill (the Soft wash at the panel corner), and only where there is no glass to paint over: a fatal error, and no film with no backdrop. Illustrative only: the implementation is Slint over a GL refraction pipeline, and no stylesheet can reproduce the material.",
+      "html": "<div class=\"ds-invite\"><div class=\"ds-invite-row\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"currentColor\"><path d=\"M7 5l12 7-12 7z\"/></svg><span class=\"ds-invite-words\"><span class=\"ds-invite-name\">Game of Thrones</span><span class=\"ds-invite-sub\">S07E06 · Beyond the Wall · 43 min left</span></span><span class=\"ds-measure\"><span class=\"ds-measure-fill\"></span></span></div><div class=\"ds-invite-row\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"currentColor\"><path d=\"M7 5l12 7-12 7z\"/></svg><span class=\"ds-invite-words\"><span class=\"ds-invite-name\">Arrival (2016)</span><span class=\"ds-invite-sub\">58 min left</span></span><span class=\"ds-measure\"><span class=\"ds-measure-fill\"></span></span></div><div class=\"ds-invite-gap\"></div><div class=\"ds-invite-key\"><span>Open file…</span><span class=\"ds-keys\">Ctrl+O</span></div><div class=\"ds-invite-key\"><span>Shortcuts</span><span class=\"ds-keys\">?</span></div></div>",
+      "css": ".ds-invite { width: 420px; box-sizing: border-box; padding: 16px; border-radius: 32px; background: #ffffff14; font-family: \"IBM Plex Sans\"; } .ds-invite-row { height: 52px; display: flex; align-items: center; gap: 14px; padding: 0 14px 0 14px; box-sizing: border-box; border-radius: 16px; color: #ffffff; cursor: pointer; transition: background 45ms ease-out; } .ds-invite-row:hover { background: #ffffff14; } .ds-invite-words { flex: 1; display: flex; flex-direction: column; min-width: 0; } .ds-invite-name { height: 18px; line-height: 18px; font-size: 14px; font-weight: 600; color: #ffffff; } .ds-invite-sub { height: 18px; line-height: 18px; font-size: 13px; font-weight: 500; color: #ffffff; } .ds-measure { width: 44px; height: 4px; border-radius: 2px; background: #ffffff2e; } .ds-measure-fill { display: block; width: 62%; height: 100%; border-radius: inherit; background: #ffffff; } .ds-invite-gap { height: 16px; } .ds-invite-key { height: 34px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px 0 14px; font-size: 14px; font-weight: 500; color: #ffffff; } .ds-keys { font-size: 13px; color: #ffffff; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Cinema Window",
+    "overview": "Panes of real glass, laid over the film. Not a metaphor for glass — the interface is genuinely refractive: mpv's frame is rendered into the application's own GL context as a texture, and every surface bends the picture behind it through a superelliptic box's distance field, a dome profile and Snell's law. Thickness, bevel and index of refraction are real parameters, and the rim behaves like a rim because it is one.\n\nThe consequence is that this system has almost no palette. Colour comes from whatever is playing. The interface is white at a handful of alphas and full white, one near-black for a switch's knob and a field's well, and — before anything is loaded — the dimmed light of a film left unfinished. Even the letterbox is not neutral: the ambient border extends the frame's own edge colours outward, so a red scene bleeds red into the bars. Nothing here is tinted by a brand.\n\nControls behave like instrument switches: definite, short, slightly firm. A hover wash lands in `Motion.highlight` and surfaces arrive in `Motion.surface` with a few pixels of travel, fast enough that the movement registers as a response rather than an animation. Density is generous: `Rows.gap` on all four sides of every row, and panels that hold at most a heading and a list.",
+    "keyCharacteristics": [
+      "Real per-pixel refraction, not a translucent blur panel",
+      "No palette of its own; colour is the film's",
+      "Every word in one white, told apart by weight, size and place; alpha steps are for marks, built up from a floor that does not move",
+      "One radius rule: every corner nests concentrically inside its parent",
+      "Motion is short, eased out, and never bounces",
+      "Uppercase for the interface's own labels, natural case for the user's content"
+    ],
+    "rules": [
+      {
+        "name": "The Borrowed Colour Rule",
+        "section": "colors",
+        "body": "The interface owns no hue. Any proposal that adds a brand colour, a semantic red/green, or an accent to this palette is a proposal to stop the film from being the only source of colour on screen. Status is carried by alpha and by glyph, never by hue."
+      },
+      {
+        "name": "The Two-Step Rule",
+        "section": "colors",
+        "body": "Adjacent alpha steps — the marks', the washes' — differ by at least 0x20. Closer than that and the difference stops reading over moving video, where the backdrop changes faster than the eye can calibrate."
+      },
+      {
+        "name": "The Bright Text Rule",
+        "section": "colors",
+        "body": "No word is less than full white. The glass is held dark enough for the dimmest word to read on it over a bright frame, so every step lower darkens every pane over every bright scene: with a row's running time and a shortcut's keys at Quiet, the glass over white would be held to a dark smoked grey that reads as tint rather than as glass. How the glass looks comes before a second, quieter level of words. What sits beside a row's name is told from it by place and by size instead, at Readout or Hint, a size under Body. The one place words are dark is the keyboard's ring, which is not a dimmer step but the ladder turned over on milk glass, and holds no glass down: the milk is lifted after the hold, not held for them. The one time words fade is while an open is in flight, when the way in's rows that would start another stand at half (see the way in): not a step but a moment's pause, over a backdrop the pass has already dimmed, beside a line naming what is arriving."
+      },
+      {
+        "name": "The Fixed Floor Rule",
+        "section": "colors",
+        "body": "The ladder is built upward from Dim (`Paint.dim`), and Dim does not move: retuning the ladder means moving the steps above the floor, never the floor. Dim is the one step meant to look greyed out and Quiet is for marks, so neither is what the glass is held to; that is Body, the white every word is (see The Legible Glass Rule)."
+      },
+      {
+        "name": "One Weight For Headings",
+        "section": "typography",
+        "body": "Every heading in the system is plain (`Type.weight-plain`), whatever it holds. A show's name at 600 beside a kicker at 400 read as two different designs in two panels — and it had also become a small copy of the playing row rather than a heading of its own. A panel's top line is one slot; only the thing in it should differ."
+      },
+      {
+        "name": "The Label Must Not Out-Ink Its Content",
+        "section": "typography",
+        "body": "A section label is furniture; the rows under it are the point. At 700 a kicker put down 34.9 lit pixels per character against a body row's 25.6 — heavier ink than the thing it labelled, while the alpha ladder claimed it was quieter — and the only cue left telling them apart was the capitals. Capitals alone are not enough in a list of nineteen. A label is told from its content by case, size, tracking, its icon and the space above it; it wears its rows' own alpha, and it is never told apart by being the boldest thing on the page."
+      },
+      {
+        "name": "The Label Floor",
+        "section": "typography",
+        "body": "Nothing is smaller than the Label size, and that size is only for capitals, which are read by their shape. Below it, white text over arbitrary moving content stops being read and starts being recognised, which is fine for a heading whose wording you already know and no use at all for a number that changes. Naming the roles in one place, the `Type` global, is what keeps the scale from drifting below it quietly."
+      },
+      {
+        "name": "The Capitals Rule",
+        "section": "typography",
+        "body": "The interface shouts its own words and never the user's. SUBTITLES, AUDIO and EFFECTS are tracked capitals in the Label role because they name parts of the application. A show's name, a track's name, a filename — anything that came from the user's library — keeps its own case and gets the Named role instead. Capitalising someone's content is how a tool starts sounding like a database."
+      },
+      {
+        "name": "The One Panel Rule",
+        "section": "layout",
+        "body": "Opening any panel closes the others. Two sheets of glass over the same film is noise, and it doubles the refraction cost on the one surface the design exists for. The hover label stands down while any panel is open, for the same reason. With no film loaded the way in is the panel: the tracks and the playlist describe a film and do not open, and the keys that act on one — seeking, Home, the subtitle delay, the volume — do nothing, so no flash lands on top of it either."
+      },
+      {
+        "name": "The Bar Stays For A Pause",
+        "section": "layout",
+        "body": "The bar hides after three still seconds while a film plays, and not while it is paused. Pausing is stopping to look at where you are, which is the moment the bar is for. A pause a frame step made is not held (`MainWindow.stepped`): stepping is looking at the picture, whose foot the bar would cover, not at where you are. Nor does the chrome leave from under a pointer resting on the bar or on the window's buttons (`ControlBar.hovered`, `MainWindow.window-hovered`): a hand that has stopped on a control is about to use it."
+      },
+      {
+        "name": "A File Says What It Is",
+        "section": "layout",
+        "body": "As a file starts, however it came — autoplay, Ctrl+→, the way on, a row of the playlist — what is loaded comes up on its own for three seconds (`MainWindow.title-glimpse`): its name is the one thing worth seeing then, and the rest of the bar would only cover the opening shot. So it does for as long as an open is in flight: *Opening …* takes the title's place, and it is the only sign anywhere that a folder on a share is still being read. The open is over when mpv finishes opening the new file — not when there is a file, which over a film already playing was true at once and cleared the line before it was ever drawn. A seek takes its place, being newer news."
+      },
+      {
+        "name": "A Knock Is Not A Hand",
+        "section": "layout",
+        "body": "A pointer gone from the screen has to travel `MainWindow.twitch` in a moment before it brings anything back: a knocked desk or a mouse set down brings up nothing in a dark room, while a hand reaching for the controls is past that at once. A press always counts, and so does a pointer coming back into the window, since no knock carries it in from outside. And a pointer leaving the window takes the chrome with it, rather than leaving it over the film to wait out the clock — once it has stayed out for `MainWindow.leave-grace`, since reaching for an edge to resize the window overshoots it."
+      },
+      {
+        "name": "A Key Brings Up Its Answer",
+        "section": "layout",
+        "body": "A key calls up only what shows what it did. A seek, by the arrows with or without Shift or by Home, brings up the timeline alone, since where the film now is is the whole answer and the buttons beside it would only cover more of the picture. A key the flash answers brings up nothing else: the tracks, the subtitle delay, the speed, chapters, the next or previous file, and the volume and mute by their figure. One the picture answers brings up nothing at all: a frame step, T, B. F and a double-click on the picture put the chrome away at once, into fullscreen or out, and so does Escape leaving it, since what was asked for is the picture at a new size, not the bar over it; for half a second after, the pointer's moves don't bring it back, since a window changing size is sent moves no hand made (`Chrome.settling`). So does a key that sends you back to the film: Space playing on, from a pause, the end or a saved place; Escape, or a panel's own key, closing the panel; Escape putting the ring away; Enter on a pill's choice; → from the end. Every other key wakes the bar, as the pointer does, and no key takes away what is already up but those: pressed with the bar up, a key keeps it there (`MainWindow.key-wake`)."
+      },
+      {
+        "name": "The Line Keeps To The Picture",
+        "section": "layout",
+        "body": "A subtitle rests on the picture, whatever shape the window is: up to a Position of 100 it moves down the picture, and past it on down the letterbox, reaching the window's foot at 150. Every kind of track goes by the same measure. Left to itself mpv puts a text subtitle against the window instead, which in a window taller than the film drops it into the letterbox, and lets a long line beside a narrower picture run out over the border at its sides. A line the Position does put in the letterbox is drawn over the ambient border, never under it. Where the picture is cropped to fill the window, the line keeps to the part that shows."
+      },
+      {
+        "name": "A Line Never Lights The Border",
+        "section": "layout",
+        "body": "The ambient border starts from the picture's outermost rows, and a subtitle on them would spread into it as a grey haze. So mpv marks which of the picture's pixels are a subtitle's, and the border reads its light from the rest: each column from its own picture around and above the letters, never from the letters, and never borrowed from beside them."
+      },
+      {
+        "name": "The Bar Is A Floor",
+        "section": "layout",
+        "body": "While the bar is up, subtitles rest above it. The line keeps its own place — the Position on the subtitles menu's Size & position page — and rises only as far as it must: to sit mpv's own bottom margin above the bar, the same air it keeps above the window's edge when nothing is in the way. It climbs on the bar's own fade and settles as the bar goes, and with the timeline or what is loaded up alone it rises only onto that. A line already above the bar does not move — a bar down in the letterbox under a line on the picture leaves it be — and one resting in the letterbox comes all the way up. The case that made this necessary is pausing to read a line, which holds the bar up over exactly that line. The one exception is setting the Position: from its first press the line goes down to where it rests, so the stepper moves what is being looked at, and it comes back up when Size or Shift is stepped, or the page is left — those two are set by reading the line. The readout always shows where the line was put, never where the bar has moved it."
+      },
+      {
+        "name": "The Gap Goes Above Rule",
+        "section": "layout",
+        "body": "The group gap always sits above the thing that starts something new, never below the thing that ended: above a section heading, above a trailing reset. Split evenly, or left out, a heading sits about the same distance from the group it names as from the group it follows, which is a label equidistant between two things, labelling neither. Spacing is the only thing in a list of identical rows that says where one idea stops."
+      },
+      {
+        "name": "The Legible Glass Rule",
+        "section": "elevation",
+        "body": "Absorption is a look, and its slider can turn it down; legibility is not on that page. Whatever absorption leaves, the glass lets through no more light than Body needs to keep `pipeline.LEGIBLE` of contrast on it: a ceiling worked out from `Paint.body` (`legible_ceiling`, in `dbm_gpu::pipeline`), eased into from `glass.KNEE` of it so a bright area keeps its shading rather than going flat at a line. Over dark glass it does nothing; over a white frame the panes go to a mid grey, and over a coloured one keep its colour, darker. Like absorption it darkens the transmitted light only, so the rim keeps its edge. The pane under the keyboard's ring goes lighter than the glass around it only as far as its Lit words allow on it, and over glass already at its ceiling goes darker instead (see The Ring Pane Rule). WCAG asks 4.5 of text this size; the margin is for its thinnest strokes, which antialiasing leaves short of their full alpha. The one way out is a switch of its own on the accessibility page, *Darken bright glass* (`Settings.legible-glass`), for someone who would rather have the glass as its sliders make it and accept words that can vanish over a white scene: a choice about legibility, made where legibility is chosen, and not undone by the glass page's reset. With the glass switched off there is no ceiling either, and nothing but the words' own shadow between them and the film."
+      },
+      {
+        "name": "The Proportional Rim Rule",
+        "section": "elevation",
+        "body": "Bevel is a fraction of the corner radius, never a count of pixels. The same absolute rim that looks right rolling around a panel's corner swallows a pill whole. One number therefore means the same thing on every piece of glass, and a small pane simply has a small rolled edge, which is also how real glass is made. At `BEVEL` of 1 the rim runs the full width of the corner, which is why a capsule is rim the whole way through."
+      },
+      {
+        "name": "The Room to Be Glass Rule",
+        "section": "elevation",
+        "body": "A surface must leave more margin around its contents than its own bevel is wide, or the material has nowhere to render: a seek preview padded thinner than its bevel shows no glass at all."
+      },
+      {
+        "name": "The Transmissive Middle Rule",
+        "section": "elevation",
+        "body": "Absorption — the thing that keeps white text and white controls legible over a bright frame — is applied to the transmitted component only, never to the rim light. The rim is the full corner radius, so a capsule is rim the whole way through and has no transmitted component to darken. **A pane that exists to give something a ground must be tall enough to have a flat middle.** This is why the bar is one pane and not a capsule for each row and group: glass at a row's own size would be all edge and would darken little, which is the one thing it is there to do."
+      },
+      {
+        "name": "The Ring Pane Rule",
+        "section": "shapes",
+        "body": "The keyboard's place is a pane of milk glass of its own, laid on the surface it is in: what it passes is lifted toward white by `pipeline.RING_MILK`, after the hold the rest of the glass gets, so it is lighter than the glass around it over every frame — 3:1 and more over a white one, where that glass is as light as it ever gets — and still carries a little of the frame's colour. What stands on it is drawn dark (see On the ring). With white words it could not be done: the glass is held as light as white words allow, so a ring as light as that matched it and showed only its lit rim, an outline, which this interface draws only round a field; and a ring that went darker over bright glass and lighter over dark turned over as the frame changed, and at one grey was that grey. Milk glass with dark words is the same way round on every frame. It shows while the keyboard is in use, and on one more occasion: a pill that arrives with an offer — the title sequence's, the credits', the way back after a jump, the question at a file left part way, the end of a file — arrives with the pane on it, so where Enter goes is shown before a key is pressed. The way in's *Continue* does without, being the first row of a panel nothing else is in. Its rim is lit at `pipeline.RING_RIM` whatever the Rim slider says, and the pane is real glass, refracting the frame on its own. It casts no shadow, and never reaches past the pane it lies on, which a page sliding in would otherwise carry out over the film. On a bar button the window places a disc (`ControlBar.ring-disc`); on a row or one of a pill's choices, which the window can't reach into, the row says where it is through `Ring` (`RingPane`). In a scrolling list the pane is cut to the list and fades as its row leaves, gone by the time half the row is, and the same holds for the surface the row is in: a page rising into a panel that grows to fit it brings its row up from below the panel, where the pane would lie on the bar (`GlassRect.host-y`). With no glass — switched off, or never drawn — the Ring wash marks the place alone, and what is on it stays Lit."
+      },
+      {
+        "name": "The Concentric Rule",
+        "section": "shapes",
+        "body": "Inner radius = outer radius − the gap between them. Anything else pinches the curves together at 45° while still meeting cleanly on the axes, which is exactly the part the eye catches. A superelliptic corner at the inner radius is not quite concentric with one at the outer. Where a wash has to follow the glass's edge, it is the glass's outline moved in by the gap (`Squircle`'s `inset`), as the end pill's two choices are. The rows take a corner of their own instead, since a row is too short for the panel's corner moved in, which would draw its ends out; their own narrows the gap to the panel by under a pixel at the corner."
+      },
+      {
+        "name": "The Not Under The Words Rule",
+        "section": "components",
+        "body": "A measure on a text row goes on the line, never beneath it. Under a title at the width of its column it is a divider — and it is one whichever way it is filled, so at the end of a file the fill covers the track and leaves a rule sitting between two titles. Under a title and short, it lands at about the width of the words above it and becomes an underline. There is no length that is safe underneath; the fix is the line the row already has, beside the fact that is already there."
+      },
+      {
+        "name": "The Label Cannot Outlive Its Control",
+        "section": "components",
+        "body": "Whether a tip is drawn is an expression, never a decision taken when the pointer arrives. Both ways it can go wrong happen afterwards: a pointer resting on a button raises no events, so the bar can leave from under a label that is already up — put away by a key, or moved out from under it by fullscreen — without the label hearing of it; and a panel can open underneath one, over the very row the tip covers, which a check run once on hover never sees. A tip a panel hid stays gone when the panel closes, until the pointer next arrives; uncovered, it would show its fade-out in a place the hand may have left."
+      }
+    ],
+    "dos": [
+      "**Do** derive every length from the constants at the top of the component. Panel geometry is read once per frame by the renderer; a binding that asks a layout for an answer costs a full layout pass each time.",
+      "**Do** take every colour from the `Paint` global. A new role gets an existing step; a colour written at its use site is how the ladder drifts.",
+      "**Do** keep radii concentric: inner = outer − gap, as `Panels.radius` is `Rows.radius` + `Rows.gap`.",
+      "**Do** express state in two channels where a control carries two meanings — glyph brightness for what it controls, held background for what it opened.",
+      "**Do** size a bevel as a fraction of its own corner radius.",
+      "**Do** leave a surface more padding than its bevel is wide.",
+      "**Do** capitalise the interface's own labels and leave the user's content in its own case.",
+      "**Do** fade glass with the surface above it.",
+      "**Do** show where the keyboard is with a pane of milk glass of its own, with what stands on it drawn dark, and only while the keyboard is being used.",
+      "**Do** open a list on its current row, and make a destructive row take two presses and offer itself back.",
+      "**Do** keep the accessible roles and labels Slint makes cheap — an icon button's is its tip, a row's is its words — and promise nothing past them. Screen readers are not a goal of this player: the keyboard's ring is glass, not focus a reader can follow, notices are not announced, and no change is checked with one.",
+      "**Do** take font weights from `Type` — plain, title, current — not literals."
+    ],
+    "donts": [
+      "**Don't** add a hue. Not an accent, not a semantic red, not a brand colour. The film is the only source of colour on screen.",
+      "**Don't** add a text step between two existing ones, or move Dim. There is no gap left wide enough to put one in, and the floor is the contrast margin everything else stands on.",
+      "**Don't** give a panel a background fill. The glass beneath it is the surface; a fill paints over the thing this product exists for. The way in is the one exception, where there is no glass to paint over: carrying a fatal error, with no render context to draw it. A window with no film to light it is not that case — the mark lights it, and the way in is glass. See Elevation & Depth.",
+      "**Don't** draw a border, a ring or a hairline. The one outline in this interface is the rim round a field to type into (see Fields), which over a dark frame is all that says where the words go; a focus ring would make the keyboard a second thing that draws one.",
+      "**Don't** let it drift toward the utilitarian player — VLC, MPC-HC, mpv's own OSC. Grey chrome, system widgets and dense toolbars are the failure mode that function-first reasoning always argues for, and the reason this was rebuilt.",
+      "**Don't** open two panels at once.",
+      "**Don't** animate for its own sake. Motion here is a response: `Motion.highlight` for a wash, `Motion.track-grow` for a track, `Motion.surface` for a surface and `Motion.switch` for a switch or a mute, ease-out, no bounce, no overshoot. Four things depart from that, each for a reason that is about what is moving rather than about how it looks: - the **backdrop's** arrival (`pipeline.BACKDROP_ARRIVAL`), the one motion that is not a response to anything: it is the window's light changing, not a control answering; - a **drill** (`Motion.drill`), ease-in-out, moving the page sideways and the panel's own height with it. Longer than a surface because it is a journey rather than an arrival, and eased at both ends because it starts and stops in place rather than coming from nowhere. The panel and the page are one number, so the box and what is in it arrive together. **Both trees move, and by the same number**: the settings pages behind their rows, the subtitles menu's pages behind its tracks and the search's, the account's behind the search's, and the playlist between its list of parts and a part's page. A panel with two levels that changes which one it shows in a single frame leaves no account of what happened, and that is as true of a season as of a page of sliders. **The pages only move sideways**: while the panel moves, both hang from its bottom edge, which stays on the line every panel sits on, each at its own height, and the panel's top uncovers or covers them as it eases; at rest they hang from the top, where both ways agree. Hung from the top, they would ride its edge up or down as they crossed, and the row the ring comes back to would rise into the panel from under it. Never to a new window, though: while the window is being resized, the panels' heights take their new size in the frame they are given it, since eased they would trail the window's edge for as long as the drag lasted; - a **glide** (`Motion.glide`), ease-in-out, carrying a list back to its current row when the angle pointing to it is pressed. Longer than a drill, because the distance is anything up to a whole season and at a drill's length the rows go past as a smear; - the **seek preview's** fade, half of `Motion.surface`, the one surface with a duration of its own. It is not announcing itself; it is following a pointer, and at a surface's pace it reads as trailing the hand rather than belonging to it. **All of it stops with one switch**: Animations, on the settings panel's accessibility page, or the desktop's own setting for less motion, which is read and heard as it changes (`platform::motion`): either one asking for stillness is enough, and while the desktop is the one asking a line under the switch says so. Every duration that moves something is a token in the `Motion` global, and each is zero when either asks, so surfaces, pages, washes, tracks and switches arrive in the frame they were asked for; the backdrop, which the pipeline fades rather than Slint, is simply there. The waits stay — the tip's delay and grace, the flash's dwell, the reset's confirmation, the idle clock — because a wait is not motion. A new animation takes its duration from `Motion`, never a number of its own, or it is the one thing left moving for someone who asked for nothing to.",
+      "**Don't** substitute an icon library. The set in `public/icons/` is drawn on one grid as one family; extend it rather than replacing it.",
+      "**Don't** show an icon at any size but the one it is drawn at (the bar's, `Icons.full`) and three quarters of it (a row's, `Icons.row`). Those keep the drawings' line on whole and half pixels, and both stay legible; at two thirds the line falls a third of a pixel off the grid, and at a half every line lands on a pixel boundary and turns to two grey rows, so detailed icons blur into blobs. A smaller size needs its own drawing. There are **no** exceptions."
+    ]
+  }
+}
