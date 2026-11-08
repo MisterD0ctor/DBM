@@ -1,4 +1,4 @@
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Model};
 
 use crate::app::App;
 use crate::platform::dialog;
@@ -62,11 +62,12 @@ pub(super) fn wire_opening(ui: &MainWindow, app: &App) {
 }
 
 /// The file the dialogs should open near: the one playing, or failing that
-/// the one the way in offers to continue.
+/// the newest the way in offers to continue.
 fn near(ui: &MainWindow) -> Option<std::path::PathBuf> {
     let playback = ui.global::<Playback>();
-    [playback.get_path(), playback.get_resume_path()]
-        .into_iter()
+    let newest = playback.get_unfinished().row_data(0).map(|film| film.path);
+    std::iter::once(playback.get_path())
+        .chain(newest)
         .find(|p| !p.is_empty())
         .map(|p| std::path::PathBuf::from(p.as_str()))
 }

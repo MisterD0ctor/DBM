@@ -184,7 +184,7 @@ components:
     textColor: "{colors.lit}"
     typography: "{typography.prompt}"
   resume-row:
-    height: "{{ Rows.row }}"
+    height: "{{ Rows.resume-row }}"
     padding: "0 {{ Rows.trail-x }} 0 {{ Rows.label-x }}"
     textColor: "{colors.strong}"
     typography: "{typography.body}"

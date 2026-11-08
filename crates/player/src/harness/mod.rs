@@ -51,6 +51,10 @@
 //!   right-hand pill instead of in the corner, so the hover label shows.
 //!   `tip-volume` rests it on the volume track, whose label is the level.
 //! * `DBM_SHOWCASE=window-max` presses the window's own maximize button.
+//! * `DBM_SHOWCASE=way-in-film` rests the pointer on the way in's second
+//!   film, whose frame should then light the window. It needs an app-data
+//!   folder holding films left unfinished, which no exercise makes.
+//!   `way-in-ring` walks the keyboard's ring to the third film instead.
 //! * `DBM_SHOWCASE=settings`, `video`, `episodes`, `glass`, `ambience`,
 //!   `accessibility`, `shortcuts` and `language` open the settings on that
 //!   page.

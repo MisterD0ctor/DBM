@@ -4,7 +4,7 @@
 // navigation stay with the window, which mirrors the few of these it acts on
 // when they change.
 
-import { ArrivalAnswer, Way } from "models.slint";
+import { ArrivalAnswer, ResumeItem, Way } from "models.slint";
 
 export global Playback {
     in property <string> title;
@@ -110,15 +110,13 @@ export global Playback {
     in property <float> fine-seek-step: 1;
     /// Matches mpv's own ceiling, so 100% sits where mpv puts it.
     in property <float> volume-max: 200;
-    /// The last film left unfinished, offered by the way in. Empty when there
-    /// is none; found once, off the frame path, a moment after startup.
-    in property <string> resume-path;
-    in property <string> resume-title;
-    /// The show it is an episode of, or empty for a film. Shown on its own
-    /// line above Continue, where a playlist puts a show's name.
-    in property <string> resume-show;
-    in property <float> resume-progress;
-    in property <string> resume-left;
+    /// The films left unfinished, newest first, as the way in offers them.
+    /// Empty when there is none; looked for off the frame path a moment after
+    /// startup, and again when an open leaves nothing playing.
+    in property <[ResumeItem]> unfinished;
+    /// Light the empty window with the frame of the film offered at this
+    /// path, as the pointer or the ring comes to its row.
+    callback light-with(string);
     /// Where the way on goes once a list has run out, and what it is called:
     /// the next season when a folder beside this one holds the same show,
     /// otherwise the newest other film still unfinished. Looked for at the

@@ -130,7 +130,7 @@ impl Player {
         // offers what it would have at launch rather than the bare fill.
         if self.opening.stumbled && self.state.idle && self.state.path.is_none() {
             self.opening.stumbled = false;
-            completions::look_for_resume(&self.app.worker);
+            completions::look_for_unfinished(&self.app.worker);
         }
     }
 

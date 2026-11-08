@@ -87,8 +87,10 @@ pub enum Completion {
     /// lengths and titles. Several at once when they came from the cache.
     Probed(Vec<dbm_library::probe::Found>),
     /// What the empty window can offer to pick back up, looked for once at
-    /// startup when nothing was named on the command line.
-    Resume(Option<dbm_library::resume::Resume>),
+    /// startup when nothing was named on the command line, and again when an
+    /// open left nothing playing. Most recently left first; empty for a
+    /// window with nothing to offer, which is every fresh install.
+    Unfinished(Vec<dbm_library::resume::Resume>),
     /// A seek-preview atlas, built or found for the file playing, and already
     /// decoded into Slint's pixels. Reported from the build's own thread (see
     /// `preview`), and kept with the file it belongs to: one already on its

@@ -22,6 +22,7 @@ mod background;
 mod completions;
 mod events;
 mod feeds;
+mod offers;
 mod opening;
 
 use std::cell::RefCell;
@@ -57,6 +58,37 @@ thread_local! {
 /// Whether a run is already on its way to the UI thread, so a burst of
 /// wakeups costs one.
 static WOKEN: AtomicBool = AtomicBool::new(false);
+
+/// Have a row of the way in light the window with its film, the moment the
+/// pointer or the ring comes to it.
+fn wire_lighting(player: &Rc<RefCell<Player>>) {
+    let Some(ui) = player.borrow().ui.upgrade() else {
+        return;
+    };
+    let (player, window) = (Rc::downgrade(player), ui.as_weak());
+    ui.global::<Playback>()
+        .on_light_with(move |path| light_from_row(player.clone(), window.clone(), path));
+}
+
+fn light_from_row(
+    player: Weak<RefCell<Player>>,
+    window: slint::Weak<MainWindow>,
+    path: slint::SharedString,
+) {
+    let (Some(held), Some(ui)) = (player.upgrade(), window.upgrade()) else {
+        return;
+    };
+    // Held only by a frame while it draws. A pointer is not answered inside
+    // one, but should a row ever be, the next turn of the loop has it rather
+    // than nobody.
+    let Ok(mut held) = held.try_borrow_mut() else {
+        slint::Timer::single_shot(std::time::Duration::ZERO, move || {
+            light_from_row(player, window, path);
+        });
+        return;
+    };
+    held.light_with(&ui, &path);
+}
 
 /// Have the player take in what mpv or the worker has for it.
 ///
@@ -220,9 +252,10 @@ pub struct Player {
     /// `lang::changes` as of the last run, so words already handed to the
     /// interface are said again in a language just chosen.
     language_seen: usize,
-    /// How much is left of the film the way in offers, kept so that line can
-    /// be said again too.
-    resume_left: Option<f64>,
+    /// The films the way in offers to pick back up, as the worker last found
+    /// them, and which one lights the window. Kept so their words can be said
+    /// again in a language just chosen, and a row come to can light it.
+    offers: Option<offers::Offers>,
     /// The panels to draw unseen before they are opened.
     warm: crate::interface::warm::WarmUp,
     /// Last seen state of the playlist panel, so its opening can be noticed.
@@ -255,7 +288,7 @@ impl Player {
             state: PlayerState::default(),
             panel: playlist_panel::Panel::default(),
             language_seen: 0,
-            resume_left: None,
+            offers: None,
             warm: crate::interface::warm::WarmUp::default(),
             playlist_open: false,
             opening: Opening::default(),
@@ -273,6 +306,7 @@ impl Player {
             backdrop: None,
         }));
         PLAYER.with(|slot| *slot.borrow_mut() = Rc::downgrade(&player));
+        wire_lighting(&player);
         player
     }
 
@@ -298,7 +332,7 @@ impl Player {
                     ))
                 });
             }
-            None => completions::look_for_resume(&self.app.worker),
+            None => completions::look_for_unfinished(&self.app.worker),
         }
     }
 
@@ -337,6 +371,23 @@ impl Player {
     /// A picture for behind the glass, if one has come since the last frame.
     pub fn take_backdrop(&mut self) -> Option<Still> {
         self.backdrop.take()
+    }
+
+    /// Light the empty window with the frame of the film the way in offers at
+    /// `path`, whose row the pointer or the ring has just come to.
+    fn light_with(&mut self, ui: &MainWindow, path: &str) {
+        // The way in still answers the pointer on its way out, and the film
+        // coming in is what lights the window then.
+        if self.state.path.is_some() {
+            return;
+        }
+        let Some(still) = self.offers.as_mut().and_then(|offers| offers.light(path)) else {
+            return;
+        };
+        self.backdrop = Some(still.clone());
+        // Only a frame hands it to the GPU, and a row come to by a key may
+        // change nothing else on screen.
+        ui.window().request_redraw();
     }
 
     /// Whether the file has ended and its end has been given a light, which

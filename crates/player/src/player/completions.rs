@@ -6,6 +6,8 @@
 //! what it changes: the search to `interface::find`, a sync to
 //! `interface::subsync`, and what the player holds itself to a method below.
 
+use std::rc::Rc;
+
 use dbm_library::durations::FileProgress;
 use dbm_library::onward::Onward;
 use dbm_library::preview::{Sprite, Still};
@@ -15,14 +17,15 @@ use dbm_library::threads::ForFile;
 use dbm_library::titles::{self, End};
 use dbm_mpv::MediaPath;
 use dbm_naming::Language;
-use slint::ComponentHandle;
+use slint::{ComponentHandle, ModelRc, VecModel};
 
+use super::offers::Offers;
 use super::{EndLight, Player};
 use crate::interface::{format, say, subsync, warn};
 use crate::playback::commands;
 use crate::playback::state::Lists;
 use crate::worker::{Completion, Worker};
-use crate::{MainWindow, Playback};
+use crate::{MainWindow, Playback, ResumeItem};
 
 impl Player {
     /// Take delivery of one finished job. Returns whether the playlist needs
@@ -40,10 +43,7 @@ impl Player {
             Completion::Opened(Err(e)) => self.not_opened(ui, e),
             Completion::Notice(notice) => say(ui, notice.sentence().into()),
             Completion::Warning(warning) => warn(ui, warning.sentence()),
-            Completion::Resume(Some(resume)) => self.offer_resume(ui, resume),
-            // Nothing to continue, which on a fresh install is every time:
-            // the window is lit by the player's own mark instead.
-            Completion::Resume(None) => light_with_the_mark(&self.app.worker),
+            Completion::Unfinished(films) => self.offer_unfinished(ui, films),
             Completion::Preview(preview) => {
                 let path = preview.path().clone();
                 if let Some(preview) = preview.if_playing(playing) {
@@ -222,28 +222,30 @@ impl Player {
         }
     }
 
-    /// Put the film left unfinished on the way in, and its frame behind it.
-    fn offer_resume(&mut self, ui: &MainWindow, resume: Resume) {
-        let playback = ui.global::<Playback>();
+    /// Put the films left unfinished on the way in, newest first, and the
+    /// newest one's frame behind it.
+    fn offer_unfinished(&mut self, ui: &MainWindow, films: Vec<Resume>) {
+        self.offers = Offers::new(films);
+        self.paint_offers(ui);
+        let Some(offers) = self.offers.as_ref() else {
+            // Nothing to continue, which on a fresh install is every time:
+            // the window is lit by the player's own mark instead.
+            light_with_the_mark(&self.app.worker);
+            return;
+        };
         log::info!(
-            "last unfinished {} at {:.0}%{}",
-            resume.path,
-            resume.fraction * 100.0,
-            if resume.still.is_some() {
+            "{} left unfinished, newest {}{}",
+            offers.films().len(),
+            offers.films()[0].path,
+            if offers.lit_still().is_some() {
                 ", with a frame"
             } else {
                 ""
             }
         );
-        playback.set_resume_path(resume.path.as_str().into());
-        playback.set_resume_show(resume.show.unwrap_or_default().into());
-        playback.set_resume_title(resume.title.into());
-        playback.set_resume_progress(resume.fraction);
-        playback.set_resume_left(format::left(resume.seconds_left).into());
-        self.resume_left = Some(resume.seconds_left);
-        match resume.still {
+        match offers.lit_still() {
             Some(still) => {
-                self.backdrop = Some(still);
+                self.backdrop = Some(still.clone());
                 // With no backdrop the way in's glass has nothing to bend and
                 // gives itself a ground, so this is set only where one was
                 // drawn.
@@ -251,6 +253,32 @@ impl Player {
             }
             None => light_with_the_mark(&self.app.worker),
         }
+    }
+
+    /// Draw the way in's films from those held: again after a language
+    /// change, since every word here is made when it is drawn. With none,
+    /// what the last look found is taken down, since a film finished since
+    /// is nothing to offer.
+    pub(super) fn paint_offers(&self, ui: &MainWindow) {
+        let items: Vec<ResumeItem> = self
+            .offers
+            .iter()
+            .flat_map(Offers::films)
+            .map(item)
+            .collect();
+        ui.global::<Playback>()
+            .set_unfinished(ModelRc::from(Rc::new(VecModel::from(items))));
+    }
+}
+
+/// One film the way in offers, as its row draws it.
+fn item(film: &Resume) -> ResumeItem {
+    ResumeItem {
+        path: film.path.as_str().into(),
+        show: film.show.clone().unwrap_or_default().into(),
+        title: film.title.clone().into(),
+        progress: film.fraction,
+        left: format::left(film.seconds_left).into(),
     }
 }
 
@@ -265,9 +293,13 @@ fn offer_onward(ui: &MainWindow, to: Option<Onward>) {
 }
 
 /// Find what the empty window can offer to pick back up. A stat per played
-/// file and one ffmpeg run, so on the worker.
-pub(super) fn look_for_resume(worker: &Worker) {
-    worker.submit(|_mpv| Some(Completion::Resume(dbm_library::resume::last_watched())));
+/// file and an ffmpeg run per film offered, so on the worker.
+pub(super) fn look_for_unfinished(worker: &Worker) {
+    worker.submit(|_mpv| {
+        Some(Completion::Unfinished(dbm_library::resume::unfinished(
+            dbm_library::resume::OFFERED,
+        )))
+    });
 }
 
 /// Draw the mark for the backdrop, on the worker.

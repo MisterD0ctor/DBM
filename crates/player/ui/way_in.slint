@@ -31,10 +31,9 @@ export component WayIn inherits Rectangle {
     callback shortcuts-asked();
     callback quit();
 
-    /// The rows the keyboard walks: the failure's two, or Continue when
-    /// there is a film to continue, the two ways to open, Settings and
-    /// Shortcuts.
-    out property <int> rows: root.fatal != "" ? 2 : 4 + root.first;
+    /// The rows the keyboard walks: the failure's two, or each film there is
+    /// to continue, the two ways to open, Settings and Shortcuts.
+    out property <int> rows: root.fatal != "" ? 2 : root.films + 4;
     out property <float> shown: root.open ? 1.0 : 0.0;
     /// Where the pane is drawn, and its glass.
     out property <Bounds> bounds: {
@@ -45,6 +44,10 @@ export component WayIn inherits Rectangle {
     };
     out property <GlassRect> glass: Surfaces.glass(root.pane-x, root.pane-y + root.rise,
         root.pane-w, root.pane-h, Panels.radius, root.shown);
+    /// Where the first film's row starts, and how tall each is, for the
+    /// harness to point at one.
+    out property <length> films-y: root.pane-y + root.rise + Panels.pad;
+    out property <length> film-h: Rows.resume-row;
 
     /// Press a row, as Enter does the ring's.
     public function activate(row: int) {
@@ -54,13 +57,13 @@ export component WayIn inherits Rectangle {
             } else {
                 root.quit();
             }
-        } else if (row < root.first) {
+        } else if (row < root.films) {
             if (!Playlist.opening) {
-                Playlist.open-path(Playback.resume-path, false);
+                Playlist.open-path(Playback.unfinished[row].path, false);
             }
-        } else if (row < root.first + 2) {
-            Playlist.request-open(row == root.first + 1);
-        } else if (row == root.first + 2) {
+        } else if (row < root.films + 2) {
+            Playlist.request-open(row == root.films + 1);
+        } else if (row == root.films + 2) {
             root.settings-asked();
         } else {
             root.shortcuts-asked();
@@ -72,9 +75,9 @@ export component WayIn inherits Rectangle {
         easing: ease-out;
     }
     property <length> rise: (1.0 - root.shown) * Surfaces.lift;
-    property <bool> has-resume: Playback.resume-path != "";
-    /// The rows start one further down when the first is Continue.
-    property <int> first: root.has-resume ? 1 : 0;
+    /// The films offered first, newest at the top. None over a failure,
+    /// which opens nothing.
+    property <int> films: root.fatal != "" ? 0 : Playback.unfinished.length;
     property <length> panel-pad: 2 * Panels.pad;
 
     // --- the way in ---------------------------------------------------------
@@ -82,15 +85,15 @@ export component WayIn inherits Rectangle {
     // Rows and a sentence, centred. Wider than the files panel, which holds
     // the same rows, because it stands alone and carries a sentence. Wider
     // still for a failure, whose sentence must not elide and is followed by
-    // the driver's own error text, and for a film to continue, whose name
+    // the driver's own error text, and for films to continue, whose names
     // beside a measure lost an episode's number at 320px.
-    property <length> pane-w: root.fatal != "" || root.has-resume ? 420px : 320px;
+    property <length> pane-w: root.fatal != "" || root.films > 0 ? 420px : 320px;
     property <length> pane-h: root.fatal != ""
         ? root.panel-pad + root.line-h + Rows.group-gap
             + root.detail-h + root.fatal-note-h
             + Rows.group-gap + 2 * Rows.row
-        : root.panel-pad + root.first * (Rows.row + Rows.group-gap)
-            + (root.show-named || root.named ? Rows.heading : 0px)
+        : root.panel-pad
+            + (root.named ? Rows.heading : root.films * Rows.resume-row + Rows.group-gap)
             + 4 * Rows.row + root.note-h;
 
     /// One line of the Hint role for a note under a pane's rows, with the
@@ -108,11 +111,9 @@ export component WayIn inherits Rectangle {
     /// shows on every platform.
     property <length> fatal-note-h: root.fatal-note != ""
         ? Rows.group-gap + root.note-line-h : 0px;
-    /// Continue carries its show's name on a heading line above it.
-    property <bool> show-named: root.has-resume && Playback.resume-show != "";
     /// With nothing to continue, the panel is about the player rather than a
-    /// film, and it says whose it is in the same place and the same role.
-    property <bool> named: root.fatal == "" && !root.has-resume;
+    /// film, and it says whose it is where the films would be.
+    property <bool> named: root.fatal == "" && root.films == 0;
     /// One line of the Title role, 14px, for the sentence that names the
     /// failure.
     property <length> line-h: 22px;
@@ -280,37 +281,39 @@ export component WayIn inherits Rectangle {
                 }
             }
 
-            // What you were watching comes first, since an empty window is
-            // most often opened to get back to it. Its show goes on a line of
-            // its own, so the episode keeps room for its number.
-            if root.fatal == "" && root.show-named: MenuHeading {
-                text: Playback.resume-show;
-                titular: true;
-            }
-            // With nothing to continue, the player's own name goes where the
-            // show's would, so the first window anyone sees says what is
-            // asking. Natural case, as a name.
+            // With nothing to continue, the player's own name heads the pane,
+            // so the first window anyone sees says what is asking. Natural
+            // case, as a name.
             if root.named: MenuHeading {
                 text: "DBM";
                 titular: true;
             }
-            // A gap after it, since it is a film and the rows below open
-            // dialogs.
-            if root.fatal == "" && root.has-resume: ResumeRow {
-                label: Playback.resume-title;
-                progress: Playback.resume-progress;
-                left: Playback.resume-left;
-                focused: !Playback.has-file && root.ring-row == 0;
-                opacity: Playlist.opening ? 0.5 : 1.0;
-                animate opacity { duration: Motion.surface; easing: ease-out; }
-                picked => {
-                    if (!Playlist.opening) {
-                        Playlist.open-path(Playback.resume-path, false);
+
+            // What you were watching comes first, since an empty window is
+            // most often opened to get back to it: every film left unfinished,
+            // newest first, then a gap, since they are films and the rows
+            // below open dialogs.
+            if root.films > 0: VerticalLayout {
+                for film[index] in Playback.unfinished: ResumeRow {
+                    film: film;
+                    focused: !Playback.has-file && root.ring-row == index;
+                    opacity: Playlist.opening ? 0.5 : 1.0;
+                    animate opacity { duration: Motion.surface; easing: ease-out; }
+                    picked => {
+                        if (!Playlist.opening) {
+                            Playlist.open-path(film.path, false);
+                        }
+                    }
+                    // The film being opened is what lights the window then.
+                    come-to => {
+                        if (!Playlist.opening) {
+                            Playback.light-with(film.path);
+                        }
                     }
                 }
-            }
-            if root.fatal == "" && root.has-resume: Rectangle {
-                height: Rows.group-gap;
+                Rectangle {
+                    height: Rows.group-gap;
+                }
             }
 
             // The same rows, words and keys as the files panel on the bar, so
@@ -321,7 +324,7 @@ export component WayIn inherits Rectangle {
             if root.fatal == "": ShortcutRow {
                 label: @tr("Open file…");
                 shortcut: @tr("Ctrl+O");
-                focused: !Playback.has-file && root.ring-row == root.first;
+                focused: !Playback.has-file && root.ring-row == root.films;
                 inert: Playlist.opening;
                 opacity: Playlist.opening ? 0.5 : 1.0;
                 animate opacity { duration: Motion.surface; easing: ease-out; }
@@ -332,7 +335,7 @@ export component WayIn inherits Rectangle {
             if root.fatal == "": ShortcutRow {
                 label: @tr("Open folder…");
                 shortcut: @tr("Ctrl+Shift+O");
-                focused: !Playback.has-file && root.ring-row == root.first + 1;
+                focused: !Playback.has-file && root.ring-row == root.films + 1;
                 inert: Playlist.opening;
                 opacity: Playlist.opening ? 0.5 : 1.0;
                 animate opacity { duration: Motion.surface; easing: ease-out; }
@@ -345,7 +348,7 @@ export component WayIn inherits Rectangle {
             if root.fatal == "": ShortcutRow {
                 label: @tr("Settings");
                 shortcut: "S";
-                focused: !Playback.has-file && root.ring-row == root.first + 2;
+                focused: !Playback.has-file && root.ring-row == root.films + 2;
                 picked => {
                     root.settings-asked();
                 }
@@ -355,7 +358,7 @@ export component WayIn inherits Rectangle {
             if root.fatal == "": ShortcutRow {
                 label: @tr("Shortcuts");
                 shortcut: "?";
-                focused: !Playback.has-file && root.ring-row == root.first + 3;
+                focused: !Playback.has-file && root.ring-row == root.films + 3;
                 picked => {
                     root.shortcuts-asked();
                 }

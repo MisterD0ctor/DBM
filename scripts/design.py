@@ -50,6 +50,7 @@ MODULES = {
     "arrival": PLAYER / "src/playback/arrival.rs",
     "retrace": PLAYER / "src/playback/retrace.rs",
     "preview": LIBRARY / "src/preview.rs",
+    "resume": LIBRARY / "src/resume.rs",
     "window": PLAYER / "src/platform/window.rs",
     "glass": GPU / "shaders/glass.frag",
     "backdrop": GPU / "shaders/backdrop.frag",

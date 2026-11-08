@@ -13,7 +13,7 @@ import { Playback } from "playback.slint";
 import { Chrome, Figure, Flash, Tip } from "globals.slint";
 import {
     ArrivalAnswer, FoundItem, GlassRect, ParamItem, Pick, PlaylistGroup, PlaylistItem,
-    ScrollFade, TrackItem, Way
+    ResumeItem, ScrollFade, TrackItem, Way
 } from "models.slint";
 import { Bar, Motion, Paint, Rows, Type } from "theme.slint";
 import { EndChoice, IconButton } from "controls.slint";
@@ -44,7 +44,7 @@ import { SettingsPage, SettingsPanel } from "settings_panel.slint";
 // structs it fills in, and the enums both sides name.
 export {
     Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem,
-    TrackItem, Find, Tracks, Subtitles, Playlist, Settings, Playback, Figure, FindState, Reset,
+    ResumeItem, TrackItem, Find, Tracks, Subtitles, Playlist, Settings, Playback, Figure, FindState, Reset,
     SyncState, Panel, MenuPage, SettingsPage, Way, Pick, ArrivalAnswer
 }
 
@@ -214,7 +214,7 @@ export component MainWindow inherits Window {
         }
     }
 
-    property <bool> has-resume: Playback.resume-path != "";
+    property <bool> has-resume: Playback.unfinished.length > 0;
 
     /// `Playback.path`, mirrored so its changes are acted on here.
     property <string> current-path: Playback.path;
@@ -441,6 +441,9 @@ export component MainWindow inherits Window {
     out property <length> playlist-list-h: playlist-panel.list-h;
     out property <length> playlist-list-top: playlist-panel.list-top;
     out property <length> playlist-scroll: playlist-panel.scroll;
+    /// The way in's film rows, for the harness to point at one.
+    out property <length> way-in-films-y: way-in.films-y;
+    out property <length> way-in-film-h: way-in.film-h;
 
     // The audio panel's sizes, for the tests.
     out property <length> audio-natural: audio-panel.natural;

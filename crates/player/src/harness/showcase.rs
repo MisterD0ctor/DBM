@@ -68,7 +68,17 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                 // Above the middle of the picture, clear of every panel: a
                 // pointer moving over a row stands the ring down, and a long
                 // season's playlist reaches the top left corner.
-                "ring-row" | "ring-slider" => {
+                // The way in's second film, for the light to move to it.
+                // Needs an app-data folder holding films left unfinished,
+                // which no exercise makes.
+                "way-in-film" => {
+                    let size = ui.window().size().to_logical(ui.window().scale_factor());
+                    (
+                        size.width / 2.0,
+                        ui.get_way_in_films_y() + 1.5 * ui.get_way_in_film_h(),
+                    )
+                }
+                "ring-row" | "ring-slider" | "way-in-ring" => {
                     let size = ui.window().size().to_logical(ui.window().scale_factor());
                     (size.width / 2.0, 40.0)
                 }
@@ -282,6 +292,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
             // And on a row: the playlist's fourth, and the glass page's third
             // slider, whose name sits in the measured column.
             if (surface == "ring-row" || surface == "ring-slider") && (6..=9).contains(&tick) {
+                arrow(&ui, Key::DownArrow);
+            }
+            // The way in's third film, once its films have come: the first
+            // press raises the ring, the next two walk it down.
+            if surface == "way-in-ring" && (6..=8).contains(&tick) {
                 arrow(&ui, Key::DownArrow);
             }
 

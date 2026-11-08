@@ -5,6 +5,7 @@ use super::decode::cut;
 use crate::ffmpeg;
 
 /// One frame of a film, as plain pixels.
+#[derive(Clone)]
 pub struct Still {
     /// RGBA, top row first.
     pub rgba: Vec<u8>,

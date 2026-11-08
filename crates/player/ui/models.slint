@@ -134,6 +134,18 @@ export struct PlaylistItem {
     measured: bool,
 }
 
+/// A film the way in offers to pick back up: its name, and where it was left.
+export struct ResumeItem {
+    path: string,
+    /// The show, for an episode; empty for a film, whose own name is the title.
+    show: string,
+    title: string,
+    /// How far through it the saved place sits, 0..1.
+    progress: float,
+    /// How much is left, already worded: "43 min left".
+    left: string,
+}
+
 /// One part of a playlist, as the panel shows it (see `playlist-groups`).
 export struct PlaylistGroup {
     /// How its row names it: Season 7, Specials, a show's name and season.

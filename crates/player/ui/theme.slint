@@ -317,6 +317,9 @@ export global Rows {
     /// One line of the Hint role, for a `NoteRow` to be as many of tall as
     /// it may wrap to.
     out property <length> note-line: 18px;
+    /// A film the way in offers: a row's line, and a hint's under it for
+    /// what the film belongs to and how much of it is left.
+    out property <length> resume-row: Rows.row + Rows.note-line;
     /// The two denser rows on the settings pages: a slider, which is a label
     /// and a track, and a stepper, which is a label and two discs.
     out property <length> slider-row: 30px;

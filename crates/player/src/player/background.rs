@@ -4,7 +4,7 @@ use slint::ComponentHandle;
 use dbm_library::threads::ForFile;
 
 use super::{PerFile, Player};
-use crate::interface::{format, sync};
+use crate::interface::sync;
 use crate::worker::{Completion, Preview};
 use crate::{Find, FindState, MainWindow, Playback, Subtitles, SyncState};
 
@@ -135,10 +135,8 @@ impl Player {
         for panel in crate::interface::warm::ALL {
             self.warm.ask(panel);
         }
-        if let Some(seconds) = self.resume_left {
-            ui.global::<Playback>()
-                .set_resume_left(format::left(seconds).into());
-        }
+        // What the way in offers is words too.
+        self.paint_offers(ui);
     }
 
     /// Ask for a thumbnail atlas when the playing file changes.

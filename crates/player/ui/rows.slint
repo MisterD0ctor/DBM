@@ -6,6 +6,7 @@
 import { Chrome, Flash, Tip } from "globals.slint";
 import { Icons, Motion, Paint, Rails, Rows, Type } from "theme.slint";
 import { Glyph, Shade, StepButton } from "controls.slint";
+import { ResumeItem } from "models.slint";
 import { RingPane } from "ring.slint";
 import { Squircle } from "squircle.slint";
 
@@ -591,13 +592,13 @@ export component GroupRow inherits Rectangle {
     }
 }
 
-/// The way in's offer to pick up where you stopped: the last film left
+/// One of the way in's offers to pick up where you stopped: a film left
 /// unfinished, and how far into it you got.
 ///
-/// A playlist row with a play mark in front, which says this row starts
-/// something where every other row in the panel opens a dialog. The title is
-/// at Strong, as the one line on the window about a film rather than the
-/// player.
+/// A play mark in front says this row starts something where every other row
+/// in the pane opens a dialog. Under the name, what it belongs to and how
+/// much is left, as one line of support, so a film and an episode hold their
+/// words in the same place.
 export component ResumeRow inherits Rectangle {
     /// Under the pointer its glyph leans the way it goes (`Rows.lean`).
     private property <length> lean: touch.has-hover ? Rows.lean : 0px;
@@ -605,16 +606,29 @@ export component ResumeRow inherits Rectangle {
 
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
-    in property <string> label;
-    in property <float> progress;
-    /// How much is left, already worded: "43 min left".
-    in property <string> left;
+    in property <ResumeItem> film;
     callback picked();
+    /// The pointer or the ring has come to it, which is when its film
+    /// lights the window.
+    callback come-to();
 
-    height: Rows.row;
+    height: Rows.resume-row;
+
+    /// Its two lines, a hint's height each, centred in the row together.
+    private property <length> line: Rows.note-line;
+    private property <length> top: (root.height - 2 * root.line) / 2;
+    private property <length> words-x: Rows.label-x + Icons.row + Rows.drill-gap;
+
+    private property <bool> come: touch.has-hover || root.ring;
+    changed come => {
+        if (root.come) {
+            root.come-to();
+        }
+    }
 
     accessible-role: button;
-    accessible-label: @tr("Continue {}", root.label);
+    accessible-label: @tr("Continue {}", root.film.show == ""
+        ? root.film.title : root.film.show + ", " + root.film.title);
     accessible-action-default => {
         root.picked();
     }
@@ -624,10 +638,11 @@ export component ResumeRow inherits Rectangle {
         ring: root.ring;
     }
 
+    // On the name's line, as the name's mark.
     Glyph {
         source: @image-url("../../../public/icons/play.svg");
         x: Rows.label-x + root.lean;
-        y: (parent.height - self.height) / 2;
+        y: root.top + (root.line - self.height) / 2;
         width: Icons.row;
         height: Icons.row;
         shade: root.ring ? Shade.on-ring : Shade.lit;
@@ -636,10 +651,11 @@ export component ResumeRow inherits Rectangle {
     // At the title's weight: it is what the window is most often opened
     // for, and every word is the same white, so weight is what can say so.
     Text {
-        x: Rows.label-x + Icons.row + Rows.drill-gap;
-        width: left-text.x - Rows.group-gap - Rows.measure - Rows.group-gap - self.x;
-        height: 100%;
-        text: root.label;
+        x: root.words-x;
+        y: root.top;
+        width: measure.x - Rows.group-gap - self.x;
+        height: root.line;
+        text: root.film.title;
         color: root.ring ? Paint.on-ring : Paint.strong;
         font-size: Type.body;
         font-weight: Type.weight-title;
@@ -647,22 +663,26 @@ export component ResumeRow inherits Rectangle {
         overflow: elide;
     }
 
-    // What is left, where a playlist row keeps its running time: on an empty
-    // window the question is how long finishing takes, not how long the film
-    // is.
-    left-text := Text {
-        x: parent.width - Rows.trail-x - self.width;
-        height: 100%;
-        text: root.left;
+    // What is left rather than how long it runs: on an empty window the
+    // question is how long finishing takes.
+    Text {
+        x: root.words-x;
+        y: root.top + root.line;
+        width: parent.width - Rows.trail-x - self.x;
+        height: root.line;
+        text: root.film.show == ""
+            ? root.film.left : root.film.show + " · " + root.film.left;
         color: root.ring ? Paint.on-ring : Paint.body;
-        font-size: Type.readout;
+        font-size: Type.hint;
         vertical-alignment: center;
+        overflow: elide;
     }
 
-    // The same resume measure as a playlist row's.
+    // The same resume measure as a playlist row's, where a row's trailing
+    // column ends.
     measure := Rectangle {
-        x: left-text.x - Rows.group-gap - Rows.measure;
-        y: (parent.height - self.height) / 2;
+        x: parent.width - Rows.trail-x - self.width;
+        y: root.top + (root.line - self.height) / 2;
         width: Rows.measure;
         height: Rails.measure;
         background: root.ring ? Paint.on-ring-rail : Paint.rail;
@@ -670,7 +690,7 @@ export component ResumeRow inherits Rectangle {
 
         Rectangle {
             x: 0;
-            width: max(self.height, parent.width * root.progress);
+            width: max(self.height, parent.width * root.film.progress);
             height: 100%;
             background: root.ring ? Paint.on-ring : Paint.strong;
             border-radius: parent.border-radius;

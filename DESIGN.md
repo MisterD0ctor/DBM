@@ -185,7 +185,7 @@ components:
     textColor: "{colors.lit}"
     typography: "{typography.prompt}"
   resume-row:
-    height: "34px"  # Rows.row
+    height: "52px"  # Rows.resume-row
     padding: "0 30px 0 30px"  # Rows.trail-x, Rows.label-x
     textColor: "{colors.strong}"
     typography: "{typography.body}"
@@ -213,7 +213,7 @@ The consequence is that this system has almost no palette. Colour comes from
 whatever is playing. The interface is white at a handful of alphas and full
 white, one near-black for a switch's knob and a field's well, and — before
 anything is loaded — the
-dimmed light of the last film left unfinished. Even the
+dimmed light of a film left unfinished. Even the
 letterbox is not neutral: the ambient border extends the frame's own edge
 colours outward, so a red scene bleeds red into the bars. Nothing here is tinted
 by a brand.
@@ -827,12 +827,15 @@ The glass runs whether or not a film is loaded, and needs something to be
 glass over: over a black frame refraction has nothing to bend and the rim
 nothing to catch, and with the tint at zero the way in's panel is not faint
 but absent. So before a film is loaded the pipeline draws **the backdrop** into
-the frame instead: one seek-preview tile of the last film left unfinished,
-taken at the point you stopped, covered across the window, softened past the
-point where its pixels read, dimmed (`DIM` in `backdrop.frag`) and falling away
-toward the corners. It arrives over `BACKDROP_ARRIVAL`, the one arrival slower
-than a surface, because it is the window's light changing rather than a control
-answering. Everything downstream treats it as
+the frame instead: one seek-preview tile of a film the way in offers, taken
+at the point you stopped, covered across the window, softened past the point
+where its pixels read, dimmed (`DIM` in `backdrop.frag`) and falling away
+toward the corners. It is the film left most recently until the pointer or the
+ring comes to another film's row, and then that one's. It arrives over
+`BACKDROP_ARRIVAL`, the one arrival slower than a surface, because it is the
+window's light changing rather than a control answering; a second one arrives
+over the first rather than from black, so the light moves from one film to the
+next instead of going out between them. Everything downstream treats it as
 the frame, so the way in refracts it like any panel refracts a film.
 
 **The end of a file is lit the same way.** A film's last frame is usually
@@ -2142,27 +2145,31 @@ found is a pill that does not appear.
 
 ### The way in
 With no film loaded, a panel of glass centred in the window, over the backdrop.
-With nothing to continue, it is headed with the player's own name (*Death by
-MPV*, in the Named role, where a show's name goes over Continue), because then
-the panel is about the player rather than a film, and the first window anyone
-ever sees should say what is asking before it says *Open file…*:
+With nothing to continue, it is headed with the player's own name (*DBM*, in
+the Named role, where the films would be), because then the panel is about the
+player rather than a film, and the first window anyone ever sees should say
+what is asking before it says *Open file…*:
 
-- **Continue**, first, when there is a film to continue: a play glyph at Body,
-  the film's name at Strong in Body size and at the Title's weight — the one
-  line on the window about a film rather than the player, and what the window
-  is most often opened for, which with every word the same white only weight
-  can say — then the resume measure and, where a playlist
-  row keeps its running time, what is left at Body in Readout size: *43 min left*. It is the
-  newest file mpv still holds a position for that is still on disk; the same
-  thing the backdrop is a frame of. A group gap follows it, because it is a
-  film and the rows below it are dialogs, and the panel widens
-  (`WayIn.pane-w`) so an episode keeps its number beside the time. An
-  episode's show goes on a heading line of its own above it, in the Named role,
-  where a playlist puts it: sharing the row, the show's name would take the
-  room and the episode number would be what elided. A film watched into its
-  credits is not offered.
-  Enter presses it at once, without first raising the ring: it is the first
-  row, and the one the window is opened to get back to.
+- **The films left unfinished**, first, the one left most recently at the
+  top: up to `resume.OFFERED`, and a show once, by the episode left last, which
+  is the one watching would carry on from. Each is a row of two lines
+  (`Rows.resume-row`): a play glyph at Body, the film's name at Strong in Body
+  size and at the Title's weight — what the window is most often opened for,
+  which with every word the same white only weight can say — and the resume
+  measure where a row's trailing column ends; under the name, in Hint size,
+  what it belongs to and what is left: *Another Show · 20 min left*, or
+  *15 min left* for a film, which belongs to nothing. The show goes on that
+  line rather than on a heading above, so an episode keeps room for its number,
+  and a film and an episode hold their words in the same place. A film watched
+  into its credits, or left in its first minute, is not offered: a place that
+  would start from the top anyway is no offer to carry on. A group gap follows
+  the films, because they are films and the rows below them are dialogs, and
+  the panel widens (`WayIn.pane-w`). **The window is lit by the film the
+  pointer or the ring is on** (see the backdrop, under Elevation & Depth):
+  the light is the film, so a row of its own has no picture, and a film with
+  no frame leaves the light as it was. Enter presses the newest at once,
+  without first raising the ring: it is the first row, and the one the window
+  is opened to get back to.
 - **Open file, Open folder, Settings and Shortcuts** as shortcut rows with their keys, then
   a line in Hint size saying a file can be dropped anywhere — **on the platforms
   where one can.** The drop target is Windows-only; Linux would be a different
@@ -2176,10 +2183,10 @@ ever sees should say what is asking before it says *Open file…*:
   the same air the heading has above it, not a gap of glass below the thing that
   ended, which would be the Gap Goes Above Rule read backwards.
 
-While an open is in flight Continue and the two open rows fade to half and stop
-answering — to the pointer and to every key — and the line names what is
-arriving; Settings stays at full strength, because it still works. Carrying a
-failure it widens as for Continue and offers nothing to open: a Title headline
+While an open is in flight the films and the two open rows fade to half and
+stop answering — to the pointer and to every key, and with the light, which
+stays on the film coming in — and the line names what is arriving; Settings stays at full strength, because it still works. Carrying a
+failure it widens as for the films and offers nothing to open: a Title headline
 at Strong, the driver's own error text at Body in Hint size wrapping to three
 lines, a line in Hint size saying what usually puts it right (a driver update,
 except for shaders the driver would not build, where a current driver means
