@@ -571,7 +571,7 @@ impl Pipeline {
         self.blur_chain.release(gl);
         self.quad.release(gl);
         if let Some(b) = self.backdrop.take() {
-            unsafe { gl.delete_texture(b.tex) };
+            b.release(gl);
         }
         for p in [
             self.prog_extend,

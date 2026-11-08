@@ -21,8 +21,9 @@ uniform vec2 u_image_size;
 uniform vec2 u_size;
 /// How far it has arrived, 0..1, already eased.
 uniform float u_level;
-/// 1 when it arrives over a film's frame rather than over black: then it is
-/// laid on with `u_level` as its alpha, so the frame gives way to it.
+/// 1 when it arrives over a picture rather than over black, a film's frame or
+/// the backdrop before it: then it is laid on with `u_level` as its alpha, so
+/// what was there gives way to it.
 uniform float u_over;
 /// Which mip level of the tile it is read from: 0 for the way in, whose panel
 /// covers the middle, and further down at the end of a file, where nothing

@@ -37,12 +37,14 @@ impl Driver {
 
         // The backdrop stands in while nothing is loaded, and at the end of a
         // file once its light has come.
-        gpu.pipeline
-            .show_backdrop(match (state.path.is_some(), player.end_lit()) {
+        gpu.pipeline.show_backdrop(
+            &gpu.gl,
+            match (state.path.is_some(), player.end_lit()) {
                 (false, _) => Backdrop::Alone,
                 (true, true) => Backdrop::OverFilm,
                 (true, false) => Backdrop::Off,
-            });
+            },
+        );
         let paint = ui.global::<crate::Paint>();
         gpu.pipeline.text_floor = f32::from(paint.get_body().alpha()) / 255.0;
 
