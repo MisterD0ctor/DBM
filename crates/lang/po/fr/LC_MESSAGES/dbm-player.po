@@ -1028,8 +1028,8 @@ msgid "How brightly each pane's rim catches the light"
 msgstr "À quel point le bord de chaque panneau accroche la lumière"
 
 msgctxt "player"
-msgid "How far the glass darkens toward black, as smoked glass does"
-msgstr "À quel point le verre s'assombrit vers le noir, comme un verre fumé"
+msgid "How far the glass turns grey, as smoked glass does"
+msgstr "À quel point le verre devient gris, comme un verre fumé"
 
 msgctxt "player"
 msgid "How much of a bright scene the glass holds back, more the brighter it is"

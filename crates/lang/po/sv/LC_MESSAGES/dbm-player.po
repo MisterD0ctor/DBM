@@ -1025,8 +1025,8 @@ msgid "How brightly each pane's rim catches the light"
 msgstr "Hur starkt varje rutas kant fångar ljuset"
 
 msgctxt "player"
-msgid "How far the glass darkens toward black, as smoked glass does"
-msgstr "Hur mycket glaset mörknar mot svart, som rökat glas"
+msgid "How far the glass turns grey, as smoked glass does"
+msgstr "Hur grått glaset blir, som rökat glas"
 
 msgctxt "player"
 msgid "How much of a bright scene the glass holds back, more the brighter it is"

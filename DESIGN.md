@@ -740,8 +740,8 @@ a bright frame, too little to read as a smudge over a dark one.
 Every surface opts into the tint, and with it absorption: the transmitted part
 of the glass darkens as the frame behind it brightens, on a smooth curve rather
 than a threshold, so white text keeps a ground over a white scene. Both are
-settings: Smoke, the pull toward the tint colour, which is black, so the slider
-is named for the glass it makes rather than for an amount of an unnamed
+settings: Smoke, the pull toward the tint colour, a mid grey, so the slider is
+named for the glass it makes rather than for an amount of an unnamed
 colour; and Dimming — how much of a white
 backdrop the pane absorbs, a darker one losing less along a hyperbola and black
 losing nothing. Turned down, the pane clears.
