@@ -71,7 +71,7 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                 // The way in's second film, for the light to move to it.
                 // Needs an app-data folder holding films left unfinished,
                 // which no exercise makes.
-                "way-in-film" => {
+                "way-in-film" | "way-in-press" => {
                     let size = ui.window().size().to_logical(ui.window().scale_factor());
                     (
                         size.width / 2.0,
@@ -233,6 +233,29 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                                 "dbm: glide {:>3}ms offset {:.1}",
                                 i * 20,
                                 ui.get_playlist_scroll()
+                            );
+                        }
+                    });
+                }
+            }
+
+            // The way in's second film pressed, and the pane sampled every
+            // 20ms as it goes: its rows should only sink and fade, never jump
+            // as the open ends partway out.
+            if surface == "way-in-press" && tick == 8 {
+                let size = ui.window().size().to_logical(ui.window().scale_factor());
+                let y = ui.get_way_in_films_y() + 1.5 * ui.get_way_in_film_h();
+                click(&ui, size.width / 2.0, y);
+                for i in 0..=30u64 {
+                    let weak = ui.as_weak();
+                    slint::Timer::single_shot(Duration::from_millis(i * 20), move || {
+                        if let Some(ui) = weak.upgrade() {
+                            eprintln!(
+                                "dbm: way in {:>3}ms films-y {:.1} opening {} has-file {}",
+                                i * 20,
+                                ui.get_way_in_films_y(),
+                                ui.global::<Playlist>().get_opening(),
+                                ui.global::<Playback>().get_has_file(),
                             );
                         }
                     });

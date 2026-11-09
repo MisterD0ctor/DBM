@@ -58,6 +58,11 @@ export global Motion {
     /// enough to read the new wording and press again, short enough that an
     /// armed row won't catch a press meant for something else.
     out property <duration> armed-for: 2500ms;
+    /// How long an open runs before the way in says it is in flight: longer
+    /// than a film on a local disk takes to start, which leaves the way in
+    /// before the words could be read, and short enough that a folder still
+    /// being read on a share is answered before the press seems lost.
+    out property <duration> slow-open: 200ms;
 }
 
 /// Every colour in the interface: white at a few alphas, and one dark, for a

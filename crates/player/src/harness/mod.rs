@@ -60,7 +60,9 @@
 //! * `DBM_SHOWCASE=way-in-film` rests the pointer on the way in's second
 //!   film, whose frame should then light the window. It needs an app-data
 //!   folder holding films left unfinished, which no exercise makes.
-//!   `way-in-ring` walks the keyboard's ring to the third film instead.
+//!   `way-in-ring` walks the keyboard's ring to the third film instead, and
+//!   `way-in-press` presses the second film and prints where the pane's
+//!   films are every 20ms as it leaves, which should only sink and fade.
 //! * `DBM_SHOWCASE=settings`, `video`, `episodes`, `glass`, `ambience`,
 //!   `accessibility`, `shortcuts` and `language` open the settings on that
 //!   page.

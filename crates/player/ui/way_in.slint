@@ -58,7 +58,7 @@ export component WayIn inherits Rectangle {
                 root.quit();
             }
         } else if (row < root.films) {
-            if (!Playlist.opening) {
+            if (root.answers) {
                 Playlist.open-path(Playback.unfinished[row].path, false);
             }
         } else if (row < root.films + 2) {
@@ -75,6 +75,32 @@ export component WayIn inherits Rectangle {
         easing: ease-out;
     }
     property <length> rise: (1.0 - root.shown) * Surfaces.lift;
+
+    /// Whether the rows that start an open take a press: not while one is in
+    /// flight, which a second click would queue behind, and not while the
+    /// pane leaves, since the open has ended by then, partway through the
+    /// fade, and the second click of a double-click would open the film again.
+    property <bool> answers: root.open && !Playlist.opening;
+    /// Whether the pane says an open is in flight: those rows at half, and a
+    /// line naming what is arriving. Only once it has run `Motion.slow-open`,
+    /// since a film on a local disk is playing before the line could be read,
+    /// and making room for it would only jerk the pane as it leaves. Held
+    /// while the pane leaves, so that it fades as it was rather than changing
+    /// size when the open ends partway out; let go once it is up with nothing
+    /// in flight.
+    property <bool> waiting: false;
+    changed answers => {
+        if (self.answers) {
+            root.waiting = false;
+        }
+    }
+    slow-timer := Timer {
+        interval: Motion.slow-open;
+        running: root.open && Playlist.opening && !root.waiting;
+        triggered => {
+            root.waiting = true;
+        }
+    }
     /// The films offered first, newest at the top. None over a failure,
     /// which opens nothing.
     property <int> films: root.fatal != "" ? 0 : Playback.unfinished.length;
@@ -103,7 +129,7 @@ export component WayIn inherits Rectangle {
 
     /// The line under the way in's rows: the drop hint, or what is being
     /// opened. Nothing when it has neither.
-    property <length> note-h: root.drop-supported || Playlist.opening
+    property <length> note-h: root.drop-supported || root.waiting
         ? Rows.group-gap + root.note-line-h : 0px;
 
     /// The line under a failure saying what usually puts it right. Separate
@@ -297,10 +323,10 @@ export component WayIn inherits Rectangle {
                 for film[index] in Playback.unfinished: ResumeRow {
                     film: film;
                     focused: !Playback.has-file && root.ring-row == index;
-                    opacity: Playlist.opening ? 0.5 : 1.0;
+                    opacity: root.waiting ? 0.5 : 1.0;
                     animate opacity { duration: Motion.surface; easing: ease-out; }
                     picked => {
-                        if (!Playlist.opening) {
+                        if (root.answers) {
                             Playlist.open-path(film.path, false);
                         }
                     }
@@ -326,10 +352,12 @@ export component WayIn inherits Rectangle {
                 shortcut: @tr("Ctrl+O");
                 focused: !Playback.has-file && root.ring-row == root.films;
                 inert: Playlist.opening;
-                opacity: Playlist.opening ? 0.5 : 1.0;
+                opacity: root.waiting ? 0.5 : 1.0;
                 animate opacity { duration: Motion.surface; easing: ease-out; }
                 picked => {
-                    Playlist.request-open(false);
+                    if (root.answers) {
+                        Playlist.request-open(false);
+                    }
                 }
             }
             if root.fatal == "": ShortcutRow {
@@ -337,10 +365,12 @@ export component WayIn inherits Rectangle {
                 shortcut: @tr("Ctrl+Shift+O");
                 focused: !Playback.has-file && root.ring-row == root.films + 1;
                 inert: Playlist.opening;
-                opacity: Playlist.opening ? 0.5 : 1.0;
+                opacity: root.waiting ? 0.5 : 1.0;
                 animate opacity { duration: Motion.surface; easing: ease-out; }
                 picked => {
-                    Playlist.request-open(true);
+                    if (root.answers) {
+                        Playlist.request-open(true);
+                    }
                 }
             }
             // The bar's way to the settings is gone until there is a film.
@@ -379,7 +409,7 @@ export component WayIn inherits Rectangle {
                     Text {
                         // Two branches suffice, since the row exists only when
                         // one of them applies.
-                        text: Playlist.opening
+                        text: root.waiting
                             ? @tr("Opening {}…", Playlist.opening-name)
                             : @tr("Or drop a file or folder onto the window");
                         color: Paint.body;

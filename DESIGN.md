@@ -2236,9 +2236,15 @@ what is asking before it says *Open file…*:
   the same air the heading has above it, not a gap of glass below the thing that
   ended, which would be the Gap Goes Above Rule read backwards.
 
-While an open is in flight the films and the two open rows fade to half and
-stop answering — to the pointer and to every key, and with the light, which
-stays on the film coming in — and the line names what is arriving; Settings stays at full strength, because it still works. Carrying a
+While an open is in flight the films and the two open rows stop answering —
+to the pointer and to every key, and with the light, which stays on the film
+coming in. Once it has run `Motion.slow-open` they fade to half and the line
+names what is arriving; Settings stays at full strength, because it still
+works. Not sooner: a film on a local disk is playing before the line could be
+read, and the room made for it would jerk the pane as it leaves. **The pane
+leaves as it was.** The open ends partway through its fade, so what it says
+of the open is held until it is gone, and its rows stop answering as it goes,
+or the second click of a double-click would open the film again. Carrying a
 failure it widens as for the films and offers nothing to open: a Title headline
 at Strong, the driver's own error text at Body in Hint size wrapping to three
 lines, a line in Hint size saying what usually puts it right (a driver update,
