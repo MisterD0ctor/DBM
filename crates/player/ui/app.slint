@@ -10,7 +10,7 @@ import { Subtitles, SyncState } from "subtitles.slint";
 import { Playlist } from "playlist.slint";
 import { Reset, Resets, Settings } from "settings.slint";
 import { Playback } from "playback.slint";
-import { Chrome, Figure, Flash, Tip } from "globals.slint";
+import { Chrome, Flash, Tip } from "globals.slint";
 import {
     ArrivalAnswer, FoundItem, GlassRect, ParamItem, Pick, PlaylistGroup, PlaylistItem,
     ResumeItem, ScrollFade, TrackItem, Way
@@ -44,7 +44,7 @@ import { SettingsPage, SettingsPanel } from "settings_panel.slint";
 // structs it fills in, and the enums both sides name.
 export {
     Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem,
-    ResumeItem, TrackItem, Find, Tracks, Subtitles, Playlist, Settings, Playback, Figure, FindState, Reset,
+    ResumeItem, TrackItem, Find, Tracks, Subtitles, Playlist, Settings, Playback, FindState, Reset,
     SyncState, Panel, MenuPage, SettingsPage, Way, Pick, ArrivalAnswer
 }
 
@@ -1339,20 +1339,20 @@ export component MainWindow inherits Window {
         if (text == Key.UpArrow || text == Key.DownArrow) {
             Playback.nudge-volume(text == Key.UpArrow ? Playback.volume-step : -Playback.volume-step);
             root.key-wake = KeyWake.keep;
-            Flash.show-figure(Figure.volume);
+            Flash.show(Flash.volume, 0.5);
             return true;
         }
         if (text == "m" || text == "M") {
             Playback.toggle-mute();
             root.key-wake = KeyWake.keep;
-            Flash.show-figure(Figure.volume);
+            Flash.show(Flash.volume, 0.5);
             return true;
         }
         // mpv's own key for it.
         if (text == "#") {
             Tracks.cycle(Pick.audio, Way.forward);
             root.key-wake = KeyWake.keep;
-            Flash.show-figure(Figure.audio-track);
+            Flash.show(Flash.audio, 0.5);
             return true;
         }
         return false;
@@ -1364,10 +1364,9 @@ export component MainWindow inherits Window {
         if (!shift && (text == "c" || text == "C")) {
             Subtitles.toggle();
             // Shown, because a scene with no dialogue shows nothing, and the
-            // button's mark is under the bar while the bar is away. The same
-            // caption as Shift+C, read live.
+            // button's mark is under the bar while the bar is away.
             root.key-wake = KeyWake.keep;
-            Flash.show-figure(Figure.subtitle-track);
+            Flash.show(Flash.subtitles, 0.5);
             return true;
         }
         // Through the subtitle tracks, including none, saying which one it
@@ -1375,7 +1374,7 @@ export component MainWindow inherits Window {
         if (shift && (text == "c" || text == "C")) {
             Tracks.cycle(Pick.subtitles, Way.forward);
             root.key-wake = KeyWake.keep;
-            Flash.show-figure(Figure.subtitle-track);
+            Flash.show(Flash.subtitles, 0.5);
             return true;
         }
         // YouTube's for the captions' size. = as well as +, which on most
@@ -1521,19 +1520,19 @@ export component MainWindow inherits Window {
     // --- pace --------------------------------------------------------------------
     //
     // What the bar has no control for: speed, single frames, chapters. Speed
-    // and chapters answer with their figure, and frames with the picture
-    // itself.
+    // answers with its glyph and figure, chapters with their figure, and
+    // frames with the picture itself.
     function on-pace(text: string) -> bool {
         if (text == "<" || text == ">") {
             Playback.step-speed(Playback.speed, text == ">" ? Way.forward : Way.back);
             root.key-wake = KeyWake.keep;
-            Flash.show-figure(Figure.speed);
+            Flash.show(Flash.speed, 0.5);
             return true;
         }
         if (text == Key.Backspace) {
             Playback.reset-speed();
             root.key-wake = KeyWake.keep;
-            Flash.show-figure(Figure.speed);
+            Flash.show(Flash.speed, 0.5);
             return true;
         }
         if (text == "," || text == ".") {
@@ -1556,7 +1555,7 @@ export component MainWindow inherits Window {
         // No flash for a file with no chapters to go to.
         if (Playback.chapter-marks.length > 0) {
             Playback.chapter-step(direction);
-            Flash.show-figure(Figure.chapter);
+            Flash.show(Flash.chapter, 0.5);
         }
         return true;
     }
@@ -1630,8 +1629,7 @@ export component MainWindow inherits Window {
         window-buttons.glass,
         bar.ring-disc-glass,
         bar.open-disc-glass,
-        flash.ring-glass,
-        flash.words-glass,
+        flash.glass,
         // The hover label. Glass like everything else that carries words.
         tip.glass,
         way-in.glass,

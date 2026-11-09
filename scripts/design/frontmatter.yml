@@ -58,6 +58,10 @@ typography:
     fontFamily: "{{ Type.face }}"
     fontSize: "{{ Type.prompt }}"
     fontWeight: {{ Type.weight-title }}
+  callout:
+    fontFamily: "{{ Type.face }}"
+    fontSize: "{{ Type.callout }}"
+    fontWeight: {{ Type.weight-title }}
 rounded:
   row: "{{ Rows.radius }}"
   panel: "{{ Panels.radius }}"

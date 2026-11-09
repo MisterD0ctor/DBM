@@ -1234,3 +1234,7 @@ msgstr "Impossibile creare una playlist — {}"
 msgctxt "player"
 msgid "Playing a video"
 msgstr "Riproduzione di un video"
+
+msgctxt "Playback"
+msgid "{}%"
+msgstr "{}%"

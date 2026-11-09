@@ -85,15 +85,12 @@ export global Chrome {
     }
 }
 
-/// A figure the flash shows on its own, with no ring. The icon set has no
-/// glyph for these, and the figure is the whole answer anyway.
-export enum Figure { none, speed, chapter, subtitle-track, audio-track, volume }
-
 /// Brief feedback for an action whose effect is otherwise off screen.
 ///
 /// Only for what nothing else shows: which way a seek went, that the file
-/// changed, where the subtitle delay landed, whether subtitles are on, and
-/// the volume, whose key wakes no bar to show it on. Panscan, frames and the
+/// changed, where the subtitle delay and the speed landed, whether subtitles
+/// are on and which track is, the chapter, and the volume, whose key wakes no
+/// bar to show it on. Panscan, frames and the
 /// ambient border are answered by the picture itself.
 export global Flash {
     // Indices into the window's own glyph list, because `@image-url` resolves
@@ -105,6 +102,13 @@ export global Flash {
     out property <int> next: 3;
     out property <int> restart: 4;
     out property <int> delay: 5;
+    /// The subtitles' glyph, which the window strikes through while they are
+    /// off.
+    out property <int> subtitles: 6;
+    out property <int> speed: 7;
+    out property <int> volume: 8;
+    out property <int> audio: 9;
+    out property <int> chapter: 10;
 
     in-out property <int> icon: 0;
     /// A sentence, when the player has something to say rather than an action
@@ -120,24 +124,14 @@ export global Flash {
     /// Bumped on every raise, so the window restarts the dwell even when the
     /// same action repeats, as it does for a held key.
     in-out property <int> seq: 0;
-    in-out property <Figure> figure: Figure.none;
     /// The sentence is a hint, which stays for as long as it is wanted rather
     /// than for a dwell, and goes when `drop` takes it back.
     in-out property <bool> held: false;
     /// Bumped when a hint is taken back, for the window to put it away.
     in-out property <int> dropped: 0;
 
-    public function show-figure(kind: Figure) {
-        Flash.figure = kind;
-        Flash.message = "";
-        Flash.at = 0.5;
-        Flash.held = false;
-        Flash.seq += 1;
-    }
-
     public function show(icon: int, at: float) {
         Flash.icon = icon;
-        Flash.figure = Figure.none;
         Flash.message = "";
         Flash.at = at;
         Flash.held = false;
@@ -150,7 +144,6 @@ export global Flash {
     public function notice(text: string) {
         Flash.message = text;
         Flash.warning = false;
-        Flash.figure = Figure.none;
         Flash.at = 0.5;
         Flash.held = false;
         Flash.seq += 1;

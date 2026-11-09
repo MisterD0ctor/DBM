@@ -169,8 +169,8 @@ export global Type {
     /// seek preview. Monospaced so a counting figure keeps its width instead
     /// of shuffling sideways every second.
     out property <string> numerals: "IBM Plex Mono";
-    /// 600. The media title, the flash, a fatal headline. (The row that is
-    /// playing is body size at 700; see `MenuRow`.)
+    /// 600. The media title, a notice from the flash, a fatal headline. (The
+    /// row that is playing is body size at 700; see `MenuRow`.)
     out property <length> title: 14px;
     /// 500. Row labels, menu items, switch labels: anything that names
     /// something you can press.
@@ -199,15 +199,19 @@ export global Type {
     /// Sized against the disc it sits in (`Rows.stepper-disc`), not against
     /// the text.
     out property <length> glyph: 16px;
-    /// The one thing said louder than the rest: the word on the end-of-file
-    /// pill, sized against the full-size arrow beside it.
+    /// The word on the end-of-file pill, said louder than a row, sized
+    /// against the full-size arrow beside it.
     out property <length> prompt: 16px;
+    /// 600. The words beside the flash's glyph, in the middle of the
+    /// picture: the largest words here, because they are read in a
+    /// glance over a moving film, often from across the room.
+    out property <length> callout: 18px;
 
     /// The only three weights the bundled files carry. Plain is Medium,
     /// because at 400 the 13–14px lines read thin over glass, and Plex's 450
     /// Text weight was not quite enough.
     out property <int> weight-plain: 500;
-    /// Title and Prompt, and the way in's *Continue*.
+    /// Title, Prompt and Callout, and the way in's *Continue*.
     out property <int> weight-title: 600;
     /// The current row in a list.
     out property <int> weight-current: 700;
@@ -301,8 +305,8 @@ export global Rows {
     out property <length> measure: 44px;
 
     /// The air one surface keeps from the next: a panel or the hover label
-    /// above the timeline, the credits pill above it, the flash's caption
-    /// under its ring, the seek preview beside a panel.
+    /// above the timeline, the credits pill above it, a notice beside the
+    /// panel it answers, the seek preview beside a panel.
     out property <length> offset: 12px;
     /// How much of a scrolling list's end blurs and thins away where rows run
     /// on past it: short enough that the row above is whole, long enough that

@@ -23,6 +23,10 @@ export global Playback {
     out property <string> volume-said: Playback.muted
         ? @tr("Muted")
         : @tr("Volume {}%", Math.round(Playback.volume));
+    /// The level alone, beside a glyph that already says it is the volume.
+    out property <string> volume-level: Playback.muted
+        ? @tr("Muted")
+        : @tr("{}%", Math.round(Playback.volume));
     in property <bool> has-file;
     /// mpv is holding the last frame of a finished file.
     in property <bool> at-end;

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-08T23:31:25Z",
+  "generatedAt": "2026-11-09T02:47:12Z",
   "title": "Design System: DBM",
   "extensions": {
     "colorMeta": {
@@ -195,7 +195,7 @@
     "typographyMeta": {
       "title": {
         "displayName": "Title",
-        "purpose": "600/14px. The media title in the bar, the flash's caption, a fatal headline."
+        "purpose": "600/14px. The media title in the bar, a notice from the flash, a fatal headline."
       },
       "body": {
         "displayName": "Body",
@@ -227,7 +227,11 @@
       },
       "prompt": {
         "displayName": "Prompt",
-        "purpose": "600/16px. The one thing the interface says louder than the rest: the words on the end-of-file pill, sized against the 24px glyph beside them."
+        "purpose": "600/16px. The words on the end-of-file pill, said louder than a row, sized against the 24px glyph beside them."
+      },
+      "callout": {
+        "displayName": "Callout",
+        "purpose": "600/18px. The words beside the flash's glyph, in the middle of the picture: the largest words in the interface, read in a glance over a moving film, often from across the room."
       }
     },
     "shadows": [
@@ -301,8 +305,8 @@
       },
       {
         "name": "flash-dwell",
-        "value": "700ms / 1200ms / 3200ms",
-        "purpose": "How long the action flash stays: a glyph, a figure alone, or a sentence from the player, which then holds until the next key or pointer event."
+        "value": "1600ms / 3200ms",
+        "purpose": "How long the action flash stays: a glyph and its value, or a sentence from the player, which then holds until the next key or pointer event."
       },
       {
         "name": "reset-confirm",
@@ -560,7 +564,7 @@
       {
         "name": "A Key Brings Up Its Answer",
         "section": "layout",
-        "body": "A key calls up only what shows what it did. A seek, by the arrows with or without Shift or by Home, brings up the timeline alone, since where the film now is is the whole answer and the buttons beside it would only cover more of the picture. A key the flash answers brings up nothing else: the tracks, the subtitle delay, the speed, chapters, the next or previous file, and the volume and mute by their figure. One the picture answers brings up nothing at all: a frame step, T, B. F and a double-click on the picture put the chrome away at once, into fullscreen or out, and so does Escape leaving it, since what was asked for is the picture at a new size, not the bar over it; for half a second after, the pointer's moves don't bring it back, since a window changing size is sent moves no hand made (`Chrome.settling`). So does a key that sends you back to the film: Space playing on, from a pause, the end or a saved place; Escape, or a panel's own key, closing the panel; Escape putting the ring away; Enter on a pill's choice; → from the end. Every other key wakes the bar, as the pointer does, and no key takes away what is already up but those: pressed with the bar up, a key keeps it there (`MainWindow.key-wake`)."
+        "body": "A key calls up only what shows what it did. A seek, by the arrows with or without Shift or by Home, brings up the timeline alone, since where the film now is is the whole answer and the buttons beside it would only cover more of the picture. A key the flash answers brings up nothing else: the tracks, the subtitle delay, the speed, chapters, the next or previous file, and the volume and mute by their level. One the picture answers brings up nothing at all: a frame step, T, B. F and a double-click on the picture put the chrome away at once, into fullscreen or out, and so does Escape leaving it, since what was asked for is the picture at a new size, not the bar over it; for half a second after, the pointer's moves don't bring it back, since a window changing size is sent moves no hand made (`Chrome.settling`). So does a key that sends you back to the film: Space playing on, from a pause, the end or a saved place; Escape, or a panel's own key, closing the panel; Escape putting the ring away; Enter on a pill's choice; → from the end. Every other key wakes the bar, as the pointer does, and no key takes away what is already up but those: pressed with the bar up, a key keeps it there (`MainWindow.key-wake`)."
       },
       {
         "name": "The Line Keeps To The Picture",

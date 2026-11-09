@@ -1049,8 +1049,50 @@ pub(super) fn flash_test(ui: &MainWindow) -> Script {
         beat.rest(3).await;
         report_flash(&ui, "after it leaves");
         beat.next().await;
+
+        // A seek's ring through its arrival and its leaving, every 20ms, with
+        // a second press 60ms into the first leaving.
+        arrow(&ui, Key::RightArrow);
+        let pressed = std::time::Instant::now();
+        let mut samples: Vec<u64> = (0..=10).map(|i| i * 20).collect();
+        samples.extend((0..=24).map(|i| 1560 + i * 20));
+        samples.extend((0..=12).map(|i| 3200 + i * 20));
+        for ms in samples {
+            let weak = ui.as_weak();
+            slint::Timer::single_shot(Duration::from_millis(ms), move || {
+                if let Some(ui) = weak.upgrade() {
+                    report_ring(&ui, pressed.elapsed());
+                }
+            });
+        }
+        let weak = ui.as_weak();
+        slint::Timer::single_shot(Duration::from_millis(1660), move || {
+            if let Some(ui) = weak.upgrade() {
+                eprintln!("dbm: travel pressed again");
+                arrow(&ui, Key::RightArrow);
+            }
+        });
+        beat.rest(9).await;
         eprintln!("dbm: --- flash test done ---");
     })
+}
+
+/// Where the ring's glass is across the window, and how far it is shown.
+fn report_ring(ui: &MainWindow, since: Duration) {
+    let bar_top = ui.get_timeline_y();
+    let ring = ui
+        .get_glass_rects()
+        .iter()
+        .find(|r| r.width > 0.0 && r.width == r.height && r.y + r.height < bar_top);
+    match ring {
+        Some(r) => eprintln!(
+            "dbm: travel {:>4}ms x={:.1} shown={:.2}",
+            since.as_millis(),
+            r.x,
+            r.opacity
+        ),
+        None => eprintln!("dbm: travel {:>4}ms gone", since.as_millis()),
+    }
 }
 
 fn report_flash(ui: &MainWindow, label: &str) {

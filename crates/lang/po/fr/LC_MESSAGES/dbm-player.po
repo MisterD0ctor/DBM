@@ -1234,3 +1234,7 @@ msgstr "Impossible de créer une liste de lecture — {}"
 msgctxt "player"
 msgid "Playing a video"
 msgstr "Lecture d’une vidéo"
+
+msgctxt "Playback"
+msgid "{}%"
+msgstr "{}%"

@@ -59,6 +59,10 @@ typography:
     fontFamily: "IBM Plex Sans"  # Type.face
     fontSize: "16px"  # Type.prompt
     fontWeight: 600  # Type.weight-title
+  callout:
+    fontFamily: "IBM Plex Sans"  # Type.face
+    fontSize: "18px"  # Type.callout
+    fontWeight: 600  # Type.weight-title
 rounded:
   row: "16px"  # Rows.radius
   panel: "32px"  # Panels.radius
@@ -425,7 +429,7 @@ number to type; reach for the plain weight first.
 
 ### Hierarchy
 - **Title** (`Type.title`, `Type.weight-title`): the media title in the bar,
-  the flash, and a fatal headline.
+  a notice from the flash, and a fatal headline.
 - **Body** (`Type.body`, plain): row labels, menu items, switch labels — the
   name of anything you can press. The current row in a list takes Lit at
   `Type.weight-current` instead.
@@ -449,9 +453,13 @@ number to type; reach for the plain weight first.
   and back rows, written in capitals.
 - **Glyph** (`Type.glyph`, plain): a character standing in for an icon — the
   stepper's minus and plus, sized against its disc rather than against the text.
-- **Prompt** (`Type.prompt`, `Type.weight-title`): the one thing the interface
-  says louder than the rest, the words on the end-of-file pill, sized against
-  the glyph beside them.
+- **Prompt** (`Type.prompt`, `Type.weight-title`): the words on the
+  end-of-file pill, said louder than a row, sized against the glyph beside
+  them.
+- **Callout** (`Type.callout`, `Type.weight-title`): the words beside the
+  flash's glyph, in the middle of the picture. The largest words in
+  the interface, because they are read in a glance over a moving film, often
+  from across the room, and gone before a second look.
 
 The scale lives in the `Type` global in `theme.slint`, not at its use sites.
 Several roles deliberately share a size: what separates a title from a body
@@ -617,7 +625,8 @@ that separates two ideas is the space the rows already stand in, and it is
 *derived* from it, not typed again, because two literals asserting an identity
 is one of them waiting to drift. So is the air a surface keeps from the next
 one, `Rows.offset`: a panel above the bar, the hover label on that line,
-the flash's caption under its ring, the seek preview clear of an open panel.
+a notice beside the panel it answers, the seek preview clear of an open
+panel.
 One idea, one name. The window opens at its preferred size and floors at
 three quarters of it, the same 16:9. It never reflows; the breakpoints in the
 sidecar give the sizes.
@@ -667,7 +676,7 @@ seek, by the arrows with or without Shift or by Home, brings up the timeline
 alone, since where the film now is is the whole answer and the buttons
 beside it would only cover more of the picture. A key the flash answers
 brings up nothing else: the tracks, the subtitle delay, the speed, chapters,
-the next or previous file, and the volume and mute by their figure. One the
+the next or previous file, and the volume and mute by their level. One the
 picture answers brings up nothing at all: a frame step, T, B. F and a
 double-click on the picture put the chrome away at once, into fullscreen or
 out, and so does Escape leaving it, since what was asked for is the picture
@@ -1138,8 +1147,9 @@ by under a pixel at the corner.
 - **Label:** the level as a number, which nothing else on the bar gives: the
   track is short for two hundred steps and the glyph beside it moves in tens.
   *Volume 84%* with ↑ ↓, or *Muted* alone, since a muted level is a number
-  nobody can hear and the track is drawn empty to match. The same words are
-  the flash's figure for ↑, ↓ and M, which wake no bar to show them on.
+  nobody can hear and the track is drawn empty to match. ↑, ↓ and M wake no
+  bar to show it on, so the flash says it beside the volume's glyph, as
+  *84%* or *Muted*: the glyph has already said whose level it is.
 
 ### Menu rows
 - **Shape:** `Rows.row` tall; the wash is inset `Rows.gap` on both sides at
@@ -1839,12 +1849,19 @@ file and permanently on a machine with no ffmpeg.
 
 ### The action flash
 An answer, not a control: a glyph in Lit (`ActionFlash.glyph`) inside a
-circle of glass (`ActionFlash.ring`), and `Rows.offset` under it, when
-there is one, a capsule (`ActionFlash.text-h`) carrying the one number that
-has nowhere else to appear: Title in Lit, `ActionFlash.text-pad` of
-padding, never wider than the bar. It lives long enough to read a
-two-character figure and short enough that a held key flickers rather than
-strobes (`ActionFlash.dwell`).
+circle of glass (`ActionFlash.ring`), and, when there is one, the one number
+that has nowhere else to appear on the same glass after it: the ring drawn
+out into a capsule, the words in Callout at Lit `ActionFlash.gap` after the
+glyph, as on the end-of-file pill, and ending the ring's air
+(`ActionFlash.air`) short of the far end, as the glyph starts it from the
+near one. The glyph keeps its place in the ring at the capsule's left end,
+so a seek, which has no words, is the ring alone. Centred like the ring, and
+never wider than the bar. It lives long enough to read a value or a track's name
+by (`ActionFlash.dwell`), and a held key keeps it up.
+
+**It fades where it stands.** An answer in the middle of the picture is not
+arriving from anywhere, so it does not rise into place as a surface does: a
+rise there reads as a bounce on every key.
 
 **A seek is thrown to the side it seeks to** — a fifth of the way across for
 back, four fifths for forward — and everything else sits in the middle. The
@@ -1852,21 +1869,35 @@ glyph already points the right way, but an arrow held down is read where it
 lands rather than looked at, and a mark that arrives on the left and one that
 arrives on the right are told apart before either is a shape. Clamped inside
 the panel margins, so the throw shortens on a narrow window rather than
-taking the ring off the edge of it.
+taking the ring off the edge of it. **And it travels that way**, the one
+flash that moves: in from `Surfaces.lift` twice over nearer the middle, and
+out the same distance further on, so it passes through rather than coming
+and going back. Pressed again on its way out, it comes back from where its
+fade had got to.
 
-A **figure** replaces the ring with its words alone, and stays longer, since
-it is read rather than recognised: the speed after <, > or Backspace, the
-chapter after PgUp, PgDn or Ctrl with an arrow, the track after Shift+C or #,
-after C whether subtitles are showing at all, which the subtitles button only
-says while the bar is up, and the volume after ↑, ↓ or M (`Playback.volume-said`). The icon set has no glyph for any of them and the figure is
-the whole answer. A frame step and the one-second seek raise nothing: the
-picture and the timeline already answer.
+Each answer has the glyph its subject has elsewhere, and only the value
+beside it, since the glyph has said what it is the value of: the speed after
+<, > or Backspace with its settings row's glyph, the volume after ↑, ↓ or M
+with the audio page's (`Playback.volume-level`), the audio track after #
+with the bar's Audio button's, the subtitle delay after Z with its own, and
+the chapter after PgUp, PgDn or Ctrl with an arrow with a bookmark, and its
+name, or its number of how many where the file names none. A frame step and
+the one-second seek raise nothing: the picture and the timeline already
+answer.
+
+C and Shift+C answer with **the subtitles' glyph**, which the subtitles button
+only shows while the bar is up: solid while they show, as the button is, with
+the track that came on beside it, and struck through while they don't,
+alone. Both are read as mpv reports them rather than guessed at the key, so
+C on a film with no subtitles says they are still off.
 
 A **notice** from the player is a sentence alone, centred, reason first —
 *Unrecognized file format — could not play Game of Thrones · S07E06* — because
 the capsule elides at the bar's width and the reason is the part worth
-keeping. It holds longer still, and then until the next key or pointer event,
-so a failure glanced away from is still there. No part of any of it takes the
+keeping. It is read rather than glanced at, so it is at Title, the size every
+other sentence is, on a capsule of its own twice that (`ActionFlash.text-h`)
+with half that of padding (`ActionFlash.text-pad`). It holds longer, and then until
+the next key or pointer event, so a failure glanced away from is still there. No part of any of it takes the
 pointer: it sits where a click means play or pause.
 
 A notice that something did not happen — a file that would not play, a path

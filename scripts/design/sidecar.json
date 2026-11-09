@@ -195,7 +195,7 @@
     "typographyMeta": {
       "title": {
         "displayName": "Title",
-        "purpose": "{{ Type.weight-title }}/{{ Type.title }}. The media title in the bar, the flash's caption, a fatal headline."
+        "purpose": "{{ Type.weight-title }}/{{ Type.title }}. The media title in the bar, a notice from the flash, a fatal headline."
       },
       "body": {
         "displayName": "Body",
@@ -227,7 +227,11 @@
       },
       "prompt": {
         "displayName": "Prompt",
-        "purpose": "{{ Type.weight-title }}/{{ Type.prompt }}. The one thing the interface says louder than the rest: the words on the end-of-file pill, sized against the {{ EndChoice.glyph.width }} glyph beside them."
+        "purpose": "{{ Type.weight-title }}/{{ Type.prompt }}. The words on the end-of-file pill, said louder than a row, sized against the {{ EndChoice.glyph.width }} glyph beside them."
+      },
+      "callout": {
+        "displayName": "Callout",
+        "purpose": "{{ Type.weight-title }}/{{ Type.callout }}. The words beside the flash's glyph, in the middle of the picture: the largest words in the interface, read in a glance over a moving film, often from across the room."
       }
     },
     "shadows": [
@@ -301,8 +305,8 @@
       },
       {
         "name": "flash-dwell",
-        "value": "{{ ActionFlash.dwell@else@else }} / {{ ActionFlash.dwell@else@then }} / {{ ActionFlash.dwell@then }}",
-        "purpose": "How long the action flash stays: a glyph, a figure alone, or a sentence from the player, which then holds until the next key or pointer event."
+        "value": "{{ ActionFlash.dwell@else }} / {{ ActionFlash.dwell@then }}",
+        "purpose": "How long the action flash stays: a glyph and its value, or a sentence from the player, which then holds until the next key or pointer event."
       },
       {
         "name": "reset-confirm",

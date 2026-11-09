@@ -1231,3 +1231,7 @@ msgstr "Kunde inte skapa en spellista — {}"
 msgctxt "player"
 msgid "Playing a video"
 msgstr "Spelar en video"
+
+msgctxt "Playback"
+msgid "{}%"
+msgstr "{}%"

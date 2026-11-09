@@ -164,10 +164,22 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
             }
 
             // The flash is a moment, not a surface, so it is held by raising
-            // it again and again.
-            if surface == "flash" {
-                ui.global::<crate::Flash>()
-                    .invoke_show(ui.global::<crate::Flash>().get_delay(), 0.5);
+            // it again and again: a glyph and its value, or the subtitles'
+            // glyph, turned on or off once first for the other one.
+            let flash = ui.global::<crate::Flash>();
+            match surface.as_str() {
+                "flash" => flash.invoke_show(flash.get_delay(), 0.5),
+                "flash-speed" => flash.invoke_show(flash.get_speed(), 0.5),
+                "flash-volume" => flash.invoke_show(flash.get_volume(), 0.5),
+                "flash-audio" => flash.invoke_show(flash.get_audio(), 0.5),
+                "flash-chapter" => flash.invoke_show(flash.get_chapter(), 0.5),
+                "flash-subs" | "flash-subs-toggled" => {
+                    if surface == "flash-subs-toggled" && tick == 4 {
+                        ui.global::<crate::Subtitles>().invoke_toggle();
+                    }
+                    flash.invoke_show(flash.get_subtitles(), 0.5);
+                }
+                _ => {}
             }
 
             // The playlist turned away from the file playing, so the angle
@@ -534,11 +546,6 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                         "If the driver is current, this is a bug in the player.".into(),
                     );
                     ui.invoke_copy_details();
-                }
-                // A caption-only flash — the speed, as `]` raises it.
-                "figure" => {
-                    ui.global::<crate::Flash>()
-                        .invoke_show_figure(crate::Figure::Speed);
                 }
                 // The graphics failures need a driver that doesn't work, which
                 // a test can't arrange, so the pane is set by hand. Its wording

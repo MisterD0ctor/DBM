@@ -1234,3 +1234,7 @@ msgstr "Wiedergabeliste konnte nicht erstellt werden — {}"
 msgctxt "player"
 msgid "Playing a video"
 msgstr "Ein Video wird abgespielt"
+
+msgctxt "Playback"
+msgid "{}%"
+msgstr "{}%"

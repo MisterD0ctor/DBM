@@ -1234,3 +1234,7 @@ msgstr "Afspeellijst kon niet worden gemaakt — {}"
 msgctxt "player"
 msgid "Playing a video"
 msgstr "Er wordt een video afgespeeld"
+
+msgctxt "Playback"
+msgid "{}%"
+msgstr "{}%"

@@ -51,6 +51,12 @@
 //!   right-hand pill instead of in the corner, so the hover label shows.
 //!   `tip-volume` rests it on the volume track, whose label is the level.
 //! * `DBM_SHOWCASE=window-max` presses the window's own maximize button.
+//! * `DBM_SHOWCASE=flash` holds the action flash up with the subtitle delay's
+//!   glyph and figure, and `flash-speed`, `flash-volume`, `flash-audio` and
+//!   `flash-chapter` with the speed's, the volume's, the audio track's and
+//!   the chapter's, which needs a film with chapters for its words.
+//!   `flash-subs` holds it with the subtitles' glyph as the file opened, and
+//!   `flash-subs-toggled` turns them on or off first, for the other one.
 //! * `DBM_SHOWCASE=way-in-film` rests the pointer on the way in's second
 //!   film, whose frame should then light the window. It needs an app-data
 //!   folder holding films left unfinished, which no exercise makes.
@@ -220,7 +226,9 @@
 //!   mpv build. Needs a file with an audio track.
 //! * `DBM_FLASH_TEST=1` — presses the keys that raise the action flash and
 //!   reports what the interface published for each: that it was there, in the
-//!   right place, and gone again afterwards.
+//!   right place, and gone again afterwards. Then samples a seek's ring as it
+//!   comes and goes, which should travel the way it seeks throughout, and
+//!   again when a second press catches it on its way out.
 //! * `DBM_PROGRESS_TEST=1` — plays, asks mpv to write its resume file, then
 //!   looks for that file where the playlist rows look for it, since a wrong
 //!   guess about where it is fails silently.

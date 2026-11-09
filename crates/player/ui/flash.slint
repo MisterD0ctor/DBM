@@ -1,11 +1,12 @@
-// The action flash: a glyph in a ring at the centre of the picture, and under
-// it the one number that has nowhere else to appear, or a sentence when the
-// player has something to say (see `Flash`).
+// The action flash: a glyph in a ring of glass at the centre of the picture,
+// and on the same glass after it the one value that has nowhere else to
+// appear; or a sentence when the player has something to say, on a capsule
+// alone (see `Flash`).
 //
 // No `TouchArea` anywhere in here, deliberately: it sits over the middle of
 // the picture, where a click means play or pause.
 
-import { Chrome, Figure, Flash } from "globals.slint";
+import { Chrome, Flash } from "globals.slint";
 import { GlassRect } from "models.slint";
 import { Playback } from "playback.slint";
 import { Subtitles } from "subtitles.slint";
@@ -28,7 +29,7 @@ export component ActionFlash inherits Rectangle {
     /// The widest the words may run: the bar's width.
     in property <length> widest;
     in property <bool> has-file;
-    /// The foot of the way in, which a notice with no ring keeps under.
+    /// The foot of the way in, which a notice keeps under.
     in property <length> way-in-foot;
 
     /// The panel the notice on show answers, and so sits beside.
@@ -39,15 +40,8 @@ export component ActionFlash inherits Rectangle {
     /// both fade out.
     out property <Panel> beside: Panel.none;
 
-    out property <GlassRect> ring-glass: Surfaces.glass(root.centred-x(root.ring),
-        root.ring-y + root.rise,
-        root.has-ring ? root.ring : 0, root.has-ring ? root.ring : 0,
-        // Half the size, so the rounded box the shader draws is a circle.
-        root.ring / 2, root.shown);
-    out property <GlassRect> words-glass: Surfaces.glass(root.text-x + root.slide,
-        root.text-y + root.text-rise,
-        root.text != "" ? root.text-w : 0, root.text != "" ? root.text-h : 0,
-        root.text-h / 2, root.shown);
+    out property <GlassRect> glass: Surfaces.glass(root.surface-x, root.surface-y,
+        root.surface-w, root.surface-h, root.surface-h / 2, root.shown);
 
     property <[image]> icons: [
         @image-url("../../../public/icons/seek-backward.svg"),
@@ -56,7 +50,18 @@ export component ActionFlash inherits Rectangle {
         @image-url("../../../public/icons/step-forward.svg"),
         @image-url("../../../public/icons/rewind.svg"),
         @image-url("../../../public/icons/subtitle-time.svg"),
+        @image-url("../../../public/icons/subtitles-solid.svg"),
+        @image-url("../../../public/icons/speed.svg"),
+        @image-url("../../../public/icons/volume.svg"),
+        @image-url("../../../public/icons/speaking.svg"),
+        @image-url("../../../public/icons/bookmark.svg"),
     ];
+    /// The glyph raised. The subtitles' is solid while they show, as the
+    /// bar's button is, and struck through while they don't: read live, since
+    /// mpv says which a beat after the key.
+    property <image> glyph-source: Flash.icon == Flash.subtitles && !Subtitles.visible
+        ? @image-url("../../../public/icons/subtitles-slash.svg")
+        : root.icons[Flash.icon];
     /// The size the icon set is drawn for: the ring gives it presence, so
     /// it isn't scaled up.
     property <length> glyph: Icons.full;
@@ -66,14 +71,14 @@ export component ActionFlash inherits Rectangle {
     property <length> ring: root.glyph + 2 * root.air;
     /// Whether this is the player speaking rather than acknowledging a key.
     property <bool> is-notice: Flash.message != "";
-    /// Whether the glyph ring is drawn: an acknowledgement has one, a notice
-    /// and a figure are their words alone.
-    property <bool> has-ring: !root.is-notice && Flash.figure == Figure.none;
-    /// The track a J or # landed on, read live, because the list is re-read
-    /// a moment after the cycle and the caption has to catch up.
-    property <string> sub-label: Subtitles.visible && Tracks.subtitle-current >= 0
+    /// Whether there is a glyph: an acknowledgement has one, a notice is its
+    /// words alone.
+    property <bool> has-glyph: !root.is-notice;
+    /// The subtitle track C or Shift+C landed on, read live, because the list
+    /// is re-read a moment after the cycle and the caption has to catch up.
+    property <string> sub-label: Tracks.subtitle-current >= 0
         && Tracks.subtitle-current < Tracks.subtitles.length
-        ? Tracks.subtitles[Tracks.subtitle-current].label : @tr("Subtitles off");
+        ? Tracks.subtitles[Tracks.subtitle-current].label : "";
     property <string> audio-label: Tracks.audio-current >= 0
         && Tracks.audio-current < Tracks.audio.length
         ? Tracks.audio[Tracks.audio-current].label : @tr("No audio");
@@ -84,21 +89,35 @@ export component ActionFlash inherits Rectangle {
     changed input-seq => {
         if (root.waiting) {
             root.waiting = false;
-            root.shown = 0.0;
+            root.leave();
         }
     }
-    /// The words under the ring. Live, because mpv reports a new delay a beat
-    /// after the key, and the figure has to be the one it lands on.
+    /// The words, beside the glyph or alone. Live, because mpv reports a new
+    /// delay a beat after the key, and the figure has to be the one it lands
+    /// on.
     property <string> text: root.is-notice ? Flash.message
-        : Flash.figure == Figure.speed ? Playback.speed-text
-        : Flash.figure == Figure.chapter ? Playback.chapter-label
-        : Flash.figure == Figure.subtitle-track ? root.sub-label
-        : Flash.figure == Figure.audio-track ? root.audio-label
-        : Flash.figure == Figure.volume ? Playback.volume-said
-        : Flash.icon == Flash.delay ? Subtitles.delay-text : "";
-    property <length> text-h: 28px;
-    property <length> text-pad: 14px;
-    /// Wide enough for the words, but never wider than the bar, since a
+        : Flash.icon == Flash.chapter ? Playback.chapter-label
+        : Flash.icon == Flash.volume ? Playback.volume-level
+        : Flash.icon == Flash.audio ? root.audio-label
+        : Flash.icon == Flash.speed ? Playback.speed-text
+        : Flash.icon == Flash.delay ? Subtitles.delay-text
+        // Which track came on; off is said by the glyph alone.
+        : Flash.icon == Flash.subtitles && Subtitles.visible ? root.sub-label : "";
+    /// A sentence at the size the rest of the interface is read at; the words
+    /// beside a glyph larger, being read in a glance over the film.
+    property <length> text-size: root.is-notice ? Type.title : Type.callout;
+    /// A sentence's capsule: twice its words' size.
+    property <length> text-h: 2 * root.text-size;
+    property <length> text-pad: root.text-h / 2;
+    /// Between the glyph and its words, as on the end-of-file pill. The
+    /// words then end the ring's air short of the far end, as the glyph
+    /// starts it from the near one.
+    property <length> gap: Bar.choice-gap;
+    /// The ring, or the ring drawn out to hold its words. Never wider than
+    /// the bar, as no flash is.
+    property <length> glyph-w: min(
+        root.ring + (root.text != "" ? root.gap + measure.preferred-width : 0px), root.widest);
+    /// Wide enough for the sentence, but never wider than the bar, since a
     /// failure can name a long path.
     property <length> text-w: min(
         measure.preferred-width + 2 * root.text-pad + root.mark-w, root.widest);
@@ -125,35 +144,54 @@ export component ActionFlash inherits Rectangle {
     /// Negative when no row is known, and the notice sits level with the
     /// panel's top edge.
     property <length> beside-row: -1px;
-    /// A notice beside a panel slides out from it rather than rising: from
-    /// the panel's edge to the offset it rests at.
+    /// A notice beside a panel slides out from it: from the panel's edge to
+    /// the offset it rests at.
     property <length> slide: root.beside == Panel.none ? 0px
         : (1.0 - root.shown) * Rows.offset * (root.leftward ? 1 : -1);
-    property <length> ring-y: (root.height - root.ring) / 2;
-    /// Under the ring, or in its place when there is none, and under the way
-    /// in when that is on screen, since both are centred and the notice would
-    /// otherwise cover the rows it answers.
+    /// Which way a seek's glyph travels, the way it seeks. Nothing else in
+    /// the middle moves: it answers a key where it is rather than arriving
+    /// from anywhere, so it fades in place.
+    property <float> way: !root.has-glyph ? 0
+        : Flash.icon == Flash.seek-forward ? 1
+        : Flash.icon == Flash.seek-back ? -1 : 0;
+    /// Whether the flash is on its way out, which a seek's glyph travels on
+    /// through rather than turning back the way it came.
+    property <bool> going: false;
+    /// In from nearer the middle and out further on, two lifts each way, so
+    /// the way reads before the glyph does.
+    property <length> travel: root.way * 2 * Surfaces.lift
+        * (root.going ? 1.0 - root.shown : root.shown - 1.0);
+    /// In the middle, or beside a panel, or under the way in when that is on
+    /// screen, since both are centred and the notice would otherwise cover
+    /// the rows it answers.
     property <length> text-y: root.beside != Panel.none
         ? root.floor - root.beside-bounds.height - Rows.offset
             + (root.beside-row < 0 ? 0px : root.beside-row - root.text-h / 2)
-        : !root.has-ring
-        ? (root.has-file
+        : root.has-file
             ? (root.height - root.text-h) / 2
-            : root.way-in-foot + Rows.offset)
-        : root.ring-y + root.ring + Rows.offset;
-    /// Long enough to read a two-character number, short enough that a held
-    /// key flickers rather than strobes. Longer for a figure, which is read
-    /// rather than recognised, and longer still for a sentence.
-    property <duration> dwell: root.is-notice ? 3200ms
-        : Flash.figure != Figure.none ? 1200ms : 700ms;
+            : root.way-in-foot + Rows.offset;
+
+    property <length> surface-w: root.has-glyph ? root.glyph-w
+        : root.text != "" ? root.text-w : 0px;
+    property <length> surface-h: root.has-glyph ? root.ring : root.text-h;
+    property <length> surface-x: root.has-glyph
+        ? root.centred-x(root.glyph-w) + root.travel
+        : root.text-x + root.slide;
+    property <length> surface-y: root.has-glyph ? (root.height - root.ring) / 2 : root.text-y;
+
+    /// Long enough to read a value or a track's name by, and longer for a
+    /// sentence.
+    property <duration> dwell: root.is-notice ? 3200ms : 1600ms;
     property <float> shown: 0;
     animate shown {
         duration: Motion.surface;
         easing: ease-out;
     }
-    property <length> rise: (1.0 - root.shown) * Surfaces.lift;
-    /// The caption's rise, which is zero beside a panel, where it slides.
-    property <length> text-rise: root.beside == Panel.none ? root.rise : 0px;
+
+    function leave() {
+        root.going = true;
+        root.shown = 0.0;
+    }
 
     // Watched through a local property, because a `changed` handler must be
     // on the element that declares the property. Each raise restarts the
@@ -163,6 +201,10 @@ export component ActionFlash inherits Rectangle {
         root.beside = root.is-notice ? root.open-panel : Panel.none;
         root.beside-row = root.beside == Panel.settings || root.beside == Panel.subtitles
             ? root.asked-row : -1px;
+        // One raised again on its way out comes back from where its fade has
+        // got to, which is what reading an animated property gives, rather
+        // than from the far side of its place.
+        root.going = root.going && root.shown > Surfaces.gone;
         root.shown = 1.0;
         root.waiting = false;
         dwell-timer.stop();
@@ -173,7 +215,7 @@ export component ActionFlash inherits Rectangle {
     }
     property <int> dropped: Flash.dropped;
     changed dropped => {
-        root.shown = 0.0;
+        root.leave();
     }
 
     /// A notice beside a panel goes when the panel does, or left beside
@@ -184,7 +226,7 @@ export component ActionFlash inherits Rectangle {
         if (!root.beside-open) {
             dwell-timer.stop();
             root.waiting = false;
-            root.shown = 0.0;
+            root.leave();
         }
     }
 
@@ -196,37 +238,30 @@ export component ActionFlash inherits Rectangle {
             if (root.is-notice) {
                 root.waiting = true;
             } else {
-                root.shown = 0.0;
+                root.leave();
             }
         }
     }
 
     Rectangle {
-        x: root.centred-x(root.ring);
-        y: root.ring-y + root.rise;
-        width: root.ring;
-        height: root.ring;
-        visible: root.shown > Surfaces.gone && root.has-ring;
+        x: root.surface-x;
+        y: root.surface-y;
+        width: root.surface-w;
+        height: root.surface-h;
+        visible: root.shown > Surfaces.gone && root.surface-w > 0;
         opacity: root.shown;
 
+        // Where it sits in the ring, whether or not words follow it.
         Image {
-            source: root.icons[Flash.icon];
+            source: root.glyph-source;
+            visible: root.has-glyph;
+            x: root.air;
+            y: (parent.height - self.height) / 2;
             width: root.glyph;
             height: root.glyph;
-            x: (parent.width - self.width) / 2;
-            y: (parent.height - self.height) / 2;
             image-fit: contain;
             colorize: Paint.lit;
         }
-    }
-
-    Rectangle {
-        x: root.text-x + root.slide;
-        y: root.text-y + root.text-rise;
-        width: root.text-w;
-        height: root.text-h;
-        visible: root.shown > Surfaces.gone && root.text != "";
-        opacity: root.shown;
 
         Image {
             source: @image-url("../../../public/icons/warning.svg");
@@ -240,12 +275,14 @@ export component ActionFlash inherits Rectangle {
         }
 
         Text {
-            width: parent.width - 2 * root.text-pad - root.mark-w;
+            visible: root.text != "";
+            x: root.has-glyph ? root.ring - root.air + root.gap : root.text-pad + root.mark-w;
+            width: root.has-glyph ? parent.width - self.x - root.air
+                : parent.width - 2 * root.text-pad - root.mark-w;
             height: 100%;
-            x: root.text-pad + root.mark-w;
             text: root.text;
             color: Paint.lit;
-            font-size: Type.title;
+            font-size: root.text-size;
             font-weight: Type.weight-title;
             horizontal-alignment: center;
             vertical-alignment: center;
@@ -255,7 +292,7 @@ export component ActionFlash inherits Rectangle {
 
     measure := Measure {
         text: root.text;
-        font-size: Type.title;
+        font-size: root.text-size;
         font-weight: Type.weight-title;
     }
 }
