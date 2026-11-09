@@ -25,6 +25,7 @@ pub mod fades;
 pub mod find;
 pub mod format;
 pub mod glass;
+pub mod heads;
 pub mod playlist_panel;
 pub mod scale;
 pub mod sliders;

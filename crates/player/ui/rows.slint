@@ -6,7 +6,7 @@
 import { Chrome, Flash, Tip } from "globals.slint";
 import { Icons, Motion, Paint, Rails, Rows, Type } from "theme.slint";
 import { Glyph, Shade, StepButton } from "controls.slint";
-import { ResumeItem } from "models.slint";
+import { HeadGlyph, HeadMark, ResumeItem } from "models.slint";
 import { RingPane } from "ring.slint";
 import { Squircle } from "squircle.slint";
 
@@ -45,6 +45,10 @@ export component ActiveMark inherits Rectangle {
 export component RowHighlight inherits Rectangle {
     in property <bool> hovered;
     in property <bool> ring;
+    /// The wash is drawn by the player instead (see `BackRow.lifted`).
+    in property <bool> lifted;
+    /// The wash's colour as it eases, for the player to draw it in.
+    out property <color> wash: wash.fill;
 
     width: 100%;
     height: 100%;
@@ -56,13 +60,14 @@ export component RowHighlight inherits Rectangle {
     // gap: a row is too short for that corner's long ease, and its ends came
     // out drawn out. The gap to the panel narrows by under a pixel at the
     // corner instead.
-    Squircle {
+    wash := Squircle {
         x: Rows.gap;
         width: parent.width - 2 * Rows.gap;
         radius: Rows.radius;
         fill: root.ring ? (Paint.glass ? transparent : Paint.wash-ring)
             : root.hovered ? Paint.wash-soft : transparent;
         animate fill { duration: Motion.highlight; easing: ease-out; }
+        visible: !root.lifted && self.fill.alpha > 0;
     }
 
     RingPane {
@@ -1274,6 +1279,39 @@ export component BackRow inherits Rectangle {
     /// A name rather than a label, such as a show's over its episodes: its
     /// own case and size and no tracking, as in a panel heading.
     in property <bool> titular;
+    /// Drawn by the player over the finished frame rather than by Slint, so
+    /// the list under it can run on under it (see `HeadMark`): its wash,
+    /// arrow and words, while the player can (`Chrome.lifts-heads`). Slint
+    /// lays it out and keeps its press and its ring's glass, which the
+    /// pipeline draws anyway.
+    in property <bool> lifted;
+    private property <bool> drawn-after: root.lifted && Chrome.lifts-heads;
+    /// What the player draws, when it is lifted.
+    out property <HeadMark> mark: {
+        text: root.label,
+        x: words.absolute-position.x,
+        y: words.absolute-position.y,
+        width: words.width,
+        height: words.height,
+        font-size: words.font-size,
+        font-weight: words.font-weight,
+        letter-spacing: words.letter-spacing,
+        color: root.ink,
+        glyph: HeadGlyph.back,
+        glyph-x: arrow.absolute-position.x,
+        glyph-y: arrow.absolute-position.y,
+        glyph-size: arrow.width,
+        glyph-color: root.ring ? Paint.on-ring : Paint.lit,
+        wash-x: root.absolute-position.x + Rows.gap,
+        wash-y: root.absolute-position.y,
+        wash-width: root.width - 2 * Rows.gap,
+        wash-height: root.height,
+        wash-radius: Rows.radius,
+        wash-color: highlight.wash,
+        opacity: 1,
+    };
+    private property <color> ink: root.ring ? Paint.on-ring
+        : touch.has-hover ? Paint.lit : Paint.body;
     callback back();
 
     height: Rows.row;
@@ -1284,9 +1322,10 @@ export component BackRow inherits Rectangle {
         root.back();
     }
 
-    RowHighlight {
+    highlight := RowHighlight {
         hovered: touch.has-hover;
         ring: root.ring;
+        lifted: root.drawn-after;
     }
 
     // The arrow is laid out like `DrillRow`'s icon, because a back row is the
@@ -1301,19 +1340,22 @@ export component BackRow inherits Rectangle {
         Rectangle {
             width: Icons.row;
 
-            Glyph {
+            arrow := Glyph {
                 source: @image-url("../../../public/icons/angle-small-left.svg");
                 width: Icons.row;
                 height: Icons.row;
                 x: -root.lean;
                 y: (parent.height - self.height) / 2;
                 shade: root.ring ? Shade.on-ring : Shade.lit;
+                visible: !root.drawn-after;
             }
         }
 
-        Text {
+        words := Text {
             text: root.label;
-            color: root.ring ? Paint.on-ring : touch.has-hover ? Paint.lit : Paint.body;
+            // Laid out still when lifted, since the player draws the words
+            // where this would.
+            color: root.drawn-after ? transparent : root.ink;
             font-size: root.titular ? Type.named : Type.label;
             font-weight: Type.weight-plain;
             letter-spacing: root.titular ? 0 : Type.label-track;
@@ -1391,17 +1433,51 @@ export component MenuHeading inherits Rectangle {
     /// over rows with icons of their own, as on the settings page, it would
     /// say it twice.
     in property <image> icon;
-    private property <bool> iconic: root.icon.width > 0;
+    /// Drawn by the player over the finished frame rather than by Slint, so
+    /// the list under it can run on under its words (see `HeadMark`), while
+    /// the player can (`Chrome.lifts-heads`). Slint lays it out and draws
+    /// none of it. Its mark is then `glyph`, by name, which Slint draws from
+    /// the same file when it draws the heading itself.
+    in property <bool> lifted;
+    in property <HeadGlyph> glyph;
+    private property <bool> drawn-after: root.lifted && Chrome.lifts-heads;
+    /// What the player draws, when it is lifted.
+    out property <HeadMark> mark: {
+        text: root.text,
+        x: words.absolute-position.x,
+        y: words.absolute-position.y,
+        width: words.width,
+        height: words.height,
+        font-size: words.font-size,
+        font-weight: words.font-weight,
+        letter-spacing: words.letter-spacing,
+        color: Paint.body,
+        glyph: root.glyph,
+        glyph-x: root.absolute-position.x + root.icon-x,
+        glyph-y: root.absolute-position.y + root.icon-y,
+        glyph-size: Icons.row,
+        glyph-color: Paint.body,
+        opacity: 1,
+    };
+    private property <bool> iconic: root.icon.width > 0 || root.glyph != HeadGlyph.none;
     private property <length> icon-gap: Rows.drill-gap;
+    private property <length> icon-x: Rows.label-x;
+    private property <length> icon-y: root.height - Rows.heading + (Rows.heading - Icons.row) / 2;
 
     height: Rows.heading + (root.after-content ? Rows.group-gap : 0px);
 
     // Where the row labels start, with the words moved over for it, because
     // the margin to the wash's edge can't hold the mark.
-    if root.iconic: Image {
-        source: root.icon;
-        x: Rows.label-x;
-        y: parent.height - Rows.heading + (Rows.heading - self.height) / 2;
+    if root.iconic && !root.drawn-after: Image {
+        source: root.glyph == HeadGlyph.speaking
+            ? @image-url("../../../public/icons/speaking.svg")
+            : root.glyph == HeadGlyph.subtitles
+            ? @image-url("../../../public/icons/subtitles.svg")
+            : root.glyph == HeadGlyph.playlist
+            ? @image-url("../../../public/icons/playlist.svg")
+            : root.icon;
+        x: root.icon-x;
+        y: root.icon-y;
         width: Icons.row;
         height: Icons.row;
         image-fit: contain;
@@ -1409,7 +1485,7 @@ export component MenuHeading inherits Rectangle {
         colorize: Paint.body;
     }
 
-    Text {
+    words := Text {
         // Aligned with the row labels below it, not with the panel edge.
         x: Rows.label-x + (root.iconic ? Icons.row + root.icon-gap : 0px);
         width: parent.width - self.x - Rows.trail-x;
@@ -1417,7 +1493,9 @@ export component MenuHeading inherits Rectangle {
         y: parent.height - self.height;
         height: Rows.heading;
         text: root.text;
-        color: Paint.body;
+        // Laid out still when lifted, since the player draws the words where
+        // this would.
+        color: root.drawn-after ? transparent : Paint.body;
         font-size: root.titular ? Type.named : Type.label;
         // The rows' own weight: a kicker is told from its rows by case, size
         // and tracking, and must not out-weigh its own content. A show's name

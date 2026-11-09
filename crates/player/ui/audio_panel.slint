@@ -8,7 +8,7 @@ import { Measure } from "measure.slint";
 import { GlassPanel } from "panel.slint";
 import { ScrollList } from "scroll_list.slint";
 import { Motion, Panels, Rows, Type } from "theme.slint";
-import { Pick, ScrollFade } from "models.slint";
+import { HeadGlyph, HeadMark, Pick, ScrollFade } from "models.slint";
 
 export component AudioPanel inherits GlassPanel {
     /// The row the keyboard's ring is on, which every panel shares.
@@ -22,6 +22,8 @@ export component AudioPanel inherits GlassPanel {
         root.panel-pad + root.heading-h + root.natural, root.panel-max-h);
     out property <length> list-h: max(0px, root.panel-h - root.panel-pad - root.heading-h);
     out property <ScrollFade> fade: list.fade;
+    /// What heads the list, which the player draws (see `HeadMark`).
+    out property <HeadMark> head: heading.mark;
 
     /// As it opens: the ring on the track playing, centred.
     public function opening() {
@@ -66,9 +68,10 @@ export component AudioPanel inherits GlassPanel {
         padding-top: Panels.pad;
         padding-bottom: Panels.pad;
 
-        MenuHeading {
+        heading := MenuHeading {
             text: @tr("AUDIO");
-            icon: @image-url("../../../public/icons/speaking.svg");
+            lifted: true;
+            glyph: HeadGlyph.speaking;
         }
         list := ScrollList {
             height: root.list-h;

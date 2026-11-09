@@ -47,6 +47,10 @@ impl Driver {
         );
         let paint = ui.global::<crate::Paint>();
         gpu.pipeline.text_floor = f32::from(paint.get_body().alpha()) / 255.0;
+        // Before Slint draws, so a heading it leaves to the player this frame
+        // is drawn by the player this frame.
+        ui.global::<crate::Chrome>()
+            .set_lifts_heads(gpu.overlays.stamps.is_some());
 
         let size = ui.window().size();
         // For the size being rendered at, not the one mpv last reported on.

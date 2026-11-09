@@ -28,7 +28,7 @@ use std::sync::Mutex;
 use slint::{ComponentHandle, GraphicsAPI, RenderingState};
 
 use crate::app::App;
-use crate::interface::{fades, glass};
+use crate::interface::{fades, glass, heads};
 use crate::player::Player;
 use crate::{MainWindow, diagnostics};
 use dbm_gpu::Overlays;
@@ -90,6 +90,8 @@ struct Scratch {
     fades: Vec<dbm_gpu::fade::Strip>,
     /// The angles pointing lists back to their current rows, reused the same way.
     ways: Vec<dbm_gpu::way::Way>,
+    /// What heads each list, laid over its soft edge, reused the same way.
+    heads: Vec<dbm_gpu::stamp::Stamp>,
 }
 
 pub struct Driver {
@@ -176,6 +178,12 @@ impl Driver {
                 fades::collect(&ui, &mut self.scratch.fades, &mut self.scratch.ways);
                 if let Some(fader) = gpu.overlays.fader.as_mut() {
                     fader.run(&gpu.gl, gpu.pipeline.output(), size, &self.scratch.fades);
+                }
+                // ...then what heads each list, over the edge, so the rows
+                // thin away under its words rather than taking them along...
+                if let Some(stamps) = gpu.overlays.stamps.as_mut() {
+                    heads::collect(&ui, &mut self.scratch.heads);
+                    stamps.run(&gpu.gl, size, &self.scratch.heads);
                 }
                 // ...then the angle back to a list's current row, whole over
                 // the edge it sits in, on its glass disc if it has one.

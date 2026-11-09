@@ -4,7 +4,7 @@
 // settings pages do.
 
 import { Playlist } from "playlist.slint";
-import { PlaylistItem, ScrollFade } from "models.slint";
+import { HeadGlyph, HeadMark, PlaylistItem, ScrollFade } from "models.slint";
 import { BackRow, GroupRow, MenuHeading, PlaylistRow } from "rows.slint";
 import { Measure } from "measure.slint";
 import { GlassPanel } from "panel.slint";
@@ -23,6 +23,11 @@ export component PlaylistPanel inherits GlassPanel {
     out property <int> rows: root.lead + root.list-rows;
     out property <ScrollFade> parts-fade: parts-list.fade;
     out property <ScrollFade> leaf-fade: leaf-list.fade;
+    /// What heads each page, which the player draws (see `HeadMark`): the
+    /// panel's heading over the list of parts, and over a part's page its
+    /// way back, or the heading for a list of one part.
+    out property <HeadMark> parts-head: parts-heading.mark;
+    out property <HeadMark> leaf-head;
 
     /// As it opens: on the part holding the file playing, at its row, or on
     /// the list of parts when that file is a part of its own.
@@ -230,7 +235,6 @@ export component PlaylistPanel inherits GlassPanel {
 
     VerticalLayout {
         padding-top: Panels.pad;
-        padding-bottom: Panels.pad;
         // Top-aligned, or the rows would spread apart while the height
         // animates.
         alignment: start;
@@ -239,27 +243,32 @@ export component PlaylistPanel inherits GlassPanel {
         // the settings pages, both are always built, because they are
         // called by name to centre a row, which an element inside a
         // condition can't be. The list of parts is short anyway.
+        //
+        // Down to the panel's foot rather than its padding, since the lists
+        // run on to the edge (`ScrollList.reach-bottom`); each page leaves
+        // the padding empty under its list.
         Rectangle {
-            height: root.pages-h;
+            height: root.pages-h + Panels.pad;
             clip: true;
 
             Rectangle {
                 x: -root.drill * parent.width;
                 width: parent.width;
-                height: root.moving ? root.heading-h + root.parts-list-h
+                height: root.moving ? root.heading-h + root.parts-list-h + Panels.pad
                     : parent.height;
                 y: root.moving ? parent.height - self.height : 0;
 
                 VerticalLayout {
                     alignment: start;
 
-                    MenuHeading {
+                    parts-heading := MenuHeading {
                         text: Playlist.heading;
                         titular: Playlist.named;
+                        lifted: true;
                         // The same mark as the button that opened the
                         // panel, whether the words beside it are
                         // PLAYLIST or a show's name.
-                        icon: @image-url("../../../public/icons/playlist.svg");
+                        glyph: HeadGlyph.playlist;
                     }
                     // The list of parts: a season to open, or a file
                     // standing in the list as itself.
@@ -316,7 +325,7 @@ export component PlaylistPanel inherits GlassPanel {
             Rectangle {
                 x: (1.0 - root.drill) * parent.width;
                 width: parent.width;
-                height: root.moving ? root.row-h + root.leaf-list-h
+                height: root.moving ? root.row-h + root.leaf-list-h + Panels.pad
                     : parent.height;
                 y: root.moving ? parent.height - self.height : 0;
 
@@ -327,6 +336,8 @@ export component PlaylistPanel inherits GlassPanel {
                     // of parts, as a settings page is. A single part has
                     // no list to go back to, so it has the heading.
                     if root.tiered: BackRow {
+                        z: 1;
+                        lifted: true;
                         label: Playlist.groups[root.leaf].heading;
                         titular: Playlist.groups[root.leaf].titular;
                         focused: root.open && !root.on-parts
@@ -334,11 +345,26 @@ export component PlaylistPanel inherits GlassPanel {
                         back => {
                             root.back();
                         }
+                        // Out to the panel, since nothing can see into this
+                        // condition.
+                        init => {
+                            root.leaf-head = self.mark;
+                        }
+                        changed mark => {
+                            root.leaf-head = self.mark;
+                        }
                     }
                     if !root.tiered: MenuHeading {
                         text: Playlist.heading;
                         titular: Playlist.named;
-                        icon: @image-url("../../../public/icons/playlist.svg");
+                        lifted: true;
+                        glyph: HeadGlyph.playlist;
+                        init => {
+                            root.leaf-head = self.mark;
+                        }
+                        changed mark => {
+                            root.leaf-head = self.mark;
+                        }
                     }
                     leaf-list := ScrollList {
                         height: root.leaf-list-h;

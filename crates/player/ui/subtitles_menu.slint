@@ -10,7 +10,7 @@ import { Find, FindState } from "find.slint";
 import { Removal, Tracks } from "tracks.slint";
 import { Subtitles, SyncState } from "subtitles.slint";
 import { Reset, Resets, Settings } from "settings.slint";
-import { Pick, ScrollFade } from "models.slint";
+import { HeadGlyph, HeadMark, Pick, ScrollFade } from "models.slint";
 import { AccountPage } from "account.slint";
 import {
     BackRow, DrillRow, EmptyRow, FoundRow, MenuHeading, MenuRow, NoteRow, StepperRow,
@@ -90,8 +90,15 @@ export component SubtitlesMenu inherits GlassPanel {
     /// where the other pages do, and would soften their rows.
     out property <ScrollFade> tracks-fade: subs-list.fade;
     out property <ScrollFade> find-fade: find-list.fade;
+    /// What heads the tracks and the search's results, which the player
+    /// draws (see `HeadMark`).
+    out property <HeadMark> tracks-head: tracks-heading.mark;
+    out property <HeadMark> find-head: find-back.mark;
     out property <float> tracks-shown: root.drill < 1.0 ? root.shown : 0;
-    out property <float> find-shown: root.leaf == MenuPage.find ? root.shown : 0;
+    /// As the search's page is drawn: not under the account's page, which
+    /// covers it.
+    out property <float> find-shown: root.drill > 0.0 && root.drill < 2.0
+        && root.leaf == MenuPage.find ? root.shown : 0;
 
     /// As it opens: on the tracks, on the one in use.
     public function opening() {
@@ -576,12 +583,18 @@ export component SubtitlesMenu inherits GlassPanel {
             padding-top: Panels.pad;
             padding-bottom: Panels.pad;
 
-            MenuHeading {
+            tracks-heading := MenuHeading {
                 text: @tr("SUBTITLES");
-                icon: @image-url("../../../public/icons/subtitles.svg");
+                lifted: true;
+                glyph: HeadGlyph.subtitles;
             }
             subs-list := ScrollList {
                 height: root.tracks-list-h;
+                // Into the gap before the rows under it, or on to the
+                // panel's foot when there are none. Not at all while the
+                // pages' rows close up under it with no gap.
+                reach-bottom: root.has-subs && (root.subs-showing || Find.offered) ? Rows.tuck
+                    : root.subs-pages-h > 0 || Find.offered ? 0px : Panels.pad;
                 // Where it is going, so a list easing open shows no
                 // scroll bar for the length of it.
                 rest-height: max(0px,
@@ -803,7 +816,9 @@ export component SubtitlesMenu inherits GlassPanel {
             padding-bottom: Panels.pad;
             alignment: start;
 
-            BackRow {
+            find-back := BackRow {
+                z: 1;
+                lifted: true;
                 label: @tr("FIND SUBTITLES");
                 focused: root.open && root.find-open && root.ring-row == 0;
                 back => {
@@ -817,6 +832,8 @@ export component SubtitlesMenu inherits GlassPanel {
             }
             find-list := ScrollList {
                 height: root.find-list-h;
+                // Into the gap before OpenSubtitles' rows.
+                reach-bottom: Rows.tuck;
                 rest-height: root.find-rest-h;
                 content-height: Find.state == FindState.found
                     ? Find.hits.length * root.row-h : 0px;

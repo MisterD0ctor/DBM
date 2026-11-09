@@ -14,6 +14,11 @@ export global Chrome {
     /// compete with the playing row and point where the hand isn't. A mouse
     /// button going down clears it.
     in-out property <bool> focus-visible: false;
+    /// Whether the player draws the headings over lists itself, over the
+    /// lists' soft edges (see `HeadMark`). Set once its pass is up; until
+    /// then, or if it never is, Slint draws them, and lists stop short of
+    /// them rather than thin their words away.
+    in-out property <bool> lifts-heads: false;
     /// Whether nothing has happened for a while.
     ///
     /// Cleared here rather than by the timer that sets it: the timer polls a

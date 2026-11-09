@@ -6,8 +6,9 @@
 // scratch target, then blurred down and written back over itself — a
 // separable Gaussian, with one difference from `blur_gauss`: the radius is
 // not one number but grows from nothing at the strip's inner edge to its
-// most at the list's edge. Each pixel is blurred by the radius its own place
-// in the strip calls for, in both passes.
+// most at the list's edge, with the square of the way out. Each pixel is
+// blurred by the radius its own place in the strip calls for, in both
+// passes.
 //
 // The second pass also lets the rows go. What they thin away to is the frame
 // as it was before Slint drew on it — the glass under the panel — so the
@@ -72,9 +73,13 @@ void main() {
     // This pixel, in the region's own pixels.
     vec2 at = u_at0 + v_uv * u_span;
     float dist = max(u_edge.x + dot(u_edge.yz, at), 0.0);
-    float along = clamp(dist / u_band, 0.0, 1.0);
+    // How far out through the strip this pixel is: none at its inner edge,
+    // all of it at the list's.
+    float along = clamp(1.0 - dist / u_band, 0.0, 1.0);
 
-    float sigma = u_sigma * u_strength * (1.0 - along);
+    // Squared, since the strip is several rows deep: the rows in its inner
+    // part stay readable as they thin, and the blur gathers at the edge.
+    float sigma = u_sigma * u_strength * along * along;
     vec3 acc = src(at);
     if (sigma > 0.05) {
         int taps = int(min(ceil(sigma * 3.0), float(MAX_TAPS)));
@@ -99,7 +104,7 @@ void main() {
     // Eased at both ends, so neither the strip's inner edge nor the outer
     // one shows as a line — and nothing at all is kept at the outer one,
     // however little of the strip there is yet.
-    float kept = smoothstep(0.0, 1.0, along);
+    float kept = 1.0 - smoothstep(0.0, 1.0, along);
     // The same pixel of the frame underneath. That texture's first row is the
     // top of the picture, so the row is counted down from the region's top.
     vec2 window = vec2(u_origin.x + at.x, u_origin.y - at.y);

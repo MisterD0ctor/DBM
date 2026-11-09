@@ -75,13 +75,23 @@
 //!   scroll bar, to draw the bar at its grown width.
 //! * `DBM_SHOWCASE=current-above`, `current-below` and `current-half` open the
 //!   playlist and turn the wheel until the file playing is past the top or
-//!   the bottom, or its lower edge is halfway into the top's soft edge, so
-//!   the angle pointing back to it is drawn. Open a file from the middle of a
-//!   season.
+//!   the bottom, or its lower edge is at the top, which is halfway through
+//!   the angle's fade, so the angle pointing back to it is drawn. Open a file
+//!   from the middle of a season, early enough that half a list of rows
+//!   follows it.
 //!   `current-back` turns it away and then presses the angle, which should
 //!   carry that row back to the middle and play nothing; it prints where the
 //!   list is every 20ms of the glide.
 //!   `current-hover` rests the pointer on the angle, for its circle.
+//! * `DBM_SHOWCASE=back-rest` and `back-hover` open the playlist and turn the
+//!   list half a page down, with the pointer on the film or on the season's
+//!   way back: the rows run up under the way back, which the player draws
+//!   over them, its words and its wash whole. Open a file from the middle of
+//!   a season of a show with more than one.
+//! * `DBM_SHOWCASE=tuck-<px>`, as `tuck-12`, opens the playlist and turns the
+//!   list that many pixels down from its top, for the first row on its way
+//!   under the heading: thinning as it goes, and whole at `tuck-0`. Open the
+//!   first episode, so the list opens at its top.
 //! * `DBM_SHOWCASE=arrival` opens a file with a place saved in it, which is
 //!   held there with the choice of going on or starting over, and
 //!   `arrival-enter` presses Enter on it, which should go on; `arrival-step`

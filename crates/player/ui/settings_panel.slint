@@ -5,7 +5,7 @@
 import { Chrome, Flash, Tip } from "globals.slint";
 import { Playback } from "playback.slint";
 import { Reset, Resets, Settings } from "settings.slint";
-import { ScrollFade, Way } from "models.slint";
+import { HeadMark, ScrollFade, Way } from "models.slint";
 import {
     BackRow, DrillRow, MenuHeading, MenuRow, NoteRow, ParamSlider, ShortcutRow, StepperRow,
     ToggleRow, Tucked,
@@ -410,6 +410,10 @@ export component SettingsPanel inherits GlassPanel {
     /// page's, and whichever page is behind it.
     out property <ScrollFade> front-fade;
     out property <ScrollFade> leaf-fade;
+    /// The way back over the page behind the front one, which the player
+    /// draws (see `HeadMark`). Copied out as `leaf-fade` is, since the pages
+    /// are built inside conditions.
+    out property <HeadMark> leaf-head;
     /// Row 0 of every page but the first is the way back, and the last row of
     /// a page of controls is its reset. Enter does nothing on a slider or a
     /// stepper, which left and right move.
@@ -667,6 +671,8 @@ export component SettingsPanel inherits GlassPanel {
 
             ScrollList {
                 height: root.front-list-h;
+                // Nothing heads it, so it runs on to the panel's top edge.
+                reach-top: Panels.pad;
                 rest-height: root.front-rest-h;
                 content-height: root.front-natural;
                 init => {
@@ -782,6 +788,14 @@ export component SettingsPanel inherits GlassPanel {
 
             if root.leaf-page == SettingsPage.glass: VerticalLayout {
                 BackRow {
+                    z: 1;
+                    lifted: true;
+                    init => {
+                        root.leaf-head = self.mark;
+                    }
+                    changed mark => {
+                        root.leaf-head = self.mark;
+                    }
                     label: @tr("LIQUID GLASS");
                     focused: root.ring-row == 0;
                     back => {
@@ -834,6 +848,14 @@ export component SettingsPanel inherits GlassPanel {
 
             if root.leaf-page == SettingsPage.border: VerticalLayout {
                 BackRow {
+                    z: 1;
+                    lifted: true;
+                    init => {
+                        root.leaf-head = self.mark;
+                    }
+                    changed mark => {
+                        root.leaf-head = self.mark;
+                    }
                     label: @tr("AMBIENT BORDER");
                     focused: root.ring-row == 0;
                     back => {
@@ -901,6 +923,14 @@ export component SettingsPanel inherits GlassPanel {
             // words readable, and explaining itself.
             if root.leaf-page == SettingsPage.accessibility: VerticalLayout {
                 BackRow {
+                    z: 1;
+                    lifted: true;
+                    init => {
+                        root.leaf-head = self.mark;
+                    }
+                    changed mark => {
+                        root.leaf-head = self.mark;
+                    }
                     label: @tr("ACCESSIBILITY");
                     focused: root.ring-row == 0;
                     back => {
@@ -998,6 +1028,14 @@ export component SettingsPanel inherits GlassPanel {
             // time left and chapters, then the picture as mpv draws it.
             if root.leaf-page == SettingsPage.video: VerticalLayout {
                 BackRow {
+                    z: 1;
+                    lifted: true;
+                    init => {
+                        root.leaf-head = self.mark;
+                    }
+                    changed mark => {
+                        root.leaf-head = self.mark;
+                    }
                     label: @tr("VIDEO");
                     focused: root.ring-row == 0;
                     back => {
@@ -1094,6 +1132,14 @@ export component SettingsPanel inherits GlassPanel {
             // pick an episode.
             if root.leaf-page == SettingsPage.episodes: VerticalLayout {
                 BackRow {
+                    z: 1;
+                    lifted: true;
+                    init => {
+                        root.leaf-head = self.mark;
+                    }
+                    changed mark => {
+                        root.leaf-head = self.mark;
+                    }
                     label: @tr("EPISODES");
                     focused: root.ring-row == 0;
                     back => {
@@ -1153,6 +1199,14 @@ export component SettingsPanel inherits GlassPanel {
             // the bundled ones, each under its own untranslated name.
             if root.leaf-page == SettingsPage.language: VerticalLayout {
                 BackRow {
+                    z: 1;
+                    lifted: true;
+                    init => {
+                        root.leaf-head = self.mark;
+                    }
+                    changed mark => {
+                        root.leaf-head = self.mark;
+                    }
                     label: @tr("LANGUAGE");
                     focused: root.ring-row == 0;
                     back => {
@@ -1206,6 +1260,14 @@ export component SettingsPanel inherits GlassPanel {
 
             if root.leaf-page == SettingsPage.shortcuts: VerticalLayout {
                 BackRow {
+                    z: 1;
+                    lifted: true;
+                    init => {
+                        root.leaf-head = self.mark;
+                    }
+                    changed mark => {
+                        root.leaf-head = self.mark;
+                    }
                     label: @tr("SHORTCUTS");
                     focused: root.ring-row == 0;
                     back => {

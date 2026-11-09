@@ -1474,17 +1474,46 @@ an edge would leave their shadows behind them as a dark smear.
 ### List edges
 Where a scrolling list's rows run on past its top or bottom, they are not cut
 by a line: over the last `Rows.fade` they blur and thin away into the panel's
-own glass. The blur is a Gaussian that grows from nothing at the strip's inner
-edge to `fades.SIGMA` at the list's, and the rows fade on an eased curve
-beside it, so neither end of the strip shows as an edge.
+own glass. That is several rows deep, so the list is seen running on rather
+than ending. The blur is a Gaussian that grows from nothing at the strip's
+inner edge to `fades.SIGMA` at the list's, with the square of the way out, so
+the rows in the inner part stay readable as they thin and the blur gathers at
+the edge; the rows fade on an eased curve beside it, so neither end of the
+strip shows as an edge.
 
-An end with nothing past it is left sharp. The strip grows to its full depth
-over the same distance of scrolling away from that end, only ever as deep as
-what has gone past, so the top row of a list at rest is whole. However shallow it is,
-its outer edge is where things are gone entirely: nothing is ever half cut. The
-strip spans the rows' washes and no more; the margins either side are outside
-it, since no row draws in them, and the scroll bar's thumb keeps its shape at
-the ends of its rail.
+The rows don't stop at the list's own end, either. They run on to the panel's
+edge where the list meets it, through the padding, so they leave under the
+glass's rim rather than at a line short of it; and `Rows.tuck` up under the
+heading or way back over the list, or into the gap before rows that follow it.
+The strip at that end runs on with them: its inner side stays `Rows.fade` into
+the list, and its outer edge is out where the rows go. At rest nothing has
+moved; it is room to leave by.
+
+A heading over a list is drawn by the player, over the finished frame once the
+edge is done, the way the angle back to the current row is (see
+`interface::heads`). The edge works on the frame Slint has drawn, and under a
+heading the heading's words and the rows passing under them are one mix of
+white over glass there, which nothing can pull apart; drawn by Slint, the words
+would thin away with the rows. Slint lays the heading out and leaves its marks
+clear, and the player draws them as Slint would have: the words by the same
+layout (parley) and rasterizer (swash, placed as femtovg places a glyph) from
+the same font files, and the glyph and a way back's wash by resvg, which is how
+Slint renders an SVG. Captured against Slint's own, a heading and a way back
+differ by no more than the film behind them does from run to run. A way back is
+raised over the list, so it keeps its presses where the rows run under it.
+Without the player's pass, Slint draws the heading and the list stops at it
+(`Chrome.lifts-heads`).
+
+An end with nothing past it is left sharp. As the list moves away from that
+end the strip comes into the list from the list's end, and is all of
+`Rows.fade` deep once the list has moved a row (`Rows.row`). It comes in faster
+than the row it is taking leaves, so the end row is already thinning as it
+goes under the heading, as every row after it does; and at rest it reaches
+only past the list's end, where nothing is yet, so the top row of a list at
+rest is whole. However shallow it is, its outer edge is where things are gone
+entirely: nothing is ever half cut. Across, the strip spans the rows' washes
+and no more; the margins either side are outside it, since no row draws in
+them, and the scroll bar's thumb keeps its shape at the ends of its rail.
 
 **The way to the current row.** A list opens on its current row — the file
 playing, the season holding it, the track in use — but the wheel takes it
@@ -1492,11 +1521,13 @@ away, and then nothing on the panel says which way it went. So while it is
 out of sight an angle points to it (`way.ICON`), centred across the list and
 level with the row at that end, at Body, with a circle of Button wash
 (`way.CIRCLE`) behind it under the pointer, eased in over `Motion.highlight`.
-It fades by
-where the row is, not on a clock: it starts going as the row's nearer edge
-comes into sight, and is gone once that edge is clear of the soft edge, so
-the list moving is the whole of the movement. Pressing it glides the list
-back (`Motion.glide`) until the row is in the middle, as the list opened. It
+It fades by where the row is, not on a clock, so the list moving is the whole
+of the movement: it is all there once the row's nearer edge is a row
+(`Rows.row`) out past the list's end, and gone while the row still fills the
+angle's own row-sized place at that end. It goes by the row and not by the
+soft edge, which is deep enough to take several rows and would put the angle
+up beside a row still in sight. Pressing it glides the list back
+(`Motion.glide`) until the row is in the middle, as the list opened. It
 has to take the press: an angle that took no pointer would hand it to the row
 under it, and play an episode nobody chose.
 
@@ -1508,9 +1539,10 @@ icon itself, rendered by resvg, so there is still one drawing of it. The
 shadow comes after both and gives it its rim.
 
 The keyboard's ring keeps clear of it. Walking a list with the arrows
-scrolls a row early, so there is always one whole row between the ring and
-the end it is heading for, until the list itself runs out: the row the next
-press goes to can be read before it is pressed.
+scrolls early, by as much as the soft edge comes into the list (`Rows.fade`),
+so the ring never stands in the blur until the list itself runs out. The
+fade is set for how it looks, and the ring's lead follows it, not the other
+way round.
 
 The title in the bar runs out the same way, sideways: a title longer than its
 room is cut at the end of it with the same strip turned on its side, in place

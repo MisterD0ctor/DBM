@@ -308,10 +308,16 @@ export global Rows {
     /// above the timeline, the credits pill above it, a notice beside the
     /// panel it answers, the seek preview beside a panel.
     out property <length> offset: 12px;
-    /// How much of a scrolling list's end blurs and thins away where rows run
-    /// on past it: short enough that the row above is whole, long enough that
-    /// the row in it is plainly leaving.
-    out property <length> fade: 28px;
+    /// How far into a scrolling list its end blurs and thins away, where rows
+    /// run on past it: several rows deep, so the list is seen running on
+    /// rather than ending at a line. The keyboard's ring keeps this much list
+    /// ahead of it (`ScrollList.reveal`), so it never stands in the blur.
+    out property <length> fade: 96px;
+    /// How far a list runs on up under the heading or way back over it, and
+    /// down into the gap before rows that follow it. The player draws the
+    /// heading over the soft edge (`HeadMark`), so the rows thin away under
+    /// its words rather than taking them along.
+    out property <length> tuck: Rows.heading;
 
     /// The row heights. Here rather than in `MainWindow` because components
     /// outside it can't see its properties.

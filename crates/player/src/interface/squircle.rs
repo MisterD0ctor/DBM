@@ -67,6 +67,13 @@ fn render(width: f64, height: f64, radius: f64, inset: f64) -> slint::Image {
     if width < 0.5 || height < 0.5 {
         return slint::Image::default();
     }
+    slint::Image::load_from_svg_data(svg(width, height, radius, inset).as_bytes())
+        .unwrap_or_default()
+}
+
+/// The shape `image` makes, as the SVG it is drawn from: for the player to
+/// draw it itself where Slint would have (see `interface::heads`).
+pub fn svg(width: f64, height: f64, radius: f64, inset: f64) -> String {
     let mut svg = format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" \
          viewBox=\"0 0 {width} {height}\"><path fill=\"#fff\" d=\""
@@ -80,7 +87,7 @@ fn render(width: f64, height: f64, radius: f64, inset: f64) -> slint::Image {
         let _ = write!(svg, "{verb}{:.3} {:.3}", cx + x, cy - y);
     }
     svg.push_str("Z\"/></svg>");
-    slint::Image::load_from_svg_data(svg.as_bytes()).unwrap_or_default()
+    svg
 }
 
 /// The whole outline, about the box's centre with y up, once round.

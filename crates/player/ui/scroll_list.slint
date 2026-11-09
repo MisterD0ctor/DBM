@@ -65,21 +65,39 @@ export component ScrollList inherits Rectangle {
     /// Exposed for the tests, which have nothing else on screen to read.
     out property <length> offset: flick.content-y;
 
+    /// How far the rows run on past the list's top and bottom before they are
+    /// out of sight: to the panel's edge where the list meets it, or under
+    /// the heading or way back over it (`Rows.tuck`). At rest the rows sit
+    /// where they would without it; it is room for them to leave by, so they
+    /// go under the panel's edge or the heading rather than at a line short
+    /// of it.
+    ///
+    /// Whatever heads the list is drawn by the player over the soft edge
+    /// (`HeadMark`), so the rows thin away under its words rather than
+    /// taking them with them; a way back is raised over the list with `z`,
+    /// so it keeps its presses where the rows run under it. Without the
+    /// player's pass (`Chrome.lifts-heads`), Slint draws the heading and the
+    /// list stops at it.
+    in property <length> reach-top: Chrome.lifts-heads ? Rows.tuck : 0px;
+    in property <length> reach-bottom: Panels.pad;
+
     /// Where the list is and how far it is from each end, for the soft edge.
     ///
     /// Its place in the window comes from the layout, which the panels
     /// otherwise avoid. These lists sit in sliding pages, and computing where
     /// each is mid-slide would mean keeping a second copy of the layout by
     /// hand; it is only read while a list is on show. The margins beside the
-    /// rows' washes are left out, so the scroll bar in the right one keeps
-    /// its shape at the ends of its rail.
+    /// rows' washes are left out: no row draws in them, and the scroll bar in
+    /// the right one keeps its shape at the ends of its rail.
     out property <ScrollFade> fade: {
         x: root.absolute-position.x + Rows.gap,
-        y: root.absolute-position.y,
+        y: root.absolute-position.y - root.reach-top,
         width: root.width - 2 * Rows.gap,
-        height: root.height,
+        height: root.height + root.reach-top + root.reach-bottom,
         top: root.top-soft,
         bottom: root.bottom-soft,
+        top-reach: root.reach-top,
+        bottom-reach: root.reach-bottom,
         right: 0,
         way: max(root.current-above, root.current-below),
         way-x: root.absolute-position.x + root.width / 2,
@@ -88,28 +106,28 @@ export component ScrollList inherits Rectangle {
         way-up: root.current-above >= root.current-below,
         way-lit: root.way-lit,
     };
-    /// How far the soft edge at each end has come on, 0..1: how far the list
-    /// has moved from that end, up to a strip's worth.
+    /// How far the soft edge at each end has come on, 0..1: full once the
+    /// list has moved a row from that end. It comes into the list from the
+    /// list's end, `Rows.fade` deep when full, so it gains on the row leaving
+    /// and that row is already thinning as it goes under the heading.
     property <float> top-soft: root.scrolls
-        ? clamp(-flick.content-y / Rows.fade, 0, 1) : 0;
+        ? clamp(-flick.content-y / Rows.row, 0, 1) : 0;
     property <float> bottom-soft: root.scrolls
-        ? clamp((root.content-height - root.height + flick.content-y) / Rows.fade, 0, 1)
+        ? clamp((root.content-height - root.height + flick.content-y) / Rows.row, 0, 1)
         : 0;
-
-    clip: true;
 
     /// The current row (the file playing, the track in use) by its top and
     /// height inside the list. A list with none leaves the height at zero.
     in property <length> current-top;
     in property <length> current-h;
 
-    /// The angle fades out as the current row comes into view, measured by
-    /// how far the row's nearer edge has come in from that end. The fade
-    /// starts at this distance: zero, as soon as any of the row shows.
-    property <length> way-fade-from: 0px;
-    /// It ends this far past the inner side of the soft edge: zero, once the
-    /// row's edge is clear of the blur.
-    property <length> way-fade-past: 0px;
+    /// The angle comes on as the current row leaves, by how far in from that
+    /// end the row's nearer edge is: none while the row still fills the
+    /// angle's own row-sized place at that end, all of it once the edge is a
+    /// row out past the end. By the row and not the soft edge, which takes
+    /// several rows and would put the angle up beside a row still in sight.
+    property <length> way-off-at: Rows.row;
+    property <length> way-on-at: -Rows.row;
     /// How far in from each end the current row's nearer edge has come. The
     /// bottom is measured at rest, as `scrolls` is, so a page mid-drill
     /// doesn't point at a row that only the move is hiding.
@@ -118,14 +136,11 @@ export component ScrollList inherits Rectangle {
         root.rest-height - flick.content-y - root.current-top;
     /// How much of the angle is on at each end.
     property <float> current-above: root.scrolls && root.current-h > 0
-        ? 1 - clamp((root.current-in-top - root.way-fade-from)
-            / max(1px, Rows.fade * root.top-soft + root.way-fade-past - root.way-fade-from),
+        ? clamp((root.way-off-at - root.current-in-top) / (root.way-off-at - root.way-on-at),
             0, 1)
         : 0;
     property <float> current-below: root.scrolls && root.current-h > 0
-        ? 1 - clamp((root.current-in-bottom - root.way-fade-from)
-            / max(1px, Rows.fade * root.bottom-soft + root.way-fade-past
-                - root.way-fade-from),
+        ? clamp((root.way-off-at - root.current-in-bottom) / (root.way-off-at - root.way-on-at),
             0, 1)
         : 0;
 
@@ -134,8 +149,8 @@ export component ScrollList inherits Rectangle {
     /// Called when the keyboard moves rather than bound, since a binding on
     /// `content-y` would take the list from the wheel and the flick. It
     /// scrolls by the least that works, so arrowing down walks the bottom
-    /// edge, but keeps a row's worth of list past the ring: the ends are where
-    /// rows blur away, and the next row has to be readable.
+    /// edge, but keeps as much list past the ring as the soft edge takes: the
+    /// ends are where rows blur away, and the ring never stands in that.
     public function reveal(top: length, h: length) {
         if (top - root.lead(h) < -flick.content-y) {
             flick.content-y = min(0px, root.lead(h) - top);
@@ -145,10 +160,11 @@ export component ScrollList inherits Rectangle {
         }
     }
 
-    /// How much list is kept past a revealed row: one row, or less in a list
-    /// too short to spare one on both sides.
+    /// How much list is kept past a revealed row: as far as the soft edge
+    /// comes into the list, or less in a list too short to spare that on both
+    /// sides. The fade is set for how it looks, and this follows it.
     pure function lead(h: length) -> length {
-        return max(0px, min(h, (root.height - h) / 2));
+        return max(0px, min(Rows.fade, (root.height - h) / 2));
     }
 
     /// Put a row in the middle, as far as the ends of the list allow.
@@ -240,13 +256,20 @@ export component ScrollList inherits Rectangle {
         root.scroll-by(root.asked-by);
     }
 
+    // The view, run on past the list at both ends, with the rows set in by
+    // as much: the list moves exactly as far as it would without the reach,
+    // and only the clip is further out. The Flickable clips rather than the
+    // list, which would cut the view at the list's own ends.
     flick := Flickable {
+        y: -root.reach-top;
         width: 100%;
-        height: 100%;
+        height: root.height + root.reach-top + root.reach-bottom;
         content-width: self.width;
-        content-height: root.content-height;
+        content-height: root.content-height + root.reach-top + root.reach-bottom;
 
         VerticalLayout {
+            padding-top: root.reach-top;
+            padding-bottom: root.reach-bottom;
             // Rows keep their own height, so a short list sits at the top
             // rather than spreading out.
             alignment: start;

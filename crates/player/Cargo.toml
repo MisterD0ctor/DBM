@@ -38,6 +38,13 @@ dbm-naming.workspace = true
 # The player's own lines, to stderr and to a file — see `logging`. Slint and
 # zbus already build it, so this adds no crate to the build.
 log.workspace = true
+# Drawing a heading over a list as Slint would, from the same layout,
+# rasterizer and SVG renderer, at the versions Slint builds — see
+# `interface::heads`. None of them adds a crate to the build.
+parley = "0.11.1"
+resvg = { version = "0.48.1", default-features = false }
+skrifa = "0.44"
+swash = { version = "0.2.10", default-features = false, features = ["scale"] }
 
 [target.'cfg(not(windows))'.dependencies]
 # The media keys and the desktop's media widget, which here means MPRIS over

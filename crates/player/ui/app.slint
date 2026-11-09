@@ -12,10 +12,10 @@ import { Reset, Resets, Settings } from "settings.slint";
 import { Playback } from "playback.slint";
 import { Chrome, Flash, Tip } from "globals.slint";
 import {
-    ArrivalAnswer, FoundItem, GlassRect, ParamItem, Pick, PlaylistGroup, PlaylistItem,
-    ResumeItem, ScrollFade, TrackItem, Way
+    ArrivalAnswer, FoundItem, GlassRect, HeadGlyph, HeadMark, ParamItem, Pick, PlaylistGroup,
+    PlaylistItem, ResumeItem, ScrollFade, TrackItem, Way
 } from "models.slint";
-import { Bar, Motion, Paint, Rows, Type } from "theme.slint";
+import { Bar, Motion, Paint, Panels, Rows, Type } from "theme.slint";
 import { EndChoice, IconButton } from "controls.slint";
 import {
     BackRow, DrillRow, EmptyRow, FoundRow, GroupRow, MenuHeading, MenuRow, NoteRow,
@@ -45,7 +45,7 @@ import { SettingsPage, SettingsPanel } from "settings_panel.slint";
 export {
     Chrome, Flash, Tip, Motion, Paint, Shapes, GlassRect, ParamItem, PlaylistGroup, PlaylistItem,
     ResumeItem, TrackItem, Find, Tracks, Subtitles, Playlist, Settings, Playback, FindState, Reset,
-    SyncState, Panel, MenuPage, SettingsPage, Way, Pick, ArrivalAnswer
+    SyncState, Panel, MenuPage, SettingsPage, Way, Pick, ArrivalAnswer, Rows, Type, HeadGlyph
 }
 
 /// What a key does to the chrome once it has been handled.
@@ -1579,6 +1579,8 @@ export component MainWindow inherits Window {
             height: root.edge-shown(open, shown) > Surfaces.gone ? list.height : 0px,
             top: list.top,
             bottom: list.bottom,
+            top-reach: list.top-reach,
+            bottom-reach: list.bottom-reach,
             right: 0,
             clip-x: x,
             clip-y: y,
@@ -1597,6 +1599,60 @@ export component MainWindow inherits Window {
     pure function edge-shown(open: bool, shown: float) -> float {
         return open || !root.panel-open ? shown : 0;
     }
+
+    /// A heading's mark, cut to the surface it is in and faded with it (see
+    /// `HeadMark`), and nothing while its page isn't drawn.
+    pure function head-within(mark: HeadMark, shown: float,
+        x: length, y: length, w: length, h: length) -> HeadMark {
+        return {
+            text: mark.text,
+            x: mark.x,
+            y: mark.y,
+            width: mark.width,
+            height: mark.height,
+            font-size: mark.font-size,
+            font-weight: mark.font-weight,
+            letter-spacing: mark.letter-spacing,
+            color: mark.color,
+            glyph: mark.glyph,
+            glyph-x: mark.glyph-x,
+            glyph-y: mark.glyph-y,
+            glyph-size: mark.glyph-size,
+            glyph-color: mark.glyph-color,
+            wash-x: mark.wash-x,
+            wash-y: mark.wash-y,
+            wash-width: mark.wash-width,
+            wash-height: mark.wash-height,
+            wash-radius: mark.wash-radius,
+            wash-color: mark.wash-color,
+            clip-x: x,
+            clip-y: y,
+            clip-width: w,
+            clip-height: h,
+            opacity: shown > Surfaces.gone ? shown : 0,
+        };
+    }
+
+    /// Every heading over a scrolling list, which the player draws over the
+    /// list's soft edge (see `HeadMark`). The playlist's are cut where its
+    /// pages are, under the panel's padding, since a page hanging from the
+    /// panel's foot as it moves runs up past it.
+    out property <[HeadMark]> head-marks: [
+        root.head-within(audio-panel.head, audio-panel.shown,
+            audio-panel.x, audio-panel.y, audio-panel.width, audio-panel.height),
+        root.head-within(menu.tracks-head, menu.tracks-shown,
+            menu.x, menu.y, menu.width, menu.height),
+        root.head-within(menu.find-head, menu.find-shown,
+            menu.x, menu.y, menu.width, menu.height),
+        root.head-within(playlist-panel.parts-head, playlist-panel.shown,
+            playlist-panel.x, playlist-panel.y + Panels.pad,
+            playlist-panel.width, playlist-panel.height - Panels.pad),
+        root.head-within(playlist-panel.leaf-head, playlist-panel.shown,
+            playlist-panel.x, playlist-panel.y + Panels.pad,
+            playlist-panel.width, playlist-panel.height - Panels.pad),
+        root.head-within(settings.leaf-head, settings.leaf-shown,
+            settings.x, settings.y, settings.width, settings.height),
+    ];
 
     /// Every scrolling list, for the soft edge on its ends (see `ScrollFade`).
     out property <[ScrollFade]> scroll-fades: [

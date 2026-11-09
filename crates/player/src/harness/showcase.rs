@@ -78,6 +78,15 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                         ui.get_way_in_films_y() + 1.5 * ui.get_way_in_film_h(),
                     )
                 }
+                // A season's way back, over its list turned partway down,
+                // with the rows running up under it and its wash. The middle
+                // of the way back at the default size, whose panel is as tall
+                // as it goes; or the film, clear of it.
+                "back-hover" => (
+                    f32::midpoint(ui.get_panel_left(), ui.get_panel_right()),
+                    57.0,
+                ),
+                "back-rest" => (900.0, 300.0),
                 "ring-row" | "ring-slider" | "way-in-ring" => {
                     let size = ui.window().size().to_logical(ui.window().scale_factor());
                     (size.width / 2.0, 40.0)
@@ -184,16 +193,20 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
 
             // The playlist turned away from the file playing, so the angle
             // back to it is drawn: by a whole list either way, or just far
-            // enough to leave the row's lower edge halfway into the 28px soft
-            // edge at the top, which is halfway through the angle's fade. The
-            // file has to be mid-season for the list to open centred on it.
+            // enough to leave the 34px row's lower edge at the list's top,
+            // which is halfway through the angle's fade. The file has to be
+            // mid-season for the list to open centred on it.
             if tick == 6 {
                 let list = ui.get_playlist_list_h();
                 let by = match surface.as_str() {
                     "current-above" | "current-back" | "current-hover" => -list,
                     "current-below" => list,
-                    "current-half" => -(list / 2.0 + (34.0 - 28.0) / 2.0),
-                    _ => 0.0,
+                    "current-half" => -(list / 2.0 + 34.0 / 2.0),
+                    "back-hover" | "back-rest" => -list / 2.0,
+                    s => s
+                        .strip_prefix("tuck-")
+                        .and_then(|by| by.parse::<f32>().ok())
+                        .map_or(0.0, |by| -by),
                 };
                 if by != 0.0 {
                     let (x, y) = (
@@ -518,9 +531,11 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                     ui.global::<Tracks>().invoke_select_subtitle(-1);
                 }
                 "playlist" | "drill" | "scroll-bar" | "current-above" | "current-below"
-                | "current-half" | "current-back" | "current-hover" | "ring-row" => {
+                | "current-half" | "current-back" | "current-hover" | "ring-row" | "back-hover"
+                | "back-rest" => {
                     ui.invoke_open_playlist(true);
                 }
+                s if s.starts_with("tuck-") => ui.invoke_open_playlist(true),
                 "armed" | "pages-flip" | "find-drill" => ui.invoke_open_menu(true),
                 "ring-slider" => ui.invoke_open_settings_page(SettingsPage::Glass),
                 // The list of parts rather than the page the panel opens on.

@@ -12,12 +12,8 @@ use dbm_gpu::rect::Region;
 use dbm_gpu::way::Way;
 use slint::{ComponentHandle, Model};
 
-use crate::{MainWindow, Paint};
+use crate::{MainWindow, Paint, Rows};
 
-/// How tall a strip is, in logical pixels. `Rows.fade` in the interface is
-/// the same number, there to say how far a list has to move before a strip
-/// is fully on.
-const BAND: f32 = 28.0;
 /// Most blur, at the list's very edge: a standard deviation in logical
 /// pixels. Enough that a row's words are a smear before they are gone, and
 /// small enough that they are still a row's worth of smear.
@@ -29,6 +25,10 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<Strip>, ways: &mut Vec<Way>) {
     let dpi = ui.window().scale_factor();
     out.clear();
     ways.clear();
+    // How deep a strip comes into its list, past the list's reach beyond that
+    // end (`ScrollFade.top-reach`): read rather than copied, since the
+    // interface keeps the ring this far ahead.
+    let fade = ui.global::<Rows>().get_fade();
     let paint = ui.global::<Paint>();
     let alpha = |c: slint::Color| f32::from(c.alpha()) / 255.0;
     let (wash, rest, bright) = (
@@ -79,17 +79,25 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<Strip>, ways: &mut Vec<Way>) {
             });
         }
         let sigma = SIGMA * dpi;
-        // How deep a strip is: all of `BAND` once that much has gone past the
-        // edge, and until then only as deep as what has, so its outer edge is
-        // always fully gone. Fading the whole strip in instead would leave the
-        // cut ends of words there as a bright sliver.
-        let deep = |strength: f32, most: i32| {
-            ((px(BAND) as f32 * strength.clamp(0.0, 1.0)).ceil() as i32).min(most)
+        // How deep a strip is: the list's reach past that end, and as much of
+        // `fade` into the list as the strip has come on. Its outer edge is
+        // fully gone however shallow it is; fading the whole strip in instead
+        // would leave the cut ends of words there as a bright sliver. At rest
+        // nothing is in the reach yet, so there is no strip to draw.
+        let deep = |strength: f32, reach: f32, most: i32| {
+            if strength <= 0.0 {
+                return 0;
+            }
+            let inside = (px(fade) as f32 * strength.min(1.0)).ceil() as i32;
+            (px(reach.max(0.0)) + inside).min(most)
         };
-        let ends = [(Edge::Top, list.top), (Edge::Bottom, list.bottom)];
-        for (edge, strength) in ends {
+        let ends = [
+            (Edge::Top, list.top, list.top_reach),
+            (Edge::Bottom, list.bottom, list.bottom_reach),
+        ];
+        for (edge, strength, reach) in ends {
             // Two strips never meet in the middle of a list too short for both.
-            let band = deep(strength, (bottom - top) / 2);
+            let band = deep(strength, reach, (bottom - top) / 2);
             if band <= 0 {
                 continue;
             }
@@ -113,7 +121,7 @@ pub fn collect(ui: &MainWindow, out: &mut Vec<Strip>, ways: &mut Vec<Way>) {
             });
         }
         // A line of words running out: the same strip, on its side.
-        let band = deep(list.right, (right - left) / 2);
+        let band = deep(list.right, 0.0, (right - left) / 2);
         if band > 0 {
             out.push(Strip {
                 left: right - band,

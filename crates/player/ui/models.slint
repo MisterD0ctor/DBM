@@ -34,6 +34,56 @@ export struct GlassRect {
     host-height: length,
 }
 
+/// The glyph before a heading's words when the player draws it (see
+/// `HeadMark`), by name, since it is drawn from the icon's file.
+export enum HeadGlyph {
+    none,
+    speaking,
+    subtitles,
+    playlist,
+    back,
+}
+
+/// A heading over a scrolling list, or a page's way back, for the player to
+/// draw over the finished frame once the list's soft edge is done, so the
+/// rows can run on under it (see `heads.rs`). Slint lays it out and draws
+/// none of what is here. Lengths are logical pixels from the window's
+/// top-left.
+export struct HeadMark {
+    /// The words, in the box their `Text` lays them out in: from its left,
+    /// centred down it, and cut with an ellipsis where they run past it.
+    text: string,
+    x: length,
+    y: length,
+    width: length,
+    height: length,
+    font-size: length,
+    font-weight: int,
+    letter-spacing: length,
+    color: color,
+    /// The glyph before them, a square of `glyph-size` from its top-left.
+    glyph: HeadGlyph,
+    glyph-x: length,
+    glyph-y: length,
+    glyph-size: length,
+    glyph-color: color,
+    /// A way back's wash, with the glass's corner (see `Squircle`).
+    /// Transparent for a heading, which has none.
+    wash-x: length,
+    wash-y: length,
+    wash-width: length,
+    wash-height: length,
+    wash-radius: length,
+    wash-color: color,
+    /// The surface it is cut to, as the soft edge is, and how much of it is
+    /// on: its panel's fade, and nothing for a page that isn't drawn.
+    clip-x: length,
+    clip-y: length,
+    clip-width: length,
+    clip-height: length,
+    opacity: float,
+}
+
 /// A scrolling list, or a line of words too long for its place, for the
 /// soft edge the pipeline puts on each end that has content past it (see
 /// `fade` on the Rust side). Lengths are logical pixels.
@@ -47,6 +97,12 @@ export struct ScrollFade {
     /// rows has gone past it.
     top: float,
     bottom: float,
+    /// How much of `height` lies past the list's own top and bottom, where
+    /// its view runs on under a heading or to its panel's edge. The strip at
+    /// that end is that much deeper, so its inner side stays where the
+    /// list's rows begin to go.
+    top-reach: length,
+    bottom-reach: length,
     /// The same for the right-hand end of a line of words, such as the title
     /// in the bar. Zero for a list.
     right: float,
