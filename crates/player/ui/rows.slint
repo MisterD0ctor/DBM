@@ -1230,8 +1230,10 @@ export component BackRow inherits Rectangle {
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
-    /// A name rather than a label, such as a show's over its episodes: its
-    /// own case and size and no tracking, as in a panel heading.
+    /// True when the label is a name, such as a show's over its episodes:
+    /// set at `Type.named` with no letter-spacing, as a heading that is one
+    /// is (see `MenuHeading.titular`). False for a kicker such as SEASON 7,
+    /// at the smaller `Type.label` and tracked. The case is the label's own.
     in property <bool> titular;
     /// Drawn by the player over the finished frame rather than by Slint, so
     /// the list under it can run on under it (see `HeadMark`): its wash,
