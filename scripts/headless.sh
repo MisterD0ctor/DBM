@@ -66,10 +66,12 @@ stop() {
 trap stop EXIT
 trap 'exit 130' INT TERM
 
+# Up to thirty seconds for its socket: a busy CI runner has taken more than
+# ten to start it, and a mutter that has failed outright is noticed at once.
 tries=0
 until [ -S "$XDG_RUNTIME_DIR/$name" ]; do
     tries=$((tries + 1))
-    if [ "$tries" -gt 100 ] || ! kill -0 "$compositor" 2>/dev/null; then
+    if [ "$tries" -gt 300 ] || ! kill -0 "$compositor" 2>/dev/null; then
         echo "headless.sh: mutter did not start:" >&2
         cat "$log" >&2
         exit 1
