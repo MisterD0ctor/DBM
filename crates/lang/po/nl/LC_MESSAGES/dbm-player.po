@@ -160,8 +160,8 @@ msgid "Choose, or adjust"
 msgstr "Kiezen of aanpassen"
 
 msgctxt "SettingsPanel"
-msgid "Close, or leave fullscreen"
-msgstr "Sluiten of volledig scherm verlaten"
+msgid "Back out, a step at a time"
+msgstr "Stap voor stap teruggaan"
 
 msgctxt "SettingsPanel"
 msgid "FILES"

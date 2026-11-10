@@ -141,8 +141,8 @@ msgid "Choose, or adjust"
 msgstr "Välj eller justera"
 
 msgctxt "SettingsPanel"
-msgid "Close, or leave fullscreen"
-msgstr "Stäng eller lämna helskärm"
+msgid "Back out, a step at a time"
+msgstr "Backa ett steg i taget"
 
 msgctxt "SettingsPanel"
 msgid "Open file"

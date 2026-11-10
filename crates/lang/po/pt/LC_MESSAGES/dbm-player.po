@@ -161,8 +161,8 @@ msgid "Choose, or adjust"
 msgstr "Escolher ou ajustar"
 
 msgctxt "SettingsPanel"
-msgid "Close, or leave fullscreen"
-msgstr "Fechar ou sair da tela cheia"
+msgid "Back out, a step at a time"
+msgstr "Voltar um passo de cada vez"
 
 msgctxt "SettingsPanel"
 msgid "FILES"
