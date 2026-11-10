@@ -23,6 +23,8 @@ failed=0
 # Then its log says how far it got, and its threads where it waits, where gdb
 # and passwordless sudo are there to ask (as on CI); it is stopped, and the
 # rest still run, rather than the job waiting out its own limit for hours.
+# The threads are read before the run is stopped: stopping it takes its
+# compositor away, and the player with it.
 grace=120
 
 # The player started for this run, by the app-data folder only it was given.
@@ -64,15 +66,25 @@ for run in DBM_INPUT_TEST:90000 DBM_SCRUB_TEST:90000 DBM_SUBS_TEST:30000 \
     data=$(mktemp -d)
     log=$(mktemp)
     echo "== $exercise"
-    if APPDATA="$data" timeout -k 10 "$(( limit / 1000 + grace ))" \
-        "$here/headless.sh" env "$exercise=$value" \
-        DBM_QUIT_AFTER="$limit" "$player" ${file:+"$file"} >"$log" 2>&1; then
+    APPDATA="$data" "$here/headless.sh" env "$exercise=$value" \
+        DBM_QUIT_AFTER="$limit" "$player" ${file:+"$file"} >"$log" 2>&1 &
+    run=$!
+    deadline=$(( $(date +%s) + limit / 1000 + grace ))
+    while kill -0 "$run" 2>/dev/null && [ "$(date +%s)" -lt "$deadline" ]; do
+        sleep 1
+    done
+    if kill -0 "$run" 2>/dev/null; then
+        hung
+        kill -TERM "$run" 2>/dev/null || true
+        wait "$run" 2>/dev/null || true
+        status=124
+    else
+        status=0
+        wait "$run" || status=$?
+    fi
+    if [ "$status" -eq 0 ]; then
         grep -E '^dbm: (pass|FAIL|---)' "$log"
     else
-        status=$?
-        if [ "$status" -eq 124 ] || [ "$status" -eq 137 ]; then
-            hung
-        fi
         cat "$log"
         failed=1
     fi
