@@ -27,7 +27,8 @@ jobs:
             # The build's libraries as in build.yml, and what a run needs on
             # top: libmpv to play, ffmpeg to make the films and the previews,
             # mutter and a session bus for `headless.sh`, Mesa for GL with no
-            # GPU, and PulseAudio for a sound server with no sound card.
+            # GPU, PulseAudio for a sound server with no sound card, and gdb
+            # for the threads of a run that hangs (see `smoke.sh`).
             - name: Install system libraries
               run: |
                   sudo apt-get update
@@ -35,7 +36,7 @@ jobs:
                       libfontconfig1-dev libfreetype-dev libxkbcommon-dev \
                       libwayland-dev libgl-dev \
                       libmpv2 ffmpeg mutter dbus dbus-user-session \
-                      libgl1-mesa-dri libegl-mesa0 pulseaudio
+                      libgl1-mesa-dri libegl-mesa0 pulseaudio gdb
 
             - name: Install Rust stable
               uses: dtolnay/rust-toolchain@stable
