@@ -5,7 +5,7 @@
 import { Playback } from "playback.slint";
 import { Playlist } from "playlist.slint";
 import { ArrivalAnswer, GlassRect } from "models.slint";
-import { EndChoice } from "controls.slint";
+import { ChoiceMark, EndChoice } from "controls.slint";
 import { Measure } from "measure.slint";
 import { Settings } from "settings.slint";
 import { Bounds, Surfaces } from "surface.slint";
@@ -44,8 +44,9 @@ struct EndWords {
     first-label: string,
     /// The first choice's, or the only one's.
     first-icon: image,
-    /// The second's.
-    second-icon: image,
+    /// Whether the second is autoplay's switch, rather than Restart or From
+    /// the beginning under Rewind's glyph.
+    second-switch: bool,
 }
 
 /// One pill in the middle of the picture, where the film just stopped and
@@ -87,7 +88,10 @@ export component EndPill inherits Rectangle {
     }
     property <length> rise: (1.0 - root.shown) * Surfaces.lift;
 
-    out property <float> shown: root.up ? 1.0 : 0.0;
+    out property <float> shown: root.showing ? 1.0 : 0.0;
+    /// Up, or staying a moment after its switch was pressed (see
+    /// `holding`).
+    out property <bool> showing: root.up || root.holding;
 
     /// The centre pill is up: at the end of a file, or at the start of one
     /// held on its saved place. Never both, so it is one surface, one glass
@@ -141,8 +145,9 @@ export component EndPill inherits Rectangle {
         2 * root.choice-pad + Icons.full + Bar.choice-gap + first-measure.preferred-width,
         root.max-w - (root.two
             ? 2 * root.inset + Bar.btn-gap + root.second-w : 0px));
-    property <length> second-w:
-        2 * root.choice-pad + Icons.full + Bar.choice-gap + second-measure.preferred-width;
+    property <length> second-w: 2 * root.choice-pad
+        + (root.said.second-switch ? Icons.switch : Icons.full)
+        + Bar.choice-gap + second-measure.preferred-width;
     property <length> pill-w: root.two
         ? 2 * root.inset + root.first-w + Bar.btn-gap + root.second-w
         : root.first-w;
@@ -214,9 +219,7 @@ export component EndPill inherits Rectangle {
             : !Playback.at-last || Playback.onward-path != ""
             ? @image-url("../../../public/icons/step-forward.svg")
             : @image-url("../../../public/icons/folder-open.svg"),
-        second-icon: root.offers-autoplay
-            ? @image-url("../../../public/icons/tick.svg")
-            : @image-url("../../../public/icons/rewind.svg"),
+        second-switch: root.offers-autoplay,
     };
     /// What the pill is dressed in. The offer ends the moment it is
     /// answered, but the pill takes `Motion.surface` to fade, and has to keep
@@ -233,17 +236,31 @@ export component EndPill inherits Rectangle {
         if (root.up) {
             root.offers-autoplay = root.autoplay-offered;
             root.held = root.words;
+            root.flipped = false;
         } else {
             root.offers-autoplay = false;
         }
     }
 
+    /// The switch was pressed, and is on from then until the pill is up again.
+    property <bool> flipped;
+    /// The pill staying up after the press, long enough to see the switch
+    /// turn on and no longer, since what was asked for is already happening.
+    property <bool> holding;
+    Timer {
+        interval: Motion.flip-seen;
+        running: root.holding;
+        triggered => {
+            root.holding = false;
+        }
+    }
+
     /// The end pill's choices, from the keyboard. With two, the first is the
     /// way on and the second Restart, or the next file and autoplay, which
-    /// goes there too. Nothing once the pill is going, so a second click on
-    /// it as it fades doesn't answer something else.
+    /// goes there too. Nothing once the pill is going, or staying to show
+    /// its switch, so a second click on it doesn't answer something else.
     public function activate(choice: int) {
-        if (!root.up) {
+        if (!root.up || root.holding) {
             return;
         }
         if (Playback.arriving) {
@@ -255,6 +272,8 @@ export component EndPill inherits Rectangle {
             if (choice == 1 && root.offers-autoplay) {
                 Settings.autoplay = true;
                 Settings.set-autoplay(true);
+                root.flipped = true;
+                root.holding = true;
             } else {
                 root.nexts-taken += 1;
             }
@@ -325,7 +344,9 @@ export component EndPill inherits Rectangle {
             pad: root.choice-pad;
             gap: Bar.choice-gap;
             focused: root.ring-at == 1;
-            icon: root.said.second-icon;
+            mark: !root.said.second-switch ? ChoiceMark.glyph
+                : root.flipped ? ChoiceMark.switch-on : ChoiceMark.switch-off;
+            icon: @image-url("../../../public/icons/rewind.svg");
             label: root.said.label;
             picked => {
                 root.activate(1);
@@ -401,8 +422,11 @@ export component CornerPill inherits Rectangle {
 
     /// Stands aside for an open panel, and for the seek preview when the two
     /// would meet: glass is never laid on glass.
-    out property <float> shown: root.offered && !root.panel-open
+    out property <float> shown: root.showing && !root.panel-open
         && !root.crowded ? 1.0 : 0.0;
+    /// Offering, or staying a moment after its switch was pressed (see
+    /// `flip`).
+    out property <bool> showing: root.offered || root.holding;
 
     // --- the credits pill ---
     //
@@ -486,7 +510,25 @@ export component CornerPill inherits Rectangle {
         if (root.offer != CornerOffer.none) {
             root.was = root.offer;
             root.always = root.always-offered;
+            root.flipped = false;
         }
+    }
+    /// The second choice was pressed, and its switch is on from then until
+    /// the next offer.
+    property <bool> flipped;
+    /// The pill staying up after the press, long enough to see the switch
+    /// turn on and no longer, since what was asked for is already happening.
+    property <bool> holding;
+    Timer {
+        interval: Motion.flip-seen;
+        running: root.holding;
+        triggered => {
+            root.holding = false;
+        }
+    }
+    function flip() {
+        root.flipped = true;
+        root.holding = true;
     }
     property <string> resume-offer-said;
     changed resume-offer => {
@@ -519,7 +561,7 @@ export component CornerPill inherits Rectangle {
     /// a lone choice's would.
     property <length> inset: root.two ? Bar.pill-pad : 0px;
     property <length> choice-pad: Bar.pill-text-pad - root.inset;
-    property <length> all-w: 2 * root.choice-pad + Icons.full + Bar.choice-gap
+    property <length> all-w: 2 * root.choice-pad + Icons.switch + Bar.choice-gap
         + all-measure.preferred-width;
     /// The offer itself gives way to the second choice, whose words are the
     /// point of it, and elides first.
@@ -546,9 +588,13 @@ export component CornerPill inherits Rectangle {
     /// was the last of one. Or, from the title sequence, on to the episode;
     /// from credits a scene follows, on to the scene, and after a jump, back
     /// to where it was. The second choice does the same and turns its switch
-    /// on (see `always`). Nothing once the offer has ended, so a second click
-    /// on the pill as it fades doesn't take something else.
+    /// on (see `always`). Nothing once the offer has ended, or while the pill
+    /// stays to show its switch, so a second click on it doesn't take
+    /// something else.
     public function activate(choice: int) {
+        if (root.holding) {
+            return;
+        }
         if (root.offer == CornerOffer.back) {
             Playback.take-back-offer();
         } else if (root.offer == CornerOffer.resume) {
@@ -557,6 +603,7 @@ export component CornerPill inherits Rectangle {
             if (choice == 1 && root.always == Always.skip-intros) {
                 Settings.skip-intros = true;
                 Settings.set-skip-intros(true);
+                root.flip();
             } else {
                 root.intros-skipped += 1;
             }
@@ -582,6 +629,7 @@ export component CornerPill inherits Rectangle {
             }
             Settings.skip-credits = true;
             Settings.set-skip-credits(true);
+            root.flip();
         } else {
             root.credits-skipped += 1;
         }
@@ -633,7 +681,7 @@ export component CornerPill inherits Rectangle {
             pad: root.choice-pad;
             gap: Bar.choice-gap;
             focused: root.ring-at == 1;
-            icon: @image-url("../../../public/icons/tick.svg");
+            mark: root.flipped ? ChoiceMark.switch-on : ChoiceMark.switch-off;
             label: root.all-label;
             picked => {
                 root.activate(1);

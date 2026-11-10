@@ -38,6 +38,10 @@ export global Motion {
     /// A switch's knob crossing its track, and the track's colour with it;
     /// the volume's fill fading with a mute.
     out property <duration> switch: Motion.enabled ? 120ms : 0ms;
+    /// How long a pill stays up after its switch is pressed: the flip, and
+    /// a beat to see it on, before the pill fades. Without animations, the
+    /// beat alone.
+    out property <duration> flip-seen: Motion.switch + 150ms;
     /// A page sliding sideways in a panel, and the panel's height with it.
     /// Longer than `surface` because it travels rather than arrives.
     out property <duration> drill: Motion.enabled ? 220ms : 0ms;
@@ -233,6 +237,9 @@ export global Icons {
     /// A glyph beside words in a row: its icon, chevron or warning, and a
     /// heading's mark, although a heading's words are smaller.
     out property <length> row: 18px;
+    /// A switch, as wide as the settings draw it, where a pill's choice
+    /// turns one on in place of its glyph.
+    out property <length> switch: 34px;
 }
 
 /// How thick the tracks are drawn. Each one a hand can take thickens by

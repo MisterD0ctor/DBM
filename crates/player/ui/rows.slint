@@ -5,7 +5,7 @@
 
 import { Chrome, Flash, Tip } from "globals.slint";
 import { Icons, Motion, Paint, Rails, Rows, Type } from "theme.slint";
-import { Glyph, Shade, StepButton } from "controls.slint";
+import { Glyph, Shade, StepButton, SwitchMark } from "controls.slint";
 import { HeadGlyph, HeadMark, ResumeItem } from "models.slint";
 import { RingPane } from "ring.slint";
 import { Squircle } from "squircle.slint";
@@ -963,44 +963,13 @@ export component ToggleRow inherits Rectangle {
         padding-right: Rows.trail-x;
         spacing: 12px;
 
-        // Pictures rather than rounded rectangles, because the renderer draws
-        // a rounded corner as a few straight chords, and at 18px a capsule's
-        // ends came to a point. A picture is rendered at the size it is shown,
-        // curve and all.
-        toggle := Rectangle {
-            width: 34px;
+        Rectangle {
+            width: Icons.switch;
 
-            track := Rectangle {
-                /// The rail showing round the knob.
-                property <length> inset: 2px;
-
+            SwitchMark {
                 y: (parent.height - self.height) / 2;
-                width: 100%;
-                height: 18px;
-
-                Image {
-                    width: 100%;
-                    height: 100%;
-                    source: @image-url("shapes/switch-track.svg");
-                    colorize: root.checked ? (root.ring ? Paint.on-ring : Paint.fill)
-                        : (root.ring ? Paint.on-ring-rail : Paint.rail);
-                    animate colorize { duration: Motion.switch; easing: ease-out; }
-                }
-                knob := Image {
-                    x: root.checked ? parent.width - self.width - track.inset : track.inset;
-                    y: track.inset;
-                    width: track.height - 2 * track.inset;
-                    height: self.width;
-                    source: @image-url("shapes/switch-knob.svg");
-                    // Dark on the lit track, light on the dark one: the knob
-                    // reads as a hole punched in the switch either way. Full
-                    // white off, since over a bright frame the rail's track
-                    // all but sinks into the glass and the knob is what is
-                    // left to read the switch by.
-                    colorize: root.checked ? (root.ring ? Paint.on-ring-knob : Paint.knob)
-                        : (root.ring ? Paint.on-ring : Paint.strong);
-                    animate x { duration: Motion.switch; easing: ease-out; }
-                }
+                checked: root.checked;
+                ring: root.ring;
             }
         }
 

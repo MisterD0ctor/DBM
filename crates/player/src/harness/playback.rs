@@ -996,6 +996,12 @@ pub(super) fn always_test(ui: &MainWindow, mpv: Reader) -> Script {
                 "the second choice skips them and turns the switch on",
             )
             .await;
+        verdict
+            .expect(
+                || ui.get_corner_shown() == 0.0,
+                "and the pill goes once its switch has turned on",
+            )
+            .await;
         // Turned on while they played, the switch would have skipped them
         // again and offered the way back to a skip the hand asked for.
         Beat::new(Duration::from_millis(1500)).next().await;
@@ -1035,6 +1041,12 @@ pub(super) fn always_test(ui: &MainWindow, mpv: Reader) -> Script {
             .expect(
                 || at() >= scene_at - 0.5 && settings.get_skip_credits() && settings.get_autoplay(),
                 "the second choice skips them and turns Skip credits and autoplay on",
+            )
+            .await;
+        verdict
+            .expect(
+                || ui.get_corner_shown() == 0.0,
+                "and the pill goes once its switch has turned on",
             )
             .await;
 
@@ -1081,6 +1093,12 @@ pub(super) fn always_test(ui: &MainWindow, mpv: Reader) -> Script {
             .expect(
                 || playback.get_path() == second && settings.get_autoplay(),
                 "the second choice goes on and turns autoplay on",
+            )
+            .await;
+        verdict
+            .expect(
+                || ui.get_end_shown() == 0.0,
+                "and the pill goes once its switch has turned on",
             )
             .await;
         // Autoplay coming on at the end of a file mustn't send mpv on as

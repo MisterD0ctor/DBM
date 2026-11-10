@@ -279,7 +279,10 @@ def split_ternary(expr):
 # ---------------------------------------------------------------------------
 
 BLOCK = re.compile(r"^(?:export\s+)?(component|global)\s+([A-Za-z_][\w-]*)\b.*\{\s*$")
-ELEMENT = re.compile(r"^(\s*)([a-z][\w-]*)\s*:=\s*[A-Za-z_][\w]*\s*\{\s*$")
+# A named element, alone or as what an `if` puts there.
+ELEMENT = re.compile(
+    r"^(\s*)(?:if\s[^:]*:\s*)?([a-z][\w-]*)\s*:=\s*[A-Za-z_][\w]*\s*\{\s*$"
+)
 PROPERTY = re.compile(
     r"^(?:(?:in|out|in-out|private)\s+)?property\s*<([^>]+)>\s*([\w-]+)\s*(?::(.*))?$"
 )

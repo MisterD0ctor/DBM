@@ -185,8 +185,6 @@ export component MainWindow inherits Window {
     changed at-end => {
         if (root.at-end) {
             Chrome.bump();
-        } else if (!root.corner-offered && !root.arriving) {
-            root.ring-off-pill();
         }
     }
 
@@ -202,8 +200,6 @@ export component MainWindow inherits Window {
             Chrome.bump();
             root.close-panel();
             Chrome.focus-visible = false;
-        } else if (!root.corner-offered && !root.at-end) {
-            root.ring-off-pill();
         }
     }
 
@@ -999,14 +995,14 @@ export component MainWindow inherits Window {
     /// first choice, or the credits pill.
     property <int> pill-stop: 13;
 
-    /// A pill is offering something, in the middle or the corner.
-    property <bool> pill-up: root.centre-up || root.corner-offered;
+    /// A pill is up, in the middle or the corner.
+    property <bool> pill-up: root.centre-up || root.corner-up;
 
     /// The bar's buttons, then the centre pill's choices while it is up, or
     /// the corner pill's. The two are never up together.
     property <int> bar-count: root.pill-stop
         + (root.centre-up ? (end-pill.two ? 2 : 1)
-            : root.corner-offered ? (corner.two ? 2 : 1) : 0);
+            : root.corner-up ? (corner.two ? 2 : 1) : 0);
 
     property <bool> bar-reach: root.has-file && !root.panel-open && root.fatal == "";
 
@@ -1153,23 +1149,24 @@ export component MainWindow inherits Window {
     }
 
     /// The end pill is up: at the end of a file, or at the start of one held
-    /// on its saved place. Never both, so it is one surface, one glass and
-    /// one stop. Mirrored so its changes are acted on here.
-    property <bool> centre-up: end-pill.up;
+    /// on its saved place, or staying a moment to show its switch turn on.
+    /// Never both of the first two, so it is one surface, one glass and one
+    /// stop.
+    property <bool> centre-up: end-pill.showing;
 
-    /// The corner pill offers something (see `CornerPill`), mirrored the same
-    /// way.
-    property <bool> corner-offered: corner.offered;
+    /// The corner pill is up: offering something (see `CornerPill`), or
+    /// staying the same way.
+    property <bool> corner-up: corner.showing;
 
     // The credits or the title sequence starting brings up their pill alone,
     // not the bar: the pill is the one thing on offer, and the bar would only
     // cover the names. Doing nothing is watching them, so the pill comes up
-    // without the ring, which the first Tab puts on it. A ring on it leaves
-    // with it, or Enter would skip the episode that just started.
-    changed corner-offered => {
-        // At the end the end pill takes the same stop, and its first choice
-        // is the same way on, so the ring stays for it.
-        if (!root.corner-offered && !root.centre-up) {
+    // without the ring, which the first Tab puts on it. A ring on a pill
+    // leaves when no pill is left, or Enter would skip the episode that just
+    // started; from one to the other it stays, since at the end the end pill
+    // takes the corner's stop, and its first choice is the same way on.
+    changed pill-up => {
+        if (!root.pill-up) {
             root.ring-off-pill();
         }
     }
@@ -1180,6 +1177,9 @@ export component MainWindow inherits Window {
     /// choice.
     out property <bool> corner-two: corner.two;
     out property <bool> end-two: end-pill.two;
+    /// And how far each is shown, 0 to 1.
+    out property <float> corner-shown: corner.shown;
+    out property <float> end-shown: end-pill.shown;
     /// And whether the credits pill is up for Escape to put away.
     out property <bool> credits-up: corner.credits-up;
 
@@ -1715,19 +1715,19 @@ export component MainWindow inherits Window {
     /// key handler asks.
     property <float> ring-host-shown: root.panel-open ? root.panel-shown-of(root.open-panel)
         : root.centre-up ? end-pill.shown
-        : root.corner-offered ? corner.shown
+        : root.corner-up ? corner.shown
         : way-in.shown;
 
     /// Where that surface's glass is, top and height, for the pane to be cut
     /// to (see `GlassRect.host-y`).
     property <length> ring-host-y: root.panel-open ? root.panel-bounds.y
         : root.centre-up ? end-pill.bounds.y
-        : root.corner-offered ? corner.bounds.y
+        : root.corner-up ? corner.bounds.y
         : way-in.bounds.y;
 
     property <length> ring-host-h: root.panel-open ? root.panel-h
         : root.centre-up ? end-pill.bounds.height
-        : root.corner-offered ? corner.bounds.height
+        : root.corner-up ? corner.bounds.height
         : way-in.bounds.height;
 
     // --- the key handler ---------------------------------------------------------
@@ -2080,7 +2080,7 @@ export component MainWindow inherits Window {
         buttons-shown: bar.pills-shown;
         floor: bar.top;
         widest: bar.rows-w;
-        pill-up: root.corner-offered;
+        pill-up: root.corner-up;
         pill-x: corner.bounds.x;
         pill-h: Bar.pill-h;
     }

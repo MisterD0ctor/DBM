@@ -202,9 +202,60 @@ export component StepButton inherits Rectangle {
     }
 }
 
+/// A switch as the settings draw it: a rail, and a knob that is at the end
+/// it is on, in the ring's colours while the keyboard is on it.
+///
+/// Pictures rather than rounded rectangles, because the renderer draws a
+/// rounded corner as a few straight chords, and at 18px a capsule's ends
+/// came to a point. A picture is rendered at the size it is shown, curve and
+/// all.
+export component SwitchMark inherits Rectangle {
+    in property <bool> checked;
+    in property <bool> ring;
+    /// The rail showing round the knob.
+    property <length> inset: 2px;
+
+    width: Icons.switch;
+    height: 18px;
+
+    Image {
+        width: 100%;
+        height: 100%;
+        source: @image-url("shapes/switch-track.svg");
+        colorize: root.checked ? (root.ring ? Paint.on-ring : Paint.fill)
+            : (root.ring ? Paint.on-ring-rail : Paint.rail);
+        animate colorize { duration: Motion.switch; easing: ease-out; }
+    }
+    knob := Image {
+        x: root.checked ? root.width - self.width - root.inset : root.inset;
+        y: root.inset;
+        width: root.height - 2 * root.inset;
+        height: self.width;
+        source: @image-url("shapes/switch-knob.svg");
+        // Dark on the lit track, light on the dark one: the knob reads as a
+        // hole punched in the switch either way. Full white off, since over a
+        // bright frame the rail's track all but sinks into the glass and the
+        // knob is what is left to read the switch by.
+        colorize: root.checked ? (root.ring ? Paint.on-ring-knob : Paint.knob)
+            : (root.ring ? Paint.on-ring : Paint.strong);
+        animate x { duration: Motion.switch; easing: ease-out; }
+    }
+}
+
+/// What leads a pill's choice: its glyph, or the switch the choice turns on.
+export enum ChoiceMark {
+    glyph,
+    /// The switch as offered, before the choice is pressed.
+    switch-off,
+    /// The switch once pressed, turning on as the pill goes.
+    switch-on,
+}
+
 /// One thing the end-of-file pill offers. A capsule of its own, so that when
 /// there are two, each lights under the pointer rather than the whole pill.
 export component EndChoice inherits Rectangle {
+    in property <ChoiceMark> mark: ChoiceMark.glyph;
+    /// Shown while `mark` is the glyph.
     in property <image> icon;
     in property <string> label;
     /// Where the words start, from this capsule's own edge.
@@ -268,12 +319,21 @@ export component EndChoice inherits Rectangle {
         spacing: root.gap;
         alignment: center;
 
-        glyph := Glyph {
+        if root.mark == ChoiceMark.glyph: glyph := Glyph {
             source: root.icon;
             width: Icons.full;
             height: Icons.full;
             y: (parent.height - self.height) / 2;
             shade: root.ring ? Shade.on-ring : Shade.lit;
+        }
+        if root.mark != ChoiceMark.glyph: Rectangle {
+            width: Icons.switch;
+
+            SwitchMark {
+                y: (parent.height - self.height) / 2;
+                checked: root.mark == ChoiceMark.switch-on;
+                ring: root.ring;
+            }
         }
         Text {
             text: root.label;

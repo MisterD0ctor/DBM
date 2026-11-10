@@ -159,14 +159,14 @@ components:
   stepper-button-hover:
     backgroundColor: "{colors.wash-strong}"
   toggle-track-on:
-    width: "34px"  # ToggleRow.toggle.width
-    height: "18px"  # ToggleRow.track.height
-    rounded: "9px"  # ToggleRow.track.height / 2
+    width: "34px"  # SwitchMark.width
+    height: "18px"  # SwitchMark.height
+    rounded: "9px"  # SwitchMark.height / 2
     backgroundColor: "{colors.fill}"
   toggle-track-off:
-    width: "34px"  # ToggleRow.toggle.width
-    height: "18px"  # ToggleRow.track.height
-    rounded: "9px"  # ToggleRow.track.height / 2
+    width: "34px"  # SwitchMark.width
+    height: "18px"  # SwitchMark.height
+    rounded: "9px"  # SwitchMark.height / 2
     backgroundColor: "{colors.rail}"
   hover-label:
     height: "28px"  # HoverTip.tip-h
@@ -1648,8 +1648,9 @@ doing in it.
 - **Row:** `Rows.toggle-row`; switch first, label after it at Body, the rows'
   own step, as a drill row's label is: a switch is one more row of its page,
   and at Strong it would out-ink the rows around it
-- **Shape:** a capsule (`ToggleRow.toggle`, `ToggleRow.track`) with a knob
-  inset in it (`ToggleRow.knob`). Both are drawn from shapes (`ui/shapes/`)
+- **Shape:** a capsule (`SwitchMark`) with a knob inset in it
+  (`SwitchMark.knob`), the one drawing for a settings row and for a pill's
+  choice that turns a switch on. Both are drawn from shapes (`ui/shapes/`)
   rather than as rounded rectangles: the renderer lays a rounded corner down as
   a few straight chords that touch the curve only where they meet, and on a
   capsule one of those meetings is the middle of each end, so at this size the
@@ -1977,8 +1978,8 @@ folder — it offers two things, the way on first and *Restart* second.
 
 **Autoplay from here on.** With *Autoplay next* off, once this pill has been
 pressed on to the next file in this sitting, the next end offers that switch
-beside the next file, with a tick: *Autoplay next*, which goes there and
-turns autoplay on. The moment it would be wanted, and where the hand already
+beside the next file, led by the switch itself (see *Every one from now on*):
+*Autoplay next*, which goes there and turns autoplay on. The moment it would be wanted, and where the hand already
 is, as the corner pill offers its skips; someone who goes on now and then
 never sees it. Not at the end of a season, which autoplay never goes past.
 A file held at its end stays held when autoplay comes on, so the press is
@@ -2127,8 +2128,8 @@ offer, not the size of the window.
 **Every time from now on.** Once the credits have been skipped from the pill
 in this sitting — on to the next file, or to a scene after them — and while
 *Skip credits* is off, the next credits pill offers that too, as the title
-sequence's does (see *Every one from now on*): *Skip all credits*, with a
-tick, which does what the first choice does and turns *Skip credits* on, and
+sequence's does (see *Every one from now on*): *Skip all credits*, led by
+its switch, which does what the first choice does and turns *Skip credits* on, and
 *Autoplay next* with it where that is off, since going on from the credits
 goes no further than autoplay would. Not at the end of a season, where the
 way on is a folder the switch never opens.
@@ -2169,8 +2170,13 @@ never does, for the reason it has no credits pill.
 
 **Every one from now on.** Once a sequence has been skipped from the pill
 in this sitting, and while *Skip intros* is off, the next pill offers that
-too: a second choice beside the first, *Skip all intros*, with a tick, which
-skips this one and turns the switch on. That is the moment the switch would
+too: a second choice beside the first, *Skip all intros*, which skips this
+one and turns the switch on. It is led by that switch as the episodes page
+draws it, off, rather than by a glyph, so the choice says it is a setting,
+where it lives and how to turn it off again. Pressed, the switch turns on and
+the pill stays up for that and a beat after (`Motion.flip-seen`) before it
+fades, long enough to see the change and no longer, since what was asked for
+is already happening; a press meanwhile does nothing. That is the moment the switch would
 be wanted, and the pill is where the hand already is; someone who skips now
 and then never sees it. The pill decides as it comes and keeps its two
 choices through its fade. With two it may take half the bar, as the end

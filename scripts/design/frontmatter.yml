@@ -158,14 +158,14 @@ components:
   stepper-button-hover:
     backgroundColor: "{colors.wash-strong}"
   toggle-track-on:
-    width: "{{ ToggleRow.toggle.width }}"
-    height: "{{ ToggleRow.track.height }}"
-    rounded: "{{ ToggleRow.track.height / 2 }}"
+    width: "{{ SwitchMark.width }}"
+    height: "{{ SwitchMark.height }}"
+    rounded: "{{ SwitchMark.height / 2 }}"
     backgroundColor: "{colors.fill}"
   toggle-track-off:
-    width: "{{ ToggleRow.toggle.width }}"
-    height: "{{ ToggleRow.track.height }}"
-    rounded: "{{ ToggleRow.track.height / 2 }}"
+    width: "{{ SwitchMark.width }}"
+    height: "{{ SwitchMark.height }}"
+    rounded: "{{ SwitchMark.height / 2 }}"
     backgroundColor: "{colors.rail}"
   hover-label:
     height: "{{ HoverTip.tip-h }}"
