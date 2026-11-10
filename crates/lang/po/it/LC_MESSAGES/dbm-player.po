@@ -28,10 +28,6 @@ msgid "Next episode"
 msgstr "Episodio successivo"
 
 msgctxt "ActionFlash"
-msgid "Subtitles off"
-msgstr "Sottotitoli disattivati"
-
-msgctxt "ActionFlash"
 msgid "No audio"
 msgstr "Nessun audio"
 

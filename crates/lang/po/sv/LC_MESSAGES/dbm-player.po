@@ -25,10 +25,6 @@ msgid "Next episode"
 msgstr "Nästa avsnitt"
 
 msgctxt "ActionFlash"
-msgid "Subtitles off"
-msgstr "Undertexter av"
-
-msgctxt "ActionFlash"
 msgid "No audio"
 msgstr "Inget ljud"
 
