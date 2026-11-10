@@ -69,6 +69,9 @@ impl Retrace {
         if crate::run_mode::armed() {
             return;
         }
+        // mpv lands a seek before the start at the start, and the offer
+        // waits for the film to be where the seek landed.
+        let to = to.max(0.0);
         let mut state = self.state.borrow_mut();
         let left = state.holding.take().unwrap_or(at);
         let from = match &state.offer {
@@ -131,6 +134,15 @@ mod tests {
         assert_eq!(retrace.offered(Some(&a), 300.0), Some(2106.0));
         assert_eq!(retrace.offered(Some(&a), 309.0), Some(2106.0));
         assert_eq!(retrace.offered(Some(&a), 311.0), None);
+    }
+
+    #[test]
+    fn a_jump_to_before_the_start_ends_from_the_start() {
+        let retrace = Retrace::default();
+        let a = MediaPath::for_test("a.mkv");
+        retrace.landed(&a, 600.0, -6.0);
+        assert_eq!(retrace.offered(Some(&a), 0.0), Some(600.0));
+        assert_eq!(retrace.offered(Some(&a), 11.0), None);
     }
 
     #[test]

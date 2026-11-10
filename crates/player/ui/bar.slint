@@ -575,12 +575,17 @@ export component ControlBar inherits Rectangle {
         }
 
         scrub := TouchArea {
+            /// Where the pointer is along the track, 0 to 1. Held to the
+            /// track, since a drag or a click can let go past either end, and
+            /// a place before the film's start is one it never reaches, which
+            /// the way back would wait for.
+            property <float> along: clamp(self.mouse-x / self.width, 0, 1);
             mouse-cursor: pointer;
             pointer-event(event) => {
                 Chrome.pointed(event.kind == PointerEventKind.down);
                 // Also on enter and exit, so a pointer that arrives and stops
                 // gets a preview.
-                Playback.preview-at(self.mouse-x / self.width);
+                Playback.preview-at(self.along);
                 // The button coming up ends a click or a drag wherever the
                 // pointer is. Not `clicked`, which a release off the track
                 // never fires, and a drag often wanders off the row. A drag
@@ -588,15 +593,15 @@ export component ControlBar inherits Rectangle {
                 if (event.button == PointerEventButton.left
                     && (event.kind == PointerEventKind.up
                         || event.kind == PointerEventKind.cancel)) {
-                    Playback.seek-fraction(self.mouse-x / self.width);
+                    Playback.seek-fraction(self.along);
                 }
             }
             moved => {
-                Playback.preview-at(self.mouse-x / self.width);
+                Playback.preview-at(self.along);
                 // `moved` fires on hover too; the press check is what makes
                 // this a drag rather than a follow-the-cursor seek.
                 if (self.pressed) {
-                    Playback.seek-scrub(self.mouse-x / self.width);
+                    Playback.seek-scrub(self.along);
                 }
             }
             /// Wheel travel not yet taken as a step (see `Bar.notch`).
@@ -632,7 +637,7 @@ export component ControlBar inherits Rectangle {
             interval: 60ms;
             running: scrub.pressed;
             triggered => {
-                Playback.seek-held(scrub.mouse-x / scrub.width);
+                Playback.seek-held(scrub.along);
             }
         }
     }
