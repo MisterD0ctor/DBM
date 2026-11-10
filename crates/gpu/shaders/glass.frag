@@ -698,7 +698,9 @@ vec3 glass_at(vec2 px, vec2 centre, vec2 half_size, float radius, float tinted,
     // (`mirror.x` = 1); from there it rises steeply as the ray swings round
     // to point straight down, to full where the surface stands vertical at
     // the outermost edge.
-    float rim = max(0.0, -mirror.y * (1.0 - mirror.x) * (1.0 - mirror.x))
+    float rim = max(0.0, mix((0.2 - (1.0 - t)) / (8.0 * (1.0 - t) + 0.2), 
+                             -0.75 * mirror.y * (1.0 - mirror.x) * (1.0 - mirror.x), 
+                             abs(box_normal.x)))
                 * light.y;
 
     // The rim is light added over the glass.
