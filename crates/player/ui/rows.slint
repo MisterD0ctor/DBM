@@ -1408,10 +1408,11 @@ export component NoteRow inherits Rectangle {
 /// width and elide, since a heading can be a show's name of any length.
 export component MenuHeading inherits Rectangle {
     in property <string> text;
-    /// A name rather than a label: the show a playlist holds. Natural case,
-    /// its own size and no tracking, unlike a kicker such as SUBTITLES,
-    /// because it is the user's word rather than the interface's. The weight
-    /// and alpha stay the same.
+    /// True when the heading is a name, such as the show a playlist holds:
+    /// set at `Type.named` with no letter-spacing, being the person's word
+    /// rather than the interface's. False for a kicker such as SUBTITLES, at
+    /// the smaller `Type.label` and tracked. The case is the text's own, and
+    /// the weight and colour are the same either way.
     in property <bool> titular;
     /// Whether a group already ended above this one, so the heading takes the
     /// group gap above it. Without it, a kicker sits as far from the group it
