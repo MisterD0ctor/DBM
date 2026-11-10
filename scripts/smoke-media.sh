@@ -6,7 +6,10 @@
 #   scripts/smoke-media.sh <folder>
 #
 # What `smoke.sh` checks is written against these: two audio tracks to pick
-# between, a subtitle track to turn on, a minute to seek about in.
+# between, a subtitle track to turn on, a minute to seek about in. Each
+# episode sounds its own tones, so the two share nothing for the player to
+# hear as titles: shared, the whole first half was a title sequence, which
+# raced the chapters the exercises give, and lost them their skips.
 set -eu
 
 if [ $# -ne 1 ]; then
@@ -28,8 +31,8 @@ done >"$subs"
 for n in 1 2; do
     ffmpeg -v error -y \
         -f lavfi -i "testsrc2=size=1280x720:rate=24:duration=60" \
-        -f lavfi -i "sine=frequency=440:duration=60" \
-        -f lavfi -i "sine=frequency=660:duration=60" \
+        -f lavfi -i "sine=frequency=$((330 + 110 * n)):duration=60" \
+        -f lavfi -i "sine=frequency=$((550 + 110 * n)):duration=60" \
         -i "$subs" \
         -map 0 -map 1 -map 2 -map 3 \
         -c:v libx264 -pix_fmt yuv420p -c:a aac -ac 1 -c:s srt \
