@@ -606,10 +606,6 @@ export component GroupRow inherits Rectangle {
 /// it the episode and how much is left, so a film and an episode hold their
 /// words in the same place.
 export component ResumeRow inherits Rectangle {
-    /// Under the pointer its glyph leans the way it goes (`Rows.lean`).
-    private property <length> lean: touch.has-hover ? Rows.lean : 0px;
-    animate lean { duration: Motion.lean; easing: ease-out; }
-
     in property <bool> focused;
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <ResumeItem> film;

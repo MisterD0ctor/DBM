@@ -1691,7 +1691,7 @@ doing in it.
   pointer is on the row, over `Motion.highlight`, and dark under the ring.
   Every word and glyph is already full white, so a hover can't light one; the
   lean is the change you see without it, and a part's chevron in the playlist
-  and the way in's play glyph lean the same way. The ring
+  leans the same way. The ring
   takes the icon with the words, since both name the same subject. A figure
   about where it leads may stand before the chevron in Readout size, going
   with them: the
@@ -2248,8 +2248,8 @@ the Named role, where the films would be), because then the panel is about the
 player rather than a film, and the first window anyone ever sees should say
 what is asking before it says *Open file…*:
 
-- **The films left unfinished**, first, the one left most recently at the
-  top: up to `resume.OFFERED`, and a show once, by the episode left last, which
+- **The films left unfinished**, first, under CONTINUE WATCHING in the Label
+  role, the one left most recently at the top: up to `resume.OFFERED`, and a show once, by the episode left last, which
   is the one watching would carry on from. Each is a row of two lines
   (`Rows.resume-row`): first the show at Strong in Body size and at the Title's
   weight — which show it is says more than which episode, and is what the
@@ -2257,9 +2257,10 @@ what is asking before it says *Open file…*:
   weight can say — or a film's own name, since a film belongs to nothing; then
   in Hint size the episode and what is left: *S02E04 · Episode 4 · 20 min
   left*, or *15 min left* for a film. So a film and an episode hold their words
-  in the same place. A play glyph at Body and the resume measure stand beside
-  the two lines together, centred on the row, where a row's leading mark and
-  trailing column go. A film watched
+  in the same place. The resume measure stands beside the two lines
+  together, centred on the row, where a row's trailing column goes. No glyph
+  leads them: a play glyph on every row was busy, saying again on each what
+  the heading says once. A film watched
   into its credits, or left in its first minute, is not offered: a place that
   would start from the top anyway is no offer to carry on. A group gap follows
   the films, because they are films and the rows below them are dialogs, and
