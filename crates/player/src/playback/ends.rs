@@ -1,6 +1,7 @@
 //! Where a file's title sequence and closing credits are: by its chapters'
-//! names first, and otherwise where they were heard (see `titles`). What the
-//! skips offer and where they land.
+//! names first, and otherwise where they were heard (see `titles`), with a
+//! short last chapter among unnamed ones as the credits' last resort. What
+//! the skips offer and where they land.
 
 use dbm_library::titles::Span;
 
@@ -30,10 +31,8 @@ const INTRO_LONGEST: f64 = 300.0;
 const INTRO_TAIL: f64 = 3.0;
 
 impl PlayerState {
-    /// Whether the closing credits are playing: the chapter playing is the
-    /// one they start at (see [`credits_chapter`](Self::credits_chapter)) or
-    /// more of them after it. Where the chapters don't say, the credits are
-    /// where they were heard, if they were.
+    /// Whether the closing credits are playing (see
+    /// [`credits_playing`](Self::credits_playing)).
     ///
     /// An episode's, which can go on to the next; and a film's only where a
     /// scene follows them, which is somewhere to skip to that is the film's
@@ -55,27 +54,42 @@ impl PlayerState {
     /// Whether credits are playing, and if so where they next stop for a
     /// scene of the file's own: `Some(None)` where they run to the end.
     ///
+    /// A chapter named for them first; then what was heard; and only then a
+    /// short last chapter among unnamed ones, which is a guess: on a release
+    /// that ends with a look at the next episode, that is the look, and the
+    /// credits are the chapter before it.
+    fn credits_playing(&self) -> Option<Option<f64>> {
+        if let Some(first) = self.credits_named() {
+            return self.credits_from_chapter(first);
+        }
+        if let Some(pieces) = self.credits_heard_pieces() {
+            return self.credits_from_pieces(pieces);
+        }
+        self.credits_from_chapter(self.credits_guessed()?)
+    }
+
     /// By chapters, the credits are their first chapter and any after it
     /// named for more of them or for a look at the next episode, which is
-    /// more of the way on; any other is a scene. Heard, they are the pieces
-    /// of music heard (see `titles`), and the skip lands `SCENE_LEAD` before
-    /// a piece stops, since a scene can start under the song's last bars.
-    fn credits_playing(&self) -> Option<Option<f64>> {
-        if let Some(first) = self.credits_chapter() {
-            let ending = |at: usize| {
-                at == first
-                    || self.chapters[at].title.as_deref().is_some_and(|title| {
-                        dbm_naming::is_credits(title) || dbm_naming::is_preview(title)
-                    })
-            };
-            let current = self.chapter?;
-            if current < first || current >= self.chapters.len() || !ending(current) {
-                return None;
-            }
-            let scene = (current + 1..self.chapters.len()).find(|&at| !ending(at));
-            return Some(scene.map(|at| self.chapters[at].time));
+    /// more of the way on; any other is a scene.
+    fn credits_from_chapter(&self, first: usize) -> Option<Option<f64>> {
+        let ending = |at: usize| {
+            at == first
+                || self.chapters[at].title.as_deref().is_some_and(|title| {
+                    dbm_naming::is_credits(title) || dbm_naming::is_preview(title)
+                })
+        };
+        let current = self.chapter?;
+        if current < first || current >= self.chapters.len() || !ending(current) {
+            return None;
         }
-        let pieces = self.credits_heard_pieces()?;
+        let scene = (current + 1..self.chapters.len()).find(|&at| !ending(at));
+        Some(scene.map(|at| self.chapters[at].time))
+    }
+
+    /// Heard, the credits are the pieces of music heard (see `titles`), and
+    /// the skip lands `SCENE_LEAD` before a piece stops, since a scene can
+    /// start under the song's last bars.
+    fn credits_from_pieces(&self, pieces: &[Span]) -> Option<Option<f64>> {
         let last = pieces.len() - 1;
         pieces.iter().enumerate().find_map(|(at, piece)| {
             let followed = at < last
@@ -97,11 +111,11 @@ impl PlayerState {
         })
     }
 
-    /// Whether the chapters say where the credits are, by either of the
-    /// ways [`credits_chapter`](Self::credits_chapter) reads them. Where
-    /// they do there is nothing to listen for.
+    /// Whether a chapter is named for the credits, which leaves nothing to
+    /// listen for. A short last chapter among unnamed ones is only a guess,
+    /// which what is heard outranks.
     pub fn credits_marked(&self) -> bool {
-        self.credits_chapter().is_some()
+        self.credits_named().is_some()
     }
 
     /// Where this file's credits were heard to be, in pieces. In its second
@@ -115,24 +129,22 @@ impl PlayerState {
         (heard.path() == path && starts >= length / 2.0).then_some(pieces.as_slice())
     }
 
-    /// The chapter the closing credits start at, where the chapters say.
-    ///
-    /// By name first: the first chapter in the file's second half called
-    /// something like `End Credits`. The half keeps a cold open's `Credits`
-    /// from counting.
+    /// The first chapter in the file's second half called something like
+    /// `End Credits`. The half keeps a cold open's `Credits` from counting.
+    fn credits_named(&self) -> Option<usize> {
+        let length = self.duration?;
+        self.chapters.iter().position(|c| {
+            c.time >= length / 2.0 && c.title.as_deref().is_some_and(dbm_naming::is_credits)
+        })
+    }
+
+    /// Where no chapter has a real name, the last, if it is short.
     ///
     /// Plenty of releases name nothing, and a broadcast episode is split at
-    /// its act breaks, the last of which is the credits. So where no chapter
-    /// has a real name, the last is the credits if it is short: a final act
-    /// runs minutes, a closing sequence well under `CREDITS_TAIL`.
-    fn credits_chapter(&self) -> Option<usize> {
+    /// its act breaks, the last of which is the credits: a final act runs
+    /// minutes, a closing sequence well under `CREDITS_TAIL`.
+    fn credits_guessed(&self) -> Option<usize> {
         let length = self.duration?;
-        let named = self.chapters.iter().position(|c| {
-            c.time >= length / 2.0 && c.title.as_deref().is_some_and(dbm_naming::is_credits)
-        });
-        if named.is_some() {
-            return named;
-        }
         let unnamed = self.chapters.iter().all(|c| {
             c.title
                 .as_deref()
@@ -307,6 +319,30 @@ mod tests {
             (3000.0, "Chapter 03"),
         ];
         assert!(!playing(EPISODE, 2, acts).credits_rolling());
+    }
+
+    #[test]
+    fn credits_heard_outrank_a_short_last_chapter() {
+        // As a release that ends on a look at the next episode marks it:
+        // three acts, the credits, then the look, none of them named.
+        let marks = &[
+            (0.0, "Chapter 1"),
+            (1200.0, "Chapter 2"),
+            (2400.0, "Chapter 3"),
+            (3490.0, "Chapter 4"),
+            (3580.0, "Chapter 5"),
+        ];
+        let state = at(playing(EPISODE, 3, marks), 3500.0);
+        // Only a guess, so the credits are listened for.
+        assert!(!state.credits_marked());
+        assert!(!state.credits_rolling());
+        assert!(at(playing(EPISODE, 4, marks), 3590.0).credits_rolling());
+        // Heard, they are the chapter before the look, and the look is
+        // somewhere to skip to that the guess knew nothing of.
+        let mut heard = state;
+        heard.found.credits_heard = Some(heard_pieces(EPISODE, &[(3490.0, 3580.0)]));
+        assert!(heard.credits_rolling());
+        assert_eq!(heard.after_credits(), Some(3577.0));
     }
 
     #[test]

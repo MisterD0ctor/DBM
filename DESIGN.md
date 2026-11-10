@@ -2067,18 +2067,22 @@ right group, the corner it keeps to; a long title elides rather than reach over
 the names. The credits are a chapter named for them —
 *End Credits*, *Credits*, *Outro*, *ED*, *Ending* — in the file's second half,
 and the pill stays from there to the end, or to a scene after them (see
-*Skipping to a scene after the credits* below). Where no chapter has a real name —
-each titled with its own start time, *Chapter 7*, or nothing, as broadcast
-episodes split at their act breaks usually are — the last chapter is the
-credits if it runs three minutes or less. A file without chapters, or with
-chapters that say nothing either way, has its credits heard instead, as its
-title sequence is — see *Skipping the titles* below: the last ten minutes of
+*Skipping to a scene after the credits* below). A file without such a
+chapter has its credits heard instead, as its title sequence is — see
+*Skipping the titles* below: the last ten minutes of
 this episode and of another of its season are compared, and the stretch of
 music they share is the credits, provided it ends within five minutes of the
 end. A short show's credits can run under ten seconds, and from eight seconds
 up they count — but one shorter than a title sequence has to be the very end
 of one of the two episodes, or match what is already known to be the other's
 credits, because a cue that comes round every episode is that short too.
+Only where nothing is heard, and no chapter has a real name — each titled
+with its own start time, *Chapter 7*, or nothing, as broadcast episodes split
+at their act breaks usually are — is the last chapter taken for the credits,
+if it runs three minutes or less. It is a guess the hearing outranks: a
+release that ends on a look at the next episode marks that look as its last
+chapter, and the credits as the one before, and taken at its word the pill
+would come only for the look.
 A film never gets one to go on with. It needs somewhere to go: a later file,
 or at the end of a season the next season found beside it. It does get the
 skip to a scene after its credits, which needs nowhere else.

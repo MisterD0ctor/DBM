@@ -1,11 +1,11 @@
 //! Finding an episode's title sequence and its closing credits by listening
 //! for them.
 //!
-//! Where a file's chapters mark them (`Opening`, `End Credits`, a short last
-//! chapter), nothing here is needed; see `PlayerState::intro` and
-//! `PlayerState::credits_rolling`. Most don't: a broadcast episode is split
-//! at act breaks, with the titles inside the first after a cold open of any
-//! length, and a streaming download has no chapters at all.
+//! Where a file's chapters name them (`Opening`, `End Credits`), nothing here
+//! is needed; see `PlayerState::intro` and `PlayerState::credits_rolling`.
+//! Most don't: a broadcast episode is split at act breaks, with the titles
+//! inside the first after a cold open of any length, and a streaming download
+//! has no chapters at all.
 //!
 //! What a season's episodes do share is the same titles and the same music
 //! under their credits, so this listens to one end of the episode playing
