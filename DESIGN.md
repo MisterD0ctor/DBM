@@ -833,7 +833,10 @@ ring comes to another film's row, and then that one's. It arrives over
 `BACKDROP_ARRIVAL`, the one arrival slower than a surface, because it is the
 window's light changing rather than a control answering; a second one arrives
 over the first rather than from black, so the light moves from one film to the
-next instead of going out between them. Everything downstream treats it as
+next instead of going out between them. That crossing is slower again
+(`BACKDROP_CROSSING`) and eased at both ends, as a drill is: one picture giving
+way to another, and eased out, most of the change was over in its first
+moments, so it read as a switch. Everything downstream treats it as
 the frame, so the way in refracts it like any panel refracts a film.
 
 **The end of a file is lit the same way.** A film's last frame is usually
@@ -2386,7 +2389,8 @@ happening. With a film the settings hang from the bar as every panel does.
   reason that is about what is moving rather than about how it looks:
   - the **backdrop's** arrival (`pipeline.BACKDROP_ARRIVAL`), the one motion
     that is not a response to anything: it is the window's light changing, not
-    a control answering;
+    a control answering; and its crossing from one film's picture to the next
+    (`pipeline.BACKDROP_CROSSING`), slower and eased at both ends;
   - a **drill** (`Motion.drill`), ease-in-out, moving the page sideways and the
     panel's own height with it. Longer than a surface because it is a journey
     rather than an arrival, and eased at both ends because it starts and stops

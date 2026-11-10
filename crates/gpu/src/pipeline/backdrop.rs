@@ -12,10 +12,15 @@ use crate::size::Size;
 /// nothing over the middle of the window to cover it.
 const END_SOFTENING: f32 = 2.0;
 
-/// How long the backdrop takes to come up. Longer than a surface's 120ms,
-/// because it is the window's light changing, and a whole picture arriving
-/// that fast is a flash.
+/// How long the backdrop takes to come up from black. Longer than a
+/// surface's 120ms, because it is the window's light changing, and a whole
+/// picture arriving that fast is a flash.
 const BACKDROP_ARRIVAL: std::time::Duration = std::time::Duration::from_millis(400);
+
+/// How long it takes to come up over the one before it, as the way in moves
+/// from one film's row to another's: longer again, since the light moving
+/// from one film to the next is the change being shown.
+const BACKDROP_CROSSING: std::time::Duration = std::time::Duration::from_millis(600);
 
 pub(super) struct Picture {
     tex: glow::Texture,
@@ -38,14 +43,12 @@ struct Leaving {
 }
 
 impl Picture {
-    /// How far it has come up, 0..1, eased out like every other arrival here.
+    /// How far it has come up, 0..1 (see [`level_after`]).
     fn level(&self, animate: bool) -> f32 {
-        let t = if animate {
-            (self.arrived.elapsed().as_secs_f32() / BACKDROP_ARRIVAL.as_secs_f32()).min(1.0)
-        } else {
-            1.0
-        };
-        1.0 - (1.0 - t).powi(3)
+        if !animate {
+            return 1.0;
+        }
+        level_after(self.arrived.elapsed(), self.leaving.is_some())
     }
 
     /// Whichever is more on screen, it or what it is arriving over, for the
@@ -74,6 +77,25 @@ impl Picture {
                 gl.delete_texture(under.tex);
             }
         }
+    }
+}
+
+/// How far a backdrop has come up `elapsed` after it arrived, 0..1. From
+/// black, eased out like every other arrival here. Over the picture before
+/// it, eased at both ends: it is one picture giving way to another rather
+/// than one coming on, and eased out, most of the change was over in its
+/// first moments.
+fn level_after(elapsed: std::time::Duration, over_another: bool) -> f32 {
+    if over_another {
+        let t = (elapsed.as_secs_f32() / BACKDROP_CROSSING.as_secs_f32()).min(1.0);
+        if t < 0.5 {
+            4.0 * t.powi(3)
+        } else {
+            1.0 - (2.0 - 2.0 * t).powi(3) / 2.0
+        }
+    } else {
+        let t = (elapsed.as_secs_f32() / BACKDROP_ARRIVAL.as_secs_f32()).min(1.0);
+        1.0 - (1.0 - t).powi(3)
     }
 }
 
@@ -213,5 +235,36 @@ impl Pipeline {
         } else {
             self.quad.draw_to(gl, &self.video);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use super::*;
+
+    fn at(ms: u64, over_another: bool) -> f32 {
+        level_after(Duration::from_millis(ms), over_another)
+    }
+
+    #[test]
+    fn a_backdrop_from_black_comes_up_eased_out() {
+        assert_eq!(at(0, false), 0.0);
+        // Half way in its first fifth.
+        assert!(at(80, false) > 0.45);
+        assert_eq!(at(400, false), 1.0);
+    }
+
+    #[test]
+    fn a_backdrop_over_another_crosses_eased_at_both_ends() {
+        assert_eq!(at(0, true), 0.0);
+        // Barely begun in its first fifth, half way at its middle, and
+        // barely left in its last fifth.
+        assert!(at(120, true) < 0.05);
+        assert!((at(300, true) - 0.5).abs() < 1e-6);
+        assert!(at(480, true) > 0.95);
+        assert_eq!(at(600, true), 1.0);
+        assert_eq!(at(900, true), 1.0);
     }
 }
