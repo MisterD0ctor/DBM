@@ -170,14 +170,9 @@ export component MainWindow inherits Window {
     property <bool> has-file: Playback.has-file;
 
     // Otherwise a ring left up by the way in would land on the bar as a film
-    // arrives, on a button nobody chose. A ring a pill has taken stays: a file
-    // opened from outside arrives with its question in the same frame, and the
-    // two handlers run in no promised order.
+    // arrives, on a button nobody chose.
     changed has-file => {
-        if (root.bar-focus < root.pill-stop
-                || !(root.arriving || root.at-end || root.corner-offered)) {
-            Chrome.focus-visible = false;
-        }
+        Chrome.focus-visible = false;
         root.bar-resume = false;
     }
 
@@ -186,12 +181,10 @@ export component MainWindow inherits Window {
 
     // A film ending wakes the clock although nobody touched anything: the bar
     // comes back with the way on, and the fade gets frames, which nothing else
-    // asks for once mpv stops producing them. The ring goes to the pill, as
-    // for the credits, so Enter at the end of anything is the way on.
+    // asks for once mpv stops producing them.
     changed at-end => {
         if (root.at-end) {
             Chrome.bump();
-            root.ring-to-pill();
         } else if (!root.corner-offered && !root.arriving) {
             root.ring-off-pill();
         }
@@ -201,14 +194,14 @@ export component MainWindow inherits Window {
     property <bool> arriving: Playback.arriving;
 
     // A file held on its saved place is a question, answered in the middle of
-    // the picture. The panel it was chosen from closes and the ring goes to
-    // the pill, so choosing an episode and going on with it is Enter, Enter.
+    // the picture. The panel it was chosen from closes, and the ring is put
+    // away wherever it was, so the next Tab lands on the question rather than
+    // on the button that opened the panel, or on Next pressed a second time.
     changed arriving => {
         if (root.arriving) {
             Chrome.bump();
             root.close-panel();
-            root.bar-focus = root.pill-stop;
-            Chrome.focus-visible = true;
+            Chrome.focus-visible = false;
         } else if (!root.corner-offered && !root.at-end) {
             root.ring-off-pill();
         }
@@ -252,15 +245,6 @@ export component MainWindow inherits Window {
     /// would land under it; the Rust side reads it the same way, rather than
     /// testing the five above one by one.
     out property <bool> panel-open: root.open-panel != Panel.none;
-
-    changed panel-open => {
-        if (!root.panel-open && root.pill-owed) {
-            root.pill-owed = false;
-            if (root.corner-offered || root.centre-up) {
-                root.ring-to-pill();
-            }
-        }
-    }
 
     // Every button and key opens a panel through these functions, so they
     // can't drift apart. Each opens on its front page, and the lists on their
@@ -1015,11 +999,14 @@ export component MainWindow inherits Window {
     /// first choice, or the credits pill.
     property <int> pill-stop: 13;
 
+    /// A pill is offering something, in the middle or the corner.
+    property <bool> pill-up: root.centre-up || root.corner-offered;
+
     /// The bar's buttons, then the centre pill's choices while it is up, or
-    /// the credits pill. The two are never up together.
+    /// the corner pill's. The two are never up together.
     property <int> bar-count: root.pill-stop
         + (root.centre-up ? (end-pill.two ? 2 : 1)
-            : root.corner-offered ? 1 : 0);
+            : root.corner-offered ? (corner.two ? 2 : 1) : 0);
 
     property <bool> bar-reach: root.has-file && !root.panel-open && root.fatal == "";
 
@@ -1028,16 +1015,28 @@ export component MainWindow inherits Window {
             return false;
         }
         if (text == Key.Tab || text == Key.Backtab) {
+            let back = shift || text == Key.Backtab;
             if (!Chrome.focus-visible) {
-                if (!(root.bar-resume && root.bar-focus < root.bar-count
+                // A pill's offer comes first while one is up, being what the
+                // window is showing; it comes up without the ring, so this
+                // is the way to it. Otherwise where the ring was when the bar
+                // hid, or the bar's first button.
+                if (root.pill-up) {
+                    root.bar-focus = back ? root.bar-count - 1 : root.pill-stop;
+                } else if (!(root.bar-resume && root.bar-focus < root.bar-count
                         && root.bar-enabled(root.bar-focus))) {
-                    root.bar-focus = shift || text == Key.Backtab ? root.bar-count - 1 : 0;
+                    root.bar-focus = back ? root.bar-count - 1 : 0;
                 }
                 root.bar-resume = false;
                 Chrome.focus-visible = true;
-                return true;
+            } else {
+                root.bar-step(back ? -1 : 1);
             }
-            root.bar-step(shift || text == Key.Backtab ? -1 : 1);
+            // On a pill the bar is left as it was: the pill came up without
+            // it, and the bar would only cover what the pill is over.
+            if (root.bar-focus >= root.pill-stop) {
+                root.key-wake = KeyWake.keep;
+            }
             return true;
         }
         if (!Chrome.focus-visible) {
@@ -1097,7 +1096,7 @@ export component MainWindow inherits Window {
             if (root.centre-up) {
                 end-pill.activate(index - root.pill-stop);
             } else {
-                corner.activate();
+                corner.activate(index - root.pill-stop);
             }
         } else if (index < 7) {
             root.bar-activate-left(index);
@@ -1164,37 +1163,25 @@ export component MainWindow inherits Window {
 
     // The credits or the title sequence starting brings up their pill alone,
     // not the bar: the pill is the one thing on offer, and the bar would only
-    // cover the names. Doing nothing is watching them. The ring goes to the
-    // pill so Enter skips them, and leaves with the pill, or Enter would skip
-    // the episode that just started.
+    // cover the names. Doing nothing is watching them, so the pill comes up
+    // without the ring, which the first Tab puts on it. A ring on it leaves
+    // with it, or Enter would skip the episode that just started.
     changed corner-offered => {
-        if (root.corner-offered) {
-            root.ring-to-pill();
-        } else if (!root.centre-up) {
-            // At the end the end pill takes the same stop, and its first
-            // choice is the same way on, so the ring stays for it.
+        // At the end the end pill takes the same stop, and its first choice
+        // is the same way on, so the ring stays for it.
+        if (!root.corner-offered && !root.centre-up) {
             root.ring-off-pill();
         }
     }
 
     /// What the corner pill says, for the tests.
     out property <string> credits-label: corner.label;
-
-    /// A pill came up while a panel was open, so the ring is owed to it once
-    /// the panel closes.
-    property <bool> pill-owed: false;
-
-    /// Put the ring on the pill that just came up. An open panel keeps the
-    /// ring, which is on one of its rows, and the pill gets it when the panel
-    /// closes instead.
-    function ring-to-pill() {
-        if (root.panel-open) {
-            root.pill-owed = true;
-        } else if (root.bar-reach) {
-            root.bar-focus = root.pill-stop;
-            Chrome.focus-visible = true;
-        }
-    }
+    /// And whether it, or the end pill, offers a switch beside its first
+    /// choice.
+    out property <bool> corner-two: corner.two;
+    out property <bool> end-two: end-pill.two;
+    /// And whether the credits pill is up for Escape to put away.
+    out property <bool> credits-up: corner.credits-up;
 
     /// The ring goes with the pill it was on, or Enter would press a choice
     /// that is no longer there. Over a panel the ring is the panel's, and
@@ -1493,8 +1480,9 @@ export component MainWindow inherits Window {
             return root.remove-focused-track();
         }
         // One Escape dismisses one thing, innermost first: a page within a
-        // panel (see `page-back`), then the panel, then fullscreen. Closing a
-        // panel is back to the film, and the chrome goes with it.
+        // panel (see `page-back`), then the panel, then the credits pill,
+        // then fullscreen. Closing a panel or the pill is back to the film,
+        // and the chrome goes with it.
         if (text == Key.Escape) {
             if (root.page-back()) {
                 return true;
@@ -1502,6 +1490,8 @@ export component MainWindow inherits Window {
             root.key-wake = KeyWake.hide;
             if (root.panel-open) {
                 root.close-panel();
+            } else if (corner.credits-up) {
+                Playback.stay();
             } else {
                 // Out of fullscreen as into it, and with nothing to leave,
                 // nothing to bring up.
@@ -2072,6 +2062,7 @@ export component MainWindow inherits Window {
         fatal: root.fatal;
         panel-open: root.panel-open;
         widest: bar.right-w;
+        bar-w: bar.rows-w;
         raised: bar.pill-raise;
         raised-floor: bar.edge;
         preview-open: preview.open;

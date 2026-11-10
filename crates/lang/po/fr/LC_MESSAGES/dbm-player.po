@@ -1238,3 +1238,15 @@ msgstr "Lecture d’une vidéo"
 msgctxt "Playback"
 msgid "{}%"
 msgstr "{}%"
+
+msgctxt "CornerPill"
+msgid "Skip all intros"
+msgstr "Passer toutes les intros"
+
+msgctxt "EndPill"
+msgid "Autoplay next"
+msgstr "Lire la suite automatiquement"
+
+msgctxt "CornerPill"
+msgid "Skip all credits"
+msgstr "Passer tous les génériques"

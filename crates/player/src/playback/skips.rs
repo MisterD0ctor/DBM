@@ -3,9 +3,10 @@
 //!
 //! Where either is comes from a guess as often as from a chapter (see
 //! `ends`), so neither goes unseen. The title sequence goes at once and the
-//! corner pill then offers the way back (see `retrace`). The credits go on
-//! only after their pill has counted down, in seconds of the film, so a
-//! pause holds the count and a seek stops it.
+//! corner pill then offers the way back (see `retrace`); one that started
+//! with the switch off plays out, offered by hand. The credits go on only
+//! after their pill has counted down, in seconds of the film, so a pause
+//! holds the count and a seek stops it.
 //!
 //! This decides; the frame loop carries it out.
 
@@ -48,8 +49,8 @@ pub struct Skips {
     /// The load, the position and the time on the last frame, so a seek can
     /// be told from playing.
     last: Option<LastFrame>,
-    /// The load whose title sequence is done with: skipped, or landed in by a
-    /// seek, which is wanting to see it.
+    /// The load whose title sequence is done with: skipped, landed in by a
+    /// seek, which is wanting to see it, or begun with the switch off.
     intro_done: Option<u64>,
     count: Option<Count>,
 }
@@ -103,11 +104,19 @@ impl Skips {
             time_pos: player.time_pos,
             at: now,
         });
-        self.intro(player, wanted.intros && playing && corner_free, seeked)
+        self.intro(player, wanted.intros, playing && corner_free, seeked)
             .or_else(|| self.credits(player, wanted.credits && corner_free, seeked))
     }
 
-    fn intro(&mut self, player: &PlayerState, may: bool, seeked: bool) -> Option<Skip> {
+    /// `may` is whether the corner is free and the film playing, which a
+    /// skip that is wanted waits for.
+    fn intro(
+        &mut self,
+        player: &PlayerState,
+        wanted: bool,
+        may: bool,
+        seeked: bool,
+    ) -> Option<Skip> {
         if self.intro_done == Some(player.loads) || !player.intro_rolling() {
             return None;
         }
@@ -115,6 +124,14 @@ impl Skips {
         // Landing at its start is how a file starts over, which is no sign of
         // wanting to see the sequence.
         if seeked && player.time_pos > span.start + JUMP {
+            self.intro_done = Some(player.loads);
+            return None;
+        }
+        // Begun with the switch off, it is the pill's to skip, even once the
+        // switch comes on: the pill's *Skip all intros* turns it on and seeks
+        // past this one itself, and skipping it again here would offer the
+        // way back to a skip a hand asked for.
+        if !wanted {
             self.intro_done = Some(player.loads);
             return None;
         }
@@ -269,6 +286,14 @@ mod tests {
         let mut skips = Skips::default();
         let mut player = episode();
         assert!(play(&mut skips, &mut player, 3600.0, Wanted::default()).is_empty());
+    }
+
+    #[test]
+    fn titles_begun_with_the_switch_off_are_left_to_the_hand() {
+        let mut skips = Skips::default();
+        let mut player = episode();
+        play(&mut skips, &mut player, 100.0, Wanted::default());
+        assert!(play(&mut skips, &mut player, 190.0, ALL).is_empty());
     }
 
     #[test]

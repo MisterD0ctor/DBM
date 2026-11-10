@@ -4,6 +4,7 @@
 use std::time::Duration;
 
 use dbm_mpv::{Command, Reader, prop};
+use slint::platform::Key;
 use slint::{ComponentHandle, Model};
 
 use super::drive::{arrow, chord, hover, wheel};
@@ -510,9 +511,11 @@ pub(super) fn end_test(ui: &MainWindow) -> Script {
         beat.next().await;
         report_end(&ui, "at the end");
         beat.next().await;
+        // The pill comes up without the ring, and the first Tab puts it there.
         if enter {
-            let key = slint::SharedString::from(slint::platform::Key::Return);
-            chord(&ui, &[], &key);
+            for key in [slint::platform::Key::Tab, slint::platform::Key::Return] {
+                chord(&ui, &[], &slint::SharedString::from(key));
+            }
         } else {
             eprintln!("dbm: --- end-of-playback test: holding ---");
         }
@@ -650,15 +653,18 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: Reader) -> Script {
         // Past `HIDE_AFTER`, with nothing touched since.
         report_credits(&ui, "left alone");
         beat.next().await;
-        // The pill came up behind the menu, so closing it is what
-        // brings the ring to the pill.
-        // The ring came to the pill on its own, so Enter alone goes on.
+        // The pill comes up without the ring, and the first Tab puts it
+        // there; behind the menu, once the menu is closed.
+        let tab_enter = || {
+            for key in [slint::platform::Key::Tab, slint::platform::Key::Return] {
+                chord(&ui, &[], &slint::SharedString::from(key));
+            }
+        };
         if panel {
             let escape = slint::SharedString::from(slint::platform::Key::Escape);
             chord(&ui, &[], &escape);
         } else {
-            let enter = slint::SharedString::from(slint::platform::Key::Return);
-            chord(&ui, &[], &enter);
+            tab_enter();
         }
         beat.next().await;
         if panel {
@@ -668,8 +674,7 @@ pub(super) fn credits_test(ui: &MainWindow, mpv: Reader) -> Script {
         // The next file, and the ring gone with the pill rather than
         // waiting on a stop that no longer exists.
         if panel {
-            let enter = slint::SharedString::from(slint::platform::Key::Return);
-            chord(&ui, &[], &enter);
+            tab_enter();
         } else {
             report_credits(&ui, "after enter");
         }
@@ -739,10 +744,11 @@ pub(super) fn intro_test(ui: &MainWindow) -> Script {
         // Past `HIDE_AFTER`, with nothing touched since.
         beat.rest(4).await;
         report_intro(&ui, "left alone");
-        // The ring came to the pill on its own, so Enter alone skips.
+        // The pill came up without the ring; the first Tab puts it there.
         beat.next().await;
-        let enter = slint::SharedString::from(slint::platform::Key::Return);
-        chord(&ui, &[], &enter);
+        for key in [slint::platform::Key::Tab, slint::platform::Key::Return] {
+            chord(&ui, &[], &slint::SharedString::from(key));
+        }
         beat.rest(2).await;
         report_intro(&ui, "after enter");
         beat.next().await;
@@ -883,6 +889,301 @@ pub(super) fn skip_test(ui: &MainWindow, mpv: Reader) -> Script {
                 2.5,
                 || playback.get_path() != film,
                 "and goes on to the next episode before the end",
+            )
+            .await;
+
+        turn_skips(&ui, false);
+        verdict.finish();
+    })
+}
+
+/// The second choices that teach a switch, each offered once a hand has done
+/// what the switch would: every intro skipped, every credits skipped, and
+/// autoplay. All three come up without the ring, so Tab reaches them.
+///
+/// The chapters are supplied, as for `skip_test`: titles from 0:05 to 0:20,
+/// credits from 25 seconds before the end, and a scene 10 seconds before it,
+/// which the credits pill skips to. Needs an episode with a later one beside
+/// it, as the smoke test's two are. `=intro`, `=credits` and `=end` pause
+/// with that offer up instead of taking it, for a capture.
+pub(super) fn always_test(ui: &MainWindow, mpv: Reader) -> Script {
+    let hold = std::env::var("DBM_ALWAYS_TEST").unwrap_or_default();
+    script::run(ui, move |ui| async move {
+        let verdict = Verdict::new("always");
+        let playback = ui.global::<Playback>();
+        let settings = ui.global::<Settings>();
+        script::loaded(&ui).await;
+        let duration = f64::from(playback.get_duration());
+        let (credits_at, scene_at) = (duration - 25.0, duration - 10.0);
+        let marks = [
+            (0.0, "Cold Open"),
+            (5.0, "Opening"),
+            (20.0, "Part A"),
+            (credits_at, "End Credits"),
+            (scene_at, "Post-Credits Scene"),
+        ];
+        if let Err(e) = give_chapters(&mpv, &marks, duration) {
+            verdict.check(false, &e);
+            verdict.finish();
+            return;
+        }
+        let autoplay = |on: bool| {
+            settings.set_autoplay(on);
+            settings.invoke_set_autoplay(on);
+        };
+        turn_skips(&ui, false);
+        autoplay(false);
+        let first = playback.get_path();
+        ui.global::<Playlist>()
+            .invoke_open_path(first.clone(), true);
+        verdict
+            .expect(
+                || playback.get_chapter_marks().row_count() == marks.len(),
+                "the file opens again with its titles, credits and scene marked",
+            )
+            .await;
+        let length = || f64::from(playback.get_duration()).max(1.0);
+        let at = || f64::from(playback.get_progress()) * length();
+        let seek = |to: f64| playback.invoke_seek_fraction((to / length()) as f32);
+        let key = |key: Key| chord(&ui, &[], &slint::SharedString::from(key));
+        let ring = || ui.global::<crate::Chrome>().get_focus_visible();
+        let corner_free =
+            || playback.get_back_offer().is_empty() && playback.get_resume_offer().is_empty();
+        let holding = |which: &str| {
+            if hold != which {
+                return false;
+            }
+            if !playback.get_paused() {
+                playback.invoke_toggle_pause();
+            }
+            eprintln!("dbm: --- always test: holding ---");
+            true
+        };
+
+        // The titles, skipped by hand, then offered every time.
+        seek(2.0);
+        verdict
+            .expect_after(
+                6.0,
+                || playback.get_intro_rolling() && corner_free() && !ui.get_corner_two(),
+                "the titles are offered to skip, alone",
+            )
+            .await;
+        verdict.check(!ring(), "with no ring on the pill");
+        key(Key::Tab);
+        key(Key::Return);
+        verdict
+            .expect(|| at() >= 19.5, "Tab and Enter skip them")
+            .await;
+        seek(2.0);
+        verdict
+            .expect_after(
+                4.0,
+                || playback.get_intro_rolling() && corner_free() && ui.get_corner_two(),
+                "back into them, every one is offered too",
+            )
+            .await;
+        if holding("intro") {
+            verdict.finish();
+            return;
+        }
+        key(Key::Tab);
+        key(Key::Tab);
+        key(Key::Return);
+        verdict
+            .expect(
+                || at() >= 19.5 && settings.get_skip_intros(),
+                "the second choice skips them and turns the switch on",
+            )
+            .await;
+        // Turned on while they played, the switch would have skipped them
+        // again and offered the way back to a skip the hand asked for.
+        Beat::new(Duration::from_millis(1500)).next().await;
+        verdict.check(corner_free(), "with no way back offered");
+
+        // The credits, skipped to the scene by hand, then offered every time,
+        // which needs autoplay too.
+        seek(credits_at - 2.0);
+        verdict
+            .expect_after(
+                4.0,
+                || playback.get_credits_rolling() && !ui.get_corner_two(),
+                "the credits are offered to skip, alone",
+            )
+            .await;
+        key(Key::Tab);
+        key(Key::Return);
+        verdict
+            .expect(|| at() >= scene_at - 0.5, "Tab and Enter skip to the scene")
+            .await;
+        seek(credits_at - 2.0);
+        verdict
+            .expect_after(
+                4.0,
+                || playback.get_credits_rolling() && ui.get_corner_two(),
+                "back into them, every one is offered too",
+            )
+            .await;
+        if holding("credits") {
+            verdict.finish();
+            return;
+        }
+        key(Key::Tab);
+        key(Key::Tab);
+        key(Key::Return);
+        verdict
+            .expect(
+                || at() >= scene_at - 0.5 && settings.get_skip_credits() && settings.get_autoplay(),
+                "the second choice skips them and turns Skip credits and autoplay on",
+            )
+            .await;
+
+        // The end, with autoplay off: the next file by hand, then autoplay
+        // beside it.
+        turn_skips(&ui, false);
+        autoplay(false);
+        let to_end = || playback.invoke_seek_fraction(0.999);
+        to_end();
+        verdict
+            .expect_after(
+                2.0,
+                || playback.get_at_end() && !ui.get_end_two(),
+                "the end offers the next file, alone",
+            )
+            .await;
+        verdict.check(!ring(), "with no ring on the pill");
+        key(Key::Tab);
+        key(Key::Return);
+        verdict
+            .expect(|| playback.get_path() != first, "Tab and Enter go on to it")
+            .await;
+        let second = playback.get_path();
+        ui.global::<Playlist>().invoke_step(crate::Way::Back);
+        verdict
+            .expect(|| playback.get_path() == first, "and back again")
+            .await;
+        to_end();
+        verdict
+            .expect_after(
+                2.0,
+                || playback.get_at_end() && ui.get_end_two(),
+                "the next end offers autoplay too",
+            )
+            .await;
+        if holding("end") {
+            verdict.finish();
+            return;
+        }
+        key(Key::Tab);
+        key(Key::Tab);
+        key(Key::Return);
+        verdict
+            .expect(
+                || playback.get_path() == second && settings.get_autoplay(),
+                "the second choice goes on and turns autoplay on",
+            )
+            .await;
+        // Autoplay coming on at the end of a file mustn't send mpv on as
+        // well as the press, past the file asked for.
+        Beat::new(Duration::from_millis(3000)).next().await;
+        verdict.check(
+            playback.get_path() == second && !playback.get_at_end() && !playback.get_paused(),
+            "once, to the next file, which plays",
+        );
+        turn_skips(&ui, false);
+        autoplay(true);
+        verdict.finish();
+    })
+}
+
+/// Escape on the credits pill as it counts down, from someone who turned on
+/// *Skip credits* and autoplay but wants this episode's credits: the count
+/// stops, the pill goes, and the file holds at its end rather than going on,
+/// which the next file takes up again.
+///
+/// The credits are supplied, as for `skip_test`, over the last fifteen
+/// seconds. Needs an episode with a later one beside it.
+pub(super) fn stay_test(ui: &MainWindow, mpv: Reader) -> Script {
+    script::run(ui, move |ui| async move {
+        let verdict = Verdict::new("stay");
+        let playback = ui.global::<Playback>();
+        script::loaded(&ui).await;
+        let duration = f64::from(playback.get_duration());
+        let credits_at = duration - 15.0;
+        let marks = [(0.0, "Part A"), (credits_at, "End Credits")];
+        if let Err(e) = give_chapters(&mpv, &marks, duration) {
+            verdict.check(false, &e);
+            verdict.finish();
+            return;
+        }
+        let film = playback.get_path();
+        ui.global::<Playlist>().invoke_open_path(film.clone(), true);
+        verdict
+            .expect(
+                || playback.get_chapter_marks().row_count() == marks.len(),
+                "the file opens again with its credits marked",
+            )
+            .await;
+        turn_skips(&ui, true);
+        let settings = ui.global::<Settings>();
+        settings.set_autoplay(true);
+        settings.invoke_set_autoplay(true);
+        let key = |key: Key| chord(&ui, &[], &slint::SharedString::from(key));
+        let ring = || ui.global::<crate::Chrome>().get_focus_visible();
+
+        playback.invoke_seek_fraction(((credits_at - 2.0) / duration) as f32);
+        verdict
+            .expect_after(
+                2.0,
+                || playback.get_credits_count() > 0.0,
+                "the credits pill counts down",
+            )
+            .await;
+        key(Key::Tab);
+        key(Key::Escape);
+        verdict.check(
+            !ring() && ui.get_credits_up() && !playback.get_staying(),
+            "Escape puts a ring on the pill away first, and nothing else",
+        );
+        key(Key::Escape);
+        verdict
+            .expect(
+                || {
+                    playback.get_staying()
+                        && !ui.get_credits_up()
+                        && playback.get_credits_count() == 0.0
+                },
+                "the next puts the pill away and stops its count",
+            )
+            .await;
+        // Longer than the count, which would have gone on by now.
+        Beat::new(Duration::from_millis(6000)).next().await;
+        verdict.check(
+            playback.get_path() == film && playback.get_credits_rolling(),
+            "and the credits roll",
+        );
+        playback.invoke_seek_fraction(0.999);
+        verdict
+            .expect_after(2.0, || playback.get_at_end(), "to the end")
+            .await;
+        // Autoplay is on, and mpv would have gone on at once.
+        Beat::new(Duration::from_millis(3000)).next().await;
+        verdict.check(
+            playback.get_path() == film && playback.get_at_end(),
+            "where the file holds",
+        );
+        key(Key::Tab);
+        key(Key::Return);
+        verdict
+            .expect(|| playback.get_path() != film, "the end pill goes on")
+            .await;
+        verdict
+            .expect(
+                || {
+                    !playback.get_staying()
+                        && mpv.get_or_none(prop::KEEP_OPEN) == Some(prop::KeepOpen::Yes)
+                },
+                "and autoplay goes on from the next file",
             )
             .await;
         turn_skips(&ui, false);

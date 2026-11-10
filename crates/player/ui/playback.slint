@@ -161,6 +161,13 @@ export global Playback {
     /// to 1, for someone who asked for the credits to be skipped (see
     /// `playback::skips`). 0 while nothing counts.
     in property <float> credits-count;
+    /// Escape on the credits pill: the file playing goes on neither by the
+    /// pill's count nor by autoplay, and holds at its end, this once. The
+    /// next file goes on as the switches say.
+    callback stay();
+    /// Whether that was asked of the file playing, which the credits pill
+    /// goes for.
+    in property <bool> staying;
     /// The playing file, for the dialogs to open near.
     in property <string> path;
 }

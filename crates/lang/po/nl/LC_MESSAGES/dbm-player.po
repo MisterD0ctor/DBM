@@ -1238,3 +1238,15 @@ msgstr "Er wordt een video afgespeeld"
 msgctxt "Playback"
 msgid "{}%"
 msgstr "{}%"
+
+msgctxt "CornerPill"
+msgid "Skip all intros"
+msgstr "Alle intro's overslaan"
+
+msgctxt "EndPill"
+msgid "Autoplay next"
+msgstr "Volgende automatisch afspelen"
+
+msgctxt "CornerPill"
+msgid "Skip all credits"
+msgstr "Alle aftitelingen overslaan"

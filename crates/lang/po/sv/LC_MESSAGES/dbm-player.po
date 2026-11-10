@@ -1235,3 +1235,15 @@ msgstr "Spelar en video"
 msgctxt "Playback"
 msgid "{}%"
 msgstr "{}%"
+
+msgctxt "CornerPill"
+msgid "Skip all intros"
+msgstr "Hoppa över alla intron"
+
+msgctxt "EndPill"
+msgid "Autoplay next"
+msgstr "Spela nästa automatiskt"
+
+msgctxt "CornerPill"
+msgid "Skip all credits"
+msgstr "Hoppa över alla eftertexter"

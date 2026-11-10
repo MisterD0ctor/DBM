@@ -1239,3 +1239,15 @@ msgstr "Reproduzindo um vídeo"
 msgctxt "Playback"
 msgid "{}%"
 msgstr "{}%"
+
+msgctxt "CornerPill"
+msgid "Skip all intros"
+msgstr "Pular todas as aberturas"
+
+msgctxt "EndPill"
+msgid "Autoplay next"
+msgstr "Reprodução automática"
+
+msgctxt "CornerPill"
+msgid "Skip all credits"
+msgstr "Pular todos os créditos"

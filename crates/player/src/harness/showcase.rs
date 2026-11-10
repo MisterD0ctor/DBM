@@ -166,12 +166,6 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                 }
             }
 
-            // Reaching the end puts the keyboard's ring on the pill; `end`
-            // takes it off again, for the pill as it is with nothing on it.
-            if surface == "end" && tick > 6 {
-                ui.global::<crate::Chrome>().set_focus_visible(false);
-            }
-
             // The flash is a moment, not a surface, so it is held by raising
             // it again and again: a glyph and its value, or the subtitles'
             // glyph, turned on or off once first for the other one.
@@ -476,9 +470,10 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                 if tick == 12 && surface == "arrival-answer" {
                     playback.invoke_arrival_answer(crate::ArrivalAnswer::Beginning);
                 }
-                // Enter, as a hand would press it, on the ring the question
-                // took as the file opened.
+                // Tab and Enter, as a hand would press them: the question
+                // comes up without the ring, and the first Tab puts it there.
                 if tick == 12 && surface == "arrival-enter" {
+                    arrow(&ui, slint::platform::Key::Tab);
                     arrow(&ui, slint::platform::Key::Return);
                 }
                 if tick.is_multiple_of(2) && (6..=16).contains(&tick) {

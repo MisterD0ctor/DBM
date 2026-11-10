@@ -147,5 +147,6 @@ impl Player {
             held.is_none() && offered.is_none() && back.is_none() && !self.app.arrival.holding();
         self.skip(corner_free);
         playback.set_credits_count(self.skips.counted(&self.state));
+        playback.set_staying(self.staying());
     }
 }

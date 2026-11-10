@@ -684,7 +684,7 @@ at a new size, not the bar over it; for half a second after, the pointer's moves
 changing size is sent moves no hand made (`Chrome.settling`). So does a key
 that sends you back to the film: Space playing on, from a pause, the end or
 a saved place; Escape, or a panel's own key, closing the panel; Escape
-putting the ring away; Enter on a pill's choice; → from the end. Every other
+putting the ring away, or the credits pill; Enter on a pill's choice; → from the end. Every other
 key wakes the bar, as the pointer does, and no key takes away what is
 already up but those: pressed with the bar up, a key keeps it there
 (`MainWindow.key-wake`).
@@ -950,12 +950,15 @@ white words allow, so a ring as light as that matched it and showed only its
 lit rim, an outline, which this interface draws only round a field; and a ring
 that went darker over bright glass and lighter over dark turned over as the
 frame changed, and at one grey was that grey. Milk glass with dark words is
-the same way round on every frame. It shows while the keyboard is in use,
-and on one more occasion: a pill that arrives with an offer — the title
-sequence's, the credits', the way back after a jump, the question at a file
-left part way, the end of a file — arrives with the pane on it, so where Enter
-goes is shown before a key is pressed. The way in's *Continue* does without,
-being the first row of a panel nothing else is in. Its rim is lit at `pipeline.RING_RIM`
+the same way round on every frame. It shows only while the keyboard is in
+use. A pill that arrives with an offer — the title sequence's, the credits',
+the way back after a jump, the question at a file left part way, the end of a
+file — comes up without it: a pane of milk glass is the loudest thing on the
+picture, and most offers are watched rather than taken. Someone who wants the
+titles or the credits gone every time has the skips for that. The first Tab
+puts the pane on the pill instead (see Focus), and the way in's *Continue*,
+the first row of a panel nothing else is in, is pressed by Enter without
+one. Its rim is lit at `pipeline.RING_RIM`
 whatever the Rim slider says, and the pane is real glass, refracting the frame
 on its own. It casts no shadow, and never
 reaches past the pane it lies on, which a page sliding in would otherwise
@@ -1011,9 +1014,11 @@ by under a pixel at the corner.
   the keyboard is on it: see The Ring Pane Rule. With the glass switched off
   the Ring wash is the whole of it, a step over the open one.
   Tab walks the bar left to right while a film is loaded and
-  nothing is open — then on to the end-of-file choices, or the credits pill,
-  while either is up —
-  and Enter presses; the arrows, Space and every other key keep their meaning
+  nothing is open, then on to a pill's choices while one is up, in the
+  middle or the corner, and Enter presses. While a pill is up the first Tab
+  lands on its first choice rather than on the bar, the pill being what the
+  window is offering, and the bar is left as it was, since it would only
+  cover what the pill is over. The arrows, Space and every other key keep their meaning
   wherever the ring stands, and Escape puts the ring away and does nothing
   else, so clearing a highlight never leaves fullscreen. The hover label comes
   up for the focused button as it does for the pointer. A panel opened from the
@@ -1791,7 +1796,7 @@ doing in it.
   the way in. S opens the settings, always: Netflix's S skips while there is
   something to skip, but a key that skips the credits one moment and opens a
   panel the next can't be pressed without looking first, and the corner pill
-  arrives with the ring, so Enter is its key. Shift is read as the modifier,
+  is a Tab and an Enter away. Shift is read as the modifier,
   never from the letter's case, so Caps Lock changes no key. The player's
   own: Shift with an arrow for a one-second seek, Shift+C through the subtitle
   tracks, # through the audio, Z and Shift+Z for the subtitle delay,
@@ -1961,14 +1966,23 @@ say. Button wash on hover. It is the
 one surface not tied to the idle clock: the bar hides after a few still seconds,
 and this is what should still be there when it does.
 
-It takes the keyboard's ring when it appears, as the credits pill does, so
-Enter at the end of anything is the way on, and the ring goes when the pill
-does. → goes on too — the next file, or the next season when one was found —
+The first Tab puts the keyboard's ring on it, as on the credits pill, so Tab
+and Enter at the end of anything is the way on, and the ring goes when the
+pill does. → goes on too — the next file, or the next season when one was found —
 but never to the dialog *Open folder…* raises: an arrow held a moment too long
 is not a press deliberate enough to put one up.
 
 At the end of the last file — the end of a season, or of a film alone in its
 folder — it offers two things, the way on first and *Restart* second.
+
+**Autoplay from here on.** With *Autoplay next* off, once this pill has been
+pressed on to the next file in this sitting, the next end offers that switch
+beside the next file, with a tick: *Autoplay next*, which goes there and
+turns autoplay on. The moment it would be wanted, and where the hand already
+is, as the corner pill offers its skips; someone who goes on now and then
+never sees it. Not at the end of a season, which autoplay never goes past.
+A file held at its end stays held when autoplay comes on, so the press is
+what goes on, once.
 
 **A season's end is said.** Over the pill, `Rows.offset` above it and riding
 with it when it makes way, one line in the Hint role at Body: *Season 4
@@ -2009,10 +2023,10 @@ pill asks which: *Continue from 12:34*, with the play glyph, and *From the
 beginning*, with Restart's. By its time, because that is what the choice is
 made by: the middle of something, or near its end. It is the same surface as
 the end-of-file pill — a file's start and its end are never at once — so it
-has the same glass, the same type and the same stop on the bar: it takes the
-ring as it comes up, and whatever panel the file was chosen from goes, so
-choosing an episode and going on with it from the keyboard is Enter, Enter.
-Space goes on, Home starts over, and so does playing or seeking by any other
+has the same glass, the same type and the same stop on the bar. Whatever
+panel the file was chosen from goes, and the ring is put away wherever it
+was, so the next Tab lands on the question: choosing an episode and going on
+with it from the keyboard is Enter, Tab, Enter. Space goes on, Home starts over, and so does playing or seeking by any other
 means. The corner pill stands down while it asks.
 
 Not every saved place is a question. A file watched to its end, or left in
@@ -2076,9 +2090,9 @@ What is loaded alone never reaches its column, so it stays down for that, and
 rises only as the bar grows from it.
 It arrives on its own, without the bar, which would only cover the names: the
 pill is the one thing on offer, and doing nothing is watching the credits. It
-takes the keyboard's ring, so Enter is the whole of going on; the ring stays
-with it whatever the bar does and goes when the pill does, so Enter never
-presses a pill that has gone. Like the
+comes up without the keyboard's ring, which the first Tab puts on it; a ring
+on it stays whatever the bar does and goes when the pill does, so Enter
+never presses a pill that has gone. Like the
 end pill it is not tied to the idle clock. It stands aside for an open panel
 and for the seek preview when the preview reaches its column; a hover label
 that would land on it goes up a row instead. Glass never lies on glass.
@@ -2099,6 +2113,25 @@ wanting to see them, and they roll to the end as they would have. Pressing
 the pill goes at once. It counts only while the pill is the credits': the
 way back after a jump and a passed-over place each take the corner, and
 the count starts when they have gone.
+
+**Staying for them.** Escape while the pill is up puts it away, and the going
+on with it: the count stops, and the episode holds at its end however
+autoplay is set, where the end pill offers the next file as it does with
+autoplay off. This once — the switches are left as they are, and the next
+file goes on as they say. It is the one key someone watching the names
+already reaches for to turn down what is in front of them. Escape takes a
+ring on the pill away first, and an open panel, which the pill stands aside
+for; and the pill before fullscreen, since what is turned down is the
+offer, not the size of the window.
+
+**Every time from now on.** Once the credits have been skipped from the pill
+in this sitting — on to the next file, or to a scene after them — and while
+*Skip credits* is off, the next credits pill offers that too, as the title
+sequence's does (see *Every one from now on*): *Skip all credits*, with a
+tick, which does what the first choice does and turns *Skip credits* on, and
+*Autoplay next* with it where that is off, since going on from the credits
+goes no further than autoplay would. Not at the end of a season, where the
+way on is a folder the switch never opens.
 
 **Skipping to a scene after the credits.** Where something of the episode's
 own follows its credits, or stops them part way — a scene, a last shot —
@@ -2127,12 +2160,22 @@ its title sequence plays the capsule says *Skip intro*, with the Skip glyph —
 two arrowheads and no bar, further into this file rather than on to the next —
 in the same corner, on the same lines, and for the same reason — a sequence is
 something people watch, so the offer keeps out of its way and doing nothing is
-watching it. It arrives as the credits pill does: on its own, with the
-ring, for Enter. It lands on the first frame after the sequence, exactly, and goes
+watching it. It arrives as the credits pill does: on its own, a Tab away.
+It lands on the first frame after the sequence, exactly, and goes
 a moment before that (`ends.INTRO_TAIL`): an offer that is over before it is
 read is noise.
 It needs nowhere to go, so the last episode of a season has it too; a film
 never does, for the reason it has no credits pill.
+
+**Every one from now on.** Once a sequence has been skipped from the pill
+in this sitting, and while *Skip intros* is off, the next pill offers that
+too: a second choice beside the first, *Skip all intros*, with a tick, which
+skips this one and turns the switch on. That is the moment the switch would
+be wanted, and the pill is where the hand already is; someone who skips now
+and then never sees it. The pill decides as it comes and keeps its two
+choices through its fade. With two it may take half the bar, as the end
+pill does: in German or Swedish they would not fit the right group without
+the offer itself eliding.
 
 **Skipped by itself.** For someone who turned on *Skip intros* on the
 episodes page, the sequence goes as it starts, with no count: an intro is short
@@ -2142,9 +2185,12 @@ after (see *Going back after a jump*), *Back to 0:42*, from where the skip
 left, so a sequence heard wrong costs one press. Once a file: going back to
 it is wanting to see it, and a seek that lands part way into it — not at
 its start, where a file starting over lands — is too, so either leaves it
-to play with *Skip intro* offered by hand. It waits for the place autoplay
-passed over, which is offered from the file's first frame and would be
-lost to the jump, and goes once that offer has.
+to play with *Skip intro* offered by hand. So is one that began with the
+switch off, though the switch comes on during it: *Skip all intros* turns it
+on and skips that one itself, and skipping it again would offer the way back
+to a skip the hand asked for. It waits for the place autoplay passed over,
+which is offered from the file's first frame and would be lost to the jump,
+and goes once that offer has.
 
 **Going back to where you were.** The same pill again, for a file autoplay
 brought in from the beginning though it had been left part way: for its first

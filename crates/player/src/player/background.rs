@@ -5,6 +5,8 @@ use dbm_library::threads::ForFile;
 
 use super::{PerFile, Player};
 use crate::interface::sync;
+use crate::playback::commands;
+use crate::settings::Toggle;
 use crate::worker::{Completion, Preview};
 use crate::{Find, FindState, MainWindow, Playback, Subtitles, SyncState};
 
@@ -55,7 +57,8 @@ impl Player {
 
     /// Start afresh on what is done once per file when the file playing
     /// changes, and take down what the last one put up: the way on it
-    /// offered, and a search for its subtitles.
+    /// offered, a hold at its end asked by Escape, and a search for its
+    /// subtitles.
     fn follow_file(&mut self, ui: &MainWindow) {
         let path = self.state.path.clone();
         if self.per_file.as_ref().map(|file| &file.path) == path.as_ref() {
@@ -63,6 +66,9 @@ impl Player {
         }
         self.app.playing.set(path.clone());
         let left = std::mem::replace(&mut self.per_file, path.map(PerFile::new));
+        if left.as_ref().is_some_and(|file| file.staying) {
+            commands::set_autoplay(&self.app.mpv, self.app.settings.is_on(Toggle::Autoplay));
+        }
         if left.is_some_and(|file| file.onward_asked) {
             let playback = ui.global::<Playback>();
             playback.set_onward_path("".into());

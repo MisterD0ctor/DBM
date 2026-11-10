@@ -59,35 +59,42 @@ thread_local! {
 /// wakeups costs one.
 static WOKEN: AtomicBool = AtomicBool::new(false);
 
-/// Have a row of the way in light the window with its film, the moment the
-/// pointer or the ring comes to it.
-fn wire_lighting(player: &Rc<RefCell<Player>>) {
+/// The interface's calls that only the player can answer: a row of the way
+/// in lighting the window with its film, the moment the pointer or the ring
+/// comes to it, and Escape on the credits pill.
+fn wire_callbacks(player: &Rc<RefCell<Player>>) {
     let Some(ui) = player.borrow().ui.upgrade() else {
         return;
     };
-    let (player, window) = (Rc::downgrade(player), ui.as_weak());
-    ui.global::<Playback>()
-        .on_light_with(move |path| light_from_row(player.clone(), window.clone(), path));
+    let playback = ui.global::<Playback>();
+    let (held, window) = (Rc::downgrade(player), ui.as_weak());
+    playback.on_light_with(move |path| {
+        in_player(held.clone(), window.clone(), move |player, ui| {
+            player.light_with(ui, &path);
+        });
+    });
+    let (held, window) = (Rc::downgrade(player), ui.as_weak());
+    playback.on_stay(move || in_player(held.clone(), window.clone(), Player::stay));
 }
 
-fn light_from_row(
+fn in_player(
     player: Weak<RefCell<Player>>,
     window: slint::Weak<MainWindow>,
-    path: slint::SharedString,
+    call: impl FnOnce(&mut Player, &MainWindow) + 'static,
 ) {
     let (Some(held), Some(ui)) = (player.upgrade(), window.upgrade()) else {
         return;
     };
-    // Held only by a frame while it draws. A pointer is not answered inside
-    // one, but should a row ever be, the next turn of the loop has it rather
-    // than nobody.
+    // Held only by a frame while it draws. A pointer or a key is not
+    // answered inside one, but should one ever be, the next turn of the loop
+    // has it rather than nobody.
     let Ok(mut held) = held.try_borrow_mut() else {
         slint::Timer::single_shot(std::time::Duration::ZERO, move || {
-            light_from_row(player, window, path);
+            in_player(player, window, call);
         });
         return;
     };
-    held.light_with(&ui, &path);
+    call(&mut held, &ui);
 }
 
 /// Have the player take in what mpv or the worker has for it.
@@ -181,6 +188,9 @@ struct PerFile {
     kept_asked: bool,
     /// Whether its frame was looked at for bars.
     bars_asked: bool,
+    /// Whether Escape on its credits pill asked it to stay: no count, and
+    /// held at its end whatever autoplay says (see `stay`).
+    staying: bool,
 }
 
 impl PerFile {
@@ -193,6 +203,7 @@ impl PerFile {
             titles_asked: false,
             kept_asked: false,
             bars_asked: false,
+            staying: false,
         }
     }
 }
@@ -306,7 +317,7 @@ impl Player {
             backdrop: None,
         }));
         PLAYER.with(|slot| *slot.borrow_mut() = Rc::downgrade(&player));
-        wire_lighting(&player);
+        wire_callbacks(&player);
         player
     }
 
@@ -390,6 +401,28 @@ impl Player {
         ui.window().request_redraw();
     }
 
+    /// Escape on the credits pill: this file goes on neither by the pill's
+    /// count nor by autoplay, and holds at its end, where the end pill offers
+    /// the way on. The switches are left as they are, and the next file
+    /// takes them up again (see `follow_file`).
+    fn stay(&mut self, ui: &MainWindow) {
+        let Some(file) = self.per_file.as_mut() else {
+            return;
+        };
+        file.staying = true;
+        // mpv reads `keep-open` as the file ends, so a change before then
+        // holds this one.
+        commands::set_autoplay(&self.app.mpv, false);
+        ui.global::<Playback>().set_staying(self.staying());
+    }
+
+    /// Whether the file playing was asked to stay (see `stay`).
+    fn staying(&self) -> bool {
+        self.per_file
+            .as_ref()
+            .is_some_and(|file| file.staying && self.state.path.as_ref() == Some(&file.path))
+    }
+
     /// Whether the file has ended and its end has been given a light, which
     /// the backdrop shows in place of the film's black.
     pub fn end_lit(&self) -> bool {
@@ -411,7 +444,9 @@ impl Player {
         let settings = &self.app.settings;
         let wanted = Wanted {
             intros: settings.is_on(Toggle::SkipIntros),
-            credits: settings.is_on(Toggle::SkipCredits) && settings.is_on(Toggle::Autoplay),
+            credits: settings.is_on(Toggle::SkipCredits)
+                && settings.is_on(Toggle::Autoplay)
+                && !self.staying(),
         };
         let mpv = &self.app.mpv;
         match self

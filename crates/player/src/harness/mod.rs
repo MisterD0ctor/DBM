@@ -96,7 +96,7 @@
 //!   first episode, so the list opens at its top.
 //! * `DBM_SHOWCASE=arrival` opens a file with a place saved in it, which is
 //!   held there with the choice of going on or starting over, and
-//!   `arrival-enter` presses Enter on it, which should go on; `arrival-step`
+//!   `arrival-enter` presses Tab and Enter, which should go on; `arrival-step`
 //!   gets there by the Next button instead, and `arrival-answer` then answers
 //!   from the beginning. Each prints what it sees. Seed the watch-later
 //!   entries in a scratch `APPDATA` first.
@@ -249,33 +249,33 @@
 //!   Windows only.
 //! * `DBM_END_TEST=1` — turns autoplay off and seeks to the last moment of the
 //!   file, so the end-of-playback button appears for real, then holds it there
-//!   to be captured. `DBM_END_TEST=enter` presses Enter instead, which the
-//!   pill's ring must answer. Point `APPDATA` at a scratch directory, since
-//!   autoplay is a saved preference.
+//!   to be captured. `DBM_END_TEST=enter` presses Tab and Enter instead,
+//!   which must reach the pill first and go on. Point `APPDATA` at a scratch
+//!   directory, since autoplay is a saved preference.
 //! * `DBM_CREDITS_TEST=1` — gives the file a credits chapter over its last two
 //!   minutes and plays into it, so the credits pill comes up for real. It
 //!   reports as the seek's bar is up and again after it has gone, which the
-//!   pill must outlast, then presses Enter, which the pill's ring must answer, and
-//!   reports the file that follows. Needs an episode, and a later file beside
+//!   pill must outlast, then presses Tab and Enter, which must reach the pill
+//!   first and go on, and reports the file that follows. Needs an episode, and a later file beside
 //!   it. `DBM_CREDITS_TEST=own` keeps the file's own chapters and plays into
 //!   the last of them. `=heard` gives it nothing and plays into its last
 //!   twenty seconds, for a file with no chapters whose credits have to be
 //!   found by listening; point `APPDATA` at a scratch directory to watch it
 //!   listen, since what it hears is kept. `=scene` ends the credits forty
-//!   seconds short, at a chapter for a scene after them, which Enter must
+//!   seconds short, at a chapter for a scene after them, which the pill must
 //!   skip to rather than go on. `=mid` stops them for a scene forty seconds
-//!   in, which Enter must skip to, and then plays into the forty seconds of
+//!   in, which the pill must skip to, and then plays into the forty seconds of
 //!   credits after it, which must offer the next episode again. `=asleep`
 //!   plays in from short of them, so they start with the bar gone, and the
 //!   pill must come up without it. `=panel` plays in from short of them with
 //!   the subtitles menu open, as a click opens it, which must keep the ring
-//!   off its rows; Escape then closes it, and the ring must be on the pill
-//!   for Enter. `DBM_CREDITS_AT` names the second it plays into instead.
+//!   off its rows; Escape then closes it, and Tab and Enter must go on.
+//!   `DBM_CREDITS_AT` names the second it plays into instead.
 //! * `DBM_INTRO_TEST=1` — waits for the episode's title sequence to be found,
 //!   by its chapters or by listening, and seeks into it so the pill offers to
 //!   skip it. Reports as it arrives and after the bar has gone, then presses
-//!   Enter and reports where that landed, and what the pill says, which must
-//!   not change while it fades out. Needs an episode with another of its season
+//!   Tab and Enter and reports where that landed, and what the pill says,
+//!   which must not change while it fades out. Needs an episode with another of its season
 //!   beside it; point `APPDATA` at a scratch directory to watch it listen,
 //!   since what it hears is kept. `=hold` pauses inside the sequence instead
 //!   of pressing anything, to be captured. This and `DBM_CREDITS_TEST` turn
@@ -286,6 +286,17 @@
 //!   back, and that the credits count down, stop for a seek, and go on to
 //!   the next episode before the end. Needs an episode with a later one
 //!   beside it; the smoke test's minute-long episodes are enough.
+//! * `DBM_ALWAYS_TEST=1` — with every switch off, skips the titles and then
+//!   the credits by hand, and goes on from the end by hand, and checks that
+//!   the next of each offers its switch beside it, which turns the switch on
+//!   with no way back offered and without going on twice. `=intro`,
+//!   `=credits` and `=end` pause with that offer up instead, for a capture.
+//!   Needs an episode with a later one beside it, as for `DBM_SKIP_TEST`.
+//! * `DBM_STAY_TEST=1` — with both automatic skips and autoplay on, presses
+//!   Escape while the credits pill counts down, and checks that a ring on
+//!   the pill goes first, then the pill and its count, that the file holds
+//!   at its end, and that mpv is told to go on again from the next file.
+//!   Needs an episode with a later one beside it, as for `DBM_SKIP_TEST`.
 //! * `DBM_SMTC_TEST=1` — presses the real media keys and reads the OS media
 //!   session back, checking both directions against Windows rather than our
 //!   own copy of what it was told. Windows only.
@@ -419,6 +430,12 @@ const EXERCISES: &[(&str, Start)] = &[
     ("DBM_INTRO_TEST", |ui, _, _, _| playback::intro_test(ui)),
     ("DBM_SKIP_TEST", |ui, _, mpv, _| {
         playback::skip_test(ui, mpv.clone())
+    }),
+    ("DBM_ALWAYS_TEST", |ui, _, mpv, _| {
+        playback::always_test(ui, mpv.clone())
+    }),
+    ("DBM_STAY_TEST", |ui, _, mpv, _| {
+        playback::stay_test(ui, mpv.clone())
     }),
     ("DBM_CREDITS_TEST", |ui, _, mpv, _| {
         playback::credits_test(ui, mpv.clone())
