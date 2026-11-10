@@ -363,6 +363,8 @@ pub const START: Property<String> = Property::new("start");
 
 pub(crate) const VO: Property<String> = Property::new("vo");
 pub(crate) const HWDEC: Property<String> = Property::new("hwdec");
+/// Frames the hardware decoder allocates beyond those the stream references.
+pub(crate) const HWDEC_EXTRA_FRAMES: Property<i64> = Property::new("hwdec-extra-frames");
 pub(crate) const DEBAND: Property<bool> = Property::new("deband");
 pub(crate) const DEBAND_ITERATIONS: Property<i64> = Property::new("deband-iterations");
 /// The colour round the picture, as `r/g/b/a`.

@@ -136,6 +136,12 @@ impl Mpv {
         // over.
         mpv.set_option(prop::VO, "libmpv")?;
         mpv.tune(prop::HWDEC, "auto-safe");
+        // Each extra frame is held on the GPU more than once over, 72 MiB at
+        // 2160p, and mpv's default of six made a 4K film take 1.7 GB. With
+        // none, nvdec ran out of surfaces on a 1080p film and lost frames that
+        // no drop counter shows; one was enough, and two leaves a spare.
+        // Interpolation or a deinterlacer holds more, and would need it raised.
+        mpv.tune(prop::HWDEC_EXTRA_FRAMES, 2);
         mpv.tune(prop::KEEP_OPEN, KeepOpen::Always);
         mpv.tune(prop::PAUSE, false);
         mpv.tune(prop::DEBAND, true);
