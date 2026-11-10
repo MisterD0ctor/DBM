@@ -119,7 +119,7 @@ export component WayIn inherits Rectangle {
             + root.detail-h + root.fatal-note-h
             + Rows.group-gap + 2 * Rows.row
         : root.panel-pad
-            + (root.named ? Rows.heading : root.films * Rows.resume-row + Rows.group-gap)
+            + (root.named ? Rows.heading : Rows.heading + root.films * Rows.resume-row + Rows.group-gap)
             + 4 * Rows.row + root.note-h;
 
     /// One line of the Hint role for a note under a pane's rows, with the
@@ -320,6 +320,10 @@ export component WayIn inherits Rectangle {
             // newest first, then a gap, since they are films and the rows
             // below open dialogs.
             if root.films > 0: VerticalLayout {
+                MenuHeading {
+                    text: @tr("CONTINUE WATCHING");
+                    titular: false;
+                }
                 for film[index] in Playback.unfinished: ResumeRow {
                     film: film;
                     focused: !Playback.has-file && root.ring-row == index;

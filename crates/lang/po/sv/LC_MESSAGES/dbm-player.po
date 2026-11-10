@@ -292,6 +292,10 @@ msgctxt "WayIn"
 msgid "Close the player"
 msgstr "Stäng spelaren"
 
+msgctxt "WayIn"
+msgid "CONTINUE WATCHING"
+msgstr "FORTSÄTT TITTA"
+
 msgctxt "ControlBar"
 msgid "Opening {}…"
 msgstr "Öppnar {}…"

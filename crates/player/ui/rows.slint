@@ -623,7 +623,6 @@ export component ResumeRow inherits Rectangle {
     /// Its two lines, a hint's height each, centred in the row together.
     private property <length> line: Rows.note-line;
     private property <length> top: (root.height - 2 * root.line) / 2;
-    private property <length> words-x: Rows.label-x + Icons.row + Rows.drill-gap;
 
     private property <bool> come: touch.has-hover || root.ring;
     changed come => {
@@ -644,20 +643,10 @@ export component ResumeRow inherits Rectangle {
         ring: root.ring;
     }
 
-    // Beside both lines, as the row's mark rather than either line's.
-    Glyph {
-        source: @image-url("../../../public/icons/play.svg");
-        x: Rows.label-x + root.lean;
-        y: (root.height - self.height) / 2;
-        width: Icons.row;
-        height: Icons.row;
-        shade: root.ring ? Shade.on-ring : Shade.lit;
-    }
-
     // At the title's weight: it is what the window is most often opened
     // for, and every word is the same white, so weight is what can say so.
     Text {
-        x: root.words-x;
+        x: Rows.label-x;
         y: root.top;
         width: measure.x - Rows.group-gap - self.x;
         height: root.line;
@@ -673,7 +662,7 @@ export component ResumeRow inherits Rectangle {
     // What is left rather than how long it runs: on an empty window the
     // question is how long finishing takes.
     Text {
-        x: root.words-x;
+        x: Rows.label-x;
         y: root.top + root.line;
         width: parent.width - Rows.trail-x - self.x;
         height: root.line;

@@ -1250,3 +1250,7 @@ msgstr "Reproducción automática"
 msgctxt "CornerPill"
 msgid "Skip all credits"
 msgstr "Saltar todos los créditos"
+
+msgctxt "WayIn"
+msgid "CONTINUE WATCHING"
+msgstr "SEGUIR VIENDO"

@@ -1250,3 +1250,7 @@ msgstr "Volgende automatisch afspelen"
 msgctxt "CornerPill"
 msgid "Skip all credits"
 msgstr "Alle aftitelingen overslaan"
+
+msgctxt "WayIn"
+msgid "CONTINUE WATCHING"
+msgstr "VERDER KIJKEN"

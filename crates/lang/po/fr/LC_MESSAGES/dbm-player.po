@@ -1250,3 +1250,7 @@ msgstr "Lire la suite automatiquement"
 msgctxt "CornerPill"
 msgid "Skip all credits"
 msgstr "Passer tous les génériques"
+
+msgctxt "WayIn"
+msgid "CONTINUE WATCHING"
+msgstr "CONTINUER À REGARDER"

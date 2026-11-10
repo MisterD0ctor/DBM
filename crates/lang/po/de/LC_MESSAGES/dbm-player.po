@@ -1250,3 +1250,7 @@ msgstr "Nächste automatisch abspielen"
 msgctxt "CornerPill"
 msgid "Skip all credits"
 msgstr "Jeden Abspann überspringen"
+
+msgctxt "WayIn"
+msgid "CONTINUE WATCHING"
+msgstr "WEITERSCHAUEN"
