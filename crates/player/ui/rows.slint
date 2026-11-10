@@ -709,6 +709,12 @@ export component ShortcutRow inherits Rectangle {
     private property <bool> ring: root.focused && Chrome.focus-visible;
     in property <string> label;
     in property <string> shortcut;
+    /// It leads to a page, which a chevron after its keys says, as on a row
+    /// that leads somewhere in a panel; under the pointer it leans the way
+    /// it goes (`Rows.lean`).
+    in property <bool> leads;
+    private property <length> lean: touch.has-hover ? Rows.lean : 0px;
+    animate lean { duration: Motion.lean; easing: ease-out; }
     /// A row that states a binding rather than performing one. It takes no
     /// pointer and never lights, since a wash would offer a press that does
     /// nothing.
@@ -748,11 +754,28 @@ export component ShortcutRow inherits Rectangle {
             color: root.ring && !root.inert ? Paint.on-ring : Paint.body;
         }
 
-        Text {
-            text: root.shortcut;
-            color: root.ring && !root.inert ? Paint.on-ring : Paint.body;
-            font-size: Type.readout;
-            vertical-alignment: center;
+        HorizontalLayout {
+            spacing: Rows.drill-gap;
+            horizontal-stretch: 0;
+
+            Text {
+                text: root.shortcut;
+                color: root.ring && !root.inert ? Paint.on-ring : Paint.body;
+                font-size: Type.readout;
+                vertical-alignment: center;
+            }
+            if root.leads: Rectangle {
+                width: Icons.row;
+
+                Glyph {
+                    source: @image-url("../../../public/icons/angle-small-right.svg");
+                    width: Icons.row;
+                    height: Icons.row;
+                    x: root.lean;
+                    y: (parent.height - self.height) / 2;
+                    shade: root.ring && !root.inert ? Shade.on-ring : Shade.lit;
+                }
+            }
         }
     }
 

@@ -114,6 +114,39 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
                 });
             }
 
+            // The settings taking the way in's place on an empty window and
+            // giving it back, held mid-move the same way; `way-in-drill-keys`
+            // goes straight to the shortcuts, as ? does.
+            if surface == "way-in-drill" && tick > 4 {
+                ui.invoke_open_settings(tick % 2 == 1);
+            }
+            if surface == "way-in-drill-keys" && tick > 4 {
+                if tick % 2 == 1 {
+                    ui.invoke_open_settings_page(SettingsPage::Shortcuts);
+                } else {
+                    ui.invoke_open_settings(false);
+                }
+            }
+            // The same by the keys, S then Escape and ? then Escape, with the
+            // glass sampled every 20ms through each move: one pane, turning
+            // from the way in's shape to the settings' and back, never two.
+            if surface == "way-in-settings" && matches!(tick, 6 | 12 | 18 | 24) {
+                let key = match tick {
+                    6 => slint::SharedString::from("s"),
+                    18 => slint::SharedString::from("?"),
+                    _ => slint::SharedString::from(Key::Escape),
+                };
+                chord(&ui, &[], &key);
+                for i in 0..=14u64 {
+                    let weak = ui.as_weak();
+                    slint::Timer::single_shot(Duration::from_millis(i * 20), move || {
+                        if let Some(ui) = weak.upgrade() {
+                            report_way_in_drill(&ui, tick, i * 20);
+                        }
+                    });
+                }
+            }
+
             // The same for the settings, between the front page and the
             // glass's, and for the subtitles menu, between its tracks and the
             // search's page (with `DBM_FIND_FAKE`), Left taking it back.
@@ -632,4 +665,22 @@ pub(super) fn showcase(ui: &MainWindow, surface: String) -> Script {
             eprintln!("dbm: showcase ready ({surface})");
         }
     })
+}
+
+/// One sample of the way in and the settings moving between each other: how
+/// far, the settings' page, the ring's row, and every pane of glass drawn.
+fn report_way_in_drill(ui: &MainWindow, tick: u32, ms: u64) {
+    let rects: Vec<String> = ui
+        .get_glass_rects()
+        .iter()
+        .filter(|r| r.width > 0.0 && r.height > 0.0 && r.opacity > 0.0)
+        .map(|r| format!("{:.0}x{:.0}@{:.0},{:.0}", r.width, r.height, r.x, r.y))
+        .collect();
+    eprintln!(
+        "dbm: drill {tick:>2} {ms:>3}ms way {:.2} page {:?} ring {} | {}",
+        ui.get_way_in_drill(),
+        ui.get_settings_page(),
+        ui.get_focus_row(),
+        rects.join(" "),
+    );
 }

@@ -1250,3 +1250,7 @@ msgstr "Saltar todos los créditos"
 msgctxt "WayIn"
 msgid "CONTINUE WATCHING"
 msgstr "SEGUIR VIENDO"
+
+msgctxt "SettingsPanel"
+msgid "SETTINGS"
+msgstr "AJUSTES"

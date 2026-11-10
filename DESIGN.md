@@ -2280,8 +2280,12 @@ what is asking before it says *Open file…*:
   no frame leaves the light as it was. Enter presses the newest at once,
   without first raising the ring: it is the first row, and the one the window
   is opened to get back to.
-- **Open file, Open folder, Settings and Shortcuts** as shortcut rows with their keys, then
-  a line in Hint size saying a file can be dropped anywhere — **on the platforms
+- **Open file and Open folder** as shortcut rows with their keys, then
+  **Settings and Shortcuts**, which lead somewhere: each with its key and a
+  chevron after it, as a drill row's figure stands before its chevron, since
+  the first window anyone sees is where the keys are learned. They drill
+  rather than open a panel (see *The settings over an empty window* below).
+  Then a line in Hint size saying a file can be dropped anywhere — **on the platforms
   where one can.** The drop target is Windows-only; Linux would be a different
   implementation against a different protocol and does not have one yet. Both
   places that offer a drop — this line and the POINTER row on the reference
@@ -2310,6 +2314,22 @@ the bug is the player's), on its own account rather than beside the drop
 line, which can be gone; and after a group gap two rows: *Copy details*, which
 puts the headline and the driver's words on the clipboard and says *Copied*
 for a moment (`WayIn.copied-timer.interval`), and *Close the player*.
+
+**The settings over an empty window.** With no film there is no bar to hang
+the settings from, and a panel rising from its corner would have nothing
+there to belong to and would take the eye from the middle. So they take the way in's
+place, as a page behind it: the way in's rows go out to the left as the
+settings' first page comes in from the right, at a page's pace
+(`Motion.drill`), on one pane of glass that turns from the way in's shape
+into theirs, centred where it stood, and their middle stays put as their
+pages change height. Their first page is headed by its way back,
+*‹ SETTINGS*, as every page behind another is; Escape, ← and the way back
+itself all lead to the way in, with the ring on the row they were opened
+from. Shortcuts, by its row or by ?, comes in the same way and goes straight
+back to the way in, the settings' first page never passed. A film arriving
+while they are up leaves them where they are, to fade where they stand when
+closed, since jumping to the corner mid-use is what this keeps from
+happening. With a film the settings hang from the bar as every panel does.
 
 ## Do's and Don'ts
 

@@ -63,6 +63,11 @@
 //!   `way-in-ring` walks the keyboard's ring to the third film instead, and
 //!   `way-in-press` presses the second film and prints where the pane's
 //!   films are every 20ms as it leaves, which should only sink and fade.
+//! * `DBM_SHOWCASE=way-in-drill` opens and closes the settings on an empty
+//!   window every tick, which holds them mid-move as they take the way in's
+//!   place, for a capture; `way-in-drill-keys` does it with the shortcuts
+//!   page, as ? does. `way-in-settings` presses S, Escape, ? and Escape, and
+//!   prints the glass every 20ms through each move.
 //! * `DBM_SHOWCASE=settings`, `video`, `episodes`, `glass`, `ambience`,
 //!   `accessibility`, `shortcuts` and `language` open the settings on that
 //!   page.
@@ -292,6 +297,12 @@
 //!   with no way back offered and without going on twice. `=intro`,
 //!   `=credits` and `=end` pause with that offer up instead, for a capture.
 //!   Needs an episode with a later one beside it, as for `DBM_SKIP_TEST`.
+//! * `DBM_WAY_IN_TEST=<file>` — starts on an empty window and opens the
+//!   settings from the way in by S, by its rows and by ?, checking that
+//!   they come in from the side to where it stood, go back by Escape and by
+//!   Left, and give the ring back to the row they came from. Then opens
+//!   `<file>` while they are up, which leaves them where they are. Run
+//!   without a file argument.
 //! * `DBM_STAY_TEST=1` — with both automatic skips and autoplay on, presses
 //!   Escape while the credits pill counts down, and checks that a ring on
 //!   the pill goes first, then the pill and its count, that the file holds
@@ -399,6 +410,7 @@ const EXERCISES: &[(&str, Start)] = &[
         keys::step_test(ui, mpv.clone())
     }),
     ("DBM_REACH_TEST", |ui, _, _, _| keys::reach_test(ui)),
+    ("DBM_WAY_IN_TEST", |ui, _, _, _| keys::way_in_test(ui)),
     ("DBM_CURSOR_TEST", |ui, _, _, _| platform::cursor_test(ui)),
     ("DBM_PANEL_TEST", |ui, _, _, _| layout::panel_test(ui)),
     ("DBM_SUBS_TEST", |ui, _, mpv, _| {

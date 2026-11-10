@@ -22,16 +22,24 @@ failed=0
 # Each exercise with how long it is given, and so how long its run lasts,
 # well past how long it takes with no GPU: the input one is twenty-eight steps
 # a second and a half apart, and the scrub one 120 steps that each wait for a
-# frame, which software GL draws a few of a second.
+# frame, which software GL draws a few of a second. One marked `:empty` starts
+# on an empty window and is handed the film to open itself.
 for run in DBM_INPUT_TEST:90000 DBM_SCRUB_TEST:90000 DBM_SUBS_TEST:30000 \
     DBM_SKIP_TEST:90000 DBM_ALWAYS_TEST:90000 DBM_STAY_TEST:60000 \
-    DBM_ALLOC_TEST:60000; do
+    DBM_WAY_IN_TEST:60000:empty DBM_ALLOC_TEST:60000; do
     exercise=${run%%:*}
+    rest=${run#*:}
+    limit=${rest%%:*}
+    if [ "$rest" = "$limit" ]; then
+        value=1 file=$film
+    else
+        value=$film file=
+    fi
     data=$(mktemp -d)
     log=$(mktemp)
     echo "== $exercise"
-    if APPDATA="$data" "$here/headless.sh" env "$exercise=1" \
-        DBM_QUIT_AFTER="${run#*:}" "$player" "$film" >"$log" 2>&1; then
+    if APPDATA="$data" "$here/headless.sh" env "$exercise=$value" \
+        DBM_QUIT_AFTER="$limit" "$player" ${file:+"$file"} >"$log" 2>&1; then
         grep -E '^dbm: (pass|FAIL|---)' "$log"
     else
         cat "$log"

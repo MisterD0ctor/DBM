@@ -1247,3 +1247,7 @@ msgstr "Spela nästa automatiskt"
 msgctxt "CornerPill"
 msgid "Skip all credits"
 msgstr "Hoppa över alla eftertexter"
+
+msgctxt "SettingsPanel"
+msgid "SETTINGS"
+msgstr "INSTÄLLNINGAR"

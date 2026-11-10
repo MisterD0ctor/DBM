@@ -38,7 +38,7 @@ import { AudioPanel } from "audio_panel.slint";
 import { FilesPanel } from "files_panel.slint";
 import { PlaylistPanel } from "playlist_panel.slint";
 import { MenuPage, SubtitlesMenu } from "subtitles_menu.slint";
-import { SettingsPage, SettingsPanel } from "settings_panel.slint";
+import { SettingsFrom, SettingsPage, SettingsPanel } from "settings_panel.slint";
 
 // What the Rust side reaches besides the window: the globals it drives, the
 // structs it fills in, and the enums both sides name.
@@ -279,6 +279,10 @@ export component MainWindow inherits Window {
     }
 
     public function open-settings(open: bool) {
+        if (open && !root.settings-open) {
+            root.settings-from = root.has-file ? SettingsFrom.bar : SettingsFrom.way-in;
+            root.way-in-row = root.focus-row;
+        }
         root.show-panel(Panel.settings, open);
         if (open) {
             root.settings-page = SettingsPage.front;
@@ -288,10 +292,33 @@ export component MainWindow inherits Window {
     /// Show one settings page, opening the panel if it is shut. Public so a
     /// test can walk the pages and check each page's height.
     public function open-settings-page(page: SettingsPage) {
+        let opening = !root.settings-open;
         root.open-settings(true);
+        if (opening && root.settings-from == SettingsFrom.way-in) {
+            root.settings-from = SettingsFrom.way-in-page;
+        }
         root.settings-page = page;
         root.focus-row = 0;
     }
+
+    /// Where the settings were opened from, kept until they are opened again,
+    /// so they leave the way they came (see `SettingsFrom`).
+    property <SettingsFrom> settings-from: SettingsFrom.bar;
+    /// The way in's row the ring was on when the settings took its place,
+    /// which it goes back to with them.
+    property <int> way-in-row: 0;
+    /// How far the settings opened from the way in have come in from the
+    /// side, 0 to 1, at a page's pace.
+    property <float> way-drill: root.settings-open
+        && root.settings-from != SettingsFrom.bar ? 1.0 : 0.0;
+    animate way-drill {
+        duration: Motion.drill;
+        easing: ease-in-out;
+    }
+    /// Whether they come and go sideways, which needs the way in to go back
+    /// to: a film arriving meanwhile leaves them where they are, to fade when
+    /// they close.
+    property <bool> settings-slides: root.settings-from != SettingsFrom.bar && !root.has-file;
 
     public function open-files(open: bool) {
         root.show-panel(Panel.files, open);
@@ -312,11 +339,12 @@ export component MainWindow inherits Window {
         }
     }
 
-    /// Close the open panel. The ring goes back to the top, which is also
-    /// where the way in wants it once the panel closes over an empty window.
+    /// Close the open panel. The ring goes back to the top, or, from the
+    /// settings that stood in the way in's place, to the row they came from.
     function close-panel() {
+        let to-way-in = root.settings-open && root.settings-slides;
         root.open-panel = Panel.none;
-        root.focus-row = 0;
+        root.focus-row = to-way-in ? root.way-in-row : 0;
     }
 
     /// Where a panel is, and how much of it is in: its column and its
@@ -898,11 +926,22 @@ export component MainWindow inherits Window {
         if (Chrome.focus-visible && root.focus-adjust(delta)) {
             return true;
         }
+        // The way in's two rows with a chevron, as a panel's.
+        if (!root.panel-open && !root.has-file && !held && delta > 0
+                && Chrome.focus-visible && way-in.leads(root.focus-row)) {
+            way-in.activate(root.focus-row);
+            return true;
+        }
         if (!root.panel-open || held) {
             return false;
         }
         if (delta < 0) {
-            root.page-back();
+            // From the settings' first page back to the way in, as from a
+            // page back to the first.
+            if (!root.page-back() && root.settings-open
+                    && root.settings-from != SettingsFrom.bar) {
+                root.close-panel();
+            }
         } else if (Chrome.focus-visible) {
             root.focus-enter();
         }
@@ -1182,6 +1221,9 @@ export component MainWindow inherits Window {
     out property <float> end-shown: end-pill.shown;
     /// And whether the credits pill is up for Escape to put away.
     out property <bool> credits-up: corner.credits-up;
+    /// How far the settings have come in over the way in, for the showcase
+    /// that samples the move.
+    out property <float> way-in-drill: root.way-drill;
 
     /// The ring goes with the pill it was on, or Enter would press a choice
     /// that is no longer there. Over a panel the ring is the panel's, and
@@ -1938,6 +1980,14 @@ export component MainWindow inherits Window {
 
     settings := SettingsPanel {
         open: root.settings-open;
+        from: root.settings-from;
+        slides: root.settings-slides;
+        slide: root.settings-slides ? root.way-drill : 1;
+        way-in: way-in.rest;
+        room-h: root.height;
+        leave => {
+            root.close-panel();
+        }
         warming: root.warming == Panel.settings;
         anchor: bar.settings-anchor;
         room: root.width;
@@ -2010,8 +2060,17 @@ export component MainWindow inherits Window {
     way-in := WayIn {
         width: 100%;
         height: 100%;
-        open: !root.has-file && !root.settings-open;
-        ring-row: root.focus-row;
+        // Under the settings it opened, until they have slid all the way in.
+        open: !root.has-file && (!root.settings-open || root.settings-from != SettingsFrom.bar);
+        // No ring while the settings stand in its place or move, which have
+        // it, until it is back where it was.
+        ring-row: root.settings-from != SettingsFrom.bar
+            && (root.settings-open || root.way-drill > 0) ? -1 : root.focus-row;
+        // Unconditionally, so the move is read at rest: an animated property
+        // first read after it has changed starts at its new value, and the
+        // first opening jumped in (measured).
+        slide: root.way-drill;
+        frame: settings.bounds;
         fatal: root.fatal;
         fatal-detail: root.fatal-detail;
         fatal-note: root.fatal-note;

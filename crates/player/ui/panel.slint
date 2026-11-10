@@ -25,8 +25,20 @@ export component GlassPanel inherits Rectangle {
     /// or it would trail the window's edge for the whole drag.
     in property <bool> drills;
     in property <bool> resizing;
+    /// Standing in the middle of the window rather than hanging from the
+    /// bar: the settings opened over an empty window, in the way in's place
+    /// (see `SettingsFrom`). Its middle stays put as it grows and shrinks.
+    in property <bool> centred;
+    /// The window's height, which a centred panel stands in the middle of.
+    in property <length> room-h;
+    /// Whether it comes and goes sideways, taking the way in's place, rather
+    /// than fading; and how far in it is, 0 to 1. Meanwhile its glass is the
+    /// way in's turning into its own (see `WayIn.slide`).
+    in property <bool> slides;
+    in property <float> slide: 1;
 
-    out property <float> shown: root.open ? 1.0 : 0.0;
+    out property <float> shown: root.slides ? (root.slide > 0 ? 1.0 : 0.0)
+        : root.open ? 1.0 : 0.0;
     out property <Bounds> bounds: {
         x: root.x,
         y: root.y,
@@ -48,7 +60,9 @@ export component GlassPanel inherits Rectangle {
     out property <length> panel-pad: 2 * Panels.pad;
     /// Room for a panel between the bar and a top margin the same as its
     /// side margins.
-    out property <length> panel-max-h: root.floor - Rows.offset - Surfaces.margin;
+    out property <length> panel-max-h: root.centred
+        ? root.room-h - 2 * Surfaces.margin
+        : root.floor - Rows.offset - Surfaces.margin;
     /// The most the panels whose rows are names someone else wrote, the
     /// tracks and the playlist, may take: a third of the window, so a bigger
     /// window shows more of an episode's title and a release's name, between
@@ -68,18 +82,22 @@ export component GlassPanel inherits Rectangle {
     }
 
     animate shown {
-        duration: Motion.surface;
+        duration: root.slides ? 0ms : Motion.surface;
         easing: ease-out;
     }
     property <length> rise: (1.0 - root.shown) * Surfaces.lift;
 
-    x: clamp(root.anchor - self.width / 2, Surfaces.margin,
-        root.room - self.width - Surfaces.margin);
+    x: root.centred ? (root.room - self.width) / 2
+        : clamp(root.anchor - self.width / 2, Surfaces.margin,
+            root.room - self.width - Surfaces.margin);
     // From its own height, so the panel keeps its bottom edge and grows
-    // upward, and the glass, read from this rectangle, follows.
-    y: root.floor - self.height - Rows.offset + root.rise;
+    // upward, or centred keeps its middle, and the glass, read from this
+    // rectangle, follows.
+    y: root.centred ? (root.room-h - self.height) / 2 + root.rise
+        : root.floor - self.height - Rows.offset + root.rise;
+    // Not while it slides in, whose size is already a step of its own.
     animate width, height {
-        duration: root.drills && !root.resizing ? Motion.drill : 0ms;
+        duration: root.drills && !root.resizing && root.slide >= 1 ? Motion.drill : 0ms;
         easing: ease-in-out;
     }
     visible: root.shown > Surfaces.gone || root.warming;

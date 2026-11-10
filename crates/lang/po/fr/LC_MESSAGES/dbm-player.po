@@ -1250,3 +1250,7 @@ msgstr "Passer tous les génériques"
 msgctxt "WayIn"
 msgid "CONTINUE WATCHING"
 msgstr "CONTINUER À REGARDER"
+
+msgctxt "SettingsPanel"
+msgid "SETTINGS"
+msgstr "RÉGLAGES"

@@ -14,8 +14,15 @@ import { Motion, Paint, Panels, Rows, Type } from "theme.slint";
 export component WayIn inherits Rectangle {
     /// Not tied to the idle clock, since there is no film to keep clear, and
     /// an empty window that hid its only control would show nothing. Only the
-    /// settings panel can open over it.
+    /// settings can open from it, which take its place (see `slide`).
     in property <bool> open;
+    /// How far the settings opened from here have come in from the side, 0
+    /// to 1 (see `SettingsFrom`): its rows go out the other side, as a
+    /// panel's first page does for a page behind it, and meanwhile the two
+    /// share the settings' glass, turning from this pane's shape into theirs.
+    in property <float> slide;
+    /// That glass.
+    in property <Bounds> frame;
     /// The row the keyboard's ring is on.
     in property <int> ring-row;
     /// Why the player can't show video at all, or empty when it can (see the
@@ -35,19 +42,33 @@ export component WayIn inherits Rectangle {
     /// to continue, the two ways to open, Settings and Shortcuts.
     out property <int> rows: root.fatal != "" ? 2 : root.films + 4;
     out property <float> shown: root.open ? 1.0 : 0.0;
-    /// Where the pane is drawn, and its glass.
-    out property <Bounds> bounds: {
+    /// Where the pane stands at rest, for the settings to turn from.
+    out property <Bounds> rest: {
+        x: root.pane-x,
+        y: root.pane-y,
+        width: root.pane-w,
+        height: root.pane-h,
+    };
+    /// Where the pane is drawn, and its glass, which is the settings' while
+    /// they come in.
+    out property <Bounds> bounds: root.slide > 0 ? root.frame : {
         x: root.pane-x,
         y: root.pane-y + root.rise,
         width: root.pane-w,
         height: root.pane-h,
     };
     out property <GlassRect> glass: Surfaces.glass(root.pane-x, root.pane-y + root.rise,
-        root.pane-w, root.pane-h, Panels.radius, root.shown);
+        root.pane-w, root.pane-h, Panels.radius, root.slide > 0 ? 0 : root.shown);
     /// Where the first film's row starts, and how tall each is, for the
     /// harness to point at one.
     out property <length> films-y: root.pane-y + root.rise + Panels.pad;
     out property <length> film-h: Rows.resume-row;
+
+    /// Whether a row leads to a page rather than doing something, which →
+    /// opens as it does a row with a chevron in a panel.
+    public pure function leads(row: int) -> bool {
+        return root.fatal == "" && row >= root.films + 2;
+    }
 
     /// Press a row, as Enter does the ring's.
     public function activate(row: int) {
@@ -79,8 +100,9 @@ export component WayIn inherits Rectangle {
     /// Whether the rows that start an open take a press: not while one is in
     /// flight, which a second click would queue behind, and not while the
     /// pane leaves, since the open has ended by then, partway through the
-    /// fade, and the second click of a double-click would open the film again.
-    property <bool> answers: root.open && !Playlist.opening;
+    /// fade, and the second click of a double-click would open the film again;
+    /// nor while the settings slide over it.
+    property <bool> answers: root.open && !Playlist.opening && root.slide == 0;
     /// Whether the pane says an open is in flight: those rows at half, and a
     /// line naming what is arriving. Only once it has run `Motion.slow-open`,
     /// since a film on a local disk is playing before the line could be read,
@@ -193,16 +215,17 @@ export component WayIn inherits Rectangle {
     // composites anyway, so the glass resolves over a black frame into a
     // faint lift with an edge, which a fill would cover.
     Rectangle {
-        x: root.pane-x;
-        y: root.pane-y + root.rise;
-        width: root.pane-w;
-        height: root.pane-h;
+        x: root.bounds.x;
+        y: root.bounds.y;
+        width: root.bounds.width;
+        height: root.bounds.height;
         // A fill only where there is no glass to cover: after a failure,
         // which leaves no render context for the glass pass, and while
         // nothing is drawn behind the pane yet (see `backdrop` and `mark`).
         property <bool> bare: root.fatal != "" || !root.backdrop;
-        border-radius: self.bare ? Panels.radius : 0px;
-        visible: root.shown > Surfaces.gone;
+        // Cut at the glass's corners while the rows go out past them.
+        border-radius: self.bare || root.slide > 0 ? Panels.radius : 0px;
+        visible: root.shown > Surfaces.gone && root.slide < 1;
         opacity: root.shown;
         clip: true;
 
@@ -219,58 +242,201 @@ export component WayIn inherits Rectangle {
             }
         }
 
-        VerticalLayout {
-            padding-top: Panels.pad;
-            padding-bottom: Panels.pad;
+        // Its rows at their own height in the middle of the glass, going out
+        // the side as the settings come in.
+        Rectangle {
+            x: -root.slide * parent.width;
+            y: (parent.height - root.pane-h) / 2;
+            width: parent.width;
+            height: root.pane-h;
 
-            // No rows that open a file: with no render context, a film would
-            // play with no picture.
-            if root.fatal != "": VerticalLayout {
-                Rectangle {
-                    height: root.line-h;
+            VerticalLayout {
+                padding-top: Panels.pad;
+                padding-bottom: Panels.pad;
 
-                    HorizontalLayout {
-                        padding-left: Rows.label-x;
-                        padding-right: Rows.trail-x;
+                // No rows that open a file: with no render context, a film would
+                // play with no picture.
+                if root.fatal != "": VerticalLayout {
+                    Rectangle {
+                        height: root.line-h;
 
-                        Text {
-                            text: root.fatal;
-                            color: Paint.strong;
-                            font-size: Type.title;
-                            font-weight: Type.weight-title;
-                            vertical-alignment: center;
+                        HorizontalLayout {
+                            padding-left: Rows.label-x;
+                            padding-right: Rows.trail-x;
+
+                            Text {
+                                text: root.fatal;
+                                color: Paint.strong;
+                                font-size: Type.title;
+                                font-weight: Type.weight-title;
+                                vertical-alignment: center;
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: Rows.group-gap;
+                    }
+
+                    // The driver's own words, allowed to wrap to three lines,
+                    // since this is the only copy of them.
+                    Rectangle {
+                        height: root.detail-h;
+
+                        HorizontalLayout {
+                            padding-left: Rows.label-x;
+                            padding-right: Rows.label-x;
+
+                            Text {
+                                text: root.fatal-detail;
+                                color: Paint.body;
+                                font-size: Type.hint;
+                                wrap: word-wrap;
+                                overflow: elide;
+                                vertical-alignment: top;
+                            }
+                        }
+                    }
+
+                    // The gap is inside the line's height, so a failure with no
+                    // note leaves no space for one.
+                    if root.fatal-note-h > 0px: Rectangle {
+                        height: root.fatal-note-h;
+
+                        HorizontalLayout {
+                            padding-top: Rows.group-gap;
+                            padding-left: Rows.label-x;
+                            padding-right: Rows.trail-x;
+
+                            Text {
+                                text: root.fatal-note;
+                                color: Paint.body;
+                                font-size: Type.hint;
+                                vertical-alignment: center;
+                                overflow: elide;
+                            }
+                        }
+                    }
+
+                    // Something to do about it: copy the words, or leave.
+                    Rectangle {
+                        height: Rows.group-gap;
+                    }
+                    MenuRow {
+                        label: root.copied ? @tr("Copied") : @tr("Copy details");
+                        focused: !Playback.has-file && root.ring-row == 0;
+                        picked => {
+                            root.copy-details();
+                        }
+                    }
+                    MenuRow {
+                        label: @tr("Close the player");
+                        focused: !Playback.has-file && root.ring-row == 1;
+                        picked => {
+                            root.quit();
                         }
                     }
                 }
 
-                Rectangle {
-                    height: Rows.group-gap;
+                // With nothing to continue, the player's own name heads the pane,
+                // so the first window anyone sees says what is asking. Natural
+                // case, as a name.
+                if root.named: MenuHeading {
+                    text: "DBM";
+                    titular: true;
                 }
 
-                // The driver's own words, allowed to wrap to three lines,
-                // since this is the only copy of them.
-                Rectangle {
-                    height: root.detail-h;
-
-                    HorizontalLayout {
-                        padding-left: Rows.label-x;
-                        padding-right: Rows.label-x;
-
-                        Text {
-                            text: root.fatal-detail;
-                            color: Paint.body;
-                            font-size: Type.hint;
-                            wrap: word-wrap;
-                            overflow: elide;
-                            vertical-alignment: top;
+                // What you were watching comes first, since an empty window is
+                // most often opened to get back to it: every film left unfinished,
+                // newest first, then a gap, since they are films and the rows
+                // below open dialogs.
+                if root.films > 0: VerticalLayout {
+                    MenuHeading {
+                        text: @tr("CONTINUE WATCHING");
+                        titular: false;
+                    }
+                    for film[index] in Playback.unfinished: ResumeRow {
+                        film: film;
+                        focused: !Playback.has-file && root.ring-row == index;
+                        opacity: root.waiting ? 0.5 : 1.0;
+                        animate opacity { duration: Motion.surface; easing: ease-out; }
+                        picked => {
+                            if (root.answers) {
+                                Playlist.open-path(film.path, false);
+                            }
                         }
+                        // The film being opened is what lights the window then.
+                        come-to => {
+                            if (!Playlist.opening) {
+                                Playback.light-with(film.path);
+                            }
+                        }
+                    }
+                    Rectangle {
+                        height: Rows.group-gap;
                     }
                 }
 
-                // The gap is inside the line's height, so a failure with no
-                // note leaves no space for one.
-                if root.fatal-note-h > 0px: Rectangle {
-                    height: root.fatal-note-h;
+                // The same rows, words and keys as the files panel on the bar, so
+                // they are learned once. Dimmed and inert while an open is in
+                // flight, or a second click would queue a second scan. Dimmed here
+                // rather than by `ShortcutRow`, whose `inert` reference rows must
+                // not fade.
+                if root.fatal == "": ShortcutRow {
+                    label: @tr("Open file…");
+                    shortcut: @tr("Ctrl+O");
+                    focused: !Playback.has-file && root.ring-row == root.films;
+                    inert: Playlist.opening;
+                    opacity: root.waiting ? 0.5 : 1.0;
+                    animate opacity { duration: Motion.surface; easing: ease-out; }
+                    picked => {
+                        if (root.answers) {
+                            Playlist.request-open(false);
+                        }
+                    }
+                }
+                if root.fatal == "": ShortcutRow {
+                    label: @tr("Open folder…");
+                    shortcut: @tr("Ctrl+Shift+O");
+                    focused: !Playback.has-file && root.ring-row == root.films + 1;
+                    inert: Playlist.opening;
+                    opacity: root.waiting ? 0.5 : 1.0;
+                    animate opacity { duration: Motion.surface; easing: ease-out; }
+                    picked => {
+                        if (root.answers) {
+                            Playlist.request-open(true);
+                        }
+                    }
+                }
+                // The bar's way to the settings is gone until there is a film.
+                // Still working, so not dimmed while opening.
+                if root.fatal == "": ShortcutRow {
+                    label: @tr("Settings");
+                    leads: true;
+                    shortcut: "S";
+                    focused: !Playback.has-file && root.ring-row == root.films + 2;
+                    picked => {
+                        root.settings-asked();
+                    }
+                }
+                // The reference, one key away from the moment someone is most
+                // likely to wonder what the keys are.
+                if root.fatal == "": ShortcutRow {
+                    label: @tr("Shortcuts");
+                    leads: true;
+                    shortcut: "?";
+                    focused: !Playback.has-file && root.ring-row == root.films + 3;
+                    picked => {
+                        root.shortcuts-asked();
+                    }
+                }
+
+                // One line for two things never said at once: what else you could
+                // do, and what is happening now. The drop is stated rather than
+                // shown, because the shell reports nothing until the file lands.
+                // The gap comes with the line, so with neither there is no row.
+                if root.fatal == "" && root.note-h > 0px: Rectangle {
+                    height: root.note-h;
 
                     HorizontalLayout {
                         padding-top: Rows.group-gap;
@@ -278,149 +444,17 @@ export component WayIn inherits Rectangle {
                         padding-right: Rows.trail-x;
 
                         Text {
-                            text: root.fatal-note;
+                            // Two branches suffice, since the row exists only when
+                            // one of them applies.
+                            text: root.waiting
+                                ? @tr("Opening {}…", Playlist.opening-name)
+                                : @tr("Or drop a file or folder onto the window");
                             color: Paint.body;
                             font-size: Type.hint;
                             vertical-alignment: center;
+                            horizontal-alignment: left;
                             overflow: elide;
                         }
-                    }
-                }
-
-                // Something to do about it: copy the words, or leave.
-                Rectangle {
-                    height: Rows.group-gap;
-                }
-                MenuRow {
-                    label: root.copied ? @tr("Copied") : @tr("Copy details");
-                    focused: !Playback.has-file && root.ring-row == 0;
-                    picked => {
-                        root.copy-details();
-                    }
-                }
-                MenuRow {
-                    label: @tr("Close the player");
-                    focused: !Playback.has-file && root.ring-row == 1;
-                    picked => {
-                        root.quit();
-                    }
-                }
-            }
-
-            // With nothing to continue, the player's own name heads the pane,
-            // so the first window anyone sees says what is asking. Natural
-            // case, as a name.
-            if root.named: MenuHeading {
-                text: "DBM";
-                titular: true;
-            }
-
-            // What you were watching comes first, since an empty window is
-            // most often opened to get back to it: every film left unfinished,
-            // newest first, then a gap, since they are films and the rows
-            // below open dialogs.
-            if root.films > 0: VerticalLayout {
-                MenuHeading {
-                    text: @tr("CONTINUE WATCHING");
-                    titular: false;
-                }
-                for film[index] in Playback.unfinished: ResumeRow {
-                    film: film;
-                    focused: !Playback.has-file && root.ring-row == index;
-                    opacity: root.waiting ? 0.5 : 1.0;
-                    animate opacity { duration: Motion.surface; easing: ease-out; }
-                    picked => {
-                        if (root.answers) {
-                            Playlist.open-path(film.path, false);
-                        }
-                    }
-                    // The film being opened is what lights the window then.
-                    come-to => {
-                        if (!Playlist.opening) {
-                            Playback.light-with(film.path);
-                        }
-                    }
-                }
-                Rectangle {
-                    height: Rows.group-gap;
-                }
-            }
-
-            // The same rows, words and keys as the files panel on the bar, so
-            // they are learned once. Dimmed and inert while an open is in
-            // flight, or a second click would queue a second scan. Dimmed here
-            // rather than by `ShortcutRow`, whose `inert` reference rows must
-            // not fade.
-            if root.fatal == "": ShortcutRow {
-                label: @tr("Open file…");
-                shortcut: @tr("Ctrl+O");
-                focused: !Playback.has-file && root.ring-row == root.films;
-                inert: Playlist.opening;
-                opacity: root.waiting ? 0.5 : 1.0;
-                animate opacity { duration: Motion.surface; easing: ease-out; }
-                picked => {
-                    if (root.answers) {
-                        Playlist.request-open(false);
-                    }
-                }
-            }
-            if root.fatal == "": ShortcutRow {
-                label: @tr("Open folder…");
-                shortcut: @tr("Ctrl+Shift+O");
-                focused: !Playback.has-file && root.ring-row == root.films + 1;
-                inert: Playlist.opening;
-                opacity: root.waiting ? 0.5 : 1.0;
-                animate opacity { duration: Motion.surface; easing: ease-out; }
-                picked => {
-                    if (root.answers) {
-                        Playlist.request-open(true);
-                    }
-                }
-            }
-            // The bar's way to the settings is gone until there is a film.
-            // Still working, so not dimmed while opening.
-            if root.fatal == "": ShortcutRow {
-                label: @tr("Settings");
-                shortcut: "S";
-                focused: !Playback.has-file && root.ring-row == root.films + 2;
-                picked => {
-                    root.settings-asked();
-                }
-            }
-            // The reference, one key away from the moment someone is most
-            // likely to wonder what the keys are.
-            if root.fatal == "": ShortcutRow {
-                label: @tr("Shortcuts");
-                shortcut: "?";
-                focused: !Playback.has-file && root.ring-row == root.films + 3;
-                picked => {
-                    root.shortcuts-asked();
-                }
-            }
-
-            // One line for two things never said at once: what else you could
-            // do, and what is happening now. The drop is stated rather than
-            // shown, because the shell reports nothing until the file lands.
-            // The gap comes with the line, so with neither there is no row.
-            if root.fatal == "" && root.note-h > 0px: Rectangle {
-                height: root.note-h;
-
-                HorizontalLayout {
-                    padding-top: Rows.group-gap;
-                    padding-left: Rows.label-x;
-                    padding-right: Rows.trail-x;
-
-                    Text {
-                        // Two branches suffice, since the row exists only when
-                        // one of them applies.
-                        text: root.waiting
-                            ? @tr("Opening {}…", Playlist.opening-name)
-                            : @tr("Or drop a file or folder onto the window");
-                        color: Paint.body;
-                        font-size: Type.hint;
-                        vertical-alignment: center;
-                        horizontal-alignment: left;
-                        overflow: elide;
                     }
                 }
             }

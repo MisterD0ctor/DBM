@@ -13,11 +13,25 @@ import {
 import { Measure } from "measure.slint";
 import { GlassPanel } from "panel.slint";
 import { ScrollList } from "scroll_list.slint";
+import { Bounds } from "surface.slint";
 import { Motion, Paint, Panels, Rows, Type } from "theme.slint";
 
 /// The settings panel's pages, in the order its front page lists them.
 export enum SettingsPage {
     front, video, episodes, glass, border, accessibility, shortcuts, language
+}
+
+/// Where the settings panel was opened from, which decides where it stands
+/// and where its way back leads.
+export enum SettingsFrom {
+    /// Its button on the bar: hung from it, with its first page the top.
+    bar,
+    /// The way in, whose place it takes: centred where the way in stood, with
+    /// the way in above its first page.
+    way-in,
+    /// The same, opened straight onto a page, which the way in is then
+    /// directly above.
+    way-in-page,
 }
 
 /// The two pages slide, the old one out the side the new one comes in
@@ -41,6 +55,13 @@ export component SettingsPanel inherits GlassPanel {
     /// Whether a file dropped on the window reaches the player, which the
     /// shortcuts page only mentions where it does.
     in property <bool> drop-supported;
+    in property <SettingsFrom> from: SettingsFrom.bar;
+    /// Where the way in's pane stands, which the panel's glass turns from as
+    /// it comes in from the side (see `GlassPanel.slides`).
+    in property <Bounds> way-in;
+    /// The way back from the top, from the first page or from a page opened
+    /// straight from the way in: to the way in.
+    callback leave();
 
     /// A page whose last row is its reset, where the ring stops at the ends
     /// rather than wrapping.
@@ -50,12 +71,12 @@ export component SettingsPanel inherits GlassPanel {
     out property <float> leaf-shown: root.drill > 0.0 ? root.shown : 0;
     /// How far the panel is from its target height, for the test that drags
     /// the window's size and expects it to be zero.
-    out property <length> lag: abs(root.height - min(root.panel-pad + root.body, root.panel-max-h));
+    out property <length> lag: abs(root.height - root.target-h);
 
     /// Bring the ring's row into view, where it is on a page's list.
     public function reveal() {
         if (root.page != SettingsPage.shortcuts
-                && (root.page == SettingsPage.front || root.ring-row > 0)) {
+                && root.ring-row >= (root.page == SettingsPage.front ? root.front-from : 1)) {
             root.settings-reveal-top = root.settings-row-top(root.page, root.ring-row);
             root.settings-reveal-h = root.settings-row-h(root.page, root.ring-row);
             root.settings-reveal-tick += 1;
@@ -107,7 +128,7 @@ export component SettingsPanel inherits GlassPanel {
     /// Back to the front page, from a page behind it; says whether it was on
     /// one.
     public function go-back() -> bool {
-        if (root.page != SettingsPage.front) {
+        if (root.page != SettingsPage.front && root.from != SettingsFrom.way-in-page) {
             root.page = SettingsPage.front;
             root.ring-row = 0;
             return true;
@@ -141,9 +162,17 @@ export component SettingsPanel inherits GlassPanel {
     // Wider on the shortcuts page, the one page with two columns of words, a
     // name and its keys: at the others' width the longest pairs are cut in
     // every language, and at this one in none of them.
-    width: root.page == SettingsPage.shortcuts ? 440px : root.words-w;
-    height: min(root.panel-pad + root.body, root.panel-max-h);
+    property <length> target-w: root.page == SettingsPage.shortcuts ? 440px : root.words-w;
+    property <length> target-h: min(root.panel-pad + root.body, root.panel-max-h);
+    // From the way in's size to its own while it comes in from the side.
+    width: root.slide < 1
+        ? root.way-in.width + (root.target-w - root.way-in.width) * root.slide
+        : root.target-w;
+    height: root.slide < 1
+        ? root.way-in.height + (root.target-h - root.way-in.height) * root.slide
+        : root.target-h;
     drills: true;
+    centred: root.from != SettingsFrom.bar;
 
     /// The widest name, and room after it for the track to sit at least 10px
     /// off the words where the row's spacing alone would put it closer.
@@ -156,7 +185,7 @@ export component SettingsPanel inherits GlassPanel {
     /// back.
     /// How many rows a page has, its way back and reset included.
     pure function page-rows(page: SettingsPage) -> int {
-        return page == SettingsPage.front ? 7
+        return page == SettingsPage.front ? 7 + root.front-from
             : page == SettingsPage.glass ? 2 + Settings.glass-params.length
             : page == SettingsPage.border ? 3 + Settings.border-params.length
             : page == SettingsPage.accessibility ? 2 + root.access-switches
@@ -307,8 +336,12 @@ export component SettingsPanel inherits GlassPanel {
     /// The first page: three headings and seven rows that lead somewhere. The
     /// headings after the first follow a group and take the gap.
     property <length> front-natural: 3 * root.heading-h
-        + root.page-rows(SettingsPage.front) * root.row-h
+        + (root.page-rows(SettingsPage.front) - root.front-from) * root.row-h
         + 2 * Rows.group-gap;
+    /// The first page's way back, over its list, where the way in is above
+    /// it: a row before the list's, like a page's way back.
+    property <int> front-from: root.from == SettingsFrom.way-in ? 1 : 0;
+    property <length> front-back-h: root.front-from * root.row-h;
     /// A line of the system's under the Animations switch while it holds them
     /// off, so the switch standing on doesn't read as broken.
     property <bool> motion-note: Motion.system-still && Motion.chosen;
@@ -316,14 +349,14 @@ export component SettingsPanel inherits GlassPanel {
     /// What is left of the panel for each list: all of it on the first page,
     /// and what the way back leaves on the others. Each list's own height at
     /// rest while the panel moves between the two (see `moving`).
-    property <length> front-list-h: root.moving ? root.front-rest-h
-        : max(0px, root.height - root.panel-pad);
-    property <length> leaf-list-h: root.moving ? root.leaf-rest-h
+    property <length> front-list-h: root.shifting ? root.front-rest-h
+        : max(0px, root.height - root.panel-pad - root.front-back-h);
+    property <length> leaf-list-h: root.shifting ? root.leaf-rest-h
         : max(0px, root.height - root.panel-pad - root.row-h);
     /// The same once the panel has finished moving (see `rest-height` on the
     /// list).
     property <length> front-rest-h: min(root.front-natural,
-        max(0px, root.panel-max-h - root.panel-pad));
+        max(0px, root.panel-max-h - root.panel-pad - root.front-back-h));
     property <length> leaf-rest-h: min(root.page-natural(root.leaf-page),
         max(0px, root.panel-max-h - root.panel-pad - root.row-h));
     /// The row the keyboard is on, for the page's list to bring into view.
@@ -361,10 +394,12 @@ export component SettingsPanel inherits GlassPanel {
     /// the list.
     pure function settings-row-top(page: SettingsPage, row: int) -> length {
         if (page == SettingsPage.front) {
-            // A heading over rows 0, 2 and 4, the later two after a gap.
-            return row * root.row-h + root.heading-h
-                + (row >= 2 ? root.heading-h + Rows.group-gap : 0px)
-                + (row >= 4 ? root.heading-h + Rows.group-gap : 0px);
+            // A heading over the list's rows 0, 2 and 4, the later two after
+            // a gap.
+            let at = row - root.front-from;
+            return at * root.row-h + root.heading-h
+                + (at >= 2 ? root.heading-h + Rows.group-gap : 0px)
+                + (at >= 4 ? root.heading-h + Rows.group-gap : 0px);
         }
         // The ambient border's switch, the sliders, then the gap and the reset.
         if (page == SettingsPage.border && row == 1) {
@@ -419,12 +454,17 @@ export component SettingsPanel inherits GlassPanel {
     /// stepper, which left and right move.
     public function activate() -> bool {
         if (root.page == SettingsPage.front) {
-            root.page = root.ring-row == 0 ? SettingsPage.video
-                : root.ring-row == 1 ? SettingsPage.episodes
-                : root.ring-row == 2 ? SettingsPage.glass
-                : root.ring-row == 3 ? SettingsPage.border
-                : root.ring-row == 4 ? SettingsPage.accessibility
-                : root.ring-row == 5 ? SettingsPage.shortcuts
+            if (root.ring-row < root.front-from) {
+                root.leave();
+                return true;
+            }
+            let at = root.ring-row - root.front-from;
+            root.page = at == 0 ? SettingsPage.video
+                : at == 1 ? SettingsPage.episodes
+                : at == 2 ? SettingsPage.glass
+                : at == 3 ? SettingsPage.border
+                : at == 4 ? SettingsPage.accessibility
+                : at == 5 ? SettingsPage.shortcuts
                 : SettingsPage.language;
             // Start at the new page's top, since the row number that opened
             // it may not exist there.
@@ -432,7 +472,7 @@ export component SettingsPanel inherits GlassPanel {
             return true;
         }
         if (root.ring-row == 0) {
-            root.page = SettingsPage.front;
+            root.back();
             return true;
         }
         if (root.page == SettingsPage.accessibility) {
@@ -481,6 +521,15 @@ export component SettingsPanel inherits GlassPanel {
             return true;
         }
         return false;
+    }
+    /// From a page to the first, or from a page opened straight from the way
+    /// in, back to the way in.
+    function back() {
+        if (root.from == SettingsFrom.way-in-page) {
+            root.leave();
+        } else {
+            root.page = SettingsPage.front;
+        }
     }
     /// Say what a settings row does beside the panel, level with it, while
     /// it is rested on (see `ParamSlider.explained`), or stop saying it.
@@ -565,7 +614,7 @@ export component SettingsPanel inherits GlassPanel {
     /// Puts a closed panel back on its front page once it has faded out, not
     /// as it closes, or the front page would slide in during the fade.
     settings-rest := Timer {
-        interval: Motion.surface;
+        interval: root.slides ? Motion.drill : Motion.surface;
         running: false;
         triggered => {
             settings-rest.stop();
@@ -637,9 +686,10 @@ export component SettingsPanel inherits GlassPanel {
     /// the pane sliding out still has to draw its page.
     property <SettingsPage> leaf-page: SettingsPage.glass;
     // Eased at both ends, since it is something moved rather than a surface
-    // fading in.
+    // fading in. Opened straight onto a page from the way in, that page is
+    // where it starts, with no first page to slide past.
     animate drill {
-        duration: Motion.drill;
+        duration: root.from == SettingsFrom.way-in-page ? 0ms : Motion.drill;
         easing: ease-in-out;
     }
     /// Between the front page and one behind it. Both then hang from the
@@ -647,20 +697,28 @@ export component SettingsPanel inherits GlassPanel {
     /// their rows move only sideways while the panel's top uncovers or
     /// covers them. At rest they hang from the top, where both ways agree.
     property <bool> moving: root.drill > 0.0 && root.drill < 1.0;
+    /// Moving either way: between two pages, or in from the way in. Each page
+    /// then keeps its height at rest and hangs from the edge that stays put:
+    /// the bottom, over the bar, or centred, the middle.
+    property <bool> shifting: root.moving || (root.slide > 0 && root.slide < 1);
 
     /// The page, unconstrained: the front list, or a page's way back and
     /// what is under it. From row counts (see `page-natural`).
-    out property <length> body: root.page == SettingsPage.front ? root.front-natural
+    out property <length> body: root.page == SettingsPage.front
+        ? root.front-back-h + root.front-natural
         : root.row-h + root.page-natural(root.page);
 
     // The page it is on and the page it is going to, side by side, both
     // placed by `drill`. At rest `drill` is exactly 0 or 1, so only the
     // page showing is built.
     if root.drill < 1.0: Rectangle {
-        x: -root.drill * parent.width;
+        x: (1.0 - root.slide - root.drill) * parent.width;
         width: parent.width;
-        height: root.moving ? root.panel-pad + root.front-list-h : parent.height;
-        y: root.moving ? parent.height - self.height : 0;
+        height: root.shifting
+            ? root.panel-pad + root.front-back-h + root.front-list-h : parent.height;
+        y: !root.shifting ? 0
+            : root.centred ? (parent.height - self.height) / 2
+            : parent.height - self.height;
 
         VerticalLayout {
             padding-top: Panels.pad;
@@ -669,10 +727,19 @@ export component SettingsPanel inherits GlassPanel {
             // height animates.
             alignment: start;
 
+            if root.front-from > 0: BackRow {
+                label: @tr("SETTINGS");
+                focused: root.open && root.ring-row == 0;
+                back => {
+                    root.leave();
+                }
+            }
+
             ScrollList {
                 height: root.front-list-h;
-                // Nothing heads it, so it runs on to the panel's top edge.
-                reach-top: Panels.pad;
+                // With nothing heading it, it runs on to the panel's top edge;
+                // under the way back, it stops there.
+                reach-top: root.front-from > 0 ? 0px : Panels.pad;
                 rest-height: root.front-rest-h;
                 content-height: root.front-natural;
                 init => {
@@ -693,7 +760,7 @@ export component SettingsPanel inherits GlassPanel {
                 DrillRow {
                     icon: @image-url("../../../public/icons/video.svg");
                     label: @tr("Video");
-                    focused: root.open && root.ring-row == 0;
+                    focused: root.open && root.ring-row == root.front-from + 0;
                     opened => {
                         root.page = SettingsPage.video;
                     }
@@ -703,7 +770,7 @@ export component SettingsPanel inherits GlassPanel {
                 DrillRow {
                     icon: @image-url("../../../public/icons/episodes.svg");
                     label: @tr("Episodes");
-                    focused: root.open && root.ring-row == 1;
+                    focused: root.open && root.ring-row == root.front-from + 1;
                     opened => {
                         root.page = SettingsPage.episodes;
                     }
@@ -720,7 +787,7 @@ export component SettingsPanel inherits GlassPanel {
                 DrillRow {
                     icon: @image-url("../../../public/icons/glass.svg");
                     label: @tr("Liquid glass");
-                    focused: root.open && root.ring-row == 2;
+                    focused: root.open && root.ring-row == root.front-from + 2;
                     opened => {
                         root.page = SettingsPage.glass;
                     }
@@ -732,7 +799,7 @@ export component SettingsPanel inherits GlassPanel {
                         ? @image-url("../../../public/icons/ambience-on.svg")
                         : @image-url("../../../public/icons/ambience-off.svg");
                     label: @tr("Ambient border");
-                    focused: root.open && root.ring-row == 3;
+                    focused: root.open && root.ring-row == root.front-from + 3;
                     opened => {
                         root.page = SettingsPage.border;
                     }
@@ -749,7 +816,7 @@ export component SettingsPanel inherits GlassPanel {
                 DrillRow {
                     icon: @image-url("../../../public/icons/accessibility.svg");
                     label: @tr("Accessibility");
-                    focused: root.open && root.ring-row == 4;
+                    focused: root.open && root.ring-row == root.front-from + 4;
                     opened => {
                         root.page = SettingsPage.accessibility;
                     }
@@ -757,7 +824,7 @@ export component SettingsPanel inherits GlassPanel {
                 DrillRow {
                     icon: @image-url("../../../public/icons/shortcuts.svg");
                     label: @tr("Shortcuts");
-                    focused: root.open && root.ring-row == 5;
+                    focused: root.open && root.ring-row == root.front-from + 5;
                     opened => {
                         root.page = SettingsPage.shortcuts;
                     }
@@ -765,7 +832,7 @@ export component SettingsPanel inherits GlassPanel {
                 DrillRow {
                     icon: @image-url("../../../public/icons/language.svg");
                     label: @tr("Language");
-                    focused: root.open && root.ring-row == 6;
+                    focused: root.open && root.ring-row == root.front-from + 6;
                     opened => {
                         root.page = SettingsPage.language;
                     }
@@ -775,11 +842,13 @@ export component SettingsPanel inherits GlassPanel {
     }
 
     if root.drill > 0.0: Rectangle {
-        x: (1.0 - root.drill) * parent.width;
+        x: (2.0 - root.slide - root.drill) * parent.width;
         width: parent.width;
-        height: root.moving ? root.panel-pad + root.row-h + root.leaf-list-h
+        height: root.shifting ? root.panel-pad + root.row-h + root.leaf-list-h
             : parent.height;
-        y: root.moving ? parent.height - self.height : 0;
+        y: !root.shifting ? 0
+            : root.centred ? (parent.height - self.height) / 2
+            : parent.height - self.height;
 
         VerticalLayout {
             padding-top: Panels.pad;
@@ -799,7 +868,7 @@ export component SettingsPanel inherits GlassPanel {
                     label: @tr("LIQUID GLASS");
                     focused: root.ring-row == 0;
                     back => {
-                        root.page = SettingsPage.front;
+                        root.back();
                     }
                 }
                 ScrollList {
@@ -859,7 +928,7 @@ export component SettingsPanel inherits GlassPanel {
                     label: @tr("AMBIENT BORDER");
                     focused: root.ring-row == 0;
                     back => {
-                        root.page = SettingsPage.front;
+                        root.back();
                     }
                 }
                 ScrollList {
@@ -934,7 +1003,7 @@ export component SettingsPanel inherits GlassPanel {
                     label: @tr("ACCESSIBILITY");
                     focused: root.ring-row == 0;
                     back => {
-                        root.page = SettingsPage.front;
+                        root.back();
                     }
                 }
                 ScrollList {
@@ -1039,7 +1108,7 @@ export component SettingsPanel inherits GlassPanel {
                     label: @tr("VIDEO");
                     focused: root.ring-row == 0;
                     back => {
-                        root.page = SettingsPage.front;
+                        root.back();
                     }
                 }
                 ScrollList {
@@ -1143,7 +1212,7 @@ export component SettingsPanel inherits GlassPanel {
                     label: @tr("EPISODES");
                     focused: root.ring-row == 0;
                     back => {
-                        root.page = SettingsPage.front;
+                        root.back();
                     }
                 }
                 ScrollList {
@@ -1210,7 +1279,7 @@ export component SettingsPanel inherits GlassPanel {
                     label: @tr("LANGUAGE");
                     focused: root.ring-row == 0;
                     back => {
-                        root.page = SettingsPage.front;
+                        root.back();
                     }
                 }
                 ScrollList {
@@ -1271,7 +1340,7 @@ export component SettingsPanel inherits GlassPanel {
                     label: @tr("SHORTCUTS");
                     focused: root.ring-row == 0;
                     back => {
-                        root.page = SettingsPage.front;
+                        root.back();
                     }
                 }
                 ScrollList {

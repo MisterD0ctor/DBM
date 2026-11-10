@@ -1251,3 +1251,7 @@ msgstr "Pular todos os créditos"
 msgctxt "WayIn"
 msgid "CONTINUE WATCHING"
 msgstr "CONTINUAR ASSISTINDO"
+
+msgctxt "SettingsPanel"
+msgid "SETTINGS"
+msgstr "CONFIGURAÇÕES"

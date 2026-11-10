@@ -1250,3 +1250,7 @@ msgstr "Alle aftitelingen overslaan"
 msgctxt "WayIn"
 msgid "CONTINUE WATCHING"
 msgstr "VERDER KIJKEN"
+
+msgctxt "SettingsPanel"
+msgid "SETTINGS"
+msgstr "INSTELLINGEN"

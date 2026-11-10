@@ -5,11 +5,12 @@ use std::time::Duration;
 use dbm_mpv::Reader;
 use dbm_mpv::prop::{self, TrackChoice};
 use dbm_mpv::tracks::TrackId;
-use slint::{ComponentHandle, Model};
+use slint::platform::Key;
+use slint::{ComponentHandle, Model, SharedString};
 
 use super::drive::chord;
 use super::script::{self, Beat, Script, Verdict};
-use crate::{MainWindow, Motion, Playback, Settings, Subtitles};
+use crate::{MainWindow, Motion, Playback, Playlist, Settings, SettingsPage, Subtitles};
 
 /// Walk the keyboard into a panel and down it, with real key events.
 ///
@@ -458,5 +459,141 @@ pub(super) fn wake_test(ui: &MainWindow) -> Script {
                 ui.get_settings_open(),
             );
         }
+    })
+}
+
+/// The settings opened on an empty window, which take the way in's place
+/// rather than hanging from a bar that isn't there, and give it back: by S,
+/// by the way in's rows and by ?, back by Escape and by Left, with the ring
+/// going back to the row they came from.
+///
+/// Starts with no file. Its value names one, opened at the end: a film
+/// arriving while the settings are up leaves them where they are.
+pub(super) fn way_in_test(ui: &MainWindow) -> Script {
+    let film = std::env::var("DBM_WAY_IN_TEST").unwrap_or_default();
+    script::run(ui, move |ui| async move {
+        let verdict = Verdict::new("way in");
+        let playback = ui.global::<Playback>();
+        Beat::new(Duration::from_millis(1500)).next().await;
+        let key = |text: SharedString| chord(&ui, &[], &text);
+        let typed = |text: &str| key(SharedString::from(text));
+        let press = |k: Key| key(SharedString::from(k));
+        let width = || {
+            let size = ui.window().size();
+            size.to_logical(ui.window().scale_factor()).width
+        };
+        let centred = || {
+            let middle = f32::midpoint(ui.get_panel_left(), ui.get_panel_right());
+            (middle - width() / 2.0).abs() < 1.0
+        };
+        let at = |drill: f32| (ui.get_way_in_drill() - drill).abs() < 0.001;
+        let ring_to = |row: i32| {
+            for _ in 0..6 {
+                if ui.get_focus_row() == row {
+                    break;
+                }
+                press(Key::DownArrow);
+            }
+        };
+
+        verdict.check(!playback.get_has_file(), "the window starts empty");
+        typed("s");
+        verdict
+            .expect(
+                || ui.get_settings_open() && at(1.0),
+                "S brings the settings in from the side",
+            )
+            .await;
+        verdict.check(centred(), "where the way in stood, in the middle");
+        verdict.check(
+            ui.get_settings_page() == SettingsPage::Front && ui.get_focus_row() == 0,
+            "with the ring on their way back",
+        );
+        press(Key::DownArrow);
+        press(Key::Return);
+        verdict
+            .expect(
+                || ui.get_settings_page() == SettingsPage::Video,
+                "their first page leads on as before",
+            )
+            .await;
+        press(Key::Escape);
+        verdict
+            .expect(
+                || ui.get_settings_open() && ui.get_settings_page() == SettingsPage::Front,
+                "Escape goes back a page",
+            )
+            .await;
+        press(Key::Escape);
+        verdict
+            .expect(
+                || !ui.get_settings_open() && at(0.0),
+                "and from the first, back to the way in",
+            )
+            .await;
+
+        // No films to continue on a fresh window: the two ways to open,
+        // then Settings and Shortcuts.
+        ring_to(2);
+        press(Key::Return);
+        verdict
+            .expect(
+                || ui.get_settings_open() && at(1.0),
+                "Enter on Settings brings them in",
+            )
+            .await;
+        press(Key::Escape);
+        verdict
+            .expect(
+                || !ui.get_settings_open() && at(0.0) && ui.get_focus_row() == 2,
+                "and Escape back to Settings, the row they came from",
+            )
+            .await;
+        ring_to(3);
+        press(Key::RightArrow);
+        verdict
+            .expect(
+                || ui.get_settings_open() && ui.get_settings_page() == SettingsPage::Shortcuts,
+                "Right on Shortcuts goes straight to them",
+            )
+            .await;
+        press(Key::LeftArrow);
+        verdict
+            .expect(
+                || !ui.get_settings_open() && at(0.0) && ui.get_focus_row() == 3,
+                "and Left straight back to the way in",
+            )
+            .await;
+        typed("?");
+        verdict
+            .expect(
+                || ui.get_settings_page() == SettingsPage::Shortcuts && at(1.0),
+                "? brings the shortcuts in the same way",
+            )
+            .await;
+        press(Key::Escape);
+        verdict
+            .expect(
+                || !ui.get_settings_open() && at(0.0),
+                "and Escape takes them back",
+            )
+            .await;
+
+        typed("s");
+        verdict.expect(|| at(1.0), "the settings in again").await;
+        ui.global::<Playlist>()
+            .invoke_open_path(film.as_str().into(), false);
+        verdict
+            .expect_after(2.0, || playback.get_has_file(), "a film opens behind them")
+            .await;
+        verdict.check(
+            ui.get_settings_open() && centred(),
+            "and leaves them where they are",
+        );
+        press(Key::Escape);
+        verdict
+            .expect(|| !ui.get_settings_open(), "Escape still closes them")
+            .await;
+        verdict.finish();
     })
 }
